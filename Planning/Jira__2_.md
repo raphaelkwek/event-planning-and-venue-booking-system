@@ -18,6 +18,107 @@ If a *Find* string does not match exactly, stop and report that item rather than
 
 ---
 
+## 0. RECTIFICATION — gaps from the 2026-09-15 pass
+
+**For:** Rovo agent
+**Scope:** 1 missed edit, 2 missed links. Items 1–23 below were reported applied and verified against the report — do not re-run them. Apply only the two items in this section.
+
+### 0a. R1 — Browse events open for registration (missed entirely)
+
+**REPLACE LINE**
+
+*Find:* `Each entry shows event name, description, date, start and end time, venue name and location, and — when a registration capacity is set — the number of places remaining.`
+
+*Replace:* `Each entry shows event name, description, date, start and end time, venue name and location, and the number of places remaining, derived from the capacity of the booked venue for the booked layout (R2).`
+
+### 0b. F5 — Confirm an event only when venue and equipment are ready (links incomplete)
+
+Only the F1↔F5 "relates to" link was created in the prior pass. F5 must also relate to M1 and Q1:
+
+**LINK:** add "relates to" F5 ↔ M1
+**LINK:** add "relates to" F5 ↔ Q1
+
+**Report back:** confirm the R1 *Find* string matched, and confirm both new F5 links now exist.
+
+### 0c. RENAME — legacy ticket number on the T2 story issue (SPM-61)
+
+**For:** Rovo agent
+**Scope:** 1 summary rename (punctuation only).
+
+SPM-61 is a **Story** issue (same issue type as A1–T2, F4, F5, L3, R6, R7) — it is the real T2 backlog item, not a test case, so it keeps the plain `<code> — <title>` form. Only the dash needs fixing, to the em dash used everywhere else:
+
+| Issue | Current summary | New summary |
+|---|---|---|
+| SPM-61 | `T2 - Read and manage my notifications` | `T2 — Read and manage my notifications` |
+
+### 0d. RENAME — test-case issues, legacy numbers plus story-code collision (SPM-86–107)
+
+**For:** Rovo agent
+**Scope:** 22 summary renames. No description, status, or field changes — summary text only.
+
+SPM-86–107 are **Test** issues (distinct issue type from the Story issues above), each exercising one story. Simply renaming them to the bare story code (`A1 — …`) would make a test case's summary indistinguishable from the real story's — exactly the mix-up we're trying to remove. Use `<code>-T<n> — <existing suffix>`, where `<n>` numbers each story's test cases in order of appearance (most stories have only one, so most become `-T1`):
+
+| Issue | Current summary | New summary |
+|---|---|---|
+| SPM-86 | `SPM-11: Valid login (Organiser)` | `A1-T1 — Valid login (Organiser)` |
+| SPM-87 | `SPM-11: Invalid credentials` | `A1-T2 — Invalid credentials` |
+| SPM-88 | `SPM-11: Deactivated account` | `A1-T3 — Deactivated account` |
+| SPM-89 | `SPM-12: Unpermitted role access` | `A2-T1 — Unpermitted role access` |
+| SPM-90 | `SPM-13: Coordinator sees all events` | `A3-T1 — Coordinator sees all events` |
+| SPM-91 | `SPM-14: Successful submission` | `B1-T1 — Successful submission` |
+| SPM-92 | `SPM-15: Registration capacity derived` | `B2-T1 — Registration capacity derived` |
+| SPM-93 | `SPM-15: Mandatory equipment flag` | `B2-T2 — Mandatory equipment flag` |
+| SPM-94 | `SPM-16: Save draft (name only)` | `C1-T1 — Save draft (name only)` |
+| SPM-95 | `SPM-17: Submit from draft` | `C2-T1 — Submit from draft` |
+| SPM-96 | `SPM-18: Distinguish draft vs submitted` | `C3-T1 — Distinguish draft vs submitted` |
+| SPM-97 | `SPM-19: Open request (Submitted → Under Review)` | `D1-T1 — Open request (Submitted → Under Review)` |
+| SPM-98 | `SPM-20: Request clarification (mandatory message)` | `D2-T1 — Request clarification (mandatory message)` |
+| SPM-99 | `SPM-21: Respond to clarification` | `D3-T1 — Respond to clarification` |
+| SPM-100 | `SPM-22: Approve request` | `D4-T1 — Approve request` |
+| SPM-101 | `SPM-23: Reject request (mandatory reason)` | `D5-T1 — Reject request (mandatory reason)` |
+| SPM-102 | `SPM-24: Automatic assignment` | `E1-T1 — Automatic assignment` |
+| SPM-103 | `SPM-24: No eligible coordinator fallback` | `E1-T2 — No eligible coordinator fallback` |
+| SPM-104 | `SPM-25: Propose reassignment` | `E2-T1 — Propose reassignment` |
+| SPM-105 | `SPM-25: Accept reassignment` | `E2-T2 — Accept reassignment` |
+| SPM-106 | `SPM-25: Decline reassignment` | `E2-T3 — Decline reassignment` |
+| SPM-107 | `SPM-25: Multiple pending proposals` | `E2-T4 — Multiple pending proposals` |
+
+**Report back:** confirm all 22 renames applied, and flag any summary that no longer matched the "Current summary" text above.
+
+### 0e. CONFIRM BEFORE RENAMING — shared service test subtasks (SPM-82–85)
+
+These are also Test-type issues, but each exercises more than one story, so they don't take a specific story code. Tag them to their **parent feature letter only, no story number** — `<letter>-T<n>`, numbered as its own sequence separate from that letter's per-story tests in 0d. **Do not rename without confirmation** — proposed tags for the Scrum Master to approve or override:
+
+| Issue | Current summary | Proposed | Rationale |
+|---|---|---|---|
+| SPM-82 | `Venue Service: capacity lookup (booked venue + layout)` | `R-T1 — Venue Service: capacity lookup (booked venue + layout)` | Feeds R1, R2, R7 — Feature 18, Attendee Registration; not specific to one of them |
+| SPM-83 | `Equipment Service: readiness flag (equipment required incl. none)` | `F-T1 — Equipment Service: readiness flag (equipment required incl. none)` | Feeds F5 and B2 — primarily Feature 6, Event Status Management |
+| SPM-84 | `Identity Service: eligible coordinator pool API` | `E-T1 — Identity Service: eligible coordinator pool API` | Feature 5, Coordinator Assignment — feeds E1 |
+| SPM-85 | `Identity Service: coordinator role check API (for reassignment nominee)` | `E-T2 — Identity Service: coordinator role check API (for reassignment nominee)` | Feature 5, Coordinator Assignment — feeds E2 |
+
+### 0f. RENAME — CONFIRMED, apply now (SPM-82–85)
+
+**For:** Rovo agent
+**Scope:** 4 summary renames. No description, status, or field changes — summary text only.
+
+The Scrum Master has confirmed the proposal in 0e. SPM-82–85 were left untouched in the prior pass because that section was a confirmation gate, not an instruction to apply — apply it now:
+
+| Issue | Current summary | New summary |
+|---|---|---|
+| SPM-82 | `Venue Service: capacity lookup (booked venue + layout)` | `R-T1 — Venue Service: capacity lookup (booked venue + layout)` |
+| SPM-83 | `Equipment Service: readiness flag (equipment required incl. none)` | `F-T1 — Equipment Service: readiness flag (equipment required incl. none)` |
+| SPM-84 | `Identity Service: eligible coordinator pool API` | `E-T1 — Identity Service: eligible coordinator pool API` |
+| SPM-85 | `Identity Service: coordinator role check API (for reassignment nominee)` | `E-T2 — Identity Service: coordinator role check API (for reassignment nominee)` |
+
+**Report back:** confirm all 4 renames applied.
+
+### 0 - 0f status:
+Rectified. See change log.
+**Timestamp:** 2026-09-15T16:30+08:00 (SGT)
+**Author:** Chai, via Claude
+
+---
+
 ## 1. A2 — Restrict functions to the roles permitted to use them
 
 **REPLACE LINE** (user story)
