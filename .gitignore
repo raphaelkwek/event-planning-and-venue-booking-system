@@ -8,6 +8,11 @@ node_modules/
 # Superpowers subagent-driven-development scratch workspaces
 .superpowers/
 
+# Node / ConnectSphere services
+node_modules/
+coverage/
+*.tsbuildinfo
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]

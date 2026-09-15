@@ -17,59 +17,59 @@
     {
       "id": 2,
       "subject": "Task 3: Identity service scaffold",
-      "status": "pending",
+      "status": "completed",
       "blockedBy": [1],
       "description": "**Goal:** A runnable Express service with config loading, structured logging, a Postgres client, JWT verification middleware, and health endpoints.\n\n**Files:**\n- Create: `services/identity/package.json`, `tsconfig.json`, `vitest.config.ts`, `Dockerfile`\n- Create: `services/identity/src/config.ts`, `logger.ts`, `db.ts`, `auth/verifyJwt.ts`, `api/health.ts`, `index.ts`\n- Test: `services/identity/tests/health.test.ts`\n\n**Acceptance Criteria:**\n- GET /healthz returns 200 with no dependencies\n- GET /readyz returns 200 when Postgres reachable, 503 otherwise\n- Missing required env vars throw a clear error at startup\n- Every request gets an x-correlation-id on response header and completion log line\n\n**Verify:** `npm test -w @connectsphere/identity-service -- tests/health.test.ts` → 2 passed. See plan doc Task 3 for full code.\n\n```json:metadata\n{\"files\": [\"services/identity/package.json\", \"services/identity/tsconfig.json\", \"services/identity/vitest.config.ts\", \"services/identity/Dockerfile\", \"services/identity/src/config.ts\", \"services/identity/src/logger.ts\", \"services/identity/src/db.ts\", \"services/identity/src/auth/verifyJwt.ts\", \"services/identity/src/api/health.ts\", \"services/identity/src/index.ts\", \"services/identity/tests/health.test.ts\"], \"verifyCommand\": \"npm test -w @connectsphere/identity-service -- tests/health.test.ts\", \"acceptanceCriteria\": [\"GET /healthz returns 200\", \"GET /readyz returns 200 when DB reachable, 503 otherwise\", \"missing required env var throws at startup\", \"every request gets x-correlation-id\"], \"modelTier\": \"mechanical\"}\n```"
     },
     {
       "id": 3,
       "subject": "Task 4: Domain - login outcome policy (A1)",
-      "status": "pending",
+      "status": "completed",
       "blockedBy": [2],
       "description": "**Goal:** A pure function deciding SUCCESS / INVALID_CREDENTIALS / DEACTIVATED_ACCOUNT, decoupled from HTTP and the database.\n\n**Files:**\n- Create: `services/identity/src/domain/loginPolicy.ts`\n- Test: `services/identity/tests/domain/loginPolicy.test.ts`\n\n**Acceptance Criteria:**\n- Deactivated account produces a decision distinct from invalid credentials (A1 AC3)\n- No matching identity record treated the same as invalid credentials, not a distinguishable third case\n- 100% branch coverage of this file\n\n**Verify:** `npm test -w @connectsphere/identity-service -- tests/domain/loginPolicy.test.ts` → 4 passed, no DB required. See plan doc Task 4 for full code.\n\n```json:metadata\n{\"files\": [\"services/identity/src/domain/loginPolicy.ts\", \"services/identity/tests/domain/loginPolicy.test.ts\"], \"verifyCommand\": \"npm test -w @connectsphere/identity-service -- tests/domain/loginPolicy.test.ts\", \"acceptanceCriteria\": [\"deactivated distinguishable from invalid credentials\", \"missing identity record treated as invalid credentials, not a third case\", \"100% branch coverage\"], \"modelTier\": \"mechanical\"}\n```"
     },
     {
       "id": 4,
       "subject": "Task 5: Repo - users and login_audit (A1)",
-      "status": "pending",
+      "status": "completed",
       "blockedBy": [2],
       "description": "**Goal:** Parameterised SQL queries for looking up a user by Supabase id, reading their role, recording last-login, and writing login audit rows.\n\n**Files:**\n- Create: `services/identity/src/repo/users.ts`, `loginAudit.ts`\n- Test: `services/identity/tests/repo/users.test.ts`, `loginAudit.test.ts`\n\n**Acceptance Criteria:**\n- findUserBySupabaseId returns null for unknown id, never throws\n- recordSuccessfulLogin writes exactly the passed timestamp\n- insertLoginAudit accepts a null userId\n- No read-then-write race on a contended row (not applicable here, these aren't contended resources)\n\n**Verify:** `supabase start` running and Task 2's migration applied, then `npm test -w @connectsphere/identity-service -- tests/repo` → all passed. See plan doc Task 5 for full code.\n\n```json:metadata\n{\"files\": [\"services/identity/src/repo/users.ts\", \"services/identity/src/repo/loginAudit.ts\", \"services/identity/tests/repo/users.test.ts\", \"services/identity/tests/repo/loginAudit.test.ts\"], \"verifyCommand\": \"npm test -w @connectsphere/identity-service -- tests/repo\", \"acceptanceCriteria\": [\"findUserBySupabaseId returns null for unknown id\", \"recordSuccessfulLogin writes the exact passed timestamp\", \"insertLoginAudit accepts null userId\"], \"modelTier\": \"mechanical\"}\n```"
     },
     {
       "id": 5,
       "subject": "Task 6: API - POST /auth/login and /logout (A1)",
-      "status": "pending",
+      "status": "completed",
       "blockedBy": [3, 4],
       "description": "**Goal:** The full login/logout HTTP flow, wiring Supabase Auth's password grant, the login policy, and the repo layer together.\n\n**Files:**\n- Create: `services/identity/src/auth/supabaseAuthClient.ts`, `api/auth.ts`\n- Modify: `services/identity/src/index.ts` (mount authRouter)\n- Test: `services/identity/tests/api/auth.test.ts`\n\n**Acceptance Criteria:**\n- Wrong email and wrong password both produce 401 with the literal message 'email or password is incorrect'\n- Deactivated account produces distinguishable 403 ACCOUNT_DEACTIVATED, not 401\n- Success response includes { user: { id, email, role }, lastLoginAt }\n- Any failure leaves identity.users.last_login_at unchanged\n- POST /api/v1/auth/logout revokes the session at Supabase Auth and returns 204\n\n**Verify:** `npm test -w @connectsphere/identity-service -- tests/api/auth.test.ts` → all passed. See plan doc Task 6 for full code.\n\n```json:metadata\n{\"files\": [\"services/identity/src/auth/supabaseAuthClient.ts\", \"services/identity/src/api/auth.ts\", \"services/identity/src/index.ts\", \"services/identity/tests/api/auth.test.ts\"], \"verifyCommand\": \"npm test -w @connectsphere/identity-service -- tests/api/auth.test.ts\", \"acceptanceCriteria\": [\"wrong email and wrong password both give the identical message\", \"deactivated account gives a distinguishable 403\", \"success returns user+role+lastLoginAt\", \"failed attempt leaves last_login_at unchanged\", \"logout calls revokeSession and returns 204\"], \"modelTier\": \"standard\"}\n```"
     },
     {
       "id": 6,
       "subject": "Task 7: Contracts - AccessScope shared type (A3)",
-      "status": "pending",
+      "status": "completed",
       "blockedBy": [0],
       "description": "**Goal:** A shared, versionable AccessScope type and zod schema in /packages/contracts, consumable by every future service's repo layer.\n\n**Files:**\n- Create: `packages/contracts/package.json`, `tsconfig.json`, `vitest.config.ts`, `src/accessScope.ts`, `src/index.ts`\n- Test: `packages/contracts/tests/accessScope.test.ts`\n\n**Acceptance Criteria:**\n- Every scope variant in A3's ACs (organiser, coordinator, venue staff, tech support, attendee, none) has a corresponding scopeType\n- Unknown scopeType fails validation\n- OWNED_BY_USER requires a userId; validation fails without one\n\n**Verify:** `npm test -w @connectsphere/contracts` → all passed. See plan doc Task 7 for full code. NOTE: flag this file for review by another service owner before merge (implementation.md §2 — shared contract).\n\n```json:metadata\n{\"files\": [\"packages/contracts/package.json\", \"packages/contracts/tsconfig.json\", \"packages/contracts/vitest.config.ts\", \"packages/contracts/src/accessScope.ts\", \"packages/contracts/src/index.ts\", \"packages/contracts/tests/accessScope.test.ts\"], \"verifyCommand\": \"npm test -w @connectsphere/contracts\", \"acceptanceCriteria\": [\"every A3 scope variant has a scopeType\", \"unknown scopeType rejected\", \"OWNED_BY_USER requires userId\"], \"modelTier\": \"mechanical\"}\n```"
     },
     {
       "id": 7,
       "subject": "Task 8: Domain - access scope resolution (A3)",
-      "status": "pending",
+      "status": "completed",
       "blockedBy": [2, 6],
       "description": "**Goal:** A pure function resolving the AccessScope rule for a given role and resource, covering every AC bullet in A3.\n\n**Files:**\n- Create: `services/identity/src/domain/accessScope.ts`\n- Test: `services/identity/tests/domain/accessScope.test.ts`\n\n**Acceptance Criteria:**\n- Organiser + events -> OWNED_BY_USER (AC1)\n- Coordinator + events -> ALL, not filtered by assignment (AC2)\n- Venue Staff + venue_bookings -> STAFF_OWNED_VENUES (AC3)\n- Tech Support + equipment_requests -> STAFF_OWNED_EQUIPMENT (AC4)\n- Attendee + events -> PUBLISHED_OPEN_REGISTRATION (AC5)\n- Any uncovered role/resource combination returns NONE, never ALL\n\n**Verify:** `npm test -w @connectsphere/identity-service -- tests/domain/accessScope.test.ts` → all passed. See plan doc Task 8 for full code.\n\n```json:metadata\n{\"files\": [\"services/identity/src/domain/accessScope.ts\", \"services/identity/tests/domain/accessScope.test.ts\"], \"verifyCommand\": \"npm test -w @connectsphere/identity-service -- tests/domain/accessScope.test.ts\", \"acceptanceCriteria\": [\"every A3 role/resource pair maps to the right scopeType\", \"unmatched role/resource defaults to NONE, not ALL\"], \"modelTier\": \"mechanical\"}\n```"
     },
     {
       "id": 8,
       "subject": "Task 9: API - GET /access-scope/:resource (A3)",
-      "status": "pending",
+      "status": "completed",
       "blockedBy": [7],
       "description": "**Goal:** The HTTP endpoint other services will call synchronously to resolve role and scope (plan.md §5).\n\n**Files:**\n- Create: `services/identity/src/api/accessScope.ts`\n- Modify: `services/identity/src/index.ts` (mount accessScopeRouter)\n- Test: `services/identity/tests/api/accessScope.test.ts`\n\n**Acceptance Criteria:**\n- Requires a valid JWT (401 otherwise)\n- Inactive or unknown user gets 401, not a scope for a deleted identity\n- Unrecognised :resource gets 400 UNKNOWN_RESOURCE, not a silent NONE\n- Response shape is { scope: AccessScope }, matching packages/contracts\n\n**Verify:** `npm test -w @connectsphere/identity-service -- tests/api/accessScope.test.ts` → all passed. See plan doc Task 9 for full code.\n\n```json:metadata\n{\"files\": [\"services/identity/src/api/accessScope.ts\", \"services/identity/src/index.ts\", \"services/identity/tests/api/accessScope.test.ts\"], \"verifyCommand\": \"npm test -w @connectsphere/identity-service -- tests/api/accessScope.test.ts\", \"acceptanceCriteria\": [\"requires a valid JWT\", \"inactive/unknown user gets 401\", \"unrecognised resource gets 400 UNKNOWN_RESOURCE\", \"response shape is { scope: AccessScope }\"], \"modelTier\": \"standard\"}\n```"
     },
     {
       "id": 9,
       "subject": "Task 10: Traceability, dev docs, wrap-up",
-      "status": "pending",
+      "status": "completed",
       "blockedBy": [5, 8],
       "description": "**Goal:** Close the Definition of Done loop — traceability rows, a runnable dev-setup doc, and Node-specific ignores.\n\n**Files:**\n- Create: `packages/testkit/sprint-1/traceability.csv`\n- Modify: `README.md` (append 'Local development')\n- Modify: `.gitignore` (append Node ignores)\n\n**Acceptance Criteria:**\n- Every A1 and A3 acceptance criterion has at least one traceability row pointing at a real test file and test name\n- README documents the full path from a clean checkout to a passing npm test --workspaces\n- .gitignore excludes node_modules, build output, and .env\n\n**Verify:** `npm test --workspaces` → all suites green; `git log --oneline -10` shows one commit per task. See plan doc Task 10 for full CSV/doc content.\n\n```json:metadata\n{\"files\": [\"packages/testkit/sprint-1/traceability.csv\", \"README.md\", \".gitignore\"], \"verifyCommand\": \"npm test --workspaces\", \"acceptanceCriteria\": [\"every A1 and A3 AC has a traceability row\", \"README documents clean-checkout-to-passing-tests\", \".gitignore excludes node_modules, dist, .env\"], \"modelTier\": \"mechanical\"}\n```"
     }
   ],
-  "lastUpdated": "2026-09-15T17:20:00+08:00"
+  "lastUpdated": "2026-09-15T19:15:00+08:00"
 }
