@@ -45,31 +45,31 @@
     {
       "id": 6,
       "subject": "Task 7: Contracts - AccessScope shared type (A3)",
-      "status": "pending",
+      "status": "completed",
       "blockedBy": [0],
       "description": "**Goal:** A shared, versionable AccessScope type and zod schema in /packages/contracts, consumable by every future service's repo layer.\n\n**Files:**\n- Create: `packages/contracts/package.json`, `tsconfig.json`, `vitest.config.ts`, `src/accessScope.ts`, `src/index.ts`\n- Test: `packages/contracts/tests/accessScope.test.ts`\n\n**Acceptance Criteria:**\n- Every scope variant in A3's ACs (organiser, coordinator, venue staff, tech support, attendee, none) has a corresponding scopeType\n- Unknown scopeType fails validation\n- OWNED_BY_USER requires a userId; validation fails without one\n\n**Verify:** `npm test -w @connectsphere/contracts` → all passed. See plan doc Task 7 for full code. NOTE: flag this file for review by another service owner before merge (implementation.md §2 — shared contract).\n\n```json:metadata\n{\"files\": [\"packages/contracts/package.json\", \"packages/contracts/tsconfig.json\", \"packages/contracts/vitest.config.ts\", \"packages/contracts/src/accessScope.ts\", \"packages/contracts/src/index.ts\", \"packages/contracts/tests/accessScope.test.ts\"], \"verifyCommand\": \"npm test -w @connectsphere/contracts\", \"acceptanceCriteria\": [\"every A3 scope variant has a scopeType\", \"unknown scopeType rejected\", \"OWNED_BY_USER requires userId\"], \"modelTier\": \"mechanical\"}\n```"
     },
     {
       "id": 7,
       "subject": "Task 8: Domain - access scope resolution (A3)",
-      "status": "pending",
+      "status": "completed",
       "blockedBy": [2, 6],
       "description": "**Goal:** A pure function resolving the AccessScope rule for a given role and resource, covering every AC bullet in A3.\n\n**Files:**\n- Create: `services/identity/src/domain/accessScope.ts`\n- Test: `services/identity/tests/domain/accessScope.test.ts`\n\n**Acceptance Criteria:**\n- Organiser + events -> OWNED_BY_USER (AC1)\n- Coordinator + events -> ALL, not filtered by assignment (AC2)\n- Venue Staff + venue_bookings -> STAFF_OWNED_VENUES (AC3)\n- Tech Support + equipment_requests -> STAFF_OWNED_EQUIPMENT (AC4)\n- Attendee + events -> PUBLISHED_OPEN_REGISTRATION (AC5)\n- Any uncovered role/resource combination returns NONE, never ALL\n\n**Verify:** `npm test -w @connectsphere/identity-service -- tests/domain/accessScope.test.ts` → all passed. See plan doc Task 8 for full code.\n\n```json:metadata\n{\"files\": [\"services/identity/src/domain/accessScope.ts\", \"services/identity/tests/domain/accessScope.test.ts\"], \"verifyCommand\": \"npm test -w @connectsphere/identity-service -- tests/domain/accessScope.test.ts\", \"acceptanceCriteria\": [\"every A3 role/resource pair maps to the right scopeType\", \"unmatched role/resource defaults to NONE, not ALL\"], \"modelTier\": \"mechanical\"}\n```"
     },
     {
       "id": 8,
       "subject": "Task 9: API - GET /access-scope/:resource (A3)",
-      "status": "pending",
+      "status": "completed",
       "blockedBy": [7],
       "description": "**Goal:** The HTTP endpoint other services will call synchronously to resolve role and scope (plan.md §5).\n\n**Files:**\n- Create: `services/identity/src/api/accessScope.ts`\n- Modify: `services/identity/src/index.ts` (mount accessScopeRouter)\n- Test: `services/identity/tests/api/accessScope.test.ts`\n\n**Acceptance Criteria:**\n- Requires a valid JWT (401 otherwise)\n- Inactive or unknown user gets 401, not a scope for a deleted identity\n- Unrecognised :resource gets 400 UNKNOWN_RESOURCE, not a silent NONE\n- Response shape is { scope: AccessScope }, matching packages/contracts\n\n**Verify:** `npm test -w @connectsphere/identity-service -- tests/api/accessScope.test.ts` → all passed. See plan doc Task 9 for full code.\n\n```json:metadata\n{\"files\": [\"services/identity/src/api/accessScope.ts\", \"services/identity/src/index.ts\", \"services/identity/tests/api/accessScope.test.ts\"], \"verifyCommand\": \"npm test -w @connectsphere/identity-service -- tests/api/accessScope.test.ts\", \"acceptanceCriteria\": [\"requires a valid JWT\", \"inactive/unknown user gets 401\", \"unrecognised resource gets 400 UNKNOWN_RESOURCE\", \"response shape is { scope: AccessScope }\"], \"modelTier\": \"standard\"}\n```"
     },
     {
       "id": 9,
       "subject": "Task 10: Traceability, dev docs, wrap-up",
-      "status": "pending",
+      "status": "completed",
       "blockedBy": [5, 8],
       "description": "**Goal:** Close the Definition of Done loop — traceability rows, a runnable dev-setup doc, and Node-specific ignores.\n\n**Files:**\n- Create: `packages/testkit/sprint-1/traceability.csv`\n- Modify: `README.md` (append 'Local development')\n- Modify: `.gitignore` (append Node ignores)\n\n**Acceptance Criteria:**\n- Every A1 and A3 acceptance criterion has at least one traceability row pointing at a real test file and test name\n- README documents the full path from a clean checkout to a passing npm test --workspaces\n- .gitignore excludes node_modules, build output, and .env\n\n**Verify:** `npm test --workspaces` → all suites green; `git log --oneline -10` shows one commit per task. See plan doc Task 10 for full CSV/doc content.\n\n```json:metadata\n{\"files\": [\"packages/testkit/sprint-1/traceability.csv\", \"README.md\", \".gitignore\"], \"verifyCommand\": \"npm test --workspaces\", \"acceptanceCriteria\": [\"every A1 and A3 AC has a traceability row\", \"README documents clean-checkout-to-passing-tests\", \".gitignore excludes node_modules, dist, .env\"], \"modelTier\": \"mechanical\"}\n```"
     }
   ],
-  "lastUpdated": "2026-09-15T17:20:00+08:00"
+  "lastUpdated": "2026-09-15T19:15:00+08:00"
 }
