@@ -1,0 +1,14 @@
+services:
+  identity-service:
+    build:
+      context: .
+      dockerfile: services/identity/Dockerfile
+    env_file:
+      - .env
+    ports:
+      - "8081:8081"
+    # DATABASE_URL / SUPABASE_URL in .env must use host.docker.internal
+    # instead of 127.0.0.1 when this container talks to `supabase start`
+    # running on the host.
+
+# Add your own service here as it's built — one block per service, same shape.

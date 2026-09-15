@@ -1,0 +1,28 @@
+{
+  "name": "connectsphere",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "services/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "migrate": "tsx scripts/migrate.ts",
+    "migrate:identity": "tsx scripts/migrate.ts identity --seed",
+    "seed:auth": "tsx services/identity/migrations/seed/seed-auth-users.ts",
+    "test": "npm run test --workspaces --if-present",
+    "build": "npm run build --workspaces --if-present"
+  },
+  "dependencies": {
+    "postgres": "^3.4.4"
+  },
+  "devDependencies": {
+    "dotenv": "^16.4.5",
+    "tsx": "^4.16.2",
+    "typescript": "^5.5.3"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
