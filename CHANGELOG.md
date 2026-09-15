@@ -4,6 +4,115 @@
 
 ---
 
+# Event Service — drafts merged into the events table
+
+**Timestamp:** 2026-09-16T00:20+08:00 (SGT)
+**Author:** Seann, via Claude
+**Reason:** The separate `event_drafts` table was a wrong call, corrected. A draft is an event at
+status Draft — which is what F1's status list says by naming Draft among the ten statuses.
+
+## Changed
+
+- **Migration `0002_merge_drafts_into_events.sql`** — forward-only. Relaxes the NOT NULL columns a
+  draft may leave empty, adds `last_saved_at`, carries the existing unsubmitted drafts into
+  `event.events` at status `DRAFT`, drops `source_draft_id`, and drops `event_drafts`.
+- **Submitting a draft now updates that row in place.** It keeps its id, its history and everything
+  entered, and gains a reference and submission timestamp. Previously submission copied the draft
+  into a new `events` row, so the submitted event had a different id from the draft the organiser
+  had been working on. `converted_to_event_id` is gone with the table.
+- **`ends_after_start` and `attendance_positive` are now conditional on the status**, because C1
+  says the B2 rules are not applied on save — a draft may legitimately hold an attendance of zero.
+  A new check holds the other line: anything past Draft has a reference and a submission time.
+- **C3's list is one query instead of a `union all`.**
+
+## The one thing to watch
+
+Drafts now share a table with events, so **the A3 scope filter is what keeps a draft private**,
+where before it was the table boundary. A coordinator's scope is every event, which would have
+exposed other organisers' drafts; the filter now reads "every event, plus my own drafts". Four
+tests in `tests/api/review.test.ts` cover it — a coordinator gets `404` on someone's draft, it stays
+out of their list, opening it does not move it to Under Review, and the owner still sees their own.
+
+139 tests pass (was 134). The end-to-end smoke run against the live project was repeated.
+
+---
+
+# Event Service — B1 to D5
+
+**Timestamp:** 2026-09-15T23:40+08:00 (SGT)
+**Author:** Seann, via Claude
+**Scope:** B1, B2, C1, C2, C3, D1, D2, D3, D4, D5. E1 stubbed. Design spec in
+`docs/superpowers/specs/2026-09-15-event-service-b1-d5-design.md`.
+
+## Added
+
+**`services/event` — a new service, schema `event`, port 8082.**
+
+- **Migration** `0001_init_event_schema.sql`: `event_drafts`, `events`, `assignments`,
+  `assignment_cursor`, `status_history`, `clarifications`, `event_field_edits`, `outbox`, and an
+  `EVT-000000` reference sequence. Nothing is ever hard-deleted; a submitted draft is marked
+  converted, not removed.
+- **Domain layer** (pure, no I/O): `validation.ts` (B2, reporting *every* failing field),
+  `statusMachine.ts` (F1's permitted transitions for this slice), `assignment.ts` (E1 round-robin).
+- **Repo layer**: drafts, events, clarifications, status history, assignments. The A3 scope rule is
+  applied inside the query, so an out-of-scope event returns no row rather than a filtered result.
+- **API**: draft save/open/edit/submit (C1, C2), direct submission (B1), the combined
+  draft-and-submitted list (C3), the review queue and open-for-review (D1), clarification request
+  and response (D2, D3), approve (D4) and reject (D5).
+- **Outbox**: six event types written in the same transaction as their state change. No Kafka relay
+  runs yet, so rows accumulate unpublished — the correct resting state for a transactional outbox.
+- **Tests**: 134, all against the real database. Written test-first; every one was watched failing
+  before the code existed.
+
+**`packages/contracts`** gained `eventStatus.ts` (the ten F1 statuses), `errorCodes.ts`,
+`envelope.ts` (implementation.md §3.3), `eventEvents.ts` (six payload schemas + topic names), and
+`user.ts`.
+
+**`packages/testkit/sprint-2/traceability.csv`** — new, covering D2–D5. Sprint 1's file gained rows
+for B1–C3, D1, E1, F1 and the A2/A3 checks the Event Service enforces itself.
+
+**Deployment**: `services/event/Dockerfile`, a compose block, `.env.example` entries, a
+`migrate:event` script, README steps.
+
+## Changed
+
+- **`services/identity/src/api/usersMe.ts` — new endpoint `GET /api/v1/users/me`, in another
+  owner's service.** Raphael/whoever owns Identity should review this. It was needed because the
+  Event Service may not query `identity`'s tables (plan.md §2) and `GET /api/v1/access-scope/events`
+  returns no user id for a coordinator (`{scopeType:"ALL"}`) — but D1/D4/D5 must record *which*
+  coordinator reviewed, approved or rejected. Three tests accompany it; Identity's existing 27 tests
+  are untouched and still pass.
+
+## Decisions worth knowing
+
+- **Two tables for drafts and events**, as `plan.md` §4 lists them, rather than one table with a
+  Draft status. `events.status` still lists all ten F1 statuses for completeness, but no row is ever
+  inserted at `DRAFT`; the first history entry records `DRAFT` as the previous state.
+- **Identity owns the access-scope rule; the JWT proves the subject.** The Event Service verifies
+  the token itself (`jose` + JWKS, mirroring Identity) and then makes one synchronous call per
+  request for the caller's identity and scope — the hop `plan.md` §5 permits. `resolveAccessScope`
+  is not duplicated here. If Identity is unreachable the request is refused with `503` and nothing
+  is written, which is the CP posture `plan.md` §2 requires.
+- **`prepare: false` on the postgres client.** The hosted `DATABASE_URL` points at Supabase's
+  transaction-mode pooler, which hands a different backend to each transaction and cannot keep named
+  prepared statements alive. This surfaced only under concurrent load. `services/identity/src/db.ts`
+  does not set it and may hit the same failure — flagged, not changed, since it is another owner's
+  file.
+
+## Known gaps
+
+1. **E1 is a stub.** The eligible coordinator pool is `EVENT_COORDINATOR_POOL` in the environment,
+   not a live Identity query, because no endpoint lists active coordinators. The allocation rule
+   itself (round-robin, recorded per assignment, explainable) is real. Marked `TODO(E1)` throughout.
+2. **No Kafka relay.** Outbox rows are written correctly but nothing publishes them, and the
+   Notification service does not exist yet, so T2's records are not created downstream.
+3. **`packages/contracts` is shared** — its additions need a second service owner's review before
+   merge, per implementation.md §2.
+4. D1's "the name of that coordinator is displayed" returns the coordinator's id; resolving ids to
+   names is the SPA's job via Identity.
+
+---
+
 # Jira changes
 
 **Timestamp:** 2026-09-15T16:30+08:00 (SGT)

@@ -10,6 +10,7 @@
   "scripts": {
     "migrate": "tsx scripts/migrate.ts",
     "migrate:identity": "tsx scripts/migrate.ts identity --seed",
+    "migrate:event": "tsx scripts/migrate.ts event",
     "seed:auth": "tsx services/identity/migrations/seed/seed-auth-users.ts",
     "test": "npm run test --workspaces --if-present",
     "build": "npm run build --workspaces --if-present"

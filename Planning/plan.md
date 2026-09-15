@@ -52,13 +52,15 @@ Each service owns exactly one Postgres schema and is the only writer to it.
 | Service | Schema | Key tables |
 |---|---|---|
 | Identity | `identity` | users, user_roles, login_audit, role_policy |
-| Event | `event` | events, event_drafts, status_history, clarifications, assignments, change_requests, event_comments, attachments, outbox |
+| Event | `event` | events (drafts included, at status Draft), status_history, clarifications, event_field_edits, assignments, change_requests, event_comments, attachments, outbox |
 | Venue | `venue` | venues, venue_layouts, operating_hours, unavailability_blocks, venue_holds, booking_requests, confirmed_bookings, outbox |
 | Equipment | `equipment` | equipment_types, equipment_unavailability, request_lines, reservations, outbox |
 | Registration | `registration` | registrations, waitlist_entries, capacity_counters, open_event_projection, outbox |
 | Notification | `notification` | notifications, notification_read_state, consumed_messages |
 
 **Cross-service references are IDs only.** `venue.booking_requests.event_id` is a plain UUID with no foreign key to `event.events`. Referential integrity across services is our responsibility, not the database's.
+
+**A draft is not a separate table.** An earlier version of this list named `event_drafts`; drafts are rows in `event.events` at status Draft, which is what F1 already implies by naming Draft among the ten statuses. Submitting a draft updates that row in place, so it keeps its id and its history rather than being copied into a new one. The consequence to remember is that the A3 scope filter — not a table boundary — is what keeps a draft private to its owner (C1), so the coordinator scope reads "every event, plus my own drafts".
 
 ## 5. How services talk
 

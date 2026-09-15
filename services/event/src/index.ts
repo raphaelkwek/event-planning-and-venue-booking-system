@@ -4,9 +4,10 @@ import { config } from "./config.js";
 import { logger } from "./logger.js";
 import { sql } from "./db.js";
 import { healthRouter } from "./api/health.js";
-import { authRouter } from "./api/auth.js";
-import { accessScopeRouter } from "./api/accessScope.js";
-import { usersMeRouter } from "./api/usersMe.js";
+import { draftsRouter } from "./api/drafts.js";
+import { eventsRouter } from "./api/events.js";
+import { clarificationsRouter } from "./api/clarifications.js";
+import { decisionsRouter } from "./api/decisions.js";
 
 export const app = express();
 
@@ -29,14 +30,15 @@ app.use((req, res, next) => {
 });
 
 app.use(healthRouter(sql));
-app.use(authRouter(sql));
-app.use(accessScopeRouter(sql));
-app.use(usersMeRouter(sql));
+app.use(draftsRouter(sql));
+app.use(clarificationsRouter(sql));
+app.use(decisionsRouter(sql));
+app.use(eventsRouter(sql));
 
-// ROUTES — additional routers are mounted below this line by later tasks.
+// ROUTES — additional routers are mounted below this line.
 
 if (process.env.NODE_ENV !== "test") {
   app.listen(config.port, () => {
-    logger.info(`identity-service listening on :${config.port}`);
+    logger.info(`event-service listening on :${config.port}`);
   });
 }
