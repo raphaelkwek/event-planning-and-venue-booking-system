@@ -4,6 +4,7 @@ import { config } from "./config.js";
 import { logger } from "./logger.js";
 import { sql } from "./db.js";
 import { healthRouter } from "./api/health.js";
+import { authRouter } from "./api/auth.js";
 
 export const app = express();
 
@@ -26,6 +27,7 @@ app.use((req, res, next) => {
 });
 
 app.use(healthRouter(sql));
+app.use(authRouter(sql));
 
 // ROUTES — additional routers are mounted below this line by later tasks.
 
