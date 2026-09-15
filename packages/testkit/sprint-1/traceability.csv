@@ -1,0 +1,13 @@
+story_id,acceptance_criterion,test_file,test_name
+A1,"A user with valid credentials is authenticated and a session is created that carries their role",services/identity/tests/api/auth.test.ts,"returns the user and role on success, and records last-login"
+A1,"An incorrect email or an incorrect password is rejected with the same message",services/identity/tests/api/auth.test.ts,"gives the same message for a wrong email as for a wrong password"
+A1,"A rejection caused by a deactivated account is distinguishable from a rejection caused by wrong credentials",services/identity/tests/api/auth.test.ts,"distinguishes a deactivated account from bad credentials"
+A1,"On a failed login attempt no session is created and no last-login timestamp is recorded",services/identity/tests/api/auth.test.ts,"records no last-login timestamp on a failed attempt"
+A1,"On successful login the last-login timestamp and the authenticated user are recorded",services/identity/tests/repo/users.test.ts,"records the last-login timestamp on success"
+A1,"Logging out ends the session; navigating back to a protected page afterwards does not display any event data",services/identity/tests/api/auth.test.ts,"revokes the session and returns 204"
+A3,"An Event Organiser's event list contains only events where that organiser is the recorded owner",services/identity/tests/domain/accessScope.test.ts,"scopes an Organiser's events list to events they own (AC1)"
+A3,"An Event Coordinator's list contains all events in the system, regardless of which coordinator is assigned",services/identity/tests/domain/accessScope.test.ts,"gives a Coordinator every event, not filtered by assignment (AC2)"
+A3,"Venue Staff see booking requests and confirmed bookings for their own venues",services/identity/tests/domain/accessScope.test.ts,"scopes Venue Staff's venue bookings to their own venues (AC3)"
+A3,"Technical Support Staff see equipment requests and reservations",services/identity/tests/domain/accessScope.test.ts,"scopes Tech Support's equipment requests to what they handle (AC4)"
+A3,"An Attendee sees only events with registration enabled that are open to them",services/identity/tests/domain/accessScope.test.ts,"scopes an Attendee's events list to open-for-registration only (AC5)"
+A3,"Filtering is applied when the list is retrieved, so a request for an event outside the user's relationship returns no event data at all",services/identity/tests/api/accessScope.test.ts,"resolves an Organiser's events scope to their own events"
