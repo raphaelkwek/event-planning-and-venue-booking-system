@@ -17,28 +17,28 @@
     {
       "id": 2,
       "subject": "Task 3: Identity service scaffold",
-      "status": "pending",
+      "status": "completed",
       "blockedBy": [1],
       "description": "**Goal:** A runnable Express service with config loading, structured logging, a Postgres client, JWT verification middleware, and health endpoints.\n\n**Files:**\n- Create: `services/identity/package.json`, `tsconfig.json`, `vitest.config.ts`, `Dockerfile`\n- Create: `services/identity/src/config.ts`, `logger.ts`, `db.ts`, `auth/verifyJwt.ts`, `api/health.ts`, `index.ts`\n- Test: `services/identity/tests/health.test.ts`\n\n**Acceptance Criteria:**\n- GET /healthz returns 200 with no dependencies\n- GET /readyz returns 200 when Postgres reachable, 503 otherwise\n- Missing required env vars throw a clear error at startup\n- Every request gets an x-correlation-id on response header and completion log line\n\n**Verify:** `npm test -w @connectsphere/identity-service -- tests/health.test.ts` → 2 passed. See plan doc Task 3 for full code.\n\n```json:metadata\n{\"files\": [\"services/identity/package.json\", \"services/identity/tsconfig.json\", \"services/identity/vitest.config.ts\", \"services/identity/Dockerfile\", \"services/identity/src/config.ts\", \"services/identity/src/logger.ts\", \"services/identity/src/db.ts\", \"services/identity/src/auth/verifyJwt.ts\", \"services/identity/src/api/health.ts\", \"services/identity/src/index.ts\", \"services/identity/tests/health.test.ts\"], \"verifyCommand\": \"npm test -w @connectsphere/identity-service -- tests/health.test.ts\", \"acceptanceCriteria\": [\"GET /healthz returns 200\", \"GET /readyz returns 200 when DB reachable, 503 otherwise\", \"missing required env var throws at startup\", \"every request gets x-correlation-id\"], \"modelTier\": \"mechanical\"}\n```"
     },
     {
       "id": 3,
       "subject": "Task 4: Domain - login outcome policy (A1)",
-      "status": "pending",
+      "status": "completed",
       "blockedBy": [2],
       "description": "**Goal:** A pure function deciding SUCCESS / INVALID_CREDENTIALS / DEACTIVATED_ACCOUNT, decoupled from HTTP and the database.\n\n**Files:**\n- Create: `services/identity/src/domain/loginPolicy.ts`\n- Test: `services/identity/tests/domain/loginPolicy.test.ts`\n\n**Acceptance Criteria:**\n- Deactivated account produces a decision distinct from invalid credentials (A1 AC3)\n- No matching identity record treated the same as invalid credentials, not a distinguishable third case\n- 100% branch coverage of this file\n\n**Verify:** `npm test -w @connectsphere/identity-service -- tests/domain/loginPolicy.test.ts` → 4 passed, no DB required. See plan doc Task 4 for full code.\n\n```json:metadata\n{\"files\": [\"services/identity/src/domain/loginPolicy.ts\", \"services/identity/tests/domain/loginPolicy.test.ts\"], \"verifyCommand\": \"npm test -w @connectsphere/identity-service -- tests/domain/loginPolicy.test.ts\", \"acceptanceCriteria\": [\"deactivated distinguishable from invalid credentials\", \"missing identity record treated as invalid credentials, not a third case\", \"100% branch coverage\"], \"modelTier\": \"mechanical\"}\n```"
     },
     {
       "id": 4,
       "subject": "Task 5: Repo - users and login_audit (A1)",
-      "status": "pending",
+      "status": "completed",
       "blockedBy": [2],
       "description": "**Goal:** Parameterised SQL queries for looking up a user by Supabase id, reading their role, recording last-login, and writing login audit rows.\n\n**Files:**\n- Create: `services/identity/src/repo/users.ts`, `loginAudit.ts`\n- Test: `services/identity/tests/repo/users.test.ts`, `loginAudit.test.ts`\n\n**Acceptance Criteria:**\n- findUserBySupabaseId returns null for unknown id, never throws\n- recordSuccessfulLogin writes exactly the passed timestamp\n- insertLoginAudit accepts a null userId\n- No read-then-write race on a contended row (not applicable here, these aren't contended resources)\n\n**Verify:** `supabase start` running and Task 2's migration applied, then `npm test -w @connectsphere/identity-service -- tests/repo` → all passed. See plan doc Task 5 for full code.\n\n```json:metadata\n{\"files\": [\"services/identity/src/repo/users.ts\", \"services/identity/src/repo/loginAudit.ts\", \"services/identity/tests/repo/users.test.ts\", \"services/identity/tests/repo/loginAudit.test.ts\"], \"verifyCommand\": \"npm test -w @connectsphere/identity-service -- tests/repo\", \"acceptanceCriteria\": [\"findUserBySupabaseId returns null for unknown id\", \"recordSuccessfulLogin writes the exact passed timestamp\", \"insertLoginAudit accepts null userId\"], \"modelTier\": \"mechanical\"}\n```"
     },
     {
       "id": 5,
       "subject": "Task 6: API - POST /auth/login and /logout (A1)",
-      "status": "pending",
+      "status": "completed",
       "blockedBy": [3, 4],
       "description": "**Goal:** The full login/logout HTTP flow, wiring Supabase Auth's password grant, the login policy, and the repo layer together.\n\n**Files:**\n- Create: `services/identity/src/auth/supabaseAuthClient.ts`, `api/auth.ts`\n- Modify: `services/identity/src/index.ts` (mount authRouter)\n- Test: `services/identity/tests/api/auth.test.ts`\n\n**Acceptance Criteria:**\n- Wrong email and wrong password both produce 401 with the literal message 'email or password is incorrect'\n- Deactivated account produces distinguishable 403 ACCOUNT_DEACTIVATED, not 401\n- Success response includes { user: { id, email, role }, lastLoginAt }\n- Any failure leaves identity.users.last_login_at unchanged\n- POST /api/v1/auth/logout revokes the session at Supabase Auth and returns 204\n\n**Verify:** `npm test -w @connectsphere/identity-service -- tests/api/auth.test.ts` → all passed. See plan doc Task 6 for full code.\n\n```json:metadata\n{\"files\": [\"services/identity/src/auth/supabaseAuthClient.ts\", \"services/identity/src/api/auth.ts\", \"services/identity/src/index.ts\", \"services/identity/tests/api/auth.test.ts\"], \"verifyCommand\": \"npm test -w @connectsphere/identity-service -- tests/api/auth.test.ts\", \"acceptanceCriteria\": [\"wrong email and wrong password both give the identical message\", \"deactivated account gives a distinguishable 403\", \"success returns user+role+lastLoginAt\", \"failed attempt leaves last_login_at unchanged\", \"logout calls revokeSession and returns 204\"], \"modelTier\": \"standard\"}\n```"
     },
