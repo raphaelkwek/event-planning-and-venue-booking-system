@@ -1,7 +1,7 @@
 import { config } from "./config.js";
 
 type LogFields = {
-  correlationId?: string;
+  correlationId?: string | null;
   userId?: string | null;
   route?: string;
   durationMs?: number;
