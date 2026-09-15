@@ -2,6 +2,9 @@
 .DS_Store
 **/.DS_Store
 
+# Superpowers subagent-driven-development scratch workspaces
+.superpowers/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
