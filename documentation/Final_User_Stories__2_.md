@@ -1,3 +1,15 @@
+# ConnectSphere — Final User Stories
+
+**Revision 3.** Incorporates the customer clarification set and the INVEST review. 54 stories across 20 feature areas.
+
+Markers used below: ⚠ **REVISED** — changed by a customer clarification; ⚠ **NEW** — story added after the clarifications; ⚠ **SPLIT** — story divided so each half can be finished in one sprint.
+
+Changes in this revision: T1 removed (its fifteen notification triggers are now acceptance criteria on the stories that raise them; the record and recipient rules moved to T2). F3 split into F3 and F4. F1 split into F1 and F5. L3, R6, and R7 added. Stories A2, A3, B2, E1, E2, F1, I2, R2, R4, and S3 revised. The former "Section 1" shared definitions have been inlined into the acceptance criteria that used them; the Definition of Done now lives in `implementation.md` §8.3.
+
+Sprint allocation is in `plan.md` §10 and `sprint-reallocation.csv`.
+
+---
+
 ### **Feature 1 — User Authorisation and Authentication**
 
 #### **A1 — Log in and start a role-scoped session**
@@ -15,11 +27,11 @@
 
 #### **A2 — Restrict functions to the roles permitted to use them**
 
-**User Story:** As ConnectSphere, I want every function to be restricted to the roles permitted to perform it, so that users cannot carry out actions belonging to another role.
+**User Story:** As a ConnectSphere user, I want the system to stop me performing actions that belong to another role, so that I cannot damage an event by doing something I was never meant to do.
 
 **Acceptance Criteria**
 
-* Each protected function declares the roles permitted to invoke it, and the permitted-role list is defined in one place used by both the interface and the server.  
+* Every protected function has a defined list of the roles permitted to invoke it, and the same list governs what the interface offers and what the server accepts.  
 * An attempt by a user whose role is not permitted is refused: the action does not execute, no record is created or modified, and the message states that the user's role is not authorised for that function.  
 * The refusal applies to a direct URL or API call, not only to hidden menu items.  
 * Navigation shows only the functions the signed-in user's role is permitted to use.  
@@ -32,7 +44,7 @@
 **Acceptance Criteria**
 
 * An Event Organiser's event list contains only events where that organiser is the recorded owner.  
-* An Event Coordinator's list contains events assigned to them plus the queue of submitted events not yet assigned to any coordinator.  
+* An Event Coordinator's list contains **all events in the system**, regardless of which coordinator is assigned, with the events assigned to them distinguishable from the rest. ⚠ **REVISED — coordinators can see all events**
 * Venue Staff see booking requests and confirmed bookings for their own venues, and the event details needed to assess them (name, timing, expected attendance, layout, requirements) — not the full internal event record.  
 * Technical Support Staff see equipment requests and reservations, and the event timing they depend on.  
 * An Attendee sees only events with registration enabled that are open to them, and only published fields — coordinator notes, review comments, clarification threads, and rejection reasons are excluded.  
@@ -52,6 +64,7 @@
 * On a successful submission the request is stored with status Submitted, and the submitting organiser, submission timestamp, and a unique event reference are recorded and shown to the organiser.  
 * The submitting organiser is recorded as the owner of the event.  
 * The submitted request appears in the Event Coordinator review queue.  
+* On submission the assigned coordinator (E1) is notified that a new event request is awaiting review.  
 * If submission fails validation, no event record is created, no submission timestamp is recorded, and the entered values are preserved on screen.
 
 #### **B2 — Validate an event request before it is submitted**
@@ -64,8 +77,9 @@
 * When submission is blocked, the message names every field that caused the rejection, not just the first one.  
 * The end date/time must be later than the start date/time; an equal or earlier end time is rejected and the message identifies this as the reason.  
 * The proposed start date/time must not be in the past at the moment of submission.  
-* Expected attendance must be a whole number greater than zero.  
-* When registration is required, the registration capacity and registration closing date/time are mandatory, and the closing date/time must be no later than the event start.  
+* Expected attendance must be a whole number greater than zero. It is a planning figure used for venue suitability and capacity evaluation only, and does not cap attendee registration. ⚠ **REVISED — registration is governed by venue capacity**  
+* When registration is required, the registration opening and closing date/times are mandatory, the closing must be later than the opening, and the closing must be no later than the event start. No registration capacity is entered: the cap is derived from the capacity of the booked venue for the booked layout (R2). ⚠ **REVISED**  
+* An equipment-required flag is mandatory. When it is set to "none required", that counts as a complete equipment arrangement for the purposes of confirmation (F5). ⚠ **NEW — equipment readiness gates confirmation**  
 * A blocked submission leaves the request at status Draft (or unsaved), creates no submission record, and changes no other stored value.
 
 ---
@@ -147,6 +161,7 @@
 * The organiser can reply with a message, amend the request fields, or both; a response with neither is refused and no timestamp is recorded.  
 * On response the event status returns to Under Review and the response timestamp is recorded.  
 * The values as originally submitted are retained in the event history alongside the amended values.  
+* The coordinator who requested the clarification is notified that the organiser has responded.  
 * An organiser who does not own the event cannot view or answer the clarification.
 
 #### **D4 — Approve an event request**
@@ -178,38 +193,44 @@
 
 ### **Feature 5 — Coordinator Assignment**
 
-#### **E1 — Assign an Event Coordinator to an event**
+#### **E1 — Get a named coordinator as soon as I submit**
 
-**User Story:** As an Event Coordinator, I want a submitted event to be assigned to a named coordinator, so that the organiser has one internal point of contact.
+**User Story:** As an Event Organiser, I want a coordinator assigned to my event as soon as I submit it, so that I know who to contact without waiting for someone to pick my request up. ⚠ **REVISED — assignment is automatic**
 
 **Acceptance Criteria**
 
-* Only users holding the Event Coordinator role can be selected as the assignee.  
-* Assignment is permitted for events with status Submitted, Under Review, Awaiting Clarification, Approved, or Planning.  
-* On assignment the assigned coordinator, the assigning user, and the assignment timestamp are recorded.  
+* Assignment happens automatically as part of the submission of an event request (B1); no user chooses the assignee and there is no manual assignment screen.  
+* Only active users holding the Event Coordinator role are eligible for automatic assignment.  
+* Exactly one coordinator is assigned per event. The allocation rule is applied consistently to every event and is recorded with the assignment so any given outcome can be explained.  
+* On assignment the assigned coordinator, the allocation rule applied, and the assignment timestamp are recorded.  
 * The assigned coordinator's name is shown to the owning organiser as the point of contact.  
-* An event has at most one active assigned coordinator at any time; attempting to add a second is refused and names the current assignee.  
-* The newly assigned coordinator receives a notification identifying the event.
+* An event has at most one active assigned coordinator at any time; a second active assignment is never created.  
+* The newly assigned coordinator receives a notification identifying the event.  
+* If no eligible coordinator exists, the event is still submitted and recorded as awaiting assignment; it is not rejected, and it is visible to all Event Coordinators (A3).
 
 #### **E2 — Reassign an event to a different coordinator**
 
-**User Story:** As an Event Coordinator, I want an event to be reassigned when responsibilities change, so that coordination continues when a colleague is unavailable.
+**User Story:** As the assigned Event Coordinator, I want to hand an event over to a colleague who has accepted it, so that coordination continues when I am unavailable and no event is left with an owner who did not agree to it. ⚠ **REVISED — reassignment requires acceptance**
 
 **Acceptance Criteria**
 
-* Reassignment is permitted for events not in status Completed, Cancelled, or Rejected.  
-* The outgoing assignment is closed with an end timestamp and retained in the assignment history; the new assignment is recorded with the new coordinator, the reassigning user, and a start timestamp.  
-* After reassignment the new coordinator can perform coordinator actions on the event and the previous coordinator can no longer perform them.  
-* Both the outgoing and incoming coordinators receive a notification; the owning organiser sees the updated point of contact.  
-* Reassigning to the coordinator who is already assigned is refused and creates no new history entry.
+* Only the currently assigned coordinator can propose a reassignment, and only for events not in status Completed, Cancelled, or Rejected.  
+* A proposal records the proposing coordinator, the nominated coordinator, the proposal timestamp, and an optional reason; the nominated user must hold the Event Coordinator role.  
+* The nominated coordinator receives a notification and can accept or decline the proposal.  
+* **Until the proposal is accepted the outgoing coordinator remains the assigned coordinator** and retains every coordinator action on the event; the nominated coordinator gains no coordinator actions while the proposal is pending.  
+* On acceptance the outgoing assignment is closed with an end timestamp and retained in the assignment history, and the new assignment is recorded with the accepting coordinator and a start timestamp. Only then can the new coordinator perform coordinator actions and the previous coordinator no longer can.  
+* On decline the assignment is unchanged, the declining coordinator and timestamp are recorded, and the proposing coordinator is notified.  
+* An event has at most one pending reassignment proposal; a second proposal is refused and names the pending one.  
+* On acceptance the owning organiser sees the updated point of contact and both coordinators are notified.  
+* Proposing a reassignment to the coordinator who is already assigned is refused and creates no history entry.
 
 ---
 
 ### **Feature 6 — Event Status Management**
 
-#### **F1 — Move events through a controlled status lifecycle**
+#### **F1 — Trust that an event's status reflects what has actually happened**
 
-**User Story:** As ConnectSphere, I want event status to change only as a consequence of a defined action, so that the status always reflects what has actually happened to the event.
+**User Story:** As an Event Coordinator, I want an event's status to change only when something real has happened to it, so that I can rely on the status when deciding what to work on next.
 
 **Acceptance Criteria**
 
@@ -217,7 +238,7 @@
 * Status can only be changed by an action defined in another story; there is no screen that lets a user type or pick an arbitrary status.  
 * An attempted transition that is not permitted from the current status is refused: no status change is stored, and the message names the current status and the attempted target.  
 * Every status change writes a history entry containing previous status, new status, the acting user, their role, the timestamp, and the triggering action.  
-* An event reaches Confirmed only while a confirmed venue booking exists for it (source of truth: the booking record).  
+* An event reaches Confirmed only through the confirmation action specified in F5, which defines the conditions that must hold. This story defines that Confirmed is a permitted status and that reaching it writes a history entry like any other transition. ⚠ **SPLIT — the readiness conditions moved to F5**  
 * An event moves to Completed only after its recorded end date/time has passed.
 
 #### **F2 — View an event's current status and history**
@@ -234,17 +255,48 @@
 
 #### **F3 — Cancel an event**
 
-**User Story:** As an Event Organiser, I want to cancel my event, so that the venue, equipment, and attendees are released when the event will not go ahead.
+**User Story:** As an Event Organiser, I want to cancel my event, so that everyone involved knows it will not go ahead.
 
 **Acceptance Criteria**
 
-* Cancellation can be performed by the owning organiser or the assigned coordinator, for events not in status Completed, Rejected, or Cancelled.  
+* Cancellation can be performed by the owning organiser or the assigned coordinator, for events not in status Completed, Rejected, or Cancelled. There is no deadline: cancellation may be requested at any point.  
 * A cancellation reason is mandatory; without it the event status is unchanged and nothing is released.  
 * On cancellation the status becomes Cancelled and the reason, acting user, and timestamp are recorded.  
-* Confirmed venue bookings for the event are released, and the venue becomes available again for the corresponding period.  
+* The cancelled event remains visible to the users related to it, showing the reason and the cancellation date.  
+* A cancelled event cannot be edited, submitted, or have new bookings, reservations, or registrations raised against it.  
+* The owning organiser, the assigned coordinator, the Venue Staff of any booked venue, and the Technical Support Staff of any reserved equipment are notified of the cancellation.  
+* Releasing the event's arrangements is specified separately in F4.
+
+#### **F4 — Release the arrangements of a cancelled event**
+
+**User Story:** As an Event Coordinator, I want a cancelled event's venue, equipment, and attendee places to be freed together, so that nothing stays committed to an event that will not happen and no attendee is left thinking they have a place.
+
+**Acceptance Criteria**
+
+* Release is triggered by the cancellation of an event (F3), and runs for every confirmed booking, tentative hold, equipment reservation, and active registration belonging to that event.  
+* Confirmed venue bookings and tentative holds for the event are released, and the venue becomes available again for the corresponding period in the calendar (I1) and in venue search (J1).  
 * Equipment reservations for the event are released, and the reserved quantities return to availability for the corresponding period.  
-* Active attendee registrations become Cancelled and each registered attendee receives a notification.  
-* If any release step fails, the cancellation is not recorded and no booking, reservation, or registration is partially released.
+* Active attendee registrations and waitlist entries become Cancelled, and each affected attendee receives a notification.  
+* **All-or-nothing:** if any release step fails, the cancellation is not recorded and no booking, hold, reservation, or registration is left partially released; the event remains in its pre-cancellation status and the acting user is told the cancellation did not complete.  
+* Released bookings and reservations are retained with status Released rather than deleted, each recording the release reason, acting user, and timestamp.  
+* Releasing an arrangement that is already released changes no quantity and writes no second release timestamp, so a retried cancellation produces the same end state.
+
+#### **F5 — Confirm an event only when venue and equipment are ready** ⚠ **NEW — split from F1; both arrangements must be complete**
+
+**User Story:** As an assigned Event Coordinator, I want to confirm an event only once both the venue and the equipment are actually arranged, so that a Confirmed event is one I can rely on rather than one that is still missing something.
+
+**Acceptance Criteria**
+
+* Confirmation is performed by the assigned Event Coordinator, on an event in status Approved or Planning.  
+* Confirmation is refused unless a confirmed venue booking exists for the event. A tentative hold (L3) is not sufficient.  
+* Confirmation is refused unless the event's equipment arrangements are complete: every equipment request line reserved in full, or the event marked as requiring no equipment, which counts as complete. A partially reserved line is not complete.  
+* Both conditions are read live from the venue booking record and the equipment reservation records at the moment of confirmation; a stored or cached readiness value is never used.  
+* If either the booking or the reservation information cannot be retrieved, confirmation is refused and nothing is changed.  
+* A refusal names which of the two arrangements is outstanding, and for equipment names the specific lines that are not reserved in full.  
+* Confirmation is refused while any arrangement for the event carries a Requires Reconfirmation or unsuitable flag (I2, S3); the refusal names the outstanding flags.  
+* On success the status becomes Confirmed and the acting coordinator and timestamp are recorded, with a history entry written as for any other transition (F1).  
+* The owning organiser is notified of the confirmation, as are the Venue Staff of the booked venue and the Technical Support Staff of any reservation.  
+* A refused confirmation changes no status, no booking, and no reservation.
 
 ---
 
@@ -257,7 +309,7 @@
 **Acceptance Criteria**
 
 * The owning organiser and the assigned coordinator can edit event purpose, description, accessibility notes, and contact details while the event is in status Approved, Planning, or Confirmed.  
-* The significant fields listed in Section 1 are not editable on this screen; attempting to edit them directs the user to the change-request process and stores no value.  
+* The significant fields — event date, start/end time, expected attendance, venue requirements, and equipment requirements — are not editable on this screen; attempting to edit them directs the user to the change-request process and stores no value.  
 * Each saved edit records the editing user, the timestamp, and the before and after value of each changed field.  
 * An edit attempted by a user who is neither the owner nor the assigned coordinator is refused and stores no value and no history entry.  
 * If the save fails, no field is changed and no history entry is written.
@@ -322,16 +374,20 @@
 
 #### **I2 — Record a period of venue unavailability**
 
-**User Story:** As a Venue Staff member, I want to block out periods when my venue cannot be used, so that coordinators do not request it then.
+**User Story:** As a Venue Staff member, I want to record periods when my venue cannot be used — including periods that are already booked — so that coordinators know an arrangement has been disrupted and can re-plan it. ⚠ **REVISED — see clarification C-12**
 
 **Acceptance Criteria**
 
 * A block records venue, start date/time, end date/time, and a reason or type, all mandatory.  
 * The end must be later than the start; otherwise no block is created and the message identifies this as the cause.  
-* If the requested block overlaps an existing confirmed booking (per the overlap rule in Section 1), the block is not created and the message names the conflicting event reference and period.  
-* A created block makes the venue unavailable for that period in both the calendar (I1) and venue search (J1).  
-* Creating and removing a block each record the acting user and timestamp; removing a block restores availability for that period.  
-* A failed block creation leaves availability for the period unchanged.
+* A block that overlaps an existing confirmed booking (two periods overlap when one starts before the other ends and ends after the other starts; periods that merely touch do not overlap) **is created**. Venue Staff are shown, before confirming, each confirmed booking the block would disrupt, with its booking reference, event reference, and overlapping period.  
+* Each disrupted confirmed booking is set to Requires Reconfirmation and records the blocking reason, the acting Venue Staff member, and the timestamp.  
+* The block does not cancel or release a disrupted booking: the booking record is retained, the venue is not released for the booked period, and the corresponding event's status is unchanged. Resolution is initiated by the assigned Event Coordinator, who agrees a new arrangement with the Event Organiser outside the system and records it through the normal change path (S1, S2, L1).  
+* The assigned Event Coordinator of each disrupted event receives a notification naming the venue, the booking reference, the event reference, the blocked period, and the recorded reason.  
+* Pending booking requests and tentative holds overlapping the block are flagged in the same way, and the requesting coordinator is notified.  
+* A created block makes the venue unavailable for that period in both the calendar (I1) and venue search (J1), so no new request can be raised for it.  
+* Creating and removing a block each record the acting user and timestamp. Removing a block restores availability for that period, clears the Requires Reconfirmation flag on any booking disrupted only by that block, and notifies the affected coordinators.  
+* A failed block creation leaves availability for the period unchanged, flags no booking, and sends no notification.
 
 ---
 
@@ -345,7 +401,7 @@
 
 * Filters available are: date and time window, minimum capacity, location/building, required accessibility features, required room layout, and required facilities.  
 * Only venues satisfying every selected filter are returned; a venue missing one required facility is excluded.  
-* Venues with a confirmed booking or recorded unavailability overlapping the requested window are excluded, using the overlap rule in Section 1 and the sources of truth in Section 1\.  
+* Venues with a confirmed booking or recorded unavailability overlapping the requested window are excluded, using the overlap rule above, read from the venue's confirmed bookings, tentative holds, recorded unavailability, and operating hours.  
 * Venues marked inactive are excluded.  
 * Capacity filtering uses the capacity of the required layout when a layout filter is selected, and the venue maximum capacity otherwise.  
 * When no venue matches, the result is an empty list with a message restating the filters that were applied — not an error.  
@@ -420,6 +476,24 @@
 * The withdrawn request no longer appears in the Venue Staff queue and no longer appears as pending on the calendar.  
 * Withdrawal does not change the event's status.
 
+#### **L3 — Place a tentative hold on a venue** ⚠ **NEW — tentative holding is in scope**
+
+**User Story:** As an assigned Event Coordinator, I want to hold a venue and time slot while the event is still being planned, so that it is not taken by another event before the booking request is decided.
+
+**Acceptance Criteria**
+
+* Only the coordinator assigned to the event can place a hold, and only for an event not in status Completed, Cancelled, or Rejected.  
+* A hold records the venue, date, start and end time, the event, the holding coordinator, and the timestamp.  
+* At most one active tentative hold **or** confirmed booking exists for a given venue and period: a hold is refused when the period overlaps an existing hold or confirmed booking (two periods overlap when one starts before the other ends and ends after the other starts), and the refusal names the conflicting reference and period. Two events can never hold the same venue and period.  
+* Holds are allocated first-come, first-served. There is no override, appeal, or priority rule, and no user can displace an existing hold or confirmed booking.  
+* An event has at most one active hold at a time; placing a second is refused and names the existing one.  
+* A held period is shown as held on the availability calendar (I1), labelled with the event reference, and is excluded from venue search results for that period (J1).  
+* A hold can be converted into a booking request (L1) for the same venue and period without re-checking availability, and is superseded by the resulting request.  
+* A hold can be released by the holding coordinator; the record is retained with status Released and the period becomes available again.  
+* A hold is released automatically when the event is cancelled, as part of the release run in F4.  
+* A hold creates no confirmed booking and does not by itself allow the event to become Confirmed (F5).  
+* Holds do not expire in this release; a hold remains active until it is converted, released, or the event is cancelled.
+
 ---
 
 ### **Feature 13 — Venue Booking Approval**
@@ -447,6 +521,7 @@
 * Suggested alternative dates or venues may optionally be recorded with the rejection.  
 * On rejection the request status becomes Rejected and the reason, approver, and timestamp are recorded and shown to the requesting coordinator.  
 * The venue remains available for the requested period and the request is removed from the pending state on the calendar.  
+* The requesting coordinator and the owning organiser are notified of the rejection, including the reason and any suggested alternative.  
 * The event's own status is unchanged, and the coordinator can submit a further request for another venue or period.
 
 ---
@@ -459,7 +534,7 @@
 
 **Acceptance Criteria**
 
-* Overlap is evaluated with the single rule in Section 1; two bookings where one ends exactly when the other begins are not treated as overlapping and are both permitted.  
+* Two periods overlap when one starts before the other ends and ends after the other starts. Two bookings where one ends exactly when the other begins merely touch, are not treated as overlapping, and are both permitted.  
 * Confirmation of a booking is atomic: when two approvals for overlapping periods at the same venue are processed simultaneously, exactly one results in a confirmed booking and the other is refused.  
 * The refused approval creates no confirmed booking, leaves its request Pending, and returns a message naming the conflicting event reference and period.  
 * The existing confirmed booking is unchanged by a refused competing approval.  
@@ -519,7 +594,7 @@
 **Acceptance Criteria**
 
 * Available quantity is calculated as total units of that type, minus units reserved for events whose reservation period overlaps the requested period, minus units recorded unavailable over an overlapping period.  
-* Overlap uses the single rule in Section 1\.  
+* Two periods overlap when one starts before the other ends and ends after the other starts; periods that merely touch do not overlap.  
 * The result states the available quantity as a number, not only a yes/no answer.  
 * When the requested quantity exceeds the available quantity, the shortfall quantity is shown.  
 * Units recorded as unavailable (for example under maintenance) are never counted as available, regardless of whether they are reserved.  
@@ -560,7 +635,7 @@
 
 **Acceptance Criteria**
 
-* A reservation is released when Technical Support Staff release it with a reason, when its request line is cancelled, or when the event is cancelled (F3).  
+* A reservation is released when Technical Support Staff release it with a reason, when its request line is cancelled, or when the event is cancelled, as part of the release run in F4.  
 * On release the reserved quantity returns to the available quantity for the corresponding period.  
 * The reservation record is retained with status Released and records the releasing user, timestamp, and reason; it is not deleted.  
 * Releasing a reservation that is already Released changes no quantity and writes no second release timestamp.  
@@ -577,7 +652,7 @@
 **Acceptance Criteria**
 
 * The list contains only events with registration enabled and status Confirmed, whose registration closing date/time has not passed.  
-* Each entry shows event name, description, date, start and end time, venue name and location, and — when a registration capacity is set — the number of places remaining.  
+* Each entry shows event name, description, date, start and end time, venue name and location, and the number of places remaining, derived from the capacity of the booked venue for the booked layout (R2).  
 * Internal information (review comments, clarification threads, coordinator notes, booking and equipment records) is not shown.  
 * An event whose places remaining is zero is shown with a Full label and offers no register action.  
 * Events that are Draft, Submitted, Under Review, Approved, Planning, Rejected, or Cancelled do not appear.
@@ -589,10 +664,11 @@
 **Acceptance Criteria**
 
 * A successful registration is stored with the attendee, the event, status Registered, and the registration timestamp, and the attendee sees a confirmation.  
+* The number of places is derived from the capacity of the booked venue for the booked layout, less any attendees added manually (R7). There is no separately entered registration capacity, and expected attendance does not cap registration. ⚠ **REVISED — capacity comes from the venue**  
 * The capacity check and the registration are atomic: when two attendees register simultaneously for the last remaining place, exactly one registration is created.  
-* The unsuccessful attempt creates no registration record, leaves places remaining unchanged, and returns a message naming capacity as the cause.  
+* The unsuccessful attempt creates no registration record, leaves places remaining unchanged, returns a message naming capacity as the cause, and offers the attendee a place on the waitlist (R6). ⚠ **REVISED**  
 * A second registration by the same attendee for the same event is refused, no second record is created, and the message names the existing registration.  
-* Registration is accepted up to and including the registration closing instant, and refused after it; a refusal after closing names the closing time as the cause. ⚠ (see clarification C-10)  
+* Registration is accepted within the registration window set by the Event Organiser for that event — from the opening instant up to and including the closing instant — and refused outside it, naming the window as the cause. ⚠ **REVISED — window is at the organiser's discretion (supersedes C-10)**  
 * On success, places remaining decreases by exactly one; on any refusal it is unchanged.  
 * The attendee receives a registration confirmation notification.
 
@@ -615,9 +691,10 @@
 
 * An attendee can withdraw only their own registration, and only while its status is Registered.  
 * On withdrawal the registration status becomes Withdrawn and the withdrawal timestamp is recorded; the record is retained, not deleted.  
-* Places remaining for the event increases by exactly one on a successful withdrawal.  
-* Withdrawal is refused after the event's start date/time, with a message naming that as the cause; the status and places remaining are unchanged. ⚠ (see clarification C-11)  
-* Registering again after withdrawing creates a new registration and is subject to the same capacity and closing-time rules as R2.
+* Places remaining for the event increases by exactly one on a successful withdrawal, and any waitlisted attendees are notified that a place has become available (R6).  
+* Withdrawal is refused after the withdrawal deadline recorded for that event, with a message naming the deadline as the cause; the status and places remaining are unchanged. The deadline is set by the Event Organiser per event; where none is set, withdrawal is permitted up to the event's start date/time. ⚠ **REVISED — withdrawal terms are at the organiser's discretion (supersedes C-11)**  
+* The attendee receives confirmation of the withdrawal, and the owning organiser sees the updated totals (R5).  
+* Registering again after withdrawing creates a new registration and is subject to the same capacity and registration-window rules as R2.
 
 #### **R5 — View the registrations for an event I manage**
 
@@ -629,6 +706,36 @@
 * Each row shows the attendee's name, the registration timestamp, and the current registration status.  
 * Totals are shown for registered, withdrawn, and places remaining, derived from the registration records.  
 * A withdrawal is reflected in both the row status and the totals when the list is next loaded.
+
+#### **R6 — Join and be invited from the waitlist** ⚠ **NEW — waitlist, with manual promotion**
+
+**User Story:** As an Attendee, I want to join a waitlist when an event is full, so that I have a chance of a place if one becomes available.
+
+**Acceptance Criteria**
+
+* When registration is refused because no places remain, the attendee is offered a place on the waitlist; joining stores the attendee, the event, status Waitlisted, and the timestamp.  
+* An attendee cannot hold both an active registration and a waitlist entry for the same event, and a second waitlist entry for the same attendee and event is refused.  
+* Waitlist entries are retained in the order they were created, and that order is visible to the owning organiser and assigned coordinator.  
+* **Promotion is not automatic.** When a place becomes available — through a withdrawal (R4), a capacity increase, or a manual release — waitlisted attendees are notified that a place is open and invited to apply; no registration is created on their behalf.  
+* An invited attendee registers through R2 and is subject to the same capacity, duplicate, and registration-window rules; places are taken on a first-come basis among those invited.  
+* An attendee can leave the waitlist at any time; the entry is retained with status Withdrawn and the attendee is not notified of further openings.  
+* Waitlist entries do not consume places and are never counted as registrations in the totals shown in R5.  
+* When an event is cancelled, active waitlist entries become Cancelled and each waitlisted attendee is notified.
+
+#### **R7 — Add an attendee manually** ⚠ **NEW — manual VIP addition**
+
+**User Story:** As an Event Organiser, I want to add a VIP attendee myself after registration is full, so that someone who must attend is not shut out by the registration process.
+
+**Acceptance Criteria**
+
+* Only the owning organiser or the assigned coordinator can add an attendee manually, and only to an event they manage.  
+* A manual addition is permitted even when no registration places remain and when the registration window has closed.  
+* A manual addition is refused when it would take the total number of attendees above the capacity of the booked venue for the booked layout; the refusal names the venue capacity and the current total, and creates no record.  
+* A manual addition is refused when the event has no confirmed venue booking, because the capacity ceiling is not yet known.  
+* The registration is stored with status Registered, marked as manually added, and records who added it, when, and an optional reason.  
+* Manually added attendees appear in the organiser's registration list (R5) distinguishable from self-registered attendees, and are included in the totals and in the places-remaining calculation (R2).  
+* A duplicate manual addition for an attendee who already holds an active registration is refused and names the existing registration.  
+* The added attendee receives a notification and can withdraw their own registration under the same terms as R4.
 
 ---
 
@@ -663,7 +770,7 @@
 
 #### **S3 — Reconsider arrangements affected by an approved change**
 
-**User Story:** As an Event Coordinator, I want existing bookings, reservations, and registrations to be flagged when a significant change is approved, so that no arrangement is silently left inconsistent with the event.
+**User Story:** As an Event Coordinator, I want existing bookings, reservations, and registrations to be flagged when a significant change is approved, so that I can decide what to re-arrange rather than having the system decide for me. ⚠ **REVISED — see clarification C-13**
 
 **Acceptance Criteria**
 
@@ -671,7 +778,9 @@
 * A confirmed venue booking whose period no longer matches the event's new date/time is set to Requires Reconfirmation; the booked period is not moved automatically and the venue is not released for the old period.  
 * An equipment reservation whose period no longer matches the event's new required window is flagged for review; its reserved quantity is not released until Technical Support Staff release it (Q2).  
 * When the new expected attendance exceeds the capacity of the booked venue for the booked layout, the booking is flagged unsuitable with the two compared values shown.  
-* The event status returns to Planning until every flagged arrangement has been reconfirmed or replaced, and cannot become Confirmed while any Requires Reconfirmation booking exists.  
+* **The event's status is not changed by flagging.** An event that was Confirmed remains Confirmed and is displayed with its outstanding flags; no status transition is performed automatically. Any change of status is made by the assigned Event Coordinator through an action defined elsewhere (F1), after agreeing the new arrangement with the Event Organiser outside the system.  
+* Every outstanding flag is visible on the event to the owning organiser, the assigned coordinator, and Event Coordinators, each stating which arrangement is affected and why.  
+* An event that is **not** currently Confirmed cannot become Confirmed while any arrangement carries a Requires Reconfirmation or unsuitable flag (F5 readiness rule); the refusal names the outstanding flags.  
 * Venue Staff for the affected booking and Technical Support Staff for the affected reservations are notified, as are attendees with an active registration.  
 * Where the change is approved but flagging fails, the change is not applied and no arrangement is altered.
 
@@ -679,24 +788,20 @@
 
 ### **Feature 20 — Notification System**
 
-#### **T1 — Receive notifications about events relevant to me**
-
-**User Story:** As a ConnectSphere user, I want to be notified when something significant happens on an event I am involved in, so that I do not have to keep checking the system.
-
-**Acceptance Criteria**
-
-* A notification is generated for each of: event submission, clarification requested, clarification answered, approval, rejection, coordinator assignment and reassignment, venue booking request raised, venue booking approved or rejected, equipment line status change, equipment reservation released, change request raised and decided, registration confirmed, registration withdrawn, and event cancellation.  
-* Each notification records the recipient, the notification type, the related event reference (and booking, reservation, or registration reference where applicable), the creation timestamp, and a message stating what happened and to which event.  
-* Only users with a relationship to the event receive its notifications: the owning organiser, the assigned coordinator, the relevant Venue Staff, the relevant Technical Support Staff, and, where the notification concerns them, registered attendees.  
-* The notification is created as part of the same operation as the triggering action; if the triggering action does not complete, no notification exists.  
-* The stored notification record is the source of truth; no notification is stated to be delivered within any particular time.
+*T1 has been removed: enumerating fifteen triggers in one story made it an epic that could not be finished until every other feature existed. Each trigger now lives as an acceptance criterion on the story that causes it.*
 
 #### **T2 — Read and manage my notifications**
 
 **User Story:** As a ConnectSphere user, I want to see my unread notifications in one place, so that I can act on the ones that matter.
 
+*Note: the individual notification triggers are specified as acceptance criteria on the stories that raise them (B1, D2–D5, E1, E2, F3, F4, L1, M1, M2, O2, Q2, R2, R4, R6, R7, S1, S2). This story specifies what a notification record is and how a user reads and manages their own.*
+
 **Acceptance Criteria**
 
+* Each notification records the recipient, the notification type, the related event reference (and booking, reservation, or registration reference where applicable), the creation timestamp, and a message stating what happened and to which event.  
+* Only users with a relationship to the event receive its notifications: the owning organiser, the assigned coordinator, the relevant Venue Staff, the relevant Technical Support Staff, and, where the notification concerns them, registered and waitlisted attendees.  
+* A notification is created as part of the same operation as the triggering action; if the triggering action does not complete, no notification exists.  
+* The stored notification record is the source of truth; no notification is stated to be delivered within any particular time, and the delivery channel is not specified by this story.  
 * The notification list shows the signed-in user's own notifications, newest first, with an unread count.  
 * A notification can be marked read individually, and all can be marked read in one action; read state is held per user.  
 * Read state persists across sessions.  
