@@ -1,0 +1,56 @@
+ID,Story,Feature Area,Old Sprint,New Sprint,New Weeks,Old Points,New Points,Change,Reason
+A1,Log in and start a role-scoped session,Auth & Authorisation,1,1,4-5,3,3,Unchanged,
+A2,Restrict functions to the roles permitted to use them,Auth & Authorisation,1,1,4-5,5,5,Unchanged,
+A3,See only the events I am related to,Auth & Authorisation,1,1,4-5,5,5,Unchanged,
+B1,Create and submit an event request,Event Request Creation,1,1,4-5,3,3,Unchanged,Core of the Sprint 1 vertical slice
+B2,Validate an event request before it is submitted,Event Request Creation,1,1,4-5,5,5,Unchanged,
+C1,Save an incomplete event request as a draft,Draft Event Requests,1,1,4-5,2,2,Unchanged,
+C2,Resume edit and submit a draft,Draft Event Requests,1,1,4-5,3,3,Unchanged,
+C3,Tell drafts apart from submitted requests,Draft Event Requests,1,1,4-5,2,2,Unchanged,
+D1,Review the queue of submitted event requests,Event Review and Approval,1,1,4-5,5,5,Unchanged,End of the Sprint 1 vertical slice
+E1,Get a named coordinator as soon as I submit,Coordinator Assignment,1,1,4-5,2,2,Unchanged,Auto-assignment fires on submission so it ships with B1
+F1,Trust that an events status reflects what has actually happened,Event Status Management,2,1,4-5,8,5,Moved earlier + re-estimated,B1/C2/D1 all change status; the state machine cannot come after its callers. Confirmation gate carved out to F5
+F2,View an events current status and history,Event Status Management,2,1,4-5,2,2,Moved earlier,History recorder is written by F1; ships together
+T2,Read and manage my notifications,Notification System,4,1,4-5,2,2,Moved earlier,T1 removal put notification ACs on B1/D2-D5/E1/E2; the record and read model are needed from Sprint 1
+D2,Request clarification from the organiser,Event Review and Approval,1,2,6-7,2,2,Moved later,Depends on D1; moved to balance Sprint 1 against infrastructure setup
+D3,Respond to a clarification request,Event Review and Approval,1,2,6-7,3,3,Moved later,Depends on D2
+D4,Approve an event request,Event Review and Approval,1,2,6-7,2,2,Moved later,Load balancing
+D5,Reject an event request,Event Review and Approval,1,2,6-7,2,2,Moved later,Load balancing
+E2,Reassign an event to a different coordinator,Coordinator Assignment,1,2,6-7,3,3,Moved later,Handshake flow; not needed for the Sprint 1 slice
+F3,Cancel an event,Event Status Management,2,2,6-7,5,3,Re-estimated (split),Release behaviour split out to F4
+G1,Update non-significant event information,Event Information Management,2,2,6-7,3,3,Unchanged,
+H1,Maintain venue records,Venue Catalogue,2,2,6-7,3,3,Unchanged,
+H2,View full venue details,Venue Catalogue,2,2,6-7,2,2,Unchanged,
+I1,View a venues availability calendar,Venue Availability Calendar,2,2,6-7,5,5,Unchanged,
+J1,Filter venues against event requirements,Venue Search and Filtering,2,2,6-7,5,5,Unchanged,
+J2,Search venues by name or location,Venue Search and Filtering,2,2,6-7,2,2,Unchanged,
+K1,See whether a venue is suitable and why not,Venue Suitability Checking,3,2,6-7,5,5,Moved earlier,Advisory only; needs venue catalogue and event record but no booking
+O1,Record the equipment an event requires,Equipment Request Management,3,2,6-7,3,3,Moved earlier,Independent of venue; runs in parallel per the customer clarification
+O2,Update an equipment request as arrangements are made,Equipment Request Management,3,2,6-7,3,3,Moved earlier,Depends only on O1
+P2,Maintain equipment inventory and unavailability,Equipment Availability Checking,3,2,6-7,3,3,Moved earlier,Pure inventory CRUD; no dependencies
+I2,Record a period of venue unavailability,Venue Availability Calendar,2,3,8-9,3,3,Moved later,Flags disrupted confirmed bookings; M1 must exist first
+K2,Justify booking a venue flagged as unsuitable,Venue Suitability Checking,3,3,8-9,2,2,Unchanged,Justification is stored on the booking request so it follows L1
+L3,Place a tentative hold on a venue,Venue Booking Request,,3,8-9,,5,New,New story from the clarifications; precedes L1 in the sprint
+L1,Submit a venue booking request,Venue Booking Request,3,3,8-9,3,3,Unchanged,
+L2,Withdraw a pending booking request,Venue Booking Request,3,3,8-9,2,2,Unchanged,
+M1,Approve a venue booking request,Venue Booking Approval,3,3,8-9,5,5,Unchanged,
+M2,Reject a venue booking request,Venue Booking Approval,3,3,8-9,2,2,Unchanged,
+N1,Prevent double-booking of a venue,Booking Conflict Detection,3,3,8-9,8,8,Unchanged,Slot exclusivity constraint now also covers tentative holds (L3)
+N2,Flag potential conflicts before a decision is made,Booking Conflict Detection,3,3,8-9,3,3,Unchanged,
+P1,Check whether enough equipment is available,Equipment Availability Checking,3,3,8-9,3,3,Unchanged,
+Q1,Reserve equipment for an event,Equipment Reservation,4,3,8-9,8,8,Moved earlier,Registration and the F5 readiness gate both depend on it; frees the showcase sprint
+Q2,Release an equipment reservation,Equipment Reservation,4,3,8-9,3,3,Moved earlier,Ships with Q1
+S1,Request a change after submission,Event Change Requests,4,3,8-9,3,3,Moved earlier,Only needs a submitted event; moved to lighten Sprint 4
+S2,Review and decide a change request,Event Change Requests,4,3,8-9,3,3,Moved earlier,Ships with S1
+F4,Release the arrangements of a cancelled event,Event Status Management,,4,10-11,,5,New,Split from F3; releases bookings reservations and registrations so all three must exist
+F5,Confirm an event only when venue and equipment are ready,Event Status Management,,4,10-11,,5,New,Carved out of F1; the Confirmed gate needs M1 and Q1 to exist
+G2,Warn which arrangements a significant change would affect,Event Information Management,2,4,10-11,5,5,Moved later,Reads bookings reservations and the active registration count; none exist before Sprint 4
+R1,Browse events open for registration,Attendee Registration,4,4,10-11,2,2,Unchanged,Lists Confirmed events so it follows F5
+R2,Register for an event,Attendee Registration,4,4,10-11,8,8,Unchanged,Ceiling read synchronously from Venue at registration time
+R3,View my own registrations,Attendee Registration,4,4,10-11,2,2,Unchanged,
+R4,Withdraw my registration,Attendee Registration,4,4,10-11,3,3,Unchanged,
+R5,View the registrations for an event I manage,Attendee Registration,4,4,10-11,3,3,Unchanged,
+R6,Join and be invited from the waitlist,Attendee Registration,,4,10-11,,5,New,New story from the clarifications
+R7,Add an attendee manually,Attendee Registration,,4,10-11,,3,New,New story from the clarifications
+S3,Reconsider arrangements affected by an approved change,Event Change Requests,4,4,10-11,8,8,Unchanged,Needs bookings reservations and registrations
+T1,Receive notifications about events relevant to me,Notification System,4,,,5,,Removed,Epic in disguise; fifteen triggers redistributed as ACs on the stories that raise them; record and recipient rules moved to T2
