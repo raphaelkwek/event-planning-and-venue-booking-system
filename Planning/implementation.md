@@ -371,6 +371,41 @@ Each of us is running Claude Code against a shared repo. These exist to stop six
 8. **Write the test with the code, in the same PR,** and add the traceability row.
 9. **If you are unsure which service owns a behaviour, ask** — do not implement it in both.
 10. **You are accountable for what you ship.** Week 13 picks a feature at random and asks you to trace story → AC → test → code. "The agent wrote it" is not an answer, so read the diff before you commit it.
+11. **Follow the commit message standard below.** A human has to verify agent output fast — an inconsistent history costs them time we don't have.
+
+### 11.1 Commit message standard
+
+**Commit early and often.** Small, frequent commits are easier for a human to verify and keep merge conflicts small. Don't batch an entire story into one commit.
+
+Use [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/):
+
+```
+type(scope): short summary in the imperative mood
+
+Why this change was necessary and what it accomplishes.
+
+Resolves: #123
+```
+
+- **type** — one of:
+
+  | Type | Meaning |
+  |---|---|
+  | `feat` | a new feature for the user |
+  | `fix` | a bug fix for the user |
+  | `docs` | documentation only |
+  | `style` | formatting only, no logic change |
+  | `refactor` | restructuring code with no behaviour change |
+  | `test` | adding or fixing tests |
+  | `chore` | tooling, dependencies, config |
+
+- **scope** — the story ID or service, e.g. `feat(f2)`, `fix(event-service)`.
+- **summary** — imperative mood ("add", not "added" or "adds"), one line, one change. Don't bundle two unrelated things in one commit or message.
+- **body** — required whenever the "why" isn't obvious from the summary alone (most stories). State the reason, not a restatement of the diff.
+- **footer** — `Resolves: #123` when the commit closes a Jira/GitHub issue.
+
+**Bad:** `fixed the bug` · `added a button and also fixed a typo in config` · `stuff.`
+**Good:** `feat(a1): add biometric login option` · `fix(event-service): repair profile picture upload crash`
 
 ---
 
