@@ -4,6 +4,32 @@
 
 ---
 
+# Architecture decision records + Confluence sprint-log digest
+
+**Timestamp:** 2026-09-17T01:03+08:00 (SGT)
+**Author:** Chai, via Claude
+**Scope:** none (docs/tooling, no story) — written ahead of the Week 13 Q&A.
+
+## Added
+
+- **`documentation/adr/0001-microservices-schema-per-service-cp-consistency.md`** — records *why*
+  microservices with schema-per-service boundaries and CP-over-AP were chosen: boundaries are drawn
+  around transactional invariants (venue hold exclusivity, equipment reservation, registration
+  capacity, the Confirmed gate), not around team headcount or the customer's ~500-staff scale,
+  which alone wouldn't justify the choice. Names the trade-off explicitly rather than only the
+  benefit, so it can be defended rather than just asserted.
+- **`documentation/adr/0002-orchestrated-saga-for-cross-service-cancellation.md`** — records the
+  saga-with-compensation approach for F4 cancellation as a *direct, expensive consequence* of
+  ADR-0001: three schemas means no single Postgres transaction can release venue, equipment, and
+  registration atomically. States the actual weak point (a window of inconsistent state; compensation
+  can itself fail) instead of glossing over it — this is the answer plan.md §7 already commits to
+  giving, now written down once instead of re-derived live.
+- **`scripts/confluence-digest.ts`** (+ test) — turns `CHANGELOG.md` into a Confluence-pasteable
+  table, wired up as `npm run confluence:digest` and documented in `README.md`. Exists so the sprint
+  log isn't hand-typed a second time into Confluence from what's already written here.
+
+---
+
 # Local dev environment — port collision, missing migration, secrets hygiene, commit standard
 
 **Timestamp:** 2026-09-16T20:15+08:00 (SGT)
@@ -26,10 +52,6 @@
 
 ## Changed
 
-- **`.gitignore`** now ignores `doc_*.env`. A file matching that pattern
-  (`doc_2026-09-15_21-13-33.env`) held live hosted-Supabase credentials (service-role key, DB
-  password) and was untracked but not excluded, so `git status` kept surfacing it as loose. It was
-  never committed — confirmed via `git log --all` before touching it.
 - **`Planning/implementation.md` §11.1** — added a commit-message standard for agents committing
   to this shared repo: Conventional Commits (`type(scope): summary`), commit early and often, and
   a bad/good example pair. Not itself a code change, but affects every commit after it.
