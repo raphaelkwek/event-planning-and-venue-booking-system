@@ -12,7 +12,9 @@
     "migrate:identity": "tsx scripts/migrate.ts identity --seed",
     "migrate:event": "tsx scripts/migrate.ts event",
     "seed:auth": "tsx services/identity/migrations/seed/seed-auth-users.ts",
-    "test": "npm run test --workspaces --if-present",
+    "confluence:digest": "tsx scripts/confluence-digest.ts",
+    "test": "npm run test --workspaces --if-present && npm run test:scripts",
+    "test:scripts": "tsx --test scripts/confluence-digest.test.ts",
     "build": "npm run build --workspaces --if-present"
   },
   "dependencies": {

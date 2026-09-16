@@ -34,4 +34,18 @@ like:
 
 Tests run against a real database. The event suite is not parallelised across files because those files share one database, including the single assignment-cursor row.
 
+### Updating the Confluence sprint log
+
+`CHANGELOG.md` is the single point of authorship for "what got done, when" — don't hand-type the
+same thing into Confluence a second time. Instead, generate the table from it:
+
+```
+npm run confluence:digest                    # every entry, chronological
+npm run confluence:digest -- --since 2026-09-16   # only what's new since a date
+```
+
+Paste the output straight into the Confluence page as a table. `--out <path>` writes it to a file
+instead of stdout; `--order desc` matches CHANGELOG.md's own newest-first order if you'd rather
+read it that way.
+
 See `Planning/plan.md` for architecture and `Planning/implementation.md` for the mandatory formats every service follows.
