@@ -407,6 +407,21 @@ Resolves: #123
 **Bad:** `fixed the bug` · `added a button and also fixed a typo in config` · `stuff.`
 **Good:** `feat(a1): add biometric login option` · `fix(event-service): repair profile picture upload crash`
 
+### 11.2 `CHANGELOG.md` is the record of what happened
+
+`CHANGELOG.md` is the single point of authorship for "what got done, when, and why" — not Jira,
+not the commit log. Jira tracks tickets moving through a workflow; the commit log records diffs.
+Neither captures the reasoning — why a design changed, what a fix actually was, what's still
+unverified — that a teammate or the Week 13 panel needs and that git alone cannot explain. That's
+what `CHANGELOG.md` is for, and it stands on its own regardless of whether a Jira ticket exists for
+the work. It also feeds the Confluence sprint log directly (`npm run confluence:digest`, README.md)
+— write it once here, not a second time by hand there.
+
+**Every push, and every distinct chunk of work within it, gets an entry before you push.** A chunk
+is a story slice, a bugfix, a refactor, a docs/tooling change — anything you'd want a teammate to
+be able to find later without reading the diff. Insert newest-first, directly below the header, per
+the convention at the top of the file. A push with no corresponding entry is not done.
+
 ---
 
 ## Appendix — decisions still open
