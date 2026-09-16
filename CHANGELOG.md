@@ -4,6 +4,38 @@
 
 ---
 
+# Local dev environment — port collision, missing migration, secrets hygiene, commit standard
+
+**Timestamp:** 2026-09-16T20:15+08:00 (SGT)
+**Author:** Chai, via Claude
+**Scope:** none (infra/devex, no story).
+
+## Fixed
+
+- **`event-service` was silently binding Identity's port.** `services/event/src/config.ts` falls
+  back to the shared `PORT` env var when `EVENT_PORT` is unset; the local `.env` only defined
+  `PORT=8081` for Identity. Whichever service lost the resulting bind race never listened where
+  Vite's proxy expected it, surfacing as a 404 with a real `x-correlation-id` (the request *did*
+  reach a service — just the wrong one) or an `ECONNREFUSED` once the loser crashed outright.
+  Added `EVENT_PORT=8082` to `.env`, matching `.env.example`, which already documented this.
+- **The `event` schema was never migrated locally.** `npm run migrate:event` (README step 6) had
+  not been run, so `event`-schema queries 500'd — not an empty-table/seed problem, the schema
+  didn't exist. Running it created all seven tables. `git pull` only updates files; nothing in the
+  repo runs migrations automatically, so this needs re-running by hand whenever a pull adds
+  migration files for a service already set up locally.
+
+## Changed
+
+- **`.gitignore`** now ignores `doc_*.env`. A file matching that pattern
+  (`doc_2026-09-15_21-13-33.env`) held live hosted-Supabase credentials (service-role key, DB
+  password) and was untracked but not excluded, so `git status` kept surfacing it as loose. It was
+  never committed — confirmed via `git log --all` before touching it.
+- **`Planning/implementation.md` §11.1** — added a commit-message standard for agents committing
+  to this shared repo: Conventional Commits (`type(scope): summary`), commit early and often, and
+  a bad/good example pair. Not itself a code change, but affects every commit after it.
+
+---
+
 # Identity Service — A1 (login/logout) and A3 (access-scope resolution)
 
 **Timestamp:** 2026-09-16T16:23+08:00 (SGT)
