@@ -292,6 +292,18 @@ A separate, simpler, public-facing surface — do not put Jira chrome in front o
 - Register, Join waitlist, and Withdraw are the only actions. Withdraw confirms before acting.
 - Tokens: system font stack, 8px spacing scale, one accent colour, WCAG AA contrast. Accessibility is a customer requirement elsewhere in the brief — don't let the attendee UI be the part that fails it.
 
+### 7.3 The shared UI shell — Sprint 1
+
+These belong to no single story but every screen depends on them, so they are built in Sprint 1 alongside A1 and A2. If they arrive later, each story reinvents a piece of them differently.
+
+- **Session store and route guard** — token and active role held in context; navigation renders only the functions the role may use (A2); logout clears state so a back-navigation shows no event data (A1).
+- **API client** — attaches the bearer token and `X-Correlation-Id`, and parses the standard error envelope (§5) into a refusal message plus per-field errors.
+- **Refusal display** — one inline component for the server's `message`, and one binding of `fields[]` to form inputs. Most stories specify what the user is told on refusal; this is where that happens. Never a generic toast.
+- **Status lozenge map** — `apps/web/src/shared/status.ts`, one colour per event, booking, reservation and registration status. No inline colours anywhere.
+- **App layout and empty/loading states** — page shell, list and detail skeletons, and the "no results, here are the filters you applied" empty state J1 requires.
+
+The attendee shell (§7.2) is separate and is built in Sprint 3 with R1, not in Sprint 4 — see `plan.md` §9.1.
+
 ## 8. Testing and the sprint test kit
 
 ### 8.1 Levels

@@ -8,7 +8,7 @@
 
 ## 1. What we are building
 
-A web system that manages the lifecycle of an event at a ConnectSphere-managed venue: an Event Organiser requests it, an auto-assigned Event Coordinator reviews and plans it, Venue Staff decide the venue booking, Technical Support Staff arrange equipment, and Attendees register. Feature scope is the 20 core features in the project instructions, expressed as the 53 stories in `Final_User_Stories.md`.
+A web system that manages the lifecycle of an event at a ConnectSphere-managed venue: an Event Organiser requests it, an auto-assigned Event Coordinator reviews and plans it, Venue Staff decide the venue booking, Technical Support Staff arrange equipment, and Attendees register. Feature scope is the 20 core features in the project instructions, expressed as the 54 stories in `Final_User_Stories.md`.
 
 **Out of scope, confirmed with the customer:** payment and billing, multi-session events, off-site venues, staff account onboarding, a System Admin role, transit/turnaround/setup buffers.
 
@@ -52,15 +52,13 @@ Each service owns exactly one Postgres schema and is the only writer to it.
 | Service | Schema | Key tables |
 |---|---|---|
 | Identity | `identity` | users, user_roles, login_audit, role_policy |
-| Event | `event` | events (drafts included, at status Draft), status_history, clarifications, event_field_edits, assignments, change_requests, event_comments, attachments, outbox |
+| Event | `event` | events, event_drafts, status_history, clarifications, assignments, change_requests, event_comments, attachments, outbox |
 | Venue | `venue` | venues, venue_layouts, operating_hours, unavailability_blocks, venue_holds, booking_requests, confirmed_bookings, outbox |
 | Equipment | `equipment` | equipment_types, equipment_unavailability, request_lines, reservations, outbox |
 | Registration | `registration` | registrations, waitlist_entries, capacity_counters, open_event_projection, outbox |
 | Notification | `notification` | notifications, notification_read_state, consumed_messages |
 
 **Cross-service references are IDs only.** `venue.booking_requests.event_id` is a plain UUID with no foreign key to `event.events`. Referential integrity across services is our responsibility, not the database's.
-
-**A draft is not a separate table.** An earlier version of this list named `event_drafts`; drafts are rows in `event.events` at status Draft, which is what F1 already implies by naming Draft among the ten statuses. Submitting a draft updates that row in place, so it keeps its id and its history rather than being copied into a new one. The consequence to remember is that the A3 scope filter — not a table boundary — is what keeps a draft private to its owner (C1), so the coordinator scope reads "every event, plus my own drafts".
 
 ## 5. How services talk
 
@@ -124,39 +122,24 @@ Browser → SPA (Vite dev server / static)
 
 Everything runs from one `docker-compose.yml`. Ports are fixed so our test kit and each other's local runs are interchangeable.
 
-## 9. Work allocation
-
-Fill this in at sprint planning and keep it current — two agents editing the same service will produce conflicts your diff tool cannot resolve.
-
-| Service | Owner | Sprint |
-|---|---|---|
-| Identity & Gateway | | |
-| Event | | |
-| Venue | | |
-| Equipment | | |
-| Registration | | |
-| Notification & Scheduler | | |
-| SPA — internal roles | | |
-| SPA — attendee | | |
-
-**Rule:** you may only write inside your own service directory and your own schema's migrations. A change to a shared contract (message schema, API shape, shared type package) needs a PR that at least one other owner reviews, because it breaks their build.
-
-## 10. Sprint sequence
+## 9. Sprint sequence
 
 Four two-week sprints, Weeks 4–11. The final sprint closes in Week 11, leaving Week 12 for the submission package. Week 7 (the scrum process consultation) falls inside Sprint 2.
 
 Re-sequenced against the revised backlog: T1 removed, F4 / L3 / R6 / R7 added, F1 split. Full move-by-move record with reasons in `/docs/sprint-reallocation.csv`.
 
+**Every story is a vertical slice.** A story includes its own UI, API, domain logic, repository, migration and tests, and is built by whoever owns it — there is no separate frontend workstream and no one is "the UI person". A story is not Done until the Product Owner can click through it in the sprint review, which is what the Definition of Done (`implementation.md` §8.3) requires. The shared UI shell that no single story owns — route guard, session store, API client, role-based navigation, the refusal/error display, the status lozenge map — is Sprint 1 work and is listed in `implementation.md` §7.3.
+
 | Sprint | Weeks | Theme | Stories | Points |
 |---|---|---|---|---|
 | 1 | 4–5 | Foundations + one vertical slice | A1, A2, A3, B1, B2, C1, C2, C3, D1, E1, F1, F2, T2 | **44** |
 | 2 | 6–7 | Review workflow, venue catalogue, equipment intake | D2, D3, D4, D5, E2, F3, G1, H1, H2, I1, J1, J2, K1, O1, O2, P2 | **49** |
-| 3 | 8–9 | Holds, booking, conflict, reservation | I2, K2, L1, L2, L3, M1, M2, N1, N2, P1, Q1, Q2, S1, S2 | **53** |
-| 4 | 10–11 | Registration, readiness, change impact *(showcase)* | F4, F5, G2, R1, R2, R3, R4, R5, R6, R7, S3 | **49** |
+| 3 | 8–9 | Holds, booking, conflict, reservation, attendee shell | I2, K2, L1, L2, L3, M1, M2, N1, N2, P1, Q1, Q2, R1, S1, S2 | **55** |
+| 4 | 10–11 | Registration, readiness, change impact *(showcase)* | F4, F5, G2, R2, R3, R4, R5, R6, R7, S3 | **47** |
 
-**195 points across 54 stories.** The shape is deliberate: a lighter first sprint while the infrastructure is unknown, a heavier middle, and a showcase sprint that is not the biggest.
+**195 points across 54 stories.** The shape is deliberate: a lighter first sprint while the infrastructure is unknown, a heavier middle, and a showcase sprint that is the lightest of the three that follow it.
 
-### 10.1 What moved, and why
+### 9.1 What moved, and why
 
 **F1 split, and pulled into Sprint 1.** B1, C2 and D1 all change event status, and F1 says status may only change through the state machine — so it cannot come after its own callers. F1 (5) now covers the lifecycle, permitted transitions and history. The Confirmed gate is carved out as **F5 — Confirm an event only when venue and equipment are ready** (5), which lands in Sprint 4 because it needs both M1 and Q1 to exist. Add F5 to Jira; it is not in `Jira.md`.
 
@@ -168,11 +151,13 @@ Re-sequenced against the revised backlog: T1 removed, F4 / L3 / R6 / R7 added, F
 
 **S1 and S2 moved to Sprint 3** purely to balance load; they need only a submitted event.
 
-### 10.2 Known risks
+**R1 moved to Sprint 3, and the attendee UI shell goes with it.** The attendee surface is a different design language from the internal screens — single column, public-facing, no Atlaskit — and leaving all of it to the final sprint means inventing that language under deadline. R1 is a simple list and can be demonstrated in Sprint 3 against a seeded Confirmed event, before F5 exists. Sprint 4 then fills in screens against an established shell rather than starting from a blank page.
+
+### 9.2 Known risks
 
 **Sprint 1 is 44 points against a velocity you have not measured,** in the sprint that also stands up the repo, Docker Compose, Supabase, Kafka, the outbox, CI and the first test kit. Treat the infrastructure as work: either give it its own story points or expect the sprint to miss. Missing a first sprint is acceptable to the graders if the retrospective shows you learned from it — silently carrying stories is not.
 
-**Sprint 3 is the heaviest at 53** and contains the two hardest items in the system (N1 slot exclusivity, Q1 reservation atomicity). If anything slips, it slips here, and it pushes into the showcase sprint. Protect it: build the concurrency tests first, not last.
+**Sprint 3 is the heaviest at 55** and contains the two hardest items in the system (N1 slot exclusivity, Q1 reservation atomicity). If anything slips, it slips here, and it pushes into the showcase sprint. Protect it: build the concurrency tests first, not last.
 
 **Same-sprint ordering matters in Sprint 3.** L3 before L1, M1 before I2, P1 before Q1. Put these in the sprint backlog order, not just the sprint.
 
