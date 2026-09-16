@@ -4,6 +4,39 @@
 
 ---
 
+# Identity Service — A1 (login/logout) and A3 (access-scope resolution)
+
+**Timestamp:** 2026-09-16T16:23+08:00 (SGT)
+**Author:** Chai, via Claude
+**Scope:** A1, A3.
+
+## Added
+
+**`services/identity` — login, logout, and access-scope resolution.**
+
+- **Schema migration + seed data** for the identity schema, covering the accounts and login-audit
+  rows A1 and A3 need.
+- **Login outcome policy** (`domain` layer, pure): the login rules — active/deactivated account,
+  bad credentials, audit outcome — decided independently of any transport or storage concern.
+- **Repo layer**: user lookup and login-audit queries.
+- **API**: `POST` login and logout endpoints (A1), and the `GET /api/v1/access-scope/events`
+  endpoint (A3) resolving what a caller's role is permitted to see.
+- **Docs**: `packages/testkit/sprint-1/traceability.csv` rows for A1/A3, and a `README.md` "Local
+  development" section (`supabase start` → migrate → seed → `npm test --workspaces` → run the
+  service).
+
+27 tests pass, all against the real database (per the Event Service entry below, which confirms
+this suite was left untouched by that later work).
+
+## Fixed
+
+- **`services/identity/package.json`'s `dev` script** now runs
+  `tsx watch --env-file=../../.env src/index.ts`. This resolves the gap the "Web app" entry below
+  flagged — `npm run dev -w @connectsphere/identity-service` was failing to load `.env`, forcing
+  the `npx tsx --env-file=.env ...` workaround.
+
+---
+
 # Web app — a testable surface for A1 to D5
 
 **Timestamp:** 2026-09-16T09:05+08:00 (SGT)
