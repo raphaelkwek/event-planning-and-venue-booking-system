@@ -48,7 +48,7 @@ async function cleanUp() {
 
 /** Inserts a submitted event outside any wider workflow, for tests that need one. */
 async function givenSubmittedEvent(ownerId = OWNER, overrides: Partial<EventFields> = {}) {
-  return sql.begin((tx) => insertSubmittedEvent(tx, ownerId, { ...fields, ...overrides }, null));
+  return sql.begin((tx) => insertSubmittedEvent(tx, ownerId, { ...fields, ...overrides }));
 }
 
 beforeEach(cleanUp);

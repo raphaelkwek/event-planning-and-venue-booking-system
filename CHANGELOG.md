@@ -4,6 +4,60 @@
 
 ---
 
+# Web app — a testable surface for A1 to D5
+
+**Timestamp:** 2026-09-16T09:05+08:00 (SGT)
+**Author:** Seann, via Claude
+**Reason:** A1–D5 could only be exercised with curl. `apps/web` makes them clickable, for manual
+testing and for the sprint review.
+
+## Added
+
+**`apps/web`** — React 18 + TypeScript + Vite, with Atlassian Design System components per
+implementation.md §7.1 (un-restyled). This fills the `apps/*` workspace slot that has been in the
+root `package.json` since the skeleton commit.
+
+- **No CORS anywhere.** The Vite dev server proxies `/identity/*` → `:8081` and `/event/*` → `:8082`,
+  so the browser talks to one origin. Neither service needed changing.
+- **Login (A1) is two calls.** Identity's `/auth/login` owns A1's rules but returns no token, so the
+  app asks Identity first — a refusal stops there, which is what keeps a deactivated account from
+  ever reaching Supabase for one — then fetches the access token for the `Bearer` calls to `:8082`.
+- **Screens:** login with the seeded accounts listed; role-driven nav (A2); My Requests (C3, with the
+  draft/submitted filter); the request editor (C1 save, C2 resume and submit, B1/B2 refusals bound
+  to their fields); request detail with the clarification thread and D3 reply; the review queue (D1);
+  and the review screen (D2 clarify, D4 approve, D5 reject behind a confirmation modal).
+- **Refusals render inline** as section messages carrying the server's own `code`, `message` and
+  `fields[]`, per implementation.md §7.1 — so B2's "names every field" is visible rather than
+  swallowed.
+- **A direct API console.** A2's "the refusal applies to a direct URL or API call, not only to hidden
+  menu items" and A3's "returns no event data at all" cannot be shown by clicking around, because
+  both are about what happens when the UI is bypassed. The console fires raw requests with the
+  signed-in user's token, with presets for each.
+- Status colours are defined once in `src/shared/status.ts`, never inlined (implementation.md §7.1).
+
+## Verified
+
+Typecheck and production build clean. Both services and the dev server were started together and
+the full journey driven through the proxy exactly as the browser makes it: sign in as three roles →
+save a draft (no reference) → C3 list → B2 refusal naming 7 fields → submit in place keeping the
+same id → attendee gets 404 → organiser's approve gets 403 → coordinator opens, clarifies, organiser
+responds with an amendment → empty rejection reason refused → approved.
+
+**Not verified: the rendered UI itself.** I have no browser automation in this environment, so while
+every request path behind the screens is confirmed against the live services, nobody has yet looked
+at the pages. Expect to find layout and Atlaskit-prop details to fix on first run.
+
+## Follow-ups
+
+1. The Playwright flow test implementation.md §8.2 asks for (`packages/testkit/sprint-1/flow.spec.ts`)
+   now has a UI to drive. That is the missing deliverable, not more unit tests.
+2. Attendee, Venue Staff and Tech Support have no screens — correctly, since no story in A1–D5 gives
+   them one. They land on the console.
+3. `npm run dev -w @connectsphere/identity-service` still fails to load `.env`; use
+   `npx tsx --env-file=.env services/identity/src/index.ts` until its owner adds the flag.
+
+---
+
 # Event Service — drafts merged into the events table
 
 **Timestamp:** 2026-09-16T00:20+08:00 (SGT)
