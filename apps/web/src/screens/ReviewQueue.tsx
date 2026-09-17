@@ -73,7 +73,7 @@ export function ReviewQueue() {
 
   return (
     <div>
-      <h2>Review queue</h2>
+      <h2 style={{ marginBottom: 16 }}>Review queue</h2>
       <div style={{ marginBottom: 16 }}>
         <SectionMessage appearance="information">
           <p style={{ margin: 0 }}>

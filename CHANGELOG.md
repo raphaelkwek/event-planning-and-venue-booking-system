@@ -4,6 +4,40 @@
 
 ---
 
+# Fix what a browser click-through of the web app found
+
+**Timestamp:** 2026-09-17T23:27+08:00 (SGT)
+**Author:** Seann, via Claude
+**Scope:** web app (D5, C3, A2 screens).
+**Reason:** The earlier fixes were checked by jsdom tests and API calls only. Clicking through the
+new request form, review, rejection dialog and All events screens in a real browser (Chrome, driven
+by Playwright) found one broken action and three smaller issues.
+
+## Fixed
+
+1. **The rejection dialog now opens** (D5). In the browser, clicking Reject did nothing: the app was
+   mounted in React `StrictMode`, whose development-only effect replay makes `@atlaskit/portal`
+   detach its container, so every Atlaskit modal rendered into a node that was not on the page. The
+   jsdom test missed it because it rendered `<App />` without `StrictMode`. The mounted tree now
+   lives in `apps/web/src/Root.tsx` (no `StrictMode`, with the reason in a comment), `main.tsx`
+   renders it, and `tests/root.test.tsx` renders the same `Root` so this cannot regress unseen.
+2. **"New request" on My requests is one button, not a button inside a link.** Nested interactive
+   elements are invalid HTML and screen readers announce them twice.
+3. **The header shows the role in words** ("Event Coordinator") instead of its code
+   (`EVENT_COORDINATOR`).
+4. **Spacing under the All events and Review queue headings**, which sat flush against the controls
+   below them.
+
+## Checked, no change needed
+
+- Venue requirements and equipment lines on the new request form, including the refusal of a zero
+  quantity shown under the line, and both shown on the request and review pages.
+- All events with "Every event" and "Assigned to me"; the review queue's "Assigned to" column; a
+  second coordinator sees the first reviewer by name.
+- "Last saved" shows "—" on submitted rows in My requests, as C3 specifies.
+
+---
+
 # Fix the six defects the A1–D5 test cases found
 
 **Timestamp:** 2026-09-17T10:06+08:00 (SGT)

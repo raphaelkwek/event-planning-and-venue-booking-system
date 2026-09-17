@@ -70,7 +70,7 @@ export function AllEvents() {
 
   return (
     <div>
-      <h2>All events</h2>
+      <h2 style={{ marginBottom: 16 }}>All events</h2>
 
       <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
         <Button appearance={filter === "all" ? "primary" : "default"} onClick={() => setFilter("all")}>

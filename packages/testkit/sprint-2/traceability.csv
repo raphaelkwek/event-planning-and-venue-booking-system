@@ -38,3 +38,4 @@ D5,"Only an Event Coordinator may reject (A2)",services/event/tests/api/decision
 D5,"The rejection reason is recorded with the decision",services/event/tests/repo/events.test.ts,"records a rejection with its reason"
 D3,"The organiser can amend the request fields, including its venue requirements, with the originals retained in the history",services/event/tests/api/clarifications.test.ts,"lets the organiser amend the venue requirements, keeping the original in the history"
 D5,"Without a reason the rejection is not performed, and the refusal is shown where the reason is entered",apps/web/tests/rejectDialog.test.tsx,"shows the refusal inside the rejection dialog"
+D5,"Rejection is offered through a confirming dialog where the reason is entered, and that dialog opens in the app as mounted",apps/web/tests/root.test.tsx,"shows the rejection dialog attached to the page"

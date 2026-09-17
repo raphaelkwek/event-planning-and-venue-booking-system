@@ -12,6 +12,14 @@ import { ReviewDetail } from "./screens/ReviewDetail.js";
 import { ApiConsole } from "./screens/ApiConsole.js";
 import type { Role } from "./api/types.js";
 
+const ROLE_LABELS: Record<Role, string> = {
+  EVENT_ORGANISER: "Event Organiser",
+  EVENT_COORDINATOR: "Event Coordinator",
+  VENUE_STAFF: "Venue Staff",
+  TECH_SUPPORT_STAFF: "Technical Support",
+  ATTENDEE: "Attendee",
+};
+
 const EVERY_ROLE: Role[] = [
   "EVENT_ORGANISER",
   "EVENT_COORDINATOR",
@@ -121,7 +129,7 @@ function Shell() {
         </nav>
 
         <span style={{ fontSize: 13, color: "#626F86" }}>
-          {session.email} · <strong>{session.role}</strong>
+          {session.email} · <strong>{ROLE_LABELS[session.role]}</strong>
         </span>
         <Button appearance="subtle" onClick={() => void onSignOut()}>
           Sign out

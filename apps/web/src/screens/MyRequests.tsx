@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import Button from "@atlaskit/button/new";
 import Lozenge from "@atlaskit/lozenge";
 import DynamicTable from "@atlaskit/dynamic-table";
@@ -19,6 +19,7 @@ type Filter = "all" | "drafts" | "submitted";
  */
 export function MyRequests() {
   const session = useSignedIn();
+  const navigate = useNavigate();
   const [filter, setFilter] = useState<Filter>("all");
   const [items, setItems] = useState<EventListItem[]>([]);
   const [error, setError] = useState<unknown>(null);
@@ -79,9 +80,11 @@ export function MyRequests() {
     <div>
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
         <h2 style={{ margin: 0, flex: 1 }}>My requests</h2>
-        <Link to="/drafts/new">
-          <Button appearance="primary">New request</Button>
-        </Link>
+        {/* A button that navigates, not a button nested in a link — nested
+            interactive elements are invalid and announced twice by screen readers. */}
+        <Button appearance="primary" onClick={() => navigate("/drafts/new")}>
+          New request
+        </Button>
       </div>
 
       <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
