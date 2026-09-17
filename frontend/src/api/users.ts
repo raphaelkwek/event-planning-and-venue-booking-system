@@ -1,6 +1,6 @@
 import { request } from "./client.js";
 
-/** Mirrors `userSummarySchema` in packages/contracts. */
+/** Mirrors `userSummarySchema` in backend/packages/contracts. */
 export interface UserSummary {
   id: string;
   displayName: string | null;

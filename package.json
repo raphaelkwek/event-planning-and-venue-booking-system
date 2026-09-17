@@ -3,19 +3,19 @@
   "private": true,
   "type": "module",
   "workspaces": [
-    "apps/*",
-    "services/*",
-    "packages/*"
+    "frontend",
+    "backend/services/*",
+    "backend/packages/*"
   ],
   "scripts": {
-    "migrate": "tsx scripts/migrate.ts",
-    "migrate:identity": "tsx scripts/migrate.ts identity --seed",
-    "migrate:event": "tsx scripts/migrate.ts event",
-    "seed:auth": "tsx services/identity/migrations/seed/seed-auth-users.ts",
+    "migrate": "tsx backend/scripts/migrate.ts",
+    "migrate:identity": "tsx backend/scripts/migrate.ts identity --seed",
+    "migrate:event": "tsx backend/scripts/migrate.ts event",
+    "seed:auth": "tsx backend/services/identity/migrations/seed/seed-auth-users.ts",
     "test-cases:reset": "tsx tests/fixtures/reset-test-data.ts",
-    "confluence:digest": "tsx scripts/confluence-digest.ts",
+    "confluence:digest": "tsx documentation/scripts/confluence-digest.ts",
     "test": "npm run test --workspaces --if-present && npm run test:scripts",
-    "test:scripts": "tsx --test scripts/confluence-digest.test.ts",
+    "test:scripts": "tsx --test documentation/scripts/confluence-digest.test.ts",
     "build": "npm run build --workspaces --if-present"
   },
   "dependencies": {

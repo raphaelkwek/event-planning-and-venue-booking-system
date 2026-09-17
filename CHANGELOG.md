@@ -4,6 +4,63 @@
 
 ---
 
+# Reorganise the repository into frontend, backend, documentation and tests
+
+**Timestamp:** 2026-09-17T23:45+08:00 (SGT)
+**Author:** Seann, via Claude
+**Scope:** whole repository — no behaviour change.
+**Reason:** Implements `documentation/proposals/2026-09-17-repository-reorganisation.md`. The root
+mixed the app, the services and their data, and writing about the project, and had both `docs/`
+and `documentation/` doing the same job. Everything is now grouped by what it is.
+
+## Moved (all with `git mv`, so history follows each file)
+
+| From | To |
+|---|---|
+| `apps/web/` | `frontend/` |
+| `services/identity/`, `services/event/` | `backend/services/identity/`, `backend/services/event/` |
+| `packages/contracts/` | `backend/packages/contracts/` |
+| `scripts/migrate.ts` | `backend/scripts/migrate.ts` |
+| `supabase/` | `backend/supabase/` — run the CLI as `npx supabase … --workdir backend` |
+| `tsconfig.base.json` | `backend/tsconfig.base.json` |
+| `Planning/` | `documentation/planning/` |
+| `docs/superpowers/` | `documentation/superpowers/` |
+| `packages/testkit/sprint-<n>/traceability.csv` | `documentation/traceability/sprint-<n>.csv` |
+| `scripts/confluence-digest.ts` and its test | `documentation/scripts/` |
+
+`tests/` stays at the root. The sprint flow tests of implementation.md §8.2 will go in
+`tests/flows/sprint-<n>/` when they are written.
+
+## Changed to match
+
+- **Root `package.json`:** workspaces are `frontend`, `backend/services/*`, `backend/packages/*`;
+  the `migrate*`, `seed:auth`, `confluence:digest` and `test:scripts` paths. `package-lock.json`
+  regenerated, a pure rename of the four workspace entries — no dependency versions changed.
+- **`backend/scripts/migrate.ts`** reads `backend/services/<name>/migrations`.
+- **Each service:** the `--env-file` in `dev` and the `.env` path in `vitest.config.ts` gain one
+  `../`. The `tsconfig.json` `extends` paths did not need changing, because the base config moved
+  into `backend/` along with them.
+- **Both Dockerfiles and `docker-compose.yml`:** every `COPY`, `CMD` and `dockerfile:` path. Not
+  built here — Docker was not run, so check the images before relying on them.
+- **`frontend/vite.config.ts`** reads `.env` from one level up instead of two.
+- **Docs:** implementation.md §2 layout rewritten, plus its path mentions in §1, §3, §4, §7, §8
+  and §11; plan.md's `sprint-reallocation.csv` link; the ADR README; README (new folder table,
+  Supabase and seed paths); `tests/README.md` and `tests/TEMPLATE.md`; the traceability files'
+  `test_file` column. The proposal's status now says it is implemented.
+- **New `CLAUDE.md`** at the root. It points agents at implementation.md §2 and tells the
+  Superpowers plugin to write specs and plans under `documentation/superpowers/`.
+
+Not changed: the entries below in this file, and the dated spec and plan under
+`documentation/superpowers/`. They are records of what happened, so they keep the paths of their
+time.
+
+## Before you pull
+
+This renames nearly every file. Push any open work first, pull before touching the repo again, and
+tell your Claude session the layout changed.
+
+---
+
 # Fix what a browser click-through of the web app found
 
 **Timestamp:** 2026-09-17T23:27+08:00 (SGT)

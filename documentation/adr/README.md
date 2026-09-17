@@ -6,7 +6,7 @@ way" with the reasoning we actually had at the time, not a reconstruction.
 
 **When to write one:** any decision that would be expensive to reverse, that an instructor is
 likely to question, or that a teammate would otherwise have to reverse-engineer from the code.
-Not every choice needs one — `Planning/plan.md` and `Planning/implementation.md` remain the
+Not every choice needs one — `documentation/planning/plan.md` and `documentation/planning/implementation.md` remain the
 day-to-day reference; an ADR is for the small number of decisions worth defending on their own.
 
 **Template:**

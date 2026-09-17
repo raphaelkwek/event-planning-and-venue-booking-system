@@ -17,14 +17,14 @@ export type EventStatus =
   | "CANCELLED"
   | "REJECTED";
 
-/** Mirrors `venueRequirementsSchema` in packages/contracts. */
+/** Mirrors `venueRequirementsSchema` in backend/packages/contracts. */
 export interface VenueRequirements {
   layout?: string | null;
   facilities?: string[] | null;
   notes?: string | null;
 }
 
-/** Mirrors `equipmentRequirementLineSchema` in packages/contracts. */
+/** Mirrors `equipmentRequirementLineSchema` in backend/packages/contracts. */
 export interface EquipmentRequirementLine {
   equipmentType: string;
   quantity: number;

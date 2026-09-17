@@ -8,14 +8,14 @@
 
 | Layer | Choice | Version pinned in |
 |---|---|---|
-| Runtime | Node.js 20 LTS, TypeScript 5.x, strict mode | `.nvmrc`, `tsconfig.base.json` |
+| Runtime | Node.js 20 LTS, TypeScript 5.x, strict mode | `.nvmrc`, `backend/tsconfig.base.json` |
 | Services | Express 4 | root `package.json` |
 | Database | Supabase Postgres 15 | `docker-compose.yml` |
 | DB access | `postgres` (porsager) or `pg` — **raw parameterised SQL, no ORM** | per service |
 | Messaging | Apache Kafka (+ Zookeeper or KRaft), `kafkajs` | `docker-compose.yml` |
 | Auth | Supabase Auth (GoTrue), `jose` for JWT verification | — |
-| Frontend | React 18, TypeScript, Vite | `apps/web` |
-| Internal UI | Atlassian Design System (`@atlaskit/*`) | `apps/web` |
+| Frontend | React 18, TypeScript, Vite | `frontend` |
+| Internal UI | Atlassian Design System (`@atlaskit/*`) | `frontend` |
 | Testing | Vitest (unit/integration), Playwright (e2e), Testcontainers or compose-backed DB | root |
 | CI | GitHub Actions | `.github/workflows/ci.yml` |
 
@@ -24,28 +24,43 @@
 ## 2. Repository layout
 
 ```
-/apps
-  /web                      SPA (all roles)
-/services
-  /identity  /event  /venue  /equipment  /registration  /notification
-    /src
-      /api                  Express routers + request validation
-      /domain               business rules, pure, no I/O
-      /repo                 SQL only, one function per query
-      /events               outbox writer + Kafka consumers
-      index.ts
-    /migrations             NNNN_description.sql, forward-only
-    /tests
-/packages
-  /contracts                event schemas, shared TS types, error codes  ← changing this needs review
-  /testkit                  shared fixtures, seed data, flow runner
+/frontend                   SPA (all roles)
+  /src  /tests
+/backend
+  /services
+    /identity  /event  /venue  /equipment  /registration  /notification
+      /src
+        /api                Express routers + request validation
+        /domain             business rules, pure, no I/O
+        /repo               SQL only, one function per query
+        /events             outbox writer + Kafka consumers
+        index.ts
+      /migrations           NNNN_description.sql, forward-only
+      /tests                unit and integration tests, next to the code
+  /packages
+    /contracts              event schemas, shared TS types, error codes  ← changing this needs review
+  /scripts                  migrate.ts
+  /supabase                 Supabase CLI config (run as `npx supabase --workdir backend …`)
+  tsconfig.base.json        extended by the services and contracts
+/documentation
+  /planning                 plan.md, implementation.md, Jira backlog
+  /adr                      architecture decision records
+  /proposals                decisions still being agreed
+  /superpowers              /specs and /plans written by the Superpowers plugin
+  /traceability             sprint-<n>.csv (§8.2)
+  /scripts                  confluence-digest.ts
+  /transcript               meeting transcripts
+  Final_User_Stories__2_.md, sprint-reallocation.csv
 /tests                      functional test cases, one folder per user story (§8.4)
   /<story-id>               e.g. /tests/D5/D5-T1-reject-with-a-reason.md
-/docs                       plan.md, implementation.md, C4 dsl, user stories
-docker-compose.yml
+  /flows/sprint-<n>         the sprint flow test: flow.md, seed.sql, flow.spec.ts (§8.2)
+  /fixtures                 test-data reset
+CHANGELOG.md  README.md  CLAUDE.md  package.json  docker-compose.yml  .env
 ```
 
-**You may write inside your own service directory and your own migrations only.** `/packages/contracts` is shared: a PR touching it must be reviewed by at least one other service owner before merge.
+`tests/` is its own top-level folder because its cases and their automated scripts drive the running web app against the running services, so they belong to neither half. Unit and integration tests stay next to the code they test. The root keeps only what must live there: npm workspaces, the shared `.env`, the whole-stack `docker-compose.yml`, and the files GitHub, Claude Code and §11.2 expect at the root.
+
+**You may write inside your own service directory and your own migrations only.** `/backend/packages/contracts` is shared: a PR touching it must be reviewed by at least one other service owner before merge.
 
 ## 3. Kafka message format (mandatory)
 
@@ -84,7 +99,7 @@ Every message body is JSON in exactly this shape. No exceptions — consumers va
     "type": "EVENT | BOOKING | HOLD | RESERVATION | REGISTRATION | NOTIFICATION",
     "id":   "uuid"
   },
-  "payload": { }                     // event-specific; see /packages/contracts
+  "payload": { }                     // event-specific; see /backend/packages/contracts
 }
 ```
 
@@ -93,7 +108,7 @@ Every message body is JSON in exactly this shape. No exceptions — consumers va
 - Never put a JWT, password, or full user record in a payload.
 - Payload fields are additive only within a `schemaVersion`. Removing or retyping a field means a new version and a new topic.
 - Timestamps are always RFC3339 UTC with milliseconds. Never local time, never epoch ints.
-- Every event type has a TypeScript type and a runtime validator (zod) in `/packages/contracts`. Producing an event without one is a failed review.
+- Every event type has a TypeScript type and a runtime validator (zod) in `/backend/packages/contracts`. Producing an event without one is a failed review.
 
 ### 3.4 Transactional outbox (required of every producer)
 
@@ -138,7 +153,7 @@ Insert the `messageId` in the same transaction as the side effect; a duplicate k
 - Foreign keys **within** a schema: `<singular>_id`, with a real FK constraint.
 - References **across** schemas: `<singular>_id uuid not null`, **no FK constraint**, and a comment naming the owning service.
 - Booleans read as assertions: `is_active`, `has_registration`. Never `flag`, never `status_bool`.
-- Enumerated values: `text` + `check (col in (...))`, not Postgres `enum` types (migrating an enum is painful). The permitted values live in `/packages/contracts`.
+- Enumerated values: `text` + `check (col in (...))`, not Postgres `enum` types (migrating an enum is painful). The permitted values live in `/backend/packages/contracts`.
 
 ### 4.2 Columns every table has
 
@@ -238,7 +253,7 @@ Zero rows returned means full; offer the waitlist (R6).
 
 ### 4.8 Migrations
 
-Forward-only, numbered, one concern per file: `0007_add_venue_slots_exclusion.sql`. Never edit a merged migration. Seed data (internal staff accounts, venues, equipment types) lives in `/services/<svc>/migrations/seed/` and is idempotent.
+Forward-only, numbered, one concern per file: `0007_add_venue_slots_exclusion.sql`. Never edit a merged migration. Seed data (internal staff accounts, venues, equipment types) lives in `/backend/services/<svc>/migrations/seed/` and is idempotent.
 
 ## 5. HTTP API conventions
 
@@ -249,7 +264,7 @@ Forward-only, numbered, one concern per file: `0007_add_venue_slots_exclusion.sq
 ```jsonc
 {
   "error": {
-    "code": "BOOKING_SLOT_CONFLICT",      // SCREAMING_SNAKE, defined in /packages/contracts
+    "code": "BOOKING_SLOT_CONFLICT",      // SCREAMING_SNAKE, defined in /backend/packages/contracts
     "message": "Venue Hall A is already booked for 2026-10-02 14:00–16:00 (booking BK-00231).",
     "details": { "conflictingBookingRef": "BK-00231" },   // optional, structured
     "fields": [ { "field": "expectedAttendance", "message": "must be greater than zero" } ],
@@ -281,7 +296,7 @@ Use **Atlassian Design System** components (`@atlaskit/*`) and do not restyle th
 Standard screen shapes:
 - **Queue/list screens** (D1 review queue, M1 booking queue, R5 registrations): `@atlaskit/dynamic-table` with column sort, status `@atlaskit/lozenge`, cursor pagination.
 - **Detail screens**: two-column — content left, metadata/status/history right.
-- **Status** is always a lozenge with a fixed colour per status. Define the map once in `apps/web/src/shared/status.ts`; never inline a colour.
+- **Status** is always a lozenge with a fixed colour per status. Define the map once in `frontend/src/shared/status.ts`; never inline a colour.
 - **Destructive or irreversible actions** (reject, cancel, release) use a confirmation modal that restates what will happen, and the mandatory-reason field lives in that modal.
 - **Refusals** render as an inline `@atlaskit/section-message` with the server's `message`, never a generic toast. Field errors bind to the field via `fields[]`.
 
@@ -301,7 +316,7 @@ These belong to no single story but every screen depends on them, so they are bu
 - **Session store and route guard** — token and active role held in context; navigation renders only the functions the role may use (A2); logout clears state so a back-navigation shows no event data (A1).
 - **API client** — attaches the bearer token and `X-Correlation-Id`, and parses the standard error envelope (§5) into a refusal message plus per-field errors.
 - **Refusal display** — one inline component for the server's `message`, and one binding of `fields[]` to form inputs. Most stories specify what the user is told on refusal; this is where that happens. Never a generic toast.
-- **Status lozenge map** — `apps/web/src/shared/status.ts`, one colour per event, booking, reservation and registration status. No inline colours anywhere.
+- **Status lozenge map** — `frontend/src/shared/status.ts`, one colour per event, booking, reservation and registration status. No inline colours anywhere.
 - **App layout and empty/loading states** — page shell, list and detail skeletons, and the "no results, here are the filters you applied" empty state J1 requires.
 
 The attendee shell (§7.2) is separate and is built in Sprint 3 with R1, not in Sprint 4 — see `plan.md` §9.1.
@@ -314,19 +329,19 @@ The attendee shell (§7.2) is separate and is built in Sprint 3 with R1, not in 
 |---|---|---|
 | Unit | Vitest | `/domain` — pure rules: overlap, validation, status transitions, capacity maths. Fast, no DB. |
 | Integration | Vitest + real Postgres | `/repo` and the concurrency invariants. **The exclusion constraint and both conditional updates must each have a test that fires two operations concurrently and asserts exactly one wins.** |
-| Contract | Vitest | Every produced event validates against its `/packages/contracts` schema; every consumer handles a duplicate `messageId` without a second side effect. |
+| Contract | Vitest | Every produced event validates against its `/backend/packages/contracts` schema; every consumer handles a duplicate `messageId` without a second side effect. |
 | E2E | Playwright | Full user flows through the SPA against the composed stack. |
 
 **Target: 100% coverage of `/domain`,** and where it isn't reachable, a comment in the test file saying why. The rubric asks for exactly this.
 
 ### 8.2 The sprint test kit — build it *before* the sprint
 
-At sprint planning, before any story is started, the sprint owner creates `/packages/testkit/sprint-<n>/`:
+At sprint planning, before any story is started, the sprint owner creates `/tests/flows/sprint-<n>/` with the first three files, and `/documentation/traceability/sprint-<n>.csv`:
 
 1. **`flow.md`** — the end-to-end journey the sprint must demonstrate, written as numbered steps with the expected observable outcome at each. Derived from the sprint's stories, not invented.
 2. **`seed.sql`** — idempotent fixture data for that flow (staff accounts, venues, equipment, an attendee).
 3. **`flow.spec.ts`** — a Playwright test that walks `flow.md` start to finish and fails loudly at the first divergence.
-4. **`traceability.csv`** — `story_id, acceptance_criterion, test_file, test_name`, one row per AC. This *is* deliverable 3.
+4. **`sprint-<n>.csv`** (the traceability file) — `story_id, acceptance_criterion, test_file, test_name`, one row per AC. This *is* deliverable 3.
 
 The flow test goes red on day one and must be green before the sprint review. It is the sprint's definition of done at the system level, and it catches integration breakage between six people's services on the day it happens rather than in Week 12.
 
@@ -337,9 +352,9 @@ The flow test goes red on day one and must be green before the sprint review. It
 - CI pipeline green: build, lint, typecheck, test.
 - All acceptance criteria demonstrated to the Product Owner in the sprint review.
 - No new failing tests; existing tests still pass.
-- Story traced to its tests in `traceability.csv`.
+- Story traced to its tests in `documentation/traceability/sprint-<n>.csv`.
 - Functional test cases written for the story in `/tests/<story-id>/` (§8.4), each with a latest execution record, and every acceptance criterion covered by at least one of them.
-- Any new event type registered in `/packages/contracts` with a schema and a validator.
+- Any new event type registered in `/backend/packages/contracts` with a schema and a validator.
 
 ### 8.4 Functional test cases
 
@@ -475,7 +490,7 @@ Each of us is running Claude Code against a shared repo. These exist to stop six
 
 1. **Read `plan.md` §4–§6 and this document's §3 and §4 before writing code.** They contain the contracts the rest of the team depends on.
 2. **Stay inside your service directory and your own migrations.** Do not "helpfully" fix another service.
-3. **Do not invent fields, event types, error codes, status values, or endpoints.** If the story needs one that isn't in `/packages/contracts`, stop, propose it to the team, add it in a reviewed PR.
+3. **Do not invent fields, event types, error codes, status values, or endpoints.** If the story needs one that isn't in `/backend/packages/contracts`, stop, propose it to the team, add it in a reviewed PR.
 4. **Implement the acceptance criteria as written.** If an AC seems wrong or impossible, raise it — do not silently improve it. The ACs are the spec and the test basis.
 5. **Refusal paths are features.** Most stories specify what happens when an action is refused and assert nothing is stored. Implement and test those alongside the happy path.
 6. **No `DELETE`. No read-then-write on a contended resource. No HTTP inside a transaction. No ORM.**

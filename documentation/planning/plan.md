@@ -131,7 +131,7 @@ Everything runs from one `docker-compose.yml`. Ports are fixed so our test kit a
 
 Four two-week sprints, Weeks 4–11. The final sprint closes in Week 11, leaving Week 12 for the submission package. Week 7 (the scrum process consultation) falls inside Sprint 2.
 
-Re-sequenced against the revised backlog: T1 removed, F4 / L3 / R6 / R7 added, F1 split. Full move-by-move record with reasons in `/docs/sprint-reallocation.csv`.
+Re-sequenced against the revised backlog: T1 removed, F4 / L3 / R6 / R7 added, F1 split. Full move-by-move record with reasons in `/documentation/sprint-reallocation.csv`.
 
 **Every story is a vertical slice.** A story includes its own UI, API, domain logic, repository, migration and tests, and is built by whoever owns it — there is no separate frontend workstream and no one is "the UI person". A story is not Done until the Product Owner can click through it in the sprint review, which is what the Definition of Done (`implementation.md` §8.3) requires. The shared UI shell that no single story owns — route guard, session store, API client, role-based navigation, the refusal/error display, the status lozenge map — is Sprint 1 work and is listed in `implementation.md` §7.3.
 

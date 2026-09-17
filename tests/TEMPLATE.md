@@ -2,7 +2,7 @@
 
 <!--
 Copy this file to /tests/<story-id>/<story-id>-T<n>-<short-slug>.md.
-Format and rules: Planning/implementation.md §8.4.
+Format and rules: documentation/planning/implementation.md §8.4.
 The specification is written once; the execution record is replaced on every run.
 -->
 

@@ -9,7 +9,7 @@
  * with --out.
  *
  * Usage:
- *   tsx scripts/confluence-digest.ts [--since <date>] [--order asc|desc] [--file <path>] [--out <path>]
+ *   tsx documentation/scripts/confluence-digest.ts [--since <date>] [--order asc|desc] [--file <path>] [--out <path>]
  *
  *   --since   Only include entries timestamped at/after this date (any Date.parse-able value).
  *   --order   asc (chronological, default) or desc (newest-first, matching CHANGELOG.md itself).

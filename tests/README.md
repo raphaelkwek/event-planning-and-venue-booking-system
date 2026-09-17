@@ -1,7 +1,7 @@
 # Functional test cases
 
 One folder per user story, one file per test case. The full rules, the format, and a worked
-example are in `Planning/implementation.md` §8.4; this is the short version, plus the shared
+example are in `documentation/planning/implementation.md` §8.4; this is the short version, plus the shared
 setup every case refers to.
 
 ```

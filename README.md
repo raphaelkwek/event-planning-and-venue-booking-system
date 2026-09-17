@@ -1,14 +1,21 @@
 # event-planning-and-venue-booking-system
 
+| Folder | Holds |
+|---|---|
+| `frontend/` | The web app, one for every role. |
+| `backend/` | The services, the shared `contracts` package, the migration script and the Supabase CLI config. |
+| `documentation/` | Planning (`plan.md`, `implementation.md`), ADRs, proposals, user stories, Superpowers specs and plans, traceability. |
+| `tests/` | Functional test cases, one folder per user story. Unit and integration tests live beside their code. |
+
 ## Local development
 
 1. `nvm use` (Node 20 — see `.nvmrc`).
 2. `npm install` from the repo root.
-3. `npx supabase init && npx supabase start` — starts local Postgres + Auth. Note the printed `API URL`, `anon key`, `service_role key`, and `DB URL`. (A hosted Supabase project works too; point `DATABASE_URL` at its pooler.)
+3. `npx supabase start --workdir backend` — starts local Postgres + Auth. Note the printed `API URL`, `anon key`, `service_role key`, and `DB URL`. (A hosted Supabase project works too; point `DATABASE_URL` at its pooler.)
 4. `cp .env.example .env` and fill in `DATABASE_URL`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_JWKS_URL` from step 3.
 5. `npm run migrate:identity` — applies the identity schema and seed SQL.
 6. `npm run migrate:event` — applies the event schema.
-7. `npm run seed:auth` — creates matching Supabase Auth users (password: see `services/identity/migrations/seed/seed-auth-users.ts`).
+7. `npm run seed:auth` — creates matching Supabase Auth users (password: see `backend/services/identity/migrations/seed/seed-auth-users.ts`).
 8. `npm test --workspaces` — runs every service and package's test suite.
 9. `npm run dev -w @connectsphere/identity-service` — runs the Identity service on `:8081`.
 10. `npm run dev -w @connectsphere/event-service` — runs the Event service on `:8082`. It calls Identity on every request to resolve the caller's role and access scope, so start Identity first.
@@ -18,7 +25,7 @@
 ### Trying the stories in the browser
 
 Sign in at <http://localhost:5173> with any seeded account; the login screen lists them and they all
-use the password in `services/identity/migrations/seed/seed-auth-users.ts`. What each story looks
+use the password in `backend/services/identity/migrations/seed/seed-auth-users.ts`. What each story looks
 like:
 
 | Story | Where |
@@ -48,4 +55,4 @@ Paste the output straight into the Confluence page as a table. `--out <path>` wr
 instead of stdout; `--order desc` matches CHANGELOG.md's own newest-first order if you'd rather
 read it that way.
 
-See `Planning/plan.md` for architecture and `Planning/implementation.md` for the mandatory formats every service follows.
+See `documentation/planning/plan.md` for architecture and `documentation/planning/implementation.md` for the mandatory formats every service follows, including the repository layout (§2).

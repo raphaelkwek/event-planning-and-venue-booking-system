@@ -6,7 +6,7 @@ import postgres from "postgres";
 
 const service = process.argv[2];
 if (!service) {
-  console.error("Usage: tsx scripts/migrate.ts <service> [--seed]");
+  console.error("Usage: tsx backend/scripts/migrate.ts <service> [--seed]");
   process.exit(1);
 }
 const withSeed = process.argv.includes("--seed");
@@ -27,8 +27,8 @@ async function run() {
     primary key (service, filename)
   )`;
 
-  const dirs = [join("services", service, "migrations")];
-  if (withSeed) dirs.push(join("services", service, "migrations", "seed"));
+  const dirs = [join("backend", "services", service, "migrations")];
+  if (withSeed) dirs.push(join("backend", "services", service, "migrations", "seed"));
 
   for (const dir of dirs) {
     const files = readdirSync(dir)

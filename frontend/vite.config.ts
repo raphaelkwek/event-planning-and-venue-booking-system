@@ -2,7 +2,7 @@ import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 import { resolve } from "node:path";
 
-const repoRoot = resolve(__dirname, "../..");
+const repoRoot = resolve(__dirname, "..");
 
 /**
  * The browser only ever talks to this dev server, which proxies through to the

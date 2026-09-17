@@ -2,7 +2,7 @@ services:
   identity-service:
     build:
       context: .
-      dockerfile: services/identity/Dockerfile
+      dockerfile: backend/services/identity/Dockerfile
     env_file:
       - .env
     ports:
@@ -14,7 +14,7 @@ services:
   event-service:
     build:
       context: .
-      dockerfile: services/event/Dockerfile
+      dockerfile: backend/services/event/Dockerfile
     env_file:
       - .env
     environment:

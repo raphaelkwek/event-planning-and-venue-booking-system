@@ -2,8 +2,8 @@
 
 **Date:** 2026-09-17
 **Raised by:** Seann
-**Status:** proposed — needs team agreement before anything moves
-**Affects:** everyone. `Planning/implementation.md` §2 is the layout every teammate's agent follows.
+**Status:** implemented 2026-09-17 in one local commit (see CHANGELOG.md); not yet pushed — steps 1, 2 and 5 below still apply
+**Affects:** everyone. `documentation/planning/implementation.md` §2 (was `Planning/implementation.md`) is the layout every teammate's agent follows.
 
 ## Why
 
