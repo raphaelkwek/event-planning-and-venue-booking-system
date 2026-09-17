@@ -11,16 +11,14 @@
 
 1. `nvm use` (Node 20 — see `.nvmrc`).
 2. `npm install` from the repo root.
-3. `npx supabase start --workdir backend` — starts local Postgres + Auth. Note the printed `API URL`, `anon key`, `service_role key`, and `DB URL`. (A hosted Supabase project works too; point `DATABASE_URL` at its pooler.)
-4. `cp .env.example .env` and fill in `DATABASE_URL`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_JWKS_URL` from step 3.
-5. `npm run migrate:identity` — applies the identity schema and seed SQL.
-6. `npm run migrate:event` — applies the event schema.
-7. `npm run seed:auth` — creates matching Supabase Auth users (password: see `backend/services/identity/migrations/seed/seed-auth-users.ts`).
-8. `npm test --workspaces` — runs every service and package's test suite.
-9. `npm run dev -w @connectsphere/identity-service` — runs the Identity service on `:8081`.
-10. `npm run dev -w @connectsphere/event-service` — runs the Event service on `:8082`. It calls Identity on every request to resolve the caller's role and access scope, so start Identity first.
-
-11. `npm run dev -w @connectsphere/web` — the web app on <http://localhost:5173>. Start both services first: the Vite dev server proxies `/identity/*` to `:8081` and `/event/*` to `:8082`, so the browser only ever talks to one origin and neither service needs CORS.
+3. `cp .env.example .env` and fill it in. There is no Docker, and nothing runs locally besides Node (ADR-0003):
+   - **Supabase** — from the team's hosted project: the transaction pooler connection string (port 6543) as `DATABASE_URL`, plus `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` and `SUPABASE_JWKS_URL`.
+   - **Kafka** — the shared hosted cluster's bootstrap server and SASL credentials (`KAFKA_*`). No service publishes to Kafka yet, so these can wait until the outbox relay is built.
+4. `npm run migrate:identity` — applies the identity schema and seed SQL.
+5. `npm run migrate:event` — applies the event schema.
+6. `npm run seed:auth` — creates matching Supabase Auth users (password: see `backend/services/identity/migrations/seed/seed-auth-users.ts`).
+7. `npm test` — runs every service, package and script test suite.
+8. `npm run dev` — starts the Identity service on `:8081`, the Event service on `:8082` and the web app on <http://localhost:5173> in one terminal, each line prefixed with where it came from. The Vite dev server proxies `/identity/*` to `:8081` and `/event/*` to `:8082`, so the browser only ever talks to one origin and neither service needs CORS. To run just one: `npm run dev -w @connectsphere/identity-service` (or `event-service`, `web`).
 
 ### Trying the stories in the browser
 

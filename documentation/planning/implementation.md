@@ -10,13 +10,13 @@
 |---|---|---|
 | Runtime | Node.js 20 LTS, TypeScript 5.x, strict mode | `.nvmrc`, `backend/tsconfig.base.json` |
 | Services | Express 4 | root `package.json` |
-| Database | Supabase Postgres 15 | `docker-compose.yml` |
+| Database | Supabase Postgres 15, hosted | the team's Supabase project |
 | DB access | `postgres` (porsager) or `pg` — **raw parameterised SQL, no ORM** | per service |
-| Messaging | Apache Kafka (+ Zookeeper or KRaft), `kafkajs` | `docker-compose.yml` |
+| Messaging | Apache Kafka, one hosted cluster shared by the team (ADR-0003), `kafkajs` | the hosted provider |
 | Auth | Supabase Auth (GoTrue), `jose` for JWT verification | — |
 | Frontend | React 18, TypeScript, Vite | `frontend` |
 | Internal UI | Atlassian Design System (`@atlaskit/*`) | `frontend` |
-| Testing | Vitest (unit/integration), Playwright (e2e), Testcontainers or compose-backed DB | root |
+| Testing | Vitest (unit/integration), Playwright (e2e), against the hosted Supabase project | root |
 | CI | GitHub Actions | `.github/workflows/ci.yml` |
 
 **No ORM** is deliberate: our hardest invariants are exclusion constraints and conditional updates, which ORMs hide. Write the SQL.
@@ -55,10 +55,10 @@
   /<story-id>               e.g. /tests/D5/D5-T1-reject-with-a-reason.md
   /flows/sprint-<n>         the sprint flow test: flow.md, seed.sql, flow.spec.ts (§8.2)
   /fixtures                 test-data reset
-CHANGELOG.md  README.md  CLAUDE.md  package.json  docker-compose.yml  .env
+CHANGELOG.md  README.md  CLAUDE.md  package.json  .env
 ```
 
-`tests/` is its own top-level folder because its cases and their automated scripts drive the running web app against the running services, so they belong to neither half. Unit and integration tests stay next to the code they test. The root keeps only what must live there: npm workspaces, the shared `.env`, the whole-stack `docker-compose.yml`, and the files GitHub, Claude Code and §11.2 expect at the root.
+`tests/` is its own top-level folder because its cases and their automated scripts drive the running web app against the running services, so they belong to neither half. Unit and integration tests stay next to the code they test. The root keeps only what must live there: npm workspaces and the root `npm run dev` that starts the whole stack, the shared `.env`, and the files GitHub, Claude Code and §11.2 expect at the root.
 
 **You may write inside your own service directory and your own migrations only.** `/backend/packages/contracts` is shared: a PR touching it must be reviewed by at least one other service owner before merge.
 
@@ -330,7 +330,7 @@ The attendee shell (§7.2) is separate and is built in Sprint 3 with R1, not in 
 | Unit | Vitest | `/domain` — pure rules: overlap, validation, status transitions, capacity maths. Fast, no DB. |
 | Integration | Vitest + real Postgres | `/repo` and the concurrency invariants. **The exclusion constraint and both conditional updates must each have a test that fires two operations concurrently and asserts exactly one wins.** |
 | Contract | Vitest | Every produced event validates against its `/backend/packages/contracts` schema; every consumer handles a duplicate `messageId` without a second side effect. |
-| E2E | Playwright | Full user flows through the SPA against the composed stack. |
+| E2E | Playwright | Full user flows through the SPA against the running stack (`npm run dev`, which Playwright's `webServer` setting can start). |
 
 **Target: 100% coverage of `/domain`,** and where it isn't reachable, a comment in the test file saying why. The rubric asks for exactly this.
 
@@ -480,9 +480,9 @@ Log every refusal with its `code` — refusals are correct behaviour under CP an
 
 ## 10. Configuration and deployment
 
-All config from environment variables, documented in `.env.example`. No secrets in the repo, no `localhost` in code. Required per service: `PORT`, `DATABASE_URL`, `DATABASE_SCHEMA`, `KAFKA_BROKERS`, `SUPABASE_URL`, `SUPABASE_JWKS_URL`, `SERVICE_NAME`, `LOG_LEVEL`, `INTERNAL_TOKEN_SECRET`.
+All config from environment variables, documented in `.env.example`. No secrets in the repo, no `localhost` in code. Required per service: `PORT`, `DATABASE_URL`, `DATABASE_SCHEMA`, `KAFKA_BROKERS`, `KAFKA_SASL_MECHANISM`, `KAFKA_SASL_USERNAME`, `KAFKA_SASL_PASSWORD`, `SUPABASE_URL`, `SUPABASE_JWKS_URL`, `SERVICE_NAME`, `LOG_LEVEL`, `INTERNAL_TOKEN_SECRET`.
 
-Cloud-readiness rules to follow now so the move is boring later: services are stateless (no in-process cache, no local disk writes, sessions in the token); health endpoints `/healthz` (liveness) and `/readyz` (checks DB and Kafka); graceful shutdown drains in-flight requests and commits Kafka offsets; every service runs from a Dockerfile, never from `npm run dev` in the compose file.
+Cloud-readiness rules to follow now so the move is boring later: services are stateless (no in-process cache, no local disk writes, sessions in the token); health endpoints `/healthz` (liveness) and `/readyz` (checks DB and Kafka); graceful shutdown drains in-flight requests and commits Kafka offsets; every service can run from its build (`npm run build`, then `npm run start -w <service>`), and `npm run dev` is for local work only. There is no Docker (ADR-0003): a deployment platform builds each service from its `package.json`.
 
 ## 11. Rules for coding agents
 
@@ -557,6 +557,6 @@ the convention at the top of the file. A push with no corresponding entry is not
 Keep this list short and kill items as they're decided.
 
 - Email delivery: in-app notification only satisfies T2. Email is a stretch goal behind an adapter.
-- Kafka single-broker locally; replication factor and partition count for cloud not yet chosen.
+- Hosted Kafka provider not yet chosen (ADR-0003): it must allow one topic per event type plus a log and dead-letter topic per service, last the semester, and support a SASL mechanism `kafkajs` speaks. Also undecided: consumer group and test-topic naming so teammates sharing the cluster do not consume each other's messages; partition count per topic.
 - Whether waitlist invitations expire (customer left it open).
 - Whether a rejected event can be revived (customer left it to us; currently terminal).

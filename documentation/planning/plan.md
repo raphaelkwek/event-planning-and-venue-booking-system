@@ -19,9 +19,9 @@ A web system that manages the lifecycle of an event at a ConnectSphere-managed v
 | CAP | **CP** — consistency over availability | On a partition or a dependency timeout, **refuse the operation and return an error**. Never serve a stale answer, never accept a write you cannot verify. A refusal is a correct outcome; a double-booking is not. |
 | Database | **ACID (Supabase Postgres)** | All invariants are enforced in the database, not in application memory. Exclusion constraints and conditional updates, not read-then-write. |
 | Style | Microservices, schema-per-service | No cross-schema joins, no cross-schema foreign keys. You read another service's data through its API or through a Kafka-fed projection — never by querying its tables. |
-| Messaging | **Apache Kafka** | Every domain event is published via the transactional outbox. Direct HTTP calls to another service's write endpoint are allowed only for the synchronous cases listed in §5. |
+| Messaging | **Apache Kafka**, one hosted cluster shared by the team (ADR-0003) | Every domain event is published via the transactional outbox. Direct HTTP calls to another service's write endpoint are allowed only for the synchronous cases listed in §5. |
 | Auth | Supabase Auth (JWT) + our own role rules | The token proves identity. Authorisation is ours and is re-checked in every service. |
-| Deployment | Local (Docker Compose) now, cloud later | Nothing may depend on localhost, a local file path, or a shared in-process cache. Config comes from environment variables only. |
+| Deployment | Local Node processes now (`npm run dev`), cloud later. **No Docker** (ADR-0003) | Nothing may depend on localhost, a local file path, or a shared in-process cache. Config comes from environment variables only. |
 
 **Be ready to defend the microservice choice in Week 13.** The customer told us roughly 500 internal staff. That does not require microservices. Our reason is that we drew boundaries around transactional invariants and gave each member a service they own end-to-end. Do not claim a scale justification.
 
@@ -38,7 +38,7 @@ A web system that manages the lifecycle of an event at a ConnectSphere-managed v
 | **Registration Service** | Registrations, waitlist, capacity | R1–R7 |
 | **Notification Service** | Notification records and read state | T2 |
 | **Scheduled Job Runner** | Completion sweep, registration windows, conflict-flag recalculation, reminders | F1, R2, N2 |
-| **Apache Kafka** | Domain events + structured logs | — |
+| **Apache Kafka** (hosted) | Domain events + structured logs | — |
 | **Supabase Postgres** | One schema per service | — |
 | **Supabase Auth** | Credentials, JWT issuing | A1 |
 | **Supabase Storage** | Event attachments | B1 |
@@ -121,11 +121,11 @@ Browser → SPA (Vite dev server / static)
             → equipment-svc:8084    → Supabase Postgres (schema: equipment)
             → registration-svc:8085 → Supabase Postgres (schema: registration)
             → notification-svc:8086 → Supabase Postgres (schema: notification)
-        all services ⇄ Kafka :9092 (domain events + logs)
+        all services ⇄ hosted Kafka cluster (domain events + logs)
         scheduler → services over HTTP
 ```
 
-Everything runs from one `docker-compose.yml`. Ports are fixed so our test kit and each other's local runs are interchangeable.
+`npm run dev` at the repo root starts the services and the web app together; Supabase and Kafka are hosted and shared, so nothing else runs locally. Ports are fixed so our test kit and each other's local runs are interchangeable.
 
 ## 9. Sprint sequence
 
@@ -160,7 +160,7 @@ Re-sequenced against the revised backlog: T1 removed, F4 / L3 / R6 / R7 added, F
 
 ### 9.2 Known risks
 
-**Sprint 1 is 44 points against a velocity you have not measured,** in the sprint that also stands up the repo, Docker Compose, Supabase, Kafka, the outbox, CI and the first test kit. Treat the infrastructure as work: either give it its own story points or expect the sprint to miss. Missing a first sprint is acceptable to the graders if the retrospective shows you learned from it — silently carrying stories is not.
+**Sprint 1 is 44 points against a velocity you have not measured,** in the sprint that also stands up the repo, Supabase, the hosted Kafka cluster, the outbox, CI and the first test kit. Treat the infrastructure as work: either give it its own story points or expect the sprint to miss. Missing a first sprint is acceptable to the graders if the retrospective shows you learned from it — silently carrying stories is not.
 
 **Sprint 3 is the heaviest at 55** and contains the two hardest items in the system (N1 slot exclusivity, Q1 reservation atomicity). If anything slips, it slips here, and it pushes into the showcase sprint. Protect it: build the concurrency tests first, not last.
 

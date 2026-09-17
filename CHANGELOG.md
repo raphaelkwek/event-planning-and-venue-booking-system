@@ -4,6 +4,53 @@
 
 ---
 
+# Drop Docker; plan for one hosted Kafka cluster
+
+**Timestamp:** 2026-09-18T00:35+08:00 (SGT)
+**Author:** Seann, via Claude
+**Scope:** whole repository — setup, run instructions and the architecture documents. No app behaviour change.
+**Reason:** Nobody ran Docker: every service, test and the web app already ran as plain Node against
+the hosted Supabase project, and no script or README step used the compose file. Its only real
+future use was running Kafka, and a single hosted cluster serves the team without anyone installing
+Docker or Java. Recorded as **ADR-0003**.
+
+## Removed
+
+- `docker-compose.yml` and the Identity and Event `Dockerfile`s.
+
+## Added
+
+- **`npm run dev` at the repo root** starts Identity (`:8081`), Event (`:8082`) and the web app
+  (`:5173`) together in one terminal, each line prefixed with its source. It replaces three separate
+  terminals. Uses `concurrently` 9 (a new root dev dependency; version 10 needs Node 22 and the
+  project pins Node 20).
+- **`documentation/adr/0003-no-docker-hosted-kafka.md`**, and its row in the ADR index.
+
+## Changed
+
+- **`.env.example`:** Kafka is now a hosted bootstrap server with `KAFKA_SASL_MECHANISM`,
+  `KAFKA_SASL_USERNAME` and `KAFKA_SASL_PASSWORD`. The Supabase values are placeholders for the
+  hosted project, including the transaction pooler for `DATABASE_URL`, instead of a local Supabase
+  that needed Docker.
+- **`plan.md`:** §2 Messaging and Deployment rows, the Kafka row in §3, the §8 topology and how the
+  stack starts, and the Sprint 1 risk note in §9.2.
+- **`implementation.md`:** §1 stack table (database, messaging, testing), the §2 root listing, the
+  §8.1 E2E row, the §10 required variables and cloud-readiness rule, and the open items in the
+  appendix: choosing the Kafka provider, and naming consumer groups so teammates sharing the cluster
+  don't consume each other's messages.
+- **README:** setup no longer runs `supabase start`, and uses `npm test` and `npm run dev`.
+- **`CLAUDE.md`:** agents are told the project has no Docker.
+- A comment in the Event service's `config.ts` that referred to Docker.
+
+## Not yet done
+
+- **No Kafka provider is chosen and no cluster exists.** No service publishes to Kafka yet, so
+  nothing breaks in the meantime.
+- **`backend/supabase/config.toml` is still in the repo.** It only configures `supabase start`, which
+  needs Docker, so it is now unused.
+
+---
+
 # Reorganise the repository into frontend, backend, documentation and tests
 
 **Timestamp:** 2026-09-17T23:45+08:00 (SGT)

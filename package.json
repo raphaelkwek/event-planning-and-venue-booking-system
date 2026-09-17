@@ -8,6 +8,7 @@
     "backend/packages/*"
   ],
   "scripts": {
+    "dev": "concurrently --kill-others-on-fail --names identity,event,web --prefix-colors blue,magenta,green \"npm run dev -w @connectsphere/identity-service\" \"npm run dev -w @connectsphere/event-service\" \"npm run dev -w @connectsphere/web\"",
     "migrate": "tsx backend/scripts/migrate.ts",
     "migrate:identity": "tsx backend/scripts/migrate.ts identity --seed",
     "migrate:event": "tsx backend/scripts/migrate.ts event",
@@ -22,6 +23,7 @@
     "postgres": "^3.4.4"
   },
   "devDependencies": {
+    "concurrently": "^9.2.4",
     "dotenv": "^16.4.5",
     "tsx": "^4.16.2",
     "typescript": "^5.5.3"

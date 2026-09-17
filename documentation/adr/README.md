@@ -40,3 +40,4 @@ place (update its Status) rather than deleting it.
 |---|---|---|
 | [0001](0001-microservices-schema-per-service-cp-consistency.md) | Microservices with schema-per-service boundaries, CP over AP | Accepted |
 | [0002](0002-orchestrated-saga-for-cross-service-cancellation.md) | Orchestrated saga with compensation for F4 cancellation | Accepted |
+| [0003](0003-no-docker-hosted-kafka.md) | No Docker; one hosted Kafka cluster shared by the team | Accepted |

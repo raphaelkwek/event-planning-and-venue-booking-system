@@ -7,8 +7,8 @@ function required(name: string): string {
 }
 
 /**
- * EVENT_PORT takes precedence over PORT so that a single local .env can run
- * more than one service; in Docker each container gets its own PORT.
+ * EVENT_PORT takes precedence over PORT so that a single shared .env can run
+ * every service at once, each on its own port.
  */
 export const config = {
   port: Number(process.env.EVENT_PORT ?? process.env.PORT ?? 8082),
