@@ -17,6 +17,20 @@ export type EventStatus =
   | "CANCELLED"
   | "REJECTED";
 
+/** Mirrors `venueRequirementsSchema` in packages/contracts. */
+export interface VenueRequirements {
+  layout?: string | null;
+  facilities?: string[] | null;
+  notes?: string | null;
+}
+
+/** Mirrors `equipmentRequirementLineSchema` in packages/contracts. */
+export interface EquipmentRequirementLine {
+  equipmentType: string;
+  quantity: number;
+  notes?: string | null;
+}
+
 export interface EventRecord {
   id: string;
   reference: string | null;
@@ -27,10 +41,10 @@ export interface EventRecord {
   proposedStartAt: string | null;
   proposedEndAt: string | null;
   expectedAttendance: number | null;
-  venueRequirements: unknown | null;
+  venueRequirements: VenueRequirements | null;
   accessibilityNeeds: string | null;
   equipmentRequired: boolean | null;
-  equipmentRequirements: unknown | null;
+  equipmentRequirements: EquipmentRequirementLine[] | null;
   registrationRequired: boolean | null;
   registrationOpensAt: string | null;
   registrationClosesAt: string | null;
@@ -87,4 +101,9 @@ export interface RequestFields {
   registrationRequired: boolean;
   registrationOpensAt: string;
   registrationClosesAt: string;
+  venueLayout: string;
+  /** Comma-separated, as typed. */
+  venueFacilities: string;
+  venueNotes: string;
+  equipmentLines: { equipmentType: string; quantity: string; notes: string }[];
 }

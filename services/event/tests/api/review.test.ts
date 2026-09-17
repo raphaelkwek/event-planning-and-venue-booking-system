@@ -58,7 +58,7 @@ const validRequest = {
 
 async function cleanUp() {
   const owned = sql`select id from event.events where owner_id in ${sql(OWNERS)}`;
-  await sql`delete from event.status_history where event_id in (${owned})`;
+  await sql`delete from event.event_history where event_id in (${owned})`;
   await sql`delete from event.assignments where event_id in (${owned})`;
   await sql`delete from event.outbox where envelope->'payload'->>'ownerId' in ${sql(OWNERS)}`;
   await sql`delete from event.events where owner_id in ${sql(OWNERS)}`;
@@ -226,8 +226,8 @@ describe("GET /api/v1/events/:id (D1)", () => {
     await request(app).get(`/api/v1/events/${event.id}`).set(bearer);
 
     const history = await sql`
-      select previous_status, new_status, triggering_action from event.status_history
-      where event_id = ${event.id} order by occurred_at asc
+      select previous_status, new_status, triggering_action from event.event_history
+      where event_id = ${event.id} and entry_type = 'STATUS_CHANGE' order by occurred_at asc
     `;
     expect(history[1]).toMatchObject({
       previous_status: "SUBMITTED",

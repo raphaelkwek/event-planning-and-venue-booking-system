@@ -27,6 +27,24 @@ export async function findUserBySupabaseId(sql: Sql, supabaseUserId: string): Pr
   };
 }
 
+export interface UserSummaryRow {
+  id: string;
+  displayName: string | null;
+  email: string;
+}
+
+export async function findUsersByIds(sql: Sql, ids: string[]): Promise<UserSummaryRow[]> {
+  if (ids.length === 0) return [];
+
+  const rows = await sql<{ id: string; display_name: string | null; email: string }[]>`
+    select id, display_name, email
+    from identity.users
+    where id in ${sql(ids)}
+  `;
+
+  return rows.map((row) => ({ id: row.id, displayName: row.display_name, email: row.email }));
+}
+
 export async function findRoleForUser(sql: Sql, userId: string): Promise<string | null> {
   const rows = await sql<{ role: string }[]>`
     select role from identity.user_roles

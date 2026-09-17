@@ -4,7 +4,7 @@ import { EVENT_TOPICS } from "@connectsphere/contracts";
 import { authenticate, requireRole, type ActorRequest } from "../auth/actor.js";
 import { evaluateTransition } from "../domain/statusMachine.js";
 import { findEventInScope, lockEventInScope, recordDecision } from "../repo/events.js";
-import { insertHistory } from "../repo/statusHistory.js";
+import { recordStatusChange } from "../repo/eventHistory.js";
 import { writeOutbox } from "../events/outbox.js";
 import { rejectionBodySchema } from "./schemas.js";
 import { refuse } from "./errors.js";
@@ -53,7 +53,7 @@ export function decisionsRouter(sql: Sql) {
       const updated = await recordDecision(tx, event.id, outcome, userId, reason);
       if (!updated) return null;
 
-      await insertHistory(tx, event.id, {
+      await recordStatusChange(tx, event.id, {
         previousStatus: current.status,
         newStatus: outcome,
         actorUserId: userId,

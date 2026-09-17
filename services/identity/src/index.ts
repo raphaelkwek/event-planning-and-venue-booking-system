@@ -7,6 +7,7 @@ import { healthRouter } from "./api/health.js";
 import { authRouter } from "./api/auth.js";
 import { accessScopeRouter } from "./api/accessScope.js";
 import { usersMeRouter } from "./api/usersMe.js";
+import { usersRouter } from "./api/users.js";
 
 export const app = express();
 
@@ -32,6 +33,7 @@ app.use(healthRouter(sql));
 app.use(authRouter(sql));
 app.use(accessScopeRouter(sql));
 app.use(usersMeRouter(sql));
+app.use(usersRouter(sql));
 
 // ROUTES — additional routers are mounted below this line by later tasks.
 

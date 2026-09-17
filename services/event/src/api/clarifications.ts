@@ -7,11 +7,10 @@ import { applyAmendments, findEventInScope, setStatus, type EventRow } from "../
 import {
   findOpenClarification,
   insertClarification,
-  insertFieldEdits,
   listClarifications,
   recordResponse,
 } from "../repo/clarifications.js";
-import { insertHistory } from "../repo/statusHistory.js";
+import { recordFieldChanges, recordStatusChange } from "../repo/eventHistory.js";
 import { writeOutbox } from "../events/outbox.js";
 import { clarificationBodySchema, clarificationResponseBodySchema, AMENDABLE_COLUMNS } from "./schemas.js";
 import { refuse } from "./errors.js";
@@ -71,7 +70,7 @@ export function clarificationsRouter(sql: Sql) {
       const clarification = await sql.begin(async (tx) => {
         const created = await insertClarification(tx, event.id, message.trim(), userId);
         await setStatus(tx, event.id, transition.to, userId);
-        await insertHistory(tx, event.id, {
+        await recordStatusChange(tx, event.id, {
           previousStatus: transition.from,
           newStatus: transition.to,
           actorUserId: userId,
@@ -160,7 +159,7 @@ export function clarificationsRouter(sql: Sql) {
         if (amendedFields.length > 0) {
           // D3 — the values as originally submitted are retained in the
           // history alongside the amended values.
-          await insertFieldEdits(
+          await recordFieldChanges(
             tx,
             event.id,
             amendedFields.map((field) => ({
@@ -168,24 +167,29 @@ export function clarificationsRouter(sql: Sql) {
               previousValue: stringify(event[field as keyof EventRow]),
               newValue: stringify((amendments as Record<string, unknown>)[field]),
             })),
-            userId
+            { userId, role },
+            "RESPOND_TO_CLARIFICATION"
           );
 
           updated = await applyAmendments(
             tx,
             event.id,
             Object.fromEntries(
-              amendedFields.map((field) => [
-                AMENDABLE_COLUMNS[field as keyof typeof AMENDABLE_COLUMNS],
-                (amendments as Record<string, unknown>)[field],
-              ])
+              amendedFields.map((field) => {
+                const column = AMENDABLE_COLUMNS[field as keyof typeof AMENDABLE_COLUMNS];
+                const value = (amendments as Record<string, unknown>)[field];
+                // The requirements columns are jsonb, so structured values are
+                // sent as JSON rather than left to the driver to guess.
+                const isJson = column === "venue_requirements" || column === "equipment_requirements";
+                return [column, isJson && value != null ? tx.json(value as never) : value];
+              })
             ),
             userId
           );
         }
 
         await setStatus(tx, event.id, transition.to, userId);
-        await insertHistory(tx, event.id, {
+        await recordStatusChange(tx, event.id, {
           previousStatus: transition.from,
           newStatus: transition.to,
           actorUserId: userId,

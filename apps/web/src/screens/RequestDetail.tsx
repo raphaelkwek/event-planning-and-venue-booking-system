@@ -6,10 +6,12 @@ import TextArea from "@atlaskit/textarea";
 import Textfield from "@atlaskit/textfield";
 import SectionMessage from "@atlaskit/section-message";
 import { useSignedIn } from "../auth/SessionContext.js";
+import { useUserNames } from "../shared/useUserNames.js";
 import { listClarifications, openEvent, respondToClarification } from "../api/events.js";
 import type { Clarification, EventRecord } from "../api/types.js";
 import { formatInstant, STATUS_APPEARANCE, STATUS_LABELS } from "../shared/status.js";
 import { Refusal } from "../components/Refusal.js";
+import { EquipmentRequirementsView, VenueRequirementsView } from "../components/Requirements.js";
 
 /**
  * The organiser's view of one request: its current status (F2), the
@@ -28,6 +30,11 @@ export function RequestDetail() {
   const [amendedAttendance, setAmendedAttendance] = useState("");
   const [replyError, setReplyError] = useState<unknown>(null);
   const [busy, setBusy] = useState(false);
+  const nameOf = useUserNames(session.token, [
+    event?.ownerId,
+    event?.assignedCoordinatorId,
+    event?.reviewingCoordinatorId,
+  ]);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -88,7 +95,7 @@ export function RequestDetail() {
               <p style={{ margin: 0 }}>{event.rejectionReason}</p>
               <p style={{ marginBottom: 0, fontSize: 12 }}>
                 Decided {formatInstant(event.decidedAt)}. A rejected request cannot be edited or
-                resubmitted (D5).
+                resubmitted.
               </p>
             </SectionMessage>
           </div>
@@ -97,7 +104,7 @@ export function RequestDetail() {
         {event.status === "APPROVED" && (
           <div style={{ marginBottom: 16 }}>
             <SectionMessage appearance="success" title="This request was approved">
-              <p style={{ margin: 0 }}>Approved {formatInstant(event.decidedAt)} (D4).</p>
+              <p style={{ margin: 0 }}>Approved {formatInstant(event.decidedAt)}.</p>
             </SectionMessage>
           </div>
         )}
@@ -111,7 +118,8 @@ export function RequestDetail() {
           value={event.expectedAttendance === null ? null : String(event.expectedAttendance)}
         />
         <Detail label="Accessibility needs" value={event.accessibilityNeeds} />
-        <Detail label="Equipment required" value={event.equipmentRequired ? "Yes" : "No"} />
+        <VenueRequirementsView value={event.venueRequirements} />
+        <EquipmentRequirementsView required={event.equipmentRequired} lines={event.equipmentRequirements} />
         <Detail
           label="Registration required"
           value={event.registrationRequired ? "Yes" : "No"}
@@ -157,7 +165,7 @@ export function RequestDetail() {
 
         {openClarification && (
           <div style={{ marginTop: 16 }}>
-            <h4>Respond (D3)</h4>
+            <h4>Respond</h4>
             <p style={{ fontSize: 12, color: "#626F86", marginTop: 0 }}>
               Reply with a message, amend the request, or both. Neither is refused.
             </p>
@@ -196,8 +204,9 @@ export function RequestDetail() {
         <dl style={{ fontSize: 13 }}>
           <Meta label="Submitted" value={formatInstant(event.submittedAt)} />
           <Meta label="Last saved" value={formatInstant(event.lastSavedAt)} />
-          <Meta label="Assigned coordinator" value={event.assignedCoordinatorId ?? "Awaiting assignment"} />
-          <Meta label="Reviewing coordinator" value={event.reviewingCoordinatorId ?? "—"} />
+          <Meta label="Organiser" value={nameOf(event.ownerId)!} />
+          <Meta label="Assigned coordinator" value={nameOf(event.assignedCoordinatorId) ?? "Awaiting assignment"} />
+          <Meta label="Reviewing coordinator" value={nameOf(event.reviewingCoordinatorId) ?? "—"} />
           <Meta label="Decision" value={event.decidedAt ? formatInstant(event.decidedAt) : "None yet"} />
         </dl>
       </aside>

@@ -15,31 +15,35 @@ import { rawRequest, type RawResponse } from "../api/client.js";
  */
 const PRESETS = [
   {
-    label: "A2 — approve as the wrong role",
+    label: "Approve without being a coordinator",
     method: "POST",
     path: "/event/api/v1/events/PASTE-EVENT-ID/approve",
     body: "",
-    note: "Sign in as the Organiser. The server refuses with ROLE_NOT_AUTHORISED even though the button was never shown.",
+    withoutToken: false,
+    note: "Sign in as the organiser. The server refuses with ROLE_NOT_AUTHORISED even though the button was never shown.",
   },
   {
-    label: "A3 — read another organiser's event",
+    label: "Read another organiser's event",
     method: "GET",
     path: "/event/api/v1/events/PASTE-EVENT-ID",
     body: "",
-    note: "Sign in as an Organiser who does not own it. Expect 404 with no event data — not an empty 200.",
+    withoutToken: false,
+    note: "Sign in as an organiser who does not own it. Expect 404 with no event data — not an empty 200.",
   },
   {
-    label: "A2 — unauthenticated request",
+    label: "Request without signing in",
     method: "GET",
     path: "/event/api/v1/events/queue",
     body: "",
-    note: "Tick 'send without token'. Expect 401 and no event, venue, equipment or registration data.",
+    withoutToken: true,
+    note: "Sent with no token. Expect 401 and no event, venue, equipment or registration data.",
   },
   {
-    label: "A3 — my own scope",
+    label: "My access scope",
     method: "GET",
     path: "/identity/api/v1/access-scope/events",
     body: "",
+    withoutToken: false,
     note: "The rule Identity hands the Event Service for the signed-in role.",
   },
   {
@@ -47,6 +51,7 @@ const PRESETS = [
     method: "GET",
     path: "/identity/api/v1/users/me",
     body: "",
+    withoutToken: false,
     note: "The caller's internal user id and role.",
   },
 ];
@@ -103,7 +108,7 @@ export function ApiConsole() {
               setMethod(preset.method);
               setPath(preset.path);
               setBody(preset.body);
-              setWithoutToken(preset.label.includes("unauthenticated"));
+              setWithoutToken(preset.withoutToken);
               setNote(preset.note);
               setResult(null);
             }}

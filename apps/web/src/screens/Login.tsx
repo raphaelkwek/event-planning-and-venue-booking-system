@@ -8,11 +8,13 @@ import { Refusal } from "../components/Refusal.js";
 /** The seeded accounts, so roles can be switched quickly while testing. */
 const SEEDED = [
   { email: "organiser@connectsphere.test", role: "Event Organiser" },
+  { email: "organiser2@connectsphere.test", role: "Event Organiser (second)" },
   { email: "coordinator@connectsphere.test", role: "Event Coordinator" },
+  { email: "coordinator2@connectsphere.test", role: "Event Coordinator (second)" },
   { email: "venuestaff@connectsphere.test", role: "Venue Staff" },
   { email: "techsupport@connectsphere.test", role: "Technical Support" },
   { email: "attendee@connectsphere.test", role: "Attendee" },
-  { email: "deactivated@connectsphere.test", role: "Deactivated (A1)" },
+  { email: "deactivated@connectsphere.test", role: "Deactivated account" },
 ];
 
 const SEED_PASSWORD = "ConnectSphere-Test-1234!";
@@ -40,7 +42,7 @@ export function Login() {
   return (
     <div style={{ maxWidth: 420, margin: "64px auto", padding: 16 }}>
       <h1 style={{ marginBottom: 4 }}>ConnectSphere</h1>
-      <p style={{ marginTop: 0, color: "#626F86" }}>Sign in to continue (A1).</p>
+      <p style={{ marginTop: 0, color: "#626F86" }}>Sign in to continue.</p>
 
       <form onSubmit={onSubmit}>
         <label htmlFor="email">Email</label>
@@ -104,9 +106,8 @@ export function Login() {
             ))}
           </ul>
           <p style={{ marginBottom: 0 }}>
-            Try a wrong password, and then the deactivated account: A1 requires the first to be
-            indistinguishable between a wrong email and a wrong password, and the second to be
-            distinguishable from both.
+            A wrong email and a wrong password are refused with the same message, so neither
+            reveals which was wrong. The deactivated account is refused with a different one.
           </p>
         </SectionMessage>
       </div>

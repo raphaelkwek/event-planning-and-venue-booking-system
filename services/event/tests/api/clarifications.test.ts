@@ -57,9 +57,8 @@ const validRequest = {
 
 async function cleanUp() {
   const owned = sql`select id from event.events where owner_id in ${sql(OWNERS)}`;
-  await sql`delete from event.event_field_edits where event_id in (${owned})`;
   await sql`delete from event.clarifications where event_id in (${owned})`;
-  await sql`delete from event.status_history where event_id in (${owned})`;
+  await sql`delete from event.event_history where event_id in (${owned})`;
   await sql`delete from event.assignments where event_id in (${owned})`;
   await sql`delete from event.outbox where envelope->'payload'->>'ownerId' in ${sql(OWNERS)}`;
   await sql`delete from event.events where owner_id in ${sql(OWNERS)}`;
@@ -258,14 +257,36 @@ describe("POST /api/v1/events/:id/clarifications/respond (D3)", () => {
       .send({ amendments: { expectedAttendance: 200 } });
 
     const edits = await sql`
-      select field_name, previous_value, new_value from event.event_field_edits
-      where event_id = ${event.id}
+      select field_name, previous_value, new_value, actor_role, triggering_action
+      from event.event_history
+      where event_id = ${event.id} and entry_type = 'FIELD_CHANGE'
     `;
     expect(edits[0]).toMatchObject({
       field_name: "expectedAttendance",
       previous_value: "150",
       new_value: "200",
+      actor_role: "EVENT_ORGANISER",
+      triggering_action: "RESPOND_TO_CLARIFICATION",
     });
+  });
+
+  it("lets the organiser amend the venue requirements, keeping the original in the history", async () => {
+    const event = await givenAwaitingClarification();
+    const venueRequirements = { layout: "Banquet", facilities: ["Projector"], notes: null };
+
+    const res = await request(app)
+      .post(`/api/v1/events/${event.id}/clarifications/respond`)
+      .set(bearer)
+      .send({ amendments: { venueRequirements } });
+
+    expect(res.status).toBe(200);
+    expect(res.body.event.venueRequirements).toEqual(venueRequirements);
+    const edits = await sql`
+      select field_name, previous_value, new_value from event.event_history
+      where event_id = ${event.id} and entry_type = 'FIELD_CHANGE'
+    `;
+    expect(edits[0]).toMatchObject({ field_name: "venueRequirements", previous_value: null });
+    expect(JSON.parse(edits[0]!.new_value)).toEqual(venueRequirements);
   });
 
   it("notifies the coordinator who asked for the clarification", async () => {

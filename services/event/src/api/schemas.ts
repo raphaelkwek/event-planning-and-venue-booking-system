@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { equipmentRequirementsSchema, venueRequirementsSchema } from "@connectsphere/contracts";
 import type { DraftFields } from "../repo/drafts.js";
 import type { EventFields } from "../repo/events.js";
 
@@ -18,18 +19,22 @@ const requestFields = {
   proposedStartAt: isoDateTime.nullish(),
   proposedEndAt: isoDateTime.nullish(),
   expectedAttendance: z.number().nullish(),
-  venueRequirements: z.unknown().nullish(),
+  venueRequirements: venueRequirementsSchema.nullish(),
   accessibilityNeeds: z.string().nullish(),
   equipmentRequired: z.boolean().nullish(),
-  equipmentRequirements: z.unknown().nullish(),
+  equipmentRequirements: equipmentRequirementsSchema.nullish(),
   registrationRequired: z.boolean().nullish(),
   registrationOpensAt: isoDateTime.nullish(),
   registrationClosesAt: isoDateTime.nullish(),
 };
 
-/** C1 — a draft needs a name; everything else may be empty. */
+/**
+ * C1 — a draft needs a name; everything else may be empty. A name of spaces is
+ * no name, but the name is stored exactly as typed rather than trimmed, because
+ * C2 restores "the exact value that was saved".
+ */
 export const draftBodySchema = z.object({
-  name: z.string().min(1, "Event name is required."),
+  name: z.string().refine((value) => value.trim().length > 0, "Event name is required."),
   ...requestFields,
 });
 
@@ -61,7 +66,9 @@ export const AMENDABLE_COLUMNS = {
   proposedStartAt: "proposed_start_at",
   proposedEndAt: "proposed_end_at",
   expectedAttendance: "expected_attendance",
+  venueRequirements: "venue_requirements",
   accessibilityNeeds: "accessibility_needs",
+  equipmentRequirements: "equipment_requirements",
   registrationRequired: "registration_required",
   registrationOpensAt: "registration_opens_at",
   registrationClosesAt: "registration_closes_at",

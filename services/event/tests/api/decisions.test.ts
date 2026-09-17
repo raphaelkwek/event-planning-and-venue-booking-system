@@ -57,9 +57,8 @@ const validRequest = {
 
 async function cleanUp() {
   const owned = sql`select id from event.events where owner_id in ${sql(OWNERS)}`;
-  await sql`delete from event.event_field_edits where event_id in (${owned})`;
   await sql`delete from event.clarifications where event_id in (${owned})`;
-  await sql`delete from event.status_history where event_id in (${owned})`;
+  await sql`delete from event.event_history where event_id in (${owned})`;
   await sql`delete from event.assignments where event_id in (${owned})`;
   await sql`delete from event.outbox where envelope->'payload'->>'ownerId' in ${sql(OWNERS)}`;
   await sql`delete from event.events where owner_id in ${sql(OWNERS)}`;
@@ -165,7 +164,7 @@ describe("POST /api/v1/events/:id/approve (D4)", () => {
 
     const history = await sql`
       select previous_status, new_status, actor_role, triggering_action
-      from event.status_history where event_id = ${event.id} order by occurred_at desc limit 1
+      from event.event_history where event_id = ${event.id} and entry_type = 'STATUS_CHANGE' order by occurred_at desc limit 1
     `;
     expect(history[0]).toMatchObject({
       previous_status: "UNDER_REVIEW",
@@ -308,8 +307,8 @@ describe("POST /api/v1/events/:id/reject (D5)", () => {
       .send({ reason: "Clashes with graduation." });
 
     const history = await sql`
-      select previous_status, new_status, triggering_action from event.status_history
-      where event_id = ${event.id} order by occurred_at desc limit 1
+      select previous_status, new_status, triggering_action from event.event_history
+      where event_id = ${event.id} and entry_type = 'STATUS_CHANGE' order by occurred_at desc limit 1
     `;
     expect(history[0]).toMatchObject({
       previous_status: "UNDER_REVIEW",

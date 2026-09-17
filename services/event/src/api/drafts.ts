@@ -4,8 +4,9 @@ import { authenticate, requireRole, type ActorRequest } from "../auth/actor.js";
 import { findDraftForOwner, findOwnedRequest, insertDraft, updateDraft } from "../repo/drafts.js";
 import { validateSubmission } from "../domain/validation.js";
 import { submitEvent } from "./submitEvent.js";
-import { draftBodySchema, toDraftFields } from "./schemas.js";
+import { draftBodySchema, submissionBodySchema, toDraftFields } from "./schemas.js";
 import { fieldsFromZod, refuse } from "./errors.js";
+import type { EventFields } from "../repo/events.js";
 
 /**
  * C1, C2 — drafts. A draft is an event at status Draft, and these routes are
@@ -93,7 +94,23 @@ export function draftsRouter(sql: Sql) {
         return;
       }
 
-      const errors = validateSubmission(draft);
+      // C2/B2 — the organiser may submit the values currently on screen. They
+      // are validated as sent, and stored only if the submission succeeds, so a
+      // blocked submission changes no stored value. With no body, the draft is
+      // submitted as it was last saved.
+      let sentFields: EventFields | undefined;
+      if (req.body && Object.keys(req.body).length > 0) {
+        const parsed = submissionBodySchema.safeParse(req.body);
+        if (!parsed.success) {
+          refuse(res, 400, "VALIDATION_FAILED", "This request could not be submitted.", {
+            fields: fieldsFromZod(parsed.error),
+          });
+          return;
+        }
+        sentFields = toDraftFields(parsed.data) as EventFields;
+      }
+
+      const errors = validateSubmission(sentFields ?? draft);
       if (errors.length > 0) {
         refuse(res, 400, "VALIDATION_FAILED", "This request is not ready to be submitted.", {
           fields: errors,
@@ -105,6 +122,7 @@ export function draftsRouter(sql: Sql) {
         ownerId: req.actor!.userId,
         actorRole: req.actor!.role,
         draftId: draft.id,
+        fields: sentFields,
         correlationId: req.header("x-correlation-id") ?? null,
       });
 

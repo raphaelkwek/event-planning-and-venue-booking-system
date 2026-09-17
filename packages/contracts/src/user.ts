@@ -9,3 +9,12 @@ export const currentUserSchema = z.object({
 });
 
 export type CurrentUser = z.infer<typeof currentUserSchema>;
+
+/** One item of Identity's `GET /api/v1/users?ids=…` — enough to name a person, nothing more. */
+export const userSummarySchema = z.object({
+  id: z.string().uuid(),
+  displayName: z.string().nullable(),
+  email: z.string().email(),
+});
+
+export type UserSummary = z.infer<typeof userSummarySchema>;

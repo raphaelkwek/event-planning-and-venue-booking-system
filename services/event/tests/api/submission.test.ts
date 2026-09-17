@@ -59,7 +59,7 @@ const validRequest = {
  */
 async function cleanUp() {
   const owned = sql`select id from event.events where owner_id in ${sql(OWNERS)}`;
-  await sql`delete from event.status_history where event_id in (${owned})`;
+  await sql`delete from event.event_history where event_id in (${owned})`;
   await sql`delete from event.assignments where event_id in (${owned})`;
   await sql`delete from event.outbox where envelope->'payload'->>'ownerId' in ${sql(OWNERS)}`;
   await sql`delete from event.events where owner_id in ${sql(OWNERS)}`;
@@ -100,7 +100,7 @@ describe("POST /api/v1/events (B1)", () => {
 
     const history = await sql`
       select previous_status, new_status, actor_user_id, actor_role, triggering_action
-      from event.status_history where event_id = ${res.body.id}
+      from event.event_history where event_id = ${res.body.id} and entry_type = 'STATUS_CHANGE'
     `;
     expect(history[0]).toMatchObject({
       previous_status: "DRAFT",
@@ -153,6 +153,36 @@ describe("POST /api/v1/events (B1)", () => {
         "registrationRequired",
         "equipmentRequired",
       ])
+    );
+  });
+
+  it("stores the venue and equipment requirements it captures (B1)", async () => {
+    const venueRequirements = { layout: "Theatre", facilities: ["Projector"], notes: "Stage needed" };
+    const equipmentRequirements = [{ equipmentType: "Wireless microphone", quantity: 4, notes: null }];
+
+    const res = await request(app)
+      .post("/api/v1/events")
+      .set(bearer)
+      .send({ ...validRequest, equipmentRequired: true, venueRequirements, equipmentRequirements });
+
+    expect(res.status).toBe(201);
+    expect(res.body.venueRequirements).toEqual(venueRequirements);
+    expect(res.body.equipmentRequirements).toEqual(equipmentRequirements);
+  });
+
+  it("refuses an equipment line with a quantity of zero, naming the line", async () => {
+    const res = await request(app)
+      .post("/api/v1/events")
+      .set(bearer)
+      .send({
+        ...validRequest,
+        equipmentRequired: true,
+        equipmentRequirements: [{ equipmentType: "Projector", quantity: 0 }],
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.fields.map((field: { field: string }) => field.field)).toContain(
+      "equipmentRequirements.0.quantity"
     );
   });
 
@@ -227,6 +257,47 @@ describe("POST /api/v1/event-drafts/:id/submit (C2)", () => {
     expect(res.body.submittedAt).toBeTruthy();
   });
 
+  it("stores and submits the values sent with the submission in one step", async () => {
+    const draft = await givenADraft({ name: "Partly planned symposium", expectedAttendance: 100 });
+
+    const res = await request(app)
+      .post(`/api/v1/event-drafts/${draft.id}/submit`)
+      .set(bearer)
+      .send({ ...validRequest, name: "Partly planned symposium", expectedAttendance: 200 });
+
+    expect(res.status).toBe(201);
+    expect(res.body).toMatchObject({ id: draft.id, status: "SUBMITTED", expectedAttendance: 200 });
+    const stored = await sql`select expected_attendance, status from event.events where id = ${draft.id}`;
+    expect(stored[0]).toMatchObject({ expected_attendance: 200, status: "SUBMITTED" });
+  });
+
+  it("stores none of the sent values when the submission is blocked (B2)", async () => {
+    const draft = await givenADraft({ name: "Partly planned symposium", expectedAttendance: 100 });
+
+    const res = await request(app)
+      .post(`/api/v1/event-drafts/${draft.id}/submit`)
+      .set(bearer)
+      .send({ name: "Partly planned symposium", expectedAttendance: 200 });
+
+    expect(res.status).toBe(400);
+    const stored = await sql`select expected_attendance, status from event.events where id = ${draft.id}`;
+    expect(stored[0]).toMatchObject({ expected_attendance: 100, status: "DRAFT" });
+  });
+
+  it("validates the sent values rather than the stored ones, naming an emptied name", async () => {
+    const draft = await givenADraft(validRequest);
+
+    const res = await request(app)
+      .post(`/api/v1/event-drafts/${draft.id}/submit`)
+      .set(bearer)
+      .send({ ...validRequest, name: "" });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.fields.map((field: { field: string }) => field.field)).toContain("name");
+    const stored = await sql`select name, status from event.events where id = ${draft.id}`;
+    expect(stored[0]).toMatchObject({ name: validRequest.name, status: "DRAFT" });
+  });
+
   it("applies the full B2 validation when submitting from a draft", async () => {
     const draft = await givenADraft({ name: "Incomplete draft" });
 
@@ -269,7 +340,7 @@ describe("POST /api/v1/event-drafts/:id/submit (C2)", () => {
     await request(app).post(`/api/v1/event-drafts/${draft.id}/submit`).set(bearer).send();
 
     const history = await sql`
-      select previous_status, new_status from event.status_history where event_id = ${draft.id}
+      select previous_status, new_status from event.event_history where event_id = ${draft.id} and entry_type = 'STATUS_CHANGE'
     `;
     expect(history).toHaveLength(1);
     expect(history[0]).toMatchObject({ previous_status: "DRAFT", new_status: "SUBMITTED" });

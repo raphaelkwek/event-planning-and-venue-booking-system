@@ -6,6 +6,7 @@ import TextArea from "@atlaskit/textarea";
 import SectionMessage from "@atlaskit/section-message";
 import Modal, { ModalBody, ModalFooter, ModalHeader, ModalTitle, ModalTransition } from "@atlaskit/modal-dialog";
 import { useSignedIn } from "../auth/SessionContext.js";
+import { useUserNames } from "../shared/useUserNames.js";
 import {
   approveEvent,
   listClarifications,
@@ -14,8 +15,10 @@ import {
   requestClarification,
 } from "../api/events.js";
 import type { Clarification, EventRecord } from "../api/types.js";
+import { ApiError } from "../api/client.js";
 import { formatInstant, STATUS_APPEARANCE, STATUS_LABELS } from "../shared/status.js";
 import { Refusal } from "../components/Refusal.js";
+import { EquipmentRequirementsView, VenueRequirementsView } from "../components/Requirements.js";
 
 /**
  * D1, D2, D4, D5 — the coordinator's review screen.
@@ -36,6 +39,15 @@ export function ReviewDetail() {
   const [message, setMessage] = useState("");
   const [rejecting, setRejecting] = useState(false);
   const [reason, setReason] = useState("");
+  // Kept apart from actionError: a refusal of the rejection is shown in the
+  // dialog, where the reason is entered, not on the page behind it.
+  const [rejectError, setRejectError] = useState<unknown>(null);
+  const nameOf = useUserNames(session.token, [
+    event?.ownerId,
+    event?.assignedCoordinatorId,
+    event?.reviewingCoordinatorId,
+    event?.decidedBy,
+  ]);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -55,15 +67,15 @@ export function ReviewDetail() {
     void load();
   }, [load]);
 
-  async function run(action: () => Promise<unknown>) {
-    setActionError(null);
+  async function run(action: () => Promise<unknown>, onError: (error: unknown) => void = setActionError) {
+    onError(null);
     setBusy(true);
     try {
       await action();
       await load();
       return true;
     } catch (caught) {
-      setActionError(caught);
+      onError(caught);
       return false;
     } finally {
       setBusy(false);
@@ -88,8 +100,8 @@ export function ReviewDetail() {
           <div style={{ marginBottom: 16 }}>
             <SectionMessage appearance="warning" title="Already under review">
               <p style={{ margin: 0 }}>
-                Coordinator <code>{event.reviewingCoordinatorId}</code> opened this request first,
-                and remains the recorded reviewer (D1).
+                {nameOf(event.reviewingCoordinatorId)} opened this request first,
+                and remains the recorded reviewer.
               </p>
             </SectionMessage>
           </div>
@@ -102,11 +114,11 @@ export function ReviewDetail() {
               title={`This request is ${STATUS_LABELS[event.status]}`}
             >
               <p style={{ margin: 0 }}>
-                Decided {formatInstant(event.decidedAt)} by <code>{event.decidedBy}</code>.
+                Decided {formatInstant(event.decidedAt)} by {nameOf(event.decidedBy)}.
                 {event.rejectionReason ? ` Reason: ${event.rejectionReason}` : ""}
               </p>
               <p style={{ marginBottom: 0, fontSize: 12 }}>
-                A request that already carries a decision cannot be decided again (D4, D5).
+                A request that already carries a decision cannot be decided again.
               </p>
             </SectionMessage>
           </div>
@@ -121,7 +133,8 @@ export function ReviewDetail() {
           value={event.expectedAttendance === null ? null : String(event.expectedAttendance)}
         />
         <Detail label="Accessibility needs" value={event.accessibilityNeeds} />
-        <Detail label="Equipment required" value={event.equipmentRequired ? "Yes" : "No"} />
+        <VenueRequirementsView value={event.venueRequirements} />
+        <EquipmentRequirementsView required={event.equipmentRequired} lines={event.equipmentRequirements} />
         <Detail label="Registration required" value={event.registrationRequired ? "Yes" : "No"} />
 
         <h3 style={{ marginTop: 32 }}>Clarifications</h3>
@@ -151,7 +164,7 @@ export function ReviewDetail() {
 
         {!decided && (
           <div style={{ marginTop: 24 }}>
-            <h3>Ask for clarification (D2)</h3>
+            <h3>Ask for clarification</h3>
             <p style={{ fontSize: 12, color: "#626F86", marginTop: 0 }}>
               A message is mandatory. Sending one moves the request to Awaiting Clarification.
             </p>
@@ -185,10 +198,10 @@ export function ReviewDetail() {
         <Lozenge appearance={STATUS_APPEARANCE[event.status]}>{STATUS_LABELS[event.status]}</Lozenge>
 
         <dl style={{ fontSize: 13 }}>
-          <Meta label="Organiser" value={event.ownerId} />
+          <Meta label="Organiser" value={nameOf(event.ownerId)!} />
           <Meta label="Submitted" value={formatInstant(event.submittedAt)} />
-          <Meta label="Assigned coordinator" value={event.assignedCoordinatorId ?? "Awaiting assignment"} />
-          <Meta label="Reviewer" value={event.reviewingCoordinatorId ?? "—"} />
+          <Meta label="Assigned coordinator" value={nameOf(event.assignedCoordinatorId) ?? "Awaiting assignment"} />
+          <Meta label="Reviewer" value={nameOf(event.reviewingCoordinatorId) ?? "—"} />
         </dl>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 24 }}>
@@ -197,14 +210,17 @@ export function ReviewDetail() {
             isDisabled={busy || decided}
             onClick={() => run(() => approveEvent(session.token, event.id))}
           >
-            Approve (D4)
+            Approve
           </Button>
           <Button
             appearance="warning"
             isDisabled={busy || decided}
-            onClick={() => setRejecting(true)}
+            onClick={() => {
+              setRejectError(null);
+              setRejecting(true);
+            }}
           >
-            Reject (D5)
+            Reject
           </Button>
         </div>
       </aside>
@@ -222,12 +238,20 @@ export function ReviewDetail() {
                 The organiser will see this reason, and a rejected request cannot be edited or
                 resubmitted. A reason is required.
               </p>
+              <div style={{ marginBottom: 12 }}>
+                <Refusal error={rejectError} />
+              </div>
               <TextArea
                 value={reason}
                 minimumRows={3}
                 placeholder="Why can this request not be supported?"
                 onChange={(e) => setReason((e.target as HTMLTextAreaElement).value)}
               />
+              {rejectError instanceof ApiError && rejectError.fieldMessage("reason") && (
+                <div style={{ color: "#AE2E24", fontSize: 12, marginTop: 4 }}>
+                  {rejectError.fieldMessage("reason")}
+                </div>
+              )}
             </ModalBody>
             <ModalFooter>
               <Button appearance="subtle" onClick={() => setRejecting(false)}>
@@ -237,7 +261,7 @@ export function ReviewDetail() {
                 appearance="warning"
                 isDisabled={busy}
                 onClick={async () => {
-                  const ok = await run(() => rejectEvent(session.token, event.id, reason));
+                  const ok = await run(() => rejectEvent(session.token, event.id, reason), setRejectError);
                   if (ok) {
                     setRejecting(false);
                     setReason("");

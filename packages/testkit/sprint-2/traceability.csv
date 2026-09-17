@@ -36,3 +36,5 @@ D5,"An event that already carries a decision cannot be rejected",services/event/
 D5,"The rejection writes a status history entry like any other transition (F1)",services/event/tests/api/decisions.test.ts,"writes a history entry for the rejection (F1)"
 D5,"Only an Event Coordinator may reject (A2)",services/event/tests/api/decisions.test.ts,"refuses a role that is not an Event Coordinator (A2)"
 D5,"The rejection reason is recorded with the decision",services/event/tests/repo/events.test.ts,"records a rejection with its reason"
+D3,"The organiser can amend the request fields, including its venue requirements, with the originals retained in the history",services/event/tests/api/clarifications.test.ts,"lets the organiser amend the venue requirements, keeping the original in the history"
+D5,"Without a reason the rejection is not performed, and the refusal is shown where the reason is entered",apps/web/tests/rejectDialog.test.tsx,"shows the refusal inside the rejection dialog"

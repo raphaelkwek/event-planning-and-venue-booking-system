@@ -4,10 +4,12 @@ import Lozenge from "@atlaskit/lozenge";
 import DynamicTable from "@atlaskit/dynamic-table";
 import SectionMessage from "@atlaskit/section-message";
 import { useSignedIn } from "../auth/SessionContext.js";
+import { useUserNames } from "../shared/useUserNames.js";
 import { listQueue } from "../api/events.js";
 import type { EventRecord } from "../api/types.js";
 import { formatInstant, STATUS_APPEARANCE, STATUS_LABELS } from "../shared/status.js";
 import { Refusal } from "../components/Refusal.js";
+import { AssignedTo } from "../components/AssignedTo.js";
 
 /**
  * D1 — every request awaiting a decision, oldest submission first. Drafts
@@ -18,6 +20,10 @@ export function ReviewQueue() {
   const [items, setItems] = useState<EventRecord[]>([]);
   const [error, setError] = useState<unknown>(null);
   const [loading, setLoading] = useState(true);
+  const nameOf = useUserNames(
+    session.token,
+    items.flatMap((item) => [item.ownerId, item.assignedCoordinatorId])
+  );
 
   useEffect(() => {
     listQueue(session.token)
@@ -35,6 +41,7 @@ export function ReviewQueue() {
       { key: "organiser", content: "Organiser" },
       { key: "submitted", content: "Submitted" },
       { key: "status", content: "Status" },
+      { key: "assigned", content: "Assigned to" },
       { key: "actions", content: "" },
     ],
   };
@@ -46,12 +53,18 @@ export function ReviewQueue() {
       { key: "name", content: item.name },
       { key: "when", content: formatInstant(item.proposedStartAt) },
       { key: "attendance", content: item.expectedAttendance },
-      { key: "organiser", content: item.ownerId },
+      { key: "organiser", content: nameOf(item.ownerId) },
       { key: "submitted", content: formatInstant(item.submittedAt) },
       {
         key: "status",
         content: (
           <Lozenge appearance={STATUS_APPEARANCE[item.status]}>{STATUS_LABELS[item.status]}</Lozenge>
+        ),
+      },
+      {
+        key: "assigned",
+        content: (
+          <AssignedTo coordinatorId={item.assignedCoordinatorId} currentUserId={session.userId} nameOf={nameOf} />
         ),
       },
       { key: "actions", content: <Link to={`/review/${item.id}`}>Open</Link> },
@@ -64,9 +77,8 @@ export function ReviewQueue() {
       <div style={{ marginBottom: 16 }}>
         <SectionMessage appearance="information">
           <p style={{ margin: 0 }}>
-            Ordered oldest first. Opening a Submitted request claims it for review and records you
-            as the reviewer (D1) — open one in a second browser profile as another coordinator to
-            see that the first reviewer is not overwritten.
+            Ordered oldest first. Opening a Submitted request moves it to Under Review and records
+            you as its reviewer. If another coordinator opened it first, they remain the reviewer.
           </p>
         </SectionMessage>
       </div>

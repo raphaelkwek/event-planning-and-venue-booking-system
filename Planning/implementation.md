@@ -39,6 +39,8 @@
 /packages
   /contracts                event schemas, shared TS types, error codes  ← changing this needs review
   /testkit                  shared fixtures, seed data, flow runner
+/tests                      functional test cases, one folder per user story (§8.4)
+  /<story-id>               e.g. /tests/D5/D5-T1-reject-with-a-reason.md
 /docs                       plan.md, implementation.md, C4 dsl, user stories
 docker-compose.yml
 ```
@@ -336,7 +338,117 @@ The flow test goes red on day one and must be green before the sprint review. It
 - All acceptance criteria demonstrated to the Product Owner in the sprint review.
 - No new failing tests; existing tests still pass.
 - Story traced to its tests in `traceability.csv`.
+- Functional test cases written for the story in `/tests/<story-id>/` (§8.4), each with a latest execution record, and every acceptance criterion covered by at least one of them.
 - Any new event type registered in `/packages/contracts` with a schema and a validator.
+
+### 8.4 Functional test cases
+
+Every user story gets **functional test cases**: specific, written descriptions of the inputs, conditions and expected behaviour that show whether the story works as its acceptance criteria say. They are the human-readable specification of a story, the thing a tester follows by hand and the Product Owner reads in the sprint review. The automated tests in §8.1 are how some of them are then made repeatable; a functional test case is not replaced by an automated one, it is what the automated one is checking.
+
+A test case must be specific enough that **anyone on the team can execute it without asking**. "Log in to the app" is not a test step; "sign in as `coordinator@connectsphere.test` with password `ConnectSphere-Test-1234!`" is.
+
+#### Where they live
+
+- `/tests/<story-id>/` — one folder per story, e.g. `/tests/D5/`.
+- **One file per test case**, named `<story-id>-T<n>-<short-slug>.md`, e.g. `D5-T3-reason-of-whitespace-only.md`.
+- The test case ID is `<story-id>-T<n>`, numbered from 1 within the story. **This is the same ID as the test's Jira issue** (`D5-T3 — Reason of whitespace only`), so a file and its ticket can always be matched.
+- A test case that genuinely spans several stories in one feature is tagged with the feature letter alone and lives in `/tests/<letter>/`, e.g. `/tests/E/E-T1-...md` — the same convention Jira already uses for shared test issues.
+- Evidence from an execution (screenshots, exported responses) goes in `/tests/<story-id>/evidence/`, named after the test case and the date it was run.
+- `/tests/TEMPLATE.md` is the blank starting point. Copy it; do not invent a different layout.
+- `/tests/README.md` defines what every case shares — the standard environment, the seeded accounts, the standard request, and named setup procedures such as `FX-UNDER-REVIEW`. A pre-condition names a procedure rather than repeating its steps, which keeps cases short without making them vague. If a story needs a new shared procedure, add it there.
+- `npm run test-cases:reset` resets the data before a run. It touches only requests owned by the seeded organiser accounts, because the database is shared by the team.
+
+#### The format
+
+Each file has two parts. The **specification** is written once and changes only when the requirement changes. The **execution record** is overwritten on every run, so the file always shows the latest result.
+
+**Specification — written once**
+
+| Item | Description |
+|---|---|
+| **Test Case ID** | Unique ID, `<story-id>-T<n>` |
+| **Test Scenario** | Succinct summary of what the case checks |
+| **Pre-conditions** | What must be true before the steps start, including the state of the data. Name the script or the steps that produce it. |
+| **Test Steps** | Numbered, step-by-step procedure the tester follows |
+| **Test Data** | The exact inputs used |
+| **Expected Result** | What should be observed, specifically enough that pass or fail is not a judgement call |
+| Created By | Author of the test case |
+| Date of Creation | When it was written |
+
+**Execution record — the latest run**
+
+| Item | Description |
+|---|---|
+| **Actual Result** | What was actually observed |
+| **Status** | Exactly one of `Pass`, `Fail`, `Not Executed`, `Blocked` |
+| **Remarks** | The commit SHA the run was against, the evidence file, and a defect link on a fail. `Blocked` says what blocked it. |
+| Executed By | Who ran it |
+| Date of Execution | When |
+
+Created By, Date of Creation, Executed By and Date of Execution are optional in the template, but fill them in: they are what makes a record trustworthy when Week 13 asks who verified a story and when.
+
+A pass is only ever **"passing as of that build"** — which is why Remarks carries the commit SHA. The same case is re-run to catch regressions, and each run replaces the record.
+
+**Reset the data before every run.** The pre-conditions must name how the starting state is produced, and that state must be reproducible — seeded, not whatever happened to be left in the database — because one test case's writes can change another's outcome. The sprint's `packages/testkit/sprint-<n>/seed.sql` (§8.2) is the default place for that fixture data.
+
+#### Deriving the cases from a story
+
+Work through the story's acceptance criteria in this order. Most stories need cases from **every** category, and several cases per criterion is normal; one case per criterion almost always means only the happy path was tested.
+
+1. **Visualise the workflow.** Put yourself in the user's position: what they see, what they click, and what they might do that nobody intended. Test cases can and should be written *before* the feature is built, from the story alone.
+2. **Happy path.** The route through the story that meets no errors. Write and run these first: if the happy path fails, nothing else is worth running yet.
+3. **Cross-cutting quality expectations.** Authorisation, accessibility, consistent error handling, the design-system behaviour of §7. **Do not repeat a generic check in every story** — that bar is set once, in the Definition of Done and the shared UI shell (§7.3). Do write a dedicated case when the concern produces behaviour *specific to this story*: "the rejection reason is visible to the owning organiser and to no other organiser" is story-specific; "a non-coordinator cannot reach coordinator screens" is not.
+4. **Negative testing.** Erroneous input, business exceptions, and unavailable systems — for us, Identity or another service not responding (a `503` refusal under CP is correct behaviour and needs a case of its own). Check the refusal the user sees, not only that the action did not happen, and check that nothing was stored.
+5. **Boundary testing.** Wherever an input has a range or a threshold, test **just below, exactly at, and just above** it — logic errors cluster at boundaries. Pair it with equivalence partitioning: group inputs that should behave alike, test one from each group, then test the edges between groups.
+
+A scenario-style acceptance criterion maps straight onto a test case, and writing a checklist criterion out as one or more *Given / When / Then* scenarios first is a useful way to find the cases:
+
+| Acceptance criterion | Test case |
+|---|---|
+| Given… | Pre-conditions |
+| When… | Test Steps + Test Data |
+| Then… | Expected Result |
+
+#### Worked example — D5, reject an event request
+
+The cases D5's criteria produce, one line each:
+
+| ID | Category | Scenario |
+|---|---|---|
+| D5-T1 | Happy path | Reject a request under review, giving a reason |
+| D5-T2 | Negative | Reject with the reason left empty |
+| D5-T3 | Boundary — just below | Reject with a reason of whitespace only |
+| D5-T4 | Boundary — exactly at | Reject with a reason of a single character |
+| D5-T5 | Negative | Try to amend or resubmit a request that has already been rejected |
+| D5-T6 | Cross-cutting, story-specific | The reason is shown to the owning organiser, and a different organiser cannot see the request |
+| D5-T7 | Happy path | The organiser is notified of the rejection — `Blocked` until the Notification service exists |
+
+D5-T1 in full:
+
+**Specification**
+
+| Item | Content |
+|---|---|
+| Test Case ID | D5-T1 |
+| Test Scenario | Reject a request under review, giving a reason |
+| Pre-conditions | 1. Standard environment running and test data reset (`tests/README.md`).<br>2. FX-UNDER-REVIEW completed. The coordinator is on the review screen. |
+| Test Steps | 1. Click "Reject".<br>2. Enter the reason in the dialog.<br>3. Click "Reject request". |
+| Test Data | Account: `coordinator@connectsphere.test` / `ConnectSphere-Test-1234!` · Reason: `No venue can host 150 people on 2 December.` |
+| Expected Result | The dialog closes. The status shows "Rejected". The page shows the reason "No venue can host 150 people on 2 December." and the decision date and time. "Approve" and "Reject" are both disabled. |
+| Created By | Seann, via Claude |
+| Date of Creation | 2026-09-17 |
+
+**Execution record**
+
+| Item | Content |
+|---|---|
+| Actual Result | |
+| Status | Not Executed |
+| Remarks | |
+| Executed By | |
+| Date of Execution | |
+
+Note how D5-T3 and D5-T4 sit either side of the criterion's "at least one non-whitespace character", and how D5-T7 is recorded as `Blocked` with its reason rather than quietly left out.
 
 ## 9. Logging and observability
 
@@ -372,6 +484,7 @@ Each of us is running Claude Code against a shared repo. These exist to stop six
 9. **If you are unsure which service owns a behaviour, ask** — do not implement it in both.
 10. **You are accountable for what you ship.** Week 13 picks a feature at random and asks you to trace story → AC → test → code. "The agent wrote it" is not an answer, so read the diff before you commit it.
 11. **Follow the commit message standard below.** A human has to verify agent output fast — an inconsistent history costs them time we don't have.
+12. **Write the functional test cases before the code, from the story — never from the implementation** (§8.4). A case derived by reading the code checks what the code does, not what the story requires, and when an agent writes both the code and its tests they share the same blind spot. An agent may draft test cases, but the story owner confirms every expected result against the acceptance criteria before any code is written to satisfy them. Agent-drafted cases read as confident and complete whether or not they are; watch for many cases that all exercise the same happy path.
 
 ### 11.1 Commit message standard
 

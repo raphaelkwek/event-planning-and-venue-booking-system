@@ -98,28 +98,3 @@ export async function listClarifications(sql: Sql, eventId: string): Promise<Cla
   `;
   return rows.map(toClarification);
 }
-
-/** D3 — the values as originally submitted, retained alongside the amendments. */
-export async function insertFieldEdits(
-  tx: TransactionSql,
-  eventId: string,
-  edits: { fieldName: string; previousValue: string | null; newValue: string | null }[],
-  actorId: string
-): Promise<void> {
-  if (edits.length === 0) return;
-
-  await tx`
-    insert into event.event_field_edits ${tx(
-      edits.map((edit) => ({
-        event_id: eventId,
-        field_name: edit.fieldName,
-        previous_value: edit.previousValue,
-        new_value: edit.newValue,
-        source: "CLARIFICATION_RESPONSE",
-        edited_by: actorId,
-        created_by: actorId,
-        updated_by: actorId,
-      }))
-    )}
-  `;
-}

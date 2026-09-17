@@ -159,10 +159,34 @@ export async function insertSubmittedEvent(
 export async function submitDraft(
   tx: TransactionSql,
   draftId: string,
-  ownerId: string
+  ownerId: string,
+  fields?: EventFields
 ): Promise<EventRow | null> {
+  // The values on screen, when sent, are written by the same statement that
+  // submits them — so a submission either stores and submits them together, or
+  // (having already been refused by validation) never reaches here at all.
+  const values = fields
+    ? tx`
+        name = ${fields.name},
+        purpose = ${fields.purpose},
+        description = ${fields.description},
+        proposed_start_at = ${fields.proposedStartAt},
+        proposed_end_at = ${fields.proposedEndAt},
+        expected_attendance = ${fields.expectedAttendance},
+        venue_requirements = ${jsonOrNull(tx, fields.venueRequirements)},
+        accessibility_needs = ${fields.accessibilityNeeds},
+        equipment_required = ${fields.equipmentRequired},
+        equipment_requirements = ${jsonOrNull(tx, fields.equipmentRequirements)},
+        registration_required = ${fields.registrationRequired},
+        registration_opens_at = ${fields.registrationOpensAt},
+        registration_closes_at = ${fields.registrationClosesAt},
+        last_saved_at = now(),
+      `
+    : tx``;
+
   const rows = await tx<RawEvent[]>`
     update event.events set
+      ${values}
       reference = 'EVT-' || lpad(nextval('event.event_reference_seq')::text, 6, '0'),
       status = 'SUBMITTED',
       submitted_at = now(),

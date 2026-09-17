@@ -1,5 +1,13 @@
 import { request } from "./client.js";
-import type { Clarification, EventListItem, EventRecord, Paged, RequestFields } from "./types.js";
+import type {
+  Clarification,
+  EquipmentRequirementLine,
+  EventListItem,
+  EventRecord,
+  Paged,
+  RequestFields,
+  VenueRequirements,
+} from "./types.js";
 
 const EVENT = "/event/api/v1";
 
@@ -21,7 +29,36 @@ export function toRequestBody(fields: RequestFields, { partial }: { partial: boo
     registrationRequired: fields.registrationRequired,
     registrationOpensAt: instant(fields.registrationOpensAt),
     registrationClosesAt: instant(fields.registrationClosesAt),
+    venueRequirements: toVenueRequirements(fields),
+    equipmentRequirements: fields.equipmentRequired ? toEquipmentLines(fields) : null,
   };
+}
+
+function toVenueRequirements(fields: RequestFields): VenueRequirements | null {
+  const layout = fields.venueLayout.trim();
+  const notes = fields.venueNotes.trim();
+  const facilities = fields.venueFacilities
+    .split(",")
+    .map((facility) => facility.trim())
+    .filter((facility) => facility.length > 0);
+
+  if (!layout && !notes && facilities.length === 0) return null;
+  return { layout: layout || null, facilities, notes: notes || null };
+}
+
+/**
+ * A line with anything in it is sent, even if incomplete, so the server can say
+ * what is wrong with it; only lines left entirely blank are dropped.
+ */
+function toEquipmentLines(fields: RequestFields): EquipmentRequirementLine[] | null {
+  const lines = fields.equipmentLines
+    .filter((line) => line.equipmentType.trim() || line.quantity.trim() || line.notes.trim())
+    .map((line) => ({
+      equipmentType: line.equipmentType,
+      quantity: Number(line.quantity),
+      notes: line.notes.trim() || null,
+    }));
+  return lines.length > 0 ? lines : null;
 }
 
 export function toFormFields(event: EventRecord): RequestFields {
@@ -46,6 +83,14 @@ export function toFormFields(event: EventRecord): RequestFields {
     registrationRequired: event.registrationRequired ?? false,
     registrationOpensAt: local(event.registrationOpensAt),
     registrationClosesAt: local(event.registrationClosesAt),
+    venueLayout: event.venueRequirements?.layout ?? "",
+    venueFacilities: (event.venueRequirements?.facilities ?? []).join(", "),
+    venueNotes: event.venueRequirements?.notes ?? "",
+    equipmentLines: (event.equipmentRequirements ?? []).map((line) => ({
+      equipmentType: line.equipmentType,
+      quantity: String(line.quantity),
+      notes: line.notes ?? "",
+    })),
   };
 }
 
@@ -87,9 +132,17 @@ export function getDraft(token: string, id: string) {
   return request<EventRecord>(`${EVENT}/event-drafts/${id}`, { token });
 }
 
-/** C2 — submitting a draft applies the full B2 validation. */
-export function submitDraft(token: string, id: string) {
-  return request<EventRecord>(`${EVENT}/event-drafts/${id}/submit`, { method: "POST", token });
+/**
+ * C2 — submits a draft with the values currently on screen. The server
+ * validates them and stores them only if the submission succeeds, so a blocked
+ * submission leaves the saved draft exactly as it was (B2).
+ */
+export function submitDraft(token: string, id: string, fields: RequestFields) {
+  return request<EventRecord>(`${EVENT}/event-drafts/${id}/submit`, {
+    method: "POST",
+    token,
+    body: toRequestBody(fields, { partial: true }),
+  });
 }
 
 /** B1 — a request submitted without being saved as a draft first. */

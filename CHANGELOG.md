@@ -4,6 +4,207 @@
 
 ---
 
+# Fix the six defects the A1–D5 test cases found
+
+**Timestamp:** 2026-09-17T10:06+08:00 (SGT)
+**Author:** Seann, via Claude
+**Scope:** A3, B1, B2, C1, C2, D1, D3, D5.
+**Reason:** Writing the functional test cases from the stories surfaced six places where the build
+didn't meet its acceptance criteria. Each fix started with a failing test.
+
+## Fixed
+
+1. **A blocked submission from a draft no longer saves the edits** (B2-T15). The editor used to save
+   the draft and then submit it as two calls, so a refused submission kept the edits.
+   `POST /api/v1/event-drafts/:id/submit` now accepts the values on screen, validates them, and
+   stores and submits them in one statement — or, if refused, writes nothing. With no body it still
+   submits the draft as last saved. The editor now makes the single call.
+2. **A draft name of only spaces is refused** (C1-T5). The name is still stored exactly as typed,
+   not trimmed, because C2 restores "the exact value that was saved".
+3. **The rejection refusal now shows inside the rejection dialog** (D5-T2, D5-T3), with the reason
+   error under the reason box, and is cleared each time the dialog opens. It used to render on the
+   page behind the dialog.
+4. **People are shown by name, not user id** (B1-T1, D1-T2, D1-T6) — the organiser on the request
+   page and in the queue, the reviewer, the assigned coordinator, and who decided.
+   - **Identity:** new `display_name` column (migration `0002`), names for every seed account (seed
+     `0003`), and **`GET /api/v1/users?ids=…`**, returning only `id`, `displayName` and `email`. Staff
+     only — attendees get 403. At most 100 ids per call.
+   - **Web app:** a shared `useUserNames` hook fetches each name once and falls back to the email,
+     then to the id, so a failed lookup never breaks a screen.
+   - Event service unchanged: it still stores and returns ids only (plan.md §4).
+5. **Venue and equipment requirements can be entered and are shown** (B1-T2, D1-T4). Their shape is
+   now in `packages/contracts`: venue requirements are `{ layout, facilities[], notes }`, equipment
+   requirements are lines of `{ equipmentType, quantity, notes }`, and the Event service validates
+   both, naming the bad line (e.g. `equipmentRequirements.0.quantity`). Layout, facility and
+   equipment type are **free text on purpose**: that vocabulary belongs to the Venue (H1) and
+   Equipment (P2) owners (implementation.md §11, rule 3). Both fields can also be amended when
+   answering a clarification (D3).
+6. **A coordinator can tell which events are theirs** (A3-T5). The review queue has an "Assigned to"
+   column showing "You" for their own, and a new **"All events"** screen for coordinators lists every
+   event whatever its status, with an "Assigned to me" filter — A3 says a coordinator's list is
+   every event, and the queue only holds undecided ones.
+
+## Changed
+
+- **Functional test cases** that expected a user id on screen now expect the display name (B1-T1,
+  D1-T2, D1-T5, D1-T6, D1-T8, D4-T1). A2-T2's coordinator navigation includes "All events"; A3-T4 and
+  A3-T5 use the new screen; B1-T2 and D1-T4 enter requirements. `tests/README.md` lists every
+  account's display name.
+- Traceability rows added for the 16 new automated tests.
+
+## Verified
+
+Every suite green: Event 156, Identity 38, contracts 15, web 19; every build clean. Also driven
+against the live project with real sign-ins: names resolve and an attendee is refused; a
+spaces-only draft name is refused; a blocked submission leaves the stored value at 100, a valid one
+stores 200 and keeps the draft's id; requirements round-trip and a zero quantity names its line; a
+reason-less rejection is refused on `reason`. Test data was reset afterwards. **The rendered screens
+have still not been checked by eye.**
+
+## Needs review by other owners
+
+- **Identity (your friend's service):** the `display_name` column, seed `0003`, and the new
+  `GET /api/v1/users` endpoint.
+- **`packages/contracts`:** `eventRequirements.ts` and `userSummarySchema`.
+- **A3 is your friend's story:** the "All events" screen and the "Assigned to" column implement part
+  of it.
+
+---
+
+# Functional test cases for A1–D5, two test accounts, and a reorganisation proposal
+
+**Timestamp:** 2026-09-17T09:11+08:00 (SGT)
+**Author:** Seann, via Claude
+**Scope:** A1, A2, A3, B1, B2, C1, C2, C3, D1, D2, D3, D4, D5 (functional test cases); process —
+repository layout proposal.
+
+## Added
+
+- **111 functional test cases in `tests/<story-id>/`**, one file per case, in the implementation.md
+  §8.4 format: A1 11 · A2 7 · A3 9 · B1 6 · B2 15 · C1 10 · C2 7 · C3 6 · D1 8 · D2 8 · D3 9 · D4 8 ·
+  D5 7. Each story has happy-path, negative and story-specific cross-cutting cases, plus boundaries
+  wherever a criterion has a threshold (attendance 0/1, end time at/after start, registration closing
+  at/after the event start, reason of nothing/spaces/one character). **102 are `Not Executed`; 9 are
+  `Blocked`**, each saying why — the services they need (Notification, Venue, Equipment,
+  Registration) don't exist yet.
+- **Expected results were written from the acceptance criteria, not the implementation**
+  (implementation.md §11, rule 12),
+  so the cases under Known gaps below are expected to fail as built. **A1–A3 cases need their
+  owner's review** before they're relied on; B1–D5 need Seann's.
+- **`tests/README.md` now holds what every case shares:** the standard environment, all accounts with
+  their ids, the standard request data, and six named setup procedures (`FX-DRAFT` through
+  `FX-REJECTED`). Pre-conditions name a procedure instead of repeating it.
+- **`npm run test-cases:reset`** (`tests/fixtures/`) resets data before a run. The database is shared,
+  so it deletes only requests owned by the two seeded organisers and what hangs off them. Its first
+  run removed 4 leftover requests from earlier smoke tests.
+- **Two seeded accounts: `organiser2@` and `coordinator2@connectsphere.test`**, in a new
+  forward-only seed `services/identity/migrations/seed/0002_…sql` and in `seed-auth-users.ts` — both
+  Identity's files, so **flagged for its owner's review**. Without them, "another organiser cannot
+  see this" (A3, C1, C2, D3, D5) and "a second coordinator opening it" (D1) could not be executed.
+  Applied to the shared project; both accounts sign in with the right role. Also listed on the web
+  app's sign-in screen.
+- **`documentation/proposals/2026-09-17-repository-reorganisation.md`** — the proposed
+  frontend / backend / documentation / tests layout, what must stay at the root, every path that has
+  to change, how to carry it out without breaking open branches, and three open questions. **Nothing
+  has moved**; it needs team agreement first.
+
+## Changed
+
+- `implementation.md` §8.4 — points to `tests/README.md` and the reset command; the worked D5-T1
+  example now matches the real file.
+
+## Known gaps found while writing the cases
+
+These cases are expected to **fail** against the current build. They are defects to fix, not
+mistakes in the cases:
+
+1. **B1-T1, D1-T2, D1-T6** — the app shows user **ids** where the criteria want the person: the
+   submitting organiser isn't shown on the request page, the queue's Organiser column holds a uuid,
+   and "already under review" names the other coordinator by id. One root cause: Identity has no way
+   to look up a user's name.
+2. **B1-T2, D1-T4** — the request form has **no inputs for venue requirements or equipment
+   requirements**, so they can't be entered, and a coordinator can't see them.
+3. **B2-T15** — a blocked submission from a saved draft **still saves the edits**, because the
+   editor saves the draft before submitting it. B2 says a blocked submission changes no stored value.
+4. **C1-T5** — a draft name of **only spaces is accepted**.
+5. **A3-T5** — a coordinator **can't tell which events are assigned to them**; the queue has no such
+   marker.
+6. **D5-T2, D5-T3** — when a rejection reason is missing, the refusal renders **behind the rejection
+   dialog**, so the coordinator sees nothing happen.
+
+Also a question for the Product Owner, not a case: D2 says multiple clarifications are "retained in
+order", but not whether a coordinator may ask a second one before the organiser answers the first.
+The service currently refuses that, and no case asserts either way.
+
+---
+
+# Event history table, web app sign-out fix, and functional test case standard
+
+**Timestamp:** 2026-09-17T08:33+08:00 (SGT)
+**Author:** Seann, via Claude
+**Scope:** F1, D3 (history table); A1, A2 (sign-out and route guard); process — functional test
+cases for every story.
+
+## Changed
+
+- **`event.status_history` and `event.event_field_edits` merged into one `event.event_history`
+  table** (migration `0003_merge_history_tables.sql`, forward-only, existing rows carried across).
+  Both were append-only records of what happened to one event. `entry_type` is `STATUS_CHANGE` or
+  `FIELD_CHANGE`, and a check constraint per type makes sure each row carries the columns its kind
+  needs. The `event` schema is down from 7 tables to 6; G1 and S2 will write field changes into the
+  same table rather than adding another.
+- **Field changes now record the actor's role**, which `event_field_edits` never did. Migrated D3
+  rows are given `EVENT_ORGANISER`, which is certain: answering a clarification is organiser-only.
+- `repo/statusHistory.ts` is replaced by `repo/eventHistory.ts` (`recordStatusChange`,
+  `recordFieldChanges`); callers updated. 147 event tests pass (6 new, covering the table's shape
+  and that it refuses a malformed entry).
+- **Web app: signing out and in as a different role no longer lands the new user on the previous
+  user's screen.** The hash router kept the old address (`#/queue`) across sign-out. Sign-out now
+  resets to `#/`, and every route is guarded by role, so a pasted or bookmarked link to a screen the
+  role may not use redirects to the user's own landing screen. Navigation and guards read one
+  permitted-role list, so they cannot drift.
+- **Web app: user story IDs removed from buttons, headings and descriptions.** Code comments keep
+  them, since implementation.md §11 wants code traceable to its story. The API console's "no token"
+  preset used to detect itself by searching its own label for "unauthenticated"; renaming the label
+  would have silently broken it, so it now carries an explicit flag.
+- **`Planning/plan.md` §4** — the Event row names `event_history`, and a note explains both merges.
+  Commit `7a8f54a` had rewritten plan.md from an older copy and dropped the earlier drafts-merge
+  fix; this re-applies it on top of that commit without undoing any of its other changes.
+
+## Added
+
+- **`Planning/implementation.md` §8.4 — functional test cases.** Every story gets functional test
+  cases in `/tests/<story-id>/`, one file per case, ID `<story-id>-T<n>` matching the Jira test
+  issue. Format is the IS212 Week 4 template: a specification written once, and an execution record
+  replaced on every run, with status `Pass` / `Fail` / `Not Executed` / `Blocked` and the commit SHA
+  in Remarks. Cases are derived in five steps — visualise the workflow, happy path, story-specific
+  cross-cutting checks, negative, boundary — with a worked D5 example. Also: §2 layout gains
+  `/tests`, the Definition of Done requires the cases, and §11 rule 12 says cases are written from
+  the story before the code, never from the implementation.
+- **`tests/TEMPLATE.md`** and **`tests/README.md`** — the blank template and a one-screen summary.
+- **`apps/web` has tests now** (`npm test -w @connectsphere/web`, Vitest + Testing Library + jsdom).
+  Two regression tests for the sign-out bug. Both failed against the previously committed code,
+  which is what shows they test the right thing.
+
+## Worth knowing
+
+**The regression test caught a bug in the first fix.** That fix also made the login screen navigate
+to `#/` after sign-in. The second navigation raced the redirect from `#/` to the user's landing
+screen and left them on a blank page, which the test reproduced and a manual click-through probably
+wouldn't have. Only sign-out resets the address now; the route guard covers every other way in.
+
+## Known gaps
+
+1. **D5-T6 in the worked example cannot be executed yet.** It needs a second active organiser to
+   show that another organiser cannot see the request, and the identity seed has only one (the
+   other organiser account is deactivated). Add one to the seed before writing that case.
+2. **No functional test case files exist yet.** `/tests` holds the standard, the template and the
+   README. The cases for A1–D5 are still to be written, by the story owners from the stories.
+3. The rendered UI has still not been checked by eye. The sign-out tests exercise the real app in
+   jsdom, but layout and Atlaskit styling remain unverified.
+
+---
+
 # Architecture decision records + Confluence sprint-log digest
 
 **Timestamp:** 2026-09-17T01:03+08:00 (SGT)

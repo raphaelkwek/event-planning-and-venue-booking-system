@@ -4,6 +4,7 @@ import Button from "@atlaskit/button/new";
 import Lozenge from "@atlaskit/lozenge";
 import DynamicTable from "@atlaskit/dynamic-table";
 import { useSignedIn } from "../auth/SessionContext.js";
+import { useUserNames } from "../shared/useUserNames.js";
 import { listRequests } from "../api/events.js";
 import type { EventListItem } from "../api/types.js";
 import { formatInstant, STATUS_APPEARANCE, STATUS_LABELS } from "../shared/status.js";
@@ -22,6 +23,10 @@ export function MyRequests() {
   const [items, setItems] = useState<EventListItem[]>([]);
   const [error, setError] = useState<unknown>(null);
   const [loading, setLoading] = useState(true);
+  const nameOf = useUserNames(
+    session.token,
+    items.map((item) => item.assignedCoordinatorId)
+  );
 
   useEffect(() => {
     setLoading(true);
@@ -57,7 +62,7 @@ export function MyRequests() {
       },
       { key: "saved", content: formatInstant(item.lastSavedAt) },
       { key: "submitted", content: formatInstant(item.submittedAt) },
-      { key: "coordinator", content: item.assignedCoordinatorId ?? "—" },
+      { key: "coordinator", content: nameOf(item.assignedCoordinatorId) ?? "—" },
       {
         key: "actions",
         content:

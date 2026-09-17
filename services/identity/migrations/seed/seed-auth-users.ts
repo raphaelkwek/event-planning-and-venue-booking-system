@@ -15,6 +15,8 @@ const SEED_USERS = [
   { id: "10000000-0000-0000-0000-000000000004", email: "techsupport@connectsphere.test" },
   { id: "10000000-0000-0000-0000-000000000005", email: "attendee@connectsphere.test" },
   { id: "10000000-0000-0000-0000-000000000006", email: "deactivated@connectsphere.test" },
+  { id: "10000000-0000-0000-0000-000000000007", email: "organiser2@connectsphere.test" },
+  { id: "10000000-0000-0000-0000-000000000008", email: "coordinator2@connectsphere.test" },
 ] as const;
 
 const SEED_PASSWORD = "ConnectSphere-Test-1234!";

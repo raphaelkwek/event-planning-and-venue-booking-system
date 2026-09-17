@@ -1,4 +1,5 @@
-import { HashRouter, Link, Navigate, Route, Routes, useLocation } from "react-router-dom";
+import type { ReactElement } from "react";
+import { HashRouter, Link, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import Button from "@atlaskit/button/new";
 import { SessionProvider, useSession } from "./auth/SessionContext.js";
 import { Login } from "./screens/Login.js";
@@ -6,34 +7,89 @@ import { MyRequests } from "./screens/MyRequests.js";
 import { DraftEditor } from "./screens/DraftEditor.js";
 import { RequestDetail } from "./screens/RequestDetail.js";
 import { ReviewQueue } from "./screens/ReviewQueue.js";
+import { AllEvents } from "./screens/AllEvents.js";
 import { ReviewDetail } from "./screens/ReviewDetail.js";
 import { ApiConsole } from "./screens/ApiConsole.js";
 import type { Role } from "./api/types.js";
 
+const EVERY_ROLE: Role[] = [
+  "EVENT_ORGANISER",
+  "EVENT_COORDINATOR",
+  "VENUE_STAFF",
+  "TECH_SUPPORT_STAFF",
+  "ATTENDEE",
+];
+
 /**
- * A2 — the same permitted-role list governs what the navigation offers and
- * what the server accepts. Hiding a link is a convenience, never the control:
- * every one of these paths is refused server-side for the wrong role too,
- * which the API console demonstrates.
+ * A2 — one permitted-role list governs both what the navigation offers and
+ * which screens a role may open. Neither is the real control: the server
+ * refuses the wrong role regardless, which the API console demonstrates.
  */
-const NAV: { to: string; label: string; roles: Role[] }[] = [
-  { to: "/requests", label: "My requests", roles: ["EVENT_ORGANISER"] },
-  { to: "/drafts/new", label: "New request", roles: ["EVENT_ORGANISER"] },
-  { to: "/queue", label: "Review queue", roles: ["EVENT_COORDINATOR"] },
+const ROUTES: {
+  path: string;
+  element: ReactElement;
+  roles: Role[];
+  nav?: { label: string; to: string };
+}[] = [
   {
-    to: "/console",
-    label: "API console",
-    roles: ["EVENT_ORGANISER", "EVENT_COORDINATOR", "VENUE_STAFF", "TECH_SUPPORT_STAFF", "ATTENDEE"],
+    path: "/requests",
+    element: <MyRequests />,
+    roles: ["EVENT_ORGANISER"],
+    nav: { label: "My requests", to: "/requests" },
+  },
+  { path: "/requests/:id", element: <RequestDetail />, roles: ["EVENT_ORGANISER"] },
+  // One route for a new and an existing draft, so saving a new one does not
+  // remount the editor and lose what is on screen.
+  {
+    path: "/drafts/:id",
+    element: <DraftEditor />,
+    roles: ["EVENT_ORGANISER"],
+    nav: { label: "New request", to: "/drafts/new" },
+  },
+  {
+    path: "/queue",
+    element: <ReviewQueue />,
+    roles: ["EVENT_COORDINATOR"],
+    nav: { label: "Review queue", to: "/queue" },
+  },
+  {
+    path: "/events",
+    element: <AllEvents />,
+    roles: ["EVENT_COORDINATOR"],
+    nav: { label: "All events", to: "/events" },
+  },
+  { path: "/review/:id", element: <ReviewDetail />, roles: ["EVENT_COORDINATOR"] },
+  {
+    path: "/console",
+    element: <ApiConsole />,
+    roles: EVERY_ROLE,
+    nav: { label: "API console", to: "/console" },
   },
 ];
+
+function landingFor(role: Role): string {
+  if (role === "EVENT_ORGANISER") return "/requests";
+  if (role === "EVENT_COORDINATOR") return "/queue";
+  return "/console";
+}
 
 function Shell() {
   const { session, signOut } = useSession();
   const location = useLocation();
+  const navigate = useNavigate();
 
   if (!session) return <Login />;
 
-  const permitted = NAV.filter((entry) => entry.roles.includes(session.role));
+  // A1 — signing out leaves nothing behind, including the address of the last
+  // screen, so whoever signs in next starts from their own landing screen. The
+  // login screen must not navigate as well: a second navigation races the
+  // redirect below and leaves the next user on a blank page.
+  async function onSignOut() {
+    navigate("/", { replace: true });
+    await signOut();
+  }
+
+  const permitted = ROUTES.filter((route) => route.nav && route.roles.includes(session.role));
 
   return (
     <div>
@@ -50,16 +106,16 @@ function Shell() {
         <strong>ConnectSphere</strong>
 
         <nav style={{ display: "flex", gap: 16, flex: 1 }}>
-          {permitted.map((entry) => (
+          {permitted.map((route) => (
             <Link
-              key={entry.to}
-              to={entry.to}
+              key={route.path}
+              to={route.nav!.to}
               style={{
-                textDecoration: location.pathname.startsWith(entry.to) ? "underline" : "none",
+                textDecoration: location.pathname === route.nav!.to ? "underline" : "none",
                 color: "#172B4D",
               }}
             >
-              {entry.label}
+              {route.nav!.label}
             </Link>
           ))}
         </nav>
@@ -67,7 +123,7 @@ function Shell() {
         <span style={{ fontSize: 13, color: "#626F86" }}>
           {session.email} · <strong>{session.role}</strong>
         </span>
-        <Button appearance="subtle" onClick={() => void signOut()}>
+        <Button appearance="subtle" onClick={() => void onSignOut()}>
           Sign out
         </Button>
       </header>
@@ -75,25 +131,24 @@ function Shell() {
       <main style={{ padding: 24 }}>
         <Routes>
           <Route path="/" element={<Navigate to={landingFor(session.role)} replace />} />
-          <Route path="/requests" element={<MyRequests />} />
-          <Route path="/requests/:id" element={<RequestDetail />} />
-          <Route path="/drafts/:id" element={<DraftEditor />} />
-          <Route path="/queue" element={<ReviewQueue />} />
-          <Route path="/review/:id" element={<ReviewDetail />} />
-          <Route path="/console" element={<ApiConsole />} />
+          {ROUTES.map((route) => (
+            <Route
+              key={route.path}
+              path={route.path}
+              element={
+                route.roles.includes(session.role) ? (
+                  route.element
+                ) : (
+                  <Navigate to={landingFor(session.role)} replace />
+                )
+              }
+            />
+          ))}
           <Route path="*" element={<Navigate to={landingFor(session.role)} replace />} />
         </Routes>
       </main>
     </div>
   );
-}
-
-function landingFor(role: Role): string {
-  if (role === "EVENT_ORGANISER") return "/requests";
-  if (role === "EVENT_COORDINATOR") return "/queue";
-  // A3 — the other roles have no events scope at all, so there is nothing for
-  // them here. The console is left available to show what the server returns.
-  return "/console";
 }
 
 export function App() {

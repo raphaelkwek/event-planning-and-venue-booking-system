@@ -4,7 +4,7 @@ import { config } from "../config.js";
 import { allocateCoordinator } from "../domain/assignment.js";
 import { insertSubmittedEvent, submitDraft, type EventFields, type EventRow } from "../repo/events.js";
 import { insertAssignment, saveCursor, takeCursor } from "../repo/assignments.js";
-import { insertHistory } from "../repo/statusHistory.js";
+import { recordStatusChange } from "../repo/eventHistory.js";
 import { writeOutbox } from "../events/outbox.js";
 
 /**
@@ -22,17 +22,17 @@ export async function submitEvent(
     ownerId: string;
     actorRole: string;
     correlationId: string | null;
-  } & ({ draftId: string } | { fields: EventFields })
+  } & ({ draftId: string; fields?: EventFields } | { fields: EventFields })
 ): Promise<EventRow | null> {
   return sql.begin(async (tx) => {
     const event =
       "draftId" in params
-        ? await submitDraft(tx, params.draftId, params.ownerId)
+        ? await submitDraft(tx, params.draftId, params.ownerId, params.fields)
         : await insertSubmittedEvent(tx, params.ownerId, params.fields);
 
     if (!event) return null;
 
-    await insertHistory(tx, event.id, {
+    await recordStatusChange(tx, event.id, {
       previousStatus: "DRAFT",
       newStatus: "SUBMITTED",
       actorUserId: params.ownerId,

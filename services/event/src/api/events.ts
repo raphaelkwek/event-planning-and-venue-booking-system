@@ -10,7 +10,7 @@ import {
   type EventRow,
 } from "../repo/events.js";
 import { listDraftsForOwner } from "../repo/drafts.js";
-import { insertHistory } from "../repo/statusHistory.js";
+import { recordStatusChange } from "../repo/eventHistory.js";
 import { QUEUE_STATUSES } from "../domain/statusMachine.js";
 import { submitEvent } from "./submitEvent.js";
 import { submissionBodySchema, toEventFields } from "./schemas.js";
@@ -110,7 +110,7 @@ export function eventsRouter(sql: Sql) {
     const claimed = await sql.begin(async (tx) => {
       const opened = await claimForReview(tx, event.id, userId);
       if (opened) {
-        await insertHistory(tx, event.id, {
+        await recordStatusChange(tx, event.id, {
           previousStatus: "SUBMITTED",
           newStatus: "UNDER_REVIEW",
           actorUserId: userId,

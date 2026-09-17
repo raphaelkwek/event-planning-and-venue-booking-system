@@ -36,7 +36,7 @@ const fields: EventFields = {
 };
 
 async function cleanUp() {
-  await sql`delete from event.status_history where event_id in (
+  await sql`delete from event.event_history where event_id in (
     select id from event.events where owner_id in ${sql(OWNERS)}
   )`;
   await sql`delete from event.assignments where event_id in (

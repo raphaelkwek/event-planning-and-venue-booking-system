@@ -23,7 +23,13 @@ const EMPTY: RequestFields = {
   registrationRequired: false,
   registrationOpensAt: "",
   registrationClosesAt: "",
+  venueLayout: "",
+  venueFacilities: "",
+  venueNotes: "",
+  equipmentLines: [],
 };
+
+const BLANK_LINE = { equipmentType: "", quantity: "", notes: "" };
 
 /**
  * C1, C2, B1, B2.
@@ -57,8 +63,24 @@ export function DraftEditor() {
   const fieldError = (name: keyof RequestFields) =>
     error instanceof ApiError ? error.fieldMessage(name) : undefined;
 
+  /** Structured fields come back with paths like `equipmentRequirements.0.quantity`. */
+  const errorUnder = (prefix: string) =>
+    error instanceof ApiError
+      ? error.envelope.fields
+          ?.filter((entry) => entry.field.startsWith(prefix))
+          .map((entry) => `${entry.field.slice(prefix.length) || "value"}: ${entry.message}`)
+          .join(" · ")
+      : undefined;
+
   function set<K extends keyof RequestFields>(key: K, value: RequestFields[K]) {
     setFields((current) => ({ ...current, [key]: value }));
+  }
+
+  function setLine(index: number, key: keyof typeof BLANK_LINE, value: string) {
+    setFields((current) => ({
+      ...current,
+      equipmentLines: current.equipmentLines.map((line, i) => (i === index ? { ...line, [key]: value } : line)),
+    }));
   }
 
   async function onSave() {
@@ -84,12 +106,11 @@ export function DraftEditor() {
     setNotice(null);
     setBusy(true);
     try {
-      // A draft is submitted in place; a request never saved is submitted directly (B1).
+      // A draft is submitted in place, with what is on screen, in one call — never
+      // saved first, which would keep edits from a submission that was refused.
+      // A request never saved is submitted directly (B1).
       const submitted = draftId
-        ? await (async () => {
-            await updateDraft(session.token, draftId, fields);
-            return submitDraft(session.token, draftId);
-          })()
+        ? await submitDraft(session.token, draftId, fields)
         : await submitDirect(session.token, fields);
       navigate(`/requests/${submitted.id}`);
     } catch (caught) {
@@ -174,6 +195,32 @@ export function DraftEditor() {
         />
       </Field>
 
+      <fieldset style={{ border: "1px solid #DFE1E6", borderRadius: 4, padding: 12, margin: "12px 0" }}>
+        <legend style={{ fontWeight: 600, fontSize: 12, padding: "0 4px" }}>Venue requirements</legend>
+        <Field label="Room layout">
+          <Textfield
+            value={fields.venueLayout}
+            placeholder="e.g. Theatre"
+            onChange={(e) => set("venueLayout", (e.target as HTMLInputElement).value)}
+          />
+        </Field>
+        <Field label="Facilities (separate with commas)">
+          <Textfield
+            value={fields.venueFacilities}
+            placeholder="e.g. Projector, Microphone"
+            onChange={(e) => set("venueFacilities", (e.target as HTMLInputElement).value)}
+          />
+        </Field>
+        <Field label="Venue notes">
+          <TextArea
+            value={fields.venueNotes}
+            minimumRows={2}
+            onChange={(e) => set("venueNotes", (e.target as HTMLTextAreaElement).value)}
+          />
+        </Field>
+        {errorUnder("venueRequirements.") && <FieldError message={errorUnder("venueRequirements.")!} />}
+      </fieldset>
+
       <div style={{ margin: "12px 0" }}>
         <Checkbox
           isChecked={fields.equipmentRequired}
@@ -181,6 +228,63 @@ export function DraftEditor() {
           label="Equipment is required"
         />
         {fieldError("equipmentRequired") && <FieldError message={fieldError("equipmentRequired")!} />}
+
+        {fields.equipmentRequired && (
+          <fieldset style={{ border: "1px solid #DFE1E6", borderRadius: 4, padding: 12, margin: "8px 0" }}>
+            <legend style={{ fontWeight: 600, fontSize: 12, padding: "0 4px" }}>Equipment requirements</legend>
+            {fields.equipmentLines.map((line, index) => (
+              <div key={index} style={{ marginBottom: 8 }}>
+                <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
+                  <div style={{ flex: 2 }}>
+                    <Field label="Equipment type">
+                      <Textfield
+                        value={line.equipmentType}
+                        placeholder="e.g. Wireless microphone"
+                        onChange={(e) => setLine(index, "equipmentType", (e.target as HTMLInputElement).value)}
+                      />
+                    </Field>
+                  </div>
+                  <div style={{ width: 100 }}>
+                    <Field label="Quantity">
+                      <Textfield
+                        type="number"
+                        value={line.quantity}
+                        onChange={(e) => setLine(index, "quantity", (e.target as HTMLInputElement).value)}
+                      />
+                    </Field>
+                  </div>
+                  <div style={{ flex: 2 }}>
+                    <Field label="Notes">
+                      <Textfield
+                        value={line.notes}
+                        onChange={(e) => setLine(index, "notes", (e.target as HTMLInputElement).value)}
+                      />
+                    </Field>
+                  </div>
+                  <div style={{ marginBottom: 12 }}>
+                    <Button
+                      appearance="subtle"
+                      onClick={() =>
+                        set(
+                          "equipmentLines",
+                          fields.equipmentLines.filter((_, i) => i !== index)
+                        )
+                      }
+                    >
+                      Remove
+                    </Button>
+                  </div>
+                </div>
+                {errorUnder(`equipmentRequirements.${index}.`) && (
+                  <FieldError message={errorUnder(`equipmentRequirements.${index}.`)!} />
+                )}
+              </div>
+            ))}
+            <Button onClick={() => set("equipmentLines", [...fields.equipmentLines, { ...BLANK_LINE }])}>
+              Add equipment line
+            </Button>
+          </fieldset>
+        )}
 
         <Checkbox
           isChecked={fields.registrationRequired}
@@ -217,10 +321,10 @@ export function DraftEditor() {
 
       <div style={{ display: "flex", gap: 8, marginTop: 24 }}>
         <Button onClick={onSave} isDisabled={busy}>
-          Save draft (C1)
+          Save draft
         </Button>
         <Button appearance="primary" onClick={onSubmit} isDisabled={busy}>
-          Submit request (B1, B2)
+          Submit request
         </Button>
       </div>
     </div>

@@ -40,7 +40,7 @@ function signedInAs(userId: string, role: string) {
 const bearer = { Authorization: "Bearer test-token" };
 
 async function cleanUp() {
-  await sql`delete from event.status_history where event_id in (
+  await sql`delete from event.event_history where event_id in (
     select id from event.events where owner_id in ${sql(OWNERS)}
   )`;
   await sql`delete from event.assignments where event_id in (
@@ -75,6 +75,33 @@ describe("POST /api/v1/event-drafts (C1)", () => {
 
     expect(res.status).toBe(400);
     expect(res.body.error.code).toBe("VALIDATION_FAILED");
+  });
+
+  it("refuses a draft whose name is only spaces, since that is no name at all", async () => {
+    const res = await request(app).post("/api/v1/event-drafts").set(bearer).send({ name: "   " });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.fields.map((field: { field: string }) => field.field)).toContain("name");
+  });
+
+  it("refuses an edit that blanks the name to spaces, leaving the saved name", async () => {
+    const created = await request(app).post("/api/v1/event-drafts").set(bearer).send({ name: "Kept" });
+
+    const res = await request(app)
+      .put(`/api/v1/event-drafts/${created.body.id}`)
+      .set(bearer)
+      .send({ name: "   " });
+
+    expect(res.status).toBe(400);
+    const reopened = await request(app).get(`/api/v1/event-drafts/${created.body.id}`).set(bearer);
+    expect(reopened.body.name).toBe("Kept");
+  });
+
+  it("stores a name exactly as typed, surrounding spaces included", async () => {
+    const res = await request(app).post("/api/v1/event-drafts").set(bearer).send({ name: "  Spaced  " });
+
+    expect(res.status).toBe(201);
+    expect(res.body.name).toBe("  Spaced  ");
   });
 
   it("does not apply the submission rules on save", async () => {

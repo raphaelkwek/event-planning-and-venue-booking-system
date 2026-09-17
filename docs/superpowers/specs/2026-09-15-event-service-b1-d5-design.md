@@ -27,7 +27,7 @@ coordinator review queue, clarification request and response, and approve/reject
 
 **Out of scope:** E2, F3, F4, F5, G1, G2, S1–S3, attachments, the live Kafka relay, and the
 Notification service's own consumer. F1 and F2 are touched only insofar as every transition in
-these ten stories writes a `status_history` row through one state machine.
+these ten stories writes an `event_history` row through one state machine.
 
 ## 2. Decisions
 
@@ -123,9 +123,8 @@ second owner's review before merge (implementation.md §2).
 | `events` | C1 onward — a request from its first save to its decision. Owner and `name` are all a draft needs; `reference` (`EVT-000123` from a sequence) and `submitted_at` arrive at submission. Also `status`, `last_saved_at`, `reviewing_coordinator_id`, `review_started_at`, `decided_by`, `decided_at`, `rejection_reason`. |
 | `assignments` | E1 stub. One active row per event: `coordinator_id`, `assignment_rule`, `assigned_at`, `ended_at`, `is_active`. Shaped so E2 can add rows later without migration churn. |
 | `assignment_cursor` | Single row. Round-robin pointer for the stub. |
-| `status_history` | F1. `previous_status`, `new_status`, `actor_user_id`, `actor_role`, `triggering_action`, `occurred_at`. Append only. |
+| `event_history` | F1 and D3, append only. `entry_type` is `STATUS_CHANGE` (`previous_status`, `new_status`) or `FIELD_CHANGE` (`field_name`, `previous_value`, `new_value`); both record `actor_user_id`, `actor_role`, `triggering_action`, `occurred_at`. A check constraint per type makes sure each carries its own columns. *(Superseded: this was `status_history` plus a separate `event_field_edits` until migration `0003`.)* |
 | `clarifications` | D2/D3. One row per round, `OPEN` or `RESPONDED`, ordered by `requested_at`. |
-| `event_field_edits` | D3's "originals retained alongside amended values". `field_name`, `previous_value`, `new_value`, actor, timestamp, `source`. |
 | `outbox` | implementation.md §3.4, unchanged shape. |
 
 Proposed timing is stored as `proposed_start_at`/`proposed_end_at` `timestamptz`, not a date plus
