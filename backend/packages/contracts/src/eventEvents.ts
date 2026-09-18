@@ -15,6 +15,9 @@ export const EVENT_TOPICS = {
   clarificationResponded: "connectsphere.event.clarification-responded.v1",
   approved: "connectsphere.event.approved.v1",
   rejected: "connectsphere.event.rejected.v1",
+  reassignmentProposed: "connectsphere.event.reassignment-proposed.v1",
+  reassignmentAccepted: "connectsphere.event.reassignment-accepted.v1",
+  reassignmentDeclined: "connectsphere.event.reassignment-declined.v1",
 } as const;
 
 export type EventTopic = (typeof EVENT_TOPICS)[keyof typeof EVENT_TOPICS];
@@ -72,6 +75,31 @@ export const eventRejectedPayloadSchema = z.object({
   reason: z.string().min(1),
 });
 
+export const eventReassignmentProposedPayloadSchema = z.object({
+  ...eventRef,
+  proposalId: z.string().uuid(),
+  outgoingCoordinatorId: z.string().uuid(),
+  nomineeCoordinatorId: z.string().uuid(),
+  proposedAt: z.string().datetime(),
+});
+
+/** Both parties are notified from one event, so both ids travel together. */
+export const eventReassignmentAcceptedPayloadSchema = z.object({
+  ...eventRef,
+  proposalId: z.string().uuid(),
+  outgoingCoordinatorId: z.string().uuid(),
+  nomineeCoordinatorId: z.string().uuid(),
+  resolvedAt: z.string().datetime(),
+});
+
+export const eventReassignmentDeclinedPayloadSchema = z.object({
+  ...eventRef,
+  proposalId: z.string().uuid(),
+  outgoingCoordinatorId: z.string().uuid(),
+  nomineeCoordinatorId: z.string().uuid(),
+  resolvedAt: z.string().datetime(),
+});
+
 /** Validators keyed by messageType, for producers and consumers alike. */
 export const EVENT_PAYLOAD_SCHEMAS = {
   "event.submitted": eventSubmittedPayloadSchema,
@@ -80,6 +108,9 @@ export const EVENT_PAYLOAD_SCHEMAS = {
   "event.clarification-responded": eventClarificationRespondedPayloadSchema,
   "event.approved": eventApprovedPayloadSchema,
   "event.rejected": eventRejectedPayloadSchema,
+  "event.reassignment-proposed": eventReassignmentProposedPayloadSchema,
+  "event.reassignment-accepted": eventReassignmentAcceptedPayloadSchema,
+  "event.reassignment-declined": eventReassignmentDeclinedPayloadSchema,
 } as const;
 
 export type EventMessageType = keyof typeof EVENT_PAYLOAD_SCHEMAS;

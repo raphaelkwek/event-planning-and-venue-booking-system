@@ -4,6 +4,77 @@
 
 ---
 
+# Coordinator reassignment (E2), and finishing E1's remaining ACs
+
+**Timestamp:** 2026-09-18T11:36+08:00 (SGT)
+**Author:** Shawmya, via Claude
+**Scope:** E1, E2
+**Reason:** E2 (propose/accept/decline reassignment of an event's coordinator) was built inside the
+Event Service, following the same domain → repo → api → outbox pattern the rest of the service
+already uses.
+
+## Added
+
+- **E2 — propose/accept/decline reassignment.** New table `event.reassignment_proposals`
+  (migration `0004`), with a partial unique index enforcing "only one pending proposal per event" at
+  the database level rather than a read-then-write check — the same technique as E1's
+  `assignments_one_active_per_event`. New endpoints under
+  `/api/v1/events/:id/reassignment-proposals` (list, propose, accept, decline) in a new
+  `api/reassignments.ts`, and three new event types/topics
+  (`reassignment-proposed`/`-accepted`/`-declined`) plus five error codes in `@connectsphere/contracts`.
+- **E1 domain coverage:** `canProposeReassignment` and `isSelfNomination` pure functions, unit-tested
+  alongside `allocateCoordinator`.
+- Reassignment UI in `ReviewDetail.tsx` (propose modal, pending state, accept/decline for the
+  nominee) and a read-only pending-reassignment note in `RequestDetail.tsx`, using Atlaskit
+  components throughout (implementation.md §7.1) rather than the discarded banner's inline styles.
+- Functional test cases `/tests/E1/` (4 cases) and `/tests/E2/` (8 cases), and their rows in
+  `documentation/traceability/sprint-2.csv`. `EVENT_COORDINATOR_POOL` in `.env.example` now lists
+  both seeded coordinator accounts so E1's round-robin and E2's reassignment are both demonstrable
+  against the standard test environment.
+
+## Fixed
+
+Found by running the migration and the automated suite, then clicking through the app against the
+real Supabase project — not by reading the code.
+
+- `tests/fixtures/reset-test-data.sql` deleted an event's `event_history`, `clarifications`,
+  `assignments` and `outbox` rows before deleting the event itself, but never deleted its
+  `reassignment_proposals` rows. Since that table has a foreign key back to the event, resetting
+  test data for an event with a proposal on it would have failed outright. Added the missing
+  `delete` line, in the same position the other child tables already had one.
+- `repo/events.ts`'s `claimForReview` — run the first time any coordinator opens a Submitted
+  request — always returned a hardcoded `null` for `assigned_coordinator_id` instead of the real
+  value, a pre-existing quirk from before E2. It never mattered until now, because nothing
+  previously depended on that field being correct in that one response. E2's "Propose reassignment"
+  button does depend on it (it only renders for whoever the assigned coordinator actually is), so
+  the bug surfaced immediately on first click-through: the request showed "Awaiting assignment" and
+  no reassignment button, even though `event.assignments` had the correct row all along. Fixed the
+  query to correlate against `event.assignments` instead of hardcoding the column.
+- The shared `.env` used for manual testing predated `EVENT_COORDINATOR_POOL` existing at all, so
+  the pool was empty and every submission sat at "Awaiting assignment." Added the same value
+  `.env.example` already carries. Not a code change — `.env` isn't committed — but recorded here
+  because it's why the `claimForReview` bug above wasn't caught until now; anyone whose local `.env`
+  predates this story needs the same line added by hand.
+
+## Changed
+
+- `ReviewDetail.tsx` — "Propose reassignment" moved out of its own "Coordinator assignment" section
+  and into the same button group as Approve/Reject. Product feedback after clicking through it live:
+  as a separate, differently-styled button below a second heading, it read as a lesser, secondary
+  action, when it's a peer action a coordinator chooses between, same as the other two. The
+  pending-proposal state and the nominee's Accept/Decline stayed where they were, since those
+  describe a different actor's decision, not a peer action of the current coordinator's.
+
+## Known gap, raised rather than silently built around
+
+- E2's "the nominee does not gain coordinator actions until they accept" is not actually enforced
+  for Approve/Reject/clarification: D1–D5 already let *any* `EVENT_COORDINATOR` act on a request
+  regardless of who is assigned to it (only accept/decline of the reassignment proposal itself is
+  nominee-scoped). Restricting D4/D5 to the assigned coordinator would change D1's existing
+  open-queue review model and is outside E2's stated scope — see `/tests/E2/E2-T8-...md`.
+
+---
+
 # Drop Docker; plan for one hosted Kafka cluster
 
 **Timestamp:** 2026-09-18T00:35+08:00 (SGT)

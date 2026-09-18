@@ -7,8 +7,13 @@ import Textfield from "@atlaskit/textfield";
 import SectionMessage from "@atlaskit/section-message";
 import { useSignedIn } from "../auth/SessionContext.js";
 import { useUserNames } from "../shared/useUserNames.js";
-import { listClarifications, openEvent, respondToClarification } from "../api/events.js";
-import type { Clarification, EventRecord } from "../api/types.js";
+import {
+  listClarifications,
+  listReassignmentProposals,
+  openEvent,
+  respondToClarification,
+} from "../api/events.js";
+import type { Clarification, EventRecord, ReassignmentProposal } from "../api/types.js";
 import { formatInstant, STATUS_APPEARANCE, STATUS_LABELS } from "../shared/status.js";
 import { Refusal } from "../components/Refusal.js";
 import { EquipmentRequirementsView, VenueRequirementsView } from "../components/Requirements.js";
@@ -23,6 +28,7 @@ export function RequestDetail() {
   const { id } = useParams<{ id: string }>();
   const [event, setEvent] = useState<EventRecord | null>(null);
   const [clarifications, setClarifications] = useState<Clarification[]>([]);
+  const [proposals, setProposals] = useState<ReassignmentProposal[]>([]);
   const [error, setError] = useState<unknown>(null);
   const [loading, setLoading] = useState(true);
 
@@ -30,10 +36,13 @@ export function RequestDetail() {
   const [amendedAttendance, setAmendedAttendance] = useState("");
   const [replyError, setReplyError] = useState<unknown>(null);
   const [busy, setBusy] = useState(false);
+
+  const pendingProposal = proposals.find((proposal) => proposal.status === "PENDING") ?? null;
   const nameOf = useUserNames(session.token, [
     event?.ownerId,
     event?.assignedCoordinatorId,
     event?.reviewingCoordinatorId,
+    pendingProposal?.nomineeCoordinatorId,
   ]);
 
   const load = useCallback(async () => {
@@ -43,6 +52,7 @@ export function RequestDetail() {
     try {
       setEvent(await openEvent(session.token, id));
       setClarifications((await listClarifications(session.token, id)).items);
+      setProposals((await listReassignmentProposals(session.token, id)).items);
     } catch (caught) {
       setError(caught);
     } finally {
@@ -209,6 +219,17 @@ export function RequestDetail() {
           <Meta label="Reviewing coordinator" value={nameOf(event.reviewingCoordinatorId) ?? "—"} />
           <Meta label="Decision" value={event.decidedAt ? formatInstant(event.decidedAt) : "None yet"} />
         </dl>
+
+        {/* E2 — read-only for the organiser: no accept/decline actions here. */}
+        {pendingProposal && (
+          <div style={{ marginTop: 16 }}>
+            <Lozenge appearance="moved">Pending reassignment</Lozenge>
+            <p style={{ fontSize: 13, marginTop: 4 }}>
+              Proposed to {nameOf(pendingProposal.nomineeCoordinatorId)} on{" "}
+              {formatInstant(pendingProposal.proposedAt)}.
+            </p>
+          </div>
+        )}
       </aside>
     </div>
   );

@@ -18,11 +18,12 @@ create temporary table test_owned_events on commit drop as
     '00000000-0000-0000-0000-000000000007'  -- organiser2@connectsphere.test
   );
 
-delete from event.event_history  where event_id in (select id from test_owned_events);
-delete from event.clarifications where event_id in (select id from test_owned_events);
-delete from event.assignments    where event_id in (select id from test_owned_events);
-delete from event.outbox         where message_key in (select id::text from test_owned_events);
-delete from event.events         where id in (select id from test_owned_events);
+delete from event.event_history            where event_id in (select id from test_owned_events);
+delete from event.clarifications           where event_id in (select id from test_owned_events);
+delete from event.reassignment_proposals   where event_id in (select id from test_owned_events);
+delete from event.assignments              where event_id in (select id from test_owned_events);
+delete from event.outbox                   where message_key in (select id::text from test_owned_events);
+delete from event.events                   where id in (select id from test_owned_events);
 
 -- Coordinator assignment starts from the first coordinator in the pool again.
 update event.assignment_cursor set next_index = 0 where id = true;

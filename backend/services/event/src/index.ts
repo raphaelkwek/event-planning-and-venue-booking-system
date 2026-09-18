@@ -8,6 +8,7 @@ import { draftsRouter } from "./api/drafts.js";
 import { eventsRouter } from "./api/events.js";
 import { clarificationsRouter } from "./api/clarifications.js";
 import { decisionsRouter } from "./api/decisions.js";
+import { reassignmentsRouter } from "./api/reassignments.js";
 
 export const app = express();
 
@@ -33,6 +34,7 @@ app.use(healthRouter(sql));
 app.use(draftsRouter(sql));
 app.use(clarificationsRouter(sql));
 app.use(decisionsRouter(sql));
+app.use(reassignmentsRouter(sql));
 app.use(eventsRouter(sql));
 
 // ROUTES — additional routers are mounted below this line.

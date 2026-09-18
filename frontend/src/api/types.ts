@@ -71,6 +71,17 @@ export interface EventListItem {
   decidedAt: string | null;
 }
 
+/** E2 — a proposal to hand an event's coordinator assignment to a nominee. */
+export interface ReassignmentProposal {
+  id: string;
+  eventId: string;
+  outgoingCoordinatorId: string;
+  nomineeCoordinatorId: string;
+  status: "PENDING" | "ACCEPTED" | "DECLINED";
+  proposedAt: string;
+  resolvedAt: string | null;
+}
+
 export interface Clarification {
   id: string;
   eventId: string;

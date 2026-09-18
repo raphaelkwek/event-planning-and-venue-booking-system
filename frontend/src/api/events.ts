@@ -5,6 +5,7 @@ import type {
   EventListItem,
   EventRecord,
   Paged,
+  ReassignmentProposal,
   RequestFields,
   VenueRequirements,
 } from "./types.js";
@@ -190,5 +191,37 @@ export function rejectEvent(token: string, eventId: string, reason: string) {
     method: "POST",
     token,
     body: { reason },
+  });
+}
+
+/** E2 — proposals for this event, pending and resolved alike. */
+export function listReassignmentProposals(token: string, eventId: string) {
+  return request<Paged<ReassignmentProposal>>(`${EVENT}/events/${eventId}/reassignment-proposals`, {
+    token,
+  });
+}
+
+/** E2 — the active coordinator proposes handing the event to a nominee. */
+export function proposeReassignment(token: string, eventId: string, nomineeId: string) {
+  return request<ReassignmentProposal>(`${EVENT}/events/${eventId}/reassignment-proposals`, {
+    method: "POST",
+    token,
+    body: { nomineeId },
+  });
+}
+
+/** E2 — the nominee accepts, becoming the active coordinator. */
+export function acceptReassignment(token: string, eventId: string) {
+  return request<ReassignmentProposal>(`${EVENT}/events/${eventId}/reassignment-proposals/accept`, {
+    method: "POST",
+    token,
+  });
+}
+
+/** E2 — the nominee declines; the outgoing coordinator remains active. */
+export function declineReassignment(token: string, eventId: string) {
+  return request<ReassignmentProposal>(`${EVENT}/events/${eventId}/reassignment-proposals/decline`, {
+    method: "POST",
+    token,
   });
 }

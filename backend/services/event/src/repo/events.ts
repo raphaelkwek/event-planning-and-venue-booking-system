@@ -258,14 +258,16 @@ export async function claimForReview(
   coordinatorId: string
 ): Promise<EventRow | null> {
   const rows = await tx<RawEvent[]>`
-    update event.events set
+    update event.events e set
       status = 'UNDER_REVIEW',
       reviewing_coordinator_id = ${coordinatorId},
       review_started_at = now(),
       updated_at = now(),
       updated_by = ${coordinatorId}
-    where id = ${eventId} and status = 'SUBMITTED' and reviewing_coordinator_id is null
-    returning *, null::uuid as assigned_coordinator_id
+    where e.id = ${eventId} and e.status = 'SUBMITTED' and e.reviewing_coordinator_id is null
+    returning e.*, (
+      select a.coordinator_id from event.assignments a where a.event_id = e.id and a.is_active
+    ) as assigned_coordinator_id
   `;
   return rows[0] ? toEvent(rows[0]) : null;
 }

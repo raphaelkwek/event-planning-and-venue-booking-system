@@ -3,18 +3,23 @@ import { useParams } from "react-router-dom";
 import Button from "@atlaskit/button/new";
 import Lozenge from "@atlaskit/lozenge";
 import TextArea from "@atlaskit/textarea";
+import Textfield from "@atlaskit/textfield";
 import SectionMessage from "@atlaskit/section-message";
 import Modal, { ModalBody, ModalFooter, ModalHeader, ModalTitle, ModalTransition } from "@atlaskit/modal-dialog";
 import { useSignedIn } from "../auth/SessionContext.js";
 import { useUserNames } from "../shared/useUserNames.js";
 import {
+  acceptReassignment,
   approveEvent,
+  declineReassignment,
   listClarifications,
+  listReassignmentProposals,
   openEvent,
+  proposeReassignment,
   rejectEvent,
   requestClarification,
 } from "../api/events.js";
-import type { Clarification, EventRecord } from "../api/types.js";
+import type { Clarification, EventRecord, ReassignmentProposal } from "../api/types.js";
 import { ApiError } from "../api/client.js";
 import { formatInstant, STATUS_APPEARANCE, STATUS_LABELS } from "../shared/status.js";
 import { Refusal } from "../components/Refusal.js";
@@ -31,6 +36,7 @@ export function ReviewDetail() {
   const { id } = useParams<{ id: string }>();
   const [event, setEvent] = useState<EventRecord | null>(null);
   const [clarifications, setClarifications] = useState<Clarification[]>([]);
+  const [proposals, setProposals] = useState<ReassignmentProposal[]>([]);
   const [loadError, setLoadError] = useState<unknown>(null);
   const [actionError, setActionError] = useState<unknown>(null);
   const [loading, setLoading] = useState(true);
@@ -42,11 +48,18 @@ export function ReviewDetail() {
   // Kept apart from actionError: a refusal of the rejection is shown in the
   // dialog, where the reason is entered, not on the page behind it.
   const [rejectError, setRejectError] = useState<unknown>(null);
+
+  const [proposing, setProposing] = useState(false);
+  const [nomineeId, setNomineeId] = useState("");
+  const [proposeError, setProposeError] = useState<unknown>(null);
+
+  const pendingProposal = proposals.find((proposal) => proposal.status === "PENDING") ?? null;
   const nameOf = useUserNames(session.token, [
     event?.ownerId,
     event?.assignedCoordinatorId,
     event?.reviewingCoordinatorId,
     event?.decidedBy,
+    pendingProposal?.nomineeCoordinatorId,
   ]);
 
   const load = useCallback(async () => {
@@ -56,6 +69,7 @@ export function ReviewDetail() {
     try {
       setEvent(await openEvent(session.token, id));
       setClarifications((await listClarifications(session.token, id)).items);
+      setProposals((await listReassignmentProposals(session.token, id)).items);
     } catch (caught) {
       setLoadError(caught);
     } finally {
@@ -222,12 +236,96 @@ export function ReviewDetail() {
           >
             Reject
           </Button>
+          {/* E2 — a peer action to Approve/Reject: the active coordinator can
+              hand the event off, as long as no proposal is already pending. */}
+          {!pendingProposal && event.assignedCoordinatorId === session.userId && (
+            <Button
+              isDisabled={busy || decided}
+              onClick={() => {
+                setProposeError(null);
+                setNomineeId("");
+                setProposing(true);
+              }}
+            >
+              Propose reassignment
+            </Button>
+          )}
         </div>
+
+        {/* E2 — the pending state and the nominee's accept/decline, shown
+            beneath the action buttons once a proposal exists. */}
+        {pendingProposal && (
+          <div style={{ marginTop: 24 }}>
+            <SectionMessage appearance="information" title="Pending reassignment">
+              <p style={{ margin: 0 }}>
+                Proposed to {nameOf(pendingProposal.nomineeCoordinatorId)} on{" "}
+                {formatInstant(pendingProposal.proposedAt)}.
+              </p>
+            </SectionMessage>
+            {pendingProposal.nomineeCoordinatorId === session.userId && (
+              <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+                <Button
+                  appearance="primary"
+                  isDisabled={busy}
+                  onClick={() => run(() => acceptReassignment(session.token, event.id))}
+                >
+                  Accept
+                </Button>
+                <Button
+                  appearance="subtle"
+                  isDisabled={busy}
+                  onClick={() => run(() => declineReassignment(session.token, event.id))}
+                >
+                  Decline
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
       </aside>
 
       {/* implementation.md §7.1: an irreversible action confirms, and the
           mandatory reason lives in that modal. */}
       <ModalTransition>
+        {proposing && (
+          <Modal onClose={() => setProposing(false)}>
+            <ModalHeader>
+              <ModalTitle>Propose reassignment</ModalTitle>
+            </ModalHeader>
+            <ModalBody>
+              <p>
+                The nominee keeps no coordinator actions on this event until they accept. You
+                remain the active coordinator until then.
+              </p>
+              <div style={{ marginBottom: 12 }}>
+                <Refusal error={proposeError} />
+              </div>
+              <label style={{ fontSize: 12, fontWeight: 600 }}>Nominee's user id</label>
+              <Textfield
+                value={nomineeId}
+                onChange={(e) => setNomineeId((e.target as HTMLInputElement).value)}
+              />
+            </ModalBody>
+            <ModalFooter>
+              <Button appearance="subtle" onClick={() => setProposing(false)}>
+                Cancel
+              </Button>
+              <Button
+                appearance="primary"
+                isDisabled={busy}
+                onClick={async () => {
+                  const ok = await run(
+                    () => proposeReassignment(session.token, event.id, nomineeId.trim()),
+                    setProposeError
+                  );
+                  if (ok) setProposing(false);
+                }}
+              >
+                Send proposal
+              </Button>
+            </ModalFooter>
+          </Modal>
+        )}
         {rejecting && (
           <Modal onClose={() => setRejecting(false)}>
             <ModalHeader>

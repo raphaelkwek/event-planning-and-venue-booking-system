@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { allocateCoordinator, ASSIGNMENT_RULE } from "../../src/domain/assignment.js";
+import {
+  allocateCoordinator,
+  ASSIGNMENT_RULE,
+  canProposeReassignment,
+  isSelfNomination,
+} from "../../src/domain/assignment.js";
 
 /**
  * E1 — automatic coordinator assignment. The allocation rule is applied
@@ -47,5 +52,36 @@ describe("allocateCoordinator (E1)", () => {
 
   it("stays inside the pool when the stored cursor is beyond its end", () => {
     expect(allocateCoordinator(POOL, 99)!.coordinatorId).toBe("coordinator-a");
+  });
+});
+
+/**
+ * E2 — reassignment proposals. Permitted statuses, and refusing a proposal
+ * to the coordinator already assigned.
+ */
+describe("canProposeReassignment (E2)", () => {
+  it("permits reassignment while the event is still under review or later", () => {
+    expect(canProposeReassignment("SUBMITTED")).toBe(true);
+    expect(canProposeReassignment("UNDER_REVIEW")).toBe(true);
+    expect(canProposeReassignment("AWAITING_CLARIFICATION")).toBe(true);
+    expect(canProposeReassignment("APPROVED")).toBe(true);
+    expect(canProposeReassignment("PLANNING")).toBe(true);
+    expect(canProposeReassignment("CONFIRMED")).toBe(true);
+  });
+
+  it("refuses reassignment once the event has left the review workflow", () => {
+    expect(canProposeReassignment("COMPLETED")).toBe(false);
+    expect(canProposeReassignment("CANCELLED")).toBe(false);
+    expect(canProposeReassignment("REJECTED")).toBe(false);
+  });
+});
+
+describe("isSelfNomination (E2)", () => {
+  it("is true when the nominee is already the assigned coordinator", () => {
+    expect(isSelfNomination("coordinator-a", "coordinator-a")).toBe(true);
+  });
+
+  it("is false when the nominee is someone else", () => {
+    expect(isSelfNomination("coordinator-a", "coordinator-b")).toBe(false);
   });
 });

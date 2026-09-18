@@ -39,6 +39,7 @@ vi.mock("../src/api/events.js", async () => {
       assignedCoordinatorId: "coordinator-id",
     })),
     listClarifications: vi.fn(async () => ({ items: [], nextCursor: null })),
+    listReassignmentProposals: vi.fn(async () => ({ items: [], nextCursor: null })),
   };
 });
 

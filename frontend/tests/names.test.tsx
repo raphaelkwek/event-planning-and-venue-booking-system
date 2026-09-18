@@ -44,6 +44,7 @@ vi.mock("../src/api/events.js", async () => {
     ...actual,
     openEvent: vi.fn(async () => event),
     listClarifications: vi.fn(async () => ({ items: [], nextCursor: null })),
+    listReassignmentProposals: vi.fn(async () => ({ items: [], nextCursor: null })),
     listQueue: vi.fn(async () => ({ items: [{ ...event, status: "SUBMITTED", reviewingCoordinatorId: null }], nextCursor: null })),
   };
 });

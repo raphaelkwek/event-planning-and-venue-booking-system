@@ -55,6 +55,9 @@ export const clarificationResponseBodySchema = z.object({
 
 export const rejectionBodySchema = z.object({ reason: z.string().nullish() });
 
+/** E2 — proposing reassignment to a nominee coordinator. */
+export const proposalBodySchema = z.object({ nomineeId: z.string().nullish() });
+
 /**
  * D3 — the fields an organiser may amend when answering a clarification,
  * mapped to their columns. A field absent from this map is not amendable.
