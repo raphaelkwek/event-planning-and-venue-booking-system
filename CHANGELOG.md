@@ -4,6 +4,29 @@
 
 ---
 
+# Sprint 1 Definition of Done
+
+**Timestamp:** 2026-09-19T21:24+08:00 (SGT)
+**Author:** Sahanya, via Claude
+**Scope:** none (process document, no story).
+**Reason:** Sprint 1's gradable evidence is manual functional test cases, not the automated suite
+implementation.md §8.3 assumes — the curriculum hasn't covered scripted testing yet. The team needed
+a written, Sprint 1-specific Done bar rather than deferring to §8.3.
+
+## Added
+
+- **`documentation/planning/definition-of-done.md`** — the Sprint 1 Definition of Done. Marked
+  *Proposed*, pending team sign-off. Explains why it differs from implementation.md §8.3 (manual test
+  cases as the primary gate, automated tests a bonus); a per-story Done checklist (merged to `main`,
+  a test case per acceptance criterion written before it's run, happy-path plus a negative case,
+  end-to-end coverage for cross-cutting stories, every case executed and Pass, demoed to the PO, Jira
+  moved to Done); the professor's test case template split into a written-once spec and a per-run
+  execution record; a placeholder location for the cases (`documentation/test-cases/sprint-1.csv`,
+  pending the repo cleanup pass); and a note that implementation.md §8.1–§8.3 take over from Sprint 2
+  once scripted testing is covered.
+
+---
+
 # Coordinator reassignment (E2), and finishing E1's remaining ACs
 
 **Timestamp:** 2026-09-18T11:36+08:00 (SGT)
