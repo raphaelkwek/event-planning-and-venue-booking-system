@@ -9,12 +9,16 @@
  * with --out.
  *
  * Usage:
- *   tsx documentation/scripts/confluence-digest.ts [--since <date>] [--order asc|desc] [--file <path>] [--out <path>]
+ *   tsx documentation/scripts/confluence-digest.ts [--since <date>] [--order asc|desc] [--file <path>] [--out <path>] [--format ship|standup]
  *
  *   --since   Only include entries timestamped at/after this date (any Date.parse-able value).
  *   --order   asc (chronological, default) or desc (newest-first, matching CHANGELOG.md itself).
  *   --file    Changelog to read. Defaults to CHANGELOG.md in the current directory.
  *   --out     Write the table to this file instead of stdout.
+ *   --format  ship (default): Date | Author | Item | Notes — what shipped, one row per entry.
+ *             standup: Timestamp | Name | Completed | Blockers | To-do — Blockers/To-do are
+ *             pulled only from a real "## Known gap" / "## Follow-up(s)" section in the entry,
+ *             never invented. Not a replacement for a person's own daily self-report.
  */
 import { readFileSync, writeFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
@@ -25,6 +29,8 @@ export interface ChangelogEntry {
   timestampMs: number | null;
   author: string;
   notes: string;
+  blockers: string[];
+  followUps: string[];
 }
 
 /** Parses a CHANGELOG.md timestamp like "2026-09-16T16:23+08:00 (SGT)" into epoch ms. */
@@ -75,6 +81,30 @@ function extractField(block: string, label: string): string | null {
   return null;
 }
 
+/**
+ * Collects the bullet lines under the first "## <heading prefix>..." section in a block
+ * (matched case-insensitively, by prefix only — e.g. "Known gap" also matches "Known gap,
+ * raised rather than silently built around"). Stops at the next heading or entry end.
+ */
+function extractBullets(block: string, headingPrefix: string): string[] {
+  const lines = block.split("\n");
+  const headingRe = new RegExp(`^#{2,3}\\s*${headingPrefix}`, "i");
+  let capturing = false;
+  const bullets: string[] = [];
+
+  for (const line of lines) {
+    if (headingRe.test(line)) {
+      capturing = true;
+      continue;
+    }
+    if (!capturing) continue;
+    if (/^#{1,6}\s/.test(line) || line.trim() === "---") break;
+    const bulletMatch = line.match(/^-\s+(.*)$/);
+    if (bulletMatch) bullets.push(bulletMatch[1].trim());
+  }
+  return bullets;
+}
+
 function parseEntryBlock(block: string): ChangelogEntry | null {
   const titleMatch = block.match(/^\s*# (.+)$/m);
   if (!titleMatch) return null;
@@ -87,6 +117,8 @@ function parseEntryBlock(block: string): ChangelogEntry | null {
     timestampMs: timestamp ? parseTimestamp(timestamp) : null,
     author: extractField(block, "Author") ?? "",
     notes: extractField(block, "Reason") ?? extractField(block, "Scope") ?? "",
+    blockers: extractBullets(block, "Known gap"),
+    followUps: extractBullets(block, "Follow-up"),
   };
 }
 
@@ -130,6 +162,37 @@ export function formatTable(entries: ChangelogEntry[]): string {
   return [header, ...rows].join("\n");
 }
 
+/**
+ * CHANGELOG.md's "Author:" field uses whatever name that entry's author happened to sign
+ * with (e.g. "Chai"); the standup table displays the team's preferred name instead. Keep
+ * CHANGELOG.md itself untouched — it's the historical record — and remap only here.
+ */
+const STANDUP_NAME_ALIASES: Record<string, string> = {
+  Chai: "Yichen",
+};
+
+function standupName(author: string): string {
+  const shortName = author.split(",")[0].trim();
+  return STANDUP_NAME_ALIASES[shortName] ?? shortName;
+}
+
+/**
+ * Renders the standup shape (Timestamp | Name | Completed | Blockers | To-do). Blockers and
+ * To-do come only from a real "## Known gap" / "## Follow-up(s)" section in the entry — this
+ * is not a substitute for a person's own daily self-report, just what CHANGELOG.md actually
+ * says. An entry with neither section records "None recorded", not a guess.
+ */
+export function formatStandupTable(entries: ChangelogEntry[]): string {
+  const header = "| Timestamp | Name | Completed | Blockers | To-do |\n|---|---|---|---|---|";
+  const rows = entries.map((e) => {
+    const name = standupName(e.author);
+    const blockers = e.blockers.length ? e.blockers.join("; ") : "None recorded";
+    const todo = e.followUps.length ? e.followUps.join("; ") : "None recorded";
+    return `| ${escapeCell(e.timestamp)} | ${escapeCell(name)} | ${escapeCell(e.title)} | ${escapeCell(blockers)} | ${escapeCell(todo)} |`;
+  });
+  return [header, ...rows].join("\n");
+}
+
 function getFlag(args: string[], name: string, fallback?: string): string | undefined {
   const i = args.indexOf(`--${name}`);
   return i === -1 ? fallback : args[i + 1];
@@ -141,6 +204,7 @@ function main() {
   const order = getFlag(args, "order", "asc") as "asc" | "desc";
   const sinceRaw = getFlag(args, "since");
   const outPath = getFlag(args, "out");
+  const format = getFlag(args, "format", "ship") as "ship" | "standup";
 
   const markdown = readFileSync(file, "utf8");
   let entries = parseChangelog(markdown);
@@ -155,7 +219,7 @@ function main() {
   }
 
   entries = sortEntries(entries, order);
-  const table = formatTable(entries);
+  const table = format === "standup" ? formatStandupTable(entries) : formatTable(entries);
 
   if (outPath) {
     writeFileSync(outPath, table + "\n", "utf8");

@@ -4,6 +4,68 @@
 
 ---
 
+# Split the blocked notification cases, and record T2 as descoped from Sprint 1
+
+**Timestamp:** 2026-09-20T22:10+08:00 (SGT)
+**Author:** Raphael, via Claude
+**Scope:** A3, B1, D2, D3, D4, D5, E1, T2
+**Reason:** Eleven cases were recorded `Blocked` on 2026-09-20. `Blocked` was doing two different
+jobs: "this should run today and doesn't" and "this describes a story nobody has built". The second
+kind isn't a defect and isn't this sprint's problem, but it read like one — and for the six
+notification cases it also hid the fact that the half of each case B1/D2–D5/E1 actually own is
+implemented and testable right now.
+
+## Changed
+
+- **Six notification cases now test the trigger they own**, against `event.outbox` via the SQL
+  editor, and are `Not Executed` pending a run: B1-T5 (`event.submitted`), D2-T7
+  (`event.clarification-requested`), D3-T8 (`event.clarification-responded`), D4-T5
+  (`event.approved`), D5-T7 (`event.rejected`, carrying the reason), E1-T2
+  (`event.coordinator-assigned`, naming the assigned coordinator). Each card carries a note saying
+  what was split and where the other half went. Files were renamed to match the new scenarios.
+- **D4-T6** ("approval creates no booking or reservation") no longer asks for two lists that don't
+  exist. The outbox is the only way the Event service asks another service to act, so the assertion
+  is now that approval emits exactly `event.submitted`, `event.coordinator-assigned` and
+  `event.approved` — nothing that would book or reserve. It is executable today.
+- **A3-T7, A3-T8 and A3-T9** are `Not Executed`, not `Blocked`, each naming the story and sprint it
+  waits for (R1/F5, H1/L1, O1/Q1). These could not be split — no Sprint 1 surface, API or record
+  carries an attendee, venue-staff or technical-support view, so no half of them runs today.
+- **`tests/README.md`** now defines the boundary between `Blocked` and `Not Executed`, and says to
+  split a case rather than block it when only part of it reaches into an unbuilt story.
+
+## Added
+
+- **`tests/T2/`** — the six reader-half cases, T2-T1 to T2-T6, all `Not Executed`, plus a README
+  explaining what T2 needs (outbox relay, Notification Service, notifications screen), which case
+  each was split from, and that nothing in the folder counts towards Sprint 1's Definition of Done.
+
+## Noted, not changed
+
+- **T2 is descoped from Sprint 1, not deferred quietly.** `plan.md` §9.1 pulled T2 *into* Sprint 1
+  because removing T1 put notification ACs on B1, D2–D5, E1 and E2; §9.2 already records that it was
+  not started and carried to Sprint 2. This entry makes the test cards agree with the plan. Building
+  T2 now would mean the outbox relay, Kafka and a third service — Sprint 2 work, already priced
+  there at 41 points.
+- **The Sprint 1 Definition of Done is not met by A3, and the team should say so at the review.**
+  It requires every case to Pass, and names "T2's notification trigger" as an example of the
+  cross-cutting end-to-end bullet. The six trigger cases satisfy that bullet once run. A3-T7/T8/T9
+  cannot be satisfied in Sprint 1 — that is a real gap in A3's role coverage, to be raised rather
+  than papered over.
+- **T2-T1 … T2-T6 do not exist in Jira.** `tests/README.md` ties a case ID to its Jira Test issue;
+  these six issues still need creating under T2.
+
+## Verified
+
+- Markdown only; no source changed. `git diff --check` reports no whitespace errors.
+- The six trigger expectations were read off the implementation, not assumed: `EVENT_PAYLOAD_SCHEMAS`
+  in `backend/packages/contracts/src/eventEvents.ts` for the field names, and the `writeOutbox` calls
+  in `submitEvent.ts`, `clarifications.ts` and `decisions.ts` for which message each flow emits.
+  `review.ts` emits nothing, which is what makes D4-T6's three-message expectation exact.
+- **Not executed.** Every revised card is left `Not Executed` for the sprint's runner; no card was
+  marked Pass without a run.
+
+---
+
 # B1 and B2 functional test execution with screenshot evidence
 
 **Timestamp:** 2026-09-20T16:48+08:00 (SGT)

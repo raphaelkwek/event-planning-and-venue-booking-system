@@ -6,6 +6,7 @@ import {
   filterSince,
   sortEntries,
   formatTable,
+  formatStandupTable,
 } from "./confluence-digest.ts";
 
 const fixture = `# Changelog
@@ -127,4 +128,60 @@ test("formatTable renders a pasteable markdown table and escapes pipes", () => {
     /\| 2026-09-16T16:23\+08:00 \(SGT\) \| Chai, via Claude \| Newest entry \| Because reasons\. \|/,
   );
   assert.match(table, /Oldest one \\\| still counts\./);
+});
+
+const standupFixture = `# Changelog
+
+---
+
+# Entry with a known gap and follow-ups
+
+**Timestamp:** 2026-09-16T16:23+08:00 (SGT)
+**Author:** Chai, via Claude
+**Reason:** Because reasons.
+
+## Known gap, raised rather than silently built around
+
+- the nominee case is not enforced
+- second blocker
+
+## Follow-ups
+
+1. some numbered item is not a bullet, so it is not collected
+- write the missing Playwright test
+
+---
+
+# Entry with neither section
+
+**Timestamp:** 2026-09-10T00:00:00Z
+**Author:** Seann, via Claude
+**Reason:** Nothing to report.
+
+## Added
+
+- did a thing
+`;
+
+test("extractBullets collects bullets under a heading matched by prefix, stopping at the next heading", () => {
+  const entries = parseChangelog(standupFixture);
+  assert.deepEqual(entries[0].blockers, ["the nominee case is not enforced", "second blocker"]);
+  assert.deepEqual(entries[0].followUps, ["write the missing Playwright test"]);
+});
+
+test("entries with no Known gap / Follow-up section parse to empty arrays", () => {
+  const entries = parseChangelog(standupFixture);
+  assert.deepEqual(entries[1].blockers, []);
+  assert.deepEqual(entries[1].followUps, []);
+});
+
+test("formatStandupTable aliases known short names, and falls back to the name before the comma", () => {
+  const entries = parseChangelog(standupFixture);
+  const table = formatStandupTable(entries);
+  assert.match(table, /\| Timestamp \| Name \| Completed \| Blockers \| To-do \|/);
+  assert.match(
+    table,
+    /\| 2026-09-16T16:23\+08:00 \(SGT\) \| Yichen \| Entry with a known gap and follow-ups \| the nominee case is not enforced; second blocker \| write the missing Playwright test \|/,
+  );
+  assert.match(table, /\| Seann \| Entry with neither section \| None recorded \| None recorded \|/);
 });
