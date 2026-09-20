@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | Accepted: status "Submitted", reference EVT-001716. The request page shows "Equipment requirements: None required". |
+| Actual Result | Submission succeeded as EVT-001888 with status Submitted, and the detail screen showed “Equipment requirements — None required”. |
 | Status | Pass |
-| Remarks | Commit: b0ef6ee (working tree modified) · Evidence: tests/B2/evidence/B2-T14.png · Defect: — |
-| Executed By | Joash |
+| Remarks | Commit: b0ef6ee · Evidence: tests/B2/evidence/B2-T14-2026-09-20.png · Defect: — |
+| Executed By | Joash Lau Rong Wei |
 | Date of Execution | 2026-09-20 |

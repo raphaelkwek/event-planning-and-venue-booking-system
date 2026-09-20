@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | Blocked: there is no notifications list to open. T2 (Read and manage my notifications) was planned for Sprint 1 but not built — submission writes an outbox row, and no notification record, read model or screen exists. |
+| Actual Result | Blocked: the coordinator UI has no Notifications list; the notification feature required by this case is not implemented in this build. |
 | Status | Blocked |
-| Remarks | Commit: b0ef6ee (working tree modified) · Evidence: — · Defect: — |
-| Executed By | Joash |
+| Remarks | Commit: b0ef6ee · Evidence: tests/B1/evidence/B1-T5-2026-09-20.png · Defect: — · Blocked because the Notifications/T2 user-facing feature is not implemented. |
+| Executed By | Joash Lau Rong Wei |
 | Date of Execution | 2026-09-20 |

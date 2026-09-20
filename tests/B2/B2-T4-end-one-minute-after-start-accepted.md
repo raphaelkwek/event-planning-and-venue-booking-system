@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | Accepted: the request page opened with status "Submitted" and reference EVT-001713. |
+| Actual Result | End one minute after start was accepted as Submitted with EVT-001885. |
 | Status | Pass |
-| Remarks | Commit: b0ef6ee (working tree modified) · Evidence: tests/B2/evidence/B2-T4.png · Defect: — |
-| Executed By | Joash |
+| Remarks | Commit: b0ef6ee · Evidence: tests/B2/evidence/B2-T4-2026-09-20.png · Defect: — |
+| Executed By | Joash Lau Rong Wei |
 | Date of Execution | 2026-09-20 |

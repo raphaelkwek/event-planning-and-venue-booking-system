@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | The request page opened with status "Submitted", reference EVT-001710, submitted 9/20/2026, 3:24:52 PM, and Organiser "Organiser One". |
+| Actual Result | Complete standard request opened in Submitted status with EVT-001882, a submission timestamp, and organiser “Organiser One”. |
 | Status | Pass |
-| Remarks | Commit: b0ef6ee (working tree modified) · Evidence: tests/B1/evidence/B1-T1.png · Defect: — |
-| Executed By | Joash |
+| Remarks | Commit: b0ef6ee · Evidence: tests/B1/evidence/B1-T1-2026-09-20.png · Defect: — |
+| Executed By | Joash Lau Rong Wei |
 | Date of Execution | 2026-09-20 |

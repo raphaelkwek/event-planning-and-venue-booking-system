@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | Accepted: status "Submitted", reference EVT-001714, and the page shows expected attendance 1. |
+| Actual Result | Expected attendance 1 was accepted as Submitted with EVT-001886. |
 | Status | Pass |
-| Remarks | Commit: b0ef6ee (working tree modified) · Evidence: tests/B2/evidence/B2-T8.png · Defect: — |
-| Executed By | Joash |
+| Remarks | Commit: b0ef6ee · Evidence: tests/B2/evidence/B2-T8-2026-09-20.png · Defect: — |
+| Executed By | Joash Lau Rong Wei |
 | Date of Execution | 2026-09-20 |

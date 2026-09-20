@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | Refused with "The proposed start date and time must not be in the past." under Proposed start. No submitted row was created. |
+| Actual Result | Submission was refused with VALIDATION_FAILED; the field showed “The proposed start date and time must not be in the past.”; no event row was created. |
 | Status | Pass |
-| Remarks | Commit: b0ef6ee (working tree modified) · Evidence: tests/B2/evidence/B2-T6.png · Defect: — |
-| Executed By | Joash |
+| Remarks | Commit: b0ef6ee · Evidence: tests/B2/evidence/B2-T6-2026-09-20.png · Defect: — |
+| Executed By | Joash Lau Rong Wei |
 | Date of Execution | 2026-09-20 |

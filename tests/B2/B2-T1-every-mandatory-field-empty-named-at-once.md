@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | One refusal (VALIDATION_FAILED) named all six fields at once, and each message was shown under its own field: Event name, Purpose, Description, Proposed start, Proposed end, Expected attendance. |
+| Actual Result | One VALIDATION_FAILED refusal showed all six required-field messages simultaneously; no event row was created. |
 | Status | Pass |
-| Remarks | Commit: b0ef6ee (working tree modified) · Evidence: tests/B2/evidence/B2-T1.png · Defect: — |
-| Executed By | Joash |
+| Remarks | Commit: b0ef6ee · Evidence: tests/B2/evidence/B2-T1-2026-09-20.png · Defect: — |
+| Executed By | Joash Lau Rong Wei |
 | Date of Execution | 2026-09-20 |

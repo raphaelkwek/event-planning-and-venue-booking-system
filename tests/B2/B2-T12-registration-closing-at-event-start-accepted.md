@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | Accepted with the window closing exactly at the event start: status "Submitted", reference EVT-001715. |
+| Actual Result | Registration closing exactly at event start was accepted as Submitted with EVT-001887. |
 | Status | Pass |
-| Remarks | Commit: b0ef6ee (working tree modified) · Evidence: tests/B2/evidence/B2-T12.png · Defect: — |
-| Executed By | Joash |
+| Remarks | Commit: b0ef6ee · Evidence: tests/B2/evidence/B2-T12-2026-09-20.png · Defect: — |
+| Executed By | Joash Lau Rong Wei |
 | Date of Execution | 2026-09-20 |

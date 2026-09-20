@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | owner_id for EVT-001711 is 00000000-0000-0000-0000-000000000001 (organiser@connectsphere.test), and the request is listed in "My requests". |
+| Actual Result | EVT-001883 stored owner_id 00000000-0000-0000-0000-000000000001 and appeared in Organiser One’s My requests list. |
 | Status | Pass |
-| Remarks | Commit: b0ef6ee (working tree modified) · Evidence: tests/B1/evidence/B1-T3.png · Defect: — |
-| Executed By | Joash |
+| Remarks | Commit: b0ef6ee · Evidence: tests/B1/evidence/B1-T3-2026-09-20.png · Defect: — |
+| Executed By | Joash Lau Rong Wei |
 | Date of Execution | 2026-09-20 |

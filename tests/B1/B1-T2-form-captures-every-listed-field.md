@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | All eleven fields had an input: event name, purpose, description, proposed date and start time, proposed end time, expected attendance, venue requirements, accessibility needs, equipment requirements, whether attendee registration is required, whether equipment is required. The proposed date and start time share one datetime-local control. |
+| Actual Result | The form exposed inputs for event details, dates/times, attendance, venue, accessibility, equipment lines, and the registration-required flag. |
 | Status | Pass |
-| Remarks | Commit: b0ef6ee (working tree modified) · Evidence: tests/B1/evidence/B1-T2.png · Defect: — |
-| Executed By | Joash |
+| Remarks | Commit: b0ef6ee · Evidence: tests/B1/evidence/B1-T2-2026-09-20.png · Defect: — |
+| Executed By | Joash Lau Rong Wei |
 | Date of Execution | 2026-09-20 |

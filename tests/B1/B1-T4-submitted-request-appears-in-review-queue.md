@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | The queue row read: EVT-001712Annual Research Symposium12/2/2026, 2:00:00 PM150Organiser One9/20/2026, 3:24:57 PMSubmittedYouOpen |
+| Actual Result | EVT-001884, “Annual Research Symposium”, and status Submitted appeared in the coordinator review queue. |
 | Status | Pass |
-| Remarks | Commit: b0ef6ee (working tree modified) · Evidence: tests/B1/evidence/B1-T4.png · Defect: — |
-| Executed By | Joash |
+| Remarks | Commit: b0ef6ee · Evidence: tests/B1/evidence/B1-T4-2026-09-20.png · Defect: — |
+| Executed By | Joash Lau Rong Wei |
 | Date of Execution | 2026-09-20 |

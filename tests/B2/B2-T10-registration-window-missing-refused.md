@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | One refusal named both at once — under Registration opens: "Registration opening date and time is required when registration is required."; under Registration closes: "Registration closing date and time is required when registration is required.". |
+| Actual Result | VALIDATION_FAILED showed both missing registration-window messages simultaneously; no event row was created. |
 | Status | Pass |
-| Remarks | Commit: b0ef6ee (working tree modified) · Evidence: tests/B2/evidence/B2-T10.png · Defect: — |
-| Executed By | Joash |
+| Remarks | Commit: b0ef6ee · Evidence: tests/B2/evidence/B2-T10-2026-09-20.png · Defect: — |
+| Executed By | Joash Lau Rong Wei |
 | Date of Execution | 2026-09-20 |

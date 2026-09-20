@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | Refused with "VALIDATION_FAILEDThis request is not ready to be submitted.description: Description is required.proposedStartAt: Proposed start date and time is required.proposedEndAt: Proposed end date and time is required.expectedAttendance: Expected attendance is required.HTTP 400 · correlation acde42e6-ef0c-4685-8b50-d549537fe51f". The form still held Event name "Half-finished symposium" and Purpose "Share faculty research"; "My requests" listed no such row and no event row was stored. |
+| Actual Result | VALIDATION_FAILED was shown, both entered values remained on screen, and no event row was created. |
 | Status | Pass |
-| Remarks | Commit: b0ef6ee (working tree modified) · Evidence: tests/B1/evidence/B1-T6.png · Defect: — |
-| Executed By | Joash |
+| Remarks | Commit: b0ef6ee · Evidence: tests/B1/evidence/B1-T6-2026-09-20.png · Defect: — |
+| Executed By | Joash Lau Rong Wei |
 | Date of Execution | 2026-09-20 |

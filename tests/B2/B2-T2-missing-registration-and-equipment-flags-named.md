@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | HTTP 400 VALIDATION_FAILED naming both flags — registrationRequired: "Whether attendee registration is required must be stated."; equipmentRequired: "Whether equipment is required must be stated.". |
+| Actual Result | API console returned HTTP 400 VALIDATION_FAILED with both registrationRequired and equipmentRequired field messages. |
 | Status | Pass |
-| Remarks | Commit: b0ef6ee (working tree modified) · Evidence: tests/B2/evidence/B2-T2.png · Defect: — |
-| Executed By | Joash |
+| Remarks | Commit: b0ef6ee · Evidence: tests/B2/evidence/B2-T2-2026-09-20.png · Defect: — |
+| Executed By | Joash Lau Rong Wei |
 | Date of Execution | 2026-09-20 |

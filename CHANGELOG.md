@@ -4,6 +4,36 @@
 
 ---
 
+# B1 and B2 functional test execution with screenshot evidence
+
+**Timestamp:** 2026-09-20T16:48+08:00 (SGT)
+**Author:** Joash Lau Rong Wei, via Hermes
+**Scope:** B1, B2
+**Reason:** Re-run every event-request creation and validation functional test against the hosted
+Supabase-backed application, preserve one screenshot per case, and replace the cards' execution
+records with the latest verified observations.
+
+## Added
+
+- **21 dated screenshots** under `tests/B1/evidence/` and `tests/B2/evidence/`, one for every B1/B2
+  functional test card.
+
+## Changed
+
+- **All 21 B1/B2 execution records** now identify the tested commit, evidence file, executor and
+  execution date. Twenty cases passed. B1-T5 remains Blocked because the Notifications/T2
+  user-facing feature is not implemented.
+- **B2-T14** was reconciled with the latest card specification: the successful request detail shows
+  `Equipment requirements — None required`, so the case passes. The temporary wording-mismatch issue
+  raised against the superseded expectation was closed.
+
+## Verified
+
+- The full `npm test` suite and `npm run build` both pass after synchronising with `origin/main`.
+- Test data was reset after the run, and `git diff --check` reports no whitespace errors.
+
+---
+
 # Sprint 1 Definition of Done
 
 **Timestamp:** 2026-09-19T21:24+08:00 (SGT)

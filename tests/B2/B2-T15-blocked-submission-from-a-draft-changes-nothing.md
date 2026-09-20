@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | Refused with VALIDATION_FAILED. The row stayed "—Partly planned symposiumDraft9/20/2026, 3:25:42 PM——Open draft" and reopening the draft showed Expected attendance 100; the stored row is still DRAFT with expected_attendance 100. |
+| Actual Result | Blocked submission stayed Draft with no reference; reopening restored saved attendance 100 rather than refused on-screen value 200. |
 | Status | Pass |
-| Remarks | Commit: b0ef6ee (working tree modified) · Evidence: tests/B2/evidence/B2-T15.png · Defect: — |
-| Executed By | Joash |
+| Remarks | Commit: b0ef6ee · Evidence: tests/B2/evidence/B2-T15-2026-09-20.png · Defect: — |
+| Executed By | Joash Lau Rong Wei |
 | Date of Execution | 2026-09-20 |
