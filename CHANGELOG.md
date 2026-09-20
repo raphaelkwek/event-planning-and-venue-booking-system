@@ -49,6 +49,32 @@ what was believed at the time.
 
 ---
 
+# Sprint 1 Review & Retrospective, written up from the team call
+
+**Timestamp:** 2026-09-20T22:45+08:00 (SGT)
+**Author:** Chai, via Claude
+**Scope:** none (process document, no story) — closes out Sprint 1's documentation.
+
+## Added
+
+- **`documentation/transcript/sprint-1-review-retrospective.md`** — the Sprint Review and Sprint
+  Retrospective for Sprint 1, written up from the 20 Sep team call transcript and categorised
+  against the Scrum Review/Retro structure from the course's Week 3 slides (increment inspected,
+  progress toward the product goal, stakeholder feedback — explicitly none this sprint — and
+  backlog adaptation for Review; people/interactions/processes/tools/DoD, what went well, what
+  problems occurred, and a Start/Stop/Continue improvement set for Retro). Intended to be pasted
+  into Confluence.
+- **Deliberately carries no story-point figures.** An earlier draft cited "52 of 44 planned
+  points" and listed F1 as delivered, both sourced from `plan.md` §9. The team confirmed live that
+  F1 was **not** built this sprint, and that story-point totals for Sprint 1 currently disagree
+  across the team's planning documents — likely accumulated drift from different agents/sessions
+  editing different documents without reconciling them. Rather than pick one figure as correct,
+  this document states delivered scope only as a story list (A1–E2, no F-series items) and flags
+  the point-total conflict itself as an open reconciliation item — `plan.md` is left untouched
+  here; correcting it is separate, later work.
+
+---
+
 # Split the blocked notification cases, and record T2 as descoped from Sprint 1
 
 **Timestamp:** 2026-09-20T22:10+08:00 (SGT)
