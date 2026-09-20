@@ -10,15 +10,15 @@
 | Test Steps | 1. Click "New request".<br>2. Enter the standard request, tick "Attendee registration is required", and leave both registration fields empty.<br>3. Click "Submit request". |
 | Test Data | Account: `organiser@connectsphere.test` / `ConnectSphere-Test-1234!` · Attendee registration is required: ticked · Registration opens: *(empty)* · Registration closes: *(empty)* |
 | Expected Result | Submission is refused with `VALIDATION_FAILED`. "Registration opening date and time is required when registration is required." appears under Registration opens, and "Registration closing date and time is required when registration is required." under Registration closes, both at once. |
-| Created By | Seann, via Claude |
+| Created By | Seann |
 | Date of Creation | 2026-09-17 |
 
 ## Execution record
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | One refusal named both at once — under Registration opens: "Registration opening date and time is required when registration is required."; under Registration closes: "Registration closing date and time is required when registration is required.". |
+| Status | Pass |
+| Remarks | Commit: b0ef6ee (working tree modified) · Evidence: tests/B2/evidence/B2-T10.png · Defect: — |
+| Executed By | Joash |
+| Date of Execution | 2026-09-20 |

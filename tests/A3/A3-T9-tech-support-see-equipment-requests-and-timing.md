@@ -10,15 +10,15 @@
 | Test Steps | 1. Go to http://localhost:5173 and sign in as `techsupport@connectsphere.test`.<br>2. Open the equipment requests list.<br>3. Open the request. |
 | Test Data | Account: `techsupport@connectsphere.test` / `ConnectSphere-Test-1234!` |
 | Expected Result | The equipment request and reservation are listed with the event's date, start and end time, and not the full internal event record. |
-| Created By | Seann, via Claude |
+| Created By | Seann |
 | Date of Creation | 2026-09-17 |
 
 ## Execution record
 
 | Item | Content |
 |---|---|
-| Actual Result | |
+| Actual Result | Blocked: needs an equipment request and a reservation (O1, Q1) — the Equipment service does not exist yet. |
 | Status | Blocked |
-| Remarks | Blocked: the Equipment service (O1–Q2) is not built. Identity already resolves the rule: `GET /identity/api/v1/access-scope/equipment_requests` returns `STAFF_OWNED_EQUIPMENT`. |
-| Executed By | |
-| Date of Execution | |
+| Remarks | Commit: b0ef6ee (working tree modified) · Evidence: — · Defect: — |
+| Executed By | Joash |
+| Date of Execution | 2026-09-20 |

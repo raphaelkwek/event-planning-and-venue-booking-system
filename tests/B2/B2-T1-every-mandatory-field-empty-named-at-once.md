@@ -10,15 +10,15 @@
 | Test Steps | 1. Click "New request".<br>2. Leave every field empty and both checkboxes unticked.<br>3. Click "Submit request". |
 | Test Data | Account: `organiser@connectsphere.test` / `ConnectSphere-Test-1234!` |
 | Expected Result | Submission is refused with `VALIDATION_FAILED`. The one refusal names all six at once — Event name, Purpose, Description, Proposed start, Proposed end and Expected attendance — and each shows its own message under its field. |
-| Created By | Seann, via Claude |
+| Created By | Seann |
 | Date of Creation | 2026-09-17 |
 
 ## Execution record
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | One refusal (VALIDATION_FAILED) named all six fields at once, and each message was shown under its own field: Event name, Purpose, Description, Proposed start, Proposed end, Expected attendance. |
+| Status | Pass |
+| Remarks | Commit: b0ef6ee (working tree modified) · Evidence: tests/B2/evidence/B2-T1.png · Defect: — |
+| Executed By | Joash |
+| Date of Execution | 2026-09-20 |

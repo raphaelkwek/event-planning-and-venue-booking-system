@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | Refused on the sign-in screen: "VALIDATION_FAILEDemail and password are both required.HTTP 400 · correlation fea6df46-12aa-4ba4-8edd-64af6e4fc812". |
+| Status | Pass |
+| Remarks | Commit: b0ef6ee (working tree modified) · Evidence: tests/A1/evidence/A1-T11.png · Defect: — |
+| Executed By | Joash |
+| Date of Execution | 2026-09-20 |

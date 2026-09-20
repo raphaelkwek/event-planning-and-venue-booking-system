@@ -10,15 +10,15 @@
 | Test Steps | 1. Go to http://localhost:5173 and sign in as `coordinator@connectsphere.test`.<br>2. Click "Review queue". |
 | Test Data | Account: `coordinator@connectsphere.test` / `ConnectSphere-Test-1234!` |
 | Expected Result | No row is named "Unfinished idea". |
-| Created By | Seann, via Claude |
+| Created By | Seann |
 | Date of Creation | 2026-09-17 |
 
 ## Execution record
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | The review queue held no row named "Unfinished idea". |
+| Status | Pass |
+| Remarks | Commit: b0ef6ee (working tree modified) · Evidence: tests/D1/evidence/D1-T7.png · Defect: — |
+| Executed By | Joash |
+| Date of Execution | 2026-09-20 |

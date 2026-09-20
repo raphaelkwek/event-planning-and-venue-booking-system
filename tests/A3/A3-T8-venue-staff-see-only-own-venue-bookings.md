@@ -10,15 +10,15 @@
 | Test Steps | 1. Go to http://localhost:5173 and sign in as `venuestaff@connectsphere.test`.<br>2. Open the booking requests list.<br>3. Open the booking request for their own venue. |
 | Test Data | Account: `venuestaff@connectsphere.test` / `ConnectSphere-Test-1234!` |
 | Expected Result | Only the booking request for their own venue is listed. Its detail shows the event name, timing, expected attendance, layout and requirements, and not the full internal event record. |
-| Created By | Seann, via Claude |
+| Created By | Seann |
 | Date of Creation | 2026-09-17 |
 
 ## Execution record
 
 | Item | Content |
 |---|---|
-| Actual Result | |
+| Actual Result | Blocked: needs venues and booking requests (H1, L1) — the Venue service does not exist yet. |
 | Status | Blocked |
-| Remarks | Blocked: the Venue service (H1–N2) is not built, so there are no venues or booking requests. Identity already resolves the rule: `GET /identity/api/v1/access-scope/venue_bookings` returns `STAFF_OWNED_VENUES`. |
-| Executed By | |
-| Date of Execution | |
+| Remarks | Commit: b0ef6ee (working tree modified) · Evidence: — · Defect: — |
+| Executed By | Joash |
+| Date of Execution | 2026-09-20 |

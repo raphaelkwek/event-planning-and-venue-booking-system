@@ -10,15 +10,15 @@
 | Test Steps | 1. Go to http://localhost:5173 and sign in as `organiser@connectsphere.test`.<br>2. Click "My requests", then "View" on the request. |
 | Test Data | Account: `organiser@connectsphere.test` / `ConnectSphere-Test-1234!` |
 | Expected Result | "Coordinator asked" shows "Please confirm the expected attendance." with "Awaiting your response", and a "Respond" section is shown. |
-| Created By | Seann, via Claude |
+| Created By | Seann |
 | Date of Creation | 2026-09-17 |
 
 ## Execution record
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | The request page (EVT-001743) showed "Coordinator asked — Please confirm the expected attendance." with "Awaiting your response" and a "Respond" section. |
+| Status | Pass |
+| Remarks | Commit: b0ef6ee (working tree modified) · Evidence: tests/D3/evidence/D3-T1.png · Defect: — |
+| Executed By | Joash |
+| Date of Execution | 2026-09-20 |

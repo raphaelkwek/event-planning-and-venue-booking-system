@@ -10,15 +10,15 @@
 | Test Steps | 1. Go to http://localhost:5173 and enter the email and password.<br>2. Click "Sign in". |
 | Test Data | Account: `deactivated@connectsphere.test` / `ConnectSphere-Test-1234!` |
 | Expected Result | Sign-in is refused with a message titled `ACCOUNT_DEACTIVATED` reading "This account has been deactivated. Contact an administrator." (HTTP 403). The title and wording differ from the refusal in A1-T4. |
-| Created By | Seann, via Claude |
+| Created By | Seann |
 | Date of Creation | 2026-09-17 |
 
 ## Execution record
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | Refused with "ACCOUNT_DEACTIVATEDThis account has been deactivated. Contact an administrator.HTTP 403 · correlation 1a991e83-129c-4835-a95a-6031813477f3" — a different title and wording from A1-T4's refusal. |
+| Status | Pass |
+| Remarks | Commit: b0ef6ee (working tree modified) · Evidence: tests/A1/evidence/A1-T6.png · Defect: — |
+| Executed By | Joash |
+| Date of Execution | 2026-09-20 |

@@ -10,15 +10,15 @@
 | Test Steps | 1. Click "New request".<br>2. Enter the standard request, with the changes in Test Data.<br>3. Click "Submit request". |
 | Test Data | Account: `organiser@connectsphere.test` / `ConnectSphere-Test-1234!` · Proposed start: 1 September 2026, 14:00 · Proposed end: 1 September 2026, 18:00 |
 | Expected Result | Submission is refused with `VALIDATION_FAILED` "This request is not ready to be submitted.", and "The proposed start date and time must not be in the past." appears under the Proposed start field. "My requests" shows no new submitted row. |
-| Created By | Seann, via Claude |
+| Created By | Seann |
 | Date of Creation | 2026-09-17 |
 
 ## Execution record
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | Refused with "The proposed start date and time must not be in the past." under Proposed start. No submitted row was created. |
+| Status | Pass |
+| Remarks | Commit: b0ef6ee (working tree modified) · Evidence: tests/B2/evidence/B2-T6.png · Defect: — |
+| Executed By | Joash |
+| Date of Execution | 2026-09-20 |

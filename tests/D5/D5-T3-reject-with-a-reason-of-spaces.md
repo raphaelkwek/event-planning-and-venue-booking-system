@@ -10,15 +10,15 @@
 | Test Steps | 1. Click "Reject".<br>2. Enter the reason.<br>3. Click "Reject request".<br>4. Click "Cancel". |
 | Test Data | Account: `coordinator@connectsphere.test` / `ConnectSphere-Test-1234!` · Reason: three spaces |
 | Expected Result | In step 3 the dialog stays open and shows "A reason is required to reject an event request.". After step 4 the status is still "Under Review" and no decision is shown. |
-| Created By | Seann, via Claude |
+| Created By | Seann |
 | Date of Creation | 2026-09-17 |
 
 ## Execution record
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | Three spaces were refused in the dialog with "A reason is required to reject an event request."; after Cancel the status was still "Under Review", no Decision was shown, and nothing was recorded. |
+| Status | Pass |
+| Remarks | Commit: b0ef6ee (working tree modified) · Evidence: tests/D5/evidence/D5-T3.png · Defect: — |
+| Executed By | Joash |
+| Date of Execution | 2026-09-20 |

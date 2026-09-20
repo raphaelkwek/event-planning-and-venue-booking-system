@@ -10,15 +10,15 @@
 | Test Steps | 1. Sign in as `organiser@connectsphere.test`, click "My requests", then "View" on the request.<br>2. Sign out, sign in as `coordinator2@connectsphere.test`, and go to http://localhost:5173/#/review/<id>. |
 | Test Data | Accounts: `organiser@connectsphere.test`, `coordinator2@connectsphere.test` — both `ConnectSphere-Test-1234!` · id: from the pre-condition |
 | Expected Result | In step 1 "Coordinator asked" shows "Please confirm the expected attendance." with "Awaiting your response". In step 2 the same message appears under "Clarifications". |
-| Created By | Seann, via Claude |
+| Created By | Seann |
 | Date of Creation | 2026-09-17 |
 
 ## Execution record
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | The owning organiser saw "Coordinator asked … Please confirm the expected attendance." with "Awaiting your response", and the second coordinator saw the same message under "Clarifications". |
+| Status | Pass |
+| Remarks | Commit: b0ef6ee (working tree modified) · Evidence: tests/D2/evidence/D2-T5.png · Defect: — |
+| Executed By | Joash |
+| Date of Execution | 2026-09-20 |

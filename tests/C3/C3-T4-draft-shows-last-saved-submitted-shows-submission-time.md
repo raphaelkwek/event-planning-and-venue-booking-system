@@ -10,15 +10,15 @@
 | Test Steps | 1. Sign in as `organiser@connectsphere.test` and click "My requests". |
 | Test Data | Account: `organiser@connectsphere.test` / `ConnectSphere-Test-1234!` |
 | Expected Result | "Still a draft" shows a date and time under "Last saved", and "—" under "Submitted". "Already submitted" shows a date and time under "Submitted". |
-| Created By | Seann, via Claude |
+| Created By | Seann |
 | Date of Creation | 2026-09-17 |
 
 ## Execution record
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | The draft row showed Last saved 9/20/2026, 3:26:48 PM and Submitted "—"; the submitted row showed Submitted 9/20/2026, 3:26:48 PM. Rows: —Still a draftDraft9/20/2026, 3:26:48 PM——Open draft \| EVT-001723Already submittedSubmitted—9/20/2026, 3:26:48 PMCoordinator OneView |
+| Status | Pass |
+| Remarks | Commit: b0ef6ee (working tree modified) · Evidence: tests/C3/evidence/C3-T4.png · Defect: — |
+| Executed By | Joash |
+| Date of Execution | 2026-09-20 |

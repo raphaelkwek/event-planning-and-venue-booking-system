@@ -10,15 +10,15 @@
 | Test Steps | 1. Click "New request".<br>2. Enter the standard request, tick "Attendee registration is required", and enter the window in Test Data.<br>3. Click "Submit request". |
 | Test Data | Account: `organiser@connectsphere.test` / `ConnectSphere-Test-1234!` · Registration opens: 20 November 2026, 09:00 · Registration closes: 2 December 2026, 14:01 |
 | Expected Result | Submission is refused with `VALIDATION_FAILED` "This request is not ready to be submitted.", and "Registration closing must be no later than the event start." appears under the Registration closes field. "My requests" shows no new submitted row. |
-| Created By | Seann, via Claude |
+| Created By | Seann |
 | Date of Creation | 2026-09-17 |
 
 ## Execution record
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | Refused with "Registration closing must be no later than the event start." under Registration closes. No submitted row was created. |
+| Status | Pass |
+| Remarks | Commit: b0ef6ee (working tree modified) · Evidence: tests/B2/evidence/B2-T13.png · Defect: — |
+| Executed By | Joash |
+| Date of Execution | 2026-09-20 |

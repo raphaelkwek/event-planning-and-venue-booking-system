@@ -98,6 +98,80 @@ real Supabase project — not by reading the code.
 
 ---
 
+# Run the functional test cases automatically, and correct the Sprint 1 allocation
+
+**Timestamp:** 2026-09-20T15:20+08:00 (SGT)
+**Author:** Seann, via Claude
+**Scope:** `tests/` (A1–E2), `documentation/sprint-reallocation.csv`, plan.md §9, the review screen (E2).
+**Reason:** The 123 written test cases had never been executed, and the sprint record still showed
+what was planned rather than what Sprint 1 delivered.
+
+## Sprint 1, as delivered
+
+`sprint-reallocation.csv` now records the actual allocation, and plan.md §9 matches it:
+
+- **D2, D3, D4, D5 and E2 moved into Sprint 1** — the whole review workflow and the reassignment
+  handshake were finished there, though D2–D5 and E2 had been planned for Sprint 2.
+- **F2 and T2 moved out to Sprint 2** — neither was built. F1 records the status history, but
+  nothing shows it (F2); submission and decisions write notification events to the outbox, but
+  there is no notification record, read model or screen (T2).
+- **Sprint 1 delivered 52 points against a planned 44**, and Sprint 2 now carries 41. §9.2 records
+  the outcome: more points than committed, while still missing two committed stories.
+- Fixed a pre-existing inconsistency: **R1 sat in Sprint 4 in the CSV** but in Sprint 3 in plan.md
+  §9.1 and its table. The CSV now says Sprint 3, which is what made the totals agree (195 across
+  54 stories).
+
+## The cases now run themselves
+
+`npm run test-cases:run` executes all 123 cases against the running app in real Chrome and **writes
+each result into that case's own execution record** — actual result, status, the commit it ran
+against, the evidence screenshot and the date. A full run takes about seven minutes.
+
+- **One script per story**, beside its cases: `tests/<story-id>/<story-id>.spec.ts`.
+- **Shared harness** in `tests/support/`: the accounts and standard request of `tests/README.md` as
+  constants, the FX-… fixtures, screen helpers, and the reporter that writes the records.
+- **`tests/playwright.config.ts`** — one worker (the cloud database and seeded accounts are
+  shared), test data reset before every case, and it starts `npm run dev` itself if the stack is
+  not already up.
+- Three deliberate differences from a person doing it by hand, all documented in `tests/README.md`:
+  pre-conditions are built through the API rather than by clicking; cases that are not about
+  signing in start with the session already seeded (signing in 120-odd times trips Supabase's rate
+  limit on password grants); and where a case says to wait a minute for a timestamp to move, the
+  script waits seconds and compares the stored timestamps.
+
+## This run: 112 Pass, 0 Fail, 11 Blocked
+
+**One defect was found and fixed.** E2-T7 says "Propose reassignment" is not shown once a request is
+Rejected. The server refused correctly (`409 REASSIGNMENT_NOT_PERMITTED`), but the review screen
+still rendered the button — disabled — on any decided request, promising an action that can never
+be taken. `frontend/src/screens/ReviewDetail.tsx` now leaves it out entirely once a decision exists,
+and `frontend/tests/reassignmentOffer.test.tsx` holds it there: offered while under review, absent
+once approved or rejected. E2-T7 passes on the re-run.
+
+**Eleven cases are Blocked**, each with its reason in the record — they describe screens that
+Sprint 1 never built: the notification cases (B1-T5, D2-T7, D3-T8, D4-T5, D5-T7, E1-T2) need T2;
+A3-T7 needs the attendee surface, A3-T8 venues, A3-T9 and D4-T6 equipment. E1-T3 needs the Event
+service restarted with an empty coordinator pool, which a shared run cannot do — run it by hand.
+
+## Also changed
+
+- **Four case specifications were corrected**, each noted in the case file: A1-T1/T2/T3 expected the
+  header to show the role code (`EVENT_ORGANISER`), which became "Event Organiser" on 2026-09-17;
+  B2-T14 expected "Equipment required: No", which became "Equipment requirements: None required"
+  when requirements were added the same day.
+- **Every card's "Created By" now names a person alone** — "Seann" (and "Shawmya" on the twelve she
+  wrote) rather than "…, via Claude" — and **"Executed By" reads "Joash"**, who owns the runs this
+  sprint. The runner writes that name; it is a sprint-level convention, deliberately not written
+  into implementation.md, because the test workflow changes next sprint.
+- **`EVENT_COORDINATOR_POOL` now lists both seeded coordinators** in `.env.example` (and locally in
+  `.env`). `tests/README.md` already assumed this — A3-T5 and the E2 handshake need two.
+- **`.gitignore`**: Playwright's `test-results/`, `playwright-report/`, and `tests/*/evidence/`,
+  which every run rebuilds.
+- **New dev dependency:** `@playwright/test`. It drives the installed Chrome, so no browser
+  download.
+
+---
+
 # Drop Docker; plan for one hosted Kafka cluster
 
 **Timestamp:** 2026-09-18T00:35+08:00 (SGT)

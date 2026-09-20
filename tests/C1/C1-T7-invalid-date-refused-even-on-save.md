@@ -10,15 +10,15 @@
 | Test Steps | 1. Click "API console". Set Method to `POST` and Path to `/event/api/v1/event-drafts`, enter the Body from Test Data, and click "Send".<br>2. Click "API console". Set Method to `GET` and Path to `/event/api/v1/events?kind=drafts`, leave Body empty, and click "Send". |
 | Test Data | Account: `organiser@connectsphere.test` / `ConnectSphere-Test-1234!`<br>Body: `{"name": "Bad date", "proposedStartAt": "the 4th of Octember"}` |
 | Expected Result | Step 1 returns HTTP 400 with error code `VALIDATION_FAILED`, and `fields` includes `proposedStartAt` with "must be a valid date and time". Step 2 has no item named "Bad date". |
-| Created By | Seann, via Claude |
+| Created By | Seann |
 | Date of Creation | 2026-09-17 |
 
 ## Execution record
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | HTTP 400 VALIDATION_FAILED with proposedStartAt: "must be a valid date and time". The draft list holds no item named "Bad date". |
+| Status | Pass |
+| Remarks | Commit: b0ef6ee (working tree modified) · Evidence: tests/C1/evidence/C1-T7.png · Defect: — |
+| Executed By | Joash |
+| Date of Execution | 2026-09-20 |

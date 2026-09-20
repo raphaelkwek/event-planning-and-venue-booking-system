@@ -10,15 +10,15 @@
 | Test Steps | 1. Sign in as `organiser@connectsphere.test`.<br>2. "New request" → enter the standard request → "Submit request".<br>3. Sign out, sign in as the coordinator named in "Assigned coordinator".<br>4. Look for a notification naming the event. |
 | Test Data | The standard request. |
 | Expected Result | The assigned coordinator sees a notification identifying the event by name/reference. |
-| Created By | Shawmya, via Claude |
+| Created By | Shawmya |
 | Date of Creation | 2026-09-18 |
 
 ## Execution record
 
 | Item | Content |
 |---|---|
-| Actual Result | The Event Service writes an `event.coordinator-assigned` row to its outbox (verifiable via the SQL editor: `select * from event.outbox where topic = 'connectsphere.event.coordinator-assigned.v1'`), but there is no Notification service or UI to read it yet — plan.md §3 lists Notification as a separate, not-yet-built service, and the SPA has no notifications screen. |
+| Actual Result | Blocked: there is no notifications list to look in. T2 (Read and manage my notifications) was planned for Sprint 1 but not built — assignment writes an outbox row, and no notification record, read model or screen exists. |
 | Status | Blocked |
-| Remarks | Blocked until the Notification service and its UI exist. Commit: · Evidence: · Defect: |
-| Executed By | Shawmya, via Claude |
-| Date of Execution | 2026-09-18 |
+| Remarks | Commit: b0ef6ee (working tree modified) · Evidence: — · Defect: — |
+| Executed By | Joash |
+| Date of Execution | 2026-09-20 |

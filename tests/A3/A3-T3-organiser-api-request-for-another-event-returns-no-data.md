@@ -10,15 +10,15 @@
 | Test Steps | 1. Click "API console". Set Method to `GET` and Path to `/event/api/v1/events/<id>`, leave Body empty, and click "Send". |
 | Test Data | Account: `organiser@connectsphere.test` / `ConnectSphere-Test-1234!` · id: from the pre-condition |
 | Expected Result | HTTP 404 — not HTTP 200 with an empty body. The body contains only `error` with code `EVENT_NOT_FOUND`, and no name, purpose or other event field. |
-| Created By | Seann, via Claude |
+| Created By | Seann |
 | Date of Creation | 2026-09-17 |
 
 ## Execution record
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | HTTP 404 (not 200 with an empty body). The body held only "error" with code EVENT_NOT_FOUND, and no name, purpose or other event field. |
+| Status | Pass |
+| Remarks | Commit: b0ef6ee (working tree modified) · Evidence: tests/A3/evidence/A3-T3.png · Defect: — |
+| Executed By | Joash |
+| Date of Execution | 2026-09-20 |

@@ -10,15 +10,15 @@
 | Test Steps | 1. Enter the reply and leave the amendment empty.<br>2. Click "Send response". |
 | Test Data | Account: `organiser@connectsphere.test` / `ConnectSphere-Test-1234!` · Reply: three spaces |
 | Expected Result | The response is refused with `VALIDATION_FAILED` "Reply with a message, amend the request, or both.", and "Awaiting your response" is still shown. |
-| Created By | Seann, via Claude |
+| Created By | Seann |
 | Date of Creation | 2026-09-17 |
 
 ## Execution record
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | Refused with "VALIDATION_FAILEDReply with a message, amend the request, or both.message: A message or an amendment is required.HTTP 400 · correlation d8c96587-7ea8-4421-a772-923af92cef30" — three spaces are not a reply. Nothing was recorded. |
+| Status | Pass |
+| Remarks | Commit: b0ef6ee (working tree modified) · Evidence: tests/D3/evidence/D3-T6.png · Defect: — |
+| Executed By | Joash |
+| Date of Execution | 2026-09-20 |

@@ -10,15 +10,15 @@
 | Test Steps | 1. Click "API console". Set Method to `POST` and Path to `/event/api/v1/events/<id>/approve`, leave Body empty, and click "Send".<br>2. Go to http://localhost:5173/#/review/<id>. |
 | Test Data | Account: `coordinator@connectsphere.test` / `ConnectSphere-Test-1234!` · id: from the pre-condition |
 | Expected Result | Step 1 is refused with HTTP 409. In step 2 the request is still "Rejected", with reason "No suitable venue is available.". |
-| Created By | Seann, via Claude |
+| Created By | Seann |
 | Date of Creation | 2026-09-17 |
 
 ## Execution record
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | HTTP 409 (This event is Rejected and cannot move to Approved.). The request is still "Rejected" with the reason "No suitable venue is available.". |
+| Status | Pass |
+| Remarks | Commit: b0ef6ee (working tree modified) · Evidence: tests/D4/evidence/D4-T8.png · Defect: — |
+| Executed By | Joash |
+| Date of Execution | 2026-09-20 |

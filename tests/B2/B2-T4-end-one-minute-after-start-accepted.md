@@ -10,15 +10,15 @@
 | Test Steps | 1. Click "New request".<br>2. Enter the standard request, with the change in Test Data.<br>3. Click "Submit request". |
 | Test Data | Account: `organiser@connectsphere.test` / `ConnectSphere-Test-1234!` · Proposed end: 2 December 2026, 14:01 |
 | Expected Result | The request page opens with status "Submitted" and a reference of the form `EVT-` followed by six digits. |
-| Created By | Seann, via Claude |
+| Created By | Seann |
 | Date of Creation | 2026-09-17 |
 
 ## Execution record
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | Accepted: the request page opened with status "Submitted" and reference EVT-001713. |
+| Status | Pass |
+| Remarks | Commit: b0ef6ee (working tree modified) · Evidence: tests/B2/evidence/B2-T4.png · Defect: — |
+| Executed By | Joash |
+| Date of Execution | 2026-09-20 |

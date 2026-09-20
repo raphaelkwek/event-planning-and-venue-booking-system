@@ -10,15 +10,15 @@
 | Test Steps | 1. Go to http://localhost:5173 and sign in as `coordinator@connectsphere.test`.<br>2. Open the notifications list. |
 | Test Data | Account: `coordinator@connectsphere.test` / `ConnectSphere-Test-1234!` |
 | Expected Result | A notification names the reference and says a new event request is awaiting review. |
-| Created By | Seann, via Claude |
+| Created By | Seann |
 | Date of Creation | 2026-09-17 |
 
 ## Execution record
 
 | Item | Content |
 |---|---|
-| Actual Result | |
+| Actual Result | Blocked: there is no notifications list to open. T2 (Read and manage my notifications) was planned for Sprint 1 but not built — submission writes an outbox row, and no notification record, read model or screen exists. |
 | Status | Blocked |
-| Remarks | Blocked: the Notification service (T2) does not exist yet. The Event service writes this notification to its outbox, but nothing delivers it to a user. |
-| Executed By | |
-| Date of Execution | |
+| Remarks | Commit: b0ef6ee (working tree modified) · Evidence: — · Defect: — |
+| Executed By | Joash |
+| Date of Execution | 2026-09-20 |

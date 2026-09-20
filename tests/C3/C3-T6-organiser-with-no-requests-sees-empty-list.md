@@ -10,15 +10,15 @@
 | Test Steps | 1. Sign in as `organiser2@connectsphere.test` and click "My requests".<br>2. Click "Drafts only".<br>3. Click "Submitted and later". |
 | Test Data | Account: `organiser2@connectsphere.test` / `ConnectSphere-Test-1234!` |
 | Expected Result | Each of the three views shows "No requests yet. Create one to get started." and no error message. |
-| Created By | Seann, via Claude |
+| Created By | Seann |
 | Date of Creation | 2026-09-17 |
 
 ## Execution record
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | Each of All, Drafts only, Submitted and later showed "No requests yet. Create one to get started." with no error message. |
+| Status | Pass |
+| Remarks | Commit: b0ef6ee (working tree modified) · Evidence: tests/C3/evidence/C3-T6.png · Defect: — |
+| Executed By | Joash |
+| Date of Execution | 2026-09-20 |

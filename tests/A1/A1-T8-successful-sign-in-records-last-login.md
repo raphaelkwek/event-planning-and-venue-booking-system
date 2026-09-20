@@ -10,15 +10,15 @@
 | Test Steps | 1. Note the current time.<br>2. Go to http://localhost:5173, enter the email and password, and click "Sign in".<br>3. In the Supabase SQL editor, run Query 1 from Test Data.<br>4. Run Query 2. |
 | Test Data | Account: `organiser@connectsphere.test` / `ConnectSphere-Test-1234!`<br>Query 1: `select last_login_at from identity.users where email = 'organiser@connectsphere.test';`<br>Query 2: `select outcome, user_id from identity.login_audit where email_tried = 'organiser@connectsphere.test' order by occurred_at desc limit 1;` |
 | Expected Result | `last_login_at` is within one minute of the time noted in step 1. Query 2 returns outcome `SUCCESS` and user_id `00000000-0000-0000-0000-000000000001`. |
-| Created By | Seann, via Claude |
+| Created By | Seann |
 | Date of Creation | 2026-09-17 |
 
 ## Execution record
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | last_login_at = 2026-09-20T07:24:01.000Z, within a minute of 2026-09-20T07:24:00.245Z. Latest login_audit: SUCCESS for 00000000-0000-0000-0000-000000000001. |
+| Status | Pass |
+| Remarks | Commit: b0ef6ee (working tree modified) · Evidence: tests/A1/evidence/A1-T8.png · Defect: — |
+| Executed By | Joash |
+| Date of Execution | 2026-09-20 |
