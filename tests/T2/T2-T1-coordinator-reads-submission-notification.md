@@ -10,7 +10,7 @@
 | Test Steps | 1. Go to http://localhost:5173 and sign in as `coordinator@connectsphere.test`.<br>2. Open the notifications list. |
 | Test Data | Account: `coordinator@connectsphere.test` / `ConnectSphere-Test-1234!` |
 | Expected Result | A notification names the reference and says a new event request is awaiting review. |
-| Created By | Seann |
+| Created By | Joash Lau Rong Wei |
 | Date of Creation | 2026-09-17 |
 
 > **Split out of B1-T5 on 2026-09-20.** B1 owns the trigger (B1-T5 checks the emitted

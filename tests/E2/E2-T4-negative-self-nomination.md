@@ -20,5 +20,5 @@
 | Actual Result | The dialog stayed open with "This coordinator is already assigned to the event.". After closing it no "Pending reassignment" state was shown and no proposal row exists. |
 | Status | Pass |
 | Remarks | Commit: b0ef6ee (working tree modified) · Evidence: tests/E2/evidence/E2-T4.png · Defect: — |
-| Executed By | Joash |
+| Executed By | Sahanya |
 | Date of Execution | 2026-09-20 |

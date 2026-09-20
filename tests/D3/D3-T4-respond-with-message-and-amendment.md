@@ -10,7 +10,7 @@
 | Test Steps | 1. Enter the reply and the amendment.<br>2. Click "Send response". |
 | Test Data | Account: `organiser@connectsphere.test` / `ConnectSphere-Test-1234!` · Reply: `Numbers have grown.` · Amend expected attendance: `200` |
 | Expected Result | "Organiser replied" shows "Numbers have grown.", Expected attendance shows 200, and the status shows "Under Review". |
-| Created By | Seann |
+| Created By | Sahanya |
 | Date of Creation | 2026-09-17 |
 
 ## Execution record
@@ -20,5 +20,5 @@
 | Actual Result | "Organiser replied" showed "Numbers have grown.", Expected attendance became 200, and the status returned to "Under Review". |
 | Status | Pass |
 | Remarks | Commit: b0ef6ee (working tree modified) · Evidence: tests/D3/evidence/D3-T4.png · Defect: — |
-| Executed By | Joash |
+| Executed By | Chai Yichen |
 | Date of Execution | 2026-09-20 |

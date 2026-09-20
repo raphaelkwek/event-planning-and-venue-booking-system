@@ -4,6 +4,51 @@
 
 ---
 
+# Correct the Sprint 1 scope to A1–E2, and move F1 to Sprint 2
+
+**Timestamp:** 2026-09-20T23:05+08:00 (SGT)
+**Author:** Seann, via Claude
+**Scope:** `documentation/sprint allocation.csv`, plan.md §9, definition-of-done.md, the traceability files, the notification cases.
+**Reason:** The planning documents said Sprint 1 ran A1–E2 **plus F1**, at 52 points. Sprint 1 was
+scoped to A1–E2 only. Every document that said otherwise now agrees.
+
+## The allocation
+
+| Sprint | Stories | Points |
+|---|---|---|
+| 1 (Weeks 4–5) | A1, A2, A3, B1, B2, C1, C2, C3, D1, D2, D3, D4, D5, E1, E2 | **47** |
+| 2 (Weeks 6–7) | **F1**, F2, T2, F3, G1, H1, H2, I1, J1, J2, K1, O1, O2, P2 | **46** |
+| 3 (Weeks 8–9) | unchanged | 55 |
+| 4 (Weeks 10–11) | unchanged | 47 |
+
+Still 195 points across 54 stories. The sprint table and the CSV were checked story-for-story
+against each other after the change; all four sprints match.
+
+**F1 needs saying plainly at the review.** B1, C2 and D1 all change an event's status, so the
+transition rule had to be written inside Sprint 1 for those stories to work at all. Sprint 1 is
+scoped to A1–E2, so **F1 is not counted there**: the story — the full lifecycle, its permitted
+transitions and the history view — is Sprint 2 work. plan.md §9.1 says so rather than implying the
+code appeared in Sprint 2.
+
+## Changed to match
+
+- **`sprint allocation.csv`:** F1 moves to Sprint 2 (weeks 6–7) with its reason rewritten. F2 is
+  "Unchanged" (it was always Sprint 2, alongside F1), and T2 is "Moved earlier" from Sprint 4 —
+  neither was ever Sprint 1 scope, so "Not delivered in Sprint 1" was the wrong reason for both.
+- **plan.md §9:** the sprint table, the totals paragraph, the F1 and T2 entries in §9.1, the
+  Sprint 1 outcome in §9.2, and the cross-sprint note that pairs F5 with F1.
+- **definition-of-done.md:** its examples of Sprint 1 stories that cross a service boundary cited
+  F1 and T2; they now cite D1's move to Under Review and B1's notification event.
+- **Traceability:** `sprint-1.csv` holds all fifteen Sprint 1 stories (D2–D5 and E2 moved in from
+  sprint 2), and `sprint-2.csv` now holds F1.
+- **The six notification cases and `tests/T2/README.md`** said T2 "was planned for Sprint 1"; they
+  say it is counted in Sprint 2.
+
+Not touched: the meeting transcripts and the Superpowers spec and plan, which are dated records of
+what was believed at the time.
+
+---
+
 # Split the blocked notification cases, and record T2 as descoped from Sprint 1
 
 **Timestamp:** 2026-09-20T22:10+08:00 (SGT)

@@ -10,7 +10,7 @@
 | Test Steps | 1. Click "New request".<br>2. Leave every field empty and both checkboxes unticked.<br>3. Click "Submit request". |
 | Test Data | Account: `organiser@connectsphere.test` / `ConnectSphere-Test-1234!` |
 | Expected Result | Submission is refused with `VALIDATION_FAILED`. The one refusal names all six at once — Event name, Purpose, Description, Proposed start, Proposed end and Expected attendance — and each shows its own message under its field. |
-| Created By | Seann |
+| Created By | Seann Khoo |
 | Date of Creation | 2026-09-17 |
 
 ## Execution record

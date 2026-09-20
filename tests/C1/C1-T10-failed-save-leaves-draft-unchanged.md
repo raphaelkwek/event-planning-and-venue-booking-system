@@ -10,7 +10,7 @@
 | Test Steps | 1. Clear the Event name field.<br>2. Change Purpose to the value in Test Data.<br>3. Click "Save draft".<br>4. Click "My requests".<br>5. Click "Open draft" on the draft. |
 | Test Data | Account: `organiser@connectsphere.test` / `ConnectSphere-Test-1234!` · Purpose: `Changed purpose` |
 | Expected Result | Step 3 is refused with `VALIDATION_FAILED` and "Event name is required.". In step 4 the Last saved time is exactly the time noted. In step 5 Event name is `Original name` and Purpose is `Original purpose`. |
-| Created By | Seann |
+| Created By | Raphael Kwek |
 | Date of Creation | 2026-09-17 |
 
 ## Execution record
@@ -20,5 +20,5 @@
 | Actual Result | Refused with "Event name is required.". Last saved stayed Sun Sep 20 2026 15:26:10 GMT+0800 (Singapore Standard Time) (row: —Original nameDraft9/20/2026, 3:26:10 PM——Open draft) and reopening the draft showed "Original name" / "Original purpose". |
 | Status | Pass |
 | Remarks | Commit: b0ef6ee (working tree modified) · Evidence: tests/C1/evidence/C1-T10.png · Defect: — |
-| Executed By | Joash |
+| Executed By | Shawmya |
 | Date of Execution | 2026-09-20 |

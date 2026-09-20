@@ -10,7 +10,7 @@
 | Test Steps | 1. Go to http://localhost:5173 and sign in as `attendee@connectsphere.test`.<br>2. Open the list of events open for registration.<br>3. Open the open event. |
 | Test Data | Account: `attendee@connectsphere.test` / `ConnectSphere-Test-1234!` |
 | Expected Result | Only the open event is listed. Its detail shows published fields only — no coordinator notes, review comments, clarification thread or rejection reason. |
-| Created By | Seann |
+| Created By | Chai Yichen |
 | Date of Creation | 2026-09-17 |
 
 > **Deferred 2026-09-20 to R1 (Sprint 3) and F5 (Sprint 4).** Unlike the notification cases, this one
@@ -27,5 +27,5 @@
 | Actual Result | Not run: the attendee event list (R1, Sprint 3) and registration windows (F5, Sprint 4) do not exist, so there is nowhere to perform the steps. |
 | Status | Not Executed |
 | Remarks | Commit: b0ef6ee (working tree modified) · Evidence: — · Defect: — · Was recorded Blocked on 2026-09-20; re-recorded as Not Executed because the case depends on unbuilt future stories rather than on something broken. |
-| Executed By | Joash |
-| Date of Execution | 2026-09-20 |
+| Executed By | |
+| Date of Execution | |

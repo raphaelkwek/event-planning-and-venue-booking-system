@@ -10,7 +10,7 @@
 | Test Steps | 1. Go to http://localhost:5173 and sign in as `coordinator@connectsphere.test`.<br>2. Click "Review queue". |
 | Test Data | Account: `coordinator@connectsphere.test` / `ConnectSphere-Test-1234!` |
 | Expected Result | A row shows the noted reference, name "Annual Research Symposium" and status "Submitted". |
-| Created By | Seann |
+| Created By | Seann Khoo |
 | Date of Creation | 2026-09-17 |
 
 ## Execution record

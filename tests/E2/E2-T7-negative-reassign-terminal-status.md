@@ -20,5 +20,5 @@
 | Actual Result | On the rejected request, "Propose reassignment" is not offered on the screen, and the direct call returned HTTP 409 REASSIGNMENT_NOT_PERMITTED: "Reassignment is not permitted while this event is REJECTED.", creating no proposal row. |
 | Status | Pass |
 | Remarks | Commit: b0ef6ee (working tree modified) · Evidence: tests/E2/evidence/E2-T7.png · Defect: — |
-| Executed By | Joash |
+| Executed By | Sahanya |
 | Date of Execution | 2026-09-20 |

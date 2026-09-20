@@ -10,7 +10,7 @@
 | Test Steps | 1. Leave the reply empty and enter the amendment.<br>2. Click "Send response". |
 | Test Data | Account: `organiser@connectsphere.test` / `ConnectSphere-Test-1234!` · Amend expected attendance: `200` |
 | Expected Result | Expected attendance shows 200. "Organiser replied" reads "Amended the request without a message." The status shows "Under Review". |
-| Created By | Seann |
+| Created By | Sahanya |
 | Date of Creation | 2026-09-17 |
 
 ## Execution record
@@ -20,5 +20,5 @@
 | Actual Result | Expected attendance became 200, the thread read "Organiser replied — Amended the request without a message.", and the status returned to "Under Review". |
 | Status | Pass |
 | Remarks | Commit: b0ef6ee (working tree modified) · Evidence: tests/D3/evidence/D3-T3.png · Defect: — |
-| Executed By | Joash |
+| Executed By | Chai Yichen |
 | Date of Execution | 2026-09-20 |

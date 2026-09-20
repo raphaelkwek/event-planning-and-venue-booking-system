@@ -10,7 +10,7 @@
 | Test Steps | 1. Go to http://localhost:5173 and sign in as `organiser@connectsphere.test`.<br>2. Open the notifications list. |
 | Test Data | Account: `organiser@connectsphere.test` / `ConnectSphere-Test-1234!` |
 | Expected Result | A notification names the reference and says the request was approved. |
-| Created By | Seann |
+| Created By | Seann Khoo |
 | Date of Creation | 2026-09-17 |
 
 > **Split out of D4-T5 on 2026-09-20.** D4 owns the trigger (D4-T5 checks the emitted

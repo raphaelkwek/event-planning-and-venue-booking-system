@@ -10,7 +10,7 @@
 | Test Steps | 1. Click "New request".<br>2. Enter the Test Data, leaving every other field empty.<br>3. Click "Submit request".<br>4. Check the Event name and Purpose fields.<br>5. Click "My requests". |
 | Test Data | Account: `organiser@connectsphere.test` / `ConnectSphere-Test-1234!`<br>Event name: `Half-finished symposium` · Purpose: `Share faculty research` |
 | Expected Result | Step 3 is refused with `VALIDATION_FAILED`. In step 4 both fields still hold the values typed. In step 5 no "Half-finished symposium" row appears. |
-| Created By | Seann |
+| Created By | Seann Khoo |
 | Date of Creation | 2026-09-17 |
 
 ## Execution record

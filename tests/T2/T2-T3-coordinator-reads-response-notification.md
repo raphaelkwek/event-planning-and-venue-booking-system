@@ -10,7 +10,7 @@
 | Test Steps | 1. Go to http://localhost:5173 and sign in as `coordinator@connectsphere.test`.<br>2. Open the notifications list. |
 | Test Data | Account: `coordinator@connectsphere.test` / `ConnectSphere-Test-1234!` |
 | Expected Result | A notification names the request and says the organiser has responded. |
-| Created By | Seann |
+| Created By | Sahanya |
 | Date of Creation | 2026-09-17 |
 
 > **Split out of D3-T8 on 2026-09-20.** D3 owns the trigger (D3-T8 checks the emitted

@@ -10,7 +10,7 @@
 | Test Steps | 1. Click "My requests", then "Open draft" on "Annual Research Symposium".<br>2. Click "Submit request".<br>3. Click "My requests". |
 | Test Data | Account: `organiser@connectsphere.test` / `ConnectSphere-Test-1234!` |
 | Expected Result | Step 2 opens the request page with status "Submitted", a reference of the form `EVT-` followed by six digits, and a submission time. Step 3 shows exactly one "Annual Research Symposium" row, with status "Submitted" and a "View" link rather than "Open draft". |
-| Created By | Seann |
+| Created By | Raphael Kwek |
 | Date of Creation | 2026-09-17 |
 
 ## Execution record
@@ -20,5 +20,5 @@
 | Actual Result | The request page showed status "Submitted", reference EVT-001717 and submitted 9/20/2026, 3:26:22 PM. "My requests" held exactly one row: EVT-001717Annual Research SymposiumSubmitted—9/20/2026, 3:26:22 PMCoordinator OneView |
 | Status | Pass |
 | Remarks | Commit: b0ef6ee (working tree modified) · Evidence: tests/C2/evidence/C2-T3.png · Defect: — |
-| Executed By | Joash |
+| Executed By | Shawmya |
 | Date of Execution | 2026-09-20 |

@@ -10,7 +10,7 @@
 | Test Steps | 1. Click "New request".<br>2. Enter the standard request, with the change in Test Data.<br>3. Click "Submit request". |
 | Test Data | Account: `organiser@connectsphere.test` / `ConnectSphere-Test-1234!` · Proposed end: 2 December 2026, 10:00 |
 | Expected Result | Submission is refused with `VALIDATION_FAILED` "This request is not ready to be submitted.", and "The end date and time must be later than the start date and time." appears under the Proposed end field. "My requests" shows no new submitted row. |
-| Created By | Seann |
+| Created By | Seann Khoo |
 | Date of Creation | 2026-09-17 |
 
 ## Execution record

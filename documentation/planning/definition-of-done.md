@@ -24,8 +24,9 @@ A story is Done when all of the following are true:
       login story: valid credentials, plus wrong password or a deactivated account — not success
       alone).
 - [ ] **If the story is cross-cutting** — another story depends on it, or it involves a
-      service-to-service call per `Planning/plan.md` §5 (e.g. A3's access-scope check, F1's status
-      machine, T2's notification trigger) — at least one test case exercises the integrated path
+      service-to-service call per `Planning/plan.md` §5 (e.g. A3's access-scope check, D1's move
+      from Submitted to Under Review, B1's notification event) — at least one test case exercises
+      the integrated path
       end-to-end, not just the story in isolation. This is what actually shows the integration works,
       not just the individual piece.
 - [ ] Every test case has been executed and recorded: Actual Result, Status, Executed By, Date of

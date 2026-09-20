@@ -20,5 +20,5 @@
 | Actual Result | The dialog closed and the page showed "Pending reassignmentProposed to Coordinator Two on 9/20/2026, 3:30:13 PM.". Approve and Reject stayed enabled for the outgoing coordinator (Coordinator One), and one proposal row is PENDING for the nominee. |
 | Status | Pass |
 | Remarks | Commit: b0ef6ee (working tree modified) · Evidence: tests/E2/evidence/E2-T1.png · Defect: — |
-| Executed By | Joash |
+| Executed By | Sahanya |
 | Date of Execution | 2026-09-20 |

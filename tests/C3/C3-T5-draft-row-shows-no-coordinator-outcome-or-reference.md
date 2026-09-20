@@ -10,7 +10,7 @@
 | Test Steps | 1. Sign in as `organiser@connectsphere.test` and click "My requests". |
 | Test Data | Account: `organiser@connectsphere.test` / `ConnectSphere-Test-1234!` |
 | Expected Result | The "Still a draft" row shows "—" under "Reference" and "—" under "Coordinator", and no approval or rejection outcome. |
-| Created By | Seann |
+| Created By | Raphael Kwek |
 | Date of Creation | 2026-09-17 |
 
 ## Execution record
@@ -20,5 +20,5 @@
 | Actual Result | The draft row read: — \| Still a draft \| Draft \| 9/20/2026, 3:26:50 PM \| — \| — \| Open draft — "—" for Reference and Coordinator, and no approval or rejection outcome. |
 | Status | Pass |
 | Remarks | Commit: b0ef6ee (working tree modified) · Evidence: tests/C3/evidence/C3-T5.png · Defect: — |
-| Executed By | Joash |
+| Executed By | Shawmya |
 | Date of Execution | 2026-09-20 |

@@ -10,7 +10,7 @@
 | Test Steps | 1. Click "Approve". |
 | Test Data | Account: `coordinator@connectsphere.test` / `ConnectSphere-Test-1234!` |
 | Expected Result | "This request is Approved" appears and the status shows "Approved". |
-| Created By | Seann |
+| Created By | Seann Khoo |
 | Date of Creation | 2026-09-17 |
 
 ## Execution record
@@ -20,5 +20,5 @@
 | Actual Result | A request in Awaiting Clarification was approved: "This request is Approved" appeared and the status became "Approved". |
 | Status | Pass |
 | Remarks | Commit: b0ef6ee (working tree modified) · Evidence: tests/D4/evidence/D4-T2.png · Defect: — |
-| Executed By | Joash |
+| Executed By | Raphael Kwek |
 | Date of Execution | 2026-09-20 |

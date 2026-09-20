@@ -20,5 +20,5 @@
 | Actual Result | HTTP 409 REASSIGNMENT_ALREADY_PENDING, naming the pending nominee 00000000-0000-0000-0000-000000000008: "A reassignment proposal to nominee 00000000-0000-0000-0000-000000000008 is already pending for this event.". The original proposal is unchanged and still PENDING. |
 | Status | Pass |
 | Remarks | Commit: b0ef6ee (working tree modified) · Evidence: tests/E2/evidence/E2-T6.png · Defect: — |
-| Executed By | Joash |
+| Executed By | Sahanya |
 | Date of Execution | 2026-09-20 |

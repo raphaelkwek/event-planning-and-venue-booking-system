@@ -20,5 +20,5 @@
 | Actual Result | The request was created at "Submitted" with "Assigned coordinator" showing "Coordinator One". event.assignments holds exactly one row: is_active true, assignment_rule ROUND_ROBIN_STUB, assigned_at Sun Sep 20 2026 15:30:08 GMT+0800 (Singapore Standard Time). |
 | Status | Pass |
 | Remarks | Commit: b0ef6ee (working tree modified) · Evidence: tests/E1/evidence/E1-T1.png · Defect: — |
-| Executed By | Joash |
+| Executed By | Sahanya |
 | Date of Execution | 2026-09-20 |

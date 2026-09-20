@@ -20,5 +20,5 @@
 | Actual Result | The proposal is DECLINED, "Assigned coordinator" still reads "Coordinator One", and the only active assignment row is still the original coordinator's. |
 | Status | Pass |
 | Remarks | Commit: b0ef6ee (working tree modified) · Evidence: tests/E2/evidence/E2-T3.png · Defect: — |
-| Executed By | Joash |
+| Executed By | Sahanya |
 | Date of Execution | 2026-09-20 |

@@ -10,7 +10,7 @@
 | Test Steps | 1. Click "New request".<br>2. Enter the standard request, leaving "Equipment is required" unticked.<br>3. Click "Submit request". |
 | Test Data | Account: `organiser@connectsphere.test` / `ConnectSphere-Test-1234!` · Equipment is required: unticked |
 | Expected Result | The request page opens with status "Submitted" and a reference of the form `EVT-` followed by six digits. On the request page, "Equipment requirements" shows "None required". (Shown as "Equipment required: No" until 2026-09-17, when venue and equipment requirements were added to the form and the request page.) |
-| Created By | Seann |
+| Created By | Seann Khoo |
 | Date of Creation | 2026-09-17 |
 
 ## Execution record

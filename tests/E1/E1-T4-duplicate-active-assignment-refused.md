@@ -20,5 +20,5 @@
 | Actual Result | After submission the event carries exactly one active assignment (00000000-0000-0000-0000-000000000002). No exposed endpoint inserts an assignment: E1 assigns once inside submission, and E2's accept closes the outgoing row in the same transaction. The invariant is enforced by CREATE UNIQUE INDEX assignments_one_active_per_event ON event.assignments USING btree (event_id) WHERE is_active, exercised directly by backend/services/event/tests/api/reassignments.test.ts. |
 | Status | Pass |
 | Remarks | Commit: b0ef6ee (working tree modified) · Evidence: — · Defect: — |
-| Executed By | Joash |
+| Executed By | Sahanya |
 | Date of Execution | 2026-09-20 |

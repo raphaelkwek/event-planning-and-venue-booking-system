@@ -10,7 +10,7 @@
 | Test Steps | 1. Check the "Approve" button.<br>2. Click "API console". Set Method to `POST` and Path to `/event/api/v1/events/<id>/approve`, leave Body empty, and click "Send".<br>3. Go to http://localhost:5173/#/review/<id>. |
 | Test Data | Account: `coordinator@connectsphere.test` / `ConnectSphere-Test-1234!` · id: from the pre-condition |
 | Expected Result | In step 1 "Approve" is disabled. Step 2 is refused with HTTP 409. In step 3 the "Decided" time is exactly the one noted. |
-| Created By | Seann |
+| Created By | Seann Khoo |
 | Date of Creation | 2026-09-17 |
 
 ## Execution record
@@ -20,5 +20,5 @@
 | Actual Result | "Approve" was disabled, the direct call returned HTTP 409, and the decided time is still Sun Sep 20 2026 15:29:15 GMT+0800 (Singapore Standard Time) — no second approval was written. |
 | Status | Pass |
 | Remarks | Commit: b0ef6ee (working tree modified) · Evidence: tests/D4/evidence/D4-T7.png · Defect: — |
-| Executed By | Joash |
+| Executed By | Raphael Kwek |
 | Date of Execution | 2026-09-20 |

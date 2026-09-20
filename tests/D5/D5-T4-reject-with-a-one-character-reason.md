@@ -10,7 +10,7 @@
 | Test Steps | 1. Click "Reject".<br>2. Enter the reason.<br>3. Click "Reject request". |
 | Test Data | Account: `coordinator@connectsphere.test` / `ConnectSphere-Test-1234!` · Reason: `x` |
 | Expected Result | The dialog closes, the status shows "Rejected", and the reason "x" is shown. |
-| Created By | Seann |
+| Created By | Seann Khoo |
 | Date of Creation | 2026-09-17 |
 
 ## Execution record
@@ -20,5 +20,5 @@
 | Actual Result | The dialog closed, the status became "Rejected" and the stored reason is "x". |
 | Status | Pass |
 | Remarks | Commit: b0ef6ee (working tree modified) · Evidence: tests/D5/evidence/D5-T4.png · Defect: — |
-| Executed By | Joash |
+| Executed By | Raphael Kwek |
 | Date of Execution | 2026-09-20 |

@@ -20,5 +20,5 @@
 | Actual Result | Nominating the attendee account (00000000-0000-0000-0000-000000000005) was refused in the dialog with "The nominee does not hold the Coordinator role and cannot be nominated.", and no proposal was created. |
 | Status | Pass |
 | Remarks | Commit: b0ef6ee (working tree modified) · Evidence: tests/E2/evidence/E2-T5.png · Defect: — |
-| Executed By | Joash |
+| Executed By | Sahanya |
 | Date of Execution | 2026-09-20 |

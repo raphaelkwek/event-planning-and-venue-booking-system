@@ -9,14 +9,14 @@ C2,Resume edit and submit a draft,Draft Event Requests,1,1,4-5,3,3,Unchanged,
 C3,Tell drafts apart from submitted requests,Draft Event Requests,1,1,4-5,2,2,Unchanged,
 D1,Review the queue of submitted event requests,Event Review and Approval,1,1,4-5,5,5,Unchanged,End of the Sprint 1 vertical slice
 E1,Get a named coordinator as soon as I submit,Coordinator Assignment,1,1,4-5,2,2,Unchanged,Auto-assignment fires on submission so it ships with B1
-F1,Trust that an events status reflects what has actually happened,Event Status Management,2,1,4-5,8,5,Moved earlier + re-estimated,B1/C2/D1 all change status; the state machine cannot come after its callers. Confirmation gate carved out to F5
 D2,Request clarification from the organiser,Event Review and Approval,1,1,4-5,2,2,Delivered in Sprint 1,Planned for Sprint 2 to balance load; built in Sprint 1 with D1 and the rest of the review workflow
 D3,Respond to a clarification request,Event Review and Approval,1,1,4-5,3,3,Delivered in Sprint 1,Built in Sprint 1 with D2
 D4,Approve an event request,Event Review and Approval,1,1,4-5,2,2,Delivered in Sprint 1,Built in Sprint 1; completes the review workflow with D5
 D5,Reject an event request,Event Review and Approval,1,1,4-5,2,2,Delivered in Sprint 1,Built in Sprint 1; completes the review workflow with D4
 E2,Reassign an event to a different coordinator,Coordinator Assignment,1,1,4-5,3,3,Delivered in Sprint 1,Planned for Sprint 2; the handshake flow was built in Sprint 1 on top of E1
-F2,View an events current status and history,Event Status Management,2,2,6-7,2,2,Not delivered in Sprint 1,"F1 records the history, but no endpoint or screen exists to view a status and its history; carried into Sprint 2"
-T2,Read and manage my notifications,Notification System,4,2,6-7,2,2,Not delivered in Sprint 1,"Submission and decisions write notification events to the outbox, but there is no notification record, read model or UI; carried into Sprint 2"
+F1,Trust that an events status reflects what has actually happened,Event Status Management,2,2,6-7,8,5,"Re-estimated (split), allocated to Sprint 2","Sprint 1 was scoped to A1-E2 only. The state machine was written during Sprint 1 because B1/C2/D1 all change status, but the story is counted in Sprint 2. Confirmation gate carved out to F5"
+F2,View an events current status and history,Event Status Management,2,2,6-7,2,2,Unchanged,"Stays in Sprint 2 with F1; F1 records the history, and F2 is the endpoint and screen that show it"
+T2,Read and manage my notifications,Notification System,4,2,6-7,2,2,Moved earlier,"Sprint 2 rather than Sprint 4: the Sprint 1 stories already emit their notification events to the outbox, so the relay, the Notification Service and the screen are what remain"
 F3,Cancel an event,Event Status Management,2,2,6-7,5,3,Re-estimated (split),Release behaviour split out to F4
 G1,Update non-significant event information,Event Information Management,2,2,6-7,3,3,Unchanged,
 H1,Maintain venue records,Venue Catalogue,2,2,6-7,3,3,Unchanged,

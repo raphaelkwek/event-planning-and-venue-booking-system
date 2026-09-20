@@ -10,7 +10,7 @@
 | Test Steps | 1. Change Expected attendance to the value in Test Data.<br>2. Click "Submit request".<br>3. Click "My requests".<br>4. Click "Open draft" on "Partly planned symposium". |
 | Test Data | Account: `organiser@connectsphere.test` / `ConnectSphere-Test-1234!` · Expected attendance: `200` |
 | Expected Result | Step 2 is refused with `VALIDATION_FAILED`. In step 3 the row is still "Draft" with no reference. In step 4 Expected attendance shows `100` — the value saved before the blocked submission. |
-| Created By | Seann |
+| Created By | Seann Khoo |
 | Date of Creation | 2026-09-17 |
 
 ## Execution record

@@ -10,7 +10,7 @@
 | Test Steps | 1. Click "New request".<br>2. Tick "Equipment is required", then click "Add equipment line".<br>3. For each field in Test Data, find an input on the form where it can be entered. |
 | Test Data | Fields: event name · purpose · description · proposed date · proposed start time · proposed end time · expected attendance · venue requirements · accessibility needs · equipment requirements · whether attendee registration is required |
 | Expected Result | Every one of the eleven fields has an input on the form. |
-| Created By | Seann |
+| Created By | Seann Khoo |
 | Date of Creation | 2026-09-17 |
 
 ## Execution record

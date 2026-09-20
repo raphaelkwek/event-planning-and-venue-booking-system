@@ -20,5 +20,5 @@
 | Actual Result | The outgoing coordinator's own attempt to accept returned HTTP 404 REASSIGNMENT_PROPOSAL_NOT_FOUND, and the proposal is still PENDING with the assignment unchanged. The known gap the case records still stands: before accepting, the nominee's Approve is enabled and Reject is enabled, because D1/D4/D5 let any Event Coordinator decide on a request under review — raised for the story owner, not built around. |
 | Status | Pass |
 | Remarks | Commit: b0ef6ee (working tree modified) · Evidence: tests/E2/evidence/E2-T8.png · Defect: — |
-| Executed By | Joash |
+| Executed By | Sahanya |
 | Date of Execution | 2026-09-20 |

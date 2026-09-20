@@ -10,7 +10,7 @@
 | Test Steps | 1. In the Supabase SQL editor, run the query from Test Data with the noted id.<br>2. Go to http://localhost:5173, sign in as `coordinator@connectsphere.test`, and open the approved request. |
 | Test Data | Query: `select envelope->>'messageType' as message_type from event.outbox where message_key = '<id>' order by created_at;` |
 | Expected Result | The message types are exactly `event.submitted`, `event.coordinator-assigned` and `event.approved`. Nothing that would book a venue or reserve equipment was emitted — approval announces the decision and stops there. The request screen shows status "Approved" and offers no booking or reservation. |
-| Created By | Seann |
+| Created By | Seann Khoo |
 | Date of Creation | 2026-09-17 |
 
 > **Revised 2026-09-20.** As written, this case checked the absence of a booking and a reservation by

@@ -20,5 +20,5 @@
 | Actual Result | After accepting, "Assigned coordinator" reads "Coordinator Two" and the nominee can Approve or Reject. The outgoing row (Coordinator One) is is_active false and the nominee's is true, and the organiser sees "Coordinator Two" as their point of contact. |
 | Status | Pass |
 | Remarks | Commit: b0ef6ee (working tree modified) · Evidence: tests/E2/evidence/E2-T2.png · Defect: — |
-| Executed By | Joash |
+| Executed By | Sahanya |
 | Date of Execution | 2026-09-20 |

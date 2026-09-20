@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | Blocked: the pre-condition needs EVENT_COORDINATOR_POOL set to an empty string and the Event service restarted. The pool is read once at start-up, and this run drives one shared service on :8082 that the other cases depend on, so the script does not restart it. Run this case by hand, or give the suite its own Event service instance. |
-| Status | Blocked |
-| Remarks | Commit: b0ef6ee (working tree modified) · Evidence: — · Defect: — |
-| Executed By | Joash |
+| Actual Result | Run by hand with `EVENT_COORDINATOR_POOL` emptied and the Event service restarted. The submission was accepted and the request was created at status Submitted. "Assigned coordinator" read "Awaiting assignment" on the organiser's request page, `select * from event.assignments where event_id = '<id>'` returned no rows, and the request was listed in the coordinator's review queue with "Awaiting assignment" under "Assigned to" — visible to any coordinator despite carrying no assignment. |
+| Status | Pass |
+| Remarks | Commit: 048d829 · Evidence: — (run by hand) · Defect: — |
+| Executed By | Sahanya |
 | Date of Execution | 2026-09-20 |

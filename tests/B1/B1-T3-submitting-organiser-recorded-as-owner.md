@@ -10,7 +10,7 @@
 | Test Steps | 1. In the Supabase SQL editor, run the query from Test Data.<br>2. Sign in as `organiser@connectsphere.test` and click "My requests". |
 | Test Data | Query: `select owner_id from event.events where reference = '<reference>';` |
 | Expected Result | The query returns `00000000-0000-0000-0000-000000000001`, which is `organiser@connectsphere.test`. The request is listed in "My requests". |
-| Created By | Seann |
+| Created By | Seann Khoo |
 | Date of Creation | 2026-09-17 |
 
 ## Execution record

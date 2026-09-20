@@ -1,8 +1,9 @@
 # T2 — Read and manage my notifications
 
-**Status: not built.** T2 was pulled into Sprint 1 (`documentation/planning/plan.md` §9.1, because
-removing T1 put notification acceptance criteria on B1, D2–D5, E1 and E2) and was not started; it is
-carried into Sprint 2 (§9.2, and the Sprint 2 row of the plan's sprint table). Three pieces are
+**Status: not built.** Sprint 1 was scoped to A1–E2; T2 is counted in Sprint 2
+(`documentation/planning/plan.md` §9.1 and the Sprint 2 row of the plan's sprint table). Removing T1
+put notification acceptance criteria on B1, D2–D5, E1 and E2, so those Sprint 1 stories must emit
+the right message — but reading and managing notifications is T2's own work. Three pieces are
 missing: the outbox relay that publishes to Kafka, the Notification Service that records a
 notification per recipient, and the notifications screen.
 

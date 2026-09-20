@@ -137,20 +137,22 @@ Re-sequenced against the revised backlog: T1 removed, F4 / L3 / R6 / R7 added, F
 
 | Sprint | Weeks | Theme | Stories | Points |
 |---|---|---|---|---|
-| 1 | 4–5 | Foundations + one vertical slice *(as delivered)* | A1, A2, A3, B1, B2, C1, C2, C3, D1, D2, D3, D4, D5, E1, E2, F1 | **52** |
-| 2 | 6–7 | Review workflow leftovers, venue catalogue, equipment intake | F2, T2, F3, G1, H1, H2, I1, J1, J2, K1, O1, O2, P2 | **41** |
+| 1 | 4–5 | Foundations, request and review, end to end *(as delivered)* | A1, A2, A3, B1, B2, C1, C2, C3, D1, D2, D3, D4, D5, E1, E2 | **47** |
+| 2 | 6–7 | Status, notifications, venue catalogue, equipment intake | F1, F2, T2, F3, G1, H1, H2, I1, J1, J2, K1, O1, O2, P2 | **46** |
 | 3 | 8–9 | Holds, booking, conflict, reservation, attendee shell | I2, K2, L1, L2, L3, M1, M2, N1, N2, P1, Q1, Q2, R1, S1, S2 | **55** |
 | 4 | 10–11 | Registration, readiness, change impact *(showcase)* | F4, F5, G2, R2, R3, R4, R5, R6, R7, S3 | **47** |
 
-**195 points across 54 stories.** Sprint 1 is shown **as delivered**: the whole review workflow (D2–D5) and the reassignment handshake (E2) were finished within it, while F2 and T2 were not started and moved to Sprint 2. Sprints 2–4 are still the plan.
+**195 points across 54 stories.** Sprint 1 is shown **as delivered**: it was scoped to A1–E2 and finished all fifteen, including the whole review workflow (D2–D5) and the reassignment handshake (E2). F1, F2 and T2 are counted in Sprint 2. Sprints 2–4 are still the plan.
 
-The planned shape was a lighter first sprint while the infrastructure was unknown, a heavier middle, and a showcase sprint lighter than the two before it. In the event, Sprint 1 came in at 52 against a planned 44 — see §9.2.
+The planned shape was a lighter first sprint while the infrastructure was unknown, a heavier middle, and a showcase sprint lighter than the two before it. Sprint 1 came in at 47 against a planned 44 — see §9.2.
 
 ### 9.1 What moved, and why
 
-**F1 split, and pulled into Sprint 1.** B1, C2 and D1 all change event status, and F1 says status may only change through the state machine — so it cannot come after its own callers. F1 (5) now covers the lifecycle, permitted transitions and history. The Confirmed gate is carved out as **F5 — Confirm an event only when venue and equipment are ready** (5), which lands in Sprint 4 because it needs both M1 and Q1 to exist. Add F5 to Jira; it is not in `Jira.md`.
+**F1 split, and counted in Sprint 2.** F1 (5) covers the lifecycle, permitted transitions and history. The Confirmed gate is carved out as **F5 — Confirm an event only when venue and equipment are ready** (5), which lands in Sprint 4 because it needs both M1 and Q1 to exist. Add F5 to Jira; it is not in `Jira.md`.
 
-**T2 pulled into Sprint 1.** Removing T1 put notification ACs on B1, D2–D5, E1 and E2. Kafka, the outbox and the notification record therefore have to work in Sprint 1 — this is now explicit rather than an unpriced surprise.
+Worth being straight about in the review: B1, C2 and D1 all change event status, so the state machine itself had to be written inside Sprint 1 to make those stories work. Sprint 1 was scoped to A1–E2, so **F1 is not counted there** — the story, including its history view, is Sprint 2 work, and what Sprint 1 produced is the transition rule its own stories needed.
+
+**T2 is Sprint 2 work, and its triggers are not.** Removing T1 put notification acceptance criteria on B1, D2–D5, E1 and E2 — those stories, in Sprint 1, must emit the right message to the right recipient. Reading and managing notifications (T2) needs Kafka, the outbox relay and the Notification Service, none of which exist; it is counted in Sprint 2.
 
 **Four stories moved later because they act on things that did not exist yet:** I2 → Sprint 3 (flags confirmed bookings, needs M1), G2 → Sprint 4 (reads bookings, reservations and registration counts), F4 → Sprint 4 (releases all three), and the F3 remainder stays in Sprint 2 as cancel-and-record only.
 
@@ -164,12 +166,12 @@ The planned shape was a lighter first sprint while the infrastructure was unknow
 
 **Sprint 1 was planned at 44 points against a velocity you had not measured,** in the sprint that also stands up the repo, Supabase, the hosted Kafka cluster, the outbox, CI and the first test kit. Treat the infrastructure as work: either give it its own story points or expect the sprint to miss. Missing a first sprint is acceptable to the graders if the retrospective shows you learned from it — silently carrying stories is not.
 
-**What actually happened in Sprint 1: 52 points delivered, and the scope was not what was planned.** D2–D5 and E2 were pulled in and finished; F2 and T2 were planned for the sprint, not started, and carried into Sprint 2. Kafka and the outbox relay did not happen either — the outbox rows are written but nothing publishes them. Worth taking into the retrospective: the team delivered more points than planned while still missing two committed stories, which says the commitment was chosen by what was interesting to build next rather than by what was committed.
+**What actually happened in Sprint 1: 47 points delivered against a planned 44, and the scope was not what was planned.** The sprint was scoped to A1–E2 and delivered all of it, D2–D5 and E2 included, which had been planned for Sprint 2. F1, F2 and T2 are counted in Sprint 2 instead. Kafka and the outbox relay did not happen — the outbox rows are written but nothing publishes them, so every notification acceptance criterion stops at the outbox. Worth taking into the retrospective: the sprint's shape moved under it, and the infrastructure it was supposed to stand up is still outstanding.
 
 **Sprint 3 is the heaviest at 55** and contains the two hardest items in the system (N1 slot exclusivity, Q1 reservation atomicity). If anything slips, it slips here, and it pushes into the showcase sprint. Protect it: build the concurrency tests first, not last.
 
 **Same-sprint ordering matters in Sprint 3.** L3 before L1, M1 before I2, P1 before Q1. Put these in the sprint backlog order, not just the sprint.
 
-**Two dependencies still cross a sprint boundary by design.** F5 (Sprint 4) completes behaviour begun by F1 (Sprint 1); G2 (Sprint 4) completes the change-request picture begun by S1/S2 (Sprint 3). Both are visible and intentional — say so in the Week 7 consultation rather than being asked.
+**Two dependencies still cross a sprint boundary by design.** F5 (Sprint 4) completes behaviour begun by F1 (Sprint 2); G2 (Sprint 4) completes the change-request picture begun by S1/S2 (Sprint 3). Both are visible and intentional — say so in the Week 7 consultation rather than being asked.
 
 Notification ACs land with their triggering story, not in a lump at the end.
