@@ -9,9 +9,10 @@ tests/
   README.md            this file
   TEMPLATE.md          copy this to start a new case
   fixtures/            test-data reset script
-  A1/ … D5/            one folder per story
+  A1/ … E2/            one folder per story
     A1-T1-sign-in-as-an-organiser.md
     evidence/          screenshots and exported responses from runs
+  T2/                  a story not built yet — cases wait here, with a README saying why
 ```
 
 - **ID** — `<story-id>-T<n>`, the same as the test's Jira issue.
@@ -19,6 +20,12 @@ tests/
   bottom is replaced on every run.
 - **Status** is exactly one of `Pass`, `Fail`, `Not Executed`, `Blocked`. Remarks carries the
   commit SHA the run was against, the evidence file, and a defect link if it failed.
+- **`Blocked` means the case should be runnable now and isn't** — a broken environment, a dependency
+  that failed, something to chase today. A case for a story that hasn't been built yet is
+  `Not Executed`, with the owning story and its sprint named in Remarks; it is not this sprint's
+  problem and shouldn't read like one. If a case is Blocked only because part of it reaches into an
+  unbuilt story, split it: the half the story owns stays and runs, the rest moves to the owning
+  story's folder (see `T2/README.md` for a worked example).
 - **Cover every category** for each story: happy path, story-specific cross-cutting checks,
   negative cases, and boundaries (just below, exactly at, just above).
 - **Write them from the story, before the code** — never by reading the implementation.
