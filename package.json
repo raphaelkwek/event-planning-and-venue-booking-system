@@ -14,6 +14,7 @@
     "migrate:event": "tsx backend/scripts/migrate.ts event",
     "seed:auth": "tsx backend/services/identity/migrations/seed/seed-auth-users.ts",
     "test-cases:reset": "tsx tests/fixtures/reset-test-data.ts",
+    "test-cases:run": "playwright test --config tests/playwright.config.ts",
     "confluence:digest": "tsx documentation/scripts/confluence-digest.ts",
     "test": "npm run test --workspaces --if-present && npm run test:scripts",
     "test:scripts": "tsx --test documentation/scripts/confluence-digest.test.ts",
@@ -23,6 +24,7 @@
     "postgres": "^3.4.4"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "concurrently": "^9.2.4",
     "dotenv": "^16.4.5",
     "tsx": "^4.16.2",

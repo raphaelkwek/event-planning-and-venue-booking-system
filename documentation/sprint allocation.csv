@@ -10,13 +10,13 @@ C3,Tell drafts apart from submitted requests,Draft Event Requests,1,1,4-5,2,2,Un
 D1,Review the queue of submitted event requests,Event Review and Approval,1,1,4-5,5,5,Unchanged,End of the Sprint 1 vertical slice
 E1,Get a named coordinator as soon as I submit,Coordinator Assignment,1,1,4-5,2,2,Unchanged,Auto-assignment fires on submission so it ships with B1
 F1,Trust that an events status reflects what has actually happened,Event Status Management,2,1,4-5,8,5,Moved earlier + re-estimated,B1/C2/D1 all change status; the state machine cannot come after its callers. Confirmation gate carved out to F5
-F2,View an events current status and history,Event Status Management,2,1,4-5,2,2,Moved earlier,History recorder is written by F1; ships together
-T2,Read and manage my notifications,Notification System,4,1,4-5,2,2,Moved earlier,T1 removal put notification ACs on B1/D2-D5/E1/E2; the record and read model are needed from Sprint 1
-D2,Request clarification from the organiser,Event Review and Approval,1,2,6-7,2,2,Moved later,Depends on D1; moved to balance Sprint 1 against infrastructure setup
-D3,Respond to a clarification request,Event Review and Approval,1,2,6-7,3,3,Moved later,Depends on D2
-D4,Approve an event request,Event Review and Approval,1,2,6-7,2,2,Moved later,Load balancing
-D5,Reject an event request,Event Review and Approval,1,2,6-7,2,2,Moved later,Load balancing
-E2,Reassign an event to a different coordinator,Coordinator Assignment,1,2,6-7,3,3,Moved later,Handshake flow; not needed for the Sprint 1 slice
+D2,Request clarification from the organiser,Event Review and Approval,1,1,4-5,2,2,Delivered in Sprint 1,Planned for Sprint 2 to balance load; built in Sprint 1 with D1 and the rest of the review workflow
+D3,Respond to a clarification request,Event Review and Approval,1,1,4-5,3,3,Delivered in Sprint 1,Built in Sprint 1 with D2
+D4,Approve an event request,Event Review and Approval,1,1,4-5,2,2,Delivered in Sprint 1,Built in Sprint 1; completes the review workflow with D5
+D5,Reject an event request,Event Review and Approval,1,1,4-5,2,2,Delivered in Sprint 1,Built in Sprint 1; completes the review workflow with D4
+E2,Reassign an event to a different coordinator,Coordinator Assignment,1,1,4-5,3,3,Delivered in Sprint 1,Planned for Sprint 2; the handshake flow was built in Sprint 1 on top of E1
+F2,View an events current status and history,Event Status Management,2,2,6-7,2,2,Not delivered in Sprint 1,"F1 records the history, but no endpoint or screen exists to view a status and its history; carried into Sprint 2"
+T2,Read and manage my notifications,Notification System,4,2,6-7,2,2,Not delivered in Sprint 1,"Submission and decisions write notification events to the outbox, but there is no notification record, read model or UI; carried into Sprint 2"
 F3,Cancel an event,Event Status Management,2,2,6-7,5,3,Re-estimated (split),Release behaviour split out to F4
 G1,Update non-significant event information,Event Information Management,2,2,6-7,3,3,Unchanged,
 H1,Maintain venue records,Venue Catalogue,2,2,6-7,3,3,Unchanged,
@@ -42,10 +42,10 @@ Q1,Reserve equipment for an event,Equipment Reservation,4,3,8-9,8,8,Moved earlie
 Q2,Release an equipment reservation,Equipment Reservation,4,3,8-9,3,3,Moved earlier,Ships with Q1
 S1,Request a change after submission,Event Change Requests,4,3,8-9,3,3,Moved earlier,Only needs a submitted event; moved to lighten Sprint 4
 S2,Review and decide a change request,Event Change Requests,4,3,8-9,3,3,Moved earlier,Ships with S1
+R1,Browse events open for registration,Attendee Registration,4,3,8-9,2,2,Moved earlier,A simple list against a seeded Confirmed event; brings the attendee UI shell forward so Sprint 4 fills in screens rather than inventing a design language under deadline
 F4,Release the arrangements of a cancelled event,Event Status Management,,4,10-11,,5,New,Split from F3; releases bookings reservations and registrations so all three must exist
 F5,Confirm an event only when venue and equipment are ready,Event Status Management,,4,10-11,,5,New,Carved out of F1; the Confirmed gate needs M1 and Q1 to exist
 G2,Warn which arrangements a significant change would affect,Event Information Management,2,4,10-11,5,5,Moved later,Reads bookings reservations and the active registration count; none exist before Sprint 4
-R1,Browse events open for registration,Attendee Registration,4,4,10-11,2,2,Unchanged,Lists Confirmed events so it follows F5
 R2,Register for an event,Attendee Registration,4,4,10-11,8,8,Unchanged,Ceiling read synchronously from Venue at registration time
 R3,View my own registrations,Attendee Registration,4,4,10-11,2,2,Unchanged,
 R4,Withdraw my registration,Attendee Registration,4,4,10-11,3,3,Unchanged,

@@ -238,9 +238,12 @@ export function ReviewDetail() {
           </Button>
           {/* E2 — a peer action to Approve/Reject: the active coordinator can
               hand the event off, as long as no proposal is already pending. */}
-          {!pendingProposal && event.assignedCoordinatorId === session.userId && (
+          {/* Not offered at all once a decision is recorded: reassignment is
+              permitted only while the request is still open (E2-T7), so showing
+              it disabled would promise something that can never happen. */}
+          {!pendingProposal && !decided && event.assignedCoordinatorId === session.userId && (
             <Button
-              isDisabled={busy || decided}
+              isDisabled={busy}
               onClick={() => {
                 setProposeError(null);
                 setNomineeId("");

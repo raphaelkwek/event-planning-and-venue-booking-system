@@ -137,12 +137,14 @@ Re-sequenced against the revised backlog: T1 removed, F4 / L3 / R6 / R7 added, F
 
 | Sprint | Weeks | Theme | Stories | Points |
 |---|---|---|---|---|
-| 1 | 4–5 | Foundations + one vertical slice | A1, A2, A3, B1, B2, C1, C2, C3, D1, E1, F1, F2, T2 | **44** |
-| 2 | 6–7 | Review workflow, venue catalogue, equipment intake | D2, D3, D4, D5, E2, F3, G1, H1, H2, I1, J1, J2, K1, O1, O2, P2 | **49** |
+| 1 | 4–5 | Foundations + one vertical slice *(as delivered)* | A1, A2, A3, B1, B2, C1, C2, C3, D1, D2, D3, D4, D5, E1, E2, F1 | **52** |
+| 2 | 6–7 | Review workflow leftovers, venue catalogue, equipment intake | F2, T2, F3, G1, H1, H2, I1, J1, J2, K1, O1, O2, P2 | **41** |
 | 3 | 8–9 | Holds, booking, conflict, reservation, attendee shell | I2, K2, L1, L2, L3, M1, M2, N1, N2, P1, Q1, Q2, R1, S1, S2 | **55** |
 | 4 | 10–11 | Registration, readiness, change impact *(showcase)* | F4, F5, G2, R2, R3, R4, R5, R6, R7, S3 | **47** |
 
-**195 points across 54 stories.** The shape is deliberate: a lighter first sprint while the infrastructure is unknown, a heavier middle, and a showcase sprint that is the lightest of the three that follow it.
+**195 points across 54 stories.** Sprint 1 is shown **as delivered**: the whole review workflow (D2–D5) and the reassignment handshake (E2) were finished within it, while F2 and T2 were not started and moved to Sprint 2. Sprints 2–4 are still the plan.
+
+The planned shape was a lighter first sprint while the infrastructure was unknown, a heavier middle, and a showcase sprint lighter than the two before it. In the event, Sprint 1 came in at 52 against a planned 44 — see §9.2.
 
 ### 9.1 What moved, and why
 
@@ -160,7 +162,9 @@ Re-sequenced against the revised backlog: T1 removed, F4 / L3 / R6 / R7 added, F
 
 ### 9.2 Known risks
 
-**Sprint 1 is 44 points against a velocity you have not measured,** in the sprint that also stands up the repo, Supabase, the hosted Kafka cluster, the outbox, CI and the first test kit. Treat the infrastructure as work: either give it its own story points or expect the sprint to miss. Missing a first sprint is acceptable to the graders if the retrospective shows you learned from it — silently carrying stories is not.
+**Sprint 1 was planned at 44 points against a velocity you had not measured,** in the sprint that also stands up the repo, Supabase, the hosted Kafka cluster, the outbox, CI and the first test kit. Treat the infrastructure as work: either give it its own story points or expect the sprint to miss. Missing a first sprint is acceptable to the graders if the retrospective shows you learned from it — silently carrying stories is not.
+
+**What actually happened in Sprint 1: 52 points delivered, and the scope was not what was planned.** D2–D5 and E2 were pulled in and finished; F2 and T2 were planned for the sprint, not started, and carried into Sprint 2. Kafka and the outbox relay did not happen either — the outbox rows are written but nothing publishes them. Worth taking into the retrospective: the team delivered more points than planned while still missing two committed stories, which says the commitment was chosen by what was interesting to build next rather than by what was committed.
 
 **Sprint 3 is the heaviest at 55** and contains the two hardest items in the system (N1 slot exclusivity, Q1 reservation atomicity). If anything slips, it slips here, and it pushes into the showcase sprint. Protect it: build the concurrency tests first, not last.
 

@@ -234,3 +234,13 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Functional test runs (tests/README.md): Playwright's own output, and the
+# screenshot each case saves as its evidence. Both are rebuilt by every run.
+test-results/
+playwright-report/
+tests/*/evidence/
+
+playwright.config.ts
+*.spec.ts
+tests/support
