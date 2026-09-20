@@ -10,7 +10,7 @@
 | Test Steps | 1. Go to http://localhost:5173.<br>2. Clear the Email field and enter the password.<br>3. Click "Sign in". |
 | Test Data | Email: *(empty)* · Password: `ConnectSphere-Test-1234!` |
 | Expected Result | Sign-in is refused with a message titled `VALIDATION_FAILED` reading "email and password are both required." (HTTP 400). The sign-in screen remains. |
-| Created By | Seann |
+| Created By | Chai Yichen |
 | Date of Creation | 2026-09-17 |
 
 ## Execution record
@@ -20,5 +20,5 @@
 | Actual Result | Refused on the sign-in screen: "VALIDATION_FAILEDemail and password are both required.HTTP 400 · correlation fea6df46-12aa-4ba4-8edd-64af6e4fc812". |
 | Status | Pass |
 | Remarks | Commit: b0ef6ee (working tree modified) · Evidence: tests/A1/evidence/A1-T11.png · Defect: — |
-| Executed By | Joash |
+| Executed By | Seann Khoo |
 | Date of Execution | 2026-09-20 |

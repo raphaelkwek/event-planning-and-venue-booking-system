@@ -10,7 +10,7 @@
 | Test Steps | 1. Click "API console". Set Method to `GET` and Path to `/event/api/v1/events/<id>`, leave Body empty, and click "Send". |
 | Test Data | Account: `attendee@connectsphere.test` / `ConnectSphere-Test-1234!` · id: from the pre-condition |
 | Expected Result | HTTP 404 with error code `EVENT_NOT_FOUND`. No event name, purpose or other field is returned. |
-| Created By | Seann |
+| Created By | Chai Yichen |
 | Date of Creation | 2026-09-17 |
 
 ## Execution record
@@ -20,5 +20,5 @@
 | Actual Result | HTTP 404 with code EVENT_NOT_FOUND. Neither the event name nor any purpose, timing or attendance field was returned. |
 | Status | Pass |
 | Remarks | Commit: b0ef6ee (working tree modified) · Evidence: tests/A3/evidence/A3-T6.png · Defect: — |
-| Executed By | Joash |
+| Executed By | Seann Khoo |
 | Date of Execution | 2026-09-20 |

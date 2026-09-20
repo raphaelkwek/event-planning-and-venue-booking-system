@@ -10,7 +10,7 @@
 | Test Steps | 1. Click "API console", then the "Request without signing in" preset.<br>2. Check that "Send without a token" is ticked, and click "Send". |
 | Test Data | Account: `organiser@connectsphere.test` / `ConnectSphere-Test-1234!` · Path: `/event/api/v1/events/queue` |
 | Expected Result | HTTP 401. The body contains only `error`, with code `UNAUTHENTICATED` and message "A valid bearer token is required." There is no `items` array and no event, venue, equipment or registration field. |
-| Created By | Seann |
+| Created By | Chai Yichen |
 | Date of Creation | 2026-09-17 |
 
 ## Execution record
@@ -20,5 +20,5 @@
 | Actual Result | HTTP 401. The body held only "error" — code UNAUTHENTICATED, message "A valid bearer token is required." — with no items array and no event, venue, equipment or registration field. |
 | Status | Pass |
 | Remarks | Commit: b0ef6ee (working tree modified) · Evidence: tests/A2/evidence/A2-T7.png · Defect: — |
-| Executed By | Joash |
+| Executed By | Seann Khoo |
 | Date of Execution | 2026-09-20 |

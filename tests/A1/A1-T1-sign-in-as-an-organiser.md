@@ -10,7 +10,7 @@
 | Test Steps | 1. Go to http://localhost:5173 and enter the email and password for `organiser@connectsphere.test`.<br>2. Click "Sign in". |
 | Test Data | Account: `organiser@connectsphere.test` / `ConnectSphere-Test-1234!` |
 | Expected Result | The "My requests" screen opens. The header shows `organiser@connectsphere.test · Event Organiser` and a "Sign out" button. (The role was shown as the code `EVENT_ORGANISER` until 2026-09-17, when the header was changed to name the role in words.) |
-| Created By | Seann |
+| Created By | Chai Yichen |
 | Date of Creation | 2026-09-17 |
 
 ## Execution record
@@ -20,5 +20,5 @@
 | Actual Result | "My requests" opened. Header: "organiser@connectsphere.test · Event Organiser". A "Sign out" button is shown. |
 | Status | Pass |
 | Remarks | Commit: b0ef6ee (working tree modified) · Evidence: tests/A1/evidence/A1-T1.png · Defect: — |
-| Executed By | Joash |
+| Executed By | Seann Khoo |
 | Date of Execution | 2026-09-20 |

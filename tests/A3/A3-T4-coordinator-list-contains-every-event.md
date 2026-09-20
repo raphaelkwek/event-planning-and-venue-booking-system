@@ -10,7 +10,7 @@
 | Test Steps | 1. Click "All events". |
 | Test Data | Account: `coordinator@connectsphere.test` / `ConnectSphere-Test-1234!` |
 | Expected Result | "Annual Research Symposium" is listed with status "Approved" and "Organiser two's symposium" with status "Submitted", whoever each is assigned to. "Unfinished idea", another user's draft, is not listed. |
-| Created By | Seann |
+| Created By | Chai Yichen |
 | Date of Creation | 2026-09-17 |
 
 ## Execution record
@@ -20,5 +20,5 @@
 | Actual Result | Both organisers' requests were listed — "Annual Research Symposium" as Approved and "Organiser two's symposium" as Submitted — while the other user's draft "Unfinished idea" was not listed. |
 | Status | Pass |
 | Remarks | Commit: b0ef6ee (working tree modified) · Evidence: tests/A3/evidence/A3-T4.png · Defect: — |
-| Executed By | Joash |
+| Executed By | Seann Khoo |
 | Date of Execution | 2026-09-20 |
