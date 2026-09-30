@@ -135,14 +135,16 @@ tested; no user journey exercises it yet.
 
 ## 4. Testing
 
-`implementation.md` §11.12 applies: **the functional cards are written first, from the ACs, and the
-story owner confirms every expected result before any code is written.**
+**The functional cards are written first, from the ACs alone, before any code.**
 
-The story owner (Raphael) delegates that confirmation to a teammate who was not part of this
-design, because independence from the design is what §11.12 protects. The confirmer is named on
-each card. An agent may review the drafts for mechanical gaps first, but an agent's review is not
-the confirmation: §11.12 requires a person, and changing that is a change to `implementation.md`.
-The owner remains accountable for the trace (§11 rule 10).
+`implementation.md` §11.12 also requires the story owner to confirm every expected result before
+code is written against it. **The team waived that confirmation for F1 on 2026-09-30**, along with
+the optional agent pre-review, and moved the human check to merge time: `main` requires an
+approving PR review, and the reviewer checks each card's expected result against its AC. The cost,
+recorded so the choice is visible: a reviewer who has already seen the code tends to read the tests
+through it, which is the blind spot §11.12 guards against. §11.12 still states the before-code rule
+for everyone else; amending it is a separate, reviewed change to `implementation.md`. The owner
+remains accountable for the trace (§11 rule 10).
 
 ### 4.1 Functional cards — `tests/F1/`
 

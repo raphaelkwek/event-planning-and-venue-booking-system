@@ -9,122 +9,104 @@
     },
     {
       "id": 1,
-      "subject": "Task 2: Independent agent pre-review of the cards",
+      "subject": "Task 2: Transition table gains CONFIRM and COMPLETE",
       "status": "pending",
       "blockedBy": [
         0
       ],
-      "description": "**Goal:** A fresh subagent given only the ACs and cards reports mechanical gaps; accepted findings applied.\n\n**Files:**\n- `tests/F1/*.md`\n\n**Verify:** `Findings triaged with Raphael`. See plan doc Task 2 for full code.\n\n```json:metadata\n{\"files\":[\"tests/F1/*.md\"],\"verifyCommand\":\"Findings triaged with Raphael\",\"acceptanceCriteria\":[\"Reviewer saw no spec, plan or code\"],\"modelTier\":\"careful\"}\n```"
+      "description": "**Goal:** Add CONFIRM and COMPLETE, transitionRule(), refusalMessage(), COMPLETION_NOT_DUE_MESSAGE.\n\n**Files:**\n- `backend/services/event/src/domain/statusMachine.ts`\n- `backend/services/event/tests/domain/statusMachine.test.ts`\n- `backend/services/event/tests/domain/statuses.test.ts`\n\n**Verify:** `cd backend/services/event && npx vitest run tests/domain`. See plan doc Task 2 for full code.\n\n```json:metadata\n{\"files\":[\"backend/services/event/src/domain/statusMachine.ts\",\"backend/services/event/tests/domain/statusMachine.test.ts\",\"backend/services/event/tests/domain/statuses.test.ts\"],\"verifyCommand\":\"cd backend/services/event && npx vitest run tests/domain\",\"acceptanceCriteria\":[\"Every status x action matches the independent list\",\"Exactly ten statuses\"],\"modelTier\":\"mechanical\"}\n```"
     },
     {
       "id": 2,
-      "subject": "Task 3: GATE — a teammate confirms every expected result",
+      "subject": "Task 3: The single status write — updateStatusIf",
       "status": "pending",
       "blockedBy": [
         1
       ],
-      "description": "**Goal:** A teammate outside the design confirms each card against its AC; their name recorded on every card. No code task starts before this.\n\n**Files:**\n- `tests/F1/*.md`\n\n**Verify:** `grep -L 'Expected results confirmed' tests/F1/*.md  → no output`. See plan doc Task 3 for full code.\n\n```json:metadata\n{\"files\":[\"tests/F1/*.md\"],\"verifyCommand\":\"grep -L 'Expected results confirmed' tests/F1/*.md  → no output\",\"acceptanceCriteria\":[\"Every card names its confirmer\"],\"modelTier\":\"human\"}\n```"
+      "description": "**Goal:** Conditional UPDATE guarded by the from-list, readStatus, endHasPassed, listDueForCompletion; seedEvent test helper.\n\n**Files:**\n- `backend/services/event/src/repo/eventStatus.ts`\n- `backend/services/event/tests/support/seedEvent.ts`\n- `backend/services/event/tests/repo/eventStatus.test.ts`\n\n**Verify:** `cd backend/services/event && npx vitest run tests/repo/eventStatus.test.ts`. See plan doc Task 3 for full code.\n\n```json:metadata\n{\"files\":[\"backend/services/event/src/repo/eventStatus.ts\",\"backend/services/event/tests/support/seedEvent.ts\",\"backend/services/event/tests/repo/eventStatus.test.ts\"],\"verifyCommand\":\"cd backend/services/event && npx vitest run tests/repo/eventStatus.test.ts\",\"acceptanceCriteria\":[\"Two concurrent updates: exactly one succeeds\",\"DB refuses ARCHIVED (23514)\"],\"modelTier\":\"careful\"}\n```"
     },
     {
       "id": 3,
-      "subject": "Task 4: Transition table gains CONFIRM and COMPLETE",
+      "subject": "Task 4: transitionEvent and the column fragments",
       "status": "pending",
       "blockedBy": [
         2
       ],
-      "description": "**Goal:** Add CONFIRM and COMPLETE, transitionRule(), refusalMessage(), COMPLETION_NOT_DUE_MESSAGE.\n\n**Files:**\n- `backend/services/event/src/domain/statusMachine.ts`\n- `backend/services/event/tests/domain/statusMachine.test.ts`\n- `backend/services/event/tests/domain/statuses.test.ts`\n\n**Verify:** `cd backend/services/event && npx vitest run tests/domain`. See plan doc Task 4 for full code.\n\n```json:metadata\n{\"files\":[\"backend/services/event/src/domain/statusMachine.ts\",\"backend/services/event/tests/domain/statusMachine.test.ts\",\"backend/services/event/tests/domain/statuses.test.ts\"],\"verifyCommand\":\"cd backend/services/event && npx vitest run tests/domain\",\"acceptanceCriteria\":[\"Every status x action matches the independent list\",\"Exactly ten statuses\"],\"modelTier\":\"mechanical\"}\n```"
+      "description": "**Goal:** The one way status changes: conditional update, history entry, refusal naming both statuses; completion time guard.\n\n**Files:**\n- `backend/services/event/src/api/transitionEvent.ts`\n- `backend/services/event/src/repo/events.ts`\n- `backend/services/event/tests/api/transitionEvent.test.ts`\n\n**Verify:** `cd backend/services/event && npx vitest run tests/api/transitionEvent.test.ts`. See plan doc Task 4 for full code.\n\n```json:metadata\n{\"files\":[\"backend/services/event/src/api/transitionEvent.ts\",\"backend/services/event/src/repo/events.ts\",\"backend/services/event/tests/api/transitionEvent.test.ts\"],\"verifyCommand\":\"cd backend/services/event && npx vitest run tests/api/transitionEvent.test.ts\",\"acceptanceCriteria\":[\"Refusal stores nothing\",\"Completes at exactly the end instant, not 1 ms before\"],\"modelTier\":\"careful\"}\n```"
     },
     {
       "id": 4,
-      "subject": "Task 5: The single status write — updateStatusIf",
+      "subject": "Task 5: Approve and reject through transitionEvent (D4, D5)",
       "status": "pending",
       "blockedBy": [
         3
       ],
-      "description": "**Goal:** Conditional UPDATE guarded by the from-list, readStatus, endHasPassed, listDueForCompletion; seedEvent test helper.\n\n**Files:**\n- `backend/services/event/src/repo/eventStatus.ts`\n- `backend/services/event/tests/support/seedEvent.ts`\n- `backend/services/event/tests/repo/eventStatus.test.ts`\n\n**Verify:** `cd backend/services/event && npx vitest run tests/repo/eventStatus.test.ts`. See plan doc Task 5 for full code.\n\n```json:metadata\n{\"files\":[\"backend/services/event/src/repo/eventStatus.ts\",\"backend/services/event/tests/support/seedEvent.ts\",\"backend/services/event/tests/repo/eventStatus.test.ts\"],\"verifyCommand\":\"cd backend/services/event && npx vitest run tests/repo/eventStatus.test.ts\",\"acceptanceCriteria\":[\"Two concurrent updates: exactly one succeeds\",\"DB refuses ARCHIVED (23514)\"],\"modelTier\":\"careful\"}\n```"
+      "description": "**Goal:** decisions.ts uses transitionEvent with decisionColumns.\n\n**Files:**\n- `backend/services/event/src/api/decisions.ts`\n- `backend/services/event/tests/api/decisions.test.ts`\n\n**Verify:** `cd backend/services/event && npx vitest run tests/api/decisions.test.ts`. See plan doc Task 5 for full code.\n\n```json:metadata\n{\"files\":[\"backend/services/event/src/api/decisions.ts\",\"backend/services/event/tests/api/decisions.test.ts\"],\"verifyCommand\":\"cd backend/services/event && npx vitest run tests/api/decisions.test.ts\",\"acceptanceCriteria\":[\"All D4/D5 tests pass\",\"Concurrent approvals: one 200, one 409\"],\"modelTier\":\"careful\"}\n```"
     },
     {
       "id": 5,
-      "subject": "Task 6: transitionEvent and the column fragments",
+      "subject": "Task 6: Clarification request and response through transitionEvent (D2, D3)",
       "status": "pending",
       "blockedBy": [
-        4
+        3
       ],
-      "description": "**Goal:** The one way status changes: conditional update, history entry, refusal naming both statuses; completion time guard.\n\n**Files:**\n- `backend/services/event/src/api/transitionEvent.ts`\n- `backend/services/event/src/repo/events.ts`\n- `backend/services/event/tests/api/transitionEvent.test.ts`\n\n**Verify:** `cd backend/services/event && npx vitest run tests/api/transitionEvent.test.ts`. See plan doc Task 6 for full code.\n\n```json:metadata\n{\"files\":[\"backend/services/event/src/api/transitionEvent.ts\",\"backend/services/event/src/repo/events.ts\",\"backend/services/event/tests/api/transitionEvent.test.ts\"],\"verifyCommand\":\"cd backend/services/event && npx vitest run tests/api/transitionEvent.test.ts\",\"acceptanceCriteria\":[\"Refusal stores nothing\",\"Completes at exactly the end instant, not 1 ms before\"],\"modelTier\":\"careful\"}\n```"
+      "description": "**Goal:** Transition first in each transaction; NoOpenClarification rolls back.\n\n**Files:**\n- `backend/services/event/src/api/clarifications.ts`\n- `backend/services/event/tests/api/clarifications.test.ts`\n\n**Verify:** `cd backend/services/event && npx vitest run tests/api/clarifications.test.ts`. See plan doc Task 6 for full code.\n\n```json:metadata\n{\"files\":[\"backend/services/event/src/api/clarifications.ts\",\"backend/services/event/tests/api/clarifications.test.ts\"],\"verifyCommand\":\"cd backend/services/event && npx vitest run tests/api/clarifications.test.ts\",\"acceptanceCriteria\":[\"Refused request stores no clarification and no history\"],\"modelTier\":\"careful\"}\n```"
     },
     {
       "id": 6,
-      "subject": "Task 7: Approve and reject through transitionEvent (D4, D5)",
+      "subject": "Task 7: Open for review through transitionEvent (D1)",
       "status": "pending",
       "blockedBy": [
-        5
+        3
       ],
-      "description": "**Goal:** decisions.ts uses transitionEvent with decisionColumns.\n\n**Files:**\n- `backend/services/event/src/api/decisions.ts`\n- `backend/services/event/tests/api/decisions.test.ts`\n\n**Verify:** `cd backend/services/event && npx vitest run tests/api/decisions.test.ts`. See plan doc Task 7 for full code.\n\n```json:metadata\n{\"files\":[\"backend/services/event/src/api/decisions.ts\",\"backend/services/event/tests/api/decisions.test.ts\"],\"verifyCommand\":\"cd backend/services/event && npx vitest run tests/api/decisions.test.ts\",\"acceptanceCriteria\":[\"All D4/D5 tests pass\",\"Concurrent approvals: one 200, one 409\"],\"modelTier\":\"careful\"}\n```"
+      "description": "**Goal:** GET /api/v1/events/:id claims via OPEN_FOR_REVIEW with reviewColumns.\n\n**Files:**\n- `backend/services/event/src/api/events.ts`\n\n**Verify:** `cd backend/services/event && npx vitest run tests/api/review.test.ts`. See plan doc Task 7 for full code.\n\n```json:metadata\n{\"files\":[\"backend/services/event/src/api/events.ts\"],\"verifyCommand\":\"cd backend/services/event && npx vitest run tests/api/review.test.ts\",\"acceptanceCriteria\":[\"Second opener sees the first reviewer\"],\"modelTier\":\"mechanical\"}\n```"
     },
     {
       "id": 7,
-      "subject": "Task 8: Clarification request and response through transitionEvent (D2, D3)",
+      "subject": "Task 8: Submission through transitionEvent (B1, C2)",
       "status": "pending",
       "blockedBy": [
-        5
+        4,
+        5,
+        6
       ],
-      "description": "**Goal:** Transition first in each transaction; NoOpenClarification rolls back.\n\n**Files:**\n- `backend/services/event/src/api/clarifications.ts`\n- `backend/services/event/tests/api/clarifications.test.ts`\n\n**Verify:** `cd backend/services/event && npx vitest run tests/api/clarifications.test.ts`. See plan doc Task 8 for full code.\n\n```json:metadata\n{\"files\":[\"backend/services/event/src/api/clarifications.ts\",\"backend/services/event/tests/api/clarifications.test.ts\"],\"verifyCommand\":\"cd backend/services/event && npx vitest run tests/api/clarifications.test.ts\",\"acceptanceCriteria\":[\"Refused request stores no clarification and no history\"],\"modelTier\":\"careful\"}\n```"
+      "description": "**Goal:** Direct submission inserts at Draft then SUBMIT; resubmission message names both statuses, code unchanged.\n\n**Files:**\n- `backend/services/event/src/repo/drafts.ts`\n- `backend/services/event/src/api/submitEvent.ts`\n- `backend/services/event/src/api/events.ts`\n- `backend/services/event/src/api/drafts.ts`\n- `backend/services/event/tests/api/submission.test.ts`\n- `backend/services/event/tests/api/statusHistory.test.ts`\n\n**Verify:** `npm test -w @connectsphere/event-service`. See plan doc Task 8 for full code.\n\n```json:metadata\n{\"files\":[\"backend/services/event/src/repo/drafts.ts\",\"backend/services/event/src/api/submitEvent.ts\",\"backend/services/event/src/api/events.ts\",\"backend/services/event/src/api/drafts.ts\",\"backend/services/event/tests/api/submission.test.ts\",\"backend/services/event/tests/api/statusHistory.test.ts\"],\"verifyCommand\":\"npm test -w @connectsphere/event-service\",\"acceptanceCriteria\":[\"DRAFT_ALREADY_SUBMITTED kept\",\"History: SUBMIT, OPEN_FOR_REVIEW, APPROVE in order\"],\"modelTier\":\"careful\"}\n```"
     },
     {
       "id": 8,
-      "subject": "Task 9: Open for review through transitionEvent (D1)",
+      "subject": "Task 9: Retire the old status writers and guard against new ones (AC2)",
       "status": "pending",
       "blockedBy": [
-        5
+        7
       ],
-      "description": "**Goal:** GET /api/v1/events/:id claims via OPEN_FOR_REVIEW with reviewColumns.\n\n**Files:**\n- `backend/services/event/src/api/events.ts`\n\n**Verify:** `cd backend/services/event && npx vitest run tests/api/review.test.ts`. See plan doc Task 9 for full code.\n\n```json:metadata\n{\"files\":[\"backend/services/event/src/api/events.ts\"],\"verifyCommand\":\"cd backend/services/event && npx vitest run tests/api/review.test.ts\",\"acceptanceCriteria\":[\"Second opener sees the first reviewer\"],\"modelTier\":\"mechanical\"}\n```"
+      "description": "**Goal:** Migrate repo tests, delete setStatus/claimForReview/recordDecision/submitDraft/insertSubmittedEvent/lockEventInScope, add architecture guard.\n\n**Files:**\n- `backend/services/event/src/repo/events.ts`\n- `backend/services/event/tests/repo/events.test.ts`\n- `backend/services/event/tests/repo/eventHistory.test.ts`\n- `backend/services/event/tests/architecture/statusWrites.test.ts`\n\n**Verify:** `npx tsc -p backend/services/event/tsconfig.json --noEmit && npm test -w @connectsphere/event-service`. See plan doc Task 9 for full code.\n\n```json:metadata\n{\"files\":[\"backend/services/event/src/repo/events.ts\",\"backend/services/event/tests/repo/events.test.ts\",\"backend/services/event/tests/repo/eventHistory.test.ts\",\"backend/services/event/tests/architecture/statusWrites.test.ts\"],\"verifyCommand\":\"npx tsc -p backend/services/event/tsconfig.json --noEmit && npm test -w @connectsphere/event-service\",\"acceptanceCriteria\":[\"Guard passes and its self-test catches a known violation\"],\"modelTier\":\"careful\"}\n```"
     },
     {
       "id": 9,
-      "subject": "Task 10: Submission through transitionEvent (B1, C2)",
+      "subject": "Task 10: The completion sweep (AC6)",
       "status": "pending",
       "blockedBy": [
-        6,
-        7,
         8
       ],
-      "description": "**Goal:** Direct submission inserts at Draft then SUBMIT; resubmission message names both statuses, code unchanged.\n\n**Files:**\n- `backend/services/event/src/repo/drafts.ts`\n- `backend/services/event/src/api/submitEvent.ts`\n- `backend/services/event/src/api/events.ts`\n- `backend/services/event/src/api/drafts.ts`\n- `backend/services/event/tests/api/submission.test.ts`\n- `backend/services/event/tests/api/statusHistory.test.ts`\n\n**Verify:** `npm test -w @connectsphere/event-service`. See plan doc Task 10 for full code.\n\n```json:metadata\n{\"files\":[\"backend/services/event/src/repo/drafts.ts\",\"backend/services/event/src/api/submitEvent.ts\",\"backend/services/event/src/api/events.ts\",\"backend/services/event/src/api/drafts.ts\",\"backend/services/event/tests/api/submission.test.ts\",\"backend/services/event/tests/api/statusHistory.test.ts\"],\"verifyCommand\":\"npm test -w @connectsphere/event-service\",\"acceptanceCriteria\":[\"DRAFT_ALREADY_SUBMITTED kept\",\"History: SUBMIT, OPEN_FOR_REVIEW, APPROVE in order\"],\"modelTier\":\"careful\"}\n```"
+      "description": "**Goal:** completeDueEvents(sql, now): per-event transactions, idempotent, reports completed/skipped/failed.\n\n**Files:**\n- `backend/services/event/src/jobs/completeEvents.ts`\n- `backend/services/event/tests/jobs/completeEvents.test.ts`\n- `backend/services/event/tests/jobs/completeEventsIsolation.test.ts`\n\n**Verify:** `cd backend/services/event && npx vitest run tests/jobs`. See plan doc Task 10 for full code.\n\n```json:metadata\n{\"files\":[\"backend/services/event/src/jobs/completeEvents.ts\",\"backend/services/event/tests/jobs/completeEvents.test.ts\",\"backend/services/event/tests/jobs/completeEventsIsolation.test.ts\"],\"verifyCommand\":\"cd backend/services/event && npx vitest run tests/jobs\",\"acceptanceCriteria\":[\"Only Confirmed completes\",\"Two racing runs complete once\"],\"modelTier\":\"careful\"}\n```"
     },
     {
       "id": 10,
-      "subject": "Task 11: Retire the old status writers and guard against new ones (AC2)",
+      "subject": "Task 11: npm run jobs:complete-events",
       "status": "pending",
       "blockedBy": [
         9
       ],
-      "description": "**Goal:** Migrate repo tests, delete setStatus/claimForReview/recordDecision/submitDraft/insertSubmittedEvent/lockEventInScope, add architecture guard.\n\n**Files:**\n- `backend/services/event/src/repo/events.ts`\n- `backend/services/event/tests/repo/events.test.ts`\n- `backend/services/event/tests/repo/eventHistory.test.ts`\n- `backend/services/event/tests/architecture/statusWrites.test.ts`\n\n**Verify:** `npx tsc -p backend/services/event/tsconfig.json --noEmit && npm test -w @connectsphere/event-service`. See plan doc Task 11 for full code.\n\n```json:metadata\n{\"files\":[\"backend/services/event/src/repo/events.ts\",\"backend/services/event/tests/repo/events.test.ts\",\"backend/services/event/tests/repo/eventHistory.test.ts\",\"backend/services/event/tests/architecture/statusWrites.test.ts\"],\"verifyCommand\":\"npx tsc -p backend/services/event/tsconfig.json --noEmit && npm test -w @connectsphere/event-service\",\"acceptanceCriteria\":[\"Guard passes and its self-test catches a known violation\"],\"modelTier\":\"careful\"}\n```"
+      "description": "**Goal:** Entry point with §9 logging; root script.\n\n**Files:**\n- `backend/services/event/src/jobs/runCompleteEvents.ts`\n- `package.json`\n\n**Verify:** `npm run jobs:complete-events && npm run build -w @connectsphere/event-service`. See plan doc Task 11 for full code.\n\n```json:metadata\n{\"files\":[\"backend/services/event/src/jobs/runCompleteEvents.ts\",\"package.json\"],\"verifyCommand\":\"npm run jobs:complete-events && npm run build -w @connectsphere/event-service\",\"acceptanceCriteria\":[\"Exit 0 with a summary line\"],\"modelTier\":\"mechanical\"}\n```"
     },
     {
       "id": 11,
-      "subject": "Task 12: The completion sweep (AC6)",
+      "subject": "Task 12: Trace, run the cards, record, push, and open the PR",
       "status": "pending",
       "blockedBy": [
         10
       ],
-      "description": "**Goal:** completeDueEvents(sql, now): per-event transactions, idempotent, reports completed/skipped/failed.\n\n**Files:**\n- `backend/services/event/src/jobs/completeEvents.ts`\n- `backend/services/event/tests/jobs/completeEvents.test.ts`\n- `backend/services/event/tests/jobs/completeEventsIsolation.test.ts`\n\n**Verify:** `cd backend/services/event && npx vitest run tests/jobs`. See plan doc Task 12 for full code.\n\n```json:metadata\n{\"files\":[\"backend/services/event/src/jobs/completeEvents.ts\",\"backend/services/event/tests/jobs/completeEvents.test.ts\",\"backend/services/event/tests/jobs/completeEventsIsolation.test.ts\"],\"verifyCommand\":\"cd backend/services/event && npx vitest run tests/jobs\",\"acceptanceCriteria\":[\"Only Confirmed completes\",\"Two racing runs complete once\"],\"modelTier\":\"careful\"}\n```"
-    },
-    {
-      "id": 12,
-      "subject": "Task 13: npm run jobs:complete-events",
-      "status": "pending",
-      "blockedBy": [
-        11
-      ],
-      "description": "**Goal:** Entry point with §9 logging; root script.\n\n**Files:**\n- `backend/services/event/src/jobs/runCompleteEvents.ts`\n- `package.json`\n\n**Verify:** `npm run jobs:complete-events && npm run build -w @connectsphere/event-service`. See plan doc Task 13 for full code.\n\n```json:metadata\n{\"files\":[\"backend/services/event/src/jobs/runCompleteEvents.ts\",\"package.json\"],\"verifyCommand\":\"npm run jobs:complete-events && npm run build -w @connectsphere/event-service\",\"acceptanceCriteria\":[\"Exit 0 with a summary line\"],\"modelTier\":\"mechanical\"}\n```"
-    },
-    {
-      "id": 13,
-      "subject": "Task 14: Trace, run the cards, record, push, and open the PR",
-      "status": "pending",
-      "blockedBy": [
-        12
-      ],
-      "description": "**Goal:** Traceability rows, spec refinements, full test + build, execute F1 cards, CHANGELOG, push, PR.\n\n**Files:**\n- `documentation/traceability/sprint-2.csv`\n- `documentation/superpowers/specs/2026-09-30-f1-status-lifecycle-design.md`\n- `tests/F1/*.md`\n- `CHANGELOG.md`\n\n**Verify:** `npm test && npm run build`. See plan doc Task 14 for full code.\n\n```json:metadata\n{\"files\":[\"documentation/traceability/sprint-2.csv\",\"documentation/superpowers/specs/2026-09-30-f1-status-lifecycle-design.md\",\"tests/F1/*.md\",\"CHANGELOG.md\"],\"verifyCommand\":\"npm test && npm run build\",\"acceptanceCriteria\":[\"Six F1 rows in sprint-2.csv\",\"Cards executed with SHA recorded\"],\"modelTier\":\"careful\"}\n```"
+      "description": "**Goal:** Traceability rows, spec refinements, full test + build, execute F1 cards, CHANGELOG, push, PR; the required PR reviewer checks each card against its AC (§11.12 waived for F1).\n\n**Files:**\n- `documentation/traceability/sprint-2.csv`\n- `documentation/superpowers/specs/2026-09-30-f1-status-lifecycle-design.md`\n- `tests/F1/*.md`\n- `CHANGELOG.md`\n\n**Verify:** `npm test && npm run build`. See plan doc Task 12 for full code.\n\n```json:metadata\n{\"files\":[\"documentation/traceability/sprint-2.csv\",\"documentation/superpowers/specs/2026-09-30-f1-status-lifecycle-design.md\",\"tests/F1/*.md\",\"CHANGELOG.md\"],\"verifyCommand\":\"npm test && npm run build\",\"acceptanceCriteria\":[\"Six F1 rows in sprint-2.csv\",\"Cards executed with SHA recorded\"],\"modelTier\":\"careful\"}\n```"
     }
   ]
 }

@@ -14,12 +14,12 @@
 
 ## Read before starting
 
-- `documentation/planning/implementation.md` §3–§4 and §11. **Rule 11.12 gates this plan:** Tasks 1–3 (the functional cards and their human confirmation) must be finished before any code task starts.
+- `documentation/planning/implementation.md` §3–§4 and §11. **§11.12's before-code confirmation of the cards, and the agent pre-review, were waived for F1 by team decision on 2026-09-30.** The human check moves to merge time: `main` requires an approving PR review, and Task 12 asks the reviewer to check each card's expected result against its AC. Task 1, writing the cards from the ACs alone, still comes before any code.
 - Every event-service test runs against the **shared** hosted database. Test files use unique owner-id prefixes and clean up only their own rows. The prefixes this plan introduces: `af111111` (transitionEvent tests), `af222222` (eventStatus repo tests), `af333333` (completion sweep tests), `af444444` (sweep isolation test), `af555555` (status history API test).
 - Run the event-service suite from the repo root with `npm test -w @connectsphere/event-service`, or a single file with `npx vitest run <path>` from `backend/services/event`.
 - The suite shares one database with teammates. A failure that disappears on re-run is contention, not your change (see the CHANGELOG entry of 2026-09-20). Re-run before debugging.
 
-## Refinements made while planning (recorded in the spec in Task 14)
+## Refinements made while planning (recorded in the spec in Task 12)
 
 1. **The time guard lives in the transition, not only in the sweep.** AC6 says an event moves to Completed *only* after its end, so `transitionEvent(…, "COMPLETE")` refuses before the end no matter who calls it. The rule is one SQL fragment, `endHasPassed()`, used by both the guard and the sweep's selection. The spec's pure `isDueForCompletion()` is therefore not needed and is not built.
 2. **Where the code sits.** The conditional `UPDATE` is `updateStatusIf()` in `src/repo/eventStatus.ts` (repo: SQL only). `transitionEvent()` sits in `src/api/transitionEvent.ts`, beside `submitEvent.ts`, which is the existing home for orchestration that more than one router uses.
@@ -31,27 +31,27 @@
 |---|---|---|
 | `tests/F1/F1-T1…T11-*.md` | Functional cards (specification first) | 1 |
 | `tests/README.md` | New setup procedure FX-SEEDED | 1 |
-| `backend/services/event/src/domain/statusMachine.ts` | The transition table: `CONFIRM`, `COMPLETE`, `transitionRule()`, `refusalMessage()` | 4 |
-| `backend/services/event/tests/domain/statusMachine.test.ts` | Every status × every action; messages | 4 |
-| `backend/services/event/tests/domain/statuses.test.ts` | AC1: exactly the ten statuses | 4 |
-| `backend/services/event/src/repo/eventStatus.ts` | `updateStatusIf()` (the only status write), `readStatus()`, `endHasPassed()`, `listDueForCompletion()` | 5 |
-| `backend/services/event/tests/support/seedEvent.ts` | Test-only: insert an event at any status | 5 |
-| `backend/services/event/tests/repo/eventStatus.test.ts` | Conditional update, concurrency, AC1 database check | 5 |
-| `backend/services/event/src/repo/events.ts` | Adds the column fragments `decisionColumns`, `reviewColumns`, `submissionColumns`; later loses the old status writers | 6, 11 |
-| `backend/services/event/src/api/transitionEvent.ts` | The one way an event's status changes | 6 |
-| `backend/services/event/tests/api/transitionEvent.test.ts` | Its behaviour, including the completion boundary | 6 |
-| `backend/services/event/src/api/decisions.ts` | D4/D5 through `transitionEvent` | 7 |
-| `backend/services/event/src/api/clarifications.ts` | D2/D3 through `transitionEvent` | 8 |
-| `backend/services/event/src/api/events.ts` | D1 open-for-review and B1 through `transitionEvent` | 9, 10 |
-| `backend/services/event/src/api/submitEvent.ts` | Insert at Draft, then `SUBMIT` | 10 |
-| `backend/services/event/src/api/drafts.ts` | Resubmission message names both statuses | 10 |
-| `backend/services/event/src/repo/drafts.ts` | `insertDraft` accepts a transaction | 10 |
-| `backend/services/event/tests/api/statusHistory.test.ts` | AC4 end to end | 10 |
-| `backend/services/event/tests/architecture/statusWrites.test.ts` | AC2 guard: no other code writes status | 11 |
-| `backend/services/event/src/jobs/completeEvents.ts` | The completion sweep | 12 |
-| `backend/services/event/tests/jobs/completeEvents.test.ts`, `completeEventsIsolation.test.ts` | Sweep behaviour | 12 |
-| `backend/services/event/src/jobs/runCompleteEvents.ts`, root `package.json` | `npm run jobs:complete-events` | 13 |
-| `documentation/traceability/sprint-2.csv`, `CHANGELOG.md`, the spec | Trace, record, refinements | 14 |
+| `backend/services/event/src/domain/statusMachine.ts` | The transition table: `CONFIRM`, `COMPLETE`, `transitionRule()`, `refusalMessage()` | 2 |
+| `backend/services/event/tests/domain/statusMachine.test.ts` | Every status × every action; messages | 2 |
+| `backend/services/event/tests/domain/statuses.test.ts` | AC1: exactly the ten statuses | 2 |
+| `backend/services/event/src/repo/eventStatus.ts` | `updateStatusIf()` (the only status write), `readStatus()`, `endHasPassed()`, `listDueForCompletion()` | 3 |
+| `backend/services/event/tests/support/seedEvent.ts` | Test-only: insert an event at any status | 3 |
+| `backend/services/event/tests/repo/eventStatus.test.ts` | Conditional update, concurrency, AC1 database check | 3 |
+| `backend/services/event/src/repo/events.ts` | Adds the column fragments `decisionColumns`, `reviewColumns`, `submissionColumns`; later loses the old status writers | 4, 9 |
+| `backend/services/event/src/api/transitionEvent.ts` | The one way an event's status changes | 4 |
+| `backend/services/event/tests/api/transitionEvent.test.ts` | Its behaviour, including the completion boundary | 4 |
+| `backend/services/event/src/api/decisions.ts` | D4/D5 through `transitionEvent` | 5 |
+| `backend/services/event/src/api/clarifications.ts` | D2/D3 through `transitionEvent` | 6 |
+| `backend/services/event/src/api/events.ts` | D1 open-for-review and B1 through `transitionEvent` | 7, 8 |
+| `backend/services/event/src/api/submitEvent.ts` | Insert at Draft, then `SUBMIT` | 8 |
+| `backend/services/event/src/api/drafts.ts` | Resubmission message names both statuses | 8 |
+| `backend/services/event/src/repo/drafts.ts` | `insertDraft` accepts a transaction | 8 |
+| `backend/services/event/tests/api/statusHistory.test.ts` | AC4 end to end | 8 |
+| `backend/services/event/tests/architecture/statusWrites.test.ts` | AC2 guard: no other code writes status | 9 |
+| `backend/services/event/src/jobs/completeEvents.ts` | The completion sweep | 10 |
+| `backend/services/event/tests/jobs/completeEvents.test.ts`, `completeEventsIsolation.test.ts` | Sweep behaviour | 10 |
+| `backend/services/event/src/jobs/runCompleteEvents.ts`, root `package.json` | `npm run jobs:complete-events` | 11 |
+| `documentation/traceability/sprint-2.csv`, `CHANGELOG.md`, the spec | Trace, record, refinements | 12 |
 
 ---
 
@@ -120,8 +120,8 @@ Each card uses `tests/TEMPLATE.md`'s layout. The note under each specification i
 | Created By | Raphael |
 | Date of Creation | 2026-09-30 |
 
-> **Expected results not yet confirmed** (`implementation.md` §11.12). No code is written against
-> this case until they are.
+> **Expected results are checked by the PR reviewer** against F1's acceptance criteria
+> (§11.12's before-code confirmation was waived for F1 by the team on 2026-09-30).
 
 ## Execution record
 
@@ -152,8 +152,8 @@ Each card uses `tests/TEMPLATE.md`'s layout. The note under each specification i
 | Created By | Raphael |
 | Date of Creation | 2026-09-30 |
 
-> **Expected results not yet confirmed** (`implementation.md` §11.12). No code is written against
-> this case until they are.
+> **Expected results are checked by the PR reviewer** against F1's acceptance criteria
+> (§11.12's before-code confirmation was waived for F1 by the team on 2026-09-30).
 
 ## Execution record
 
@@ -184,8 +184,8 @@ Each card uses `tests/TEMPLATE.md`'s layout. The note under each specification i
 | Created By | Raphael |
 | Date of Creation | 2026-09-30 |
 
-> **Expected results not yet confirmed** (`implementation.md` §11.12). No code is written against
-> this case until they are.
+> **Expected results are checked by the PR reviewer** against F1's acceptance criteria
+> (§11.12's before-code confirmation was waived for F1 by the team on 2026-09-30).
 
 ## Execution record
 
@@ -216,8 +216,8 @@ Each card uses `tests/TEMPLATE.md`'s layout. The note under each specification i
 | Created By | Raphael |
 | Date of Creation | 2026-09-30 |
 
-> **Expected results not yet confirmed** (`implementation.md` §11.12). No code is written against
-> this case until they are.
+> **Expected results are checked by the PR reviewer** against F1's acceptance criteria
+> (§11.12's before-code confirmation was waived for F1 by the team on 2026-09-30).
 
 ## Execution record
 
@@ -248,8 +248,8 @@ Each card uses `tests/TEMPLATE.md`'s layout. The note under each specification i
 | Created By | Raphael |
 | Date of Creation | 2026-09-30 |
 
-> **Expected results not yet confirmed** (`implementation.md` §11.12). No code is written against
-> this case until they are. The wording "Submitted … cannot move to Submitted" is what AC3
+> **Expected results are checked by the PR reviewer** against F1's acceptance criteria
+> (§11.12's before-code confirmation was waived for F1 by the team on 2026-09-30). The wording "Submitted … cannot move to Submitted" is what AC3
 > prescribes when the current status and the target coincide; it was accepted as written
 > (spec §4.1). FX-DRAFT saves the name only, so enter the standard request and "Save draft" before
 > step 1.
@@ -283,8 +283,8 @@ Each card uses `tests/TEMPLATE.md`'s layout. The note under each specification i
 | Created By | Raphael |
 | Date of Creation | 2026-09-30 |
 
-> **Expected results not yet confirmed** (`implementation.md` §11.12). No code is written against
-> this case until they are.
+> **Expected results are checked by the PR reviewer** against F1's acceptance criteria
+> (§11.12's before-code confirmation was waived for F1 by the team on 2026-09-30).
 
 ## Execution record
 
@@ -315,7 +315,8 @@ Each card uses `tests/TEMPLATE.md`'s layout. The note under each specification i
 | Created By | Raphael |
 | Date of Creation | 2026-09-30 |
 
-> **Expected results not yet confirmed** (`implementation.md` §11.12). F1 defines that Confirmed is
+> **Expected results are checked by the PR reviewer** against F1's acceptance criteria
+> (§11.12's before-code confirmation was waived for F1 by the team on 2026-09-30). F1 defines that Confirmed is
 > reached by a `CONFIRM` transition that writes history; F5 (Sprint 4) builds the action. Until
 > then this case is Not Executed and the transition is covered by the automated tests.
 
@@ -348,8 +349,8 @@ Each card uses `tests/TEMPLATE.md`'s layout. The note under each specification i
 | Created By | Raphael |
 | Date of Creation | 2026-09-30 |
 
-> **Expected results not yet confirmed** (`implementation.md` §11.12). No code is written against
-> this case until they are. Until F5 exists, a Confirmed event can only be seeded (FX-SEEDED).
+> **Expected results are checked by the PR reviewer** against F1's acceptance criteria
+> (§11.12's before-code confirmation was waived for F1 by the team on 2026-09-30). Until F5 exists, a Confirmed event can only be seeded (FX-SEEDED).
 
 ## Execution record
 
@@ -380,8 +381,8 @@ Each card uses `tests/TEMPLATE.md`'s layout. The note under each specification i
 | Created By | Raphael |
 | Date of Creation | 2026-09-30 |
 
-> **Expected results not yet confirmed** (`implementation.md` §11.12). No code is written against
-> this case until they are. "Just before" is an hour here so that the case cannot drift across the
+> **Expected results are checked by the PR reviewer** against F1's acceptance criteria
+> (§11.12's before-code confirmation was waived for F1 by the team on 2026-09-30). "Just before" is an hour here so that the case cannot drift across the
 > boundary while it is being run; the millisecond boundaries (just before, exactly at, just after)
 > are covered by the automated tests, where the time is fixed.
 
@@ -414,7 +415,8 @@ Each card uses `tests/TEMPLATE.md`'s layout. The note under each specification i
 | Created By | Raphael |
 | Date of Creation | 2026-09-30 |
 
-> **Expected results not yet confirmed** (`implementation.md` §11.12). Only Confirmed events complete
+> **Expected results are checked by the PR reviewer** against F1's acceptance criteria
+> (§11.12's before-code confirmation was waived for F1 by the team on 2026-09-30). Only Confirmed events complete
 > — a decision on a gap in AC6, confirmed by Raphael on 2026-09-30 (spec §2, decision 2).
 
 ## Execution record
@@ -446,8 +448,8 @@ Each card uses `tests/TEMPLATE.md`'s layout. The note under each specification i
 | Created By | Raphael |
 | Date of Creation | 2026-09-30 |
 
-> **Expected results not yet confirmed** (`implementation.md` §11.12). No code is written against
-> this case until they are.
+> **Expected results are checked by the PR reviewer** against F1's acceptance criteria
+> (§11.12's before-code confirmation was waived for F1 by the team on 2026-09-30).
 
 ## Execution record
 
@@ -470,75 +472,17 @@ For each card, confirm its AC, category and scenario match the spec's §4.1 tabl
 git add tests/F1 tests/README.md
 git commit -m "test(f1): write the status lifecycle cards before the code
 
-Section 11.12 of implementation.md: F1's functional cards are written
-from its acceptance criteria before any code, and are confirmed by a
-person before code is written against them. Adds FX-SEEDED, since no
-user action can reach Confirmed until F5.
+F1's functional cards are written from its acceptance criteria before
+any code, so the code is built to the story rather than the tests to
+the code. The PR reviewer checks them against the ACs at merge time.
+Adds FX-SEEDED, since no user action can reach Confirmed until F5.
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 ```
 
 ---
 
-### Task 2: Independent agent pre-review of the cards
-
-Raphael asked for this pass. It is not the §11.12 confirmation; that's Task 3.
-
-**Files:** none changed unless findings are accepted.
-
-- [ ] **Step 1: Dispatch a fresh subagent with only the ACs and the cards**
-
-Give it F1's six acceptance criteria verbatim (from `documentation/final user stories.md`), the eleven card files, and `implementation.md` §8.4 "Deriving the cases from a story". **Do not** give it the spec, the plan, or any source code. Ask it to report, per card: an expected result that isn't specific enough to call pass or fail; a missing category (happy, cross-cutting, negative, boundary) for an AC; cases that all exercise the same path; steps someone outside the team couldn't follow without asking.
-
-- [ ] **Step 2: Triage the findings with Raphael**
-
-Apply the accepted ones to the cards. Record rejected ones in one line each in the Task 3 hand-off message, so the human confirmer sees them too.
-
-- [ ] **Step 3: Commit any changes**
-
-```bash
-git add tests/F1
-git commit -m "test(f1): tighten the cards after an independent review
-
-Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
-```
-
----
-
-### Task 3: GATE — a teammate confirms every expected result
-
-**No code task (4 onward) starts until this task is complete.**
-
-**Files:**
-- Modify: `tests/F1/*.md`, the note under each specification
-
-- [ ] **Step 1: Hand off**
-
-Raphael asks a teammate who was not part of the F1 design to read each card's Expected Result next to its acceptance criterion and answer one question per card: *is this what the story requires?*
-
-- [ ] **Step 2: Apply their corrections**
-
-- [ ] **Step 3: Record the confirmation on every card**
-
-Replace each card's "Expected results not yet confirmed" note (keep any sentences after it) with:
-
-```markdown
-> **Expected results confirmed** by <teammate's name> on <date>, against F1's acceptance criteria
-> (`implementation.md` §11.12).
-```
-
-- [ ] **Step 4: Commit**
-
-```bash
-git add tests/F1
-git commit -m "test(f1): record who confirmed the cards' expected results
-
-Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
-```
-
----
-
-### Task 4: The transition table gains CONFIRM and COMPLETE
+### Task 2: The transition table gains CONFIRM and COMPLETE
 
 **Files:**
 - Modify: `backend/services/event/src/domain/statusMachine.ts` (whole file)
@@ -774,7 +718,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 
 ---
 
-### Task 5: The single status write — `updateStatusIf`
+### Task 3: The single status write — `updateStatusIf`
 
 **Files:**
 - Create: `backend/services/event/src/repo/eventStatus.ts`
@@ -1114,7 +1058,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 
 ---
 
-### Task 6: `transitionEvent` and the column fragments
+### Task 4: `transitionEvent` and the column fragments
 
 **Files:**
 - Create: `backend/services/event/src/api/transitionEvent.ts`
@@ -1493,7 +1437,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 
 ---
 
-### Task 7: Approve and reject through `transitionEvent` (D4, D5)
+### Task 5: Approve and reject through `transitionEvent` (D4, D5)
 
 **Files:**
 - Modify: `backend/services/event/src/api/decisions.ts` (whole file)
@@ -1705,7 +1649,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 
 ---
 
-### Task 8: Clarification request and response through `transitionEvent` (D2, D3)
+### Task 6: Clarification request and response through `transitionEvent` (D2, D3)
 
 **Files:**
 - Modify: `backend/services/event/src/api/clarifications.ts`
@@ -1947,7 +1891,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 
 ---
 
-### Task 9: Open for review through `transitionEvent` (D1)
+### Task 7: Open for review through `transitionEvent` (D1)
 
 **Files:**
 - Modify: `backend/services/event/src/api/events.ts`
@@ -2040,7 +1984,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 
 ---
 
-### Task 10: Submission through `transitionEvent` (B1, C2)
+### Task 8: Submission through `transitionEvent` (B1, C2)
 
 **Files:**
 - Modify: `backend/services/event/src/repo/drafts.ts` (`insertDraft`, `jsonOrNull` types)
@@ -2457,7 +2401,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 
 ---
 
-### Task 11: Retire the old status writers and guard against new ones (AC2)
+### Task 9: Retire the old status writers and guard against new ones (AC2)
 
 **Files:**
 - Modify: `backend/services/event/tests/repo/events.test.ts`
@@ -2753,7 +2697,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 
 ---
 
-### Task 12: The completion sweep (AC6)
+### Task 10: The completion sweep (AC6)
 
 **Files:**
 - Create: `backend/services/event/src/jobs/completeEvents.ts`
@@ -3020,7 +2964,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 
 ---
 
-### Task 13: `npm run jobs:complete-events`
+### Task 11: `npm run jobs:complete-events`
 
 **Files:**
 - Create: `backend/services/event/src/jobs/runCompleteEvents.ts`
@@ -3131,7 +3075,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 
 ---
 
-### Task 14: Trace, run the cards, record, push, and open the PR
+### Task 12: Trace, run the cards, record, push, and open the PR
 
 **Files:**
 - Modify: `documentation/traceability/sprint-2.csv`
@@ -3207,8 +3151,8 @@ Completed to follow the recorded end.
 - **The completion sweep** and **`npm run jobs:complete-events`** to trigger it until the Scheduled
   Job Runner exists.
 - **An architecture test** that fails if any other statement sets an event's status.
-- **`tests/F1/`** — eleven cards, confirmed by <name> before any code was written (§11.12), and
-  **FX-SEEDED** in `tests/README.md`.
+- **`tests/F1/`** — eleven cards written from the ACs before any code, and **FX-SEEDED** in
+  `tests/README.md`.
 
 ## Changed
 
@@ -3226,6 +3170,12 @@ Completed to follow the recorded end.
   `lockEventInScope` from the event repo.
 
 ## Decided, and raised
+
+- **§11.12 was waived for F1.** The team decided on 2026-09-30 that the cards are not confirmed by a
+  second person before code is written, and dropped the agent pre-review. The human check moved to
+  merge time: `main` requires an approving PR review, and the reviewer checks each card's expected
+  result against its AC. `implementation.md` §11.12 still states the before-code rule; amending it
+  for the whole team is a separate, reviewed change.
 
 - **Only Confirmed events complete** — a gap in AC6, decided by Raphael on 2026-09-30. The Sprint 2
   Product Owner, when named, should see it.
@@ -3252,7 +3202,7 @@ git push -u origin feature-raphael/f1-status-lifecycle
 
 - [ ] **Step 7: Open the PR**
 
-Open a PR from `feature-raphael/f1-status-lifecycle` to `main` and ask for a peer review (§8.3). The body lists the six ACs with the test covering each, the three behaviour changes (resubmission message, race-loser code, `SUBMIT` history action), the "Decided, and raised" items, and ends with:
+Open a PR from `feature-raphael/f1-status-lifecycle` to `main` and ask for a peer review (§8.3). `main` requires an approving review before merge. **The reviewer's job includes the check §11.12 used to do before the code:** read each `tests/F1/` card's Expected Result next to its acceptance criterion and confirm it is what the story requires. Say so at the top of the PR body. The body then lists the six ACs with the test covering each, the three behaviour changes (resubmission message, race-loser code, `SUBMIT` history action), the "Decided, and raised" items, and ends with:
 
 ```
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
@@ -3262,8 +3212,8 @@ Open a PR from `feature-raphael/f1-status-lifecycle` to `main` and ask for a pee
 
 ## Self-Review
 
-**Spec coverage.** §3.1 table → Task 4. §3.2 `transitionEvent`, `extra`, retired functions, direct submission → Tasks 5, 6, 10, 11. §3.3 sweep, per-event transactions, idempotence, script, logging → Tasks 12, 13. §4.1 cards, FX fixture → Task 1; agent pre-review → Task 2; confirmation gate → Task 3. §4.2 unit, integration, concurrency, architecture guard, regression, traceability → Tasks 4–12, 14. §5 raised items → CHANGELOG in Task 14. Decision 2 (only Confirmed) → Tasks 4, 6, 12 and card F1-T10.
+**Spec coverage.** §3.1 table → Task 2. §3.2 `transitionEvent`, `extra`, retired functions, direct submission → Tasks 3, 4, 8, 9. §3.3 sweep, per-event transactions, idempotence, script, logging → Tasks 10, 11. §4.1 cards, FX fixture → Task 1; the before-code confirmation and agent pre-review were waived by the team, and the check moved to the PR review → Task 12. §4.2 unit, integration, concurrency, architecture guard, regression, traceability → Tasks 2–10, 12. §5 raised items → CHANGELOG in Task 12. Decision 2 (only Confirmed) → Tasks 2, 4, 10 and card F1-T10.
 
-**Placeholders.** The only angle-bracket values are in Task 14's CHANGELOG entry and Task 3's confirmation line. They record facts (a name, a SHA, counts, a timestamp) that only exist once the preceding steps have run, and the steps say so.
+**Placeholders.** The only angle-bracket values are in Task 12's CHANGELOG entry. They record facts (a SHA, counts, a timestamp) that only exist once the preceding steps have run, and the steps say so.
 
-**Type consistency.** `Fragment` is defined in `repo/eventStatus.ts` and used by `repo/events.ts` and `api/transitionEvent.ts`. `StatusUpdate { eventId, from, to, actorId, set?, onlyIf? }` matches every `updateStatusIf` call. `transitionEvent(tx, eventId, action, actor, { set?, now? })` matches every call in Tasks 6–12. `TransitionOutcome` is `{ ok: true; event; previousStatus } | { ok: false; currentStatus; message }`, and callers read `.ok`, `.event` and `.message` only. `SubmitResult` is `{ ok: true; event } | { ok: false; message }`, and both handlers read the same. `CompletionRun { completed, skipped, failed }` is used identically in Tasks 12 and 13.
+**Type consistency.** `Fragment` is defined in `repo/eventStatus.ts` and used by `repo/events.ts` and `api/transitionEvent.ts`. `StatusUpdate { eventId, from, to, actorId, set?, onlyIf? }` matches every `updateStatusIf` call. `transitionEvent(tx, eventId, action, actor, { set?, now? })` matches every call in Tasks 4–10. `TransitionOutcome` is `{ ok: true; event; previousStatus } | { ok: false; currentStatus; message }`, and callers read `.ok`, `.event` and `.message` only. `SubmitResult` is `{ ok: true; event } | { ok: false; message }`, and both handlers read the same. `CompletionRun { completed, skipped, failed }` is used identically in Tasks 10 and 11.
