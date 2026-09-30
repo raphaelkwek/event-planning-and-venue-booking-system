@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { evaluateTransition, QUEUE_STATUSES } from "../../src/domain/statusMachine.js";
+import { EVENT_STATUSES, type EventStatus } from "@connectsphere/contracts";
+import {
+  COMPLETION_NOT_DUE_MESSAGE,
+  evaluateTransition,
+  QUEUE_STATUSES,
+  refusalMessage,
+  transitionRule,
+  type EventAction,
+} from "../../src/domain/statusMachine.js";
 
 /**
  * F1 — status changes only through a defined action, and a transition that is
@@ -95,5 +103,63 @@ describe("QUEUE_STATUSES (D1)", () => {
 
   it("does not include Draft, which never appears in the queue", () => {
     expect(QUEUE_STATUSES).not.toContain("DRAFT");
+  });
+});
+
+/**
+ * Written out independently of the table under test, so these tests compare
+ * the table with the stories rather than reading the table back to itself.
+ */
+const PERMITTED_FROM: Record<EventAction, EventStatus[]> = {
+  SUBMIT: ["DRAFT"],
+  OPEN_FOR_REVIEW: ["SUBMITTED"],
+  REQUEST_CLARIFICATION: ["UNDER_REVIEW"],
+  RESPOND_TO_CLARIFICATION: ["AWAITING_CLARIFICATION"],
+  APPROVE: ["UNDER_REVIEW", "AWAITING_CLARIFICATION"],
+  REJECT: ["UNDER_REVIEW", "AWAITING_CLARIFICATION"],
+  CONFIRM: ["APPROVED", "PLANNING"],
+  COMPLETE: ["CONFIRMED"],
+};
+
+describe("every status against every action (F1)", () => {
+  for (const [action, from] of Object.entries(PERMITTED_FROM) as [EventAction, EventStatus[]][]) {
+    for (const status of EVENT_STATUSES) {
+      const permitted = from.includes(status);
+      it(`${permitted ? "permits" : "refuses"} ${action} from ${status}`, () => {
+        expect(evaluateTransition(status, action).permitted).toBe(permitted);
+      });
+    }
+  }
+});
+
+describe("CONFIRM and COMPLETE (F1)", () => {
+  it("reaches Confirmed from Approved or Planning (F1, performed by F5)", () => {
+    expect(transitionRule("CONFIRM")).toEqual({ from: ["APPROVED", "PLANNING"], to: "CONFIRMED" });
+  });
+
+  it("completes only a Confirmed event", () => {
+    expect(transitionRule("COMPLETE")).toEqual({ from: ["CONFIRMED"], to: "COMPLETED" });
+  });
+
+  it("refuses completing an Approved event, which was never confirmed", () => {
+    const result = evaluateTransition("APPROVED", "COMPLETE");
+
+    expect(result.permitted).toBe(false);
+    if (result.permitted) throw new Error("expected a refusal");
+    expect(result.message).toBe("This event is Approved and cannot move to Completed.");
+  });
+});
+
+describe("refusal messages (F1)", () => {
+  it("name the current status and the target as the user reads them", () => {
+    expect(refusalMessage("REJECTED", "APPROVED")).toBe(
+      "This event is Rejected and cannot move to Approved."
+    );
+  });
+
+  it("name both statuses when completion is refused as not yet due", () => {
+    expect(COMPLETION_NOT_DUE_MESSAGE).toBe(
+      "This event is Confirmed and cannot move to Completed until its end date and time have passed."
+    );
   });
 });
