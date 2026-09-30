@@ -31,8 +31,9 @@ F1 needs **no change to `/backend/packages/contracts`**. The statuses, the `SYST
 2. **Only Confirmed events complete.** An Approved or Planning event whose end has passed was never
    given a confirmed venue (F5), so it did not happen, and marking it Completed would contradict
    F1's own user story. It stays where it is; a coordinator cancels it through F3. *This fills a
-   gap in AC6, which says when an event completes but not from which status. It needs the Product
-   Owner's confirmation and is recorded as an assumption until then.*
+   gap in AC6, which says when an event completes but not from which status. Confirmed by Raphael
+   on 2026-09-30. He was Sprint 1's Product Owner; the Sprint 2 Product Owner is still an open
+   retrospective action, so whoever takes that role should see this decision.*
 3. **The trigger is a script now, an endpoint later.** No code implements the service-to-service
    token in `implementation.md` §6 (`INTERNAL_TOKEN_SECRET` is read nowhere), and F1 should not set
    that team-wide convention. `npm run jobs:complete-events` calls the sweep directly, as
@@ -136,6 +137,12 @@ tested; no user journey exercises it yet.
 
 `implementation.md` §11.12 applies: **the functional cards are written first, from the ACs, and the
 story owner confirms every expected result before any code is written.**
+
+The story owner (Raphael) delegates that confirmation to a teammate who was not part of this
+design, because independence from the design is what §11.12 protects. The confirmer is named on
+each card. An agent may review the drafts for mechanical gaps first, but an agent's review is not
+the confirmation: §11.12 requires a person, and changing that is a change to `implementation.md`.
+The owner remains accountable for the trace (§11 rule 10).
 
 ### 4.1 Functional cards — `tests/F1/`
 
