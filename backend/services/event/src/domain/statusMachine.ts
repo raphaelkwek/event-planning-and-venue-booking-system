@@ -21,8 +21,8 @@ export type EventAction =
   | "COMPLETE";
 
 export interface TransitionRule {
-  from: readonly EventStatus[];
-  to: EventStatus;
+  readonly from: readonly EventStatus[];
+  readonly to: EventStatus;
 }
 
 const TRANSITIONS: Record<EventAction, TransitionRule> = {
@@ -54,7 +54,8 @@ export function refusalMessage(current: EventStatus, target: EventStatus): strin
 
 /** F1 — a Confirmed event refused completion because its end has not passed. */
 export const COMPLETION_NOT_DUE_MESSAGE =
-  "This event is Confirmed and cannot move to Completed until its end date and time have passed.";
+  `This event is ${EVENT_STATUS_LABELS.CONFIRMED} and cannot move to ` +
+  `${EVENT_STATUS_LABELS.COMPLETED} until its end date and time have passed.`;
 
 export interface TransitionAllowed {
   permitted: true;

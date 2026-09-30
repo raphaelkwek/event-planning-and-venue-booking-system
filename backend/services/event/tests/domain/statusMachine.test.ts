@@ -110,23 +110,30 @@ describe("QUEUE_STATUSES (D1)", () => {
  * Written out independently of the table under test, so these tests compare
  * the table with the stories rather than reading the table back to itself.
  */
-const PERMITTED_FROM: Record<EventAction, EventStatus[]> = {
-  SUBMIT: ["DRAFT"],
-  OPEN_FOR_REVIEW: ["SUBMITTED"],
-  REQUEST_CLARIFICATION: ["UNDER_REVIEW"],
-  RESPOND_TO_CLARIFICATION: ["AWAITING_CLARIFICATION"],
-  APPROVE: ["UNDER_REVIEW", "AWAITING_CLARIFICATION"],
-  REJECT: ["UNDER_REVIEW", "AWAITING_CLARIFICATION"],
-  CONFIRM: ["APPROVED", "PLANNING"],
-  COMPLETE: ["CONFIRMED"],
+const EXPECTED: Record<EventAction, { from: EventStatus[]; to: EventStatus }> = {
+  SUBMIT: { from: ["DRAFT"], to: "SUBMITTED" },
+  OPEN_FOR_REVIEW: { from: ["SUBMITTED"], to: "UNDER_REVIEW" },
+  REQUEST_CLARIFICATION: { from: ["UNDER_REVIEW"], to: "AWAITING_CLARIFICATION" },
+  RESPOND_TO_CLARIFICATION: { from: ["AWAITING_CLARIFICATION"], to: "UNDER_REVIEW" },
+  APPROVE: { from: ["UNDER_REVIEW", "AWAITING_CLARIFICATION"], to: "APPROVED" },
+  REJECT: { from: ["UNDER_REVIEW", "AWAITING_CLARIFICATION"], to: "REJECTED" },
+  CONFIRM: { from: ["APPROVED", "PLANNING"], to: "CONFIRMED" },
+  COMPLETE: { from: ["CONFIRMED"], to: "COMPLETED" },
 };
 
 describe("every status against every action (F1)", () => {
-  for (const [action, from] of Object.entries(PERMITTED_FROM) as [EventAction, EventStatus[]][]) {
+  for (const [action, { from, to }] of Object.entries(EXPECTED) as [
+    EventAction,
+    { from: EventStatus[]; to: EventStatus },
+  ][]) {
     for (const status of EVENT_STATUSES) {
       const permitted = from.includes(status);
       it(`${permitted ? "permits" : "refuses"} ${action} from ${status}`, () => {
-        expect(evaluateTransition(status, action).permitted).toBe(permitted);
+        if (permitted) {
+          expect(evaluateTransition(status, action)).toMatchObject({ permitted: true, to });
+        } else {
+          expect(evaluateTransition(status, action).permitted).toBe(false);
+        }
       });
     }
   }
@@ -157,7 +164,7 @@ describe("refusal messages (F1)", () => {
     );
   });
 
-  it("name both statuses when completion is refused as not yet due", () => {
+  it("use the story's wording for a completion that is not yet due", () => {
     expect(COMPLETION_NOT_DUE_MESSAGE).toBe(
       "This event is Confirmed and cannot move to Completed until its end date and time have passed."
     );
