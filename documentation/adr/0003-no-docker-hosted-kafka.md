@@ -1,6 +1,6 @@
 # ADR-0003: No Docker; one hosted Kafka cluster shared by the team
 
-**Status:** Accepted
+**Status:** Superseded by [ADR-0012](0012-containers-kubernetes-gitops-terraform.md) on 2026-10-01 for the no-Docker rule (images are now built in CI; local development still uses `npm run dev`). The hosted-Kafka choice continues under [ADR-0008](0008-kafka-cdc-outbox-cloudevents-schema-registry.md).
 **Date:** 2026-09-18
 
 ## Context
