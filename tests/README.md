@@ -97,6 +97,32 @@ address bar (`#/requests/<id>`, `#/drafts/<id>` or `#/review/<id>`), and its **r
 | **FX-APPROVED** | FX-UNDER-REVIEW → "Approve". |
 | **FX-REJECTED** | FX-UNDER-REVIEW → "Reject" → reason `No suitable venue is available.` → "Reject request". |
 | **FX-REASSIGNMENT-PENDING** | FX-SUBMITTED → sign out → sign in as whichever of `coordinator@connectsphere.test` / `coordinator2@connectsphere.test` the "Assigned coordinator" field on the request names (E1's round-robin means either may be assigned) → open the request from the review queue → "Propose reassignment" → nominee's user id is the *other* seeded coordinator's id (see the Accounts table) → "Send proposal". Note which account is outgoing and which is the nominee — later steps refer to them by role, not by name. |
+| **FX-SEEDED** | Run the FX-SEEDED statement below in the Supabase SQL editor, with the status and end time the case gives. Note the returned **id** and **reference**. Used for statuses no user action can reach yet (Confirmed needs F5). |
+
+### FX-SEEDED statement
+
+Replace `<STATUS>` and `<END>` with the case's values, e.g. `'CONFIRMED'` and `now() - interval '1 minute'`.
+
+~~~sql
+insert into event.events (
+  reference, owner_id, name, purpose, description, proposed_start_at, proposed_end_at,
+  expected_attendance, equipment_required, registration_required, status, submitted_at,
+  last_saved_at, created_by, updated_by
+) values (
+  'EVT-' || lpad(nextval('event.event_reference_seq')::text, 6, '0'),
+  '00000000-0000-0000-0000-000000000001', 'Annual Research Symposium',
+  'Share faculty research', 'A one-day symposium for the school of computing.',
+  <END> - interval '4 hours', <END>, 150, false, false, <STATUS>, now(), now(),
+  '00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000001'
+)
+returning id, reference;
+~~~
+
+The event is owned by `organiser@connectsphere.test`, so `npm run test-cases:reset` removes it.
+
+**The completion sweep is not scoped to your data.** `npm run jobs:complete-events` completes
+*every* Confirmed event in the shared database whose end has passed, a teammate's included. That is
+what the job does in production too.
 
 ## Tools a case may use
 

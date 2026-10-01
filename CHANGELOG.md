@@ -4,6 +4,48 @@
 
 ---
 
+# F1 in progress — design, plan, cards, and the transition table
+
+**Timestamp:** 2026-09-30T21:30+08:00 (SGT)
+**Author:** Raphael, via Claude
+**Scope:** F1
+**Reason:** F1 (event status lifecycle) is Sprint 2 work. Sprint 1 built the transition rule its
+own stories needed, but only four of six transitions consult it, `setStatus()` accepts any status
+unguarded, and nothing completes an event. This push is the first slice: the agreed design, the
+twelve-task plan, F1's functional cards, and the transition table. **F1 is not done.** Tasks 3–12
+(the guarded write path, moving each Sprint 1 path onto it, the completion sweep) follow.
+
+## Added
+
+- **Design and plan:** `documentation/superpowers/specs/2026-09-30-f1-status-lifecycle-design.md`
+  and `documentation/superpowers/plans/2026-09-30-f1-status-lifecycle.md` (with its `.tasks.json`).
+- **`tests/F1/`** — eleven functional cards written from F1's acceptance criteria before any code,
+  and **FX-SEEDED** in `tests/README.md` for statuses no user action can reach yet.
+- **`CONFIRM`** (Approved/Planning → Confirmed; F5 performs it) and **`COMPLETE`** (Confirmed →
+  Completed) in the transition table, with `transitionRule()`, `refusalMessage()` and the
+  not-yet-due message built from the status labels.
+- **Tests:** every status against every action, checked against an independently written table of
+  from-lists and targets; the ten permitted statuses against the story's own words.
+
+## Decided, and raised
+
+- **Only Confirmed events complete.** AC6 says when an event completes but not from which status;
+  Raphael decided on 2026-09-30. The Sprint 2 Product Owner, once named, should see it.
+- **§11.12 was waived for F1.** The team decided the cards are not confirmed by a second person
+  before code is written, and dropped the agent pre-review. The human check moves to merge time:
+  the PR reviewer checks each card's expected result against its AC. `implementation.md` §11.12
+  still states the before-code rule; amending it is a separate, reviewed change. For that check to
+  be enforced, `main` needs branch protection requiring an approving review — **not yet enabled**.
+- **No story moves an event into Planning.** Raised; F1 does not invent the action.
+
+## Verified
+
+- Event-service domain tests: 127/127. `tsc` clean. The cards were diffed against the plan's text.
+- Not yet run: the full suite (no database code has changed yet), and the F1 cards themselves
+  (their behaviour is not built yet).
+
+---
+
 # Correct the Sprint 1 scope to A1–E2, and move F1 to Sprint 2
 
 **Timestamp:** 2026-09-20T23:05+08:00 (SGT)
