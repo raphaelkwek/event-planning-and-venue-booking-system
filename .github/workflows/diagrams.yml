@@ -1,6 +1,8 @@
 # C4 diagrams (EN-09, SPM-127). Validates documentation/c4/connectsphere.dsl
-# and renders every view to PNG and SVG. Runs in CI because the Structurizr
-# CLI needs Java 17+; containers are allowed in CI (ADR-0012), never locally.
+# and renders every view to PNG and SVG. Runs in CI because Structurizr needs
+# Java 17+; containers are allowed in CI (ADR-0012), never locally. The old
+# structurizr/cli image is retired, so this uses the consolidated
+# structurizr/structurizr image, pinned to its CI ("noble") build.
 #
 # The rendered images are uploaded as the "c4-diagrams" artifact. When the
 # model changes, download that artifact and commit the images into
@@ -32,13 +34,15 @@ jobs:
 
       - name: Validate the model
         run: >
-          docker run --rm -v "$PWD/documentation/c4:/usr/local/structurizr"
-          structurizr/cli validate -workspace connectsphere.dsl
+          docker run --rm --user "$(id -u):$(id -g)"
+          -v "$PWD/documentation/c4:/usr/local/structurizr"
+          structurizr/structurizr:2026.09.19-noble validate -workspace connectsphere.dsl
 
       - name: Export every view to PlantUML
-        run: >
-          docker run --rm -v "$PWD/documentation/c4:/usr/local/structurizr"
-          structurizr/cli export -workspace connectsphere.dsl -format plantuml/structurizr -output build
+        run: |
+          docker run --rm --user "$(id -u):$(id -g)"             -v "$PWD/documentation/c4:/usr/local/structurizr"             structurizr/structurizr:2026.09.19-noble export -workspace connectsphere.dsl -format plantuml -output build
+          ls -l documentation/c4/build
+          if ! ls documentation/c4/build/*.puml >/dev/null 2>&1; then echo "No views were exported"; exit 1; fi
 
       - name: Render PNG and SVG
         run: |
