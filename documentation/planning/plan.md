@@ -163,7 +163,7 @@ Browser → staff console / attendee app (Vite dev servers, Vite proxy until the
         workflow workers ⇄ Temporal dev server (Temporal CLI, no Docker), from EN-11
 ```
 
-`npm run dev` at the repo root starts everything. Supabase and Kafka are hosted and shared, so nothing else runs locally. Until EN-01 merges Identity and Event, they keep their current separate processes and ports (identity 8081, event 8082). EN-01 fixes the core's port.
+`npm run dev` at the repo root starts everything. Supabase and Kafka are hosted and shared, so nothing else runs locally. EN-01 merged Identity and Event into planning-core on 2 Oct 2026; it runs on port 8090 (`PLANNING_CORE_PORT`), and the Vite dev server proxies `/identity/*` and `/event/*` to it.
 
 **Staging (EN-10, Tier 2):**
 - EKS in ap-southeast-1, provisioned by Terraform and synced by Argo CD from a config repo.

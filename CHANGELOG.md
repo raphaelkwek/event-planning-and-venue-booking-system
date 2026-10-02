@@ -4,6 +4,74 @@
 
 ---
 
+# EN-01: Identity and Event merged into planning-core, with module boundary checks
+
+**Timestamp:** 2026-10-02T09:45+08:00 (SGT)
+**Author:** Joash
+**Scope:**
+- `backend/services/planning-core` (new; replaces `backend/services/identity` and `backend/services/event`)
+- root `package.json` and `package-lock.json`, `backend/scripts/migrate.ts`, `.env.example`, `frontend/vite.config.ts`
+- `README.md`, `tests/README.md`, `implementation.md` §2 and §11, `definition-of-ready.md`, `plan.md` §8, ADR-0004
+- `documentation/traceability/sprint-1.csv` and `sprint-2.csv` (test paths only)
+
+**Reason:** EN-01 (SPM-119), ADR-0004. Until this change the architecture was decided on paper only; the code was still two services. Almost every Sprint 2 story builds inside the new layout, so this unblocks them. **No HTTP route, status code, error message or event message changed.** The only visible difference is that log lines now say `"service": "planning-core"`.
+
+## EN-01.1 — the skeleton and the boundary checks
+
+1. **One deployable, `@connectsphere/planning-core`:**
+   - `src/app.ts` mounts each module's router;
+   - `src/index.ts` starts it on `PLANNING_CORE_PORT` (default 8090);
+   - `src/shared/` holds the config, database pool, logger, JWT verification and health endpoints that both services had copies of.
+2. **Five modules** under `src/modules/`: `identity`, `event`, `venue`, `equipment` and `change`.
+   - Each has a public `index.ts`, the only file another module may import.
+   - Venue, equipment and change are empty, with their folders in place for H1, O1, P2 and the rest.
+3. **`npm run lint:boundaries`** runs two checks. I showed both failing on a planted violation and passing on the real code.
+   - **Imports:** dependency-cruiser fails on an import of another module's internals, on shared code importing a module, and on import cycles. It's pinned to v17, because v18 needs Node 22 and the project pins Node 20.
+   - **SQL:** `scripts/check-schema-boundaries.ts` fails when a file in `src/` or `migrations/` names another module's schema. Its matching rule is unit-tested (11 cases, including a reference split across lines).
+4. **Migrations** now live in `migrations/<module>/`, and `migrate.ts` reads them there. The `schema_migrations` keys are still `identity` and `event`, so nothing is re-applied. I checked read-only that all 9 files are recorded as applied.
+
+## EN-01.2 and EN-01.3 — Identity and Event moved in
+
+5. **Code, migrations and tests moved with `git mv`,** so `git log --follow` still shows each file's history. Each service's copy of the shared files was replaced by the one in `src/shared/`, and Identity's duplicate health test was dropped.
+6. **The event module no longer calls Identity over HTTP.**
+   - `auth/identityClient.ts` became `auth/identity.ts`, which calls `lookUpCaller` and `resolveAccessScope` from `modules/identity/index.ts` in the same process.
+   - Refusals are unchanged: 401 `UNAUTHENTICATED`, 403 `NO_ROLE_ASSIGNED`, and 503 `IDENTITY_UNAVAILABLE` when identity's records can't be read. Seven new unit tests pin them.
+   - `IDENTITY_BASE_URL` is no longer read.
+7. **`modules/event/index.ts` exports `findEventForPlanning`.** It returns an event's timing, attendance and requirements, and keeps the A3 scope rule. K1, J1's prefill and O1 read the event through it (3 integration tests).
+8. **Configuration is split by owner:**
+   - `shared/config.ts` holds what every module reads;
+   - `modules/identity/config.ts` holds the Supabase Auth client's settings;
+   - `modules/event/config.ts` holds the coordinator pool and the message `producer`, which stays `event-service`.
+
+   Older `.env` files keep working. `PORT`, `SERVICE_NAME`, `EVENT_PORT` and `IDENTITY_BASE_URL` are simply ignored now.
+9. **`npm run dev`** starts planning-core and the web app. The Vite proxy sends both `/identity/*` and `/event/*` to planning-core, so no frontend API call changed.
+
+## Verified
+
+- **Tests:** 321 pass (26 files). That's the 297 from before minus Identity's duplicate health test, plus 26 new tests.
+- **Typecheck:** `tsc --noEmit` passes.
+- **Boundary checks:** `npm run lint:boundaries` passes.
+- **Live run:** planning-core started and served `/healthz`, `/readyz`, and Identity's and Event's routes on one port. A real sign-in as the seeded coordinator, organiser and attendee gave the same results as before:
+  - coordinator: all events and the review queue;
+  - organiser: only their own event, refused the queue;
+  - attendee: no events, refused the queue.
+
+## Review
+
+The `code-reviewer` agent reviewed the diff and approved it, with no critical or high findings. I fixed its one actionable low: the SQL check missed a reference split across lines.
+
+The injected-`sql` point is a deliberate follow-up. The event module's `authenticate` middleware uses the shared pool, not the router's injected `sql`, which is no worse than the HTTP call it replaced. Fixing it means changing every event router, so it waits for a separate PR.
+
+## For the team
+
+- **Raphael (F1):** F1's next tasks move from `backend/services/event/src/…` to `backend/services/planning-core/src/modules/event/…`, and its tests to `tests/event/…`. Rebase onto this branch, and git will follow the renames for files you've already changed.
+- **Unblocked once this merges:**
+  - H1, F2, G1, EN-02.2, EN-07.2, EN-08 and EN-03;
+  - F1 too, as far as EN-01.3 is concerned;
+  - K1, once H1 is done.
+
+---
+
 # Jira changes — pull-ready Sprint 2: subtasks, blocker links, Start-here sections, ranking; Definition of Ready
 
 **Timestamp:** 2026-10-02T07:50+08:00 (SGT)

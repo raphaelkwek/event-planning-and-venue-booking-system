@@ -6,10 +6,11 @@
 >
 > | Section | What still reflects the old design | ADR | Rewrite owner |
 > |---|---|---|---|
-> | §2 | Service-per-workspace layout | ADR-0004 (modular core) | EN-01 |
 > | §3 | Topic naming and the custom envelope | ADR-0008 (topics per aggregate, CloudEvents) | EN-04 |
 > | §4.6 | Registration capacity counters | ADR-0005 (seat rows) | EN-13 |
 > | §6 | Authorisation | ADR-0010 (Cerbos and RLS) | EN-07 |
+>
+> §2 was rewritten for ADR-0004 on 2 Oct 2026, when EN-01 merged Identity and Event into `planning-core`.
 
 ---
 
@@ -32,34 +33,45 @@
 
 ## 2. Repository layout
 
+Staff-facing code is **one deployable, `planning-core`**, made of modules (ADR-0004). Registration and Notification will be separate services when EN-13 and EN-04.3 build them (ADR-0005, ADR-0008).
+
 ```
 /frontend                   SPA (all roles)
   /src  /tests
 /backend
   /services
-    /identity  /event  /venue  /equipment  /registration  /notification
+    /planning-core          one Express app, one process (ADR-0004)
       /src
-        /api                Express routers + request validation
-        /domain             business rules, pure, no I/O
-        /repo               SQL only, one function per query
-        /events             outbox writer + Kafka consumers
-        index.ts
-      /migrations           NNNN_description.sql, forward-only
-      /tests                unit and integration tests, next to the code
+        index.ts            starts the app listening
+        app.ts              mounts each module's router; nothing else
+        /shared             config, db pool, logger, JWT verification, health
+        /modules
+          /identity  /event  /venue  /equipment  /change
+            /api            Express routers + request validation
+            /domain         business rules, pure, no I/O
+            /repo           SQL only, this module's schema only, one function per query
+            /events         outbox writer + Kafka consumers
+            index.ts        the module's public interface: the only file other modules import
+      /migrations/<module>  NNNN_description.sql, forward-only; identity's seed SQL in /identity/seed
+      /tests/<module>       unit and integration tests for that module
+      /scripts              the schema boundary check
+      .dependency-cruiser.cjs  the import boundary check
+    /registration           EN-13, not built yet
+    /notification           EN-04.3, not built yet
   /packages
     /contracts              event schemas, shared TS types, error codes  ← changing this needs review
-  /scripts                  migrate.ts
+  /scripts                  migrate.ts (`npm run migrate -- <module>`)
   /supabase                 Supabase CLI config (run as `npx supabase --workdir backend …`)
-  tsconfig.base.json        extended by the services and contracts
+  tsconfig.base.json        extended by planning-core and contracts
 /documentation
-  /planning                 plan.md, implementation.md, Jira backlog
+  /planning                 plan.md, implementation.md, definition-of-ready.md, Jira snapshot
   /adr                      architecture decision records
   /proposals                decisions still being agreed
   /superpowers              /specs and /plans written by the Superpowers plugin
   /traceability             sprint-<n>.csv (§8.2)
   /scripts                  confluence-digest.ts
   /transcript               meeting transcripts
-  Final_User_Stories__2_.md, sprint-reallocation.csv
+  final user stories.md, sprint allocation.csv
 /tests                      functional test cases, one folder per user story (§8.4)
   /<story-id>               e.g. /tests/D5/D5-T1-reject-with-a-reason.md
   /flows/sprint-<n>         the sprint flow test: flow.md, seed.sql, flow.spec.ts (§8.2)
@@ -67,9 +79,13 @@
 CHANGELOG.md  README.md  CLAUDE.md  package.json  .env
 ```
 
-`tests/` is its own top-level folder because its cases and their automated scripts drive the running web app against the running services, so they belong to neither half. Unit and integration tests stay next to the code they test. The root keeps only what must live there: npm workspaces and the root `npm run dev` that starts the whole stack, the shared `.env`, and the files GitHub, Claude Code and §11.2 expect at the root.
+`tests/` is its own top-level folder because its cases and their automated scripts drive the running web app against the running backend, so they belong to neither half. Unit and integration tests stay next to the code they test. The root keeps only what must live there: npm workspaces and the root `npm run dev` that starts the whole stack, the shared `.env`, and the files GitHub, Claude Code and §11.2 expect at the root.
 
-**You may write inside your own service directory and your own migrations only.** `/backend/packages/contracts` is shared: a PR touching it must be reviewed by at least one other service owner before merge.
+**You may write inside your own module, its migrations and its tests only.** A module owns its Postgres schema of the same name (`identity`, `event`, `venue`, `equipment`, `change`).
+
+- **Reading another module's data:** call a function exported from that module's `index.ts`. Never import its other files, never query its schema, and never call it over HTTP. Inside the core, a cross-module rule (F4, F5, S2/S3, G2) is one Postgres transaction (ADR-0004).
+- **`npm run lint:boundaries` enforces this** and fails on either kind of breach: dependency-cruiser rejects an import of another module's internals, and a SQL check rejects a reference to another module's schema in `src/` or `migrations/`.
+- **`/backend/packages/contracts` is shared:** a PR touching it must be reviewed by at least one other module owner before merge.
 
 ## 3. Kafka message format (mandatory)
 
@@ -530,7 +546,7 @@ Cloud-readiness rules to follow now so the move is boring later: services are st
 Each of us is running Claude Code against a shared repo. These exist to stop six agents producing six incompatible interpretations.
 
 1. **Read `plan.md` §4–§6 and this document's §3 and §4 before writing code.** They contain the contracts the rest of the team depends on.
-2. **Stay inside your service directory and your own migrations.** Do not "helpfully" fix another service.
+2. **Stay inside your own module, its migrations and its tests.** Do not "helpfully" fix another module; `npm run lint:boundaries` fails if you reach into one (§2).
 3. **Do not invent fields, event types, error codes, status values, or endpoints.** If the story needs one that isn't in `/backend/packages/contracts`, stop, propose it to the team, add it in a reviewed PR.
 4. **Implement the acceptance criteria as written.** If an AC seems wrong or impossible, raise it — do not silently improve it. The ACs are the spec and the test basis.
 5. **Refusal paths are features.** Most stories specify what happens when an action is refused and assert nothing is stored. Implement and test those alongside the happy path.

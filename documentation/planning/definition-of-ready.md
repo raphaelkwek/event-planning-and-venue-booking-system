@@ -45,7 +45,7 @@ When an item stops being ready (a new blocker, or a changed requirement), swap `
 
 ## Where code goes now (ADR-0004)
 
-New staff-facing code lives in **one deployable**, `planning-core`. Subtask EN-01.1 creates this layout. Every module follows it:
+Staff-facing code lives in **one deployable**, `planning-core`. EN-01 created this layout on 2 Oct 2026. Every module follows it:
 
 ```
 backend/services/planning-core/
@@ -63,7 +63,7 @@ backend/services/planning-core/
   tests/<module>/            unit and integration tests
 ```
 
-Registration and Notification stay separate services (ADR-0005, ADR-0008). Until EN-01.2 and EN-01.3 move them, Identity and Event still live in `backend/services/identity` and `backend/services/event`. Don't start new code there.
+Identity and Event are already modules here; `backend/services/identity` and `backend/services/event` no longer exist. Registration and Notification will be separate services (ADR-0005, ADR-0008). Read another module's data only through its `index.ts`. `npm run lint:boundaries` fails if a module imports another's internals or queries its schema.
 
 ## The agent prompt in each item
 

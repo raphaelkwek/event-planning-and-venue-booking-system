@@ -38,10 +38,9 @@ Every case's first pre-condition is "Standard environment running and test data 
 
 1. `npm install` (once).
 2. `npm run migrate:identity`, `npm run migrate:event`, `npm run seed:auth` (safe to repeat).
-3. Three terminals, left running:
-   - `npm run dev -w @connectsphere/identity-service`
-   - `npm run dev -w @connectsphere/event-service`
-   - `npm run dev -w @connectsphere/web`
+3. `npm run dev` at the repo root, left running. It starts planning-core (the identity and event
+   modules in one process, ADR-0004) and the web app in one terminal. To run them separately:
+   `npm run dev -w @connectsphere/planning-core` and `npm run dev -w @connectsphere/web`.
 4. **`npm run test-cases:reset`** — immediately before the case, every time.
 5. Open **http://localhost:5173**. Use `localhost`, not `127.0.0.1`, which the dev server refuses.
 

@@ -2,7 +2,7 @@
 
 **Status:** Accepted. Amends ADR-0001.
 **Date:** 2026-10-01
-**Owner:** whoever takes EN-01 (SPM-119), not yet assigned. The owner presents this in the Week 13 Q&A.
+**Owner:** Joash, who took EN-01 (SPM-119). The owner presents this in the Week 13 Q&A.
 **Approval:** team decision, reported 1 Oct 2026. See the gate log in `documentation/proposals/2026-10-01-target-architecture-and-jira-plan.md` §8.
 
 ## Context
@@ -58,4 +58,4 @@ The customer's scale is about 500 internal staff. None of the staff-facing parts
 
 **What a reviewer should watch for:** an import of another module's internals, SQL against another module's schema, or a new HTTP call between two modules that both live in the core. Each violates this ADR.
 
-**Implemented by:** EN-01 (SPM-119). **Related:** ADR-0001 (amended), ADR-0002 (superseded by ADR-0009).
+**Implemented by:** EN-01 (SPM-119), on 2 Oct 2026: `backend/services/planning-core`, with `npm run lint:boundaries` running both checks. **Related:** ADR-0001 (amended), ADR-0002 (superseded by ADR-0009).

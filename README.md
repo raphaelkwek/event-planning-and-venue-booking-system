@@ -3,7 +3,7 @@
 | Folder | Holds |
 |---|---|
 | `frontend/` | The web app, one for every role. |
-| `backend/` | The services, the shared `contracts` package, the migration script and the Supabase CLI config. |
+| `backend/` | `planning-core` (the staff-facing modules in one process, ADR-0004), the shared `contracts` package, the migration script and the Supabase CLI config. |
 | `documentation/` | Planning (`plan.md`, `implementation.md`), ADRs, proposals, user stories, Superpowers specs and plans, traceability. |
 | `tests/` | Functional test cases, one folder per user story. Unit and integration tests live beside their code. |
 
@@ -14,16 +14,16 @@
 3. `cp .env.example .env` and fill it in. There is no Docker, and nothing runs locally besides Node (ADR-0003):
    - **Supabase** — from the team's hosted project: the transaction pooler connection string (port 6543) as `DATABASE_URL`, plus `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` and `SUPABASE_JWKS_URL`.
    - **Kafka** — the shared hosted cluster's bootstrap server and SASL credentials (`KAFKA_*`). No service publishes to Kafka yet, so these can wait until the outbox relay is built.
-4. `npm run migrate:identity` — applies the identity schema and seed SQL.
-5. `npm run migrate:event` — applies the event schema.
-6. `npm run seed:auth` — creates matching Supabase Auth users (password: see `backend/services/identity/migrations/seed/seed-auth-users.ts`).
-7. `npm test` — runs every service, package and script test suite.
-8. `npm run dev` — starts the Identity service on `:8081`, the Event service on `:8082` and the web app on <http://localhost:5173> in one terminal, each line prefixed with where it came from. The Vite dev server proxies `/identity/*` to `:8081` and `/event/*` to `:8082`, so the browser only ever talks to one origin and neither service needs CORS. To run just one: `npm run dev -w @connectsphere/identity-service` (or `event-service`, `web`).
+4. `npm run migrate:identity` — applies the identity module's schema and seed SQL.
+5. `npm run migrate:event` — applies the event module's schema.
+6. `npm run seed:auth` — creates matching Supabase Auth users (password: see `backend/services/planning-core/migrations/identity/seed/seed-auth-users.ts`).
+7. `npm test` — runs every workspace's test suite and the script tests. `npm run lint:boundaries` checks that no module reaches into another's files or schema.
+8. `npm run dev` — starts planning-core on `:8090` and the web app on <http://localhost:5173> in one terminal, each line prefixed with where it came from. The Vite dev server proxies `/identity/*` and `/event/*` to planning-core, so the browser only ever talks to one origin and planning-core needs no CORS. To run just one: `npm run dev -w @connectsphere/planning-core` (or `web`).
 
 ### Trying the stories in the browser
 
 Sign in at <http://localhost:5173> with any seeded account; the login screen lists them and they all
-use the password in `backend/services/identity/migrations/seed/seed-auth-users.ts`. What each story looks
+use the password in `backend/services/planning-core/migrations/identity/seed/seed-auth-users.ts`. What each story looks
 like:
 
 | Story | Where |

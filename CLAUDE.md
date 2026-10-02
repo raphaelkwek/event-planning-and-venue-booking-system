@@ -9,6 +9,12 @@ The architecture is ADR-0004 to ADR-0015 (`documentation/adr/`), accepted on 202
 `planning-core` plus registration and notification services. Where `implementation.md` still
 describes the older six-service design, the ADR wins (see the note at the top of that file).
 
+Staff-facing code lives in `backend/services/planning-core/src/modules/<module>/` (identity, event,
+venue, equipment, change). `backend/services/identity` and `backend/services/event` were merged into
+it on 2026-10-02 (EN-01). A module reads another module's data only through that module's
+`index.ts`; run `npm run lint:boundaries` before you push, as it fails on any other import or on SQL
+naming another module's schema.
+
 Containers are allowed, but only in CI. ADR-0012 supersedes ADR-0003's no-Docker rule: container
 images are built in CI and deployed by EN-10. Local development doesn't use Docker. Supabase is the
 team's hosted project, Kafka is one hosted cluster reached through the `KAFKA_*` variables, and
