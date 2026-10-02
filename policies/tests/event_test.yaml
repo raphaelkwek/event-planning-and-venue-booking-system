@@ -97,4 +97,10 @@ tests:
       principals: [attendee, other_attendee]
       resources: [event_not_open]
       actions: [view, view_history]
-    expected: []
+    expected: # Cerbos needs at least one expectation, so the denials are spelled out
+      - principal: attendee
+        resource: event_not_open
+        actions: { view: EFFECT_DENY, view_history: EFFECT_DENY }
+      - principal: other_attendee
+        resource: event_not_open
+        actions: { view: EFFECT_DENY, view_history: EFFECT_DENY }
