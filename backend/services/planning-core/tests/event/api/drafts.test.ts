@@ -3,7 +3,11 @@ import request from "supertest";
 import { testDb } from "../../support/testDb.js";
 
 vi.mock("../../../src/shared/auth/verifyJwt.js", () => ({
-  verifyJwt: (req: any, _res: any, next: any) => {
+  verifyJwt: (
+    req: { auth?: { supabaseUserId?: string }; header(name: string): string | undefined },
+    _res: unknown,
+    next: () => void
+  ) => {
     req.auth = { supabaseUserId: "test-subject" };
     next();
   },
@@ -208,7 +212,7 @@ describe("GET /api/v1/events (C3)", () => {
     const res = await request(app).get("/api/v1/events").set(bearer);
 
     expect(res.status).toBe(200);
-    const byName = Object.fromEntries(res.body.items.map((item: any) => [item.name, item]));
+    const byName = Object.fromEntries(res.body.items.map((item: { name: string }) => [item.name, item]));
     expect(byName["Still a draft"].status).toBe("DRAFT");
     expect(byName["Already submitted"].status).toBe("SUBMITTED");
   });
@@ -218,7 +222,7 @@ describe("GET /api/v1/events (C3)", () => {
 
     const res = await request(app).get("/api/v1/events?kind=drafts").set(bearer);
 
-    expect(res.body.items.map((item: any) => item.name)).toEqual(["Still a draft"]);
+    expect(res.body.items.map((item: { name: string }) => item.name)).toEqual(["Still a draft"]);
   });
 
   it("shows a draft row with its last-saved time, no reference and no coordinator", async () => {
@@ -240,6 +244,6 @@ describe("GET /api/v1/events (C3)", () => {
 
     const res = await request(app).get("/api/v1/events").set(bearer);
 
-    expect(res.body.items.map((item: any) => item.name)).not.toContain("Theirs");
+    expect(res.body.items.map((item: { name: string }) => item.name)).not.toContain("Theirs");
   });
 });

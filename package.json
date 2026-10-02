@@ -18,18 +18,26 @@
     "confluence:digest": "tsx documentation/scripts/confluence-digest.ts",
     "test": "npm run test --workspaces --if-present && npm run test:scripts",
     "test:scripts": "tsx --test documentation/scripts/confluence-digest.test.ts",
+    "test:unit": "npm run test:unit --workspaces --if-present && npm run test:scripts",
     "build": "npm run build --workspaces --if-present",
-    "lint:boundaries": "npm run lint:boundaries -w @connectsphere/planning-core"
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint:boundaries": "npm run lint:boundaries -w @connectsphere/planning-core",
+    "lint": "eslint frontend backend tests documentation/scripts eslint.config.js && npm run lint:boundaries"
   },
   "dependencies": {
     "postgres": "^3.4.4"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.5",
     "@playwright/test": "^1.63.0",
     "concurrently": "^9.2.4",
     "dotenv": "^16.4.5",
+    "eslint": "^9.39.5",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "globals": "^17.13.0",
     "tsx": "^4.16.2",
-    "typescript": "^5.5.3"
+    "typescript": "^5.5.3",
+    "typescript-eslint": "^8.71.0"
   },
   "engines": {
     "node": ">=20"

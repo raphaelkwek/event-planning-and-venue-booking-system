@@ -3,7 +3,11 @@ import request from "supertest";
 import postgres from "postgres";
 
 vi.mock("../../../src/shared/auth/verifyJwt.js", () => ({
-  verifyJwt: (req: any, _res: any, next: any) => {
+  verifyJwt: (
+    req: { auth?: { supabaseUserId?: string }; header(name: string): string | undefined },
+    _res: unknown,
+    next: () => void
+  ) => {
     req.auth = { supabaseUserId: req.header("x-test-supabase-id") };
     next();
   },

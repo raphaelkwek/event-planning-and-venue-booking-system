@@ -3,7 +3,7 @@
  * through that module's index.ts, and shared code imports no module at all.
  * Run with `npm run lint:boundaries`, which also runs the SQL schema check.
  */
-module.exports = {
+export default {
   forbidden: [
     {
       name: "no-reaching-into-another-module",

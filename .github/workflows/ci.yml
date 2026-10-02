@@ -1,0 +1,56 @@
+# CI v1 (SPM-114, first step of EN-06). Every pull request and every push to
+# main must pass lint, typecheck, build and unit tests before it can merge.
+#
+# Integration tests are deliberately not run here yet: today they write to the
+# team's shared Supabase project, and CI must never touch that database
+# (CLAUDE.md, EN-06). EN-06.1 (SPM-162) adds a throwaway Postgres on the runner
+# and turns them on.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: Lint, typecheck, build, unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      # Unit tests import modules that read these at load time. They are
+      # placeholders, not secrets: nothing in a unit test connects anywhere,
+      # and the .invalid domain and port 1 guarantee that nothing can.
+      DATABASE_URL: postgres://ci:ci@127.0.0.1:1/ci_unused
+      SUPABASE_URL: https://ci.invalid
+      SUPABASE_ANON_KEY: ci-placeholder
+      SUPABASE_JWKS_URL: https://ci.invalid/auth/v1/.well-known/jwks.json
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Lint (ESLint and module boundaries)
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build
+
+      - name: Unit tests
+        run: npm run test:unit
