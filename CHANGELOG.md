@@ -4,6 +4,42 @@
 
 ---
 
+# SPM-116: coverage thresholds in CI, with domain code held at 100%
+
+**Timestamp:** 2026-10-02T15:45+08:00 (SGT)
+**Author:** Joash
+**Scope:**
+- the Vitest configs and `test:unit` scripts of planning-core, contracts and web
+- `.github/workflows/ci.yml`, `.github/scripts/coverage-summary.mjs` (new)
+- four new domain tests, in planning-core's validation and access-scope suites
+- `implementation.md` §8.1, `README.md`
+
+**Reason:** SPM-116, part of EN-06. `implementation.md` §8.1 and the rubric target 100% coverage of domain code, but nothing measured it.
+
+1. **Coverage is measured on every unit run.** Each workspace's `test:unit` now runs Vitest with the v8 coverage provider, and the thresholds in its config fail the build.
+2. **`src/**/domain/**` in planning-core is held at 100%** of lines, branches, functions and statements. Reaching it took four new tests for paths nobody had tested:
+   - a proposed start or end time that is present but not a valid date;
+   - a registration opening or closing time that is present but not a valid date;
+   - equipment-request scope for a role other than Tech Support;
+   - an unknown resource name, which must get no access.
+
+   No line needed a "can't be covered" exemption.
+3. **Everything else has an honest floor** just under today's unit-only figures:
+
+   | Workspace | Lines | Branches | Functions |
+   |---|---|---|---|
+   | planning-core, outside `domain/` | 39% | 93% | 24% |
+   | web | 60% | 70% | 40% |
+   | contracts | 15% | 10% | 0% |
+
+   The planning-core floor is low because `api/` and `repo/` are covered by integration tests, which CI can't run until EN-06.1. Contracts is mostly schema declarations that its own tests don't import. Floors only ever go up.
+4. **CI shows it:**
+   - a coverage table in the job summary, with domain code on its own row;
+   - the HTML reports in the `coverage-reports` artifact, uploaded even when the run fails.
+5. **Checked both ways:** running only part of the suite fails both the domain threshold and the floor.
+
+---
+
 # EN-07.1: Cerbos permission policies for A2, with 574 policy tests
 
 **Timestamp:** 2026-10-02T15:10+08:00 (SGT)

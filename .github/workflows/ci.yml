@@ -52,8 +52,23 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Unit tests
+      - name: Unit tests (with coverage thresholds)
         run: npm run test:unit
+
+      - name: Coverage summary
+        if: always()
+        run: node .github/scripts/coverage-summary.mjs >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload coverage reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-reports
+          path: |
+            backend/services/planning-core/coverage/
+            backend/packages/contracts/coverage/
+            frontend/coverage/
+          if-no-files-found: ignore
 
       # A2's permission rules (ADR-0010). Cerbos has no Windows build, so CI is
       # where most of the team sees these run; backend/scripts/cerbos.ts

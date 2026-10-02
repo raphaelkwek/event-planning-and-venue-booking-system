@@ -11,5 +11,13 @@ export default defineConfig({
     environment: "jsdom",
     include: ["tests/**/*.test.{ts,tsx}"],
     setupFiles: ["tests/setup.ts"],
+    // SPM-116. `npm run test:unit` turns coverage on; CI fails below these.
+    // The floor sits just under today's figures and should only ever go up.
+    coverage: {
+      provider: "v8",
+      include: ["src/**"],
+      reporter: ["text-summary", "html", "json-summary"],
+      thresholds: { lines: 60, statements: 60, branches: 70, functions: 40 },
+    },
   },
 });
