@@ -10,7 +10,7 @@
 
 A web system that manages the lifecycle of an event at a ConnectSphere-managed venue: an Event Organiser requests it, an auto-assigned Event Coordinator reviews and plans it, Venue Staff decide the venue booking, Technical Support Staff arrange equipment, and Attendees register. Feature scope is the 20 core features in the project instructions, expressed as the 54 stories in `Final_User_Stories.md`.
 
-**Out of scope, confirmed with the customer:** payment and billing, multi-session events, off-site venues, staff account onboarding, a System Admin role, transit/turnaround/setup buffers.
+**Out of scope, confirmed with the customer:** payment and billing, multi-session events, off-site venues, staff account onboarding, a System Admin role. *Setup and turnaround buffers were on this list until the Week 7 change CR-01 brought them into scope (H3); the other Week 7 changes are in `documentation/change-requests.md`.*
 
 ## 2. Architectural position
 

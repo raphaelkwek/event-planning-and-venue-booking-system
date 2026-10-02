@@ -48,3 +48,8 @@ Today the role list is checked in handlers and the scope is a filter in the repo
 - `backend/scripts/cerbos.ts` downloads a pinned release and verifies its SHA-256. `npm run policies:test` compiles the policies and runs their tests, and CI runs it on every pull request.
 - Cerbos publishes no Windows build, so Windows users run the policy tests through CI or WSL.
 - The policies and the A2 mapping are in `policies/`. Cerbos decides who; each module's domain code decides when.
+
+**Week 7 customer changes, 2 Oct 2026** (`documentation/change-requests.md`):
+- **Two new roles:** CR-05 adds `EVENT_COORDINATOR_LEAD` and CR-06 adds `SAFETY_OFFICER`.
+  - Both go into contracts `ROLES` and the Cerbos policies. The role-name test fails until every role has a permission.
+- **Coordinator scope narrows (A4):** a coordinator acts only on assigned events, and the Lead sees all. This changes `resolveAccessScope` and the RLS policies in EN-07.2.

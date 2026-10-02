@@ -242,7 +242,7 @@ alter table venue.venue_slots add constraint venue_slot_no_overlap
 
 Model holds and confirmed bookings as rows in one table (`venue_slots`) so a single constraint covers both. Two concurrent inserts: exactly one succeeds, and the other raises `23P01`, which you translate into the refusal message naming the conflicting reference.
 
-`blocked_period` is `[start − setup, end + teardown)`. Setup and teardown are zero in Release 1, because buffers are out of scope, but the column means switching them on later is a data change rather than a redesign.
+`blocked_period` is the **occupied period**, `[start − setup, end + turnaround)`, using the venue's setup and turnaround minutes. They were zero until the Week 7 change CR-01 (H3) made them per-venue settings; the column was designed for that, so it's a data change rather than a redesign. When a venue's buffers change, don't rewrite stored periods, because the constraint would reject new overlaps. Compute the would-be periods and flag the bookings that now conflict as Requires Reconfirmation (H3). Holds that pass their expiry become `EXPIRED` (L6, CR-04), which the constraint's `HELD`/`CONFIRMED` filter already ignores.
 
 **Three rules the constraint alone doesn't give you:**
 

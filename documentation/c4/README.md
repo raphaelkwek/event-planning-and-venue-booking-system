@@ -13,6 +13,8 @@
 | `images/structurizr-PlanningCoreComponents.png` | 3, components | planning-core's five modules, and how they call each other (ADR-0004) |
 | `images/structurizr-CancelEvent.png` | dynamic | F3/F4 cancellation: freeze, commit, finalise (ADR-0009) |
 | `images/structurizr-Register.png` | dynamic | R2 registration: claim a seat row, outbox, notification (ADR-0005, ADR-0008) |
+| `images/structurizr-SafetyCheck.png` | dynamic | U1 Operational Safety Check between confirmed arrangements and preparation (CR-06) |
+| `images/structurizr-HoldExpiry.png` | dynamic | L6 tentative hold expiry and reminder, as a Temporal timer (CR-04, ADR-0009) |
 | `images/structurizr-LocalDevelopment.png` | deployment | What runs today: `npm run dev` against hosted Supabase and Kafka |
 | `images/structurizr-ProductionDeployment.png` | deployment | The target on AWS (ADR-0012, Tier 2) |
 

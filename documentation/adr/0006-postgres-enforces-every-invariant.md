@@ -28,7 +28,7 @@ Checking the design against the stories found three bugs in `implementation.md` 
 | No lost updates on event edits | G1, S2 | Expected version on the event stream, exposed as HTTP `If-Match` (ADR-0007, ADR-0015) |
 
 Two further rules:
-- **`blocked_period`** is `[start − setup, end + teardown)`. The buffers are zero in Release 1 (setup and turnaround are out of scope), and they can be switched on later with data instead of a redesign.
+- **`blocked_period`** is `[start − setup, end + turnaround)`, the occupied period. The buffers were zero until the Week 7 change CR-01 made them per-venue settings (H3), a data change, not a redesign.
 - **Requires Reconfirmation is a boolean column, never a status.** A flagged booking keeps blocking its slot. A hold that L1 converts into a booking request keeps its slot HELD until M1 or M2 decides.
 
 ## Alternatives considered
@@ -49,3 +49,13 @@ Two further rules:
 **What a reviewer should watch for:** a `SELECT` followed by an `INSERT` or `UPDATE` on a contended resource, or a status value used where a flag belongs.
 
 **Implemented by:** EN-02 (SPM-120) and EN-13 (SPM-131). **Updates:** `implementation.md` §4.5 to §4.7.
+
+## Week 7 customer changes (2 Oct 2026)
+
+These are recorded in `documentation/change-requests.md`. None of them changes the decision; they use the room it left.
+
+- **CR-01, setup and turnaround:** the exclusion constraint already works on `blocked_period`, which now carries real buffers.
+  - Changing a venue's buffers must not rewrite stored periods, because the constraint would reject any new overlap.
+  - Instead, compute the would-be periods and flag every booking that now conflicts as Requires Reconfirmation. Nothing is silently removed.
+- **CR-03, several venues per event:** `venue_slots` already holds one row per booking, carrying `event_id`. One event simply has several rows, and each venue's slots are constrained independently.
+- **CR-04, holds expire:** an expired hold moves to `EXPIRED`. The constraint's `status in ('HELD','CONFIRMED')` filter already frees the period, with no change to the constraint.
