@@ -4,6 +4,51 @@
 
 ---
 
+# SPM-114: CI on every pull request — lint, typecheck, build, unit tests
+
+**Timestamp:** 2026-10-02T12:30+08:00 (SGT)
+**Author:** Joash
+**Scope:**
+- `.github/workflows/ci.yml` (new) and `eslint.config.js` (new)
+- `package.json` scripts in the root, planning-core, contracts and web
+- `planning-core/vitest.unit.config.ts` (new)
+- small type-only edits in nine planning-core API tests
+- `implementation.md` §2 and §8.1, `README.md`
+
+**Reason:** SPM-114, the first step of EN-06. The repo had no CI at all, and every other item's Definition of Done needs a green pipeline.
+
+## The pipeline
+
+1. **`.github/workflows/ci.yml`** runs on every pull request and every push to `main`, using Node from `.nvmrc`. It runs `npm ci`, then:
+   - `npm run lint`;
+   - `npm run typecheck`;
+   - `npm run build`;
+   - `npm run test:unit`.
+
+   It needs no secrets. The four connection settings it sets are placeholders, which point at port 1 and the `.invalid` domain so nothing can connect.
+2. **Integration tests stay off in CI.** Today they write to the shared Supabase project, which CI must never touch. EN-06.1 (SPM-162) brings a throwaway Postgres and turns them on.
+
+## What counts as a unit test
+
+3. **The rule:** a test under a `domain/` or `boundaries/` folder, or named `*.unit.test.ts`. planning-core's `vitest.unit.config.ts` runs exactly those, which is 155 tests. Contracts (15), web (24) and the script tests (13) are all unit tests already.
+4. **The identity adapter test** was renamed to `identity.unit.test.ts`, because it uses no database.
+5. **Proof that no unit test touches a database:** I ran the unit suite locally with the same placeholder credentials CI uses, and it passed.
+
+## Lint
+
+6. **ESLint 9 was added.** The repo had no linter. It uses the recommended JavaScript and TypeScript rules, plus React's hooks rules for the web app. `npm run lint` runs ESLint on the tracked source folders, then the module boundary checks.
+7. **The 40 findings it raised were fixed in code, not by weakening the rules:**
+   - 37 `any`s in planning-core tests, now real types for the mocked `verifyJwt` and the response items;
+   - three unused `sql` parameters, removed from the empty venue, equipment and change routers until a route needs them;
+   - `.dependency-cruiser.cjs` became `.dependency-cruiser.mjs`, so it needs no CommonJS globals.
+
+## Verified locally
+
+- Lint, typecheck, build and the unit tests all pass.
+- The full planning-core suite still passes against the database: 321/321.
+
+---
+
 # EN-01: Identity and Event merged into planning-core, with module boundary checks
 
 **Timestamp:** 2026-10-02T09:45+08:00 (SGT)
