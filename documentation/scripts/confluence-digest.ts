@@ -171,7 +171,7 @@ const STANDUP_NAME_ALIASES: Record<string, string> = {
   Chai: "Yichen",
 };
 
-function standupName(author: string): string {
+export function standupName(author: string): string {
   const shortName = author.split(",")[0].trim();
   return STANDUP_NAME_ALIASES[shortName] ?? shortName;
 }
