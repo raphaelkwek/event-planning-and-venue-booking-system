@@ -38,5 +38,12 @@ describe("resolveAccessScope", () => {
   it("denies a role no access rule covers, rather than defaulting to ALL", () => {
     expect(resolveAccessScope("ATTENDEE", USER_ID, "venue_bookings")).toEqual({ scopeType: "NONE" });
     expect(resolveAccessScope("VENUE_STAFF", USER_ID, "events")).toEqual({ scopeType: "NONE" });
+    expect(resolveAccessScope("EVENT_COORDINATOR", USER_ID, "equipment_requests")).toEqual({ scopeType: "NONE" });
+  });
+
+  it("denies a resource it doesn't know, even though the type system forbids one", () => {
+    // The route validates the name first, but a caller in another module could
+    // pass any string at runtime; the safe answer is no access.
+    expect(resolveAccessScope("EVENT_COORDINATOR", USER_ID, "invoices" as never)).toEqual({ scopeType: "NONE" });
   });
 });

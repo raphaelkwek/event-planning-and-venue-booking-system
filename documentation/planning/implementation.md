@@ -393,6 +393,12 @@ The attendee shell (§7.2) is separate. It is built in Sprint 3 as part of EN-13
 
 **What CI runs (SPM-114).** `.github/workflows/ci.yml` runs `npm run lint` (ESLint and the module boundary checks), `typecheck`, `build` and `test:unit` on every pull request and every push to `main`. A test counts as a unit test when it sits under a `domain/` or `boundaries/` folder, or is named `*.unit.test.ts`. It must not touch a database, because CI gives it only placeholder credentials. Integration tests still run only locally, with `npm test` against Supabase, until EN-06.1 gives CI a throwaway Postgres; CI never uses the shared database.
 
+**Coverage (SPM-116).** `test:unit` measures coverage with Vitest's v8 provider, and each workspace's Vitest config sets thresholds that fail the build:
+- **`src/**/domain/**` must stay at 100%** of lines, branches, functions and statements, in line with the target above. If a line genuinely can't be covered, say why in a comment in the test file; never lower the threshold.
+- **Everything else has a floor** just under today's unit-only figures. Raise a floor when coverage rises; never lower one to get a build through.
+
+CI shows a coverage table in the job summary and uploads the HTML reports as the `coverage-reports` artifact.
+
 ### 8.2 The sprint test kit — build it *before* the sprint
 
 At sprint planning, before any story is started, the sprint owner creates `/tests/flows/sprint-<n>/` with the first three files, and `/documentation/traceability/sprint-<n>.csv`:

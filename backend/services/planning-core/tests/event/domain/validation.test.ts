@@ -100,6 +100,20 @@ describe("validateSubmission (B2)", () => {
     expect(errors[0]!.message).toMatch(/past/i);
   });
 
+  it("names a start time that is present but not a valid date, and checks nothing that depends on it", () => {
+    const errors = validateSubmission(completeRequest({ proposedStartAt: "next Friday afternoon" }), NOW);
+
+    expect(errors).toEqual([
+      { field: "proposedStartAt", message: "Proposed start date and time is not a valid date." },
+    ]);
+  });
+
+  it("names an end time that is present but not a valid date", () => {
+    const errors = validateSubmission(completeRequest({ proposedEndAt: "2026-10-02T99:00:00.000Z" }), NOW);
+
+    expect(errors).toEqual([{ field: "proposedEndAt", message: "Proposed end date and time is not a valid date." }]);
+  });
+
   it("rejects an expected attendance of zero", () => {
     const errors = validateSubmission(completeRequest({ expectedAttendance: 0 }), NOW);
     expect(fieldsIn(errors)).toEqual(["expectedAttendance"]);
@@ -150,6 +164,36 @@ describe("validateSubmission (B2)", () => {
       );
 
       expect(fieldsIn(errors)).toContain("registrationClosesAt");
+    });
+
+    it("names an opening time that is present but not a valid date, and still checks the closing", () => {
+      const errors = validateSubmission(
+        completeRequest({
+          registrationRequired: true,
+          registrationOpensAt: "the week before",
+          registrationClosesAt: "2026-10-01T17:00:00.000Z",
+        }),
+        NOW
+      );
+
+      expect(errors).toEqual([
+        { field: "registrationOpensAt", message: "Registration opening date and time is not a valid date." },
+      ]);
+    });
+
+    it("names a closing time that is present but not a valid date", () => {
+      const errors = validateSubmission(
+        completeRequest({
+          registrationRequired: true,
+          registrationOpensAt: "2026-09-20T09:00:00.000Z",
+          registrationClosesAt: "2026-13-45T25:00:00.000Z",
+        }),
+        NOW
+      );
+
+      expect(errors).toEqual([
+        { field: "registrationClosesAt", message: "Registration closing date and time is not a valid date." },
+      ]);
     });
 
     it("accepts a window that closes exactly at the event start", () => {
