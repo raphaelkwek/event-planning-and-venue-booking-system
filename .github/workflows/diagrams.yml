@@ -40,7 +40,8 @@ jobs:
 
       - name: Export every view to PlantUML
         run: |
-          docker run --rm --user "$(id -u):$(id -g)"             -v "$PWD/documentation/c4:/usr/local/structurizr"             structurizr/structurizr:2026.09.19-noble export -workspace connectsphere.dsl -format plantuml -output build
+          docker run --rm --user "$(id -u):$(id -g)" -v "$PWD/documentation/c4:/usr/local/structurizr" \
+            structurizr/structurizr:2026.09.19-noble export -workspace connectsphere.dsl -format plantuml -output build
           ls -l documentation/c4/build
           if ! ls documentation/c4/build/*.puml >/dev/null 2>&1; then echo "No views were exported"; exit 1; fi
 
