@@ -223,7 +223,8 @@ workspace "ConnectSphere" "Event planning and venue booking for ConnectSphere-ma
         }
 
         component connectsphere.core "PlanningCoreComponents" "Level 3: planning-core's five modules. Arrows between modules are function calls through each module's index.ts; CI fails on anything else (npm run lint:boundaries)." {
-            include *
+            include connectsphere.core.identity connectsphere.core.event connectsphere.core.venue connectsphere.core.equipment connectsphere.core.change
+            include connectsphere.gateway connectsphere.coreDb connectsphere.kafka
             autoLayout lr
         }
 
@@ -233,10 +234,10 @@ workspace "ConnectSphere" "Event planning and venue booking for ConnectSphere-ma
             connectsphere.gateway -> connectsphere.core "Forwards the request"
             connectsphere.core -> connectsphere.temporal "Starts the CancelEvent workflow"
             connectsphere.workers -> connectsphere.temporal "Picks up CancelEvent"
-            connectsphere.workers -> connectsphere.registration "1. Freeze: mark registrations CANCEL_PENDING (they still count)"
-            connectsphere.workers -> connectsphere.core "2. Commit: cancel the event and release its slot and reservations"
+            connectsphere.workers -> connectsphere.registration "Freeze: mark registrations CANCEL_PENDING (they still count)"
+            connectsphere.workers -> connectsphere.core "Commit: cancel the event and release its slot and reservations"
             connectsphere.core -> connectsphere.coreDb "One transaction: event Cancelled, slot and reservations Released, outbox row"
-            connectsphere.workers -> connectsphere.registration "3. Finalise: mark registrations Cancelled (retried until done)"
+            connectsphere.workers -> connectsphere.registration "Finalise: mark registrations Cancelled (retried until done)"
             autoLayout lr
             properties {
                 "plantuml.sequenceDiagram" "true"
