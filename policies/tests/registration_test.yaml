@@ -1,0 +1,24 @@
+# A2 for registrations and waitlist entries. Unlisted combinations must be denied.
+name: RegistrationTestSuite
+description: Who may act on a registration (A2), derived from R2 to R7.
+tests:
+  - name: Every role against an attendee's registration
+    input:
+      principals: [organiser, other_organiser, assigned_coordinator, other_coordinator, nominee, venue_manager, other_venue_staff, tech_support, attendee, other_attendee]
+      resources: [registration_att1]
+      actions: [create, join_waitlist, view, withdraw, leave_waitlist, add_manually]
+    expected:
+      - principal: organiser # R5, R7: the owning organiser
+        resource: registration_att1
+        actions: { view: EFFECT_ALLOW, add_manually: EFFECT_ALLOW }
+      - principal: assigned_coordinator # R5, R7: the assigned coordinator
+        resource: registration_att1
+        actions: { view: EFFECT_ALLOW, add_manually: EFFECT_ALLOW }
+      - principal: attendee # R2, R3, R4, R6: their own registration
+        resource: registration_att1
+        actions: { create: EFFECT_ALLOW, join_waitlist: EFFECT_ALLOW, view: EFFECT_ALLOW, withdraw: EFFECT_ALLOW, leave_waitlist: EFFECT_ALLOW }
+      - principal: other_attendee # R2, R6: may register themselves; R4: can't withdraw someone else
+        resource: registration_att1
+        actions: { create: EFFECT_ALLOW, join_waitlist: EFFECT_ALLOW }
+      # R5: "other users cannot, and receive no registration data", so every
+      # other organiser, coordinator and staff member gets nothing.

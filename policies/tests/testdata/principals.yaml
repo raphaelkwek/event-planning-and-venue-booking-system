@@ -1,0 +1,32 @@
+# One person per relationship the stories distinguish. Ids are labels, not real users.
+principals:
+  organiser:            # owns every record in testdata/resources.yaml
+    id: org-1
+    roles: [EVENT_ORGANISER]
+  other_organiser:
+    id: org-2
+    roles: [EVENT_ORGANISER]
+  assigned_coordinator: # assigned to every event in testdata/resources.yaml
+    id: coord-1
+    roles: [EVENT_COORDINATOR]
+  other_coordinator:
+    id: coord-2
+    roles: [EVENT_COORDINATOR]
+  nominee:              # named by the pending reassignment proposal (E2)
+    id: coord-3
+    roles: [EVENT_COORDINATOR]
+  venue_manager:        # manages the venue in testdata/resources.yaml
+    id: vs-1
+    roles: [VENUE_STAFF]
+  other_venue_staff:
+    id: vs-2
+    roles: [VENUE_STAFF]
+  tech_support:
+    id: ts-1
+    roles: [TECH_SUPPORT_STAFF]
+  attendee:             # holds the registration in testdata/resources.yaml
+    id: att-1
+    roles: [ATTENDEE]
+  other_attendee:
+    id: att-2
+    roles: [ATTENDEE]

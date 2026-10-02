@@ -1,0 +1,41 @@
+# A2 for equipment request lines and the inventory. Unlisted combinations must be denied.
+name: EquipmentTestSuite
+description: Who may act on equipment (A2), derived from O1, O2, P1, P2, Q1, Q2 and A3.
+tests:
+  - name: Every role against an equipment request line
+    input:
+      principals: [organiser, other_organiser, assigned_coordinator, other_coordinator, nominee, venue_manager, other_venue_staff, tech_support, attendee, other_attendee]
+      resources: [line_projectors]
+      actions: [create, update, remove, view, update_status, check_availability, reserve, release]
+    expected:
+      - principal: assigned_coordinator # O1: the assigned coordinator records equipment
+        resource: line_projectors
+        actions: { create: EFFECT_ALLOW, update: EFFECT_ALLOW, remove: EFFECT_ALLOW, view: EFFECT_ALLOW }
+      - principal: other_coordinator
+        resource: line_projectors
+        actions: { view: EFFECT_ALLOW }
+      - principal: nominee
+        resource: line_projectors
+        actions: { view: EFFECT_ALLOW }
+      - principal: tech_support # A3, O2, P1, Q1, Q2
+        resource: line_projectors
+        actions: { view: EFFECT_ALLOW, update_status: EFFECT_ALLOW, check_availability: EFFECT_ALLOW, reserve: EFFECT_ALLOW, release: EFFECT_ALLOW }
+
+  - name: Every role against the inventory
+    input:
+      principals: [organiser, other_organiser, assigned_coordinator, other_coordinator, nominee, venue_manager, other_venue_staff, tech_support, attendee, other_attendee]
+      resources: [type_projector]
+      actions: [create, update, record_unavailability, view]
+    expected:
+      - principal: assigned_coordinator # O1: picks types when recording a request
+        resource: type_projector
+        actions: { view: EFFECT_ALLOW }
+      - principal: other_coordinator
+        resource: type_projector
+        actions: { view: EFFECT_ALLOW }
+      - principal: nominee
+        resource: type_projector
+        actions: { view: EFFECT_ALLOW }
+      - principal: tech_support # P2: only Technical Support Staff change inventory
+        resource: type_projector
+        actions: { create: EFFECT_ALLOW, update: EFFECT_ALLOW, record_unavailability: EFFECT_ALLOW, view: EFFECT_ALLOW }

@@ -1,0 +1,50 @@
+# One record of each kind, all belonging to the same event: owned by org-1,
+# assigned to coord-1, with a pending reassignment to coord-3, at a venue
+# managed by vs-1, with a registration held by att-1.
+resources:
+  event_open:
+    kind: event
+    id: event-1
+    attr:
+      ownerId: org-1
+      assignedCoordinatorId: coord-1
+      pendingNomineeId: coord-3
+      registrationOpen: true
+  event_not_open:
+    kind: event
+    id: event-2
+    attr:
+      ownerId: org-1
+      assignedCoordinatorId: coord-1
+      pendingNomineeId: coord-3
+      registrationOpen: false
+  venue_hall:
+    kind: venue
+    id: venue-1
+    attr:
+      venueStaffIds: [vs-1]
+  booking_hall:
+    kind: booking_request
+    id: booking-1
+    attr:
+      ownerId: org-1
+      assignedCoordinatorId: coord-1
+      venueStaffIds: [vs-1]
+      heldById: coord-1
+  line_projectors:
+    kind: equipment_request_line
+    id: line-1
+    attr:
+      ownerId: org-1
+      assignedCoordinatorId: coord-1
+  type_projector:
+    kind: equipment_type
+    id: type-1
+    attr: {}
+  registration_att1:
+    kind: registration
+    id: registration-1
+    attr:
+      ownerId: org-1
+      assignedCoordinatorId: coord-1
+      attendeeId: att-1

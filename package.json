@@ -19,6 +19,7 @@
     "test": "npm run test --workspaces --if-present && npm run test:scripts",
     "test:scripts": "tsx --test documentation/scripts/confluence-digest.test.ts",
     "test:unit": "npm run test:unit --workspaces --if-present && npm run test:scripts",
+    "policies:test": "tsx backend/scripts/cerbos.ts compile policies",
     "build": "npm run build --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "lint:boundaries": "npm run lint:boundaries -w @connectsphere/planning-core",

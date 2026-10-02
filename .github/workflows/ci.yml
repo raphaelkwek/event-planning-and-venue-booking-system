@@ -54,3 +54,9 @@ jobs:
 
       - name: Unit tests
         run: npm run test:unit
+
+      # A2's permission rules (ADR-0010). Cerbos has no Windows build, so CI is
+      # where most of the team sees these run; backend/scripts/cerbos.ts
+      # downloads the pinned release and checks its SHA-256 first.
+      - name: Permission policy tests (Cerbos)
+        run: npm run policies:test

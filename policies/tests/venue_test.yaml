@@ -1,0 +1,35 @@
+# A2 for venues: every role against every action. Unlisted combinations must be denied.
+name: VenueTestSuite
+description: Who may act on a venue (A2), derived from H1, H2, I1, I2, J1, J2, K1, K2.
+tests:
+  - name: Every role against a venue
+    input:
+      principals: [organiser, other_organiser, assigned_coordinator, other_coordinator, nominee, venue_manager, other_venue_staff, tech_support, attendee, other_attendee]
+      resources: [venue_hall]
+      actions: [create, update, deactivate, view, view_calendar, record_unavailability, remove_unavailability, search, check_suitability, justify_unsuitable]
+    expected:
+      - principal: organiser # H1: read access only
+        resource: venue_hall
+        actions: { view: EFFECT_ALLOW, view_calendar: EFFECT_ALLOW }
+      - principal: other_organiser
+        resource: venue_hall
+        actions: { view: EFFECT_ALLOW, view_calendar: EFFECT_ALLOW }
+      - principal: assigned_coordinator # H2, I1, J1, J2, K1, K2
+        resource: venue_hall
+        actions: { view: EFFECT_ALLOW, view_calendar: EFFECT_ALLOW, search: EFFECT_ALLOW, check_suitability: EFFECT_ALLOW, justify_unsuitable: EFFECT_ALLOW }
+      - principal: other_coordinator
+        resource: venue_hall
+        actions: { view: EFFECT_ALLOW, view_calendar: EFFECT_ALLOW, search: EFFECT_ALLOW, check_suitability: EFFECT_ALLOW, justify_unsuitable: EFFECT_ALLOW }
+      - principal: nominee
+        resource: venue_hall
+        actions: { view: EFFECT_ALLOW, view_calendar: EFFECT_ALLOW, search: EFFECT_ALLOW, check_suitability: EFFECT_ALLOW, justify_unsuitable: EFFECT_ALLOW }
+      - principal: venue_manager # H1: only Venue Staff maintain venues; I2
+        resource: venue_hall
+        actions: { create: EFFECT_ALLOW, update: EFFECT_ALLOW, deactivate: EFFECT_ALLOW, view: EFFECT_ALLOW, view_calendar: EFFECT_ALLOW, record_unavailability: EFFECT_ALLOW, remove_unavailability: EFFECT_ALLOW }
+      - principal: other_venue_staff
+        resource: venue_hall
+        actions: { create: EFFECT_ALLOW, update: EFFECT_ALLOW, deactivate: EFFECT_ALLOW, view: EFFECT_ALLOW, view_calendar: EFFECT_ALLOW, record_unavailability: EFFECT_ALLOW, remove_unavailability: EFFECT_ALLOW }
+      - principal: tech_support # H1: read access only
+        resource: venue_hall
+        actions: { view: EFFECT_ALLOW, view_calendar: EFFECT_ALLOW }
+      # Attendees: none. H2 and I1 give them no access to the catalogue or calendar.

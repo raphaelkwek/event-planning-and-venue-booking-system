@@ -1,0 +1,24 @@
+# A2 for venue booking requests and holds. Unlisted combinations must be denied.
+name: BookingRequestTestSuite
+description: Who may act on a booking request or hold (A2), derived from L1, L2, L3, M1, M2, N2 and A3.
+tests:
+  - name: Every role against a booking request
+    input:
+      principals: [organiser, other_organiser, assigned_coordinator, other_coordinator, nominee, venue_manager, other_venue_staff, tech_support, attendee, other_attendee]
+      resources: [booking_hall]
+      actions: [create, withdraw, place_hold, release_hold, view, approve, reject, view_conflicts]
+    expected:
+      - principal: assigned_coordinator # L1, L2, L3: only the assigned coordinator; L3: the holder releases
+        resource: booking_hall
+        actions: { create: EFFECT_ALLOW, withdraw: EFFECT_ALLOW, place_hold: EFFECT_ALLOW, release_hold: EFFECT_ALLOW, view: EFFECT_ALLOW }
+      - principal: other_coordinator # A3: coordinators see everything, but don't act for another's event
+        resource: booking_hall
+        actions: { view: EFFECT_ALLOW }
+      - principal: nominee
+        resource: booking_hall
+        actions: { view: EFFECT_ALLOW }
+      - principal: venue_manager # M1, M2, N2: staff of this venue decide
+        resource: booking_hall
+        actions: { view: EFFECT_ALLOW, approve: EFFECT_ALLOW, reject: EFFECT_ALLOW, view_conflicts: EFFECT_ALLOW }
+      # other_venue_staff: none, A3 limits Venue Staff to their own venues.
+      # Organisers, Tech Support and Attendees: none.

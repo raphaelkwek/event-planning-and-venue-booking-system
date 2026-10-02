@@ -1,0 +1,100 @@
+# A2 for events: every role against every action. Only the allows are listed;
+# every combination not listed must be denied. Each allow cites its story.
+name: EventTestSuite
+description: Who may act on an event request (A2), derived from the stories.
+tests:
+  - name: Every role against an event open for registration
+    input:
+      principals: [organiser, other_organiser, assigned_coordinator, other_coordinator, nominee, venue_manager, other_venue_staff, tech_support, attendee, other_attendee]
+      resources: [event_open]
+      actions: [create, update_draft, submit_draft, view, view_history, view_clarifications, view_reassignments, review, request_clarification, approve, reject, respond_to_clarification, propose_reassignment, respond_to_reassignment, cancel, confirm, decide_change, update_details, preview_change_impact, reconsider_arrangements, request_change]
+    expected:
+      - principal: organiser # the owner
+        resource: event_open
+        actions:
+          create: EFFECT_ALLOW # B1, C1
+          update_draft: EFFECT_ALLOW # C2
+          submit_draft: EFFECT_ALLOW # C2
+          view: EFFECT_ALLOW # C3
+          view_history: EFFECT_ALLOW # F2
+          view_clarifications: EFFECT_ALLOW # D3
+          respond_to_clarification: EFFECT_ALLOW # D3
+          cancel: EFFECT_ALLOW # F3
+          update_details: EFFECT_ALLOW # G1
+          request_change: EFFECT_ALLOW # S1
+      - principal: other_organiser # C2, D3, A3: no access to someone else's request
+        resource: event_open
+        actions:
+          create: EFFECT_ALLOW # B1: may still create their own
+      - principal: assigned_coordinator
+        resource: event_open
+        actions:
+          view: EFFECT_ALLOW # D1, A3: coordinators see all events
+          view_history: EFFECT_ALLOW # F2
+          view_clarifications: EFFECT_ALLOW # D2
+          view_reassignments: EFFECT_ALLOW # E2
+          review: EFFECT_ALLOW # D1
+          request_clarification: EFFECT_ALLOW # D2
+          approve: EFFECT_ALLOW # D4
+          reject: EFFECT_ALLOW # D5
+          propose_reassignment: EFFECT_ALLOW # E2: only the assigned coordinator
+          cancel: EFFECT_ALLOW # F3
+          confirm: EFFECT_ALLOW # F5
+          decide_change: EFFECT_ALLOW # S2
+          update_details: EFFECT_ALLOW # G1
+          preview_change_impact: EFFECT_ALLOW # G2
+          reconsider_arrangements: EFFECT_ALLOW # S3
+      - principal: other_coordinator
+        resource: event_open
+        actions:
+          view: EFFECT_ALLOW
+          view_history: EFFECT_ALLOW
+          view_clarifications: EFFECT_ALLOW
+          view_reassignments: EFFECT_ALLOW
+          review: EFFECT_ALLOW
+          request_clarification: EFFECT_ALLOW
+          approve: EFFECT_ALLOW
+          reject: EFFECT_ALLOW
+          preview_change_impact: EFFECT_ALLOW
+          reconsider_arrangements: EFFECT_ALLOW
+      - principal: nominee # another coordinator, named by the pending proposal
+        resource: event_open
+        actions:
+          view: EFFECT_ALLOW
+          view_history: EFFECT_ALLOW
+          view_clarifications: EFFECT_ALLOW
+          view_reassignments: EFFECT_ALLOW
+          review: EFFECT_ALLOW
+          request_clarification: EFFECT_ALLOW
+          approve: EFFECT_ALLOW
+          reject: EFFECT_ALLOW
+          respond_to_reassignment: EFFECT_ALLOW # E2: the nominee accepts or declines
+          preview_change_impact: EFFECT_ALLOW
+          reconsider_arrangements: EFFECT_ALLOW
+      - principal: venue_manager # A3: rows limited by RLS, not here
+        resource: event_open
+        actions:
+          view: EFFECT_ALLOW
+      - principal: other_venue_staff
+        resource: event_open
+        actions:
+          view: EFFECT_ALLOW
+      - principal: tech_support
+        resource: event_open
+        actions:
+          view: EFFECT_ALLOW
+      - principal: attendee # R1: published events open for registration
+        resource: event_open
+        actions:
+          view: EFFECT_ALLOW
+      - principal: other_attendee
+        resource: event_open
+        actions:
+          view: EFFECT_ALLOW
+
+  - name: Attendees can't open an event that isn't open for registration (R1, A3)
+    input:
+      principals: [attendee, other_attendee]
+      resources: [event_not_open]
+      actions: [view, view_history]
+    expected: []
