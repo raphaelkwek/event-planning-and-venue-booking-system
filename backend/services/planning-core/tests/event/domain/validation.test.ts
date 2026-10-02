@@ -23,7 +23,7 @@ function fieldsIn(errors: { field: string }[]) {
   return errors.map((error) => error.field);
 }
 
-describe.skip("validateSubmission (B2)", () => {
+describe("validateSubmission (B2)", () => {
   it("accepts a complete request", () => {
     expect(validateSubmission(completeRequest(), NOW)).toEqual([]);
   });
