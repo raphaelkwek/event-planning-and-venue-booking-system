@@ -15,7 +15,7 @@ The Definition of Done (`implementation.md` §8.3) says when an item is finished
 7. Say what you took at the next standup (PX-04 log).
 8. **When you finish, unblock the next items.** Open the "blocks" links on your item. For each item whose blockers are now all Done, swap its `blocked` label for `ready`. Jira can't do this automatically, so whoever finishes does it.
 
-**Items with subtasks.** EN-01, EN-02, EN-04, EN-06 and EN-07 are split into subtasks (EN-01.1, EN-01.2, …). Don't take the parent. Take its first subtask labelled `ready`. The parent closes when all its subtasks are Done.
+**Items with subtasks.** EN-01, EN-02, EN-04, EN-06 and EN-07 are split into subtasks (EN-01.1, EN-01.2, …). Jira's backlog lists only top-level items, so each parent carries the label of its next subtask: `ready` when one can start, `blocked` when none can. When a parent is the top ready item, open it and take its first subtask labelled `ready`, not the parent itself. The parent closes when all its subtasks are Done. Whoever finishes a subtask also updates the parent's label.
 
 Developers take development items: stories, enablers and their subtasks, and the setup tasks SPM-113 to 116. **Process items** (`PX-` and `CQ-`, label `process`) are owned by the Product Owner or Scrum Master named in each one. They sit at the bottom of the sprint so they never look like the next coding task.
 
