@@ -1,0 +1,29 @@
+# Who may do what to a venue booking request or hold (A2). Rule names cite the story.
+apiVersion: api.cerbos.dev/v1
+resourcePolicy:
+  version: default
+  resource: booking_request
+  importDerivedRoles: [connectsphere]
+  rules:
+    - name: L1-L2-L3-only-the-assigned-coordinator-books
+      actions: [create, withdraw, place_hold]
+      effect: EFFECT_ALLOW
+      derivedRoles: [assigned_coordinator]
+
+    - name: L3-the-holding-coordinator-releases-the-hold
+      actions: [release_hold]
+      effect: EFFECT_ALLOW
+      roles: [EVENT_COORDINATOR]
+      condition:
+        match:
+          expr: request.resource.attr.heldById == request.principal.id
+
+    - name: A3-coordinators-see-booking-requests
+      actions: [view]
+      effect: EFFECT_ALLOW
+      roles: [EVENT_COORDINATOR]
+
+    - name: A3-M1-M2-N2-venue-staff-act-on-their-venues
+      actions: [view, approve, reject, view_conflicts]
+      effect: EFFECT_ALLOW
+      derivedRoles: [venue_manager]

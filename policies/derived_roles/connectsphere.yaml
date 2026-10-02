@@ -1,0 +1,43 @@
+# Relationship roles shared by every resource policy (ADR-0010, EN-07.1).
+#
+# Each one narrows a base role to "this user is related to this record", using
+# attributes the calling module puts on the resource. A resource that belongs
+# to an event carries that event's ownerId and assignedCoordinatorId, so these
+# work the same on an event, its booking requests, its equipment lines and its
+# registrations. The attribute names are listed in policies/README.md.
+apiVersion: api.cerbos.dev/v1
+derivedRoles:
+  name: connectsphere
+  definitions:
+    - name: owner
+      parentRoles: [EVENT_ORGANISER]
+      condition:
+        match:
+          expr: request.resource.attr.ownerId == request.principal.id
+
+    - name: assigned_coordinator
+      parentRoles: [EVENT_COORDINATOR]
+      condition:
+        match:
+          expr: request.resource.attr.assignedCoordinatorId == request.principal.id
+
+    # E2: the coordinator a pending reassignment proposal names.
+    - name: nominated_coordinator
+      parentRoles: [EVENT_COORDINATOR]
+      condition:
+        match:
+          expr: request.resource.attr.pendingNomineeId == request.principal.id
+
+    # A3, M1: Venue Staff act on bookings for the venues they manage.
+    - name: venue_manager
+      parentRoles: [VENUE_STAFF]
+      condition:
+        match:
+          expr: request.principal.id in request.resource.attr.venueStaffIds
+
+    # R3, R4, R6: an attendee's own registration or waitlist entry.
+    - name: registrant
+      parentRoles: [ATTENDEE]
+      condition:
+        match:
+          expr: request.resource.attr.attendeeId == request.principal.id

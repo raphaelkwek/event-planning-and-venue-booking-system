@@ -39,3 +39,12 @@ Today the role list is checked in handlers and the scope is a filter in the repo
 - A new endpoint with no row in the matrix.
 
 **Implemented by:** EN-07 (SPM-125). **Relates to:** A2 (SPM-12) and A3 (SPM-13).
+
+## Implementation notes
+
+**EN-07.1, 2 Oct 2026: the policy decision point runs as the standalone Cerbos binary,** not the embedded one.
+
+- Embedded evaluation needs policy bundles built by Cerbos Hub, a hosted service. The binary works offline and needs no Docker.
+- `backend/scripts/cerbos.ts` downloads a pinned release and verifies its SHA-256. `npm run policies:test` compiles the policies and runs their tests, and CI runs it on every pull request.
+- Cerbos publishes no Windows build, so Windows users run the policy tests through CI or WSL.
+- The policies and the A2 mapping are in `policies/`. Cerbos decides who; each module's domain code decides when.

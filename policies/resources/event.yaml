@@ -1,0 +1,93 @@
+# Who may do what to an event request (A2). Rule names cite the story.
+# Status rules ("not once Completed") live in the event module's domain code,
+# not here: Cerbos answers who, the domain answers when.
+apiVersion: api.cerbos.dev/v1
+resourcePolicy:
+  version: default
+  resource: event
+  importDerivedRoles: [connectsphere]
+  rules:
+    - name: B1-C1-create-a-request
+      actions: [create]
+      effect: EFFECT_ALLOW
+      roles: [EVENT_ORGANISER]
+
+    - name: C2-edit-and-submit-my-draft
+      actions: [update_draft, submit_draft]
+      effect: EFFECT_ALLOW
+      derivedRoles: [owner]
+
+    # Which rows each role sees is A3's job, enforced by row-level security
+    # (EN-07.2). This rule only says which roles may open an event at all.
+    - name: C3-D1-F2-view-as-staff
+      actions: [view]
+      effect: EFFECT_ALLOW
+      roles: [EVENT_COORDINATOR, VENUE_STAFF, TECH_SUPPORT_STAFF]
+
+    - name: C3-F2-view-my-own-request
+      actions: [view]
+      effect: EFFECT_ALLOW
+      derivedRoles: [owner]
+
+    - name: R1-attendees-view-events-open-for-registration
+      actions: [view]
+      effect: EFFECT_ALLOW
+      roles: [ATTENDEE]
+      condition:
+        match:
+          expr: request.resource.attr.registrationOpen == true
+
+    - name: F2-history-for-the-owner
+      actions: [view_history, view_clarifications]
+      effect: EFFECT_ALLOW
+      derivedRoles: [owner]
+
+    - name: F2-D2-history-for-coordinators
+      actions: [view_history, view_clarifications, view_reassignments]
+      effect: EFFECT_ALLOW
+      roles: [EVENT_COORDINATOR]
+
+    - name: D1-D2-D4-D5-review-and-decide
+      actions: [review, request_clarification, approve, reject]
+      effect: EFFECT_ALLOW
+      roles: [EVENT_COORDINATOR]
+
+    - name: D3-answer-a-clarification
+      actions: [respond_to_clarification]
+      effect: EFFECT_ALLOW
+      derivedRoles: [owner]
+
+    - name: E2-only-the-assigned-coordinator-proposes
+      actions: [propose_reassignment]
+      effect: EFFECT_ALLOW
+      derivedRoles: [assigned_coordinator]
+
+    - name: E2-only-the-nominee-accepts-or-declines
+      actions: [respond_to_reassignment]
+      effect: EFFECT_ALLOW
+      derivedRoles: [nominated_coordinator]
+
+    - name: F3-owner-or-assigned-coordinator-cancels
+      actions: [cancel]
+      effect: EFFECT_ALLOW
+      derivedRoles: [owner, assigned_coordinator]
+
+    - name: F5-S2-assigned-coordinator-confirms-and-decides-changes
+      actions: [confirm, decide_change]
+      effect: EFFECT_ALLOW
+      derivedRoles: [assigned_coordinator]
+
+    - name: G1-owner-or-assigned-coordinator-edits-details
+      actions: [update_details]
+      effect: EFFECT_ALLOW
+      derivedRoles: [owner, assigned_coordinator]
+
+    - name: G2-S3-coordinators-assess-change-impact
+      actions: [preview_change_impact, reconsider_arrangements]
+      effect: EFFECT_ALLOW
+      roles: [EVENT_COORDINATOR]
+
+    - name: S1-owner-requests-a-change
+      actions: [request_change]
+      effect: EFFECT_ALLOW
+      derivedRoles: [owner]

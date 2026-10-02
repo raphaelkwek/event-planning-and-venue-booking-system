@@ -1,0 +1,21 @@
+# Who may do what to one line of an event's equipment request (A2). Rule names cite the story.
+apiVersion: api.cerbos.dev/v1
+resourcePolicy:
+  version: default
+  resource: equipment_request_line
+  importDerivedRoles: [connectsphere]
+  rules:
+    - name: O1-the-assigned-coordinator-records-equipment
+      actions: [create, update, remove]
+      effect: EFFECT_ALLOW
+      derivedRoles: [assigned_coordinator]
+
+    - name: A3-coordinators-and-tech-support-see-requests
+      actions: [view]
+      effect: EFFECT_ALLOW
+      roles: [EVENT_COORDINATOR, TECH_SUPPORT_STAFF]
+
+    - name: O2-P1-Q1-Q2-tech-support-arrange-equipment
+      actions: [update_status, check_availability, reserve, release]
+      effect: EFFECT_ALLOW
+      roles: [TECH_SUPPORT_STAFF]
