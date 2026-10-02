@@ -8,17 +8,18 @@
     "backend/packages/*"
   ],
   "scripts": {
-    "dev": "concurrently --kill-others-on-fail --names identity,event,web --prefix-colors blue,magenta,green \"npm run dev -w @connectsphere/identity-service\" \"npm run dev -w @connectsphere/event-service\" \"npm run dev -w @connectsphere/web\"",
+    "dev": "concurrently --kill-others-on-fail --names core,web --prefix-colors blue,green \"npm run dev -w @connectsphere/planning-core\" \"npm run dev -w @connectsphere/web\"",
     "migrate": "tsx backend/scripts/migrate.ts",
     "migrate:identity": "tsx backend/scripts/migrate.ts identity --seed",
     "migrate:event": "tsx backend/scripts/migrate.ts event",
-    "seed:auth": "tsx backend/services/identity/migrations/seed/seed-auth-users.ts",
+    "seed:auth": "tsx backend/services/planning-core/migrations/identity/seed/seed-auth-users.ts",
     "test-cases:reset": "tsx tests/fixtures/reset-test-data.ts",
     "test-cases:run": "playwright test --config tests/playwright.config.ts",
     "confluence:digest": "tsx documentation/scripts/confluence-digest.ts",
     "test": "npm run test --workspaces --if-present && npm run test:scripts",
     "test:scripts": "tsx --test documentation/scripts/confluence-digest.test.ts",
-    "build": "npm run build --workspaces --if-present"
+    "build": "npm run build --workspaces --if-present",
+    "lint:boundaries": "npm run lint:boundaries -w @connectsphere/planning-core"
   },
   "dependencies": {
     "postgres": "^3.4.4"

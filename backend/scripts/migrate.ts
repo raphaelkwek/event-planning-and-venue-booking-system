@@ -4,9 +4,12 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import postgres from "postgres";
 
+// Each planning-core module owns its schema and its migrations folder (ADR-0004).
+// The module name is also the key in public.schema_migrations, which is why the
+// column is still called `service`: rows recorded before the merge keep matching.
 const service = process.argv[2];
 if (!service) {
-  console.error("Usage: tsx backend/scripts/migrate.ts <service> [--seed]");
+  console.error("Usage: tsx backend/scripts/migrate.ts <module> [--seed]");
   process.exit(1);
 }
 const withSeed = process.argv.includes("--seed");
@@ -27,8 +30,9 @@ async function run() {
     primary key (service, filename)
   )`;
 
-  const dirs = [join("backend", "services", service, "migrations")];
-  if (withSeed) dirs.push(join("backend", "services", service, "migrations", "seed"));
+  const moduleDir = join("backend", "services", "planning-core", "migrations", service);
+  const dirs = [moduleDir];
+  if (withSeed) dirs.push(join(moduleDir, "seed"));
 
   for (const dir of dirs) {
     const files = readdirSync(dir)
