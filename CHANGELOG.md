@@ -508,6 +508,30 @@ twelve-task plan, F1's functional cards, and the transition table. **F1 is not d
 
 ---
 
+# Submission package folder, with the test and sprint spreadsheets generated from source
+
+**Timestamp:** 2026-09-30T15:00+08:00 (SGT)
+**Author:** Chai, via Claude
+**Scope:** `submission/`, `documentation/scripts/build-submission.ts` (+ test), `package.json` (`exceljs`, `submission:build`), `confluence-digest.ts` (`standupName` exported).
+**Reason:** The Week 12 zip needs numbered folders 1–7, and last year's G4T2 handed in test cases, sprint backlogs and standups as spreadsheets. Hand-typing those would create a second copy of the test cards, the backlog and CHANGELOG, and it would drift. `npm run submission:build` now derives them instead.
+
+## Added
+
+- `submission/` mirroring the seven deliverable folders (the AY26/27 instructions merge release and CI/CD into folder 6).
+- Generated: `3. Test Cases/Functional Test Cases.xlsx` (129 cards, a sheet per feature area), `Automated Test Traceability.xlsx`, `4. Sprint Meetings/3. Sprint Backlogs.xlsx`, `2. Sprint Updates.xlsx`. The Sprint 1 review/retro and transcripts are copied, never retyped.
+- Hand-written: `4. Sprint 1 Planning.md`, the final-sprint recordings stub, `7. README/README.md`.
+
+## Known gap
+
+- Sprint 1 story points still disagree across sources: the poker figures in the transcript sum to 35 (34 was announced), the Confluence Jira table and `sprint allocation.csv` both total 47 with different per-story figures. The planning doc records all three. The spreadsheets use the CSV until the PO names one authoritative source.
+
+## Follow-up
+
+- Name both instructors in `submission/7. README/README.md` once they have accepted repository access.
+- At each sprint boundary, add the sprint to `SPRINTS` in `build-submission.ts` and mark the reviewed one.
+
+---
+
 # Correct the Sprint 1 scope to A1–E2, and move F1 to Sprint 2
 
 **Timestamp:** 2026-09-20T23:05+08:00 (SGT)

@@ -16,6 +16,7 @@
     "test-cases:reset": "tsx tests/fixtures/reset-test-data.ts",
     "test-cases:run": "playwright test --config tests/playwright.config.ts",
     "confluence:digest": "tsx documentation/scripts/confluence-digest.ts",
+    "submission:build": "tsx documentation/scripts/build-submission.ts",
     "test": "npm run test --workspaces --if-present && npm run test:scripts",
     "test:scripts": "tsx --test documentation/scripts/confluence-digest.test.ts",
     "test:unit": "npm run test:unit --workspaces --if-present && npm run test:scripts",
