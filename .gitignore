@@ -257,3 +257,7 @@ tests/support
 .scout_run/
 scout_tmp/
 NUL
+
+# Rendered C4 diagrams land here locally and in CI; the committed copies live in documentation/c4/images/.
+documentation/c4/build/
+api.html

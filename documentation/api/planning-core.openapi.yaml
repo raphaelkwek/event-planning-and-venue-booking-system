@@ -1,0 +1,927 @@
+openapi: 3.1.0
+info:
+  title: ConnectSphere planning-core API
+  version: 0.2.0
+  summary: The staff-facing API (identity and event modules) as built in Sprint 1 and EN-01.
+  description: |
+    planning-core is one deployable holding the identity, event, venue, equipment and
+    change modules (ADR-0004). This file describes the routes that exist today; venue,
+    equipment and change routes are added here, in the same pull request as their code
+    (ADR-0015).
+
+    **Conventions** (`implementation.md` §5):
+    - Every refusal uses the error envelope below. `message` is written for the user.
+      `fields[]` names every field that failed, not only the first.
+    - A resource outside the caller's access scope (A3) is a 404, never a filtered 200,
+      so its existence is not revealed.
+    - Lists return `{ items, nextCursor }`. `nextCursor` is always null until pagination
+      lands.
+    - Every response echoes `X-Correlation-Id`. Send one to tie your logs to ours.
+    - Timestamps are RFC 3339 UTC strings.
+
+    `tests/api/openapiRoutes.unit.test.ts` (planning-core) fails CI if a route exists in
+    the code but not here, or here but not in the code.
+
+    In local development the Vite proxy serves identity routes under `/identity` and
+    event routes under `/event`. Both prefixes reach the same planning-core process.
+  contact:
+    name: ConnectSphere team (IS212 G1)
+  license:
+    name: Proprietary (IS212 coursework)
+    identifier: LicenseRef-IS212-coursework
+servers:
+  - url: /
+    description: The planning-core you are running. Locally that's http://localhost:8090 (npm run dev).
+tags:
+  - name: Health
+    description: Liveness and readiness probes. They have no 4XX responses, so Redocly's operation-4xx-response warning is expected on these two.
+  - name: Identity
+    description: A1 login, A2 roles, A3 access scope (identity module)
+  - name: Drafts
+    description: C1 to C3, requests saved before submission (event module)
+  - name: Events
+    description: B1 submission, C3 my requests, D1 review queue and claim (event module)
+  - name: Decisions
+    description: D4 approve, D5 reject (event module)
+  - name: Clarifications
+    description: D2 request clarification, D3 respond with amendments (event module)
+  - name: Reassignment
+    description: E2 propose, accept and decline coordinator reassignment (event module)
+
+security:
+  - bearerAuth: []
+
+paths:
+  /healthz:
+    get:
+      tags: [Health]
+      summary: Liveness
+      operationId: getLiveness
+      security: []
+      responses:
+        "200":
+          description: The process is up.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status: { const: ok }
+
+  /readyz:
+    get:
+      tags: [Health]
+      summary: Readiness (the database answers)
+      operationId: getReadiness
+      security: []
+      responses:
+        "200":
+          description: Ready to serve.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status: { const: ready }
+        "503":
+          description: The database did not answer.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, error]
+                properties:
+                  status: { const: not_ready }
+                  error: { type: string }
+
+  /api/v1/auth/login:
+    post:
+      tags: [Identity]
+      summary: Record a sign-in (A1)
+      description: |
+        Checks the credentials with Supabase Auth, records the login (last-login time and
+        the audit row) and returns the user and role. A wrong email and a wrong password
+        get the same message. A deactivated account gets a different one.
+      operationId: logIn
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LoginRequest" }
+      responses:
+        "200":
+          description: Signed in.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LoginResponse" }
+        "400": { $ref: "#/components/responses/ValidationFailed" }
+        "401":
+          description: "`INVALID_CREDENTIALS`: email or password is incorrect."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "403":
+          description: "`ACCOUNT_DEACTIVATED`: the account exists but is deactivated."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+
+  /api/v1/auth/logout:
+    post:
+      tags: [Identity]
+      summary: End the session (A1)
+      operationId: logOut
+      responses:
+        "204": { description: Signed out. The token is revoked with Supabase Auth. }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+
+  /api/v1/users/me:
+    get:
+      tags: [Identity]
+      summary: Who am I (A2)
+      operationId: getCurrentUser
+      responses:
+        "200":
+          description: The caller's internal id, email and role.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CurrentUser" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403":
+          description: "`NO_ROLE_ASSIGNED`: the user has no role."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+
+  /api/v1/users:
+    get:
+      tags: [Identity]
+      summary: Name people by id (B1, D1)
+      description: Internal staff only. Returns only the fields needed to name someone.
+      operationId: listUsersByIds
+      parameters:
+        - name: ids
+          in: query
+          required: true
+          description: Comma-separated user ids, at most 100.
+          schema: { type: string, examples: ["00000000-0000-0000-0000-000000000001,00000000-0000-0000-0000-000000000002"] }
+      responses:
+        "200":
+          description: The users that exist among those asked for.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/UserSummary" }
+        "400": { $ref: "#/components/responses/ValidationFailed" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /api/v1/access-scope/{resource}:
+    get:
+      tags: [Identity]
+      summary: The A3 scope rule for the caller and a resource
+      operationId: getAccessScope
+      parameters:
+        - name: resource
+          in: path
+          required: true
+          schema: { type: string, enum: [events, venue_bookings, equipment_requests] }
+      responses:
+        "200":
+          description: The rule the owning module applies as a query-time filter.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [scope]
+                properties:
+                  scope: { $ref: "#/components/schemas/AccessScope" }
+        "400":
+          description: "`UNKNOWN_RESOURCE`"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /api/v1/event-drafts:
+    post:
+      tags: [Drafts]
+      summary: Save a new draft (C1)
+      description: Event Organiser only. A name is enough; B2's rules are not applied until submission.
+      operationId: createDraft
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DraftRequest" }
+      responses:
+        "201":
+          description: Saved at status Draft.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Event" }
+        "400": { $ref: "#/components/responses/ValidationFailed" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
+  /api/v1/event-drafts/{id}:
+    parameters:
+      - $ref: "#/components/parameters/RecordId"
+    get:
+      tags: [Drafts]
+      summary: Open one of my drafts (C2)
+      operationId: getDraft
+      responses:
+        "200":
+          description: Every saved field, exactly as saved.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Event" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+    put:
+      tags: [Drafts]
+      summary: Save changes to one of my drafts (C2)
+      operationId: updateDraft
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DraftRequest" }
+      responses:
+        "200":
+          description: Saved; still a draft, with a new last-saved time.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Event" }
+        "400": { $ref: "#/components/responses/ValidationFailed" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
+  /api/v1/event-drafts/{id}/submit:
+    parameters:
+      - $ref: "#/components/parameters/RecordId"
+    post:
+      tags: [Drafts]
+      summary: Submit a draft (C2, B1, B2)
+      description: |
+        With a body, the values sent are validated and stored only if the submission
+        succeeds. With no body, the draft is submitted as last saved. B2's full rule set
+        applies either way, and a blocked submission changes nothing.
+      operationId: submitDraft
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SubmissionRequest" }
+      responses:
+        "201":
+          description: Submitted. The request now has a reference and an assigned coordinator.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Event" }
+        "400": { $ref: "#/components/responses/ValidationFailed" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: "`DRAFT_ALREADY_SUBMITTED`"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
+  /api/v1/events:
+    post:
+      tags: [Events]
+      summary: Submit a new event request directly (B1, B2)
+      operationId: submitEventRequest
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SubmissionRequest" }
+      responses:
+        "201":
+          description: Submitted, with a reference, an owner and an assigned coordinator (E1).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Event" }
+        "400": { $ref: "#/components/responses/ValidationFailed" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+    get:
+      tags: [Events]
+      summary: My requests, drafts included (C3)
+      description: Filtered by the caller's A3 scope in the query itself.
+      operationId: listEvents
+      parameters:
+        - name: kind
+          in: query
+          required: false
+          description: "`drafts` for my drafts only, `submitted` to leave drafts out. Omit for both."
+          schema: { type: string, enum: [drafts, submitted] }
+      responses:
+        "200":
+          description: Newest submission first.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, nextCursor]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/EventListItem" }
+                  nextCursor: { type: "null" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
+  /api/v1/events/queue:
+    get:
+      tags: [Events]
+      summary: The review queue (D1)
+      description: Event Coordinator only. Every request awaiting a decision, oldest submission first.
+      operationId: getReviewQueue
+      responses:
+        "200":
+          description: The queue.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, nextCursor]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/Event" }
+                  nextCursor: { type: "null" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
+  /api/v1/events/{id}:
+    parameters:
+      - $ref: "#/components/parameters/RecordId"
+    get:
+      tags: [Events]
+      summary: Open an event (D1)
+      description: |
+        When an Event Coordinator opens a request that is still Submitted, it is claimed
+        for review (Submitted to Under Review). The claim is conditional, so a second
+        coordinator sees the first reviewer rather than replacing them.
+      operationId: getEvent
+      responses:
+        "200":
+          description: The full request.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Event" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
+  /api/v1/events/{id}/approve:
+    parameters:
+      - $ref: "#/components/parameters/RecordId"
+    post:
+      tags: [Decisions]
+      summary: Approve a request (D4)
+      description: Event Coordinator only. Approval creates no venue booking and no equipment reservation.
+      operationId: approveEvent
+      responses:
+        "200":
+          description: Approved.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Event" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
+  /api/v1/events/{id}/reject:
+    parameters:
+      - $ref: "#/components/parameters/RecordId"
+    post:
+      tags: [Decisions]
+      summary: Reject a request with a reason (D5)
+      operationId: rejectEvent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: [string, "null"]
+                  description: Required in practice; a reason of only spaces is refused.
+      responses:
+        "200":
+          description: Rejected. Rejection is final.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Event" }
+        "400": { $ref: "#/components/responses/ValidationFailed" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
+  /api/v1/events/{id}/clarifications:
+    parameters:
+      - $ref: "#/components/parameters/RecordId"
+    get:
+      tags: [Clarifications]
+      summary: Every clarification round on an event (D2, D3)
+      operationId: listClarifications
+      responses:
+        "200":
+          description: Rounds in order; none is ever overwritten.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, nextCursor]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/Clarification" }
+                  nextCursor: { type: "null" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+    post:
+      tags: [Clarifications]
+      summary: Ask the organiser for clarification (D2)
+      description: Event Coordinator only. Moves the event to Awaiting Clarification.
+      operationId: requestClarification
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                message: { type: [string, "null"], description: Required in practice. }
+      responses:
+        "201":
+          description: The new round, status Open.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Clarification" }
+        "400": { $ref: "#/components/responses/ValidationFailed" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
+  /api/v1/events/{id}/clarifications/respond:
+    parameters:
+      - $ref: "#/components/parameters/RecordId"
+    post:
+      tags: [Clarifications]
+      summary: Answer a clarification, optionally amending the request (D3)
+      description: Event Organiser only. The original values are kept in the history.
+      operationId: respondToClarification
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                message: { type: [string, "null"] }
+                amendments:
+                  oneOf:
+                    - { $ref: "#/components/schemas/Amendments" }
+                    - { type: "null" }
+      responses:
+        "200":
+          description: The answered round and the event, back Under Review.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [clarification, event]
+                properties:
+                  clarification: { $ref: "#/components/schemas/Clarification" }
+                  event: { $ref: "#/components/schemas/Event" }
+        "400": { $ref: "#/components/responses/ValidationFailed" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
+  /api/v1/events/{id}/reassignment-proposals:
+    parameters:
+      - $ref: "#/components/parameters/RecordId"
+    get:
+      tags: [Reassignment]
+      summary: Reassignment proposals on an event (E2)
+      operationId: listReassignmentProposals
+      responses:
+        "200":
+          description: Every proposal, pending and resolved.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, nextCursor]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/ReassignmentProposal" }
+                  nextCursor: { type: "null" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+    post:
+      tags: [Reassignment]
+      summary: Propose a different coordinator (E2)
+      description: Only the event's current coordinator may propose, and only one proposal may be pending.
+      operationId: proposeReassignment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                nomineeId: { type: [string, "null"], format: uuid }
+      responses:
+        "201":
+          description: Proposal pending.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ReassignmentProposal" }
+        "400": { $ref: "#/components/responses/ValidationFailed" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422":
+          description: "`NOMINEE_NOT_ELIGIBLE` or `SELF_NOMINATION_NOT_PERMITTED`"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
+  /api/v1/events/{id}/reassignment-proposals/accept:
+    parameters:
+      - $ref: "#/components/parameters/RecordId"
+    post:
+      tags: [Reassignment]
+      summary: Accept the proposal naming me (E2)
+      operationId: acceptReassignment
+      responses:
+        "200":
+          description: Accepted; the caller is now the assigned coordinator.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ReassignmentProposal" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
+  /api/v1/events/{id}/reassignment-proposals/decline:
+    parameters:
+      - $ref: "#/components/parameters/RecordId"
+    post:
+      tags: [Reassignment]
+      summary: Decline the proposal naming me (E2)
+      operationId: declineReassignment
+      responses:
+        "200":
+          description: Declined; the assignment is unchanged.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ReassignmentProposal" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: A Supabase Auth access token. Every module verifies it itself.
+
+  parameters:
+    RecordId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+
+  responses:
+    ValidationFailed:
+      description: "`VALIDATION_FAILED`: `fields[]` names every field that failed."
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+    Unauthenticated:
+      description: "`UNAUTHENTICATED`: no bearer token, or an invalid or expired one."
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+    Forbidden:
+      description: "`ROLE_NOT_AUTHORISED` (A2), or `NO_ROLE_ASSIGNED`."
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+    NotFound:
+      description: "`EVENT_NOT_FOUND`, `DRAFT_NOT_FOUND` or `REASSIGNMENT_PROPOSAL_NOT_FOUND`. Also returned when the record exists but is outside the caller's scope (A3)."
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+    Conflict:
+      description: "`STATUS_TRANSITION_NOT_PERMITTED`, `EVENT_ALREADY_DECIDED`, `NO_OPEN_CLARIFICATION`, `REASSIGNMENT_NOT_PERMITTED` or `REASSIGNMENT_ALREADY_PENDING`. The message names the current state."
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+    IdentityUnavailable:
+      description: "`IDENTITY_UNAVAILABLE`: the caller's role could not be read, so nothing was changed (CP: refuse rather than guess)."
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+
+  schemas:
+    ErrorCode:
+      type: string
+      description: The shared list in `backend/packages/contracts/src/errorCodes.ts`.
+      enum:
+        - UNAUTHENTICATED
+        - NO_ROLE_ASSIGNED
+        - UNKNOWN_RESOURCE
+        - INVALID_CREDENTIALS
+        - ACCOUNT_DEACTIVATED
+        - VALIDATION_FAILED
+        - ROLE_NOT_AUTHORISED
+        - EVENT_NOT_FOUND
+        - DRAFT_NOT_FOUND
+        - STATUS_TRANSITION_NOT_PERMITTED
+        - EVENT_ALREADY_DECIDED
+        - DRAFT_ALREADY_SUBMITTED
+        - NO_OPEN_CLARIFICATION
+        - IDENTITY_UNAVAILABLE
+        - REASSIGNMENT_NOT_PERMITTED
+        - NOMINEE_NOT_ELIGIBLE
+        - SELF_NOMINATION_NOT_PERMITTED
+        - REASSIGNMENT_ALREADY_PENDING
+        - REASSIGNMENT_PROPOSAL_NOT_FOUND
+
+    ErrorEnvelope:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message, correlationId]
+          properties:
+            code: { $ref: "#/components/schemas/ErrorCode" }
+            message: { type: string, description: Written for the user; names the specific values. }
+            details: { type: object, additionalProperties: true }
+            fields:
+              type: array
+              items:
+                type: object
+                required: [field, message]
+                properties:
+                  field: { type: string }
+                  message: { type: string }
+            correlationId: { type: [string, "null"] }
+
+    Role:
+      type: string
+      enum: [EVENT_ORGANISER, EVENT_COORDINATOR, VENUE_STAFF, TECH_SUPPORT_STAFF, ATTENDEE]
+
+    EventStatus:
+      type: string
+      description: F1's exhaustive list.
+      enum: [DRAFT, SUBMITTED, UNDER_REVIEW, AWAITING_CLARIFICATION, APPROVED, PLANNING, CONFIRMED, COMPLETED, CANCELLED, REJECTED]
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, minLength: 1 }
+
+    LoginResponse:
+      type: object
+      required: [user, lastLoginAt]
+      properties:
+        user:
+          type: object
+          required: [id, email, role]
+          properties:
+            id: { type: string, format: uuid }
+            email: { type: string, format: email }
+            role:
+              oneOf:
+                - { $ref: "#/components/schemas/Role" }
+                - { type: "null" }
+        lastLoginAt: { type: string, format: date-time }
+
+    CurrentUser:
+      type: object
+      required: [id, email, role]
+      properties:
+        id: { type: string, format: uuid }
+        email: { type: string, format: email }
+        role: { $ref: "#/components/schemas/Role" }
+
+    UserSummary:
+      type: object
+      required: [id, displayName, email]
+      properties:
+        id: { type: string, format: uuid }
+        displayName: { type: [string, "null"] }
+        email: { type: string, format: email }
+
+    AccessScope:
+      description: "A3: the filter the owning module applies in its query."
+      oneOf:
+        - type: object
+          required: [scopeType, userId]
+          properties:
+            scopeType: { const: OWNED_BY_USER }
+            userId: { type: string, format: uuid }
+        - type: object
+          required: [scopeType]
+          properties:
+            scopeType: { const: ALL }
+        - type: object
+          required: [scopeType, staffUserId]
+          properties:
+            scopeType: { const: STAFF_OWNED_VENUES }
+            staffUserId: { type: string, format: uuid }
+        - type: object
+          required: [scopeType, staffUserId]
+          properties:
+            scopeType: { const: STAFF_OWNED_EQUIPMENT }
+            staffUserId: { type: string, format: uuid }
+        - type: object
+          required: [scopeType]
+          properties:
+            scopeType: { const: PUBLISHED_OPEN_REGISTRATION }
+        - type: object
+          required: [scopeType]
+          properties:
+            scopeType: { const: NONE }
+
+    VenueRequirements:
+      type: object
+      properties:
+        layout: { type: [string, "null"] }
+        facilities:
+          type: [array, "null"]
+          items: { type: string }
+        notes: { type: [string, "null"] }
+
+    EquipmentRequirementLine:
+      type: object
+      required: [equipmentType, quantity]
+      properties:
+        equipmentType: { type: string }
+        quantity: { type: integer, minimum: 1 }
+        notes: { type: [string, "null"] }
+
+    RequestFields:
+      description: |
+        The fields of an event request. On a draft every one may be empty (C1). On
+        submission B2 decides which are mandatory and reports every missing one at once.
+      type: object
+      properties:
+        purpose: { type: [string, "null"] }
+        description: { type: [string, "null"] }
+        proposedStartAt: { type: [string, "null"], format: date-time }
+        proposedEndAt: { type: [string, "null"], format: date-time }
+        expectedAttendance: { type: [number, "null"] }
+        venueRequirements:
+          oneOf:
+            - { $ref: "#/components/schemas/VenueRequirements" }
+            - { type: "null" }
+        accessibilityNeeds: { type: [string, "null"] }
+        equipmentRequired: { type: [boolean, "null"] }
+        equipmentRequirements:
+          type: [array, "null"]
+          items: { $ref: "#/components/schemas/EquipmentRequirementLine" }
+        registrationRequired: { type: [boolean, "null"] }
+        registrationOpensAt: { type: [string, "null"], format: date-time }
+        registrationClosesAt: { type: [string, "null"], format: date-time }
+
+    DraftRequest:
+      description: C1. A name of only spaces is refused, but the name is stored exactly as typed (C2).
+      allOf:
+        - $ref: "#/components/schemas/RequestFields"
+        - type: object
+          required: [name]
+          properties:
+            name: { type: string, minLength: 1 }
+
+    SubmissionRequest:
+      allOf:
+        - $ref: "#/components/schemas/RequestFields"
+        - type: object
+          properties:
+            name: { type: [string, "null"] }
+
+    Amendments:
+      description: "D3: any request field may be amended while answering a clarification."
+      allOf:
+        - $ref: "#/components/schemas/RequestFields"
+        - type: object
+          properties:
+            name: { type: [string, "null"] }
+
+    Event:
+      description: "An event request, drafts included (status Draft)."
+      allOf:
+        - $ref: "#/components/schemas/RequestFields"
+        - type: object
+          required: [id, reference, ownerId, name, status, submittedAt, lastSavedAt, reviewingCoordinatorId, reviewStartedAt, decidedBy, decidedAt, rejectionReason, assignedCoordinatorId]
+          properties:
+            id: { type: string, format: uuid }
+            reference: { type: [string, "null"], description: Null until submitted (C3). }
+            ownerId: { type: string, format: uuid }
+            name: { type: string }
+            status: { $ref: "#/components/schemas/EventStatus" }
+            submittedAt: { type: [string, "null"], format: date-time }
+            lastSavedAt: { type: string, format: date-time }
+            reviewingCoordinatorId: { type: [string, "null"], format: uuid }
+            reviewStartedAt: { type: [string, "null"], format: date-time }
+            decidedBy: { type: [string, "null"], format: uuid }
+            decidedAt: { type: [string, "null"], format: date-time }
+            rejectionReason: { type: [string, "null"] }
+            assignedCoordinatorId: { type: [string, "null"], format: uuid }
+
+    EventListItem:
+      description: "C3: one row of my requests. A draft has a last-saved time and no reference."
+      type: object
+      required: [id, kind, status, name, reference, lastSavedAt, submittedAt, assignedCoordinatorId, decidedAt]
+      properties:
+        id: { type: string, format: uuid }
+        kind: { type: string, enum: [DRAFT, EVENT] }
+        status: { $ref: "#/components/schemas/EventStatus" }
+        name: { type: string }
+        reference: { type: [string, "null"] }
+        lastSavedAt: { type: [string, "null"], format: date-time }
+        submittedAt: { type: [string, "null"], format: date-time }
+        assignedCoordinatorId: { type: [string, "null"], format: uuid }
+        decidedAt: { type: [string, "null"], format: date-time }
+
+    Clarification:
+      type: object
+      required: [id, eventId, message, requestedBy, requestedAt, status, responseMessage, respondedBy, respondedAt]
+      properties:
+        id: { type: string, format: uuid }
+        eventId: { type: string, format: uuid }
+        message: { type: string }
+        requestedBy: { type: string, format: uuid }
+        requestedAt: { type: string, format: date-time }
+        status: { type: string, enum: [OPEN, RESPONDED] }
+        responseMessage: { type: [string, "null"] }
+        respondedBy: { type: [string, "null"], format: uuid }
+        respondedAt: { type: [string, "null"], format: date-time }
+
+    ReassignmentProposal:
+      type: object
+      required: [id, eventId, outgoingCoordinatorId, nomineeCoordinatorId, status, proposedAt, resolvedAt]
+      properties:
+        id: { type: string, format: uuid }
+        eventId: { type: string, format: uuid }
+        outgoingCoordinatorId: { type: string, format: uuid }
+        nomineeCoordinatorId: { type: string, format: uuid }
+        status: { type: string, enum: [PENDING, ACCEPTED, DECLINED] }
+        proposedAt: { type: string, format: date-time }
+        resolvedAt: { type: [string, "null"], format: date-time }

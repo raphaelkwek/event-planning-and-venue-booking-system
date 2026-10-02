@@ -4,6 +4,48 @@
 
 ---
 
+# EN-09: C4 model as code, rendered in CI; OpenAPI spec for planning-core, checked against the routes
+
+**Timestamp:** 2026-10-02T14:40+08:00 (SGT)
+**Author:** Joash
+**Scope:**
+- `documentation/c4/` (new: model, README, images)
+- `documentation/api/` (new: OpenAPI spec, README)
+- `.github/workflows/diagrams.yml` (new)
+- planning-core `tests/api/openapiRoutes.unit.test.ts` (new)
+- the root `lint` script, `.gitignore`
+
+**Reason:** EN-09 (SPM-127). The system-design deliverable needs diagrams of the architecture the ADRs decided, and ADR-0015 needs a contract for each API. The repo had neither.
+
+## C4 model (`documentation/c4/connectsphere.dsl`, Structurizr DSL)
+
+1. **Seven views:**
+   - system context (L1);
+   - containers (L2);
+   - planning-core's five modules (L3);
+   - dynamic views for F3/F4 cancellation (freeze, commit, finalise) and R2 registration (seat row, outbox, notification);
+   - two deployment views: what runs today (`npm run dev` against hosted Supabase and Kafka) and the production target on AWS.
+2. **Planned elements are drawn dashed.** Anything designed but not yet built is tagged `Planned`, and its technology names the enabler that builds it, so the diagrams never pass off the target as what runs today.
+3. **CI renders the model.** The Diagrams workflow validates it, exports every view and renders PNG and SVG. Structurizr needs Java 17+, so it runs in CI, where containers are allowed (ADR-0012).
+   - The old `structurizr/cli` image has been retired upstream: it now prints a notice and exports nothing. The workflow uses the consolidated `structurizr/structurizr` image, pinned.
+4. **`images/`** holds the rendered PNGs and SVGs for submission folder 2. The README says how to refresh them from a CI run.
+
+## OpenAPI (`documentation/api/planning-core.openapi.yaml`, OpenAPI 3.1)
+
+5. **All 26 routes** planning-core serves today, Identity's and Event's. For each it gives:
+   - the roles allowed;
+   - request bodies, taken from the zod schemas;
+   - responses, taken from the repo row types;
+   - every refusal with its error code.
+
+   Two behaviours are documented explicitly: a coordinator opening a Submitted request claims it, and submitting a draft with no body submits it as last saved.
+6. **Kept honest two ways:**
+   - `npm run lint` now includes `lint:api` (Redocly). The spec is valid; the only two warnings are the health probes, which genuinely have no 4XX.
+   - A unit test walks the Express router and fails if the spec and the routes differ. I proved it by deleting one path from the spec: the test failed and named it.
+7. **AsyncAPI waits for EN-04.1,** which replaces today's message envelope and topic naming.
+
+---
+
 # SPM-114: CI on every pull request — lint, typecheck, build, unit tests
 
 **Timestamp:** 2026-10-02T12:30+08:00 (SGT)

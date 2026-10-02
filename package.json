@@ -22,7 +22,8 @@
     "build": "npm run build --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "lint:boundaries": "npm run lint:boundaries -w @connectsphere/planning-core",
-    "lint": "eslint frontend backend tests documentation/scripts eslint.config.js && npm run lint:boundaries"
+    "lint:api": "redocly lint documentation/api/planning-core.openapi.yaml",
+    "lint": "eslint frontend backend tests documentation/scripts eslint.config.js && npm run lint:boundaries && npm run lint:api"
   },
   "dependencies": {
     "postgres": "^3.4.4"
@@ -30,6 +31,7 @@
   "devDependencies": {
     "@eslint/js": "^9.39.5",
     "@playwright/test": "^1.63.0",
+    "@redocly/cli": "^2.57.0",
     "concurrently": "^9.2.4",
     "dotenv": "^16.4.5",
     "eslint": "^9.39.5",
