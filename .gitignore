@@ -244,3 +244,16 @@ tests/*/evidence/
 playwright.config.ts
 *.spec.ts
 tests/support
+
+# Local-only files: other teams' past submissions kept for reference, personal
+# agent scratch folders, and a stray Windows NUL file. Never commit these.
+*.zip
+.hermes/
+.hermes-scout/
+.hermes_scout_tmp/
+.scout/
+.scout-*/
+.scout_live/
+.scout_run/
+scout_tmp/
+NUL

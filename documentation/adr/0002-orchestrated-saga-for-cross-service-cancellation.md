@@ -1,6 +1,6 @@
 # ADR-0002: Orchestrated saga with compensation for F4 cancellation
 
-**Status:** Accepted
+**Status:** Superseded by [ADR-0009](0009-temporal-for-cross-service-steps-and-timers.md) on 2026-10-01
 **Date:** 2026-09-15
 
 ## Context

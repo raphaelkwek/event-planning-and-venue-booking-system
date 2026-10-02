@@ -1,6 +1,6 @@
 # ADR-0001: Microservices with schema-per-service boundaries, CP over AP
 
-**Status:** Accepted
+**Status:** Accepted, amended by [ADR-0004](0004-modular-core-instead-of-six-microservices.md) on 2026-10-01 (Identity, Event, Venue and Equipment become modules of one `planning-core`; CP, schema-per-owner and database-enforced invariants still hold)
 **Date:** 2026-09-15
 
 ## Context

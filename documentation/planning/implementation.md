@@ -2,6 +2,16 @@
 
 **Every agent and every team member follows this document.** It exists so that six people's work integrates without a rewrite. `plan.md` says what to build and where; this says how. Where this document specifies a format, that format is not negotiable by an individual agent — changing it needs a PR reviewed by another service owner.
 
+> **Architecture update, 2026-10-01.** ADR-0004 to ADR-0015 were accepted. §4.5 to §4.7 below are updated to match. Some sections still describe the earlier six-service design and conflict with the ADRs, and **where they conflict, the ADR wins** until those sections are rewritten:
+>
+> | Section | What still reflects the old design | ADR | Rewrite owner |
+> |---|---|---|---|
+> | §3 | Topic naming and the custom envelope | ADR-0008 (topics per aggregate, CloudEvents) | EN-04 |
+> | §4.6 | Registration capacity counters | ADR-0005 (seat rows) | EN-13 |
+> | §6 | Authorisation | ADR-0010 (Cerbos and RLS) | EN-07 |
+>
+> §2 was rewritten for ADR-0004 on 2 Oct 2026, when EN-01 merged Identity and Event into `planning-core`.
+
 ---
 
 ## 1. Stack
@@ -23,34 +33,45 @@
 
 ## 2. Repository layout
 
+Staff-facing code is **one deployable, `planning-core`**, made of modules (ADR-0004). Registration and Notification will be separate services when EN-13 and EN-04.3 build them (ADR-0005, ADR-0008).
+
 ```
 /frontend                   SPA (all roles)
   /src  /tests
 /backend
   /services
-    /identity  /event  /venue  /equipment  /registration  /notification
+    /planning-core          one Express app, one process (ADR-0004)
       /src
-        /api                Express routers + request validation
-        /domain             business rules, pure, no I/O
-        /repo               SQL only, one function per query
-        /events             outbox writer + Kafka consumers
-        index.ts
-      /migrations           NNNN_description.sql, forward-only
-      /tests                unit and integration tests, next to the code
+        index.ts            starts the app listening
+        app.ts              mounts each module's router; nothing else
+        /shared             config, db pool, logger, JWT verification, health
+        /modules
+          /identity  /event  /venue  /equipment  /change
+            /api            Express routers + request validation
+            /domain         business rules, pure, no I/O
+            /repo           SQL only, this module's schema only, one function per query
+            /events         outbox writer + Kafka consumers
+            index.ts        the module's public interface: the only file other modules import
+      /migrations/<module>  NNNN_description.sql, forward-only; identity's seed SQL in /identity/seed
+      /tests/<module>       unit and integration tests for that module
+      /scripts              the schema boundary check
+      .dependency-cruiser.cjs  the import boundary check
+    /registration           EN-13, not built yet
+    /notification           EN-04.3, not built yet
   /packages
     /contracts              event schemas, shared TS types, error codes  ← changing this needs review
-  /scripts                  migrate.ts
+  /scripts                  migrate.ts (`npm run migrate -- <module>`)
   /supabase                 Supabase CLI config (run as `npx supabase --workdir backend …`)
-  tsconfig.base.json        extended by the services and contracts
+  tsconfig.base.json        extended by planning-core and contracts
 /documentation
-  /planning                 plan.md, implementation.md, Jira backlog
+  /planning                 plan.md, implementation.md, definition-of-ready.md, Jira snapshot
   /adr                      architecture decision records
   /proposals                decisions still being agreed
   /superpowers              /specs and /plans written by the Superpowers plugin
   /traceability             sprint-<n>.csv (§8.2)
   /scripts                  confluence-digest.ts
   /transcript               meeting transcripts
-  Final_User_Stories__2_.md, sprint-reallocation.csv
+  final user stories.md, sprint allocation.csv
 /tests                      functional test cases, one folder per user story (§8.4)
   /<story-id>               e.g. /tests/D5/D5-T1-reject-with-a-reason.md
   /flows/sprint-<n>         the sprint flow test: flow.md, seed.sql, flow.spec.ts (§8.2)
@@ -58,9 +79,13 @@
 CHANGELOG.md  README.md  CLAUDE.md  package.json  .env
 ```
 
-`tests/` is its own top-level folder because its cases and their automated scripts drive the running web app against the running services, so they belong to neither half. Unit and integration tests stay next to the code they test. The root keeps only what must live there: npm workspaces and the root `npm run dev` that starts the whole stack, the shared `.env`, and the files GitHub, Claude Code and §11.2 expect at the root.
+`tests/` is its own top-level folder because its cases and their automated scripts drive the running web app against the running backend, so they belong to neither half. Unit and integration tests stay next to the code they test. The root keeps only what must live there: npm workspaces and the root `npm run dev` that starts the whole stack, the shared `.env`, and the files GitHub, Claude Code and §11.2 expect at the root.
 
-**You may write inside your own service directory and your own migrations only.** `/backend/packages/contracts` is shared: a PR touching it must be reviewed by at least one other service owner before merge.
+**You may write inside your own module, its migrations and its tests only.** A module owns its Postgres schema of the same name (`identity`, `event`, `venue`, `equipment`, `change`).
+
+- **Reading another module's data:** call a function exported from that module's `index.ts`. Never import its other files, never query its schema, and never call it over HTTP. Inside the core, a cross-module rule (F4, F5, S2/S3, G2) is one Postgres transaction (ADR-0004).
+- **`npm run lint:boundaries` enforces this** and fails on either kind of breach: dependency-cruiser rejects an import of another module's internals, and a SQL check rejects a reference to another module's schema in `src/` or `migrations/`.
+- **`/backend/packages/contracts` is shared:** a PR touching it must be reviewed by at least one other module owner before merge.
 
 ## 3. Kafka message format (mandatory)
 
@@ -190,39 +215,66 @@ constraint ends_after_start check (ends_at > starts_at)
 
 We do **not** provide strict serializability. That is a distributed guarantee — every operation appearing in one global order that respects real time — and nothing in this stack offers it: Postgres `SERIALIZABLE` is per-database, Kafka orders per-partition, and there is no synchronised clock. No acceptance criterion asks for it either. Do not claim it.
 
-What the criteria actually require is **linearizability per aggregate**: each individual slot, equipment type, or event behaves as if operations on *it* happened one at a time. Three objects need it, and each gets it from a single-row write rather than from an isolation level:
+What the criteria actually require is **linearizability per aggregate**: each individual slot, equipment unit or type, or event behaves as if operations on *it* happened one at a time. Each object below gets that from a constraint or a row lock, not from an isolation level (ADR-0006):
 
 | Object | Story | What provides it |
 |---|---|---|
-| A venue slot (venue + period) | N1, L3 | The `EXCLUDE USING gist` constraint — a single row insert, so linearizable by construction |
-| An equipment type's available quantity | Q1 | Conditional `UPDATE` on one counter row |
-| An event's registration count | R2, R7 | Conditional `UPDATE` on one counter row |
+| A venue slot (venue + period) | N1, L3, M1 | The `EXCLUDE USING gist` constraint. A single row insert, so linearizable by construction. |
+| A venue, while a booking is approved or a block is created | M1, I2 | `SELECT … FOR UPDATE` on the venue row, taken first by both paths |
+| A serialized equipment unit | Q1 | Per-unit `EXCLUDE USING gist` constraint on `unit_reservations` |
+| An equipment type's bulk stock over a period | Q1, P2 | `SELECT … FOR UPDATE` on the equipment-type row, then a peak-concurrent-use check |
+| An event's registration count | R2, R7 | Conditional `UPDATE` on one counter row today. Becomes seat rows under ADR-0005 (EN-13). |
 
-This is why "never read-then-write on a contended resource" matters more than any isolation setting: the guarantee comes from the shape of the statement.
+This is why "never read-then-write on a contended resource" matters more than any isolation setting: the guarantee comes from a constraint or a lock taken before the read.
 
-### 4.6 The three concurrency invariants
+### 4.6 The concurrency invariants
 
-**Venue slot exclusivity** (N1, L3) — one hold *or* confirmed booking per venue and period:
+These follow ADR-0006, and EN-02 implements them.
+
+**Venue slot exclusivity** (N1, L3, M1): one hold *or* confirmed booking per venue and period.
 
 ```sql
 create extension if not exists btree_gist;
 alter table venue.venue_slots add constraint venue_slot_no_overlap
-  exclude using gist (venue_id with =, period with &&)
+  exclude using gist (venue_id with =, blocked_period with &&)
   where (status in ('HELD','CONFIRMED'));
 ```
 
-Model holds and confirmed bookings as rows in one table (`venue_slots`) so a single constraint covers both. Two concurrent inserts: exactly one succeeds, the other raises `23P01`, which you translate into the refusal message naming the conflicting reference.
+Model holds and confirmed bookings as rows in one table (`venue_slots`) so a single constraint covers both. Two concurrent inserts: exactly one succeeds, and the other raises `23P01`, which you translate into the refusal message naming the conflicting reference.
 
-**Equipment availability** (Q1) — never over-reserve:
+`blocked_period` is `[start − setup, end + teardown)`. Setup and teardown are zero in Release 1, because buffers are out of scope, but the column means switching them on later is a data change rather than a redesign.
+
+**Three rules the constraint alone doesn't give you:**
+
+1. **Approval and blocking take the venue row lock first (M1, I2).** M1 approving a booking and I2 recording a period of unavailability both start with `select … from venue.venues where id = $venue for update`. Without it, a block created during an approval can leave an unflagged confirmed booking overlapping the block. With it, the two serialise per venue: whichever runs second sees the other's result, and I2 flags the overlapping booking.
+2. **Requires Reconfirmation is a flag, never a status.** Store it as `requires_reconfirmation boolean not null default false` on the slot. Keep the status CONFIRMED, so the flagged booking **keeps blocking its slot**. A status value outside `('HELD','CONFIRMED')` would silently free the slot for someone else.
+3. **A converted hold stays HELD until decided (L3 → L1).** When L1 turns a hold into a booking request, the slot row keeps status HELD until M1 approves (→ CONFIRMED) or M2 rejects (→ RELEASED). Never release and then re-insert it, because that opens a window in which another hold can take the slot.
+
+**Equipment availability** (P1, P2, Q1): never over-reserve, **over a period**. The old design kept one `total`/`reserved` counter per equipment type with no time dimension, so it couldn't tell Friday 2–5 pm from Saturday. It's replaced by two mechanisms.
+
+*Serialized units* (a projector, a microphone) are rows in `equipment.equipment_units`. A reservation claims specific units:
 
 ```sql
-update equipment.availability_counters
-   set reserved = reserved + $qty
- where equipment_type_id = $id and (total - reserved) >= $qty
- returning *;
+alter table equipment.unit_reservations add constraint unit_not_double_reserved
+  exclude using gist (unit_id with =, period with &&)
+  where (status = 'RESERVED');
 ```
 
-Zero rows returned means insufficient availability. Never `SELECT` then `INSERT`.
+Reserving five projectors picks five units that are free for the whole window. Choose a best fit that leaves the fewest gaps. If two reservations race for the same unit, the constraint rejects one, which retries with the next free unit or refuses with the shortfall.
+
+*Bulk stock* (chairs, cables), which has no unit identity, takes the type row lock and then checks peak concurrent use inside the window:
+
+```sql
+-- 1. serialise reservations of this type
+select total_quantity from equipment.equipment_types where id = $type for update;
+-- 2. peak quantity already reserved at any instant inside [$start, $end)
+--    (max over the reservation boundaries that fall in the window)
+-- 3. insert only if total_quantity - peak - unavailable >= $qty
+```
+
+Steps 1 to 3 run in one transaction at `READ COMMITTED`. The row lock is what makes the check safe. Never check availability without taking that lock first.
+
+**P1 is waiting on a customer answer (CQ-02, SPM-157).** P1's literal text subtracts every overlapping reservation added up, which counts back-to-back bookings as simultaneous. The design computes **peak concurrent use**, and it can switch to summed overlaps if the customer says so. Don't change P1's acceptance criteria until the answer is recorded in `documentation/clarifications.md`.
 
 **Registration capacity** (R2, R7) — the ceiling is read **synchronously from the Venue Service at the moment of registration**, never from a cached figure:
 
@@ -242,13 +294,18 @@ Zero rows returned means full; offer the waitlist (R6).
 
 ### 4.7 Transactions and isolation
 
-- Default `READ COMMITTED`. The three patterns above are safe at that level because the constraint or the `WHERE` clause does the work.
-- Use `SERIALIZABLE` only when an invariant spans rows you must **read before writing**. Exactly two operations qualify:
-  - **P2** — refusing a total-quantity reduction below what is already reserved across overlapping periods (reads many reservation rows, then writes).
-  - **R7** — a manual add weighed against registered + manually-added versus the ceiling, if you keep those as two counters. Preferred alternative: fold both into one counter row and use the conditional-update pattern instead, which removes the need for `SERIALIZABLE` entirely.
+- Default `READ COMMITTED`. The patterns above are safe at that level because a constraint or a row lock taken first does the work.
+- **P2** (refusing a total-quantity reduction below what is already reserved across overlapping periods) takes the same equipment-type row lock as a bulk reservation, then checks peak concurrent use. It no longer needs `SERIALIZABLE`.
+- Use `SERIALIZABLE` only when an invariant spans rows you must read before writing **and** no constraint or row lock fits. Today one operation might qualify:
+  - **R7:** a manual add weighed against registered plus manually added versus the ceiling, if those are kept as two counters. Preferred: seat rows with public and VIP pools (ADR-0005), which remove the need entirely.
 - Handle `40001` by retrying once, then surfacing the error. Put a comment above any `SERIALIZABLE` transaction naming the invariant that forced it, so a reviewer can see it was deliberate.
-- **F1's Confirmed transition cannot be made serializable at all**, because it reads across service boundaries (Venue and Equipment). Re-verify both arrangements inside the writing transaction, accept the residual window, and rely on S3 to re-flag the event if an arrangement changes afterwards. Be able to say this plainly in the Q&A rather than overclaiming.
-- **Never** hold a transaction open across an HTTP call to another service.
+- **F5's Confirmed transition is one core transaction** (ADR-0004). Venue, Equipment and Event are modules of `planning-core`, so F5:
+  1. locks the event row;
+  2. reads the booking and the reservations through their modules' public interfaces, in the same Postgres transaction;
+  3. writes the transition.
+
+  There is no HTTP call and no residual window. If an arrangement changes after confirmation, S3 flags the event. The earlier instruction to "re-verify both arrangements inside the writing transaction" contradicted the rule below, and it no longer applies.
+- **Never** hold a transaction open across an HTTP call to another service. Under ADR-0004 there is no exception: cross-module reads inside the core are function calls, and the only remote calls are to the registration and notification services, which never happen inside a core transaction.
 - Statement timeout: 5 s. Connection pool max 10 per service.
 
 ### 4.8 Migrations
@@ -319,7 +376,7 @@ These belong to no single story but every screen depends on them, so they are bu
 - **Status lozenge map** — `frontend/src/shared/status.ts`, one colour per event, booking, reservation and registration status. No inline colours anywhere.
 - **App layout and empty/loading states** — page shell, list and detail skeletons, and the "no results, here are the filters you applied" empty state J1 requires.
 
-The attendee shell (§7.2) is separate and is built in Sprint 3 with R1, not in Sprint 4 — see `plan.md` §9.1.
+The attendee shell (§7.2) is separate. It is built in Sprint 3 as part of EN-13 (the registration service and the attendee PWA shell), and R1 moved to Sprint 4 on 1 Oct 2026 to build on it. See `plan.md` §9.1.
 
 ## 8. Testing and the sprint test kit
 
@@ -489,7 +546,7 @@ Cloud-readiness rules to follow now so the move is boring later: services are st
 Each of us is running Claude Code against a shared repo. These exist to stop six agents producing six incompatible interpretations.
 
 1. **Read `plan.md` §4–§6 and this document's §3 and §4 before writing code.** They contain the contracts the rest of the team depends on.
-2. **Stay inside your service directory and your own migrations.** Do not "helpfully" fix another service.
+2. **Stay inside your own module, its migrations and its tests.** Do not "helpfully" fix another module; `npm run lint:boundaries` fails if you reach into one (§2).
 3. **Do not invent fields, event types, error codes, status values, or endpoints.** If the story needs one that isn't in `/backend/packages/contracts`, stop, propose it to the team, add it in a reviewed PR.
 4. **Implement the acceptance criteria as written.** If an AC seems wrong or impossible, raise it — do not silently improve it. The ACs are the spec and the test basis.
 5. **Refusal paths are features.** Most stories specify what happens when an action is refused and assert nothing is stored. Implement and test those alongside the happy path.

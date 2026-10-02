@@ -4,6 +4,345 @@
 
 ---
 
+# EN-01: Identity and Event merged into planning-core, with module boundary checks
+
+**Timestamp:** 2026-10-02T09:45+08:00 (SGT)
+**Author:** Joash
+**Scope:**
+- `backend/services/planning-core` (new; replaces `backend/services/identity` and `backend/services/event`)
+- root `package.json` and `package-lock.json`, `backend/scripts/migrate.ts`, `.env.example`, `frontend/vite.config.ts`
+- `README.md`, `tests/README.md`, `implementation.md` §2 and §11, `definition-of-ready.md`, `plan.md` §8, ADR-0004
+- `documentation/traceability/sprint-1.csv` and `sprint-2.csv` (test paths only)
+
+**Reason:** EN-01 (SPM-119), ADR-0004. Until this change the architecture was decided on paper only; the code was still two services. Almost every Sprint 2 story builds inside the new layout, so this unblocks them. **No HTTP route, status code, error message or event message changed.** The only visible difference is that log lines now say `"service": "planning-core"`.
+
+## EN-01.1 — the skeleton and the boundary checks
+
+1. **One deployable, `@connectsphere/planning-core`:**
+   - `src/app.ts` mounts each module's router;
+   - `src/index.ts` starts it on `PLANNING_CORE_PORT` (default 8090);
+   - `src/shared/` holds the config, database pool, logger, JWT verification and health endpoints that both services had copies of.
+2. **Five modules** under `src/modules/`: `identity`, `event`, `venue`, `equipment` and `change`.
+   - Each has a public `index.ts`, the only file another module may import.
+   - Venue, equipment and change are empty, with their folders in place for H1, O1, P2 and the rest.
+3. **`npm run lint:boundaries`** runs two checks. I showed both failing on a planted violation and passing on the real code.
+   - **Imports:** dependency-cruiser fails on an import of another module's internals, on shared code importing a module, and on import cycles. It's pinned to v17, because v18 needs Node 22 and the project pins Node 20.
+   - **SQL:** `scripts/check-schema-boundaries.ts` fails when a file in `src/` or `migrations/` names another module's schema. Its matching rule is unit-tested (11 cases, including a reference split across lines).
+4. **Migrations** now live in `migrations/<module>/`, and `migrate.ts` reads them there. The `schema_migrations` keys are still `identity` and `event`, so nothing is re-applied. I checked read-only that all 9 files are recorded as applied.
+
+## EN-01.2 and EN-01.3 — Identity and Event moved in
+
+5. **Code, migrations and tests moved with `git mv`,** so `git log --follow` still shows each file's history. Each service's copy of the shared files was replaced by the one in `src/shared/`, and Identity's duplicate health test was dropped.
+6. **The event module no longer calls Identity over HTTP.**
+   - `auth/identityClient.ts` became `auth/identity.ts`, which calls `lookUpCaller` and `resolveAccessScope` from `modules/identity/index.ts` in the same process.
+   - Refusals are unchanged: 401 `UNAUTHENTICATED`, 403 `NO_ROLE_ASSIGNED`, and 503 `IDENTITY_UNAVAILABLE` when identity's records can't be read. Seven new unit tests pin them.
+   - `IDENTITY_BASE_URL` is no longer read.
+7. **`modules/event/index.ts` exports `findEventForPlanning`.** It returns an event's timing, attendance and requirements, and keeps the A3 scope rule. K1, J1's prefill and O1 read the event through it (3 integration tests).
+8. **Configuration is split by owner:**
+   - `shared/config.ts` holds what every module reads;
+   - `modules/identity/config.ts` holds the Supabase Auth client's settings;
+   - `modules/event/config.ts` holds the coordinator pool and the message `producer`, which stays `event-service`.
+
+   Older `.env` files keep working. `PORT`, `SERVICE_NAME`, `EVENT_PORT` and `IDENTITY_BASE_URL` are simply ignored now.
+9. **`npm run dev`** starts planning-core and the web app. The Vite proxy sends both `/identity/*` and `/event/*` to planning-core, so no frontend API call changed.
+
+## Verified
+
+- **Tests:** 321 pass (26 files). That's the 297 from before minus Identity's duplicate health test, plus 26 new tests.
+- **Typecheck:** `tsc --noEmit` passes.
+- **Boundary checks:** `npm run lint:boundaries` passes.
+- **Live run:** planning-core started and served `/healthz`, `/readyz`, and Identity's and Event's routes on one port. A real sign-in as the seeded coordinator, organiser and attendee gave the same results as before:
+  - coordinator: all events and the review queue;
+  - organiser: only their own event, refused the queue;
+  - attendee: no events, refused the queue.
+
+## Review
+
+The `code-reviewer` agent reviewed the diff and approved it, with no critical or high findings. I fixed its one actionable low: the SQL check missed a reference split across lines.
+
+The injected-`sql` point is a deliberate follow-up. The event module's `authenticate` middleware uses the shared pool, not the router's injected `sql`, which is no worse than the HTTP call it replaced. Fixing it means changing every event router, so it waits for a separate PR.
+
+## For the team
+
+- **Raphael (F1):** F1's next tasks move from `backend/services/event/src/…` to `backend/services/planning-core/src/modules/event/…`, and its tests to `tests/event/…`. Rebase onto this branch, and git will follow the renames for files you've already changed.
+- **Unblocked once this merges:**
+  - H1, F2, G1, EN-02.2, EN-07.2, EN-08 and EN-03;
+  - F1 too, as far as EN-01.3 is concerned;
+  - K1, once H1 is done.
+
+---
+
+# Jira changes — pull-ready Sprint 2: subtasks, blocker links, Start-here sections, ranking; Definition of Ready
+
+**Timestamp:** 2026-10-02T07:50+08:00 (SGT)
+**Author:** Joash
+**Scope:**
+- Jira project SPM, Sprint 2 (id 68)
+- `documentation/planning/definition-of-ready.md` (new)
+- `.gitignore`
+- `documentation/sprint allocation.csv` (the R2 row)
+
+**Reason:** Anyone on the team should be able to open Jira, take the top item that's ready and nobody has started, and know exactly what to do, without waiting to be told. This follows the team's approval of the target architecture (Gates A, B and D, 1 Oct). **No story points were written.** Gate C stays open until the PX-02 poker session.
+
+## Jira
+
+1. **The five biggest enablers are split into 15 subtasks**, each about a day of work, with its own scope, done-check and agent prompt. The parent closes when all its subtasks are Done.
+
+   | Enabler | Subtasks |
+   |---|---|
+   | EN-01 modular core (SPM-119) | EN-01.1 skeleton and boundary checks (SPM-159), .2 move Identity (164), .3 move Event (169) |
+   | EN-02 invariant kernel (SPM-120) | .1 venue slots, exclusion constraint and row lock (160), .2 equipment units and bulk peak check (165), .3 race harness (170) |
+   | EN-04 Kafka messaging (SPM-122) | .1 CloudEvents in contracts (161), .2 outbox relay with SKIP LOCKED (166), .3 notification service with inbox, retries and DLQ (171) |
+   | EN-06 CI pipeline (SPM-124) | .1 ephemeral Postgres for integration tests (162), .2 mutation testing (167), .3 migration lint, CodeQL and gitleaks (172) |
+   | EN-07 policies and RLS (SPM-125) | .1 Cerbos policies for A2 (163), .2 row-level security for A3 (168), .3 generated authorization matrix test (173) |
+
+2. **39 "Blocks" links** record what waits for what:
+   - each subtask chain;
+   - SPM-114 (CI) before the CI subtasks and SPM-115/116;
+   - every story behind the enabler subtask that creates its module or tables (for example H1 behind EN-01.1, F1/F2/G1/K1 behind EN-01.3, I1/J1 behind EN-02.1, O1/P1/P2 behind EN-02.2, T2 behind EN-04.3);
+   - P1 also behind CQ-02.
+3. **A Start-here section on every Sprint 2 development item**, below the existing description, which is unchanged. It covers:
+   - what blocks the item;
+   - what to read first;
+   - where the code goes under ADR-0004;
+   - what to watch out for;
+   - when it's done;
+   - an agent prompt to paste into Claude Code.
+4. **Labels:**
+   - `ready` on the six items that can start now: SPM-114, SPM-113, SPM-127, EN-01.1, EN-04.1 and EN-07.1;
+   - `blocked` on everything else in the development lane;
+   - parent enablers have neither label, because people take their subtasks instead;
+   - `process` added to CQ-01 to 03 (alongside `customer-question`), to match the PX tasks.
+5. **Sprint 2 is ranked in work order:**
+   - setup and platform first;
+   - then venue (H1, H2, J2, K1, I1, J1), equipment (P2, O1, O2, P1), event (F1, F2, G1) and T2;
+   - then EN-08, EN-03 and EN-05;
+   - the process lane (PX and CQ) at the bottom, so it never looks like the next coding task.
+
+   Ready subtasks are ranked beside their parents. The ready list now reads SPM-114 → EN-01.1 → SPM-113 → EN-09 → EN-07.1 → EN-04.1.
+
+## Repo
+
+6. **`documentation/planning/definition-of-ready.md`** covers:
+   - how to pick up work (assign yourself first, one item at a time, and swap `blocked` for `ready` on what you unblock);
+   - the subtask rule;
+   - the Definition of Ready checklist;
+   - the labels;
+   - the planning-core folder layout;
+   - the saved-filter JQL.
+
+   SPM is team-managed, so the board has no custom JQL quick filters. The page uses the board's Label filter and saved filters instead, and explains why the JQL leaves out `sprint in openSprints()`: subtasks don't carry the sprint.
+7. **`.gitignore`** now covers other teams' example submission zips, personal agent scratch folders and a stray Windows `NUL` file, so none of them can be committed by accident.
+8. **`documentation/sprint allocation.csv`:** R2's reason now says seat rows live in the registration service and are claimed with `SKIP LOCKED` (ADR-0005, EN-13), instead of the old counter wording.
+
+## Still for the team
+
+- Create the four saved filters (`definition-of-ready.md`, "Filters").
+- Self-assign, top of the ready list first.
+- Hold the PX-02 poker session (Gate C).
+- Name the Sprint 2 PO (PX-11).
+- Explain the missing test issues SPM-82 to 107.
+
+---
+
+# Adopt the target architecture: ADR-0004 to ADR-0015, design fixes, plan and allocation restated to Jira
+
+**Timestamp:** 2026-10-01T20:44+08:00 (SGT)
+**Author:** Joash
+**Scope:**
+- `documentation/adr/` (12 new ADRs, 3 status changes, the index)
+- `documentation/planning/implementation.md` (§4.5–§4.7, a top note, §8.4 attendee-shell line)
+- `documentation/planning/plan.md` (§2–§9)
+- `documentation/sprint allocation.csv`
+- `CLAUDE.md`
+- `documentation/proposals/2026-10-01-target-architecture-and-jira-plan.md` (gate log)
+
+**Reason:** Batch 4 of `documentation/proposals/2026-10-jira-changeset.md`. The team approved the target architecture (Gates A, B and D, reported 1 Oct 2026), and the repo documents now say what Jira and the ADRs say. No code changed: building the enablers is sprint work for their owners.
+
+## Architecture decisions
+
+1. **ADR-0004 to ADR-0015 written as Accepted**, one per decision D1–D12 on the target architecture page:
+   - **0004** modular core instead of six microservices, which **amends ADR-0001**.
+   - **0005** registration service with seat rows.
+   - **0006** Postgres enforces every invariant.
+   - **0007** event-sourced Event aggregate.
+   - **0008** Kafka with a CDC outbox, CloudEvents and a schema registry.
+   - **0009** Temporal for cross-service steps and timers, which **supersedes ADR-0002**.
+   - **0010** Cerbos and row-level security.
+   - **0011** gateway, CDN, rate limits and waiting room.
+   - **0012** containers, Kubernetes, GitOps and Terraform, which **supersedes ADR-0003's no-Docker rule** (Gate D). Hosted Kafka continues under 0008.
+   - **0013** OpenTelemetry and SLOs.
+   - **0014** two front ends, one contract.
+   - **0015** contract-first HTTP APIs.
+
+   Each ADR has context, decision, alternatives, consequences, the enabler that implements it, and an owner: whoever takes that enabler. The owner presents the ADR in the Week 13 Q&A.
+2. **ADR-0001, 0002 and 0003:** only their status lines changed, to amended or superseded. Their bodies are kept as the record of what we believed then. The ADR index lists all fifteen, and the template gains an Owner line.
+
+## Four design bugs fixed in `implementation.md`
+
+3. **Equipment had no time dimension.** The `equipment.availability_counters` total/reserved row couldn't answer "free between 2 and 5 pm on Friday", which P1, P2 and Q1 need. It's replaced by:
+   - per-unit `unit_reservations` with an exclusion constraint, for serialized items;
+   - an equipment-type row lock plus a peak-concurrent-use check, for bulk stock.
+
+   P2's reduction check uses the same lock instead of `SERIALIZABLE`. P1's counting rule is marked as waiting on CQ-02.
+4. **A block could slip past an in-flight approval.** M1 (approve) and I2 (block) now both take `SELECT … FOR UPDATE` on the venue row first.
+5. **Requires Reconfirmation is a flag, never a status,** so a flagged booking keeps blocking its slot. A hold converted by L1 stays HELD until M1 or M2 decides. The slot constraint now uses `blocked_period` (buffers zero in Release 1).
+6. **The F5 contradiction is resolved.** §4.7 told us both to re-verify across services inside the writing transaction and never to hold a transaction across HTTP. Under ADR-0004, F5 reads the booking and the reservations in one core transaction, so the "never HTTP inside a transaction" rule has no exception.
+
+7. **A note at the top of `implementation.md`** lists the sections that still describe the six-service design (§2, §3, the registration counters in §4.6, §6), the ADR that wins for each, and the enabler owner who rewrites it. Those sections were deliberately not rewritten here.
+
+## `plan.md` §2–§9 and the sprint allocation
+
+8. **§2–§8** now describe the accepted architecture: the modular core plus two edge services, the containers, module ownership and schemas, how things talk, the invariants with a per-operation consistency table, the F4 semantic lock (replacing the saga), and the local and staging topology. The section numbers are unchanged, because other documents link to them.
+9. **§9 now copies Jira, the single source of story points.**
+   - **Sprint 1 is restated as 35** (all fifteen stories Done). Sprint 2 shows Jira's 34 story points after F3 left (37 at the 27 Sep estimate), plus P1, which is not yet estimated.
+   - Sprints 3 and 4 show only F5 (5) and F3 (3). Everything else waits for planning poker (PX-02).
+   - The 1 Oct moves are recorded with reasons, with enablers per sprint and the sprint dates.
+   - The wrong CSV filename (`/documentation/sprint-reallocation.csv`) is fixed.
+10. **`documentation/sprint allocation.csv`:**
+    - *New Points* now holds Jira's value, or blank where Jira has none. 36 rows changed: A3, B2, D1, D3, D4 and D5 to their Sprint 1 poker votes; G1, H1, I1, J1, O1 and P2 to their 27 Sep values; the Sprint 3 and 4 stories to blank.
+    - F3, P1, F5 and R1 have their new sprint, change and reason. S1 and S2 note the `change-approval` flag.
+    - *Old Points* is untouched.
+
+## Correction note on the Sprint 1 figures
+
+11. Earlier documents gave Sprint 1 as 34 (the planning transcript), 44 planned and 47 delivered (`plan.md` and the CSV), and 52 (the 2026-09-20 entry below this one). Those came from document estimates that never matched the team's planning-poker votes in Jira, for example A3 = 5 in the documents but 1 in Jira, and B2 = 5 against 2. **Jira's 35 is the figure from now on.** The older entries in this file are left as they were written, since they record what we believed at the time.
+
+## Other
+
+12. **`CLAUDE.md`:** the no-Docker paragraph is replaced. Containers are built in CI only (ADR-0012). Local development is still `npm run dev` against hosted Supabase and Kafka, with no `docker-compose.yml`, Testcontainers or `supabase start`. CI integration tests use an ephemeral Postgres, never the shared database.
+13. **Plan file:** Gates A, B and D are recorded as passed on 1 Oct, as reported by Joash, with a note to add the channel and names. Gate C is recorded as not passed.
+
+---
+
+# Jira changes — Batch 3: sprint placement (story moves, enablers, scrum-evidence tasks)
+
+**Timestamp:** 2026-10-01T20:40+08:00 (SGT)
+**Author:** Joash
+**Scope:** Jira project SPM: Sprints 2 (id 68), 3 (id 101) and 4 (id 102).
+**Reason:** Gate B of the target architecture and Jira plan (team decision, reported 1 Oct 2026). Sprint 2 is running, so everything added to it here is a recorded mid-sprint scope change. Jira's burndown will show it as scope added on 1 Oct, which is accurate.
+
+## Story moves, each with a comment on the issue giving the reason
+
+1. **F3 (SPM-29): Sprint 2 → Sprint 4.** Cancellation is one command with F4; shipping it alone means rewriting it.
+2. **P1 (SPM-48): backlog (planned for Sprint 3) → Sprint 2.** It shares its time-based availability model with P2. It has no points in Jira yet, and it waits on the answer to CQ-02.
+3. **F5 (SPM-109): backlog (planned for Sprint 4) → Sprint 3.** Readiness becomes an in-core query once M1 and Q1 exist.
+4. **R1 (SPM-52): backlog (planned for Sprint 3) → Sprint 4.** It is built on the registration service's seat inventory, and the attendee PWA shell moves into EN-13.
+5. **S1 (SPM-57) and S2 (SPM-58): placed in Sprint 3** behind feature flag `change-approval` (EN-15). Approval stays off in production until S3 lands.
+
+## Stories placed in the sprints that now exist
+
+These were in the backlog only because Sprints 3 and 4 didn't exist until Batch 1. They are not moves.
+
+6. **Sprint 3:** I2, K2, L1, L2, L3, M1, M2, N1, N2, Q1, Q2 (SPM-35, 39, 40, 41, 110, 42, 43, 44, 45, 50, 51).
+7. **Sprint 4:** F4, G2, R2, R3, R4, R5, R6, R7, S3 (SPM-111, 31, 53, 54, 55, 56, 112, 108, 59).
+
+## Enablers, scrum-evidence tasks and customer questions
+
+8. **Sprint 2:** EN-01 to EN-09 (SPM-119 to 127), PX-01 to PX-14 (SPM-142 to 155) and CQ-01 to CQ-03 (SPM-156 to 158).
+9. **Sprint 3:** EN-10 to EN-15 (SPM-128 to 133).
+10. **Sprint 4:** EN-16 to EN-23 (SPM-134 to 141).
+
+## Resulting sprints
+
+| Sprint | Stories | Other issues | Total issues |
+|---|---|---|---|
+| 2 | 14 (F1, F2, G1, H1, H2, I1, J1, J2, K1, O1, O2, P1, P2, T2) | 4 setup tasks, 9 EN, 14 PX, 3 CQ | 44 |
+| 3 | 14 (I2, K2, L1, L2, L3, M1, M2, N1, N2, Q1, Q2, S1, S2, F5) | 6 EN | 20 |
+| 4 | 11 (F3, F4, G2, R1, R2, R3, R4, R5, R6, R7, S3) | 8 EN | 19 |
+
+**Points:** Jira's Sprint 2 stories stand at 34, plus P1 not yet estimated, and the setup tasks hold 12. Sprint 3 and 4 stories carry only F5 (5) and F3 (3). Everything else waits for planning poker (PX-02).
+
+**Load:** Sprint 2 ends on 6 Oct and now carries far more than the measured velocity of 35. Most enablers and PX tasks will carry into Sprint 3. The Sprint 2 review and retro should say so plainly.
+
+No assignees were set; the team picks items up at standup. Nothing was deleted.
+
+---
+
+# Jira changes — Batch 2: enabler and process epics, EN-01 to EN-23, PX-01 to PX-14, CQ-01 to CQ-03
+
+**Timestamp:** 2026-10-01T20:39+08:00 (SGT)
+**Author:** Joash
+**Scope:** Jira project SPM. 42 issues created, 4 edited, 48 links added.
+**Reason:** Gate A of the target architecture and Jira plan (team approval, reported 1 Oct 2026). These issues put the platform work and the missing scrum evidence on the backlog, so they are planned and tracked like stories.
+
+## Epics
+
+1. **SPM-117 — Platform and quality enablers** (label `enabler`).
+2. **SPM-118 — Scrum process evidence** (label `process`).
+
+## Enablers (Task, parent SPM-117, labels `enabler` plus `tier-1` or `tier-2`)
+
+3. **EN-01 to EN-23 created as SPM-119 to SPM-141, in order** (EN-01 = SPM-119 … EN-23 = SPM-141).
+   - Each description holds the tier, the proposed sprint and "Proposed estimate (to be poker'd): N".
+   - It also holds what the enabler blocks and the target architecture page's plain-language "what it is" and "why we need it".
+   - Then come the plan's acceptance criteria word for word, a one-line Week 13 Q&A answer and the matching ADR.
+   - Tier 1: EN-01, 02, 04, 06, 07, 08, 09, 11, 13, 14, 15, 17, 18, 20, 22, 23 (16 issues). Tier 2: EN-03, 05, 10, 12, 16, 19, 21 (7 issues).
+   - **No story points were written.** Gate C is still open: the proposed estimates came from the plan, not from the team's planning poker (PX-02).
+
+## Scrum-evidence tasks (Task, parent SPM-118, label `process`)
+
+4. **PX-01 to PX-14 created as SPM-142 to SPM-155, in order.** Each holds a suggested owner, a "done when" and, where one exists, the matching template from the sprint evidence playbook: planning record, standup entry, review record, retro record, clarification entry or AI-usage entry. PX-13 lists the six Week 7 consultation questions.
+
+## Customer questions (Task, parent SPM-118, label `customer-question`)
+
+5. **CQ-01 — R7 VIP adds versus registration places** (SPM-156).
+6. **CQ-02 — P1 peak concurrent use or summed overlaps** (SPM-157).
+7. **CQ-03 — T2 notification visible within about 10 seconds** (SPM-158).
+
+Each holds the question, why it matters and the design's proposal. They are unassigned until the Sprint 2 PO is named (PX-11).
+
+## Existing setup tasks: linked, not merged
+
+8. **SPM-113 (Kafka provider), SPM-114 (GitHub Actions), SPM-115 (branch protection) and SPM-116 (coverage)** were moved under SPM-117 and labelled `enabler` and `tier-1`.
+   - They overlap EN-04 (SPM-113) and EN-06 (SPM-114 to 116), but they are narrower and already carry 12 points the team set.
+   - So they are **linked** ("relates to") rather than merged. Their summaries, points and Sprint 2 placement are unchanged.
+   - EN-04's and EN-06's descriptions say to size only the remaining scope.
+
+## Links
+
+9. **41 "blocks" links**, from the plan's §5 "Blocks" and "(needs …)" columns:
+   - EN-01 → F5, F4, S2, S3, G2
+   - EN-02 → L3, M1, N1, I2, P1, P2, Q1
+   - EN-03 → F1, F2, G1, S2
+   - EN-04 → T2, EN-20
+   - EN-06 → EN-21
+   - EN-08 → EN-17
+   - EN-10 → EN-16, EN-21
+   - EN-11 → F1, F4, R6, S3, EN-20
+   - EN-12 → R1, R2, EN-19
+   - EN-13 → R1–R7, EN-18, EN-20
+   - EN-15 → S1, S2
+10. **7 "relates to" links:**
+    - EN-05 ↔ EN-04: "improves EN-04".
+    - EN-07 ↔ A2 and EN-07 ↔ A3: both stories are Done, so they can't be blocked.
+    - SPM-113 ↔ EN-04 and SPM-114, 115, 116 ↔ EN-06.
+
+One link timed out on the first try (EN-10 → EN-16). It was confirmed missing, then retried successfully.
+
+**Known ordering issue:** EN-11 (Sprint 3) blocks F1 (Sprint 2), because F1's "Completed after the end time" needs the Sprint 3 timer. EN-11's description says so; raise it at the Sprint 2 review.
+
+Nothing was deleted.
+
+---
+
+# Jira changes — Batch 1: housekeeping (start Sprint 2, close finished epics, create Sprints 3 and 4)
+
+**Timestamp:** 2026-10-01T20:35+08:00 (SGT)
+**Author:** Joash
+**Scope:** Jira project SPM, board 2.
+**Reason:** The team approved the target architecture and Jira plan (Gates A, B and D, reported 1 Oct 2026). Batch 1 of `documentation/proposals/2026-10-jira-changeset.md` puts the board into a state the rest of the rollout can build on. The starting state is recorded in `documentation/planning/jira-snapshot-2026-10.md`.
+
+1. **SPM Sprint 2 (id 68) started.** It had never been started in Jira (state `future`), so Jira had no burndown or sprint report for it. Its original dates were kept: 23 Sep 15:30 to 6 Oct 23:30 SGT. Goal set from `plan.md` §9's Sprint 2 theme: "Status, notifications, venue catalogue, equipment intake". The first start attempt, which re-sent the dates, timed out without effect. A second attempt with only the goal succeeded.
+2. **Feature 1 to 5 epics moved to Done:** SPM-62, SPM-63, SPM-64, SPM-65, SPM-66. Every story under them (A1–E2) was already Done.
+3. **T1 (SPM-60) commented.** It was already Done (closed by Chai on 15 Sep). The comment records that it was removed in Revision 3, where its triggers went, and that it is closed, not deleted (`implementation.md` §4.3).
+4. **SPM Sprint 3 created** (id 101): 7 Oct 15:30 to 20 Oct 23:30 SGT. Goal: "Holds, booking, conflict, reservation, attendee shell".
+5. **SPM Sprint 4 created** (id 102): 21 Oct 15:30 to 3 Nov 23:30 SGT. Goal: "Registration, readiness, change impact (showcase)". This ends before Friday of Week 12, which the project instructions set as the latest end for the final sprint.
+
+Nothing was deleted.
+
+---
+
 # F1 in progress — design, plan, cards, and the transition table
 
 **Timestamp:** 2026-09-30T21:30+08:00 (SGT)

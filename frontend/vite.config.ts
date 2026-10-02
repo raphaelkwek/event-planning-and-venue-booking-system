@@ -13,6 +13,9 @@ const repoRoot = resolve(__dirname, "..");
  */
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, repoRoot, "");
+  // Identity and Event are modules of one planning-core process (ADR-0004).
+  // The two prefixes stay so the app's API calls did not have to change.
+  const planningCore = `http://127.0.0.1:${env.PLANNING_CORE_PORT || 8090}`;
 
   return {
     plugins: [react()],
@@ -25,12 +28,12 @@ export default defineConfig(({ mode }) => {
       port: 5173,
       proxy: {
         "/identity": {
-          target: env.IDENTITY_BASE_URL || "http://127.0.0.1:8081",
+          target: planningCore,
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/identity/, ""),
         },
         "/event": {
-          target: `http://127.0.0.1:${env.EVENT_PORT || 8082}`,
+          target: planningCore,
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/event/, ""),
         },
