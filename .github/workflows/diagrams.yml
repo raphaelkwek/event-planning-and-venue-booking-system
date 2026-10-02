@@ -47,8 +47,8 @@ jobs:
 
       - name: Render PNG and SVG
         run: |
-          docker run --rm -v "$PWD/documentation/c4/build:/data" plantuml/plantuml -tpng "/data/*.puml"
-          docker run --rm -v "$PWD/documentation/c4/build:/data" plantuml/plantuml -tsvg "/data/*.puml"
+          docker run --rm --user "$(id -u):$(id -g)" -v "$PWD/documentation/c4/build:/data" plantuml/plantuml -tpng "/data/*.puml"
+          docker run --rm --user "$(id -u):$(id -g)" -v "$PWD/documentation/c4/build:/data" plantuml/plantuml -tsvg "/data/*.puml"
           ls -l documentation/c4/build
 
       - uses: actions/upload-artifact@v4
