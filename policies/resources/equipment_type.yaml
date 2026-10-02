@@ -1,0 +1,17 @@
+# Who may do what to the equipment inventory (A2). Rule names cite the story.
+apiVersion: api.cerbos.dev/v1
+resourcePolicy:
+  version: default
+  resource: equipment_type
+  importDerivedRoles: [connectsphere]
+  rules:
+    - name: P2-only-tech-support-change-inventory
+      actions: [create, update, record_unavailability]
+      effect: EFFECT_ALLOW
+      roles: [TECH_SUPPORT_STAFF]
+
+    # O1: a coordinator picks equipment types when recording a request.
+    - name: O1-P1-coordinators-and-tech-support-see-inventory
+      actions: [view]
+      effect: EFFECT_ALLOW
+      roles: [EVENT_COORDINATOR, TECH_SUPPORT_STAFF]

@@ -1,0 +1,26 @@
+# Who may do what to a registration or waitlist entry (A2). Rule names cite the story.
+apiVersion: api.cerbos.dev/v1
+resourcePolicy:
+  version: default
+  resource: registration
+  importDerivedRoles: [connectsphere]
+  rules:
+    - name: R2-R6-attendees-register-and-join-the-waitlist
+      actions: [create, join_waitlist]
+      effect: EFFECT_ALLOW
+      roles: [ATTENDEE]
+
+    - name: R3-R4-R6-my-own-registration
+      actions: [view, withdraw, leave_waitlist]
+      effect: EFFECT_ALLOW
+      derivedRoles: [registrant]
+
+    - name: R5-owner-and-assigned-coordinator-see-registrations
+      actions: [view]
+      effect: EFFECT_ALLOW
+      derivedRoles: [owner, assigned_coordinator]
+
+    - name: R7-owner-or-assigned-coordinator-add-attendees
+      actions: [add_manually]
+      effect: EFFECT_ALLOW
+      derivedRoles: [owner, assigned_coordinator]

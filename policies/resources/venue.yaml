@@ -1,0 +1,28 @@
+# Who may do what to a venue and its calendar (A2). Rule names cite the story.
+apiVersion: api.cerbos.dev/v1
+resourcePolicy:
+  version: default
+  resource: venue
+  importDerivedRoles: [connectsphere]
+  rules:
+    - name: H1-only-venue-staff-maintain-venues
+      actions: [create, update, deactivate]
+      effect: EFFECT_ALLOW
+      roles: [VENUE_STAFF]
+
+    # H1: the other internal roles have read access only. H2, I1: attendees
+    # have no access to the catalogue or the calendar.
+    - name: H1-H2-I1-internal-roles-read
+      actions: [view, view_calendar]
+      effect: EFFECT_ALLOW
+      roles: [EVENT_ORGANISER, EVENT_COORDINATOR, VENUE_STAFF, TECH_SUPPORT_STAFF]
+
+    - name: I2-venue-staff-record-unavailability
+      actions: [record_unavailability, remove_unavailability]
+      effect: EFFECT_ALLOW
+      roles: [VENUE_STAFF]
+
+    - name: J1-J2-K1-K2-coordinators-search-and-assess
+      actions: [search, check_suitability, justify_unsuitable]
+      effect: EFFECT_ALLOW
+      roles: [EVENT_COORDINATOR]
