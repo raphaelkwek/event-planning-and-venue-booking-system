@@ -4,6 +4,76 @@
 
 ---
 
+# Week 7 customer changes CR-01 to CR-06: change log, story revision 4, design updates
+
+**Timestamp:** 2026-10-02T16:30+08:00 (SGT)
+**Author:** Joash
+**Scope:**
+- `documentation/change-requests.md` (new)
+- `documentation/final user stories.md` (revision 4)
+- `documentation/c4/connectsphere.dsl` and its README
+- ADR-0006, ADR-0009 and ADR-0010
+- `implementation.md` §4.6, `plan.md` §1
+- `documentation/proposals/2026-10-02-week7-customer-changes.md`
+
+**Reason:** The customer's Week 7 changes, all required for Release 1 (Week 12), handled as the course's *Managing Changes* guide describes. They arrived in the last week of Sprint 2, so they're planned at Sprint 3 and Sprint 4 planning.
+
+## The change log
+
+1. **`change-requests.md` records each change under the guide's six headings:** the change, why it's needed and its type; the backlog; the acceptance criteria; story points; design; and tests.
+   - CR-01: setup and turnaround time.
+   - CR-02: a venue becoming unavailable after booking.
+   - CR-03: several venues for one event.
+   - CR-04: tentative holds expire.
+   - CR-05: the Event Coordinator Lead.
+   - CR-06: the Operational Safety Check.
+2. **Two earlier decisions are reversed, on the record:** buffers were out of scope (`plan.md` §1), and coordinators could see all events (A3).
+3. **Seven new customer questions, CQ-04 to CQ-10,** cover what the changes leave open:
+   - which capacity limits registrations for a multi-venue event;
+   - whether every booking must be confirmed;
+   - who places a hold and sets its expiry;
+   - whether peer reassignment stays;
+   - what rejecting a safety arrangement leads to;
+   - whether buffers apply to holds and blocks;
+   - where emergency access is recorded.
+
+## The stories (revision 4: 63 stories across 21 features)
+
+4. **Nine new stories:**
+   - A4: coordinators act only on assigned events;
+   - E3: the Lead's unassigned queue and assignment;
+   - E4: the Lead reassigns;
+   - E5: the Lead's oversight;
+   - H3: setup and turnaround time;
+   - L4: several venues per event;
+   - L5: requesting a replacement venue;
+   - L6: holds expire;
+   - U1: the Operational Safety Check, in new feature 21.
+5. **Sixteen stories not yet Done have revised acceptance criteria, each marked ⚠ REVISED with its change:** F1, F5, H1, I1, I2, J1, K1, L1, L3, M1, N1, N2, R1, R2, R7 and S3.
+   - Overlaps now compare occupied periods.
+   - L3's "holds do not expire" is replaced.
+   - F1's status list gains Safety Review.
+   - F5 leads to Safety Review rather than Confirmed.
+   - I2's "resolved outside the system" becomes L5.
+6. **The Done stories A3, D1, E1 and E2 keep their criteria** (guide scenario 2). Each gets a note naming the new story that supersedes part of it.
+7. **No story points were written.** The new and revised stories are estimated at planning poker (PX-02).
+
+## Design documentation
+
+8. **C4 model:**
+   - two new people, the Event Coordinator Lead and the Safety Officer;
+   - the new responsibilities of the venue, identity and change modules;
+   - two new sequence views, SafetyCheck (U1) and HoldExpiry (L6).
+
+   CI re-renders the images.
+9. **ADRs:**
+   - ADR-0006 notes how CR-01, CR-03 and CR-04 fit the existing constraint: buffers in `blocked_period`, conflicts flagged when buffers change, and `EXPIRED` holds already ignored;
+   - ADR-0009 adds the `HoldExpiry` workflow;
+   - ADR-0010 records the two new roles and the narrower coordinator scope.
+10. **Planning docs:** `implementation.md` §4.6 and `plan.md` §1 no longer say buffers are out of scope.
+
+---
+
 # SPM-116: coverage thresholds in CI, with domain code held at 100%
 
 **Timestamp:** 2026-10-02T15:45+08:00 (SGT)

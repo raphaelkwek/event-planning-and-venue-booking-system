@@ -23,6 +23,7 @@
 - **CompleteEvent:** a durable timer that fires at the event's end time (F1).
 - **WaitlistInvitation** (R6).
 - **ChangeImpactNotify:** fans out the S3 notifications.
+- **HoldExpiry** (L6, Week 7 change CR-04): a durable timer per tentative hold. It sends a reminder before expiry, then expires the hold if it hasn't been converted or released. This is exactly the kind of timer this ADR exists for.
 
 **How F4 stays all-or-nothing, using a semantic lock:**
 1. The registration service marks the event's registrations `CANCEL_PENDING`. They still count, so nothing is freed.

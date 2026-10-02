@@ -17,6 +17,8 @@ workspace "ConnectSphere" "Event planning and venue booking for ConnectSphere-ma
         venueStaff = person "Venue Staff" "Maintains venues and decides booking requests."
         techSupport = person "Technical Support Staff" "Maintains equipment and arranges reservations."
         attendee = person "Attendee" "Browses open events and registers."
+        lead = person "Event Coordinator Lead" "Assigns new requests to coordinators and oversees their workload (CR-05)."
+        safetyOfficer = person "Safety Officer" "Runs the Operational Safety Check before an event proceeds to preparation (CR-06)."
 
         supabaseAuth = softwareSystem "Supabase Auth" "Issues and verifies sign-in tokens (JWT, MFA for staff)." {
             tags "External"
@@ -38,11 +40,11 @@ workspace "ConnectSphere" "Event planning and venue booking for ConnectSphere-ma
             }
 
             core = container "planning-core" "The staff-facing deployable. Rules that span modules (F4, F5, S2/S3, G2) are one Postgres transaction (ADR-0004)." "Node.js 20, Express 4, TypeScript" {
-                identity = component "Identity module" "Login (A1), roles (A2), access scope (A3). Public interface: lookUpCaller, resolveAccessScope." "modules/identity"
+                identity = component "Identity module" "Login (A1), roles (A2, including the Event Coordinator Lead and Safety Officer from CR-05 and CR-06), access scope (A3, A4). Public interface: lookUpCaller, resolveAccessScope." "modules/identity"
                 event = component "Event module" "Requests, drafts, review, clarification, assignment, status lifecycle (B1 to G2). Public interface: findEventForPlanning." "modules/event"
-                venue = component "Venue module" "Catalogue, calendar, search, suitability, holds and bookings (H1 to N2). Owns the venue slot exclusion constraint (ADR-0006)." "modules/venue"
+                venue = component "Venue module" "Catalogue, setup and turnaround times, calendar, search, suitability, holds with expiry, and one or more bookings per event (H1 to N2, CR-01 to CR-04). Owns the venue slot exclusion constraint on occupied periods (ADR-0006)." "modules/venue"
                 equipment = component "Equipment module" "Requests, availability, reservations (O1 to Q2). Per-unit exclusion constraint, bulk type lock and peak check." "modules/equipment"
-                change = component "Change and readiness module" "Confirmation readiness (F5) and change requests with impact flags (S1 to S3)." "modules/change"
+                change = component "Change and readiness module" "Confirmation readiness (F5), the Operational Safety Check (U1, CR-06) and change requests with impact flags (S1 to S3)." "modules/change"
             }
 
             registration = container "registration-service" "Seat inventory, registrations and the waitlist (R1 to R7). Seats are rows claimed with SKIP LOCKED (ADR-0005)." "Node.js, TypeScript (EN-13)" {
@@ -81,6 +83,8 @@ workspace "ConnectSphere" "Event planning and venue booking for ConnectSphere-ma
         venueStaff -> connectsphere.staffConsole "Maintains venues and decides bookings in" "HTTPS"
         techSupport -> connectsphere.staffConsole "Maintains equipment and arranges reservations in" "HTTPS"
         attendee -> connectsphere.attendeeApp "Browses and registers in" "HTTPS"
+        lead -> connectsphere.staffConsole "Assigns and reassigns coordinators, and oversees workload in" "HTTPS"
+        safetyOfficer -> connectsphere.staffConsole "Approves, rejects or requests changes to events' safety arrangements in" "HTTPS"
 
         # Sign-in
         connectsphere.staffConsole -> supabaseAuth "Signs users in with" "HTTPS"
@@ -131,6 +135,9 @@ workspace "ConnectSphere" "Event planning and venue booking for ConnectSphere-ma
         connectsphere.core.event -> connectsphere.temporal "Starts CancelEvent and CompleteEvent in" "gRPC"
         connectsphere.workers -> connectsphere.temporal "Polls task queues and records progress in" "gRPC"
         connectsphere.workers -> connectsphere.core.event "Runs cancellation and completion activities against" "JSON/HTTPS"
+        connectsphere.core.venue -> connectsphere.temporal "Starts a HoldExpiry timer for each hold in" "gRPC"
+        connectsphere.workers -> connectsphere.core.venue "Expires holds and sends their reminders through" "JSON/HTTPS"
+        connectsphere.core.change -> connectsphere.kafka "Publishes safety decisions (event.safety-*) to, through its outbox" "Kafka"
         connectsphere.workers -> connectsphere.registration "Freezes, unfreezes and finalises registrations in" "JSON/HTTPS"
 
         deploymentEnvironment "Development" {
@@ -252,6 +259,39 @@ workspace "ConnectSphere" "Event planning and venue booking for ConnectSphere-ma
             connectsphere.registration -> connectsphere.kafka "registration.created reaches the log through the outbox"
             connectsphere.notification -> connectsphere.kafka "Consumes registration.created"
             connectsphere.notification -> connectsphere.notificationDb "Creates the notification once (inbox check)"
+            autoLayout lr
+            properties {
+                "plantuml.sequenceDiagram" "true"
+            }
+        }
+
+        dynamic connectsphere "SafetyCheck" "CR-06 (U1): the Operational Safety Check sits between confirmed arrangements and preparation." {
+            coordinator -> connectsphere.staffConsole "Confirms the event's arrangements (F5)"
+            connectsphere.staffConsole -> connectsphere.gateway "POST /api/v1/events/{id}/confirmation"
+            connectsphere.gateway -> connectsphere.core "Forwards the request"
+            connectsphere.core -> connectsphere.coreDb "One transaction: venue and equipment ready, status Safety Review, outbox row"
+            safetyOfficer -> connectsphere.staffConsole "Reviews and decides: approve, request changes, or reject"
+            connectsphere.staffConsole -> connectsphere.gateway "POST /api/v1/events/{id}/safety-decision"
+            connectsphere.gateway -> connectsphere.core "Forwards the decision"
+            connectsphere.core -> connectsphere.coreDb "Approve: Confirmed. Request changes: back to Planning, arrangements flagged. History entry and outbox row either way"
+            connectsphere.core -> connectsphere.kafka "event.safety-* reaches the log through the outbox"
+            connectsphere.notification -> connectsphere.kafka "Consumes it and notifies the coordinator and organiser"
+            autoLayout lr
+            properties {
+                "plantuml.sequenceDiagram" "true"
+            }
+        }
+
+        dynamic connectsphere "HoldExpiry" "CR-04 (L6): a tentative hold expires on time even if nobody is using the system." {
+            coordinator -> connectsphere.staffConsole "Places a hold with an expiry (L3)"
+            connectsphere.staffConsole -> connectsphere.gateway "POST /api/v1/holds"
+            connectsphere.gateway -> connectsphere.core "Forwards the request"
+            connectsphere.core -> connectsphere.coreDb "Inserts the HELD slot (exclusion constraint on the occupied period)"
+            connectsphere.core -> connectsphere.temporal "Starts a HoldExpiry timer"
+            connectsphere.workers -> connectsphere.temporal "Wakes before expiry, then at expiry"
+            connectsphere.workers -> connectsphere.core "Sends the reminder, then expires the hold if it was not converted or released"
+            connectsphere.core -> connectsphere.coreDb "Slot status Expired, period free again, outbox row"
+            connectsphere.notification -> connectsphere.kafka "Consumes hold.expiring and hold.expired and notifies the coordinator"
             autoLayout lr
             properties {
                 "plantuml.sequenceDiagram" "true"
