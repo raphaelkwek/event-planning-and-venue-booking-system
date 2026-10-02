@@ -11,7 +11,11 @@ const POOL = [COORDINATOR_A, COORDINATOR_B, COORDINATOR_C];
 process.env.EVENT_COORDINATOR_POOL = POOL.join(",");
 
 vi.mock("../../../src/shared/auth/verifyJwt.js", () => ({
-  verifyJwt: (req: any, _res: any, next: any) => {
+  verifyJwt: (
+    req: { auth?: { supabaseUserId?: string }; header(name: string): string | undefined },
+    _res: unknown,
+    next: () => void
+  ) => {
     req.auth = { supabaseUserId: "test-subject" };
     next();
   },

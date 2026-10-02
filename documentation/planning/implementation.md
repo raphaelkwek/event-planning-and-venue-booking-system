@@ -55,7 +55,7 @@ Staff-facing code is **one deployable, `planning-core`**, made of modules (ADR-0
       /migrations/<module>  NNNN_description.sql, forward-only; identity's seed SQL in /identity/seed
       /tests/<module>       unit and integration tests for that module
       /scripts              the schema boundary check
-      .dependency-cruiser.cjs  the import boundary check
+      .dependency-cruiser.mjs  the import boundary check
     /registration           EN-13, not built yet
     /notification           EN-04.3, not built yet
   /packages
@@ -390,6 +390,8 @@ The attendee shell (§7.2) is separate. It is built in Sprint 3 as part of EN-13
 | E2E | Playwright | Full user flows through the SPA against the running stack (`npm run dev`, which Playwright's `webServer` setting can start). |
 
 **Target: 100% coverage of `/domain`,** and where it isn't reachable, a comment in the test file saying why. The rubric asks for exactly this.
+
+**What CI runs (SPM-114).** `.github/workflows/ci.yml` runs `npm run lint` (ESLint and the module boundary checks), `typecheck`, `build` and `test:unit` on every pull request and every push to `main`. A test counts as a unit test when it sits under a `domain/` or `boundaries/` folder, or is named `*.unit.test.ts`. It must not touch a database, because CI gives it only placeholder credentials. Integration tests still run only locally, with `npm test` against Supabase, until EN-06.1 gives CI a throwaway Postgres; CI never uses the shared database.
 
 ### 8.2 The sprint test kit — build it *before* the sprint
 

@@ -5,7 +5,11 @@ import { testDb } from "../../support/testDb.js";
 process.env.EVENT_COORDINATOR_POOL = "a6666666-0000-0000-0000-00000000000a";
 
 vi.mock("../../../src/shared/auth/verifyJwt.js", () => ({
-  verifyJwt: (req: any, _res: any, next: any) => {
+  verifyJwt: (
+    req: { auth?: { supabaseUserId?: string }; header(name: string): string | undefined },
+    _res: unknown,
+    next: () => void
+  ) => {
     req.auth = { supabaseUserId: "test-subject" };
     next();
   },
@@ -153,7 +157,7 @@ describe("POST /api/v1/events/:id/clarifications (D2)", () => {
 
     const res = await request(app).get(`/api/v1/events/${event.id}/clarifications`).set(bearer);
 
-    expect(res.body.items.map((item: any) => item.message)).toEqual([
+    expect(res.body.items.map((item: { message: string }) => item.message)).toEqual([
       "First question",
       "Second question",
     ]);

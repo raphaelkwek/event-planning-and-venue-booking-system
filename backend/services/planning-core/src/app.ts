@@ -38,6 +38,6 @@ app.use((req, res, next) => {
 app.use(healthRouter(sql));
 app.use(identityRouter(sql));
 app.use(eventRouter(sql));
-app.use(venueRouter(sql));
-app.use(equipmentRouter(sql));
-app.use(changeRouter(sql));
+app.use(venueRouter());
+app.use(equipmentRouter());
+app.use(changeRouter());
