@@ -4,6 +4,42 @@
 
 ---
 
+# EN-07.1: Cerbos permission policies for A2, with 574 policy tests
+
+**Timestamp:** 2026-10-02T15:10+08:00 (SGT)
+**Author:** Joash
+**Scope:**
+- `policies/` (new)
+- `backend/scripts/cerbos.ts` (new)
+- the root `policies:test` script and a CI step
+- contracts `tests/policyRoles.test.ts` (new)
+- ADR-0010 implementation note
+
+**Reason:** EN-07.1 (SPM-163), ADR-0010. A2 requires one list of who may do what, governing both the interface and the server. Until now the list existed only as `requireRole` calls scattered through handlers.
+
+## The policies
+
+1. **Six resource policies:** event, venue, booking_request, equipment_request_line, equipment_type and registration.
+2. **Five derived roles:** `owner`, `assigned_coordinator`, `nominated_coordinator`, `venue_manager` and `registrant`.
+3. **Every rule is named after the story it implements,** and `policies/README.md` maps each A2 function to its rule.
+4. **Two boundaries keep the policies small and consistent:**
+   - policies say who may act, and status rules stay in each module's domain code;
+   - Cerbos decides actions, and which rows each role sees (A3) is row-level security in EN-07.2.
+
+## Tests first
+
+5. **The suites came first.** I derived them from the stories, not from the policies: every role against every action on every resource, listing only the allows, so anything unlisted must be denied.
+6. **Red, then green, in CI.** I committed the tests first, and CI went red with every expected allow denied. With the policies added, all 574 checks pass.
+7. **Role names are checked.** `contracts/tests/policyRoles.test.ts` fails if a policy uses a role name that isn't in `ROLES`, or leaves a role with no permission. I proved it with a planted `EVENT_ORGANIZER` typo.
+
+## Running Cerbos without Docker
+
+8. **`backend/scripts/cerbos.ts` runs Cerbos 0.56.0.** It downloads the pinned release, verifies its SHA-256 against the release's checksums, caches it and runs it. `npm run policies:test` compiles the policies and runs the suites, and CI runs it on every pull request.
+9. **Cerbos ships no Windows build.** On Windows the script explains that and exits non-zero; CI or WSL runs the tests. ADR-0010 records why the binary was chosen over the embedded PDP: embedded bundles need Cerbos Hub.
+10. **Not wired in yet.** Handlers still use `requireRole`. The gateway, the services and the console's navigation adopt the policies with EN-12 and module by module, and EN-07.3 generates the full authorisation matrix.
+
+---
+
 # EN-09: C4 model as code, rendered in CI; OpenAPI spec for planning-core, checked against the routes
 
 **Timestamp:** 2026-10-02T14:40+08:00 (SGT)
