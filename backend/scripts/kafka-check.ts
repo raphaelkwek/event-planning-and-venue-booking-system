@@ -1,12 +1,14 @@
 #!/usr/bin/env node
 import { readFileSync } from "node:fs";
 import { Kafka, logLevel } from "kafkajs";
-import { KAFKA_TOPICS } from "@connectsphere/contracts";
+import { KAFKA_TOPICS, TOPICS_BEFORE_CUTOVER } from "@connectsphere/contracts";
 import { kafkaVarsFrom, toClientConfig, redact, KafkaConfigError } from "./kafka-config.ts";
 
 // npm run kafka:check — proves this laptop can reach the team's Kafka cluster
 // (SPM-113). It reads only the KAFKA_* block of .env, connects, lists the
-// topics and compares them with KAFKA_TOPICS. It never prints a credential.
+// topics and compares them with KAFKA_TOPICS: the ones in TOPICS_BEFORE_CUTOVER
+// must exist now, the rest from the cutover to Confluent. It never prints a
+// credential.
 
 let vars: Record<string, string> = {};
 try {
@@ -33,12 +35,16 @@ async function main() {
   await admin.connect();
   try {
     const topics = new Set(await admin.listTopics());
-    const expected = Object.values(KAFKA_TOPICS);
-    const missing = expected.filter((topic) => !topics.has(topic));
-    const others = [...topics].filter((topic) => !(expected as string[]).includes(topic) && !topic.startsWith("_"));
+    const expected: string[] = Object.values(KAFKA_TOPICS);
+    const required: string[] = [...TOPICS_BEFORE_CUTOVER];
+    const missing = required.filter((topic) => !topics.has(topic));
+    const others = [...topics].filter((topic) => !expected.includes(topic) && !topic.startsWith("_"));
 
     console.log("\nConnected.");
-    for (const topic of expected) console.log(`  ${topics.has(topic) ? "ok     " : "MISSING"} ${topic}`);
+    for (const topic of expected) {
+      const state = topics.has(topic) ? "ok     " : required.includes(topic) ? "MISSING" : "cutover";
+      console.log(`  ${state} ${topic}`);
+    }
     for (const topic of others) console.log(`  extra   ${topic}`);
 
     if (!vars.KAFKA_GROUP_SUFFIX?.trim()) {

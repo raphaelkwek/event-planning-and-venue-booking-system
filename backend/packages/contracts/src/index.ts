@@ -1,4 +1,5 @@
 export * from "./accessScope.js";
+export * from "./cloudEvent.js";
 export * from "./envelope.js";
 export * from "./errorCodes.js";
 export * from "./eventEvents.js";
