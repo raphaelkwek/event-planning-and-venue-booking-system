@@ -164,6 +164,15 @@ activemq-data/
 # SageMath parsed files
 *.sage.py
 
+# Kafka certificates and keys (ADR-0008) live outside the repo, in
+# ~/.connectsphere/kafka/. This stops one being committed by accident.
+*.pem
+*.key
+*.cert
+*.crt
+*.p12
+*.jks
+
 # Environments
 .env
 .envrc
