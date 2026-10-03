@@ -2,8 +2,10 @@ import { z } from "zod";
 import { ROLES } from "./accessScope.js";
 
 /**
- * The Kafka message envelope every producer writes and every consumer
- * validates against (implementation.md §3.3). No message may deviate.
+ * The envelope used before CloudEvents. Superseded by cloudEvent.ts (ADR-0008,
+ * implementation.md §3.3), but the event module's outbox writer still produces
+ * it, so it stays until that writer and the relay move to CloudEvents (EN-04.2).
+ * Rows already written in this shape must be converted when published.
  */
 
 export const AGGREGATE_TYPES = [
