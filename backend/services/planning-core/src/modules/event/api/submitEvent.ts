@@ -1,5 +1,5 @@
 import type { Sql } from "postgres";
-import { EVENT_TOPICS } from "@connectsphere/contracts";
+import { KAFKA_TOPICS } from "@connectsphere/contracts";
 import { eventConfig } from "../config.js";
 import { allocateCoordinator } from "../domain/assignment.js";
 import { insertSubmittedEvent, submitDraft, type EventFields, type EventRow } from "../repo/events.js";
@@ -41,7 +41,7 @@ export async function submitEvent(
     });
 
     await writeOutbox(tx, {
-      topic: EVENT_TOPICS.submitted,
+      topic: KAFKA_TOPICS.event,
       messageType: "event.submitted",
       aggregateId: event.id,
       actor: { userId: params.ownerId, role: params.actorRole },
@@ -76,7 +76,7 @@ export async function submitEvent(
     await saveCursor(tx, allocation.nextCursor);
 
     await writeOutbox(tx, {
-      topic: EVENT_TOPICS.coordinatorAssigned,
+      topic: KAFKA_TOPICS.event,
       messageType: "event.coordinator-assigned",
       aggregateId: event.id,
       actor: { userId: null, role: "SYSTEM" },

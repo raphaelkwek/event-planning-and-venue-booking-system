@@ -1,6 +1,6 @@
 import { Router, type Response } from "express";
 import type { Sql } from "postgres";
-import { EVENT_TOPICS } from "@connectsphere/contracts";
+import { KAFKA_TOPICS } from "@connectsphere/contracts";
 import { eventConfig } from "../config.js";
 import { authenticate, requireRole, type ActorRequest } from "../auth/actor.js";
 import { canProposeReassignment, isSelfNomination } from "../domain/assignment.js";
@@ -126,7 +126,7 @@ export function reassignmentsRouter(sql: Sql) {
           });
 
           await writeOutbox(tx, {
-            topic: EVENT_TOPICS.reassignmentProposed,
+            topic: KAFKA_TOPICS.event,
             messageType: "event.reassignment-proposed",
             aggregateId: event.id,
             actor: { userId, role },
@@ -231,7 +231,7 @@ export function reassignmentsRouter(sql: Sql) {
       }
 
       await writeOutbox(tx, {
-        topic: outcome === "ACCEPTED" ? EVENT_TOPICS.reassignmentAccepted : EVENT_TOPICS.reassignmentDeclined,
+        topic: KAFKA_TOPICS.event,
         messageType: outcome === "ACCEPTED" ? "event.reassignment-accepted" : "event.reassignment-declined",
         aggregateId: event.id,
         actor: { userId, role },

@@ -1,6 +1,6 @@
 import { Router, type Response } from "express";
 import type { Sql } from "postgres";
-import { EVENT_TOPICS } from "@connectsphere/contracts";
+import { KAFKA_TOPICS } from "@connectsphere/contracts";
 import { authenticate, requireRole, type ActorRequest } from "../auth/actor.js";
 import { evaluateTransition } from "../domain/statusMachine.js";
 import { findEventInScope, lockEventInScope, recordDecision } from "../repo/events.js";
@@ -62,7 +62,7 @@ export function decisionsRouter(sql: Sql) {
       });
 
       await writeOutbox(tx, {
-        topic: outcome === "APPROVED" ? EVENT_TOPICS.approved : EVENT_TOPICS.rejected,
+        topic: KAFKA_TOPICS.event,
         messageType: outcome === "APPROVED" ? "event.approved" : "event.rejected",
         aggregateId: event.id,
         actor: { userId, role },

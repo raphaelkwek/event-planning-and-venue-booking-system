@@ -152,7 +152,7 @@ describe("POST /api/v1/events/:id/approve (D4)", () => {
 
     const outbox = await sql`
       select envelope from event.outbox
-      where message_key = ${event.id} and topic = 'connectsphere.event.approved.v1'
+      where message_key = ${event.id} and topic = 'connectsphere.event.v1' and envelope->>'messageType' = 'event.approved'
     `;
     expect(outbox).toHaveLength(1);
     expect(outbox[0]!.envelope.payload).toMatchObject({
@@ -293,7 +293,7 @@ describe("POST /api/v1/events/:id/reject (D5)", () => {
 
     const outbox = await sql`
       select envelope from event.outbox
-      where message_key = ${event.id} and topic = 'connectsphere.event.rejected.v1'
+      where message_key = ${event.id} and topic = 'connectsphere.event.v1' and envelope->>'messageType' = 'event.rejected'
     `;
     expect(outbox[0]!.envelope.payload).toMatchObject({
       ownerId: ORGANISER,

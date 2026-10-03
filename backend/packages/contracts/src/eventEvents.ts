@@ -3,24 +3,12 @@ import { envelopeSchema } from "./envelope.js";
 import { eventStatusSchema } from "./eventStatus.js";
 
 /**
- * Domain events produced by the Event Service. Topic names follow
- * implementation.md §3.1; each payload carries the IDs and changed values a
- * consumer needs, never a whole aggregate and never a token or user record.
+ * Domain events produced by the event module. All of them are published to
+ * the event aggregate's topic, `KAFKA_TOPICS.event` (ADR-0008, see
+ * topics.ts); the message type, not the topic, says which one this is. Each
+ * payload carries the IDs and changed values a consumer needs, never a whole
+ * aggregate and never a token or user record.
  */
-
-export const EVENT_TOPICS = {
-  submitted: "connectsphere.event.submitted.v1",
-  coordinatorAssigned: "connectsphere.event.coordinator-assigned.v1",
-  clarificationRequested: "connectsphere.event.clarification-requested.v1",
-  clarificationResponded: "connectsphere.event.clarification-responded.v1",
-  approved: "connectsphere.event.approved.v1",
-  rejected: "connectsphere.event.rejected.v1",
-  reassignmentProposed: "connectsphere.event.reassignment-proposed.v1",
-  reassignmentAccepted: "connectsphere.event.reassignment-accepted.v1",
-  reassignmentDeclined: "connectsphere.event.reassignment-declined.v1",
-} as const;
-
-export type EventTopic = (typeof EVENT_TOPICS)[keyof typeof EVENT_TOPICS];
 
 const eventRef = {
   eventId: z.string().uuid(),

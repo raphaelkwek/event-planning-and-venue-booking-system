@@ -1,6 +1,6 @@
 import { Router } from "express";
 import type { Sql } from "postgres";
-import { EVENT_TOPICS } from "@connectsphere/contracts";
+import { KAFKA_TOPICS } from "@connectsphere/contracts";
 import { authenticate, requireRole, type ActorRequest } from "../auth/actor.js";
 import { evaluateTransition } from "../domain/statusMachine.js";
 import { applyAmendments, findEventInScope, setStatus, type EventRow } from "../repo/events.js";
@@ -79,7 +79,7 @@ export function clarificationsRouter(sql: Sql) {
         });
 
         await writeOutbox(tx, {
-          topic: EVENT_TOPICS.clarificationRequested,
+          topic: KAFKA_TOPICS.event,
           messageType: "event.clarification-requested",
           aggregateId: event.id,
           actor: { userId, role },
@@ -198,7 +198,7 @@ export function clarificationsRouter(sql: Sql) {
         });
 
         await writeOutbox(tx, {
-          topic: EVENT_TOPICS.clarificationResponded,
+          topic: KAFKA_TOPICS.event,
           messageType: "event.clarification-responded",
           aggregateId: event.id,
           actor: { userId, role },

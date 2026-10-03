@@ -4,6 +4,73 @@
 
 ---
 
+# SPM-113: Hosted Kafka chosen (Aiven now, Confluent from 13 Oct), five Sprint 2 topics, `npm run kafka:check`
+
+**Timestamp:** 2026-10-02T14:22+08:00 (SGT)
+**Author:** Seann, via Claude
+**Scope:**
+- `backend/packages/contracts/src/topics.ts` and its test (new); `contracts/src/eventEvents.ts` and `index.ts`
+- the event module's four producers and `events/outbox.ts` in planning-core, and eight assertions in its API tests
+- `backend/scripts/kafka-check.ts` and `kafka-config.ts`, with its test (new)
+- root `package.json` and `package-lock.json` (`kafkajs` dev dependency, `kafka:check`, `test:scripts`)
+- `.env.example`, `.gitignore`, ADR-0008
+
+**Reason:** SPM-113 picks the hosted Kafka provider that EN-04 (SPM-122) builds against. ADR-0008 now has the decision note.
+
+## The provider
+
+1. **Aiven's free plan for development now, then Confluent Cloud's free trial from 13 Oct 2026.**
+   - Aiven lasts the semester, but allows only five topics and has no Kafka Connect.
+   - Confluent has everything, but only for 30 days, which must cover the Week 13 Q&A on 11 Nov.
+   - The decision note in ADR-0008 covers the comparison, the timing, the limits and the cutover steps.
+2. **ADR-0008's Owner is now Seann,** who took EN-04.
+
+## Five topics, and a backup of the old names
+
+3. **The Sprint 2 topics live in `contracts/src/topics.ts` as `KAFKA_TOPICS`:**
+   - `connectsphere.event.v1`
+   - `connectsphere.equipment-request.v1`
+   - `connectsphere.notification.retry.v1`
+   - `connectsphere.notification.dlq.v1`
+   - one slot spare
+
+   This is ADR-0008's one-topic-per-aggregate rule, and it fits Aiven's five. A test fails if a sixth is added before the cutover.
+4. **The nine per-event-type topic names are kept, as `LEGACY_EVENT_TOPICS`.**
+   - Outbox rows written before today carry them, and `aggregateTopicFor()` routes those rows to the event topic.
+   - An unknown name is refused, never guessed.
+   - `EVENT_TOPICS` is removed.
+5. **The event module now writes every outbox row to `connectsphere.event.v1`.**
+   - The envelope's `messageType` still says what the message is, e.g. `event.submitted`.
+   - `OutboxMessage.topic` is typed, so a legacy name won't compile.
+   - The eight test assertions that checked a per-type topic now check the topic and the `messageType`.
+
+## Connectivity check and settings
+
+6. **`npm run kafka:check`** reads only the `KAFKA_*` block of `.env`, never other secrets. Then it:
+   - connects;
+   - lists the cluster's topics against `KAFKA_TOPICS`;
+   - exits non-zero if one is missing;
+   - redacts the username and password from any error it prints.
+
+   Ten unit tests cover the config reader, and they run in `test:scripts`, so CI runs them too.
+7. **`.env.example` gains `KAFKA_SSL_CA_PATH` and `KAFKA_GROUP_SUFFIX`.**
+   - `KAFKA_SSL_CA_PATH` is needed because Aiven signs its brokers with its own CA. The file is kept outside the repo, in `~/.connectsphere/kafka/`.
+   - It also documents where each value comes from, and the consumer-group rule:
+     - deployed: `connectsphere.<service>.<consumer>`;
+     - on a laptop: add `.dev-<initials>`.
+8. **`.gitignore` now refuses certificate and key files** (`*.pem`, `*.key`, `*.cert`, `*.crt`, `*.p12`, `*.jks`) as a backstop.
+
+No credential is in any file in this change.
+
+## Verified locally
+
+- contracts 22/22.
+- The full planning-core suite: 321/321.
+- `test:scripts`, lint and boundary lint.
+- The connectivity check reached the Aiven broker. It stops at TLS until `ca.pem` is downloaded and `KAFKA_SSL_CA_PATH` is set.
+
+---
+
 # Week 7 customer changes CR-01 to CR-06: change log, story revision 4, design updates
 
 **Timestamp:** 2026-10-02T16:30+08:00 (SGT)

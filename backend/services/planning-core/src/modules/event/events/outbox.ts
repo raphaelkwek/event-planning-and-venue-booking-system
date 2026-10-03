@@ -1,6 +1,11 @@
 import { randomUUID } from "node:crypto";
 import type { TransactionSql } from "postgres";
-import { envelopeSchema, EVENT_PAYLOAD_SCHEMAS, type EventMessageType } from "@connectsphere/contracts";
+import {
+  envelopeSchema,
+  EVENT_PAYLOAD_SCHEMAS,
+  type EventMessageType,
+  type KafkaTopic,
+} from "@connectsphere/contracts";
 import { eventConfig } from "../config.js";
 
 /**
@@ -10,7 +15,8 @@ import { eventConfig } from "../config.js";
  * publishes it. Nothing here talks to Kafka.
  */
 export interface OutboxMessage {
-  topic: string;
+  /** One of the current topics only; a legacy per-type name will not compile. */
+  topic: KafkaTopic;
   messageType: EventMessageType;
   aggregateId: string;
   actor: { userId: string | null; role: string };

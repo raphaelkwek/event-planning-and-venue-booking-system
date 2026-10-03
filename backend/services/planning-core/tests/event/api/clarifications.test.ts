@@ -132,7 +132,7 @@ describe("POST /api/v1/events/:id/clarifications (D2)", () => {
 
     const outbox = await sql`
       select envelope from event.outbox
-      where message_key = ${event.id} and topic = 'connectsphere.event.clarification-requested.v1'
+      where message_key = ${event.id} and topic = 'connectsphere.event.v1' and envelope->>'messageType' = 'event.clarification-requested'
     `;
     expect(outbox[0]!.envelope.payload.ownerId).toBe(ORGANISER);
   });
@@ -303,7 +303,7 @@ describe("POST /api/v1/events/:id/clarifications/respond (D3)", () => {
 
     const outbox = await sql`
       select envelope from event.outbox
-      where message_key = ${event.id} and topic = 'connectsphere.event.clarification-responded.v1'
+      where message_key = ${event.id} and topic = 'connectsphere.event.v1' and envelope->>'messageType' = 'event.clarification-responded'
     `;
     expect(outbox[0]!.envelope.payload.requestedBy).toBe(COORDINATOR);
   });
