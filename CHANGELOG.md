@@ -4,6 +4,96 @@
 
 ---
 
+# EN-04.1: CloudEvents 1.0 envelope, per-aggregate topics and contract tests in `contracts`; `implementation.md` §3 rewritten
+
+**Timestamp:** 2026-10-03T11:16+08:00 (SGT)
+**Author:** Seann, via Claude
+**Scope:**
+- `backend/packages/contracts`:
+  - `src/cloudEvent.ts` and `tests/cloudEvent.test.ts` (new);
+  - `src/topics.ts` and `tests/topics.test.ts`;
+  - `src/envelope.ts` (comment only) and `src/index.ts`.
+- `backend/scripts/kafka-check.ts`
+- `implementation.md`: the header note, §1, §3, §8.1 and the appendix
+- one comment in planning-core's `modules/event/config.ts`
+
+**Reason:** EN-04.1 (SPM-161), the first step of EN-04. ADR-0008 replaced the custom envelope and the per-event-type topics, and EN-04.2 (the relay) and EN-04.3 (the notification service) build on this contract.
+
+## The envelope
+
+1. **`cloudEventSchema`** is a CloudEvents 1.0 event in structured mode, with:
+   - the attributes `id`, `source`, `type`, `specversion`, `time`, `subject` and `datacontenttype`;
+   - the extensions `correlationid`, `traceparent` and `actor`;
+   - today's payload schemas as `data`.
+   
+   **`parseCloudEvent`** checks the envelope, then the `data` for its `type`, and refuses an unknown type by name.
+2. **The schema is strict.**
+   - An attribute outside the contract is refused, e.g. the old camelCase `correlationId`.
+   - `subject` must be the aggregate's UUID, which is also the message key.
+   - `time` must be UTC with milliseconds.
+   - `traceparent` must be valid W3C Trace Context. An all-zero trace or span id is refused.
+   - `correlationid` is optional, for scheduled jobs. When present, it can't be empty.
+3. **`actor` is one string: `ROLE:userId`, or `SYSTEM`.**
+   - CloudEvents extension values must be strings, so the old `{ userId, role }` object can't be carried as it was.
+   - `formatActor` and `parseActor` convert both ways.
+   - A user role must name its user, and `SYSTEM` must not.
+4. **The old envelope (`envelope.ts`) stays for now,** marked as superseded.
+   - The event module's outbox writer still produces it, and EN-04.2 moves the writer to CloudEvents.
+   - §3.3 gives the field-by-field mapping, so the relay can convert rows already written in the old shape.
+   - `causationId` was dropped. No producer ever set it.
+
+## Topics
+
+5. **`AGGREGATE_TOPICS` holds the four aggregate topics from the Jira item:**
+   - `connectsphere.event.v1`
+   - `connectsphere.venue-booking.v1`
+   - `connectsphere.equipment-reservation.v1`
+   - `connectsphere.registration.v1`
+
+   It also keeps **`connectsphere.equipment-request.v1`**, chosen for O2 under SPM-113 and already created on Aiven. A request line and a reservation are separate aggregates.
+6. **Retry and dead-letter topics are named per consumer,** by `retryTopic()` and `deadLetterTopic()`:
+   - `connectsphere.<consumer>.retry.v1` and `connectsphere.<consumer>.dlq.v1`;
+   - a consumer name that isn't lowercase kebab-case is refused.
+7. **`KAFKA_TOPICS` is now the full layout:** the five aggregate topics plus the notification consumer's two.
+   - The five-topic cap moved to the new **`TOPICS_BEFORE_CUTOVER`**: the four topics on Aiven until 13 Oct, unchanged from SPM-113.
+   - `npm run kafka:check` now requires only those four. It shows the other three as `cutover` instead of failing.
+
+## Contract tests
+
+8. **Every event message type has an example message, and each one validates:** the nine event-module types.
+   - A test fails if a type is added to `contracts` without an example.
+   - 36 envelope tests, plus 13 topic tests.
+9. **Checked by breaking the code.** Removing `.strict()`, dropping the millisecond rule, and allowing an all-zero trace id each turned one test red.
+
+## `implementation.md`
+
+10. **§3 is rewritten for ADR-0008.** It covers:
+    - the topic table, retry and DLQ naming, the before-cutover set, legacy names and consumer groups;
+    - the key = `subject` rule;
+    - the CloudEvents attributes, with an example and the old-to-new mapping;
+    - the outbox relay with `SKIP LOCKED`;
+    - inbox, retry and DLQ handling.
+11. **Elsewhere in `implementation.md`:**
+    - §3 is removed from the header's list of sections that conflict with the ADRs.
+    - §9 is added to that list, because it still sends logs to a Kafka topic. ADR-0013 sends them to Loki, and the rewrite belongs to EN-08.
+    - §1 now cites ADR-0008 for Kafka, and §8.1 says "message `id`".
+    - The appendix item "Hosted Kafka provider not yet chosen" is removed. The ADR-0008 note and §3 now decide it.
+
+**Needs a second owner's review** before merge, because it changes `contracts` (`implementation.md` §2).
+
+## Verified locally
+
+- contracts 64/64.
+- Typecheck, build, lint and the module boundary check.
+- The full planning-core suite: 321/321, but only with its test dates moved forward.
+  - Six event API test files fix the event's date at 2 Oct 2026. From 3 Oct, B2 correctly refuses that date as past, so those files fail on `main`, with or without this change.
+  - With their dates moved to 2027 for one run, then restored, all 321 passed.
+  - Fixing those dates is separate work, not part of this entry.
+- `test:scripts`.
+- `npm run kafka:check` against Aiven: the four topics are present.
+
+---
+
 # SPM-113: Hosted Kafka chosen (Aiven now, Confluent from 13 Oct), five Sprint 2 topics, `npm run kafka:check`
 
 **Timestamp:** 2026-10-02T14:22+08:00 (SGT)
