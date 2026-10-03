@@ -98,7 +98,7 @@ Rewritten on 3 Oct 2026 for ADR-0008 (EN-04.1). The contract is code in `/backen
 | `src/eventEvents.ts` | the `data` schema for each event-module message type |
 | `tests/cloudEvent.test.ts` | an example message for every message type, validated |
 
-> **Transition.** The event module's outbox writer still writes the envelope from before CloudEvents (`src/envelope.ts`). EN-04.2 moves the writer to `cloudEventSchema` and builds the relay. The relay converts rows already written in the old shape, using the mapping in §3.3.
+> **Transition.** Since EN-04.2 the event module writes CloudEvents. Outbox rows written earlier in the old envelope (`src/envelope.ts`) are converted by the relay as it publishes them, using the mapping in §3.3. `envelope.ts` goes once no such row is left unpublished.
 
 ### 3.1 Topics
 
@@ -220,6 +220,7 @@ A domain event must exist if and only if its state change committed. Every modul
 ```sql
 create table <schema>.outbox (
   id              uuid primary key default gen_random_uuid(),
+  seq             bigint generated always as identity,  -- write order; the relay publishes by it
   topic           text        not null,  -- a KAFKA_TOPICS value
   message_key     text        not null,  -- the aggregate id = the envelope's subject
   envelope        jsonb       not null,  -- the CloudEvent, validated by parseCloudEvent
@@ -228,15 +229,36 @@ create table <schema>.outbox (
   attempts        int         not null default 0,
   last_error      text
 );
-create index on <schema>.outbox (published_at) where published_at is null;
+create index on <schema>.outbox (seq) where published_at is null;
 ```
 
-**Writing:** write the outbox row **inside the same transaction** as the state change. Never produce to Kafka from inside a request handler.
+**Writing:**
+- **Write the outbox row inside the same transaction** as the state change. Never produce to Kafka from inside a request handler.
+- **Validate it with `parseCloudEvent` first.** The event module's `writeOutbox` (`modules/event/events/outbox.ts`) is the example.
+- **Export the table name from the module's `index.ts`** (e.g. `EVENT_OUTBOX_TABLE`), and add it to the relay's list in `src/index.ts`.
 
-**Publishing:**
-- **The relay (EN-04.2)** claims unpublished rows with `FOR UPDATE SKIP LOCKED`, so two relay instances never publish the same row. It produces each row and then sets `published_at`.
-- **A failed publish** increments `attempts`, records `last_error`, and leaves the row for the next pass. Nothing is lost while the broker is down.
-- **The relay is the fallback:** if EN-05's spike shows Supabase allows a logical replication slot, Debezium change data capture replaces it.
+**Why `seq`, not `created_at`:**
+- `created_at` is `now()`, the start of the writing transaction, so two rows from one transaction tie.
+- A transaction that started first but waited for the aggregate's row lock stamps an earlier time than the one that committed before it, so `created_at` can put an aggregate's messages out of order.
+- `seq` is assigned at insert, after that lock, so it follows the order of writes.
+
+**Publishing: the relay** (`src/shared/outbox-relay.ts`, EN-04.2) runs inside planning-core whenever `KAFKA_*` is set. Each pass, for each outbox table, in one transaction, it:
+1. **Takes the table's relay lock** (`pg_try_advisory_xact_lock`), or skips the table this pass if another relay holds it. One relay at a time per table keeps each aggregate's messages in order. `FOR UPDATE SKIP LOCKED` alone would stop two relays taking the same row, but a second relay could then publish an aggregate's later message while the first still held an earlier one.
+2. **Claims up to 100 unpublished rows,** in `seq` order, `FOR UPDATE SKIP LOCKED`.
+3. **Sets aside rows that can never publish:**
+   - examples: an envelope that fails its schema, or an unknown topic;
+   - it sets `last_error` to `unpublishable: <reason>` and counts the attempt;
+   - it logs an error, and never selects that row again, so the row doesn't block the ones behind it;
+   - to retry once the cause is fixed, clear `last_error`.
+4. **Publishes the rest, one send per topic,** keyed by the aggregate id, in CloudEvents structured mode (§3.3). On success it sets `published_at`.
+5. **A failed send** increments `attempts`, records `last_error`, and leaves the rows pending. The next pass retries them first, so nothing is lost while the broker is down. After a failure the relay backs off: 1 s, doubling, up to 30 s.
+
+**More relay rules:**
+- **It publishes inside the transaction, deliberately.** That's an exception to §11 rule 6: the row locks are what stop a second relay taking the same rows. kafkajs's request timeout bounds how long they're held.
+- **It shuts down gracefully.** On SIGTERM it finishes the batch in flight before closing Kafka and the database.
+- **Without `KAFKA_*`, planning-core runs without the relay,** and messages wait in the outbox.
+- **It converts rows written before CloudEvents** using §3.3's mapping. The backlog that existed when the relay arrived was skipped by migration `event/0006` (team decision, 3 Oct 2026).
+- **It's the fallback:** if EN-05's spike shows Supabase allows a logical replication slot, Debezium change data capture replaces it.
 
 ### 3.5 Consumers
 
@@ -632,9 +654,9 @@ Log every refusal with its `code` — refusals are correct behaviour under CP an
 
 ## 10. Configuration and deployment
 
-All config from environment variables, documented in `.env.example`. No secrets in the repo, no `localhost` in code. Required per service: `PORT`, `DATABASE_URL`, `DATABASE_SCHEMA`, `KAFKA_BROKERS`, `KAFKA_SASL_MECHANISM`, `KAFKA_SASL_USERNAME`, `KAFKA_SASL_PASSWORD`, `SUPABASE_URL`, `SUPABASE_JWKS_URL`, `SERVICE_NAME`, `LOG_LEVEL`, `INTERNAL_TOKEN_SECRET`.
+All config from environment variables, documented in `.env.example`. No secrets in the repo, no `localhost` in code. Required per service: `PORT`, `DATABASE_URL`, `DATABASE_SCHEMA`, `KAFKA_BROKERS`, `KAFKA_SASL_MECHANISM`, `KAFKA_SASL_USERNAME`, `KAFKA_SASL_PASSWORD`, `KAFKA_SSL_CA_PATH` (Aiven only), `KAFKA_GROUP_SUFFIX` (laptops only), `SUPABASE_URL`, `SUPABASE_JWKS_URL`, `SERVICE_NAME`, `LOG_LEVEL`, `INTERNAL_TOKEN_SECRET`.
 
-Cloud-readiness rules to follow now so the move is boring later: services are stateless (no in-process cache, no local disk writes, sessions in the token); health endpoints `/healthz` (liveness) and `/readyz` (checks DB and Kafka); graceful shutdown drains in-flight requests and commits Kafka offsets; every service can run from its build (`npm run build`, then `npm run start -w <service>`), and `npm run dev` is for local work only. There is no Docker (ADR-0003): a deployment platform builds each service from its `package.json`.
+Cloud-readiness rules to follow now so the move is boring later: services are stateless (no in-process cache, no local disk writes, sessions in the token); health endpoints `/healthz` (liveness) and `/readyz` (readiness: it requires the database and reports whether the Kafka broker is reachable, without requiring it, because the outbox holds messages while Kafka is down; §3.4); graceful shutdown drains in-flight requests, lets the outbox relay finish its batch, and commits Kafka offsets; every service can run from its build (`npm run build`, then `npm run start -w <service>`), and `npm run dev` is for local work only. There is no Docker (ADR-0003): a deployment platform builds each service from its `package.json`.
 
 ## 11. Rules for coding agents
 
