@@ -65,7 +65,7 @@ async function cleanUp() {
   await sql`delete from event.clarifications where event_id in (${owned})`;
   await sql`delete from event.event_history where event_id in (${owned})`;
   await sql`delete from event.assignments where event_id in (${owned})`;
-  await sql`delete from event.outbox where envelope->'payload'->>'ownerId' in ${sql(OWNERS)}`;
+  await sql`delete from event.outbox where coalesce(envelope->'data', envelope->'payload')->>'ownerId' in ${sql(OWNERS)}`;
   await sql`delete from event.events where owner_id in ${sql(OWNERS)}`;
 }
 
@@ -133,9 +133,9 @@ describe("POST /api/v1/events/:id/clarifications (D2)", () => {
 
     const outbox = await sql`
       select envelope from event.outbox
-      where message_key = ${event.id} and topic = 'connectsphere.event.v1' and envelope->>'messageType' = 'event.clarification-requested'
+      where message_key = ${event.id} and topic = 'connectsphere.event.v1' and envelope->>'type' = 'event.clarification-requested'
     `;
-    expect(outbox[0]!.envelope.payload.ownerId).toBe(ORGANISER);
+    expect(outbox[0]!.envelope.data.ownerId).toBe(ORGANISER);
   });
 
   it("retains multiple clarifications in order rather than overwriting", async () => {
@@ -304,9 +304,9 @@ describe("POST /api/v1/events/:id/clarifications/respond (D3)", () => {
 
     const outbox = await sql`
       select envelope from event.outbox
-      where message_key = ${event.id} and topic = 'connectsphere.event.v1' and envelope->>'messageType' = 'event.clarification-responded'
+      where message_key = ${event.id} and topic = 'connectsphere.event.v1' and envelope->>'type' = 'event.clarification-responded'
     `;
-    expect(outbox[0]!.envelope.payload.requestedBy).toBe(COORDINATOR);
+    expect(outbox[0]!.envelope.data.requestedBy).toBe(COORDINATOR);
   });
 
   it("gives an organiser who does not own the event no clarification content", async () => {

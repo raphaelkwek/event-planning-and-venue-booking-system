@@ -72,7 +72,7 @@ async function cleanUp() {
   await sql`delete from event.reassignment_proposals where event_id in (${owned})`;
   await sql`delete from event.event_history where event_id in (${owned})`;
   await sql`delete from event.assignments where event_id in (${owned})`;
-  await sql`delete from event.outbox where envelope->'payload'->>'ownerId' in ${sql(OWNERS)}`;
+  await sql`delete from event.outbox where coalesce(envelope->'data', envelope->'payload')->>'ownerId' in ${sql(OWNERS)}`;
   await sql`delete from event.events where owner_id in ${sql(OWNERS)}`;
 }
 
@@ -139,10 +139,10 @@ describe("POST /api/v1/events/:id/reassignment-proposals (E2)", () => {
 
     const outbox = await sql`
       select envelope from event.outbox
-      where message_key = ${event.id} and topic = 'connectsphere.event.v1' and envelope->>'messageType' = 'event.reassignment-proposed'
+      where message_key = ${event.id} and topic = 'connectsphere.event.v1' and envelope->>'type' = 'event.reassignment-proposed'
     `;
     expect(outbox).toHaveLength(1);
-    expect(outbox[0]!.envelope.payload).toMatchObject({
+    expect(outbox[0]!.envelope.data).toMatchObject({
       outgoingCoordinatorId: active,
       nomineeCoordinatorId: nominee,
     });
@@ -311,9 +311,9 @@ describe("POST /api/v1/events/:id/reassignment-proposals/accept (E2)", () => {
 
     const outbox = await sql`
       select envelope from event.outbox
-      where message_key = ${event.id} and topic = 'connectsphere.event.v1' and envelope->>'messageType' = 'event.reassignment-accepted'
+      where message_key = ${event.id} and topic = 'connectsphere.event.v1' and envelope->>'type' = 'event.reassignment-accepted'
     `;
-    expect(outbox[0]!.envelope.payload).toMatchObject({
+    expect(outbox[0]!.envelope.data).toMatchObject({
       outgoingCoordinatorId: active,
       nomineeCoordinatorId: nominee,
     });
