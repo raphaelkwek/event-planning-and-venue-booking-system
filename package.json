@@ -9,6 +9,7 @@
   ],
   "scripts": {
     "dev": "concurrently --kill-others-on-fail --names core,web --prefix-colors blue,green \"npm run dev -w @connectsphere/planning-core\" \"npm run dev -w @connectsphere/web\"",
+    "kafka:check": "tsx backend/scripts/kafka-check.ts",
     "migrate": "tsx backend/scripts/migrate.ts",
     "migrate:identity": "tsx backend/scripts/migrate.ts identity --seed",
     "migrate:event": "tsx backend/scripts/migrate.ts event",
@@ -18,7 +19,7 @@
     "confluence:digest": "tsx documentation/scripts/confluence-digest.ts",
     "submission:build": "tsx documentation/scripts/build-submission.ts",
     "test": "npm run test --workspaces --if-present && npm run test:scripts",
-    "test:scripts": "tsx --test documentation/scripts/confluence-digest.test.ts",
+    "test:scripts": "tsx --test documentation/scripts/confluence-digest.test.ts backend/scripts/kafka-config.test.ts",
     "test:unit": "npm run test:unit --workspaces --if-present && npm run test:scripts",
     "policies:test": "tsx backend/scripts/cerbos.ts compile policies",
     "build": "npm run build --workspaces --if-present",
@@ -39,6 +40,7 @@
     "eslint": "^9.39.5",
     "eslint-plugin-react-hooks": "^5.2.0",
     "globals": "^17.13.0",
+    "kafkajs": "^2.2.4",
     "tsx": "^4.16.2",
     "typescript": "^5.5.3",
     "typescript-eslint": "^8.71.0"
