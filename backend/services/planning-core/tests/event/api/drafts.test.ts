@@ -1,6 +1,7 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import request from "supertest";
 import { testDb } from "../../support/testDb.js";
+import { EVENT_END, EVENT_START } from "../../support/eventDates.js";
 
 vi.mock("../../../src/shared/auth/verifyJwt.js", () => ({
   verifyJwt: (
@@ -202,8 +203,8 @@ describe("GET /api/v1/events (C3)", () => {
         name: "Already submitted",
         purpose: "Purpose",
         description: "Description",
-        proposedStartAt: "2026-10-02T14:00:00.000Z",
-        proposedEndAt: "2026-10-02T18:00:00.000Z",
+        proposedStartAt: EVENT_START,
+        proposedEndAt: EVENT_END,
         expectedAttendance: 10,
         registrationRequired: false,
         equipmentRequired: false,

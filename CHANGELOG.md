@@ -4,6 +4,98 @@
 
 ---
 
+# EN-04.2: Outbox relay publishes to Kafka in order, exactly once per row; event module writes CloudEvents
+
+**Timestamp:** 2026-10-03T12:49+08:00 (SGT)
+**Author:** Seann, via Claude
+**Scope:**
+- planning-core `src/shared`:
+  - `outbox-relay.ts`, `outbox/messages.ts`, `tracing.ts`, and `kafka/client.ts` and `kafka/probe.ts` (all new);
+  - `kafka/config.ts`, moved from `backend/scripts/kafka-config.ts`;
+  - `health.ts`.
+- planning-core: `src/index.ts`, `src/app.ts` and `package.json` (`kafkajs`).
+- The event module: `events/outbox.ts`, `index.ts` and `config.ts`, plus migrations `0005` and `0006`.
+- Tests:
+  - `tests/shared/` (new: five files);
+  - the outbox assertions in five event API tests;
+  - a separate commit fixing the dates in six of them.
+- `backend/scripts/kafka-check.ts`, root `package.json`, `.env.example`, and `implementation.md` §3 and §10.
+
+**Reason:** EN-04.2 (SPM-166), ADR-0008. Outbox rows were written but nothing published them, which is what T2 (through EN-04.3) is waiting for.
+
+## The relay
+
+1. **`OutboxRelay` publishes each module's outbox to Kafka.**
+   - It runs inside planning-core whenever `KAFKA_*` is set.
+   - It's keyed by the aggregate id, in CloudEvents structured mode, with `content-type: application/cloudevents+json`.
+   - On success it sets `published_at`. On failure it increments `attempts`, records `last_error`, and leaves the row pending.
+2. **Two relays can never publish the same row.** Rows are claimed `FOR UPDATE SKIP LOCKED`.
+3. **Each aggregate's messages also stay in order.** Before claiming, a relay takes the table's advisory lock (`pg_try_advisory_xact_lock`), and skips the table if another relay holds it.
+   - Without the lock, SKIP LOCKED lets a second relay publish an aggregate's later message while the first still holds an earlier one.
+   - The two-relay test fails without the lock. I checked by removing it.
+4. **Rows are published in `seq` order, not `created_at`.** Migration `event/0005` adds `seq`.
+   - `created_at` is `now()`, the start of the writing transaction, so rows from one transaction tie: submission writes two at once.
+   - A transaction that started first but waited for the event's row lock stamps an earlier time than one that committed before it.
+   - `seq` is taken at insert, after that lock.
+5. **A row that can never publish is set aside, never retried.** That covers a schema failure or an unknown topic.
+   - Its `last_error` reads `unpublishable: …`, and it's logged.
+   - It doesn't block the rows behind it.
+6. **Failures back off:** 1 s, doubling, up to 30 s.
+   - A pass that throws, e.g. when the database goes away, is logged and retried.
+   - `stop()` lets the batch in flight finish. SIGTERM and SIGINT stop the server, then the relay, then Kafka and the database.
+7. **`/readyz` reports the broker as `reachable`, `unreachable` or `not_configured`, but readiness requires only the database.**
+   - While Kafka is down, requests still commit and messages wait in the outbox, so a Kafka outage shouldn't become an API outage.
+   - The probe connects, describes the cluster and disconnects. It caches its answer for 5 s.
+8. **No Kafka settings means no relay.** A laptop without `KAFKA_*` (or with `.env.example`'s placeholders) runs planning-core without the relay, and logs why. Incomplete settings are logged by variable name.
+9. **The producer is configured to:**
+   - never create topics;
+   - keep one request in flight, so a retry can't overtake;
+   - wait for all replicas to acknowledge (`acks: -1`);
+   - hash keys as the Java client does.
+
+## CloudEvents on the outbox
+
+10. **The event module's `writeOutbox` now writes and validates a CloudEvent** with `parseCloudEvent`, with source `/connectsphere/planning-core/event`.
+    - Its callers are unchanged.
+    - `EVENT_SERVICE_NAME` is no longer read, and `causationId` is gone.
+11. **The relay converts rows still in the old envelope,** using §3.3's mapping. That covers rows written by code on `main` until this merges.
+
+## The backlog (team decision, 3 Oct 2026)
+
+12. **Migration `event/0006` marks every row already waiting as handled,** with `last_error = 'skipped: written before the outbox relay existed (EN-04.2)'`. That's 3,728 rows on the shared database, nearly all from test runs since 15 Sep.
+
+**`0005` and `0006` are already applied to the shared database.** I dry-ran both in a transaction that was rolled back first. Nothing needs migrating by anyone else.
+
+## Also
+
+13. **The KAFKA_* reader moved into planning-core,** as `src/shared/kafka/config.ts`, so the relay and `npm run kafka:check` share it.
+    - The reader's tests are now Vitest unit tests.
+    - The script keeps its own `.env`-file parsing.
+14. **The six event API test files no longer use a fixed date** (a separate commit). From 3 Oct, B2 refused their 2 Oct date, breaking 101 tests on `main`.
+
+## Verified
+
+- **The relay's integration tests (7), against Postgres,** on throwaway tables, so no teammate's relay can take their rows. They cover:
+  - two relays: exactly once, in order;
+  - broker down, then recovered;
+  - a set-aside row;
+  - an old-envelope row converted;
+  - several outboxes;
+  - shutdown mid-batch.
+- **Checked by breaking the code.** Removing the lock, SKIP LOCKED, or the set-aside filter each fails a test.
+- **The full planning-core suite: 391/391.**
+- **CI's steps:**
+  - lint, the boundary checks, the OpenAPI lint, typecheck and build;
+  - `test:unit` in every workspace, with the coverage floors met. planning-core lines went from 45.9% to 51.7%, branches 97.5%.
+- **End to end against Aiven:**
+  - planning-core started with the relay, and `/readyz` said `kafka: reachable`;
+  - the submission tests wrote real outbox rows;
+  - the relay published all 19 that were left;
+  - a separate consumer received all 19 as valid CloudEvents, keyed by their event, and none was left pending.
+- **Not checked:** a real SIGTERM. Windows can't send one to another process, so graceful shutdown is covered only by the test of `stop()`.
+
+---
+
 # EN-04.1: CloudEvents 1.0 envelope, per-aggregate topics and contract tests in `contracts`; `implementation.md` §3 rewritten
 
 **Timestamp:** 2026-10-03T11:16+08:00 (SGT)

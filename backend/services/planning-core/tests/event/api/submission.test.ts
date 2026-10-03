@@ -1,6 +1,8 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import request from "supertest";
+import { parseCloudEvent } from "@connectsphere/contracts";
 import { testDb } from "../../support/testDb.js";
+import { EVENT_END, EVENT_START } from "../../support/eventDates.js";
 
 const COORDINATOR_A = "a4444444-0000-0000-0000-00000000000a";
 const COORDINATOR_B = "a4444444-0000-0000-0000-00000000000b";
@@ -50,8 +52,8 @@ const validRequest = {
   name: "Annual Research Symposium",
   purpose: "Share faculty research",
   description: "A one-day symposium.",
-  proposedStartAt: "2026-10-02T14:00:00.000Z",
-  proposedEndAt: "2026-10-02T18:00:00.000Z",
+  proposedStartAt: EVENT_START,
+  proposedEndAt: EVENT_END,
   expectedAttendance: 150,
   registrationRequired: false,
   equipmentRequired: false,
@@ -65,7 +67,7 @@ async function cleanUp() {
   const owned = sql`select id from event.events where owner_id in ${sql(OWNERS)}`;
   await sql`delete from event.event_history where event_id in (${owned})`;
   await sql`delete from event.assignments where event_id in (${owned})`;
-  await sql`delete from event.outbox where envelope->'payload'->>'ownerId' in ${sql(OWNERS)}`;
+  await sql`delete from event.outbox where coalesce(envelope->'data', envelope->'payload')->>'ownerId' in ${sql(OWNERS)}`;
   await sql`delete from event.events where owner_id in ${sql(OWNERS)}`;
 }
 
@@ -119,11 +121,25 @@ describe("POST /api/v1/events (B1)", () => {
 
     const outbox = await sql`
       select topic, message_key, envelope from event.outbox
-      where message_key = ${res.body.id} and topic = 'connectsphere.event.v1' and envelope->>'messageType' = 'event.submitted'
+      where message_key = ${res.body.id} and topic = 'connectsphere.event.v1' and envelope->>'type' = 'event.submitted'
     `;
     expect(outbox).toHaveLength(1);
-    expect(outbox[0]!.envelope.payload.eventReference).toBe(res.body.reference);
+    expect(outbox[0]!.envelope.data.eventReference).toBe(res.body.reference);
     expect(outbox[0]!.envelope.published_at ?? null).toBeNull();
+  });
+
+  it("writes the message as a CloudEvent about this event, from the event module, by the organiser (§3.3)", async () => {
+    const res = await request(app).post("/api/v1/events").set(bearer).send(validRequest);
+
+    const [row] = await sql`
+      select envelope from event.outbox
+      where message_key = ${res.body.id} and envelope->>'type' = 'event.submitted'
+    `;
+    expect(parseCloudEvent(row!.envelope)).toMatchObject({
+      source: "/connectsphere/planning-core/event",
+      subject: res.body.id,
+      actor: `EVENT_ORGANISER:${ORGANISER}`,
+    });
   });
 
   it("creates no event record at all when validation fails (B1, B2)", async () => {
@@ -239,9 +255,9 @@ describe("coordinator assignment on submission (E1)", () => {
     const outbox = await sql`
       select envelope from event.outbox
       where message_key = ${res.body.id}
-        and topic = 'connectsphere.event.v1' and envelope->>'messageType' = 'event.coordinator-assigned'
+        and topic = 'connectsphere.event.v1' and envelope->>'type' = 'event.coordinator-assigned'
     `;
-    expect(outbox[0]!.envelope.payload.coordinatorId).toBe(COORDINATOR_A);
+    expect(outbox[0]!.envelope.data.coordinatorId).toBe(COORDINATOR_A);
   });
 });
 

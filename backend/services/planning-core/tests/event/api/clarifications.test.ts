@@ -1,6 +1,7 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import request from "supertest";
 import { testDb } from "../../support/testDb.js";
+import { EVENT_END, EVENT_START } from "../../support/eventDates.js";
 
 process.env.EVENT_COORDINATOR_POOL = "a6666666-0000-0000-0000-00000000000a";
 
@@ -52,8 +53,8 @@ const validRequest = {
   name: "Annual Research Symposium",
   purpose: "Share faculty research",
   description: "A one-day symposium.",
-  proposedStartAt: "2026-10-02T14:00:00.000Z",
-  proposedEndAt: "2026-10-02T18:00:00.000Z",
+  proposedStartAt: EVENT_START,
+  proposedEndAt: EVENT_END,
   expectedAttendance: 150,
   registrationRequired: false,
   equipmentRequired: false,
@@ -64,7 +65,7 @@ async function cleanUp() {
   await sql`delete from event.clarifications where event_id in (${owned})`;
   await sql`delete from event.event_history where event_id in (${owned})`;
   await sql`delete from event.assignments where event_id in (${owned})`;
-  await sql`delete from event.outbox where envelope->'payload'->>'ownerId' in ${sql(OWNERS)}`;
+  await sql`delete from event.outbox where coalesce(envelope->'data', envelope->'payload')->>'ownerId' in ${sql(OWNERS)}`;
   await sql`delete from event.events where owner_id in ${sql(OWNERS)}`;
 }
 
@@ -132,9 +133,9 @@ describe("POST /api/v1/events/:id/clarifications (D2)", () => {
 
     const outbox = await sql`
       select envelope from event.outbox
-      where message_key = ${event.id} and topic = 'connectsphere.event.v1' and envelope->>'messageType' = 'event.clarification-requested'
+      where message_key = ${event.id} and topic = 'connectsphere.event.v1' and envelope->>'type' = 'event.clarification-requested'
     `;
-    expect(outbox[0]!.envelope.payload.ownerId).toBe(ORGANISER);
+    expect(outbox[0]!.envelope.data.ownerId).toBe(ORGANISER);
   });
 
   it("retains multiple clarifications in order rather than overwriting", async () => {
@@ -303,9 +304,9 @@ describe("POST /api/v1/events/:id/clarifications/respond (D3)", () => {
 
     const outbox = await sql`
       select envelope from event.outbox
-      where message_key = ${event.id} and topic = 'connectsphere.event.v1' and envelope->>'messageType' = 'event.clarification-responded'
+      where message_key = ${event.id} and topic = 'connectsphere.event.v1' and envelope->>'type' = 'event.clarification-responded'
     `;
-    expect(outbox[0]!.envelope.payload.requestedBy).toBe(COORDINATOR);
+    expect(outbox[0]!.envelope.data.requestedBy).toBe(COORDINATOR);
   });
 
   it("gives an organiser who does not own the event no clarification content", async () => {

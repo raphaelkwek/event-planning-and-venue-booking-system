@@ -1,14 +1,6 @@
 /** Settings only the event module reads. */
 export const eventConfig = {
   /**
-   * The `producer` written into every event message envelope. It stays
-   * "event-service" after the move into planning-core, so message consumers see
-   * no change. EN-04.1 defined the CloudEvents envelope in contracts, and
-   * EN-04.2 moves the outbox writer to it, where this becomes the `source`
-   * (implementation.md §3.3).
-   */
-  producer: process.env.EVENT_SERVICE_NAME ?? "event-service",
-  /**
    * TODO(E1): replace with a live Identity query for active users holding
    * EVENT_COORDINATOR. Until that exists the eligible pool is configuration:
    * a comma-separated list of identity.users.id values.

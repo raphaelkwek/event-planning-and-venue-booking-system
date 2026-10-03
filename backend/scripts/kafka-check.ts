@@ -2,13 +2,19 @@
 import { readFileSync } from "node:fs";
 import { Kafka, logLevel } from "kafkajs";
 import { KAFKA_TOPICS, TOPICS_BEFORE_CUTOVER } from "@connectsphere/contracts";
-import { kafkaVarsFrom, toClientConfig, redact, KafkaConfigError } from "./kafka-config.ts";
+import { parse } from "dotenv";
+import { toClientConfig, redact, KafkaConfigError } from "../services/planning-core/src/shared/kafka/config.ts";
 
 // npm run kafka:check — proves this laptop can reach the team's Kafka cluster
 // (SPM-113). It reads only the KAFKA_* block of .env, connects, lists the
 // topics and compares them with KAFKA_TOPICS: the ones in TOPICS_BEFORE_CUTOVER
 // must exist now, the rest from the cutover to Confluent. It never prints a
 // credential.
+
+/** Only the KAFKA_* lines of .env: no other secret is ever loaded. */
+function kafkaVarsFrom(dotenvText: string): Record<string, string> {
+  return Object.fromEntries(Object.entries(parse(dotenvText)).filter(([name]) => name.startsWith("KAFKA_")));
+}
 
 let vars: Record<string, string> = {};
 try {

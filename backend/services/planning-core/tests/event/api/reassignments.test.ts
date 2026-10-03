@@ -1,6 +1,7 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import request from "supertest";
 import { testDb } from "../../support/testDb.js";
+import { EVENT_END, EVENT_START } from "../../support/eventDates.js";
 
 const ORGANISER = "a8888888-0000-0000-0000-000000000001";
 const COORDINATOR_A = "a8888888-0000-0000-0000-000000000002";
@@ -59,8 +60,8 @@ const validRequest = {
   name: "Annual Research Symposium",
   purpose: "Share faculty research",
   description: "A one-day symposium.",
-  proposedStartAt: "2026-10-02T14:00:00.000Z",
-  proposedEndAt: "2026-10-02T18:00:00.000Z",
+  proposedStartAt: EVENT_START,
+  proposedEndAt: EVENT_END,
   expectedAttendance: 150,
   registrationRequired: false,
   equipmentRequired: false,
@@ -71,7 +72,7 @@ async function cleanUp() {
   await sql`delete from event.reassignment_proposals where event_id in (${owned})`;
   await sql`delete from event.event_history where event_id in (${owned})`;
   await sql`delete from event.assignments where event_id in (${owned})`;
-  await sql`delete from event.outbox where envelope->'payload'->>'ownerId' in ${sql(OWNERS)}`;
+  await sql`delete from event.outbox where coalesce(envelope->'data', envelope->'payload')->>'ownerId' in ${sql(OWNERS)}`;
   await sql`delete from event.events where owner_id in ${sql(OWNERS)}`;
 }
 
@@ -138,10 +139,10 @@ describe("POST /api/v1/events/:id/reassignment-proposals (E2)", () => {
 
     const outbox = await sql`
       select envelope from event.outbox
-      where message_key = ${event.id} and topic = 'connectsphere.event.v1' and envelope->>'messageType' = 'event.reassignment-proposed'
+      where message_key = ${event.id} and topic = 'connectsphere.event.v1' and envelope->>'type' = 'event.reassignment-proposed'
     `;
     expect(outbox).toHaveLength(1);
-    expect(outbox[0]!.envelope.payload).toMatchObject({
+    expect(outbox[0]!.envelope.data).toMatchObject({
       outgoingCoordinatorId: active,
       nomineeCoordinatorId: nominee,
     });
@@ -310,9 +311,9 @@ describe("POST /api/v1/events/:id/reassignment-proposals/accept (E2)", () => {
 
     const outbox = await sql`
       select envelope from event.outbox
-      where message_key = ${event.id} and topic = 'connectsphere.event.v1' and envelope->>'messageType' = 'event.reassignment-accepted'
+      where message_key = ${event.id} and topic = 'connectsphere.event.v1' and envelope->>'type' = 'event.reassignment-accepted'
     `;
-    expect(outbox[0]!.envelope.payload).toMatchObject({
+    expect(outbox[0]!.envelope.data).toMatchObject({
       outgoingCoordinatorId: active,
       nomineeCoordinatorId: nominee,
     });

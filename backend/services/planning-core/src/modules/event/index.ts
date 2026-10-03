@@ -8,6 +8,9 @@ import { decisionsRouter } from "./api/decisions.js";
 import { reassignmentsRouter } from "./api/reassignments.js";
 import { findEventInScope } from "./repo/events.js";
 
+/** The module's outbox table, for the outbox relay (implementation.md §3.4). */
+export { EVENT_OUTBOX_TABLE } from "./events/outbox.js";
+
 /**
  * The event module's public interface (ADR-0004). Other modules import this
  * file and nothing else under modules/event; `npm run lint:boundaries` fails

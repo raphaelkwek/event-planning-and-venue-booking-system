@@ -1,6 +1,7 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import request from "supertest";
 import { testDb } from "../../support/testDb.js";
+import { EVENT_END, EVENT_START } from "../../support/eventDates.js";
 
 process.env.EVENT_COORDINATOR_POOL = "a7777777-0000-0000-0000-00000000000a";
 
@@ -52,8 +53,8 @@ const validRequest = {
   name: "Annual Research Symposium",
   purpose: "Share faculty research",
   description: "A one-day symposium.",
-  proposedStartAt: "2026-10-02T14:00:00.000Z",
-  proposedEndAt: "2026-10-02T18:00:00.000Z",
+  proposedStartAt: EVENT_START,
+  proposedEndAt: EVENT_END,
   expectedAttendance: 150,
   registrationRequired: false,
   equipmentRequired: false,
@@ -64,7 +65,7 @@ async function cleanUp() {
   await sql`delete from event.clarifications where event_id in (${owned})`;
   await sql`delete from event.event_history where event_id in (${owned})`;
   await sql`delete from event.assignments where event_id in (${owned})`;
-  await sql`delete from event.outbox where envelope->'payload'->>'ownerId' in ${sql(OWNERS)}`;
+  await sql`delete from event.outbox where coalesce(envelope->'data', envelope->'payload')->>'ownerId' in ${sql(OWNERS)}`;
   await sql`delete from event.events where owner_id in ${sql(OWNERS)}`;
 }
 
@@ -152,10 +153,10 @@ describe("POST /api/v1/events/:id/approve (D4)", () => {
 
     const outbox = await sql`
       select envelope from event.outbox
-      where message_key = ${event.id} and topic = 'connectsphere.event.v1' and envelope->>'messageType' = 'event.approved'
+      where message_key = ${event.id} and topic = 'connectsphere.event.v1' and envelope->>'type' = 'event.approved'
     `;
     expect(outbox).toHaveLength(1);
-    expect(outbox[0]!.envelope.payload).toMatchObject({
+    expect(outbox[0]!.envelope.data).toMatchObject({
       ownerId: ORGANISER,
       approvedBy: COORDINATOR,
     });
@@ -293,9 +294,9 @@ describe("POST /api/v1/events/:id/reject (D5)", () => {
 
     const outbox = await sql`
       select envelope from event.outbox
-      where message_key = ${event.id} and topic = 'connectsphere.event.v1' and envelope->>'messageType' = 'event.rejected'
+      where message_key = ${event.id} and topic = 'connectsphere.event.v1' and envelope->>'type' = 'event.rejected'
     `;
-    expect(outbox[0]!.envelope.payload).toMatchObject({
+    expect(outbox[0]!.envelope.data).toMatchObject({
       ownerId: ORGANISER,
       rejectedBy: COORDINATOR,
       reason: "Clashes with graduation.",
