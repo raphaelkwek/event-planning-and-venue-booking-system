@@ -6,11 +6,11 @@
 >
 > | Section | What still reflects the old design | ADR | Rewrite owner |
 > |---|---|---|---|
-> | §3 | Topic naming and the custom envelope | ADR-0008 (topics per aggregate, CloudEvents) | EN-04 |
 > | §4.6 | Registration capacity counters | ADR-0005 (seat rows) | EN-13 |
 > | §6 | Authorisation | ADR-0010 (Cerbos and RLS) | EN-07 |
+> | §9 | Logs written to a Kafka topic per service | ADR-0013 (OpenTelemetry, Grafana Loki) | EN-08 |
 >
-> §2 was rewritten for ADR-0004 on 2 Oct 2026, when EN-01 merged Identity and Event into `planning-core`.
+> §2 was rewritten for ADR-0004 on 2 Oct 2026, when EN-01 merged Identity and Event into `planning-core`. §3 was rewritten for ADR-0008 on 3 Oct 2026 (EN-04.1).
 
 ---
 
@@ -22,7 +22,7 @@
 | Services | Express 4 | root `package.json` |
 | Database | Supabase Postgres 15, hosted | the team's Supabase project |
 | DB access | `postgres` (porsager) or `pg` — **raw parameterised SQL, no ORM** | per service |
-| Messaging | Apache Kafka, one hosted cluster shared by the team (ADR-0003), `kafkajs` | the hosted provider |
+| Messaging | Apache Kafka, one hosted cluster shared by the team (ADR-0008), `kafkajs` | the hosted provider |
 | Auth | Supabase Auth (GoTrue), `jose` for JWT verification | — |
 | Frontend | React 18, TypeScript, Vite | `frontend` |
 | Internal UI | Atlassian Design System (`@atlaskit/*`) | `frontend` |
@@ -89,62 +89,140 @@ CHANGELOG.md  README.md  CLAUDE.md  package.json  .env
 
 ## 3. Kafka message format (mandatory)
 
-### 3.1 Topic naming
+Rewritten on 3 Oct 2026 for ADR-0008 (EN-04.1). The contract is code in `/backend/packages/contracts`, and this section explains it:
 
-```
-connectsphere.<aggregate>.<event-name>.v<major>
-```
+| File | What it fixes |
+|---|---|
+| `src/topics.ts` | the topic names, retry and dead-letter naming, and which topics exist before the cutover |
+| `src/cloudEvent.ts` | the CloudEvents 1.0 envelope, its extensions, and `parseCloudEvent` |
+| `src/eventEvents.ts` | the `data` schema for each event-module message type |
+| `tests/cloudEvent.test.ts` | an example message for every message type, validated |
 
-Examples: `connectsphere.event.submitted.v1`, `connectsphere.booking.confirmed.v1`, `connectsphere.registration.withdrawn.v1`.
+> **Transition.** The event module's outbox writer still writes the envelope from before CloudEvents (`src/envelope.ts`). EN-04.2 moves the writer to `cloudEventSchema` and builds the relay. The relay converts rows already written in the old shape, using the mapping in §3.3.
 
-Logs go to `connectsphere.logs.<service>.v1`. One topic per event type — not one firehose topic — so consumers subscribe only to what they need.
+### 3.1 Topics
+
+**One topic per aggregate type**, named `connectsphere.<aggregate>.v<major>`:
+
+| Topic | Aggregate | Produced by |
+|---|---|---|
+| `connectsphere.event.v1` | an event (A–G) | planning-core, event module |
+| `connectsphere.venue-booking.v1` | a venue's holds, booking requests and bookings (L, M, N, I2) | planning-core, venue module |
+| `connectsphere.equipment-request.v1` | an event's equipment request lines (O1, O2) | planning-core, equipment module |
+| `connectsphere.equipment-reservation.v1` | a reservation of equipment units (Q1, Q2) | planning-core, equipment module |
+| `connectsphere.registration.v1` | a registration or waitlist entry (R) | registration service |
+
+- **Every message about one aggregate goes to its aggregate's topic,** whatever happened to it. That keeps them in order, because they share a key (§3.2). The CloudEvents `type` says what happened (§3.3), so a consumer subscribes to the aggregate topic and ignores the types it doesn't handle.
+- **Use the constants from `contracts`** (`KAFKA_TOPICS.event` and so on). Never type a topic name into a module.
+- **A new aggregate topic needs a reviewed `contracts` PR.** The topic name's major version changes only if every message on it would need to change.
+
+**Retry and dead-letter topics belong to a consumer:**
+- named `connectsphere.<consumer>.retry.v1` and `connectsphere.<consumer>.dlq.v1`;
+- built with `retryTopic()` and `deadLetterTopic()`, which refuse a consumer name that isn't lowercase kebab-case;
+- `KAFKA_TOPICS` holds the ones in use, today only the notification consumer's.
+
+**Before the cutover to Confluent (13 Oct 2026):**
+- the cluster is Aiven's free plan, which allows five topics with 2 partitions each;
+- only `TOPICS_BEFORE_CUTOVER` exists (event, equipment-request, and the notification consumer's retry and dead-letter topics), and a contract test keeps that list at five or fewer;
+- the rest of `KAFKA_TOPICS` is created at the cutover;
+- `npm run kafka:check` shows which is which. The ADR-0008 decision note of 2 Oct has the details.
+
+**The old per-type names** (`connectsphere.event.submitted.v1` and the rest) are kept in `LEGACY_EVENT_TOPICS`:
+- outbox rows written before 2 Oct still carry them;
+- the relay sends each row to `aggregateTopicFor(row.topic)`, which maps a legacy name to its aggregate's topic and refuses a name it doesn't know;
+- never publish to them.
+
+**Logs don't go to Kafka.** They go to Grafana Loki (ADR-0013).
+
+**Consumer groups:**
+- a deployed consumer joins `connectsphere.<service>.<consumer>`, e.g. `connectsphere.notification.event-notifier`;
+- on a laptop, `.<KAFKA_GROUP_SUFFIX>` is appended (set to `dev-<initials>` in `.env`), so a local consumer never takes partitions from the deployed one or from a teammate's;
+- topics are shared, so there are no per-person topics.
 
 ### 3.2 Message key
 
-The **aggregate ID** (the UUID of the event, booking, reservation, or registration the message is about). This guarantees per-aggregate ordering within a partition, which is what our invariants need. Never use a random key.
+The key is the **aggregate's id**: the UUID of the event, booking, request line, reservation or registration that the message is about.
+- It's the same value as the envelope's `subject`, and the outbox's `message_key`.
+- It puts every message about one aggregate on one partition, in order, which is what our invariants need.
+- Never use a random key.
 
-### 3.3 Envelope
+### 3.3 Envelope: CloudEvents 1.0
 
-Every message body is JSON in exactly this shape. No exceptions — consumers validate against it and reject anything else.
+Every message is a **CloudEvents 1.0** event in structured mode:
+- the whole event, attributes and `data`, is the JSON value of the Kafka message;
+- the relay sets the Kafka header `content-type: application/cloudevents+json; charset=UTF-8`.
 
 ```jsonc
 {
-  "messageId":    "018f2a...",      // UUIDv7, unique per message, used for consumer idempotency
-  "messageType":  "event.submitted", // matches the topic, without prefix/version
-  "schemaVersion": 1,                // bump on breaking payload change; new major = new topic
-  "occurredAt":   "2026-09-15T08:31:22.104Z", // RFC3339 UTC, when the state change committed
-  "producer":     "event-service",
-  "correlationId":"018f29...",       // the originating HTTP request; propagate unchanged
-  "causationId":  "018f2a...",       // messageId of the message that caused this one; null if user-initiated
-  "actor": {
-    "userId": "uuid | null",         // null for scheduler- or system-initiated
-    "role":   "EVENT_ORGANISER | EVENT_COORDINATOR | VENUE_STAFF | TECH_SUPPORT_STAFF | ATTENDEE | SYSTEM"
-  },
-  "aggregate": {
-    "type": "EVENT | BOOKING | HOLD | RESERVATION | REGISTRATION | NOTIFICATION",
-    "id":   "uuid"
-  },
-  "payload": { }                     // event-specific; see /backend/packages/contracts
+  "specversion":     "1.0",
+  "id":              "018f2a6b-3c4d-4e5f-8a9b-0c1d2e3f4a5b", // UUID, unique per message; consumers deduplicate on it
+  "source":          "/connectsphere/planning-core/event",    // /connectsphere/<service>[/<module>]
+  "type":            "event.submitted",                       // selects the data schema
+  "subject":         "6f1c2a4e-8b1d-4c3a-9e2f-1a2b3c4d5e6f",  // the aggregate's id = the message key
+  "time":            "2026-10-03T08:31:22.104Z",              // when the state change committed
+  "datacontenttype": "application/json",
+  "correlationid":   "9b2e7c1a-5d3f-4a8b-9c0d-1e2f3a4b5c6d",  // extension
+  "traceparent":     "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01", // extension
+  "actor":           "EVENT_COORDINATOR:00000000-0000-0000-0000-000000000002",   // extension
+  "data":            { }                                      // the payload schema for `type`
 }
 ```
 
+| Attribute | Rule |
+|---|---|
+| `specversion` | always `"1.0"` |
+| `id` | a new UUID per message. Each consumer's inbox (§3.5) deduplicates on it. |
+| `source` | `/connectsphere/<service>`, plus `/<module>` inside planning-core |
+| `type` | `<aggregate>.<what-happened>`, e.g. `event.submitted`. It must be a key of `MESSAGE_DATA_SCHEMAS`. |
+| `subject` | the aggregate's UUID, the same as the message key (§3.2) |
+| `time` | RFC 3339 UTC with milliseconds: when the state change committed |
+| `datacontenttype` | always `"application/json"` |
+| `correlationid` | the request's `X-Correlation-Id`, propagated unchanged. Left out, not empty, when no request started it (e.g. a scheduled job). |
+| `traceparent` | the W3C Trace Context of the span that made the change. Until ADR-0013's OpenTelemetry SDK is wired in, the producer starts a new trace for each request. |
+| `actor` | `ROLE:userId` for a user, or `SYSTEM` for the scheduler. CloudEvents extensions must be strings, so it's one string. Use `formatActor` and `parseActor`. |
+| `data` | the payload. Its schema is chosen by `type`. |
+
 **Rules:**
-- `payload` carries the facts needed by a consumer, not the whole aggregate. Include IDs and the changed values.
-- Never put a JWT, password, or full user record in a payload.
-- Payload fields are additive only within a `schemaVersion`. Removing or retyping a field means a new version and a new topic.
-- Timestamps are always RFC3339 UTC with milliseconds. Never local time, never epoch ints.
-- Every event type has a TypeScript type and a runtime validator (zod) in `/backend/packages/contracts`. Producing an event without one is a failed review.
+- **Anything else is refused.** The schema is strict, so an extra attribute, such as the old camelCase `correlationId`, fails validation. A new extension needs a reviewed `contracts` PR. Its name must be lowercase letters and digits, at most 20 characters.
+- **`data` carries the facts a consumer needs, not the whole aggregate.** Include ids and the changed values. Never put a JWT, password or full user record in it.
+- **`data` fields are additive only.**
+  - Removing or retyping a field is a breaking change. It needs a new `type` (e.g. `event.submitted.v2`) in a reviewed `contracts` PR.
+  - From EN-05, the schema registry's compatibility check refuses a breaking change in CI.
+- **Timestamps are RFC 3339 UTC with milliseconds,** in `time` and in `data`. Never local time, never epoch integers.
+- **Every `type` has a zod schema in `MESSAGE_DATA_SCHEMAS`,** and an example message in `tests/cloudEvent.test.ts`. A type without both fails the contract test, and producing one fails review.
+- **Producers validate before writing the outbox row, and consumers validate on receipt,** both with `parseCloudEvent`.
+  - It checks the envelope, then the `data` for its `type`, and refuses an unknown type.
+  - A message that fails validation won't succeed on a retry, so a consumer sends it straight to its dead-letter topic.
+
+**From the old envelope.** The relay converts outbox rows written before CloudEvents, attribute by attribute:
+
+| Old envelope | CloudEvents |
+|---|---|
+| `messageId` | `id` |
+| `messageType` | `type` |
+| `occurredAt` | `time` |
+| `producer` (`event-service`) | `source` (`/connectsphere/planning-core/event`) |
+| `correlationId` | `correlationid`, left out if null |
+| `actor` `{ userId, role }` | `actor`, via `formatActor` |
+| `aggregate.id` | `subject` |
+| `payload` | `data` |
+| none | `traceparent`: a new trace, since none was recorded |
+
+Three old fields have no attribute:
+- `schemaVersion`, because versioning is now by `type` and the registry;
+- `aggregate.type`, because the topic gives it;
+- `causationId`, which no producer ever set. If a consumer needs causation, propose a `causationid` extension.
 
 ### 3.4 Transactional outbox (required of every producer)
 
-A domain event must exist if and only if its state change committed. Every service has:
+A domain event must exist if and only if its state change committed. Every module that produces has:
 
 ```sql
 create table <schema>.outbox (
   id              uuid primary key default gen_random_uuid(),
-  topic           text        not null,
-  message_key     text        not null,
-  envelope        jsonb       not null,
+  topic           text        not null,  -- a KAFKA_TOPICS value
+  message_key     text        not null,  -- the aggregate id = the envelope's subject
+  envelope        jsonb       not null,  -- the CloudEvent, validated by parseCloudEvent
   created_at      timestamptz not null default now(),
   published_at    timestamptz,
   attempts        int         not null default 0,
@@ -153,21 +231,30 @@ create table <schema>.outbox (
 create index on <schema>.outbox (published_at) where published_at is null;
 ```
 
-Write the outbox row **inside the same transaction** as the state change. A separate relay polls unpublished rows and produces to Kafka. Never produce to Kafka from inside a request handler.
+**Writing:** write the outbox row **inside the same transaction** as the state change. Never produce to Kafka from inside a request handler.
+
+**Publishing:**
+- **The relay (EN-04.2)** claims unpublished rows with `FOR UPDATE SKIP LOCKED`, so two relay instances never publish the same row. It produces each row and then sets `published_at`.
+- **A failed publish** increments `attempts`, records `last_error`, and leaves the row for the next pass. Nothing is lost while the broker is down.
+- **The relay is the fallback:** if EN-05's spike shows Supabase allows a logical replication slot, Debezium change data capture replaces it.
 
 ### 3.5 Consumers
 
-At-least-once delivery means duplicates. Every consumer:
+At-least-once delivery means duplicates. Every consumer has an **inbox**:
 
 ```sql
 create table <schema>.consumed_messages (
-  message_id   uuid primary key,
+  message_id   uuid primary key,     -- the CloudEvent's id
   consumer     text        not null,
   consumed_at  timestamptz not null default now()
 );
 ```
 
-Insert the `messageId` in the same transaction as the side effect; a duplicate key means already processed, so skip. Consumers must be idempotent regardless. On unrecoverable failure, write to `connectsphere.dlq.<service>.v1` rather than blocking the partition.
+- **Insert the message's `id` in the same transaction as the side effect.** A duplicate key means it was already processed, so skip it. Consumers must be idempotent regardless.
+- **Commit the Kafka offset only after that transaction commits.**
+- **A failure that may pass,** such as a database timeout, goes to the consumer's retry topic (`retryTopic(<consumer>)`). It's retried from there, and it doesn't block the partition behind it.
+- **A message that fails validation, or still fails after its retries,** goes to the consumer's dead-letter topic (`deadLetterTopic(<consumer>)`), unchanged, so it can be replayed once the cause is fixed. EN-04.3 sets the number of retries and the delay between them.
+- **Join the consumer group named in §3.1.**
 
 ## 4. Database standards (mandatory)
 
@@ -386,7 +473,7 @@ The attendee shell (§7.2) is separate. It is built in Sprint 3 as part of EN-13
 |---|---|---|
 | Unit | Vitest | `/domain` — pure rules: overlap, validation, status transitions, capacity maths. Fast, no DB. |
 | Integration | Vitest + real Postgres | `/repo` and the concurrency invariants. **The exclusion constraint and both conditional updates must each have a test that fires two operations concurrently and asserts exactly one wins.** |
-| Contract | Vitest | Every produced event validates against its `/backend/packages/contracts` schema; every consumer handles a duplicate `messageId` without a second side effect. |
+| Contract | Vitest | Every produced event validates against its `/backend/packages/contracts` schema; every consumer handles a duplicate message `id` without a second side effect. |
 | E2E | Playwright | Full user flows through the SPA against the running stack (`npm run dev`, which Playwright's `webServer` setting can start). |
 
 **Target: 100% coverage of `/domain`,** and where it isn't reachable, a comment in the test file saying why. The rubric asks for exactly this.
@@ -622,6 +709,5 @@ the convention at the top of the file. A push with no corresponding entry is not
 Keep this list short and kill items as they're decided.
 
 - Email delivery: in-app notification only satisfies T2. Email is a stretch goal behind an adapter.
-- Hosted Kafka provider not yet chosen (ADR-0003): it must allow one topic per event type plus a log and dead-letter topic per service, last the semester, and support a SASL mechanism `kafkajs` speaks. Also undecided: consumer group and test-topic naming so teammates sharing the cluster do not consume each other's messages; partition count per topic.
 - Whether waitlist invitations expire (customer left it open).
 - Whether a rejected event can be revived (customer left it to us; currently terminal).
