@@ -119,7 +119,7 @@ describe("POST /api/v1/events (B1)", () => {
 
     const outbox = await sql`
       select topic, message_key, envelope from event.outbox
-      where message_key = ${res.body.id} and topic = 'connectsphere.event.submitted.v1'
+      where message_key = ${res.body.id} and topic = 'connectsphere.event.v1' and envelope->>'messageType' = 'event.submitted'
     `;
     expect(outbox).toHaveLength(1);
     expect(outbox[0]!.envelope.payload.eventReference).toBe(res.body.reference);
@@ -239,7 +239,7 @@ describe("coordinator assignment on submission (E1)", () => {
     const outbox = await sql`
       select envelope from event.outbox
       where message_key = ${res.body.id}
-        and topic = 'connectsphere.event.coordinator-assigned.v1'
+        and topic = 'connectsphere.event.v1' and envelope->>'messageType' = 'event.coordinator-assigned'
     `;
     expect(outbox[0]!.envelope.payload.coordinatorId).toBe(COORDINATOR_A);
   });

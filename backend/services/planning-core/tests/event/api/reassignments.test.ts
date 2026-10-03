@@ -138,7 +138,7 @@ describe("POST /api/v1/events/:id/reassignment-proposals (E2)", () => {
 
     const outbox = await sql`
       select envelope from event.outbox
-      where message_key = ${event.id} and topic = 'connectsphere.event.reassignment-proposed.v1'
+      where message_key = ${event.id} and topic = 'connectsphere.event.v1' and envelope->>'messageType' = 'event.reassignment-proposed'
     `;
     expect(outbox).toHaveLength(1);
     expect(outbox[0]!.envelope.payload).toMatchObject({
@@ -310,7 +310,7 @@ describe("POST /api/v1/events/:id/reassignment-proposals/accept (E2)", () => {
 
     const outbox = await sql`
       select envelope from event.outbox
-      where message_key = ${event.id} and topic = 'connectsphere.event.reassignment-accepted.v1'
+      where message_key = ${event.id} and topic = 'connectsphere.event.v1' and envelope->>'messageType' = 'event.reassignment-accepted'
     `;
     expect(outbox[0]!.envelope.payload).toMatchObject({
       outgoingCoordinatorId: active,
