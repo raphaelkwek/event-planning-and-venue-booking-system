@@ -1,6 +1,7 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import request from "supertest";
 import { testDb } from "../../support/testDb.js";
+import { EVENT_END, EVENT_START } from "../../support/eventDates.js";
 
 const ORGANISER = "a8888888-0000-0000-0000-000000000001";
 const COORDINATOR_A = "a8888888-0000-0000-0000-000000000002";
@@ -59,8 +60,8 @@ const validRequest = {
   name: "Annual Research Symposium",
   purpose: "Share faculty research",
   description: "A one-day symposium.",
-  proposedStartAt: "2026-10-02T14:00:00.000Z",
-  proposedEndAt: "2026-10-02T18:00:00.000Z",
+  proposedStartAt: EVENT_START,
+  proposedEndAt: EVENT_END,
   expectedAttendance: 150,
   registrationRequired: false,
   equipmentRequired: false,

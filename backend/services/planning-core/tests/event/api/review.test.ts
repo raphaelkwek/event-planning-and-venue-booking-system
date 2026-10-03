@@ -1,6 +1,7 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import request from "supertest";
 import { testDb } from "../../support/testDb.js";
+import { EVENT_END, EVENT_START } from "../../support/eventDates.js";
 
 process.env.EVENT_COORDINATOR_POOL = "a5555555-0000-0000-0000-00000000000a";
 
@@ -53,8 +54,8 @@ const validRequest = {
   name: "Annual Research Symposium",
   purpose: "Share faculty research",
   description: "A one-day symposium.",
-  proposedStartAt: "2026-10-02T14:00:00.000Z",
-  proposedEndAt: "2026-10-02T18:00:00.000Z",
+  proposedStartAt: EVENT_START,
+  proposedEndAt: EVENT_END,
   expectedAttendance: 150,
   registrationRequired: false,
   equipmentRequired: false,
