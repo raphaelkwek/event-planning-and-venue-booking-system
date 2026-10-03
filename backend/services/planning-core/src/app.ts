@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { logger } from "./shared/logger.js";
 import { sql } from "./shared/db.js";
 import { healthRouter } from "./shared/health.js";
+import { probeBroker } from "./shared/kafka/client.js";
 import { identityRouter } from "./modules/identity/index.js";
 import { eventRouter } from "./modules/event/index.js";
 import { venueRouter } from "./modules/venue/index.js";
@@ -35,7 +36,7 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use(healthRouter(sql));
+app.use(healthRouter(sql, probeBroker));
 app.use(identityRouter(sql));
 app.use(eventRouter(sql));
 app.use(venueRouter());
