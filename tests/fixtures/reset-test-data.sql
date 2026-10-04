@@ -37,4 +37,15 @@ delete from venue.venue_history where venue_id in (select id from test_owned_ven
 delete from venue.venue_staff   where venue_id in (select id from test_owned_venues);
 delete from venue.venues        where id in (select id from test_owned_venues);
 
+-- The seeded accounts' notifications (T2), and the inbox rows of the messages that raised them.
+create temporary table test_notification_messages on commit drop as
+  select distinct source_message_id as message_id from notification.notifications
+  where recipient_user_id::text like '00000000-0000-0000-0000-00000000000_';
+
+delete from notification.notifications
+  where recipient_user_id::text like '00000000-0000-0000-0000-00000000000_';
+delete from notification.consumed_messages
+  where message_id in (select message_id from test_notification_messages)
+    and not exists (select 1 from notification.notifications n where n.source_message_id = message_id);
+
 commit;

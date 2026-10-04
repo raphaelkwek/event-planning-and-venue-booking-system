@@ -24,6 +24,7 @@ export const ERROR_CODES = [
   "REASSIGNMENT_ALREADY_PENDING",
   "REASSIGNMENT_PROPOSAL_NOT_FOUND",
   "VENUE_NOT_FOUND",
+  "NOTIFICATION_NOT_FOUND",
 ] as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[number];

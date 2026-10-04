@@ -23,8 +23,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: · Awaiting T2 (Sprint 2). |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | coordinator saw "Event request EVT-004525 “Annual Research Symposium” has been assigned to you and is awaiting your review. 10/4/2026, 4:40:34 PM UNREAD Open Mark as read"; coordinator2 had no notification about EVT-004525. |
+| Status | Pass |
+| Remarks | Commit: 84fc315 · Evidence: tests/T2/evidence/T2-T6.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-04 |

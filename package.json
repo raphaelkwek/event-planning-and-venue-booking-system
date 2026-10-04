@@ -26,7 +26,7 @@
     "build": "npm run build --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "lint:boundaries": "npm run lint:boundaries -w @connectsphere/planning-core",
-    "lint:api": "redocly lint documentation/api/planning-core.openapi.yaml",
+    "lint:api": "redocly lint documentation/api/planning-core.openapi.yaml documentation/api/notification.openapi.yaml",
     "lint": "eslint frontend backend tests documentation/scripts eslint.config.js && npm run lint:boundaries && npm run lint:api"
   },
   "dependencies": {

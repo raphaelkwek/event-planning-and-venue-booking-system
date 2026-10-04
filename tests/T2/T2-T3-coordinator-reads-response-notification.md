@@ -21,8 +21,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: · Awaiting T2 (Sprint 2). |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | The coordinator's list showed: "The organiser has responded to your clarification request on EVT-004522 “Annual Research Symposium”. 10/4/2026, 4:40:22 PM UNREAD Open Mark as read". |
+| Status | Pass |
+| Remarks | Commit: 84fc315 · Evidence: tests/T2/evidence/T2-T3.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-04 |
