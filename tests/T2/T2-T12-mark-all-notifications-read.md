@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | Neither notification was marked unread, and the navigation read "Notifications" with no count. |
+| Status | Pass |
+| Remarks | Commit: 84fc315 · Evidence: tests/T2/evidence/T2-T12.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-04 |

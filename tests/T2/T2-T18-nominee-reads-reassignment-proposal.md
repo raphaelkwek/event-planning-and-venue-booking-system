@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | coordinator2's list showed: "You have been nominated to take over as coordinator of EVT-004537 “Annual Research Symposium”. Accept or decline the proposal. 10/4/2026, 4:41:50 PM UNREAD Open Mark as read". |
+| Status | Pass |
+| Remarks | Commit: 84fc315 · Evidence: tests/T2/evidence/T2-T18.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-04 |

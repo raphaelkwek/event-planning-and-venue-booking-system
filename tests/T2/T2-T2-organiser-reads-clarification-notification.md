@@ -21,8 +21,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: · Awaiting T2 (Sprint 2). |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | The organiser's list showed: "Clarification is required on your event request EVT-004521 “Annual Research Symposium”. 10/4/2026, 4:40:17 PM UNREAD Open Mark as read". |
+| Status | Pass |
+| Remarks | Commit: 84fc315 · Evidence: tests/T2/evidence/T2-T2.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-04 |

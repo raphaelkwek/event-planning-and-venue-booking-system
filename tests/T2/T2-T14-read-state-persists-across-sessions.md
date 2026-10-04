@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | After signing out and in again, the approval was still read, the clarification request still unread, and the navigation read "Notifications (1)". |
+| Status | Pass |
+| Remarks | Commit: 84fc315 · Evidence: tests/T2/evidence/T2-T14.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-04 |

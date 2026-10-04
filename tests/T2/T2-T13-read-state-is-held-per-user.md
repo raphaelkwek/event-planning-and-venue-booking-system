@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | After coordinator marked all read, coordinator2's acceptance notification was still unread. |
+| Status | Pass |
+| Remarks | Commit: 84fc315 · Evidence: tests/T2/evidence/T2-T13.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-04 |

@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | One row: recipient 00000000-0000-0000-0000-000000000001, type event.approved, reference EVT-004526, created 2026-10-04T08:40:40.883Z, message "Your event request EVT-004526 “Annual Research Symposium” has been approved.". |
+| Status | Pass |
+| Remarks | Commit: 84fc315 · Evidence: — · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-04 |
