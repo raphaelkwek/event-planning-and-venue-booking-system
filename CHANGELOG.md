@@ -4,6 +4,49 @@
 
 ---
 
+# H3: Setup and turnaround time on each venue (CR-01), and the occupied-period rule
+
+**Timestamp:** 2026-10-04T16:20+08:00 (SGT)
+**Author:** Seann, via Claude
+**Scope:**
+- planning-core: the venue module's `domain/venueRecord.ts`, `domain/occupancy.ts` (new), `api`, `repo` and `index.ts`; migration `venue/0002`; and the venue tests.
+- The OpenAPI spec.
+- The web app: `api/venues.ts`, `VenueEditor`, and the form test.
+- The test cards: `tests/H3/` (10 cases). Traceability.
+
+**Reason:** H3, the Week 7 change CR-01. Built now by your decision of 4 Oct, stacked on H1, which it extends.
+
+## What it does
+
+1. **Each venue records a setup time and a turnaround time** in whole minutes, 0 or more.
+   - Existing venues start at 0, so nothing changes for them.
+   - Venue Staff set both in the venue editor, under "Setup and turnaround".
+2. **Anything else is refused and stores nothing:** -1, 15.5, or text.
+   - Each change is recorded with its previous and new value, through H1's history.
+   - Only Venue Staff may change them (A2).
+   - An update that leaves them out keeps the current values.
+3. **`occupiedPeriod`** gives an event's occupied period: its start minus the setup time to its end plus the turnaround time. It's unit-tested with the customer's own example: 10:00–12:00 with 30 and 45 minutes occupies 09:30–12:45.
+4. **`periodsOverlap`** treats touching periods as not overlapping.
+5. **Both are exported from the venue module's `index.ts`** for I1, I2, J1, L3, M1, N1 and N2, which must compare occupied periods.
+
+## Not done yet, and why
+
+6. **Flagging the bookings a change now makes overlap** (AC4) needs bookings, which come with EN-02.1, L1 and M1 in Sprint 3. Nothing can overlap until then.
+   - H3-T8 to H3-T10 are Not Executed, naming those stories.
+   - **H3 can't be marked Done until they're built.**
+7. **CQ-09 is still open:** do the buffers also apply to holds and unavailability blocks, and must the buffered period fit inside opening hours?
+
+## Verified
+
+- **H3-T1 to H3-T7 pass in Chrome** through the automated runner, against `6514ab8`.
+- **H1's 14 cases also pass on this branch.**
+- **planning-core: 425/425** against the database. The rules and occupancy functions are at 100%.
+- **web: 32/32.**
+- **CI's steps all pass.**
+- **The migration `venue/0002` is applied to the shared database.** It adds two columns that default to 0.
+
+---
+
 # H1: Venue Staff create and update venue records
 
 **Timestamp:** 2026-10-04T15:43+08:00 (SGT)
