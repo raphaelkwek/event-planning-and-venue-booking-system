@@ -1,70 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { Kafka, logLevel, Partitioners } from "kafkajs";
+import { Partitioners, type Kafka } from "kafkajs";
 import type { Sql } from "postgres";
-import { createKafka, kafkaLogCreator, kafkaPublisher, probeFor } from "../../src/shared/kafka/client.js";
+import { kafkaPublisher } from "../../src/shared/kafka/client.js";
 import { logger } from "../../src/shared/logger.js";
 import { OutboxRelay, type PassResult } from "../../src/shared/outbox-relay.js";
 
-/** EN-04.2: building the Kafka client from settings, the publisher, and the relay's run loop. */
-
-const config = {
-  brokers: ["b:1"],
-  ssl: true as const,
-  sasl: { mechanism: "scram-sha-256" as const, username: "example-user", password: "s3cret-pa55" },
-};
-
-describe("createKafka", () => {
-  it("builds no client when this process has no Kafka settings", () => {
-    expect(createKafka({ status: "not_configured" })).toBeNull();
-  });
-
-  it("builds no client, and logs the problems, when the settings are incomplete", () => {
-    const error = vi.spyOn(logger, "error").mockImplementation(() => undefined);
-    expect(createKafka({ status: "invalid", problems: ["KAFKA_SASL_PASSWORD is not set"] })).toBeNull();
-    expect(error).toHaveBeenCalledWith(expect.stringContaining("incomplete"), {
-      problems: ["KAFKA_SASL_PASSWORD is not set"],
-    });
-    error.mockRestore();
-  });
-
-  it("builds a client, without connecting yet, when the settings are complete", () => {
-    expect(createKafka({ status: "configured", config })).toBeInstanceOf(Kafka);
-  });
-});
-
-describe("probeFor", () => {
-  it("has no probe without a client, so /readyz says not configured", () => {
-    expect(probeFor(null)).toBeUndefined();
-  });
-
-  it("has a probe with one", () => {
-    expect(probeFor(createKafka({ status: "configured", config }))).toBeTypeOf("function");
-  });
-});
-
-describe("kafkaLogCreator", () => {
-  it("passes kafkajs errors to our logger with the credentials redacted", () => {
-    const error = vi.spyOn(logger, "error").mockImplementation(() => undefined);
-    const vars = { KAFKA_SASL_PASSWORD: "s3cret-pa55" };
-    kafkaLogCreator(vars)({
-      namespace: "Connection",
-      level: logLevel.ERROR,
-      label: "ERROR",
-      log: { timestamp: "", message: "auth failed with s3cret-pa55", error: "bad s3cret-pa55" },
-    });
-    expect(error).toHaveBeenCalledWith("kafkajs: auth failed with [KAFKA_SASL_PASSWORD]", {
-      error: "bad [KAFKA_SASL_PASSWORD]",
-    });
-    error.mockRestore();
-  });
-
-  it("passes kafkajs warnings on as warnings", () => {
-    const warn = vi.spyOn(logger, "warn").mockImplementation(() => undefined);
-    kafkaLogCreator({})({ namespace: "x", level: logLevel.WARN, label: "WARN", log: { timestamp: "", message: "slow" } });
-    expect(warn).toHaveBeenCalledWith("kafkajs: slow");
-    warn.mockRestore();
-  });
-});
+/** EN-04.2: the relay's publisher and its run loop. Building the client is tested in @connectsphere/kafka. */
 
 function fakeClient(options: { failFirstConnect?: boolean } = {}) {
   const producer = {

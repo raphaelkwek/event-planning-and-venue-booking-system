@@ -67,6 +67,7 @@ jobs:
           path: |
             backend/services/planning-core/coverage/
             backend/packages/contracts/coverage/
+            backend/packages/kafka/coverage/
             frontend/coverage/
           if-no-files-found: ignore
 

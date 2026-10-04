@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { Kafka, logLevel } from "kafkajs";
 import { KAFKA_TOPICS, TOPICS_BEFORE_CUTOVER } from "@connectsphere/contracts";
 import { parse } from "dotenv";
-import { toClientConfig, redact, KafkaConfigError } from "../services/planning-core/src/shared/kafka/config.ts";
+import { toClientConfig, redact, KafkaConfigError } from "@connectsphere/kafka";
 
 // npm run kafka:check — proves this laptop can reach the team's Kafka cluster
 // (SPM-113). It reads only the KAFKA_* block of .env, connects, lists the

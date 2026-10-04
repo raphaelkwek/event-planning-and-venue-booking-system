@@ -21,15 +21,16 @@ export function brokerProbe(
 
   async function check(): Promise<boolean> {
     const admin = createAdmin();
+    let reachable = false;
     try {
       await admin.connect();
       await admin.describeCluster();
-      return true;
+      reachable = true;
     } catch {
-      return false;
-    } finally {
-      await admin.disconnect().catch(() => undefined);
+      // Unreachable: reported as false below.
     }
+    await admin.disconnect().catch(() => undefined);
+    return reachable;
   }
 
   return async () => {
