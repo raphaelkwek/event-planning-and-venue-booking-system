@@ -10,6 +10,8 @@ import { ReviewQueue } from "./screens/ReviewQueue.js";
 import { AllEvents } from "./screens/AllEvents.js";
 import { ReviewDetail } from "./screens/ReviewDetail.js";
 import { ApiConsole } from "./screens/ApiConsole.js";
+import { VenueList } from "./screens/VenueList.js";
+import { VenueEditor } from "./screens/VenueEditor.js";
 import { Notifications } from "./screens/Notifications.js";
 import { useUnreadCount } from "./shared/useUnreadCount.js";
 import type { Role } from "./api/types.js";
@@ -69,6 +71,15 @@ const ROUTES: {
     nav: { label: "All events", to: "/events" },
   },
   { path: "/review/:id", element: <ReviewDetail />, roles: ["EVENT_COORDINATOR"] },
+  // H1, H2: every internal role reads the catalogue; only Venue Staff maintain it.
+  {
+    path: "/venues",
+    element: <VenueList />,
+    roles: ["EVENT_ORGANISER", "EVENT_COORDINATOR", "VENUE_STAFF", "TECH_SUPPORT_STAFF"],
+    nav: { label: "Venues", to: "/venues" },
+  },
+  { path: "/venues/new", element: <VenueEditor />, roles: ["VENUE_STAFF"] },
+  { path: "/venues/:id/edit", element: <VenueEditor />, roles: ["VENUE_STAFF"] },
   // T2: every role reads its own notifications.
   {
     path: "/notifications",

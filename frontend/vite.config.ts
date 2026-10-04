@@ -38,6 +38,12 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/event/, ""),
         },
+        // The venue module (H1, H2), also in planning-core.
+        "/venue": {
+          target: planningCore,
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/venue/, ""),
+        },
         // The notification service (T2).
         "/notification": {
           target: notification,

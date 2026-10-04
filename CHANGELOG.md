@@ -71,6 +71,73 @@
 
 ---
 
+# H1: Venue Staff create and update venue records
+
+**Timestamp:** 2026-10-04T15:43+08:00 (SGT)
+**Author:** Seann, via Claude
+**Scope:**
+- planning-core: the venue module (`api`, `auth`, `domain`, `repo`, `index.ts`), migration `venue/0001`, `app.ts`, and the venue tests.
+- `contracts`: `VENUE_NOT_FOUND`. The OpenAPI spec: the venue routes.
+- The web app: `api/venues.ts`, the `VenueList` and `VenueEditor` screens, `App.tsx` and the `/venue` proxy, with two test files.
+- The test cards: `tests/H1/` (14 cases), `tests/README.md` (the standard venue and FX-VENUE), and the reset script.
+- `documentation/traceability/sprint-2.csv`.
+
+**Reason:** H1 (SPM-32), Sprint 2. H2, H3, I1, J1, J2 and K1 all read the venue catalogue, so they wait on it.
+
+## What it does
+
+1. **"Venues" lists the catalogue for every internal role,** with each venue's status.
+   - Venue Staff also get **New venue** and **Edit**.
+   - Attendees are refused the catalogue.
+2. **A venue record holds every attribute H1 lists:**
+   - name, building, maximum capacity and facilities;
+   - each layout with its own capacity;
+   - accessibility features, listed one by one;
+   - opening hours for each day of the week.
+3. **The rules:**
+   - capacities are whole numbers above zero;
+   - at least one layout, each recorded once;
+   - each day closes after it opens.
+   
+   A refusal names every field at fault at once, and shows each message under its field. A refused update stores nothing at all, valid fields included.
+4. **Who may change venues:**
+   - **Any Venue Staff member may create or update any venue,** as the EN-07.1 A2 policy says (your decision, 4 Oct).
+   - **The creator is recorded as looking after the venue,** in `venue.venue_staff`, for A3's "own venues" scope later.
+   - **Every other role gets `403 ROLE_NOT_AUTHORISED`,** and nothing changes.
+5. **History.** Every create and update writes a `venue.venue_history` row: who, their role, when, and each changed field's previous and new value. An update that changes nothing writes no row.
+6. **Inactive venues.** "Active" can be unticked; the venue stays in the catalogue with its record and history.
+   - Dropping it from venue search is J1 and J2's job, and keeping it on the calendar is I1's, when those are built.
+   - H1-T13 notes that split.
+
+## A bug found by the browser run
+
+7. **The editor blanked the page on the first keystroke.**
+   - Each handler read `e.currentTarget.value` inside React's state updater, which runs after the event is released.
+   - H1-T1 found it. A component test now types into every kind of field, and the fix reads the value first.
+
+## Rules not spelled out in H1's criteria
+
+- **Each layout is recorded once,** case-insensitive.
+- **Opening hours must close after they open, as HH:MM** (H1-T14). A record with those wrong isn't usable.
+
+## Verified
+
+- **The 14 H1 cards ran in Chrome through the automated runner.**
+  - All passed against `56eb0b2`.
+  - The execution records name "Yichen, via automated testing".
+  - The run's specs and helpers are local, as before (`tests/support`, `*.spec.ts`).
+- **planning-core: 410/410 against the database.** That includes 46 venue tests: 21 for the rules, at 100% coverage, and 25 for the API.
+- **web: 31/31.**
+- **CI's steps:** lint, the boundary checks, the OpenAPI lint, typecheck, build, and `test:unit` in every workspace with its coverage floors.
+- **The migration `venue/0001` is applied to the shared database.** It's a new schema, applied without a separate dry run.
+
+## Not done here
+
+- **CR-01's setup and turnaround times** are H3's (a separate branch on top of this one).
+- **Venue Staff are only ever recorded as looking after a venue by creating it.** Assigning others is for whichever story needs it.
+
+---
+
 # EN-04.3: Notification service consumes Kafka, with an inbox, retries, a dead-letter topic and T2's recipient rules
 
 **Timestamp:** 2026-10-04T14:34+08:00 (SGT)

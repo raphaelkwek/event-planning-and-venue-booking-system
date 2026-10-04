@@ -37,7 +37,7 @@ tests/
 Every case's first pre-condition is "Standard environment running and test data reset". That means:
 
 1. `npm install` (once).
-2. `npm run migrate:identity`, `npm run migrate:event`, `npm run migrate:notification`, `npm run seed:auth` (safe to repeat).
+2. `npm run migrate:identity`, `npm run migrate:event`, `npm run migrate -- venue`, `npm run migrate:notification`, `npm run seed:auth` (safe to repeat).
 3. `npm run dev` at the repo root, left running. It starts planning-core (the identity and event
    modules in one process, ADR-0004) and the web app in one terminal. To run them separately:
    `npm run dev -w @connectsphere/planning-core` and `npm run dev -w @connectsphere/web`.
@@ -45,8 +45,8 @@ Every case's first pre-condition is "Standard environment running and test data 
 5. Open **http://localhost:5173**. Use `localhost`, not `127.0.0.1`, which the dev server refuses.
 
 The reset removes only requests owned by the two seeded organiser accounts, and everything attached
-to them, and the seeded accounts' notifications (T2). The database is shared by the whole team, so
-don't reset while a teammate is mid-demo.
+to them, venues created by the seeded Venue Staff account (H1), and the seeded accounts' notifications
+(T2). The database is shared by the whole team, so don't reset while a teammate is mid-demo.
 
 **Notifications (T2) need Kafka.** `npm run dev` starts the notification service, and a notification
 appears about a second after the action that raises it (EN-04.2, EN-04.3). Your `.env` needs the
@@ -85,6 +85,21 @@ The valid request most cases start from. A case says which fields, if any, it ch
 | Equipment is required | unticked |
 | Attendee registration is required | unticked |
 
+## Standard venue
+
+The valid venue the venue cases start from (H1, H2). A case says which fields, if any, it changes.
+In the venue form, Facilities and Accessibility features take one entry per line.
+
+| Field | Value |
+|---|---|
+| Name | `Lee Kong Chian Auditorium` |
+| Building / location | `School of Computing, Level 1` |
+| Maximum capacity | `300` |
+| Layouts | `Theatre` 300 · `Classroom` 120 · `Banquet` 180 |
+| Facilities | `Projector`, `Wireless microphones`, `Stage lighting` |
+| Accessibility features | `Step-free access`, `Hearing loop`, `Accessible toilet` |
+| Operating hours | Monday to Friday 08:00–22:00 · Saturday 09:00–18:00 · Sunday closed |
+
 ## Setup procedures
 
 Pre-conditions name these. Each ends by noting the request's **id**, which is the last part of the
@@ -101,6 +116,7 @@ address bar (`#/requests/<id>`, `#/drafts/<id>` or `#/review/<id>`), and its **r
 | **FX-APPROVED** | FX-UNDER-REVIEW → "Approve". |
 | **FX-REJECTED** | FX-UNDER-REVIEW → "Reject" → reason `No suitable venue is available.` → "Reject request". |
 | **FX-REASSIGNMENT-PENDING** | FX-SUBMITTED → sign out → sign in as whichever of `coordinator@connectsphere.test` / `coordinator2@connectsphere.test` the "Assigned coordinator" field on the request names (E1's round-robin means either may be assigned) → open the request from the review queue → "Propose reassignment" → nominee's user id is the *other* seeded coordinator's id (see the Accounts table) → "Send proposal". Note which account is outgoing and which is the nominee — later steps refer to them by role, not by name. |
+| **FX-VENUE** | Sign in as `venuestaff@connectsphere.test` → "Venues" → "New venue" → enter the standard venue → "Save venue". Note the venue's **id**, the last part of the address bar (`#/venues/<id>/edit`). |
 | **FX-NOTIFICATION-ELSEWHERE** | Run the FX-NOTIFICATION-ELSEWHERE statement below in the SQL editor, with the event id the case gives. It gives `organiser2@connectsphere.test` a notification about an event they cannot see, which is how a case shows what happens once access to an event is lost. |
 | **FX-SEEDED** | Run the FX-SEEDED statement below in the Supabase SQL editor, with the status and end time the case gives. Note the returned **id** and **reference**. Used for statuses no user action can reach yet (Confirmed needs F5). |
 
@@ -149,7 +165,8 @@ from message;
 
 - **API console** — sign in, then "API console" in the navigation. Set Method, Path and Body, then
   "Send". It shows the HTTP status and the response body. Requests carry the signed-in user's token
-  unless "Send without a token" is ticked.
+  unless "Send without a token" is ticked. Paths start with the service's prefix: `/identity/...`,
+  `/event/...` and `/venue/...` reach planning-core.
 - **SQL editor** — the Supabase dashboard for the project → SQL Editor. Cases give the exact query.
 - **Session storage** — browser developer tools → Application → Session storage →
   `http://localhost:5173`.
