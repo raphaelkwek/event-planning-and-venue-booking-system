@@ -96,13 +96,13 @@ export function VenueEditor() {
       </div>
 
       <Field id="venue-name" label="Name" error={fieldError("name")}>
-        <Textfield id="venue-name" value={form.name} onChange={(e) => update((f) => void (f.name = e.currentTarget.value))} />
+        <Textfield id="venue-name" value={form.name} onChange={textChange(update, (f, value) => void (f.name = value))} />
       </Field>
       <Field id="venue-building" label="Building / location" error={fieldError("building")}>
         <Textfield
           id="venue-building"
           value={form.building}
-          onChange={(e) => update((f) => void (f.building = e.currentTarget.value))}
+          onChange={textChange(update, (f, value) => void (f.building = value))}
         />
       </Field>
       <Field id="venue-capacity" label="Maximum capacity" error={fieldError("maxCapacity")}>
@@ -110,7 +110,7 @@ export function VenueEditor() {
           id="venue-capacity"
           inputMode="numeric"
           value={form.maxCapacity}
-          onChange={(e) => update((f) => void (f.maxCapacity = e.currentTarget.value))}
+          onChange={textChange(update, (f, value) => void (f.maxCapacity = value))}
         />
       </Field>
 
@@ -122,7 +122,7 @@ export function VenueEditor() {
                 <Textfield
                   id={`layout-${index}-name`}
                   value={layout.name}
-                  onChange={(e) => update((f) => void (f.layouts[index]!.name = e.currentTarget.value))}
+                  onChange={textChange(update, (f, value) => void (f.layouts[index]!.name = value))}
                 />
               </Field>
             </div>
@@ -136,7 +136,7 @@ export function VenueEditor() {
                   id={`layout-${index}-capacity`}
                   inputMode="numeric"
                   value={layout.capacity}
-                  onChange={(e) => update((f) => void (f.layouts[index]!.capacity = e.currentTarget.value))}
+                  onChange={textChange(update, (f, value) => void (f.layouts[index]!.capacity = value))}
                 />
               </Field>
             </div>
@@ -155,7 +155,7 @@ export function VenueEditor() {
           id="venue-facilities"
           minimumRows={3}
           value={form.facilities}
-          onChange={(e) => update((f) => void (f.facilities = e.currentTarget.value))}
+          onChange={textChange(update, (f, value) => void (f.facilities = value))}
         />
       </Field>
       <Field id="venue-accessibility" label="Accessibility features (one per line)" error={fieldError("accessibilityFeatures")}>
@@ -163,7 +163,7 @@ export function VenueEditor() {
           id="venue-accessibility"
           minimumRows={3}
           value={form.accessibilityFeatures}
-          onChange={(e) => update((f) => void (f.accessibilityFeatures = e.currentTarget.value))}
+          onChange={textChange(update, (f, value) => void (f.accessibilityFeatures = value))}
         />
       </Field>
 
@@ -177,7 +177,10 @@ export function VenueEditor() {
         <div style={{ margin: "12px 0" }}>
           <Checkbox
             isChecked={form.isActive}
-            onChange={(e) => update((f) => void (f.isActive = e.target.checked))}
+            onChange={(e) => {
+            const checked = e.target.checked;
+            update((f) => void (f.isActive = checked));
+          }}
             label="Active"
           />
           <p style={{ fontSize: 12, color: "#626F86", margin: "4px 0 0" }}>
@@ -217,7 +220,10 @@ function DayRow({
         <strong style={{ width: 100 }}>{label}</strong>
         <Checkbox
           isChecked={hours.closed}
-          onChange={(e) => update((f) => void (f.hours[day].closed = e.target.checked))}
+          onChange={(e) => {
+            const checked = e.target.checked;
+            update((f) => void (f.hours[day].closed = checked));
+          }}
           label={`Closed`}
           aria-label={`${label} closed`}
         />
@@ -230,7 +236,7 @@ function DayRow({
           type="time"
           disabled={hours.closed}
           value={hours.opensAt}
-          onChange={(e) => update((f) => void (f.hours[day].opensAt = e.currentTarget.value))}
+          onChange={textChange(update, (f, value) => void (f.hours[day].opensAt = value))}
         />
         <label htmlFor={`hours-${day}-closes`} style={{ fontSize: 12 }}>
           Closes
@@ -241,12 +247,25 @@ function DayRow({
           type="time"
           disabled={hours.closed}
           value={hours.closesAt}
-          onChange={(e) => update((f) => void (f.hours[day].closesAt = e.currentTarget.value))}
+          onChange={textChange(update, (f, value) => void (f.hours[day].closesAt = value))}
         />
       </div>
       {error && <FieldError message={error} />}
     </div>
   );
+}
+
+type Update = (change: (draft: VenueForm) => void) => void;
+
+/**
+ * An input handler that reads the value at once and then updates the form.
+ * React may run the update later, when the event's currentTarget is gone.
+ */
+function textChange(update: Update, apply: (draft: VenueForm, value: string) => void) {
+  return (e: { currentTarget: { value: string } }) => {
+    const value = e.currentTarget.value;
+    update((draft) => apply(draft, value));
+  };
 }
 
 function Section({ title, error, children }: { title: string; error?: string; children: ReactNode }) {
