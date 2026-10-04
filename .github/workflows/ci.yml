@@ -66,6 +66,7 @@ jobs:
           name: coverage-reports
           path: |
             backend/services/planning-core/coverage/
+            backend/services/notification/coverage/
             backend/packages/contracts/coverage/
             backend/packages/kafka/coverage/
             frontend/coverage/
