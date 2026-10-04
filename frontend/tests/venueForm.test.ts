@@ -20,8 +20,9 @@ function standardForm(): VenueForm {
 }
 
 describe("emptyVenueForm", () => {
-  it("starts with one blank layout, every day open 08:00 to 22:00, and the venue active", () => {
+  it("starts with one blank layout, every day open 08:00 to 22:00, no setup or turnaround time, and the venue active", () => {
     const form = emptyVenueForm();
+    expect([form.setupMinutes, form.turnaroundMinutes]).toEqual(["0", "0"]);
     expect(form.layouts).toEqual([{ name: "", capacity: "" }]);
     expect(DAYS.map((day) => form.hours[day])).toEqual(
       DAYS.map(() => ({ closed: false, opensAt: "08:00", closesAt: "22:00" })),
@@ -51,8 +52,17 @@ describe("toVenueBody", () => {
         saturday: { opensAt: "09:00", closesAt: "18:00" },
         sunday: null,
       },
+      setupMinutes: 0,
+      turnaroundMinutes: 0,
       isActive: true,
     });
+  });
+
+  it("sends setup and turnaround time as numbers (H3), and text as null so the server refuses it", () => {
+    const form = standardForm();
+    form.setupMinutes = "30";
+    form.turnaroundMinutes = "half an hour";
+    expect(toVenueBody(form)).toMatchObject({ setupMinutes: 30, turnaroundMinutes: null });
   });
 
   it("sends a fraction as typed, so the server can refuse it, and an empty or non-numeric capacity as null", () => {
@@ -68,7 +78,7 @@ describe("toVenueBody", () => {
 describe("fromVenue", () => {
   it("puts a stored venue back into the form, one entry per line", () => {
     const body = toVenueBody(standardForm());
-    const form = fromVenue({ ...body, maxCapacity: 300, isActive: false });
+    const form = fromVenue({ ...body, maxCapacity: 300, setupMinutes: 30, turnaroundMinutes: 45, isActive: false });
     expect(form).toMatchObject({
       name: "Lee Kong Chian Auditorium",
       maxCapacity: "300",
@@ -78,6 +88,8 @@ describe("fromVenue", () => {
       ],
       facilities: "Projector\nWireless microphones",
       accessibilityFeatures: "Step-free access\nHearing loop",
+      setupMinutes: "30",
+      turnaroundMinutes: "45",
       isActive: false,
     });
     expect(form.hours.sunday).toEqual({ closed: true, opensAt: "", closesAt: "" });

@@ -257,3 +257,51 @@ describe("GET /api/v1/venues (H1 read access)", () => {
     expect(res.body.error.code).toBe("VENUE_NOT_FOUND");
   });
 });
+
+describe("setup and turnaround time (H3)", () => {
+  it("defaults both to 0 minutes when a venue is created without them", async () => {
+    const venue = await createAsStaff();
+    expect(venue).toMatchObject({ setupMinutes: 0, turnaroundMinutes: 0 });
+  });
+
+  it("stores both, and records each change with its previous and new value", async () => {
+    const venue = await createAsStaff();
+    const res = await request(app)
+      .put(`/api/v1/venues/${venue.id}`)
+      .set(bearer)
+      .send({ ...standardVenue(), setupMinutes: 30, turnaroundMinutes: 45 });
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ setupMinutes: 30, turnaroundMinutes: 45 });
+    const [, updated] = await history(venue.id);
+    expect(updated!.changes).toEqual({
+      setupMinutes: { previous: 0, new: 30 },
+      turnaroundMinutes: { previous: 0, new: 45 },
+    });
+  });
+
+  it("keeps the current times when an update leaves them out", async () => {
+    const venue = await createAsStaff({ ...standardVenue(), setupMinutes: 30, turnaroundMinutes: 45 });
+    const res = await request(app).put(`/api/v1/venues/${venue.id}`).set(bearer).send({ ...standardVenue(), maxCapacity: 310 });
+    expect(res.body).toMatchObject({ setupMinutes: 30, turnaroundMinutes: 45 });
+  });
+
+  it("refuses -1 minutes, naming the field, and stores nothing", async () => {
+    const venue = await createAsStaff();
+    const res = await request(app).put(`/api/v1/venues/${venue.id}`).set(bearer).send({ ...standardVenue(), setupMinutes: -1 });
+    expect(res.status).toBe(400);
+    expect(res.body.error.fields).toEqual([
+      { field: "setupMinutes", message: "Setup time must be a whole number of minutes, 0 or more." },
+    ]);
+    const [row] = await sql`select setup_minutes from venue.venues where id = ${venue.id}`;
+    expect(row!.setup_minutes).toBe(0);
+  });
+
+  it("refuses an Event Coordinator's change and stores nothing", async () => {
+    const venue = await createAsStaff();
+    signedInAs(COORDINATOR, "EVENT_COORDINATOR");
+    const res = await request(app).put(`/api/v1/venues/${venue.id}`).set(bearer).send({ ...standardVenue(), setupMinutes: 60 });
+    expect(res.status).toBe(403);
+    const [row] = await sql`select setup_minutes from venue.venues where id = ${venue.id}`;
+    expect(row!.setup_minutes).toBe(0);
+  });
+});

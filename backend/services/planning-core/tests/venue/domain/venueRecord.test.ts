@@ -26,6 +26,8 @@ function standard(): VenueInput {
       saturday: open("09:00", "18:00"),
       sunday: null,
     },
+    setupMinutes: 0,
+    turnaroundMinutes: 0,
     isActive: true,
   };
 }
@@ -146,6 +148,20 @@ describe("validateVenue", () => {
     });
   });
 
+  describe("setup and turnaround time (H3): whole minutes, 0 or more", () => {
+    it("accepts 0, and 30 and 45", () => {
+      expect(fieldsOf({ ...standard(), setupMinutes: 0, turnaroundMinutes: 0 })).toEqual([]);
+      expect(fieldsOf({ ...standard(), setupMinutes: 30, turnaroundMinutes: 45 })).toEqual([]);
+    });
+
+    it.each([-1, 15.5])("refuses %s for either", (minutes) => {
+      expect(fieldsOf({ ...standard(), setupMinutes: minutes, turnaroundMinutes: minutes })).toEqual([
+        { field: "setupMinutes", message: "Setup time must be a whole number of minutes, 0 or more." },
+        { field: "turnaroundMinutes", message: "Turnaround time must be a whole number of minutes, 0 or more." },
+      ]);
+    });
+  });
+
   it("names every problem at once", () => {
     expect(fieldsOf({ ...standard(), name: "", maxCapacity: 0, layouts: [] }).map((f) => f.field)).toEqual([
       "name",
@@ -162,6 +178,13 @@ describe("changedFields", () => {
     expect(changedFields(before, after)).toEqual({
       maxCapacity: { previous: 300, new: 320 },
       facilities: { previous: before.facilities, new: after.facilities },
+    });
+  });
+
+  it("records a change of setup or turnaround time (H3)", () => {
+    expect(changedFields(standard(), { ...standard(), setupMinutes: 30, turnaroundMinutes: 45 })).toEqual({
+      setupMinutes: { previous: 0, new: 30 },
+      turnaroundMinutes: { previous: 0, new: 45 },
     });
   });
 
