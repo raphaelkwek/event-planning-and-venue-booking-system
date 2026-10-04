@@ -28,4 +28,15 @@ delete from event.events                   where id in (select id from test_owne
 -- Coordinator assignment starts from the first coordinator in the pool again.
 update event.assignment_cursor set next_index = 0 where id = true;
 
+-- The seeded accounts' notifications (T2), and the inbox rows of the messages that raised them.
+create temporary table test_notification_messages on commit drop as
+  select distinct source_message_id as message_id from notification.notifications
+  where recipient_user_id::text like '00000000-0000-0000-0000-00000000000_';
+
+delete from notification.notifications
+  where recipient_user_id::text like '00000000-0000-0000-0000-00000000000_';
+delete from notification.consumed_messages
+  where message_id in (select message_id from test_notification_messages)
+    and not exists (select 1 from notification.notifications n where n.source_message_id = message_id);
+
 commit;

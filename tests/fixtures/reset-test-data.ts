@@ -21,7 +21,7 @@ async function run() {
   await sql.unsafe(readFileSync(join(here, "reset-test-data.sql"), "utf8"));
   await sql.end();
 
-  console.log(`reset: removed ${before[0]!.n} test request(s) and their history, clarifications and assignments`);
+  console.log(`reset: removed ${before[0]!.n} test request(s) and their history, clarifications and assignments, and the seeded accounts' notifications`);
 }
 
 run().catch((error) => {
