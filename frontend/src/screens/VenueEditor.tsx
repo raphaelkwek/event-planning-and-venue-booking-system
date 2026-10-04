@@ -167,6 +167,35 @@ export function VenueEditor() {
         />
       </Field>
 
+      <Section title="Setup and turnaround (CR-01)">
+        <p style={{ fontSize: 12, color: "#626F86", marginTop: 0 }}>
+          Bookings keep this time free before and after each event, so the venue occupies from the start minus
+          the setup time to the end plus the turnaround time.
+        </p>
+        <div style={{ display: "flex", gap: 16 }}>
+          <div style={{ flex: 1 }}>
+            <Field id="venue-setup" label="Setup time (minutes)" error={fieldError("setupMinutes")}>
+              <Textfield
+                id="venue-setup"
+                inputMode="numeric"
+                value={form.setupMinutes}
+                onChange={textChange(update, (f, value) => void (f.setupMinutes = value))}
+              />
+            </Field>
+          </div>
+          <div style={{ flex: 1 }}>
+            <Field id="venue-turnaround" label="Turnaround time (minutes)" error={fieldError("turnaroundMinutes")}>
+              <Textfield
+                id="venue-turnaround"
+                inputMode="numeric"
+                value={form.turnaroundMinutes}
+                onChange={textChange(update, (f, value) => void (f.turnaroundMinutes = value))}
+              />
+            </Field>
+          </div>
+        </div>
+      </Section>
+
       <Section title="Operating hours">
         {DAYS.map((day) => (
           <DayRow key={day} day={day} form={form} error={fieldError(`operatingHours.${day}`)} update={update} />

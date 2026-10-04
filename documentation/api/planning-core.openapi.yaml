@@ -1058,6 +1058,8 @@ components:
             friday: { $ref: "#/components/schemas/DayHours" }
             saturday: { $ref: "#/components/schemas/DayHours" }
             sunday: { $ref: "#/components/schemas/DayHours" }
+        setupMinutes: { type: integer, minimum: 0, description: "H3 (CR-01): minutes the venue needs before an event. Defaults to 0 on create; left out on update, it keeps the current value." }
+        turnaroundMinutes: { type: integer, minimum: 0, description: "H3 (CR-01): minutes the venue needs after an event. Same defaults as setupMinutes." }
         isActive: { type: boolean, description: "Defaults to true on create; left out on update, it keeps the current state." }
 
     Venue:

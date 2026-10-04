@@ -30,13 +30,22 @@ function notFound(res: Response) {
 }
 
 /** The body checked for shape, then against H1's rules; null once a refusal has been sent. */
-function readVenue(req: ActorRequest, res: Response, isActive: boolean): VenueInput | null {
+/** What a field left out of the body falls back to: the stored value on an update, a default on create. */
+type Defaults = Pick<VenueInput, "isActive" | "setupMinutes" | "turnaroundMinutes">;
+const NEW_VENUE: Defaults = { isActive: true, setupMinutes: 0, turnaroundMinutes: 0 };
+
+function readVenue(req: ActorRequest, res: Response, defaults: Defaults): VenueInput | null {
   const shape = venueBodySchema.safeParse(req.body);
   if (!shape.success) {
     refuse(res, 400, "VALIDATION_FAILED", "The venue could not be saved. Check the highlighted fields.", fieldsFromZod(shape.error));
     return null;
   }
-  const result = validateVenue({ ...shape.data, isActive: shape.data.isActive ?? isActive } as VenueInput);
+  const result = validateVenue({
+    ...shape.data,
+    isActive: shape.data.isActive ?? defaults.isActive,
+    setupMinutes: shape.data.setupMinutes ?? defaults.setupMinutes,
+    turnaroundMinutes: shape.data.turnaroundMinutes ?? defaults.turnaroundMinutes,
+  } as VenueInput);
   if (!result.ok) {
     refuse(res, 400, "VALIDATION_FAILED", "The venue could not be saved. Check the highlighted fields.", result.fields);
     return null;
@@ -58,7 +67,7 @@ export function venuesRouter(sql: Sql) {
   });
 
   router.post("/api/v1/venues", authenticate, requireRole("VENUE_STAFF"), async (req: ActorRequest, res: Response) => {
-    const venue = readVenue(req, res, true);
+    const venue = readVenue(req, res, NEW_VENUE);
     if (!venue) return;
     const actor = req.actor!;
 
@@ -78,7 +87,7 @@ export function venuesRouter(sql: Sql) {
     if (!UUID.test(req.params.id!)) return notFound(res);
     const current = await findVenue(sql, req.params.id!);
     if (!current) return notFound(res);
-    const venue = readVenue(req, res, current.isActive);
+    const venue = readVenue(req, res, current);
     if (!venue) return;
     const actor = req.actor!;
 

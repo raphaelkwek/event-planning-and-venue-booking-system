@@ -24,6 +24,9 @@ export interface VenueBody {
   facilities: string[];
   accessibilityFeatures: string[];
   operatingHours: Record<Day, { opensAt: string; closesAt: string } | null>;
+  /** H3: whole minutes before and after each event. */
+  setupMinutes: number | null;
+  turnaroundMinutes: number | null;
   isActive: boolean;
 }
 
@@ -31,6 +34,8 @@ export interface Venue extends VenueBody {
   id: string;
   maxCapacity: number;
   layouts: { name: string; capacity: number }[];
+  setupMinutes: number;
+  turnaroundMinutes: number;
   createdAt: string;
   createdBy: string | null;
   updatedAt: string;
@@ -54,6 +59,8 @@ export interface VenueForm {
   facilities: string;
   accessibilityFeatures: string;
   hours: Record<Day, { closed: boolean; opensAt: string; closesAt: string }>;
+  setupMinutes: string;
+  turnaroundMinutes: string;
   isActive: boolean;
 }
 
@@ -66,6 +73,8 @@ export function emptyVenueForm(): VenueForm {
     facilities: "",
     accessibilityFeatures: "",
     hours: Object.fromEntries(DAYS.map((day) => [day, { closed: false, opensAt: "08:00", closesAt: "22:00" }])) as VenueForm["hours"],
+    setupMinutes: "0",
+    turnaroundMinutes: "0",
     isActive: true,
   };
 }
@@ -94,6 +103,8 @@ export function toVenueBody(form: VenueForm): VenueBody {
         return [day, hours.closed ? null : { opensAt: hours.opensAt, closesAt: hours.closesAt }];
       }),
     ) as VenueBody["operatingHours"],
+    setupMinutes: toNumber(form.setupMinutes),
+    turnaroundMinutes: toNumber(form.turnaroundMinutes),
     isActive: form.isActive,
   };
 }
@@ -112,6 +123,8 @@ export function fromVenue(venue: VenueBody): VenueForm {
         return [day, hours ? { closed: false, ...hours } : { closed: true, opensAt: "", closesAt: "" }];
       }),
     ) as VenueForm["hours"],
+    setupMinutes: String(venue.setupMinutes ?? 0),
+    turnaroundMinutes: String(venue.turnaroundMinutes ?? 0),
     isActive: venue.isActive,
   };
 }

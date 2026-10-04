@@ -2,6 +2,9 @@ import { Router } from "express";
 import type { Sql } from "postgres";
 import { venuesRouter } from "./api/venues.js";
 
+/** H3: occupied periods, for the calendar, search and booking stories (I1, I2, J1, L3, M1, N1, N2). */
+export { occupiedPeriod, periodsOverlap, type Period } from "./domain/occupancy.js";
+
 /**
  * The venue module's public interface (ADR-0004). Other modules import
  * this file and nothing else under modules/venue; `npm run lint:boundaries`
