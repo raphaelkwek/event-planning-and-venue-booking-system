@@ -1,8 +1,8 @@
 import { afterAll, describe, expect, it } from "vitest";
 import { randomUUID } from "node:crypto";
-import postgres, { type Sql } from "postgres";
+import postgres from "postgres";
 import { handleMessage, type OutgoingMessage } from "../../src/consumer/handleMessage.js";
-import { ATTEMPT_HEADER, NOT_BEFORE_HEADER } from "../../src/domain/retryPolicy.js";
+import { ATTEMPT_HEADER } from "../../src/domain/retryPolicy.js";
 
 /**
  * EN-04.3 done-checks, against the real notification schema (implementation.md
@@ -10,7 +10,8 @@ import { ATTEMPT_HEADER, NOT_BEFORE_HEADER } from "../../src/domain/retryPolicy.
  * goes to the dead-letter topic without blocking the messages after it.
  *
  * Kafka is replaced by a recording publisher: what is tested is what the
- * handler does with each message, which is what the consumer runs.
+ * handler does with each message, which is what the consumer runs. The paths
+ * that never reach the database are in handleMessage.unit.test.ts.
  */
 
 const db = () => postgres(process.env.DATABASE_URL!, { max: 2, prepare: false });
@@ -129,55 +130,9 @@ describe("a poison message", () => {
     });
     expect(await notificationsFor(next.organiser)).toHaveLength(1);
   });
-
-  it("includes a valid envelope whose data fails its type's schema", async () => {
-    const { publish, sent } = recordingPublisher();
-    const { message, organiser } = approval();
-    const event = JSON.parse(message.value);
-    event.data.ownerId = "not-a-uuid";
-
-    const result = await handleMessage({ ...message, value: JSON.stringify(event) }, { sql, publish });
-
-    expect(result).toEqual({ outcome: "dead-lettered" });
-    expect(sent[0]!.topic).toBe(DLQ_TOPIC);
-    expect(await notificationsFor(organiser)).toHaveLength(0);
-  });
 });
 
-describe("a failure that may pass, such as the database being unreachable", () => {
-  const brokenDb = { begin: () => Promise.reject(new Error("connection terminated unexpectedly")) } as unknown as Sql;
-
-  it("sends the message to the retry topic with the attempt count and when to try again", async () => {
-    const { publish, sent } = recordingPublisher();
-    const { message } = approval();
-
-    const result = await handleMessage(message, { sql: brokenDb, publish, now: () => 1_000_000 });
-
-    expect(result).toEqual({ outcome: "retried", attempt: 1 });
-    expect(sent).toHaveLength(1);
-    expect(sent[0]).toMatchObject({ topic: RETRY_TOPIC, key: message.key, value: message.value });
-    expect(sent[0]!.headers).toMatchObject({
-      [ATTEMPT_HEADER]: "1",
-      [NOT_BEFORE_HEADER]: String(1_000_000 + 5_000),
-      "connectsphere-original-topic": EVENT_TOPIC,
-      "connectsphere-error": "connection terminated unexpectedly",
-    });
-  });
-
-  it("dead-letters the message once its retries are used up", async () => {
-    const { publish, sent } = recordingPublisher();
-    const { message } = approval();
-    const third = {
-      ...message,
-      topic: RETRY_TOPIC,
-      headers: { ...message.headers, [ATTEMPT_HEADER]: "3", "connectsphere-original-topic": EVENT_TOPIC },
-    };
-
-    expect(await handleMessage(third, { sql: brokenDb, publish })).toEqual({ outcome: "dead-lettered" });
-    expect(sent[0]).toMatchObject({ topic: DLQ_TOPIC, value: message.value });
-    expect(sent[0]!.headers).toMatchObject({ [ATTEMPT_HEADER]: "3", "connectsphere-original-topic": EVENT_TOPIC });
-  });
-
+describe("a retried message", () => {
   it("stores the notification when a retried message succeeds", async () => {
     const { publish, sent } = recordingPublisher();
     const { message, organiser } = approval();
@@ -185,30 +140,6 @@ describe("a failure that may pass, such as the database being unreachable", () =
 
     expect(await handleMessage(retried, { sql, publish })).toEqual({ outcome: "stored", notifications: 1 });
     expect(await notificationsFor(organiser)).toHaveLength(1);
-    expect(sent).toEqual([]);
-  });
-});
-
-describe("a message nobody needs to hear about", () => {
-  it("is acknowledged without a notification or an inbox row", async () => {
-    const { message, id } = approval();
-    const event = JSON.parse(message.value);
-    event.type = "event.submitted";
-    event.data = {
-      eventId: event.subject,
-      eventReference: "EVT-TEST-0001",
-      eventName: "Notification test",
-      ownerId: event.data.ownerId,
-      proposedStartAt: event.time,
-      proposedEndAt: event.time,
-      submittedAt: event.time,
-    };
-    const { publish, sent } = recordingPublisher();
-
-    expect(await handleMessage({ ...message, value: JSON.stringify(event) }, { sql, publish })).toEqual({
-      outcome: "ignored",
-    });
-    expect(await sql`select 1 from notification.consumed_messages where message_id = ${id}`).toHaveLength(0);
     expect(sent).toEqual([]);
   });
 });
