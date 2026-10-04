@@ -10,6 +10,8 @@ import { ReviewQueue } from "./screens/ReviewQueue.js";
 import { AllEvents } from "./screens/AllEvents.js";
 import { ReviewDetail } from "./screens/ReviewDetail.js";
 import { ApiConsole } from "./screens/ApiConsole.js";
+import { Notifications } from "./screens/Notifications.js";
+import { useUnreadCount } from "./shared/useUnreadCount.js";
 import type { Role } from "./api/types.js";
 
 const ROLE_LABELS: Record<Role, string> = {
@@ -67,6 +69,13 @@ const ROUTES: {
     nav: { label: "All events", to: "/events" },
   },
   { path: "/review/:id", element: <ReviewDetail />, roles: ["EVENT_COORDINATOR"] },
+  // T2: every role reads its own notifications.
+  {
+    path: "/notifications",
+    element: <Notifications />,
+    roles: EVERY_ROLE,
+    nav: { label: "Notifications", to: "/notifications" },
+  },
   {
     path: "/console",
     element: <ApiConsole />,
@@ -85,6 +94,7 @@ function Shell() {
   const { session, signOut } = useSession();
   const location = useLocation();
   const navigate = useNavigate();
+  const unread = useUnreadCount(session?.token ?? null, location.pathname);
 
   if (!session) return <Login />;
 
@@ -123,7 +133,7 @@ function Shell() {
                 color: "#172B4D",
               }}
             >
-              {route.nav!.label}
+              {route.path === "/notifications" && unread ? `${route.nav!.label} (${unread})` : route.nav!.label}
             </Link>
           ))}
         </nav>

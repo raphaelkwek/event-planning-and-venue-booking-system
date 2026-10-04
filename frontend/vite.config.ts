@@ -16,6 +16,7 @@ export default defineConfig(({ mode }) => {
   // Identity and Event are modules of one planning-core process (ADR-0004).
   // The two prefixes stay so the app's API calls did not have to change.
   const planningCore = `http://127.0.0.1:${env.PLANNING_CORE_PORT || 8090}`;
+  const notification = `http://127.0.0.1:${env.NOTIFICATION_PORT || 8091}`;
 
   return {
     plugins: [react()],
@@ -36,6 +37,12 @@ export default defineConfig(({ mode }) => {
           target: planningCore,
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/event/, ""),
+        },
+        // The notification service (T2).
+        "/notification": {
+          target: notification,
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/notification/, ""),
         },
       },
     },
