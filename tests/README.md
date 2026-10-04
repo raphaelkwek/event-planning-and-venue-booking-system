@@ -37,7 +37,7 @@ tests/
 Every case's first pre-condition is "Standard environment running and test data reset". That means:
 
 1. `npm install` (once).
-2. `npm run migrate:identity`, `npm run migrate:event`, `npm run seed:auth` (safe to repeat).
+2. `npm run migrate:identity`, `npm run migrate:event`, `npm run migrate:notification`, `npm run seed:auth` (safe to repeat).
 3. `npm run dev` at the repo root, left running. It starts planning-core (the identity and event
    modules in one process, ADR-0004) and the web app in one terminal. To run them separately:
    `npm run dev -w @connectsphere/planning-core` and `npm run dev -w @connectsphere/web`.
@@ -45,7 +45,12 @@ Every case's first pre-condition is "Standard environment running and test data 
 5. Open **http://localhost:5173**. Use `localhost`, not `127.0.0.1`, which the dev server refuses.
 
 The reset removes only requests owned by the two seeded organiser accounts, and everything attached
-to them. The database is shared by the whole team, so don't reset while a teammate is mid-demo.
+to them, and the seeded accounts' notifications (T2). The database is shared by the whole team, so
+don't reset while a teammate is mid-demo.
+
+**Notifications (T2) need Kafka.** `npm run dev` starts the notification service, and a notification
+appears about a second after the action that raises it (EN-04.2, EN-04.3). Your `.env` needs the
+`KAFKA_*` settings (`npm run kafka:check` passes); without them no notification is created.
 
 ## Accounts
 
@@ -96,6 +101,7 @@ address bar (`#/requests/<id>`, `#/drafts/<id>` or `#/review/<id>`), and its **r
 | **FX-APPROVED** | FX-UNDER-REVIEW → "Approve". |
 | **FX-REJECTED** | FX-UNDER-REVIEW → "Reject" → reason `No suitable venue is available.` → "Reject request". |
 | **FX-REASSIGNMENT-PENDING** | FX-SUBMITTED → sign out → sign in as whichever of `coordinator@connectsphere.test` / `coordinator2@connectsphere.test` the "Assigned coordinator" field on the request names (E1's round-robin means either may be assigned) → open the request from the review queue → "Propose reassignment" → nominee's user id is the *other* seeded coordinator's id (see the Accounts table) → "Send proposal". Note which account is outgoing and which is the nominee — later steps refer to them by role, not by name. |
+| **FX-NOTIFICATION-ELSEWHERE** | Run the FX-NOTIFICATION-ELSEWHERE statement below in the SQL editor, with the event id the case gives. It gives `organiser2@connectsphere.test` a notification about an event they cannot see, which is how a case shows what happens once access to an event is lost. |
 | **FX-SEEDED** | Run the FX-SEEDED statement below in the Supabase SQL editor, with the status and end time the case gives. Note the returned **id** and **reference**. Used for statuses no user action can reach yet (Confirmed needs F5). |
 
 ### FX-SEEDED statement
@@ -122,6 +128,22 @@ The event is owned by `organiser@connectsphere.test`, so `npm run test-cases:res
 **The completion sweep is not scoped to your data.** `npm run jobs:complete-events` completes
 *every* Confirmed event in the shared database whose end has passed, a teammate's included. That is
 what the job does in production too.
+
+### FX-NOTIFICATION-ELSEWHERE statement
+
+Replace `<EVENT_ID>` and `<REFERENCE>` with the event's.
+
+~~~sql
+with message as (
+  insert into notification.consumed_messages (message_id, consumer)
+  values (gen_random_uuid(), 'test-fixture') returning message_id
+)
+insert into notification.notifications
+  (recipient_user_id, notification_type, event_id, event_reference, message, source_message_id, occurred_at)
+select '00000000-0000-0000-0000-000000000007', 'event.approved', '<EVENT_ID>', '<REFERENCE>',
+       'Your event request <REFERENCE> has been approved.', message_id, now()
+from message;
+~~~
 
 ## Tools a case may use
 
