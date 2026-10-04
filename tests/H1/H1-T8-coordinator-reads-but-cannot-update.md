@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | The venue was listed with no "New venue" button and no "Edit" link; the PUT returned 403 ROLE_NOT_AUTHORISED; the venue was still named Lee Kong Chian Auditorium. |
+| Status | Pass |
+| Remarks | Commit: 56eb0b2 · Evidence: tests/H1/evidence/H1-T8.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-04 |

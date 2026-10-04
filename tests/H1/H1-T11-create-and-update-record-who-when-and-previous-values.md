@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | Two rows: CREATED and UPDATED, both by 00000000-0000-0000-0000-000000000003, at 2026-10-04T07:42:35.975Z and 2026-10-04T07:42:37.483Z. The UPDATED row's changes held exactly maxCapacity 300 → 320 and facilities from three to four entries. |
+| Status | Pass |
+| Remarks | Commit: 56eb0b2 · Evidence: — · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-04 |

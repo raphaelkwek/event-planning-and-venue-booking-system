@@ -22,8 +22,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | "Venue saved." was shown. Venues still listed the venue, now Inactive, with its fields retained. The history held CREATED and an UPDATED row recording isActive true → false. |
+| Status | Pass |
+| Remarks | Commit: 56eb0b2 · Evidence: tests/H1/evidence/H1-T13.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-04 |

@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | Saving was refused with "Maximum capacity must be a whole number greater than zero.". Reopened, the venue was still Lee Kong Chian Auditorium with maximum capacity 300, and every other field as the standard venue: the valid name change was not stored. |
+| Status | Pass |
+| Remarks | Commit: 56eb0b2 · Evidence: tests/H1/evidence/H1-T12.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-04 |

@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | "Venue saved." was shown; maximum capacity 320 and facilities Projector, Wireless microphones, Stage lighting, Livestream camera; other fields unchanged. Venues showed 320. |
+| Status | Pass |
+| Remarks | Commit: 56eb0b2 · Evidence: tests/H1/evidence/H1-T2.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-04 |

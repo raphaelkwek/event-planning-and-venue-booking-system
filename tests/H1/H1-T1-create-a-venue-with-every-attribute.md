@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | "Venue saved." was shown and the form showed every value as entered: Theatre 300, Classroom 120, Banquet 180; 3 facilities; 3 accessibility features; Monday 08:00–22:00, Tuesday 08:00–22:00, Wednesday 08:00–22:00, Thursday 08:00–22:00, Friday 08:00–22:00, Saturday 09:00–18:00, Sunday closed. Venues listed it as Active. |
+| Status | Pass |
+| Remarks | Commit: 56eb0b2 · Evidence: tests/H1/evidence/H1-T1.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-04 |
