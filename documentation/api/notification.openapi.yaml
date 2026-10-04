@@ -1,0 +1,235 @@
+openapi: 3.1.0
+info:
+  title: ConnectSphere notification service
+  version: 0.1.0
+  description: |
+    The notification service (ADR-0008) stores one notification per recipient from
+    the messages planning-core publishes (EN-04.3), and serves T2: a signed-in
+    user reads and manages their own notifications. Every route works on the
+    caller's own notifications only; who the caller is comes from identity
+    (planning-core's `GET /api/v1/users/me`, with the caller's token).
+
+    The web app reaches it through the `/notification` proxy prefix.
+    `tests/api/openapiRoutes.unit.test.ts` (notification) fails CI if a route exists in
+    the code but not here, or here but not in the code.
+  contact:
+    name: ConnectSphere team (IS212 G1)
+  license:
+    name: Proprietary (IS212 coursework)
+    identifier: LicenseRef-IS212-coursework
+servers:
+  - url: /
+    description: The notification service you are running. Locally that's http://localhost:8091 (`NOTIFICATION_PORT`, npm run dev).
+
+tags:
+  - name: Health
+    description: Liveness and readiness probes. They have no 4XX responses, so Redocly's operation-4xx-response warning is expected on these two.
+  - name: Notifications
+    description: T2 read and manage my notifications
+
+security:
+  - bearerAuth: []
+
+paths:
+  /healthz:
+    get:
+      tags: [Health]
+      summary: Liveness
+      operationId: healthz
+      security: []
+      responses:
+        "200":
+          description: The process is alive.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, service]
+                properties:
+                  status: { type: string, const: ok }
+                  service: { type: string, const: notification }
+
+  /readyz:
+    get:
+      tags: [Health]
+      summary: Readiness
+      description: Ready when the database answers. The broker is reported, not required.
+      operationId: readyz
+      security: []
+      responses:
+        "200":
+          description: Ready.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Readiness" }
+        "503":
+          description: The database does not answer.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Readiness" }
+
+  /api/v1/notifications:
+    get:
+      tags: [Notifications]
+      summary: My notifications, newest first, with my unread count (T2)
+      operationId: listNotifications
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+        - name: cursor
+          in: query
+          description: The `nextCursor` of the previous page.
+          schema: { type: string }
+      responses:
+        "200":
+          description: A page of the caller's notifications.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, unreadCount, nextCursor]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/Notification" }
+                  unreadCount: { type: integer, minimum: 0 }
+                  nextCursor: { type: [string, "null"] }
+        "400": { $ref: "#/components/responses/ValidationFailed" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
+  /api/v1/notifications/{id}/read:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [Notifications]
+      summary: Mark one of my notifications read (T2)
+      description: Marking it again keeps the first time it was read. Another user's notification answers 404.
+      operationId: markNotificationRead
+      responses:
+        "200":
+          description: The notification, now read, and the caller's unread count.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Notification"
+                  - type: object
+                    required: [unreadCount]
+                    properties:
+                      unreadCount: { type: integer, minimum: 0 }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
+  /api/v1/notifications/read-all:
+    post:
+      tags: [Notifications]
+      summary: Mark all my notifications read (T2)
+      operationId: markAllNotificationsRead
+      responses:
+        "200":
+          description: How many changed.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [updated, unreadCount]
+                properties:
+                  updated: { type: integer, minimum: 0 }
+                  unreadCount: { type: integer, const: 0 }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: A Supabase Auth access token, checked by identity.
+
+  responses:
+    ValidationFailed:
+      description: "`VALIDATION_FAILED`: `fields[]` names the parameter."
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+    Unauthenticated:
+      description: "`UNAUTHENTICATED`: no bearer token, or one identity does not accept."
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+    Forbidden:
+      description: "`NO_ROLE_ASSIGNED`."
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+    NotFound:
+      description: "`NOTIFICATION_NOT_FOUND`: no such notification, or it is another user's."
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+    IdentityUnavailable:
+      description: "`IDENTITY_UNAVAILABLE`: who the caller is could not be checked, so nothing was done (CP)."
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+
+  schemas:
+    ErrorEnvelope:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message, correlationId]
+          properties:
+            code:
+              type: string
+              enum: [UNAUTHENTICATED, NO_ROLE_ASSIGNED, VALIDATION_FAILED, NOTIFICATION_NOT_FOUND, IDENTITY_UNAVAILABLE]
+            message: { type: string }
+            fields:
+              type: array
+              items:
+                type: object
+                required: [field, message]
+                properties:
+                  field: { type: string }
+                  message: { type: string }
+            correlationId: { type: [string, "null"] }
+
+    Readiness:
+      type: object
+      required: [status, checks]
+      properties:
+        status: { type: string, enum: [ready, not_ready] }
+        checks:
+          type: object
+          required: [database, kafka]
+          properties:
+            database: { type: string, enum: [ok, unreachable] }
+            kafka: { type: string, enum: [reachable, unreachable, not_configured] }
+        error: { type: string }
+
+    Notification:
+      type: object
+      description: One notification for one recipient (T2 AC1).
+      required: [id, notificationType, eventId, eventReference, relatedReference, message, occurredAt, createdAt, readAt]
+      properties:
+        id: { type: string, format: uuid }
+        notificationType: { type: string, description: "The message type that raised it, e.g. event.approved." }
+        eventId: { type: string, format: uuid }
+        eventReference: { type: string }
+        relatedReference: { type: [string, "null"], description: "A booking, reservation or registration reference, where one applies." }
+        message: { type: string, description: "What happened, and to which event." }
+        occurredAt: { type: string, format: date-time }
+        createdAt: { type: string, format: date-time }
+        readAt: { type: [string, "null"], format: date-time }
