@@ -14,6 +14,7 @@ import { VenueList } from "./screens/VenueList.js";
 import { VenueEditor } from "./screens/VenueEditor.js";
 import { Notifications } from "./screens/Notifications.js";
 import { useUnreadCount } from "./shared/useUnreadCount.js";
+import { VenueDetail } from "./screens/VenueDetail.js";
 import type { Role } from "./api/types.js";
 
 const ROLE_LABELS: Record<Role, string> = {
@@ -77,6 +78,11 @@ const ROUTES: {
     element: <VenueList />,
     roles: ["EVENT_ORGANISER", "EVENT_COORDINATOR", "VENUE_STAFF", "TECH_SUPPORT_STAFF"],
     nav: { label: "Venues", to: "/venues" },
+  },
+  {
+    path: "/venues/:id",
+    element: <VenueDetail />,
+    roles: ["EVENT_ORGANISER", "EVENT_COORDINATOR", "VENUE_STAFF", "TECH_SUPPORT_STAFF"],
   },
   { path: "/venues/new", element: <VenueEditor />, roles: ["VENUE_STAFF"] },
   { path: "/venues/:id/edit", element: <VenueEditor />, roles: ["VENUE_STAFF"] },
