@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | "Venue saved." was shown and both times showed 0. |
+| Status | Pass |
+| Remarks | Commit: 6514ab8 · Evidence: tests/H3/evidence/H3-T2.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-04 |
