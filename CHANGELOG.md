@@ -4,6 +4,73 @@
 
 ---
 
+# T2: Read and manage my notifications
+
+**Timestamp:** 2026-10-04T16:49+08:00 (SGT)
+**Author:** Seann, via Claude
+**Scope:**
+- The notification service: `src/api` (new: the routes, auth, the identity lookup and errors), `src/repo/notifications.ts`, `app.ts`, `config.ts`; five test files; and the coverage floors.
+- `contracts`: `NOTIFICATION_NOT_FOUND`. The API specs: `notification.openapi.yaml` (new), the API README, and `lint:api` now covering both specs.
+- The web app: `api/notifications.ts`, the `Notifications` screen, `shared/useUnreadCount.ts`, `App.tsx`, the `/notification` proxy, and a test file.
+- The test cards: `tests/T2/` (14 new, 6 re-checked), `tests/README.md`, and the reset script.
+- `.env.example`, `implementation.md` §2 and §10, and traceability.
+
+**Reason:** T2 (SPM-61), Sprint 2. EN-04.3 stores notifications; this lets people read them.
+
+## What it does
+
+1. **The notification service gains T2's API:**
+   - `GET /api/v1/notifications` lists the caller's own notifications, newest first, with the unread count, paged by cursor;
+   - `POST /api/v1/notifications/{id}/read` marks one read, keeping the first read time;
+   - `POST /api/v1/notifications/read-all` marks them all read.
+   
+   Another user's notification is never listed, and marking it read answers `404 NOTIFICATION_NOT_FOUND`.
+2. **Who is calling comes from identity:** planning-core's `GET /api/v1/users/me`, called with the caller's own token, since this service may not read identity's tables.
+   - Identity's 401 and 403 refusals pass through.
+   - An unreachable identity is `503 IDENTITY_UNAVAILABLE` (CP).
+   - `PLANNING_CORE_URL` overrides where identity is.
+3. **Every role gets "Notifications" in the navigation, with the unread count.**
+   - The screen lists notifications newest first, each unread one marked.
+   - It offers **Mark as read**, **Mark all as read** and **Open**.
+   - **Open** marks the notification read and goes to the role's own page for the event. That page shows a message and no event data when the user can no longer see the event (T2-T16).
+4. **Read state is on each recipient's own row,** so it's per user and lasts across sessions.
+
+## Test cards
+
+5. **T2-T7 to T2-T20 were written from T2 before the code:**
+   - the stored record;
+   - only the related user notified;
+   - nothing for a refused action;
+   - ordering and count;
+   - marking one or all read;
+   - per user and across sessions;
+   - opening, and access lost;
+   - other users' notifications never shown;
+   - E2's three notifications, which had no case.
+   
+   T2-T1 to T2-T6 were re-checked against T2's criteria and kept.
+6. **`tests/README.md` gains:**
+   - the notification migration;
+   - a note that the cases need Kafka;
+   - the FX-NOTIFICATION-ELSEWHERE fixture, for the access-lost case.
+   
+   The reset now removes the seeded accounts' notifications.
+
+## Verified
+
+- **All 20 T2 cards pass in Chrome** through the automated runner, against `84fc315`. Each one waits for the real notification to arrive through Kafka.
+- **notification: 61/61 against the database.** That's 57 unit tests, including the refusals made before any query, and 4 against the database. The unit floors were raised to just under the new figures.
+- **web: 30/30.**
+- **CI's steps all pass.**
+- **The cards found a bug in the test runner, not in the app.** The Unread marker is upper-cased by CSS, so an "is nothing unread?" check read the rendered text and could never fail. The checks are now case-insensitive.
+
+## Notes
+
+- **This branch is from `main`, parallel to the H1/H3/H2 stack.** Whichever merges second will conflict at the top of the CHANGELOG, in the reset SQL, and in the traceability file. Each conflict is just two blocks to keep.
+- **Still to do in Jira:** create Test issues T2-T1 to T2-T20.
+
+---
+
 # EN-04.3: Notification service consumes Kafka, with an inbox, retries, a dead-letter topic and T2's recipient rules
 
 **Timestamp:** 2026-10-04T14:34+08:00 (SGT)
