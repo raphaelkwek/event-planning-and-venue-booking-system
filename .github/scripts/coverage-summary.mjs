@@ -4,7 +4,9 @@ import { existsSync, readFileSync } from "node:fs";
 
 const WORKSPACES = [
   ["planning-core", "backend/services/planning-core"],
+  ["notification", "backend/services/notification"],
   ["contracts", "backend/packages/contracts"],
+  ["kafka", "backend/packages/kafka"],
   ["web", "frontend"],
 ];
 const METRICS = ["lines", "branches", "functions", "statements"];

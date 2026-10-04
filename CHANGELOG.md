@@ -4,6 +4,91 @@
 
 ---
 
+# EN-04.3: Notification service consumes Kafka, with an inbox, retries, a dead-letter topic and T2's recipient rules
+
+**Timestamp:** 2026-10-04T14:34+08:00 (SGT)
+**Author:** Seann, via Claude
+**Scope:**
+- `backend/services/notification` (new): the service, its migration and its tests.
+- `backend/packages/kafka` (new): moved out of planning-core.
+- planning-core: `src/shared/kafka/client.ts`, two test files and `package.json`.
+- `backend/scripts/migrate.ts` and `kafka-check.ts`.
+- Root `package.json` (`npm run dev`, `migrate:notification`), `.env.example`, and CI's coverage summary and artifacts.
+- `implementation.md` §2, §3.5 and §10, and `tests/T2/README.md`.
+
+**Reason:** EN-04.3 (SPM-171), ADR-0008. The relay (EN-04.2) publishes every event message, but nothing turned them into notifications. T2 (SPM-61) builds its read API and screen on top of this.
+
+## The service
+
+1. **A new service, `backend/services/notification`,** with its own `notification` schema.
+   - It consumes `connectsphere.event.v1` and stores one row per recipient in `notification.notifications`.
+   - Each row has the recipient, the type, the event and its reference, a message, and `read_at` for T2 (T2 AC1).
+   - It serves its own `/healthz` and `/readyz` on `NOTIFICATION_PORT` (8091). `/readyz` requires the database and reports the broker.
+   - `npm run dev` now starts it alongside planning-core and the web app.
+2. **The inbox.** The message id goes into `notification.consumed_messages` in the same transaction as the notifications, first, with `on conflict do nothing`. A duplicate delivery, or a second consumer racing the first, finds the key taken and stores nothing. The Kafka offset is committed only after that transaction.
+3. **Retries and the dead-letter topic:**
+   - **A message that fails validation** goes straight to `connectsphere.notification.dlq.v1`, unchanged. That covers bad JSON, an envelope or data that fails its schema, and a type `contracts` doesn't know. The next message is handled as normal.
+   - **A database failure** goes to `connectsphere.notification.retry.v1`. A retry worker holds it until it's due, heartbeating meanwhile, and tries again after 5 s, 30 s and 2 min, then dead-letters it.
+   - **Headers** record the attempt, when it's due, the original topic and the error, so a dead-lettered message can be replayed.
+4. **T2's recipient rules use only the facts in the message** (Jira). Only the users the message names, in their role on the event, are notified (T2 AC2):
+
+   | Message | Who is notified |
+   |---|---|
+   | D2 clarification requested | the owner |
+   | D3 response | the coordinator who asked |
+   | D4 approval | the owner |
+   | D5 rejection, with the reason | the owner |
+   | E2 proposal | the nominee |
+   | E2 acceptance | both coordinators |
+   | E2 decline | the proposer |
+
+   **B1 and E1:** `event.submitted` doesn't name the coordinator, so it notifies nobody. The `event.coordinator-assigned` message, written in the same transaction, tells the assigned coordinator the request is awaiting their review. That covers both stories' criteria. E3 (CR-05) will replace automatic assignment.
+5. **Consumer groups** follow the rule already in `implementation.md` §3.1 and `.env.example` (SPM-113): `connectsphere.notification.event-notifier` and `connectsphere.notification.retry-worker`, plus `.<KAFKA_GROUP_SUFFIX>` on a laptop.
+   - Jira's description suggested `notification.<env>`, which was written before that rule was agreed.
+   - A new group starts at the newest message.
+   - Every laptop's consumer writes to the same shared inbox, so a message is stored once however many are running.
+6. **Without `KAFKA_*`, the service runs** its health endpoints and creates nothing. If the broker can't be reached at startup (e.g. Aiven powered off), it retries every 15 s.
+
+## Shared Kafka code
+
+7. **`backend/packages/kafka` (`@connectsphere/kafka`)** now holds the KAFKA_* reader, the credential redaction, the broker probe and the client builder. They moved from planning-core, so the code that handles credentials exists once.
+   - Its tests are held at 100% coverage.
+   - planning-core keeps only the relay's publisher.
+   - `kafka:check` uses the package.
+8. **`npm run migrate -- <name>` also runs a service's own `migrations/` folder.** `npm run migrate:notification` applies the new schema.
+
+## Shared database
+
+9. **`notification/0001` is applied to the shared database.** It creates a new schema and touches nothing existing. I dry-ran it first in a transaction that was rolled back.
+
+## Verified
+
+- **The two done-checks are tests written before the code:**
+  - a duplicate delivery, and two consumers racing, each create one notification;
+  - a poison message goes to the DLQ unchanged, and the next message is still stored.
+- **Checked by breaking the code.** Removing the inbox's `on conflict`, or retrying a poison message instead of dead-lettering it, each fails tests.
+- **Approving an event in the browser created the notification row** (Jira's third done-check).
+  - `npm run dev` was running all three, and a coordinator approved a request in Chrome.
+  - About 1 s later the organiser had *"Your event request EVT-004205 "Annual Research Symposium" has been approved."*
+  - The coordinator's assignment notice from the same run was stored too, with no retries or dead letters.
+- **notification: 43/43** (39 unit, 4 against the database). The domain rules are at 100%; elsewhere the floors sit just under today's figures.
+- **planning-core: 364/364** against the database. That's 391 before, minus the 27 that moved to the package.
+- **kafka package: 30/30.**
+- **CI's steps:** lint, the boundary checks, the OpenAPI lint, typecheck, build, and `test:unit` in every workspace.
+  - On this Windows machine, Vitest sometimes drops a test file after a `writeFile` error in its cache (web, notification and planning-core each did once).
+  - Each workspace was rerun until every file ran, and all passed with their floors met.
+- **Not tested automatically:** `consumer/run.ts`, the kafkajs wiring. It's covered only by the browser run above. A real SIGTERM isn't tested either, as with the relay.
+
+## For T2
+
+- **What T2 still builds:** the read, unread-count and mark-as-read API on this service, and the screen.
+- **T2-T1 to T2-T6 can run once the screen exists.** T2-T1 and T2-T6 are both satisfied by the one assignment notification.
+- **E2's three notifications are stored but have no T2 case yet.** They should get one.
+- **CQ-03:** a notification appears about 1 s after its action, not inside the same transaction.
+- **The local Playwright helpers** in `tests/support` (not in git) still point at ports 8081 and 8082, from before EN-01. Set `TEST_IDENTITY_URL` and `TEST_EVENT_URL` to `http://localhost:8090` when running them.
+
+---
+
 # EN-04.2: Outbox relay publishes to Kafka in order, exactly once per row; event module writes CloudEvents
 
 **Timestamp:** 2026-10-03T12:49+08:00 (SGT)

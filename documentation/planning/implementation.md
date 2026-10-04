@@ -33,7 +33,7 @@
 
 ## 2. Repository layout
 
-Staff-facing code is **one deployable, `planning-core`**, made of modules (ADR-0004). Registration and Notification will be separate services when EN-13 and EN-04.3 build them (ADR-0005, ADR-0008).
+Staff-facing code is **one deployable, `planning-core`**, made of modules (ADR-0004). Notification is a separate service (EN-04.3, ADR-0008), and Registration will be one when EN-13 builds it (ADR-0005).
 
 ```
 /frontend                   SPA (all roles)
@@ -57,10 +57,12 @@ Staff-facing code is **one deployable, `planning-core`**, made of modules (ADR-0
       /scripts              the schema boundary check
       .dependency-cruiser.mjs  the import boundary check
     /registration           EN-13, not built yet
-    /notification           EN-04.3, not built yet
+    /notification           EN-04.3: Kafka consumer, inbox, retry and DLQ, T2's recipient rules;
+                            its own schema, migrations/ and /healthz, /readyz on NOTIFICATION_PORT
   /packages
     /contracts              event schemas, shared TS types, error codes  ← changing this needs review
-  /scripts                  migrate.ts (`npm run migrate -- <module>`)
+    /kafka                  the KAFKA_* reader, credential redaction, broker probe, client builder
+  /scripts                  migrate.ts (`npm run migrate -- <module-or-service>`), kafka-check.ts
   /supabase                 Supabase CLI config (run as `npx supabase --workdir backend …`)
   tsconfig.base.json        extended by planning-core and contracts
 /documentation
@@ -272,11 +274,29 @@ create table <schema>.consumed_messages (
 );
 ```
 
-- **Insert the message's `id` in the same transaction as the side effect.** A duplicate key means it was already processed, so skip it. Consumers must be idempotent regardless.
-- **Commit the Kafka offset only after that transaction commits.**
-- **A failure that may pass,** such as a database timeout, goes to the consumer's retry topic (`retryTopic(<consumer>)`). It's retried from there, and it doesn't block the partition behind it.
-- **A message that fails validation, or still fails after its retries,** goes to the consumer's dead-letter topic (`deadLetterTopic(<consumer>)`), unchanged, so it can be replayed once the cause is fixed. EN-04.3 sets the number of retries and the delay between them.
-- **Join the consumer group named in §3.1.**
+- **Insert the message's `id` in the same transaction as the side effect,** first, with `on conflict (message_id) do nothing`. No row back means the message was already handled, by this consumer or one racing it, so skip it. Consumers must be idempotent regardless.
+- **Commit the Kafka offset only after that transaction commits.** With kafkajs's `eachMessage`, the offset is committed once the handler returns, so return only after the commit.
+- **A message that fails validation** (not JSON, not a CloudEvent, data that fails its type's schema, or a type `contracts` doesn't know) goes straight to the consumer's dead-letter topic (`deadLetterTopic(<consumer>)`), unchanged, because a retry can't fix it. The next message is handled as normal.
+- **A failure that may pass,** such as a database timeout, goes to the consumer's retry topic (`retryTopic(<consumer>)`), so it doesn't block the partition behind it.
+  - **Retries:** a retry worker holds each message until it is due, heartbeating meanwhile, then handles it again.
+  - **The policy (EN-04.3):** three retries, after 5 s, 30 s and 2 min, then the dead-letter topic.
+- **Headers the consumer adds,** so a dead-lettered message can be replayed once the cause is fixed:
+  - `connectsphere-attempt`: the retry count;
+  - `connectsphere-not-before`: when the retry is due, in epoch milliseconds;
+  - `connectsphere-original-topic`: where the message came from;
+  - `connectsphere-error`: why it failed.
+- **A failure to reach Kafka** while retrying or dead-lettering is thrown, not swallowed. The offset stays uncommitted and kafkajs delivers the message again.
+- **A type no rule handles is acknowledged and skipped.** No inbox row is written, because there was no side effect.
+- **Join the consumer groups named in §3.1.** A group seen for the first time starts at the newest message.
+- **The example is the notification service** (`backend/services/notification`, EN-04.3). Its groups are `connectsphere.notification.event-notifier` and `connectsphere.notification.retry-worker`, plus `.<KAFKA_GROUP_SUFFIX>` on a laptop.
+
+**Recipients come from the message.** A notification's recipients are the users the message names in their role on the event:
+- the owner;
+- the coordinator;
+- the nominee;
+- the coordinator who asked for clarification.
+
+So a message must carry the ids of everyone its story says to notify (T2 AC2). The rules live in `notification/src/domain/recipients.ts`.
 
 ## 4. Database standards (mandatory)
 
@@ -654,7 +674,7 @@ Log every refusal with its `code` — refusals are correct behaviour under CP an
 
 ## 10. Configuration and deployment
 
-All config from environment variables, documented in `.env.example`. No secrets in the repo, no `localhost` in code. Required per service: `PORT`, `DATABASE_URL`, `DATABASE_SCHEMA`, `KAFKA_BROKERS`, `KAFKA_SASL_MECHANISM`, `KAFKA_SASL_USERNAME`, `KAFKA_SASL_PASSWORD`, `KAFKA_SSL_CA_PATH` (Aiven only), `KAFKA_GROUP_SUFFIX` (laptops only), `SUPABASE_URL`, `SUPABASE_JWKS_URL`, `SERVICE_NAME`, `LOG_LEVEL`, `INTERNAL_TOKEN_SECRET`.
+All config from environment variables, documented in `.env.example`. No secrets in the repo, no `localhost` in code. Required per service: `PORT`, `DATABASE_URL`, `DATABASE_SCHEMA`, `KAFKA_BROKERS`, `KAFKA_SASL_MECHANISM`, `KAFKA_SASL_USERNAME`, `KAFKA_SASL_PASSWORD`, `KAFKA_SSL_CA_PATH` (Aiven only), `KAFKA_GROUP_SUFFIX` (laptops only), `NOTIFICATION_PORT` (notification only), `SUPABASE_URL`, `SUPABASE_JWKS_URL`, `SERVICE_NAME`, `LOG_LEVEL`, `INTERNAL_TOKEN_SECRET`.
 
 Cloud-readiness rules to follow now so the move is boring later: services are stateless (no in-process cache, no local disk writes, sessions in the token); health endpoints `/healthz` (liveness) and `/readyz` (readiness: it requires the database and reports whether the Kafka broker is reachable, without requiring it, because the outbox holds messages while Kafka is down; §3.4); graceful shutdown drains in-flight requests, lets the outbox relay finish its batch, and commits Kafka offsets; every service can run from its build (`npm run build`, then `npm run start -w <service>`), and `npm run dev` is for local work only. There is no Docker (ADR-0003): a deployment platform builds each service from its `package.json`.
 

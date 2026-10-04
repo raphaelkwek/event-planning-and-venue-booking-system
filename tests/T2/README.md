@@ -3,9 +3,14 @@
 **Status: not built.** Sprint 1 was scoped to A1–E2; T2 is counted in Sprint 2
 (`documentation/planning/plan.md` §9.1 and the Sprint 2 row of the plan's sprint table). Removing T1
 put notification acceptance criteria on B1, D2–D5, E1 and E2, so those Sprint 1 stories must emit
-the right message — but reading and managing notifications is T2's own work. Three pieces are
-missing: the outbox relay that publishes to Kafka, the Notification Service that records a
-notification per recipient, and the notifications screen.
+the right message — but reading and managing notifications is T2's own work. Of the three pieces
+it needs, two now exist:
+- the outbox relay that publishes to Kafka (EN-04.2);
+- the Notification Service that records a notification per recipient (EN-04.3, 4 Oct 2026).
+
+So a notification row now appears about a second after the action that raises it. What T2 still
+builds is the read, unread-count and mark-as-read API on the notification service, and the
+notifications screen these cases read.
 
 Every case in this folder was split out of a story card on 2026-09-20. The trigger half of each
 — that the state change emits the right message, to the right recipient, with the fields a

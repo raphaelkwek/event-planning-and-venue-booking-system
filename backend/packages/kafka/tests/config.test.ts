@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { kafkaSettingsFromEnv, KafkaConfigError, redact, toClientConfig } from "../../src/shared/kafka/config.js";
+import { mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { kafkaSettingsFromEnv, KafkaConfigError, redact, toClientConfig } from "../src/config.js";
 
 /** SPM-113 and EN-04.2: the KAFKA_* variables, and only those, configure Kafka. */
 
@@ -78,6 +80,12 @@ describe("toClientConfig", () => {
       return "pem";
     });
     expect(read).toEqual(["/etc/kafka/ca.pem"]);
+  });
+
+  it("reads the CA file from disk when no reader is passed in", () => {
+    const path = join(mkdtempSync(join(tmpdir(), "kafka-ca-")), "ca.pem");
+    writeFileSync(path, "-----BEGIN CERTIFICATE-----");
+    expect(toClientConfig({ ...filled, KAFKA_SSL_CA_PATH: path }).ssl).toEqual({ ca: ["-----BEGIN CERTIFICATE-----"] });
   });
 
   it("says which file it could not read when the CA path is wrong", () => {
