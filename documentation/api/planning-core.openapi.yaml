@@ -47,6 +47,8 @@ tags:
     description: D2 request clarification, D3 respond with amendments (event module)
   - name: Reassignment
     description: E2 propose, accept and decline coordinator reassignment (event module)
+  - name: Venues
+    description: H1 maintain venue records, H2 view them (venue module)
 
 security:
   - bearerAuth: []
@@ -627,6 +629,93 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
         "503": { $ref: "#/components/responses/IdentityUnavailable" }
 
+  /api/v1/venues:
+    get:
+      tags: [Venues]
+      summary: List the venue catalogue (H1, H2)
+      description: Every internal role. Active and inactive venues, by name. Attendees are refused (H2).
+      operationId: listVenues
+      responses:
+        "200":
+          description: The catalogue.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/VenueListItem" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+    post:
+      tags: [Venues]
+      summary: Create a venue (H1)
+      description: |
+        Venue Staff only. The creator is recorded as looking after the venue, and a
+        CREATED history entry records who, when and the values.
+      operationId: createVenue
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/VenueInput" }
+      responses:
+        "201":
+          description: Created.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Venue" }
+        "400": { $ref: "#/components/responses/ValidationFailed" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
+  /api/v1/venues/{id}:
+    parameters:
+      - $ref: "#/components/parameters/RecordId"
+    get:
+      tags: [Venues]
+      summary: Open a venue (H2)
+      description: Every internal role. Attendees are refused.
+      operationId: getVenue
+      responses:
+        "200":
+          description: Every catalogue attribute.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Venue" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+    put:
+      tags: [Venues]
+      summary: Update a venue (H1)
+      description: |
+        Venue Staff only. Replaces every attribute; `isActive` may be left out to keep
+        the current state. An UPDATED history entry records each changed field's
+        previous and new value. A refused update stores nothing.
+      operationId: updateVenue
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/VenueInput" }
+      responses:
+        "200":
+          description: The venue as stored.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Venue" }
+        "400": { $ref: "#/components/responses/ValidationFailed" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
 components:
   securitySchemes:
     bearerAuth:
@@ -659,7 +748,7 @@ components:
         application/json:
           schema: { $ref: "#/components/schemas/ErrorEnvelope" }
     NotFound:
-      description: "`EVENT_NOT_FOUND`, `DRAFT_NOT_FOUND` or `REASSIGNMENT_PROPOSAL_NOT_FOUND`. Also returned when the record exists but is outside the caller's scope (A3)."
+      description: "`EVENT_NOT_FOUND`, `DRAFT_NOT_FOUND`, `REASSIGNMENT_PROPOSAL_NOT_FOUND` or `VENUE_NOT_FOUND`. Also returned when the record exists but is outside the caller's scope (A3)."
       content:
         application/json:
           schema: { $ref: "#/components/schemas/ErrorEnvelope" }
@@ -698,6 +787,7 @@ components:
         - SELF_NOMINATION_NOT_PERMITTED
         - REASSIGNMENT_ALREADY_PENDING
         - REASSIGNMENT_PROPOSAL_NOT_FOUND
+        - VENUE_NOT_FOUND
 
     ErrorEnvelope:
       type: object
@@ -925,3 +1015,69 @@ components:
         status: { type: string, enum: [PENDING, ACCEPTED, DECLINED] }
         proposedAt: { type: string, format: date-time }
         resolvedAt: { type: [string, "null"], format: date-time }
+
+    VenueLayout:
+      type: object
+      required: [name, capacity]
+      properties:
+        name: { type: string, minLength: 1 }
+        capacity: { type: integer, minimum: 1 }
+
+    DayHours:
+      description: A day's opening hours, 24-hour HH:MM, closing after opening; null when closed.
+      oneOf:
+        - type: "null"
+        - type: object
+          required: [opensAt, closesAt]
+          properties:
+            opensAt: { type: string, pattern: '^([01]\d|2[0-3]):[0-5]\d$' }
+            closesAt: { type: string, pattern: '^([01]\d|2[0-3]):[0-5]\d$' }
+
+    VenueInput:
+      type: object
+      required: [name, building, maxCapacity, layouts, facilities, accessibilityFeatures, operatingHours]
+      properties:
+        name: { type: string, minLength: 1 }
+        building: { type: string, minLength: 1 }
+        maxCapacity: { type: integer, minimum: 1 }
+        layouts:
+          type: array
+          minItems: 1
+          description: Each layout once, with its own capacity.
+          items: { $ref: "#/components/schemas/VenueLayout" }
+        facilities: { type: array, items: { type: string } }
+        accessibilityFeatures: { type: array, items: { type: string } }
+        operatingHours:
+          type: object
+          required: [monday, tuesday, wednesday, thursday, friday, saturday, sunday]
+          properties:
+            monday: { $ref: "#/components/schemas/DayHours" }
+            tuesday: { $ref: "#/components/schemas/DayHours" }
+            wednesday: { $ref: "#/components/schemas/DayHours" }
+            thursday: { $ref: "#/components/schemas/DayHours" }
+            friday: { $ref: "#/components/schemas/DayHours" }
+            saturday: { $ref: "#/components/schemas/DayHours" }
+            sunday: { $ref: "#/components/schemas/DayHours" }
+        isActive: { type: boolean, description: "Defaults to true on create; left out on update, it keeps the current state." }
+
+    Venue:
+      allOf:
+        - $ref: "#/components/schemas/VenueInput"
+        - type: object
+          required: [id, isActive, createdAt, createdBy, updatedAt, updatedBy]
+          properties:
+            id: { type: string, format: uuid }
+            createdAt: { type: string, format: date-time }
+            createdBy: { type: [string, "null"], format: uuid }
+            updatedAt: { type: string, format: date-time }
+            updatedBy: { type: [string, "null"], format: uuid }
+
+    VenueListItem:
+      type: object
+      required: [id, name, building, maxCapacity, isActive]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        building: { type: string }
+        maxCapacity: { type: integer }
+        isActive: { type: boolean }
