@@ -59,10 +59,6 @@ export function VenueDetail() {
           <dd style={{ margin: 0 }}>
             <Lozenge appearance={venue.isActive ? "success" : "default"}>{venue.isActive ? "Active" : "Inactive"}</Lozenge>
           </dd>
-          <dt>Setup time</dt>
-          <dd style={{ margin: 0 }}>{venue.setupMinutes} minutes</dd>
-          <dt>Turnaround time</dt>
-          <dd style={{ margin: 0 }}>{venue.turnaroundMinutes} minutes</dd>
         </dl>
       </Section>
 

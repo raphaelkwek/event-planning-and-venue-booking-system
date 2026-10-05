@@ -31,8 +31,6 @@ vi.mock("../src/api/venues.js", async () => {
         saturday: open("09:00", "18:00"),
         sunday: null,
       },
-      setupMinutes: 30,
-      turnaroundMinutes: 45,
       isActive: true,
       createdAt: "2026-10-04T01:00:00.000Z",
       createdBy: "venue-staff-id",
@@ -67,7 +65,7 @@ describe("a venue's page", () => {
     render(<App />);
     expect(await screen.findByRole("heading", { name: "Lee Kong Chian Auditorium" })).toBeTruthy();
     const summary = section("Summary").textContent!;
-    for (const text of ["School of Computing, Level 1", "300", "Active", "30 minutes", "45 minutes"]) {
+    for (const text of ["School of Computing, Level 1", "300", "Active"]) {
       expect(summary).toContain(text);
     }
     expect(within(section("Facilities")).getAllByRole("listitem").map((li) => li.textContent)).toEqual([
