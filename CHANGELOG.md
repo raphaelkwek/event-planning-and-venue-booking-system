@@ -4,6 +4,45 @@
 
 ---
 
+# H2: A venue's page shows everything recorded about it
+
+**Timestamp:** 2026-10-05T13:01+08:00 (SGT)
+**Author:** Seann, via Claude
+**Scope:**
+- The web app: `VenueDetail` (new), `VenueList` (a "View" link), `App.tsx` (the route), and `tests/venueDetail.test.tsx`.
+- The test cards: `tests/H2/` (8 cases). Traceability.
+
+**Reason:** H2 (SPM-33), Sprint 2. Coordinators judge a venue against an event's requirements from this page, and K1 and J1 build on it.
+
+## What it does
+
+1. **"View" on Venues opens a venue's page** for every internal role. It shows:
+   - the building, maximum capacity and status;
+   - each layout with its own capacity, as a table;
+   - the facilities and accessibility features, one list item each, never a yes/no flag;
+   - the opening hours, day by day.
+2. **Everything is read from the catalogue on opening,** so an update shows at once.
+3. **Venue Staff also get "Edit venue,"** which opens H1's editor.
+4. **Attendees have no route to the page.** They land on their own screen without any venue data being fetched, and the API refuses them (`403`).
+
+No API change: the page reads H1's `GET /api/v1/venues/{id}`.
+
+## Without H3
+
+5. **H2 was first built on top of H3** (CR-01's setup and turnaround times), and its page showed those two times.
+6. **H3 isn't done and isn't merged.** Its three booking cases can't run until bookings exist, so it carries over to Sprint 3 on `feature-seann/h3-setup-turnaround`.
+7. **H2 has been rebuilt from `main` without it.** The page, its test and H2-T1 no longer show the times, and H2-T1 and `tests/H2/README.md` note this. H3 adds them back when it lands.
+8. **H1's CR-01 criterion** (the record also holds the two times) is still open for the same reason.
+
+## Verified
+
+- **The 8 H2 cards pass in Chrome** through the automated runner, against `ca285fa`.
+- **H1's 14 cases still pass on this branch.**
+- **web: 43/43**, including 6 tests for this page.
+- **CI's steps all pass.**
+
+---
+
 # T2: Read and manage my notifications
 
 **Timestamp:** 2026-10-04T16:49+08:00 (SGT)
