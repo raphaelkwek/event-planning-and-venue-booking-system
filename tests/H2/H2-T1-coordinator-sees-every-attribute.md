@@ -21,8 +21,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | The page showed Lee Kong Chian Auditorium; summary "SummaryBuilding / locationSchool of Computing, Level 1Maximum capacity300StatusActive"; layouts Theatre 300, Classroom 120, Banquet 180; facilities Projector, Wireless microphones, Stage lighting; accessibility features Step-free access, Hearing loop, Accessible toilet; and hours for all seven days. |
+| Status | Pass |
+| Remarks | Commit: ca285fa · Evidence: tests/H2/evidence/H2-T1.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-05 |

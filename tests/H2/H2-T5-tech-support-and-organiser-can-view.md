@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | Both techsupport and organiser saw the venue's page (maximum capacity 300, three layouts), and neither saw an "Edit venue" button. |
+| Status | Pass |
+| Remarks | Commit: ca285fa · Evidence: tests/H2/evidence/H2-T5.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-05 |

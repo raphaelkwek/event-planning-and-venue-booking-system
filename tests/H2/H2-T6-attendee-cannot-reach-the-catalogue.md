@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | No "Venues" link. Going to the venue's address showed the attendee's own landing screen (#/console) with no venue data. The API returned 403 ROLE_NOT_AUTHORISED. |
+| Status | Pass |
+| Remarks | Commit: ca285fa · Evidence: tests/H2/evidence/H2-T6.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-05 |

@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | "Layouts" had one row per layout with its own capacity: Theatre 300, Classroom 120, Banquet 180. |
+| Status | Pass |
+| Remarks | Commit: ca285fa · Evidence: tests/H2/evidence/H2-T3.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-05 |

@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | "Accessibility features" was a list of 3 separate items (Step-free access, Hearing loop, Accessible toilet), with no yes/no indicator. |
+| Status | Pass |
+| Remarks | Commit: ca285fa · Evidence: tests/H2/evidence/H2-T2.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-05 |

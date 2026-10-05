@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | Seven rows: Monday 08:00–22:00; Tuesday 08:00–22:00; Wednesday 08:00–22:00; Thursday 08:00–22:00; Friday 08:00–22:00; Saturday 09:00–18:00; Sunday Closed. |
+| Status | Pass |
+| Remarks | Commit: ca285fa · Evidence: tests/H2/evidence/H2-T4.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-05 |
