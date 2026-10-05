@@ -16,3 +16,8 @@ T2,"A notification can be marked read individually, and all can be marked read i
 T2,"Read state persists across sessions",backend/services/notification/tests/api/notifications.test.ts,"marks one of my notifications read, leaving the others unread"
 T2,"Opening a notification navigates to the related event when the user still has access to it",frontend/tests/notifications.test.tsx,"opens the related event, marking the notification read"
 T2,"Notifications belonging to other users are never shown",backend/services/notification/tests/api/notifications.test.ts,"answers 404 for someone else's notification, and leaves it unread"
+H2,"The venue detail screen shows every catalogue attribute listed in H1, read from the venue catalogue",frontend/tests/venueDetail.test.tsx,"shows every catalogue attribute (H2 AC1)"
+H2,"Accessibility features are listed individually rather than as a single yes/no indicator",frontend/tests/venueDetail.test.tsx,"lists each accessibility feature on its own (H2 AC2)"
+H2,"Each supported layout is shown with its own capacity",frontend/tests/venueDetail.test.tsx,"shows each layout with its own capacity (H2 AC3)"
+H2,"Operating hours are shown per day of week",frontend/tests/venueDetail.test.tsx,"shows opening hours for each day of the week (H2 AC4)"
+H2,"Attendees cannot access the venue catalogue screens",backend/services/planning-core/tests/venue/api/venues.test.ts,"refuses an attendee the catalogue (H2)"
