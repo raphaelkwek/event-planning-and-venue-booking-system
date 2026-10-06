@@ -6,7 +6,7 @@
 
 # PX-07: The customer clarification log exists
 
-**Timestamp:** 2026-10-07T00:25+08:00 (SGT)
+**Timestamp:** 2026-10-06T22:15+08:00 (SGT)
 **Author:** Joash
 **Scope:** `documentation/clarifications.md` (new).
 
@@ -22,7 +22,7 @@
 
 # EN-06.2: Mutation testing shows the domain tests actually check things
 
-**Timestamp:** 2026-10-07T00:10+08:00 (SGT)
+**Timestamp:** 2026-10-06T22:07+08:00 (SGT)
 **Author:** Joash
 **Scope:**
 - Stryker 8.7.1 with its Vitest runner (root devDependencies).
@@ -69,7 +69,7 @@
 
 # EN-06.3: CI checks migrations, scans for secrets, and runs CodeQL
 
-**Timestamp:** 2026-10-06T23:30+08:00 (SGT)
+**Timestamp:** 2026-10-06T21:53+08:00 (SGT)
 **Author:** Joash
 **Scope:**
 - `.github/workflows/ci.yml`: two new jobs, `migration-lint` (squawk) and `secret-scan` (gitleaks).
@@ -107,7 +107,7 @@ Each check was proved to fail on a bad change, locally with the same commands an
 
 # EN-02.3: Fifty attempts at once: exactly one wins, and the race found a bug
 
-**Timestamp:** 2026-10-06T23:00+08:00 (SGT)
+**Timestamp:** 2026-10-06T21:44+08:00 (SGT)
 **Author:** Joash
 **Scope:**
 - planning-core tests: `tests/support/race.ts` (new, the harness) and `tests/race/invariants.test.ts` (new).
@@ -148,7 +148,7 @@ Each check was proved to fail on a bad change, locally with the same commands an
 
 # EN-02.2: Equipment availability is checked over a period
 
-**Timestamp:** 2026-10-06T22:20+08:00 (SGT)
+**Timestamp:** 2026-10-06T21:29+08:00 (SGT)
 **Author:** Joash
 **Scope:**
 - planning-core equipment module:
@@ -183,7 +183,7 @@ Each check was proved to fail on a bad change, locally with the same commands an
 
 # EN-02.1: The database refuses double-booked venues
 
-**Timestamp:** 2026-10-06T21:45+08:00 (SGT)
+**Timestamp:** 2026-10-06T21:20+08:00 (SGT)
 **Author:** Joash
 **Scope:**
 - planning-core venue module:
@@ -224,7 +224,7 @@ The migration is numbered 0003 because H3's branch takes 0002 for the venue's tw
 
 # EN-06.1: Integration tests run in CI against a throwaway Postgres
 
-**Timestamp:** 2026-10-06T21:10+08:00 (SGT)
+**Timestamp:** 2026-10-06T21:06+08:00 (SGT)
 **Author:** Joash
 **Scope:**
 - `.github/workflows/ci.yml`: a new `integration` job.
