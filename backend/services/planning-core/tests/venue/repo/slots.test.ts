@@ -15,6 +15,8 @@ import { VenueSlotConflictError } from "../../../src/modules/venue/domain/slotCo
 
 const sql = testDb();
 const ACTOR = "a3333333-0000-0000-0000-000000000001";
+/** Postgres data_exception: "range lower bound must be less than or equal to range upper bound". */
+const RANGE_BOUNDS_REVERSED = "22000";
 
 afterAll(async () => {
   await sql.end();
@@ -137,8 +139,10 @@ describe("venue_slots: one hold or booking per venue and period (N1, L3, M1)", (
   it("refuses a slot that ends before it starts, or with negative buffers, and stores nothing", async () => {
     const venueId = await newVenue();
 
+    // An end before the start can't even form the generated range, so Postgres
+    // refuses it as a data exception (22000) before the check constraint runs.
     await expect(take(slot(venueId, { startsAt: at("12:00"), endsAt: at("10:00") }))).rejects.toMatchObject({
-      code: "23514",
+      code: RANGE_BOUNDS_REVERSED,
     });
     await expect(take(slot(venueId, { startsAt: at("12:00"), endsAt: at("12:00") }))).rejects.toMatchObject({
       code: "23514",
@@ -276,7 +280,10 @@ describe("unavailability_blocks (I2)", () => {
   it("refuses a block that ends before it starts, an unknown reason type, or an empty description", async () => {
     const venueId = await newVenue();
 
-    await expect(block(venueId, { startsAt: at("18:00"), endsAt: at("08:00") })).rejects.toMatchObject({ code: "23514" });
+    await expect(block(venueId, { startsAt: at("18:00"), endsAt: at("08:00") })).rejects.toMatchObject({
+      code: RANGE_BOUNDS_REVERSED,
+    });
+    await expect(block(venueId, { startsAt: at("08:00"), endsAt: at("08:00") })).rejects.toMatchObject({ code: "23514" });
     await expect(block(venueId, { reasonType: "HOLIDAY" })).rejects.toMatchObject({ code: "23514" });
     await expect(block(venueId, { description: "   " })).rejects.toMatchObject({ code: "23514" });
   });
