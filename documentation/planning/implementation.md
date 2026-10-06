@@ -543,6 +543,12 @@ The attendee shell (§7.2) is separate. It is built in Sprint 3 as part of EN-13
 
 A test that only passes against data already sitting in the shared database fails here, which is the point. Create what a test needs inside the test, or in a seed file.
 
+**Mutation testing (EN-06.2).** Coverage says a line ran; mutation testing says a test would notice if it were wrong. Stryker plants small bugs in `src/**/domain/**`, such as `>` becoming `>=` or a message becoming empty, and reruns the domain unit tests. A planted bug that no test catches "survives". The mutation score is the share caught.
+- **On a pull request,** the `mutation` job mutates only the domain files the PR changes. It writes the score to the job summary and uploads the HTML report as `mutation-reports`. **Below 80% the build fails.**
+- **Every night,** `mutation.yml` mutates all the domain code, so the score can't drift down unnoticed.
+- **Locally:** `npm run test:mutation` (about a minute for planning-core). The report is `reports/mutation/index.html` in each workspace.
+- A mutant that can't change the result (an "equivalent" mutant) may be switched off with `// Stryker disable next-line <mutator>: <reason>` directly above the line. Explain why in the comment, as the rubric asks for unreachable coverage.
+
 **Security and migration checks (EN-06.3).**
 - **squawk** lints the migration files a pull request adds or changes, and fails the build on a risky schema change such as dropping a column or table, changing a column's type, or adding a constraint that scans a full table. `.squawk.toml` lists the rules turned off and why. Run it yourself with `npx squawk-cli@2.67.0 <file>`. A change squawk flags that you really mean can be allowed with a `-- squawk-ignore <rule>` comment above the statement, plus a reason, so a reviewer sees it.
 - **gitleaks** scans the whole git history on every push and pull request, so a secret committed and later deleted still fails the build. **If it fires, deleting the file is not enough: rotate the secret.**

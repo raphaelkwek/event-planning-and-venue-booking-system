@@ -4,6 +4,53 @@
 
 ---
 
+# EN-06.2: Mutation testing shows the domain tests actually check things
+
+**Timestamp:** 2026-10-07T00:10+08:00 (SGT)
+**Author:** Joash
+**Scope:**
+- Stryker 8.7.1 with its Vitest runner (root devDependencies).
+- planning-core and notification: `stryker.config.mjs` and `vitest.mutation.config.ts` (new), and a `test:mutation` script. Root `npm run test:mutation`.
+- CI:
+  - `.github/workflows/ci.yml`: a `mutation` job on pull requests;
+  - `.github/workflows/mutation.yml` (new): a nightly full run;
+  - `.github/scripts/mutation-summary.mjs` (new).
+- Tests strengthened where mutants survived:
+  - `tests/event/domain/validation.test.ts` (B2);
+  - `tests/venue/domain/slotConflict.test.ts`;
+  - `tests/equipment/domain/availability.test.ts`;
+  - the two boundaries values tests.
+- `availability.ts`: a comment marking two equivalent mutants. `.gitignore`: the reports and sandbox.
+- `implementation.md` §8.1.
+
+**Reason:** EN-06.2 (SPM-167), part of EN-06. The rubric asks for 100% domain coverage, but coverage only shows a line ran, not that a test would notice it was wrong. Mutation testing is that proof.
+
+## What it does
+
+1. **Stryker plants small bugs in the domain code,** then reruns the domain unit tests. Typical bugs are `>` becoming `>=`, a condition becoming `true`, or a message becoming empty. Each bug some test catches is "killed"; the mutation score is the share killed. **Below 80% the run fails.**
+2. **On a pull request, only the domain files it changes are mutated.** The score goes in the job summary and the HTML report is uploaded. **Every night,** `mutation.yml` mutates all of it.
+3. **The runs use the domain tests only** (`vitest.mutation.config.ts`). Stryker runs them in a copy of the workspace, and the domain tests need nothing outside it.
+
+## What the first run found
+
+4. **planning-core started at 91.85%** (496 of 540 mutants killed), **notification at 91.53%**.
+5. **The B2 validation tests checked which fields failed, not what they said** (24 survivors). Any refusal message could have been emptied, and a start exactly at the current moment wasn't tested. A new block pins every message and those boundaries: `validation.ts` is now at **100%**.
+6. **My new EN-02 code** had gaps:
+   - the conflict guards were tested with only one of `null` and `undefined`;
+   - the constraint names were never pinned;
+   - nothing showed the peak calculation doesn't depend on input order.
+   All three are fixed: `slotConflict.ts` is at 100%, and the boundaries tests now check the migrations create the constraints by those names.
+7. **planning-core is now at 97.04%** (524 of 540). Three of the rest are one equivalent mutant in `peakConcurrentUse`: dropping a filter can't change the result. Two are switched off with the reason in a comment, and the third is left visible because disabling it would also hide the sort check.
+8. **For Seann:** notification's `retryPolicy.ts` is at 68.75%, because its tests don't pin the header names (such as `connectsphere-error`). The workspace as a whole is at 91.53%, above the bar, so nothing fails today.
+
+## Verified
+
+- Local full runs: planning-core 97.04% in 54 seconds; notification 91.53% in 10 seconds.
+- **The build fails below the bar:** notification run with the bar temporarily at 95 exits 1 ("Final mutation score 91.53 under breaking threshold 95"). The temporary config was deleted.
+- Unit tests: planning-core 253 pass. CI runs the `mutation` job on this pull request, which changes `availability.ts`.
+
+---
+
 # EN-06.3: CI checks migrations, scans for secrets, and runs CodeQL
 
 **Timestamp:** 2026-10-06T23:30+08:00 (SGT)
