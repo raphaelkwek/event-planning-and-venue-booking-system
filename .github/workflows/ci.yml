@@ -188,3 +188,52 @@ jobs:
 
       - name: Scan the whole history for committed secrets
         run: ./gitleaks git . --redact --no-banner --exit-code 1
+
+  # EN-06.2 (SPM-167). Stryker plants small bugs in the domain code a pull
+  # request changes and checks that some unit test fails for each. Below 80% it
+  # fails the build. The full run is nightly, in mutation.yml.
+  mutation:
+    name: Mutation testing (Stryker, changed domain code)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Mutate the domain code this pull request changes
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          for ws in backend/services/planning-core backend/services/notification; do
+            mapfile -t changed < <(git diff --name-only --diff-filter=AMR "$BASE_SHA"...HEAD -- ":(glob)$ws/src/**/domain/**/*.ts" | sed "s|^$ws/||")
+            if [ "${#changed[@]}" -eq 0 ]; then
+              echo "$ws: no domain code changed."
+              continue
+            fi
+            echo "$ws: mutating ${changed[*]}"
+            (cd "$ws" && npx stryker run --mutate "$(IFS=,; echo "${changed[*]}")")
+          done
+
+      - name: Mutation score
+        if: always()
+        run: node .github/scripts/mutation-summary.mjs >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload mutation reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mutation-reports
+          path: |
+            backend/services/planning-core/reports/mutation/
+            backend/services/notification/reports/mutation/
+          if-no-files-found: ignore

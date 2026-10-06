@@ -30,6 +30,12 @@ export function peakConcurrentUse(uses: readonly QuantityInPeriod[], window: Win
       until: Math.min(use.end.getTime(), window.end.getTime()),
       quantity: use.quantity,
     }))
+    // Equivalent mutants (EN-06.2): a use outside the window clips to an empty or inverted span whose end
+    // sorts before its start, so it nets to zero and never raises the peak. Dropping or loosening this
+    // filter can't change the result; it's kept for clarity. Stryker's "remove the .filter call" mutant
+    // survives for the same reason; it's reported on the chain's first line, alongside the sort mutant
+    // that the out-of-order test kills, so it isn't disabled.
+    // Stryker disable next-line ConditionalExpression,EqualityOperator: equivalent, see above
     .filter((use) => use.from < use.until)
     .flatMap((use) => [
       { at: use.from, delta: use.quantity },

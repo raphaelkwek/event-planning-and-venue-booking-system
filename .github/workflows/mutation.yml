@@ -1,0 +1,50 @@
+# Nightly mutation testing of all domain code (EN-06.2, SPM-167). Pull requests
+# only mutate the domain files they change (ci.yml); this run covers everything,
+# so the score can't drift down unnoticed. Below 80% a workspace's step fails.
+name: Mutation testing (nightly)
+
+on:
+  schedule:
+    # 18:17 UTC is 02:17 in Singapore.
+    - cron: "17 18 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  mutation:
+    name: Stryker on all domain code
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: planning-core
+        run: npm run test:mutation -w @connectsphere/planning-core
+
+      - name: notification
+        if: always()
+        run: npm run test:mutation -w @connectsphere/notification
+
+      - name: Mutation score
+        if: always()
+        run: node .github/scripts/mutation-summary.mjs >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload mutation reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mutation-reports
+          path: |
+            backend/services/planning-core/reports/mutation/
+            backend/services/notification/reports/mutation/
+          if-no-files-found: ignore
