@@ -4,6 +4,44 @@
 
 ---
 
+# EN-06.3: CI checks migrations, scans for secrets, and runs CodeQL
+
+**Timestamp:** 2026-10-06T23:30+08:00 (SGT)
+**Author:** Joash
+**Scope:**
+- `.github/workflows/ci.yml`: two new jobs, `migration-lint` (squawk) and `secret-scan` (gitleaks).
+- `.github/workflows/codeql.yml` (new).
+- `.squawk.toml` (new).
+- `backend/scripts/migrate.ts`: a lock timeout and a statement timeout for every migration.
+- `implementation.md` §4.8 and §8.1.
+
+**Reason:** EN-06.3 (SPM-172), the last piece of EN-06's pipeline. The rubric's "code quality and CI" row asks for checks beyond tests, and a team of six with AI agents writing code needs a net for risky schema changes and for passwords committed by accident.
+
+## What it does
+
+1. **squawk lints every migration a pull request adds or changes,** and fails on schema changes that are risky on a table that already holds data:
+   - dropping a column or table;
+   - changing a column's type;
+   - a constraint that scans the whole table;
+   - adding a column that is NOT NULL without a default.
+   Merged migrations are never edited, so only new files are checked; three old event migrations would be flagged today.
+2. **Five squawk rules are off, each with its reason in `.squawk.toml`.**
+   - `int` versus `bigint`: our ints are minutes and quantities.
+   - The two per-file timeout rules: `migrate.ts` now sets a 5-second lock timeout and a 60-second statement timeout for every migration's transaction. A migration that can't get its lock now fails instead of stalling every query behind it.
+   - The two "build or drop indexes concurrently" rules: they can never pass, because Postgres refuses `CONCURRENTLY` inside a transaction, and every migration runs in one.
+3. **gitleaks scans the whole history on every push and pull request,** so a secret committed and then deleted in a later commit still fails the build. It's a pinned release, checked against its published SHA-256 before it runs, like the Cerbos binary.
+4. **CodeQL scans the JavaScript and TypeScript** on pull requests, on `main`, and every Monday. Findings go to the Security tab. It's the workflow form of CodeQL, which needs no admin rights. If a repo admin ever turns on GitHub's "default setup", this file should be deleted, because GitHub refuses both at once.
+
+## Verified
+
+Each check was proved to fail on a bad change, locally with the same commands and config, so no secret or risky migration was ever pushed to the shared repo:
+- **squawk** exits 1 on a migration that drops a column and changes a column's type, and exits 0 on this week's new migrations (venue 0003, equipment 0001).
+- **gitleaks** exits 1 on a throwaway repo where a fake GitHub token was committed and then deleted in a later commit. The repo's own 159 commits are clean.
+- **The changed-migration filter** picks out exactly `venue/0003…` over PR #18's range.
+- In CI, all jobs pass on this pull request, and CodeQL uploads its results.
+
+---
+
 # EN-02.3: Fifty attempts at once: exactly one wins, and the race found a bug
 
 **Timestamp:** 2026-10-06T23:00+08:00 (SGT)

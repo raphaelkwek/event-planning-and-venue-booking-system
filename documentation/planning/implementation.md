@@ -453,7 +453,7 @@ Zero rows returned means full; offer the waitlist (R6).
 
 ### 4.8 Migrations
 
-Forward-only, numbered, one concern per file: `0007_add_venue_slots_exclusion.sql`. Never edit a merged migration. Seed data (internal staff accounts, venues, equipment types) lives in `/backend/services/<svc>/migrations/seed/` and is idempotent.
+Forward-only, numbered, one concern per file: `0007_add_venue_slots_exclusion.sql`. Never edit a merged migration. `migrate.ts` applies each file in its own transaction with a 5-second lock timeout and a 60-second statement timeout, so a migration that can't get its lock fails instead of stalling every query behind it. squawk checks new files in CI (§8.1). Seed data (internal staff accounts, venues, equipment types) lives in `/backend/services/<svc>/migrations/seed/` and is idempotent.
 
 ## 5. HTTP API conventions
 
@@ -542,6 +542,11 @@ The attendee shell (§7.2) is separate. It is built in Sprint 3 as part of EN-13
 - It then runs `npm test` for planning-core and notification. Supabase and Kafka are placeholders that reach nothing: the tests stub token checks, and the relay tests use a fake publisher.
 
 A test that only passes against data already sitting in the shared database fails here, which is the point. Create what a test needs inside the test, or in a seed file.
+
+**Security and migration checks (EN-06.3).**
+- **squawk** lints the migration files a pull request adds or changes, and fails the build on a risky schema change such as dropping a column or table, changing a column's type, or adding a constraint that scans a full table. `.squawk.toml` lists the rules turned off and why. Run it yourself with `npx squawk-cli@2.67.0 <file>`. A change squawk flags that you really mean can be allowed with a `-- squawk-ignore <rule>` comment above the statement, plus a reason, so a reviewer sees it.
+- **gitleaks** scans the whole git history on every push and pull request, so a secret committed and later deleted still fails the build. **If it fires, deleting the file is not enough: rotate the secret.**
+- **CodeQL** (`.github/workflows/codeql.yml`) scans the JavaScript and TypeScript on every pull request, on `main`, and weekly. Findings appear in the repository's Security tab.
 
 **Coverage (SPM-116).** `test:unit` measures coverage with Vitest's v8 provider, and each workspace's Vitest config sets thresholds that fail the build:
 - **`src/**/domain/**` must stay at 100%** of lines, branches, functions and statements, in line with the target above. If a line genuinely can't be covered, say why in a comment in the test file; never lower the threshold.
