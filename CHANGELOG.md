@@ -4,6 +4,31 @@
 
 ---
 
+# EN-06.1: Integration tests run in CI against a throwaway Postgres
+
+**Timestamp:** 2026-10-06T21:10+08:00 (SGT)
+**Author:** Joash
+**Scope:**
+- `.github/workflows/ci.yml`: a new `integration` job.
+- `backend/scripts/migrate.ts`: an `all` target. Root `package.json`: `npm run migrate:all`.
+- `implementation.md` §8.1 and `README.md` (setup steps 4 to 7).
+
+**Reason:** EN-06.1 (SPM-162), part of EN-06. Integration tests only ran on laptops, against the team's shared Supabase database, so no pull request ever ran them. EN-02.3's race tests also need a database CI owns.
+
+## What it does
+
+1. **A Postgres 17 service container** starts for the job and is thrown away with the runner. CLAUDE.md allows containers in CI only, and this is the only one.
+2. **The job refuses to run** unless `DATABASE_URL` points at the runner itself, so CI can't reach the shared database by mistake.
+3. **`npm run migrate:all` builds every schema from nothing:** identity with its seeds, then event, venue, equipment, change and notification. A new module has to be added to the list in `migrate.ts`. `--seed` now skips modules that have no `seed/` folder instead of failing.
+4. **planning-core's and notification's full suites run against it.** Supabase and Kafka are placeholders that reach nothing: the tests stub token checks, and the relay tests use a fake publisher.
+
+## Verified
+
+- **First CI run, green:** planning-core 33 files and 410 tests, notification 10 files and 72 tests, all on a database built only from the migrations. No test depended on leftover data in the shared database.
+- The unit-test job is unchanged and still green.
+
+---
+
 # H2: A venue's page shows everything recorded about it
 
 **Timestamp:** 2026-10-05T13:01+08:00 (SGT)

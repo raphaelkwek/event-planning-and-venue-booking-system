@@ -11,6 +11,7 @@
     "dev": "concurrently --kill-others-on-fail --names core,notif,web --prefix-colors blue,magenta,green \"npm run dev -w @connectsphere/planning-core\" \"npm run dev -w @connectsphere/notification\" \"npm run dev -w @connectsphere/web\"",
     "kafka:check": "tsx backend/scripts/kafka-check.ts",
     "migrate": "tsx backend/scripts/migrate.ts",
+    "migrate:all": "tsx backend/scripts/migrate.ts all --seed",
     "migrate:identity": "tsx backend/scripts/migrate.ts identity --seed",
     "migrate:event": "tsx backend/scripts/migrate.ts event",
     "migrate:notification": "tsx backend/scripts/migrate.ts notification",

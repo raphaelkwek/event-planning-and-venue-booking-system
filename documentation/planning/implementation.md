@@ -521,7 +521,14 @@ The attendee shell (§7.2) is separate. It is built in Sprint 3 as part of EN-13
 
 **Target: 100% coverage of `/domain`,** and where it isn't reachable, a comment in the test file saying why. The rubric asks for exactly this.
 
-**What CI runs (SPM-114).** `.github/workflows/ci.yml` runs `npm run lint` (ESLint and the module boundary checks), `typecheck`, `build` and `test:unit` on every pull request and every push to `main`. A test counts as a unit test when it sits under a `domain/` or `boundaries/` folder, or is named `*.unit.test.ts`. It must not touch a database, because CI gives it only placeholder credentials. Integration tests still run only locally, with `npm test` against Supabase, until EN-06.1 gives CI a throwaway Postgres; CI never uses the shared database.
+**What CI runs (SPM-114).** `.github/workflows/ci.yml` runs `npm run lint` (ESLint and the module boundary checks), `typecheck`, `build` and `test:unit` on every pull request and every push to `main`. A test counts as a unit test when it sits under a `domain/` or `boundaries/` folder, or is named `*.unit.test.ts`. It must not touch a database, because that job gives it only placeholder credentials.
+
+**Integration tests in CI (EN-06.1).** A second job, `Integration tests (throwaway Postgres)`, runs every test that needs a database:
+- It starts a `postgres:17` service container that lives only as long as the job, and refuses to run if `DATABASE_URL` points anywhere but the runner itself. CI never uses the shared database.
+- `npm run migrate:all` builds every schema from nothing, in the order set in `backend/scripts/migrate.ts`, with the identity seeds. **A new module or service must be added to that list**, or CI won't create its tables.
+- It then runs `npm test` for planning-core and notification. Supabase and Kafka are placeholders that reach nothing: the tests stub token checks, and the relay tests use a fake publisher.
+
+A test that only passes against data already sitting in the shared database fails here, which is the point. Create what a test needs inside the test, or in a seed file.
 
 **Coverage (SPM-116).** `test:unit` measures coverage with Vitest's v8 provider, and each workspace's Vitest config sets thresholds that fail the build:
 - **`src/**/domain/**` must stay at 100%** of lines, branches, functions and statements, in line with the target above. If a line genuinely can't be covered, say why in a comment in the test file; never lower the threshold.
