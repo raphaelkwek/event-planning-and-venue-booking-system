@@ -18,6 +18,8 @@ import { InsufficientEquipmentError, UnitAlreadyReservedError } from "../../src/
  */
 
 const ATTEMPTS = 50;
+/** Each "exactly one" race is run this many times: a race that passes once can still lose rarely. */
+const ROUNDS = 10;
 const ACTOR = "a5555555-0000-0000-0000-000000000001";
 const sql = testDb();
 
@@ -61,21 +63,23 @@ const reservationFor = (index: number) => ({
   actorUserId: ACTOR,
 });
 
-describe.runIf(isThrowawayDatabase())(`${ATTEMPTS} attempts at the same moment (EN-02.3)`, () => {
+describe.runIf(isThrowawayDatabase())(`${ATTEMPTS} attempts at the same moment (EN-02.3)`, { timeout: 60_000 }, () => {
   it("N1, L3: exactly one of 50 overlapping holds on one venue succeeds; the other 49 get the conflict refusal", async () => {
-    const venueId = await newVenue();
+    for (let round = 0; round < ROUNDS; round += 1) {
+      const venueId = await newVenue();
 
-    const results = await race(ATTEMPTS, (tx, i) => insertVenueSlot(tx, slot(venueId, i, at("10:00"), at("12:00"))));
+      const results = await race(ATTEMPTS, (tx, i) => insertVenueSlot(tx, slot(venueId, i, at("10:00"), at("12:00"))));
 
-    expect(winners(results)).toHaveLength(1);
-    const refused = losers(results);
-    expect(refused).toHaveLength(ATTEMPTS - 1);
-    for (const reason of refused) {
-      expect(reason).toBeInstanceOf(VenueSlotConflictError);
-      expect((reason as VenueSlotConflictError).conflictingReferences).toEqual([winners(results)[0]!.reference]);
+      expect(winners(results)).toHaveLength(1);
+      const refused = losers(results);
+      expect(refused).toHaveLength(ATTEMPTS - 1);
+      for (const reason of refused) {
+        expect(reason).toBeInstanceOf(VenueSlotConflictError);
+        expect((reason as VenueSlotConflictError).conflictingReferences).toEqual([winners(results)[0]!.reference]);
+      }
+      const [stored] = await sql<{ n: number }[]>`select count(*)::int as n from venue.venue_slots where venue_id = ${venueId}`;
+      expect(stored!.n).toBe(1);
     }
-    const [stored] = await sql<{ n: number }[]>`select count(*)::int as n from venue.venue_slots where venue_id = ${venueId}`;
-    expect(stored!.n).toBe(1);
   });
 
   it("N1: all of 50 back-to-back holds that merely touch succeed", async () => {
@@ -91,27 +95,29 @@ describe.runIf(isThrowawayDatabase())(`${ATTEMPTS} attempts at the same moment (
   });
 
   it("Q1: exactly one of 50 reservations of the last free projector succeeds", async () => {
-    const [type] = await sql<{ id: string }[]>`
-      insert into equipment.equipment_types (name, kind, created_by, updated_by)
-      values (${`EN-02.3 Projector ${randomUUID().slice(0, 8)}`}, 'SERIALIZED', ${ACTOR}, ${ACTOR})
-      returning id
-    `;
-    const [unit] = await sql<{ id: string }[]>`
-      insert into equipment.equipment_units (equipment_type_id, label, created_by, updated_by)
-      values (${type!.id}, 'PROJ-LAST', ${ACTOR}, ${ACTOR})
-      returning id
-    `;
+    for (let round = 0; round < ROUNDS; round += 1) {
+      const [type] = await sql<{ id: string }[]>`
+        insert into equipment.equipment_types (name, kind, created_by, updated_by)
+        values (${`EN-02.3 Projector ${randomUUID().slice(0, 8)}`}, 'SERIALIZED', ${ACTOR}, ${ACTOR})
+        returning id
+      `;
+      const [unit] = await sql<{ id: string }[]>`
+        insert into equipment.equipment_units (equipment_type_id, label, created_by, updated_by)
+        values (${type!.id}, 'PROJ-LAST', ${ACTOR}, ${ACTOR})
+        returning id
+      `;
 
-    const results = await race(ATTEMPTS, (tx, i) => reserveUnit(tx, { unitId: unit!.id, ...reservationFor(i) }));
+      const results = await race(ATTEMPTS, (tx, i) => reserveUnit(tx, { unitId: unit!.id, ...reservationFor(i) }));
 
-    expect(winners(results)).toHaveLength(1);
-    for (const reason of losers(results)) {
-      expect(reason).toBeInstanceOf(UnitAlreadyReservedError);
+      expect(winners(results)).toHaveLength(1);
+      for (const reason of losers(results)) {
+        expect(reason).toBeInstanceOf(UnitAlreadyReservedError);
+      }
+      const [stored] = await sql<{ n: number }[]>`
+        select count(*)::int as n from equipment.unit_reservations where unit_id = ${unit!.id} and status = 'RESERVED'
+      `;
+      expect(stored!.n).toBe(1);
     }
-    const [stored] = await sql<{ n: number }[]>`
-      select count(*)::int as n from equipment.unit_reservations where unit_id = ${unit!.id} and status = 'RESERVED'
-    `;
-    expect(stored!.n).toBe(1);
   });
 
   it("Q1: exactly one of 50 reservations of the last chair in bulk stock succeeds, and the rest learn they are 1 short", async () => {
