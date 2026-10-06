@@ -4,6 +4,41 @@
 
 ---
 
+# EN-02.2: Equipment availability is checked over a period
+
+**Timestamp:** 2026-10-06T22:20+08:00 (SGT)
+**Author:** Joash
+**Scope:**
+- planning-core equipment module:
+  - migration `0001_equipment_inventory.sql` (the module's first);
+  - `repo/inventory.ts` (new): `reserveUnit`, `reserveBulk`, `availableUnits`, `peakUse`, `lockEquipmentType`;
+  - `domain/availability.ts` (new).
+- contracts: `equipment.ts` (new) and the `INSUFFICIENT_EQUIPMENT` error code.
+- Tests: `tests/equipment/repo/inventory.test.ts` (integration), `tests/equipment/domain/availability.test.ts`, `tests/boundaries/equipmentValues.test.ts`, and `contracts/tests/equipment.test.ts`. `tests/support/checkConstraints.ts` (new) is now shared with EN-02.1's values test.
+- `implementation.md` §4.6, an "as built" note.
+
+**Reason:** EN-02.2 (SPM-165), the equipment half of EN-02 (ADR-0006). The old design kept one counter per equipment type with no dates, so it couldn't tell Friday afternoon from Saturday. This unblocks O1, P2, P1 (once CQ-02 is answered) and EN-02.3, and gives Q1 and Q2 the tables they build on.
+
+## What it does
+
+1. **Serialized equipment** (a projector) has one row per unit. A per-unit exclusion constraint refuses a second reservation of the same unit for an overlapping period. `reserveUnit` reports that as `UnitAlreadyReservedError`, naming the unit. Touching periods are allowed.
+2. **Bulk stock** (chairs) has a total on its type.
+   - `reserveBulk` takes the type's row lock, works out the **peak concurrent use** inside the window, and reserves only if the new quantity fits under the total at that busiest moment.
+   - Otherwise it refuses with `INSUFFICIENT_EQUIPMENT`, naming the requested, available and shortfall quantities, and reserves nothing.
+   - The lock makes two simultaneous reservations take turns.
+3. **Unavailability** marks one unit, or a quantity of bulk stock, out of service for a period with a reason. It counts as in use for both kinds.
+4. **Peak use, not summed overlaps.** Back-to-back reservations aren't counted together. P1's wording could be read the other way, and CQ-02 asks the customer. The rule lives only in `peakConcurrentUse`, so the answer is a one-file change.
+5. **The database keeps the kinds apart.** Composite foreign keys on (type, kind) mean a unit can only belong to a serialized type, and a bulk reservation only to bulk stock. A bulk type must have a total, and a serialized type mustn't.
+6. **Nothing is deleted:** reservations are released, and unavailability is removed, by status. The values live in contracts, and a boundaries test keeps the migration's check lists equal to them.
+
+## Verified
+
+- **CI, first run, green.** All 16 equipment integration tests pass on the throwaway Postgres, including **two simultaneous reservations of one unit, and of the last bulk unit, where exactly one wins**.
+- **A property test compares `peakConcurrentUse` with a minute-by-minute count** on 300 seeded random cases, as EN-02.2 recommended.
+- Unit tests: planning-core 240 and contracts 77. Domain coverage stays at 100%.
+
+---
+
 # EN-02.1: The database refuses double-booked venues
 
 **Timestamp:** 2026-10-06T21:45+08:00 (SGT)
