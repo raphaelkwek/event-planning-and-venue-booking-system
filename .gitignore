@@ -11,6 +11,9 @@ node_modules/
 # Node / ConnectSphere services
 node_modules/
 coverage/
+# Stryker mutation testing (EN-06.2): its reports and its sandbox copies
+**/reports/mutation/
+.stryker-tmp/
 *.tsbuildinfo
 
 # Byte-compiled / optimized / DLL files

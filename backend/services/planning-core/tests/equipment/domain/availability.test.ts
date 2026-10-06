@@ -42,6 +42,12 @@ describe("peakConcurrentUse", () => {
     expect(peakConcurrentUse([use("10:00", "12:00", 4), use("12:00", "14:00", 5)], window("09:00", "17:00"))).toBe(5);
   });
 
+  it("does not depend on the order the uses are listed in", () => {
+    const uses = [use("12:00", "14:00", 5), use("11:00", "12:30", 2), use("10:00", "12:00", 4)];
+    expect(peakConcurrentUse(uses, window("09:00", "17:00"))).toBe(7);
+    expect(peakConcurrentUse([...uses].reverse(), window("09:00", "17:00"))).toBe(7);
+  });
+
   it("takes the highest moment, not the sum of everything in the window", () => {
     const uses = [use("09:00", "10:00", 6), use("11:00", "12:00", 2), use("11:30", "13:00", 3), use("15:00", "16:00", 4)];
     expect(peakConcurrentUse(uses, window("09:00", "17:00"))).toBe(6);
@@ -89,8 +95,12 @@ describe("availableQuantity and shortfall", () => {
 });
 
 describe("isUnitOverlap", () => {
+  it("names the constraint migration equipment/0001 creates", () => {
+    expect(UNIT_OVERLAP_CONSTRAINT).toBe("unit_not_double_reserved");
+  });
+
   it("recognises the per-unit exclusion constraint's violation", () => {
-    expect(isUnitOverlap({ code: "23P01", constraint_name: UNIT_OVERLAP_CONSTRAINT })).toBe(true);
+    expect(isUnitOverlap({ code: "23P01", constraint_name: "unit_not_double_reserved" })).toBe(true);
   });
 
   it("ignores other constraints and other errors", () => {
@@ -98,6 +108,7 @@ describe("isUnitOverlap", () => {
     expect(isUnitOverlap({ code: "23505", constraint_name: UNIT_OVERLAP_CONSTRAINT })).toBe(false);
     expect(isUnitOverlap(new Error("boom"))).toBe(false);
     expect(isUnitOverlap(undefined)).toBe(false);
+    expect(isUnitOverlap(null)).toBe(false);
   });
 });
 

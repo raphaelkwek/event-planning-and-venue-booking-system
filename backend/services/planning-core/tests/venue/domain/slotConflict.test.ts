@@ -13,8 +13,12 @@ import {
  */
 
 describe("isSlotOverlap", () => {
+  it("names the constraint migration venue/0003 creates", () => {
+    expect(SLOT_OVERLAP_CONSTRAINT).toBe("venue_slot_no_overlap");
+  });
+
   it("recognises the venue slot exclusion constraint's violation", () => {
-    expect(isSlotOverlap({ code: "23P01", constraint_name: SLOT_OVERLAP_CONSTRAINT })).toBe(true);
+    expect(isSlotOverlap({ code: "23P01", constraint_name: "venue_slot_no_overlap" })).toBe(true);
   });
 
   it("ignores an exclusion violation from any other constraint", () => {
@@ -28,6 +32,7 @@ describe("isSlotOverlap", () => {
   it("ignores errors that are not database errors at all", () => {
     expect(isSlotOverlap(new Error("connection reset"))).toBe(false);
     expect(isSlotOverlap(null)).toBe(false);
+    expect(isSlotOverlap(undefined)).toBe(false);
     expect(isSlotOverlap("23P01")).toBe(false);
   });
 });
