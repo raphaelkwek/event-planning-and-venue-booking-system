@@ -5,6 +5,7 @@ import {
   EQUIPMENT_UNAVAILABILITY_STATUSES,
 } from "@connectsphere/contracts";
 import { checkedValues, readMigration } from "../support/checkConstraints.js";
+import { UNIT_OVERLAP_CONSTRAINT } from "../../src/modules/equipment/domain/availability.js";
 
 /** The equipment migration's check constraints list exactly what contracts lists (implementation.md §4.1). */
 
@@ -28,5 +29,9 @@ describe("equipment migration 0001 and contracts", () => {
     expect(checkedValues(migration, "status", "create table equipment.unavailability")).toEqual([
       ...EQUIPMENT_UNAVAILABILITY_STATUSES,
     ]);
+  });
+
+  it("creates the exclusion constraint the domain code recognises by name", () => {
+    expect(migration).toContain(`constraint ${UNIT_OVERLAP_CONSTRAINT}`);
   });
 });

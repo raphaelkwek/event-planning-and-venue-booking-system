@@ -5,6 +5,7 @@ import {
   VENUE_SLOT_STATUSES,
 } from "@connectsphere/contracts";
 import { checkedValues, readMigration } from "../support/checkConstraints.js";
+import { SLOT_OVERLAP_CONSTRAINT } from "../../src/modules/venue/domain/slotConflict.js";
 
 /** The venue migration's check constraints list exactly what contracts lists (implementation.md §4.1). */
 
@@ -25,5 +26,9 @@ describe("venue migration 0003 and contracts", () => {
     expect(checkedValues(migration, "status", "create table venue.unavailability_blocks")).toEqual([
       ...UNAVAILABILITY_BLOCK_STATUSES,
     ]);
+  });
+
+  it("creates the exclusion constraint the domain code recognises by name", () => {
+    expect(migration).toContain(`constraint ${SLOT_OVERLAP_CONSTRAINT}`);
   });
 });
