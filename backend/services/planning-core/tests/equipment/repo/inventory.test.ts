@@ -267,7 +267,9 @@ describe("table rules the database enforces", () => {
 
     await expect(insert({ quantity: null, reason: "Neither", from: "10:00", until: "11:00" })).rejects.toMatchObject({ code: "23514" });
     await expect(insert({ quantity: 2, reason: "  ", from: "10:00", until: "11:00" })).rejects.toMatchObject({ code: "23514" });
-    await expect(insert({ quantity: 2, reason: "Backwards", from: "11:00", until: "10:00" })).rejects.toMatchObject({ code: "23514" });
+    // An end before the start can't form the generated range: Postgres refuses it as a data exception.
+    await expect(insert({ quantity: 2, reason: "Backwards", from: "11:00", until: "10:00" })).rejects.toMatchObject({ code: "22000" });
+    await expect(insert({ quantity: 2, reason: "No length", from: "10:00", until: "10:00" })).rejects.toMatchObject({ code: "23514" });
     await expect(insert({ quantity: 2, reason: "Cleaning", from: "10:00", until: "11:00" })).resolves.toBeDefined();
   });
 });
