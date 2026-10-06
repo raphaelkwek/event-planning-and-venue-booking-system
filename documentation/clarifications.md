@@ -1,6 +1,6 @@
 # Customer clarification log
 
-**Owner:** the Product Owner (PX-07, SPM-148) · **Started by:** Joash, 7 Oct 2026
+**Owner:** the Product Owner (PX-07, SPM-148) · **Started by:** Joash, 6 Oct 2026
 
 Every question we put to the customer, and every answer, goes here. A story's acceptance criteria change **only after** the answer is recorded here. Then the story is revised, with a ⚠ note citing the entry (`final user stories.md`).
 
