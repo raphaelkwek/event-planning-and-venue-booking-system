@@ -1,0 +1,26 @@
+# squawk lints the migration files a pull request changes (EN-06.3, SPM-172).
+# It flags schema changes that are risky on a table that already holds data:
+# dropping columns or tables, building an index while blocking writes, adding a
+# constraint that scans the whole table, changing a column's type, and so on.
+#
+# Turned off, with reasons:
+# - prefer-bigint-over-int: our ints are minutes, quantities and capacities,
+#   nowhere near 2^31. Ids are uuid (implementation.md §4.1).
+# - require-lock-timeout, require-statement-timeout: backend/scripts/migrate.ts
+#   sets both for every migration's transaction, so no file has to repeat them.
+# - require-concurrent-index-creation, require-concurrent-index-deletion:
+#   migrate.ts applies each file in one transaction, and Postgres refuses
+#   CREATE or DROP INDEX CONCURRENTLY inside a transaction, so these could never
+#   pass. Our tables are small enough that a brief write lock is acceptable.
+
+excluded_rules = [
+  "prefer-bigint-over-int",
+  "require-lock-timeout",
+  "require-statement-timeout",
+  "require-concurrent-index-creation",
+  "require-concurrent-index-deletion",
+]
+
+# migrate.ts applies each file inside one transaction.
+assume_in_transaction = true
+pg_version = "17.0"

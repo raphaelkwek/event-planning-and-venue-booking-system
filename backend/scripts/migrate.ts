@@ -14,6 +14,9 @@ import postgres from "postgres";
 // throwaway database from nothing (EN-06.1), so a new module belongs here too.
 const ALL = ["identity", "event", "venue", "equipment", "change", "notification"] as const;
 
+const LOCK_TIMEOUT = "5s";
+const STATEMENT_TIMEOUT = "60s";
+
 const target = process.argv[2];
 if (!target) {
   console.error("Usage: tsx backend/scripts/migrate.ts <module-or-service|all> [--seed]");
@@ -57,6 +60,12 @@ async function migrate(service: string) {
       const text = readFileSync(join(dir, file), "utf8");
       console.log(`apply ${service}/${file}`);
       await sql.begin(async (tx) => {
+        // A migration that waits too long for a lock, or runs too long, fails
+        // instead of stalling every query behind it (squawk's timeout rules,
+        // .squawk.toml). set_config(..., true) is SET LOCAL: this file's
+        // transaction only.
+        await tx`select set_config('lock_timeout', ${LOCK_TIMEOUT}, true)`;
+        await tx`select set_config('statement_timeout', ${STATEMENT_TIMEOUT}, true)`;
         await tx.unsafe(text);
         await tx`
           insert into public.schema_migrations (service, filename)
