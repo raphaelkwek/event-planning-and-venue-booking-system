@@ -4,6 +4,47 @@
 
 ---
 
+# EN-02.1: The database refuses double-booked venues
+
+**Timestamp:** 2026-10-06T21:45+08:00 (SGT)
+**Author:** Joash
+**Scope:**
+- planning-core venue module:
+  - migration `0003_venue_slots_and_unavailability.sql`;
+  - `repo/slots.ts` (new): `insertVenueSlot`, `lockVenue`;
+  - `domain/slotConflict.ts` (new).
+- contracts: `venueSlots.ts` (new) and the `VENUE_SLOT_CONFLICT` error code.
+- Tests: `tests/venue/repo/slots.test.ts` (integration), `tests/venue/domain/slotConflict.test.ts`, `tests/boundaries/venueValues.test.ts`, and `contracts/tests/venueSlots.test.ts`.
+- `implementation.md` §4.6, an "as built" note.
+
+**Reason:** EN-02.1 (SPM-160), the venue half of EN-02 (ADR-0006). N1, L3 and M1 require that exactly one of two racing holds or bookings succeeds, which a check in application code can't promise. This also unblocks I1, J1 and EN-02.3, and gives Sprint 3's L3, L1, M1, N1 and I2 the table they build on.
+
+## What it does
+
+1. **`venue.venue_slots` holds every hold and confirmed booking.** One exclusion constraint, `venue_slot_no_overlap`, refuses any two HELD or CONFIRMED slots at the same venue whose occupied periods overlap. Periods that merely touch are allowed.
+2. **The occupied period includes setup and turnaround time** (CR-01, H3): `[start − setup, end + turnaround)`.
+   - Each slot copies the venue's two times when it's taken, so changing them later never rewrites a stored period. H3 flags the bookings that would now conflict instead.
+   - A small `venue.occupied_period` function computes it. It's declared immutable, because Postgres treats `timestamptz + interval` as only stable (days and months depend on the time zone; whole minutes don't).
+3. **Requires Reconfirmation is a boolean column,** so a flagged booking stays CONFIRMED and keeps blocking its period. RELEASED and EXPIRED slots block nothing (L6's expiry needs no constraint change).
+4. **`insertVenueSlot` turns the constraint's refusal into one people can act on.** It inserts in a savepoint. On Postgres `23P01` it looks up what the period overlapped and throws `VenueSlotConflictError` (`VENUE_SLOT_CONFLICT`), naming every reference. The look-up only shapes the message; the constraint already decided.
+5. **`lockVenue` takes the venue row `for update`.** M1's approval and I2's block both call it first, so they serialise per venue (§4.6 rule 1).
+6. **`venue.unavailability_blocks` is I2's table:**
+   - CR-02's reason types (maintenance, equipment failure, renovation, safety, other);
+   - a mandatory description;
+   - removal by status (`REMOVED`), never by deleting.
+   A block doesn't refuse an overlapping booking; I2 flags the booking.
+7. **The status and reason values live in contracts.** A boundaries test fails if the migration's check lists drift from them.
+
+The migration is numbered 0003 because H3's branch takes 0002 for the venue's two times. Nothing here depends on that, so the two can merge in either order.
+
+## Verified
+
+- **CI integration job:** all slot tests pass on the throwaway Postgres (EN-06.1), including **two simultaneous bookings where exactly one wins**, the customer's own CR-01 example (10:00–12:00 with 30 and 45 minutes occupies 09:30–12:45), and a second locker waiting on `lockVenue`.
+- **The first CI run caught one wrong expectation in my tests:** an end before the start fails as a range error (`22000`) before the check constraint runs (`23514`). It is refused either way and nothing is stored; the test now says so.
+- Unit tests: planning-core 223 and contracts 73. Domain coverage stays at 100%.
+
+---
+
 # EN-06.1: Integration tests run in CI against a throwaway Postgres
 
 **Timestamp:** 2026-10-06T21:10+08:00 (SGT)

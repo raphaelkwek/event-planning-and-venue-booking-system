@@ -374,6 +374,12 @@ Model holds and confirmed bookings as rows in one table (`venue_slots`) so a sin
 
 `blocked_period` is the **occupied period**, `[start − setup, end + turnaround)`, using the venue's setup and turnaround minutes. They were zero until the Week 7 change CR-01 (H3) made them per-venue settings; the column was designed for that, so it's a data change rather than a redesign. When a venue's buffers change, don't rewrite stored periods, because the constraint would reject new overlaps. Compute the would-be periods and flag the bookings that now conflict as Requires Reconfirmation (H3). Holds that pass their expiry become `EXPIRED` (L6, CR-04), which the constraint's `HELD`/`CONFIRMED` filter already ignores.
 
+**As built (EN-02.1, `migrations/venue/0003_venue_slots_and_unavailability.sql`).** Stories that take or check a slot call these, in the venue module:
+- `insertVenueSlot(tx, slot)` in `repo/slots.ts` inserts a HELD or CONFIRMED slot. Pass the venue's current setup and turnaround minutes; the slot keeps its own copy. An overlap comes back as `VenueSlotConflictError` (`VENUE_SLOT_CONFLICT`), naming every overlapped reference.
+- `lockVenue(tx, venueId)` takes the venue row lock (rule 1 below).
+- `venue.unavailability_blocks` holds I2's blocks. A block is removed by setting its status to `REMOVED`.
+- The status and reason values are in contracts (`VENUE_SLOT_STATUSES`, `UNAVAILABILITY_REASON_TYPES`).
+
 **Three rules the constraint alone doesn't give you:**
 
 1. **Approval and blocking take the venue row lock first (M1, I2).** M1 approving a booking and I2 recording a period of unavailability both start with `select … from venue.venues where id = $venue for update`. Without it, a block created during an approval can leave an unflagged confirmed booking overlapping the block. With it, the two serialise per venue: whichever runs second sees the other's result, and I2 flags the overlapping booking.
