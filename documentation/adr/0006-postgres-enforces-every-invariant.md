@@ -50,6 +50,14 @@ Two further rules:
 
 **Implemented by:** EN-02 (SPM-120) and EN-13 (SPM-131). **Updates:** `implementation.md` §4.5 to §4.7.
 
+## As built: conflicting inserts need a lock as well (EN-02.3, 6 Oct 2026)
+
+EN-02.3's race harness fires fifty attempts at once, ten rounds each. It found that the exclusion constraints alone let some losers fail the wrong way.
+- **What happens:** two conflicting inserts in flight at the same time can each wait for the other on the constraint. Postgres then aborts one as a **deadlock (`40P01`)**, not an overlap (`23P01`).
+- **Why it matters:** the user would get a server error instead of N1's or Q1's refusal. The guarantee itself held, because exactly one insert won each time; the refusal didn't.
+- **The fix:** every venue slot insert takes the venue row lock, the one M1 and I2 already take. Every equipment reservation takes its type's row lock, the one bulk stock already takes. Contenders queue, and each loser meets a committed winner. The constraints still decide.
+- **Cost:** inserts for one venue, or one equipment type, run one at a time. At this system's scale that's milliseconds.
+
 ## Week 7 customer changes (2 Oct 2026)
 
 These are recorded in `documentation/change-requests.md`. None of them changes the decision; they use the room it left.

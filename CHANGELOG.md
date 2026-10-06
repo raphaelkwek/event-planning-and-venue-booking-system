@@ -4,6 +4,47 @@
 
 ---
 
+# EN-02.3: Fifty attempts at once: exactly one wins, and the race found a bug
+
+**Timestamp:** 2026-10-06T23:00+08:00 (SGT)
+**Author:** Joash
+**Scope:**
+- planning-core tests: `tests/support/race.ts` (new, the harness) and `tests/race/invariants.test.ts` (new).
+- The fix: `src/modules/venue/repo/slots.ts` (`insertVenueSlot` takes the venue lock) and `src/modules/equipment/repo/inventory.ts` (`reserveUnit` takes the type lock).
+- Docs: `implementation.md` §4.6 rule 4 and the as-built notes; ADR-0006, an "As built" section.
+- Traceability: four rows linking N1's and Q1's "exactly one succeeds" and "touching periods" criteria to the races.
+
+**Reason:** EN-02.3 (SPM-170), the last piece of EN-02. N1, L3 and Q1 promise that when attempts race, exactly one wins. EN-02.1 and EN-02.2 built that guarantee into the database; this proves it under real contention.
+
+## What it does
+
+1. **The harness** (`race.ts`) opens one connection per attempt and starts a transaction on each. A barrier holds every attempt until all fifty transactions are open, then releases them together. It refuses to run against anything but this machine's own Postgres, so it never touches the shared database. In CI that's the throwaway one from EN-06.1.
+2. **Four races, fifty attempts each:**
+   - overlapping holds on one venue: exactly one wins, and the other 49 get the overlap refusal naming the winner;
+   - holds that merely touch: all fifty win;
+   - the last free projector: exactly one wins;
+   - the last chair of bulk stock: exactly one wins, and the rest learn they're 1 short.
+   The three "exactly one" races run ten rounds each, because one clean run doesn't rule out a rare loss.
+
+## The bug it found
+
+3. **With one round, every race passed. With ten, some losers failed with "deadlock detected" (`40P01`)** instead of the overlap refusal, for venue slots and projectors alike.
+   - Two conflicting inserts in flight at once can each wait for the other on the exclusion constraint, and Postgres aborts one.
+   - Exactly one insert still won every time, so the guarantee held. But a user would have seen a server error instead of N1's or Q1's refusal message.
+   - EN-02.1's two-attempt test couldn't have caught it.
+4. **The fix: contenders queue on a row lock.**
+   - `insertVenueSlot` takes the venue row lock first, the lock M1 and I2 already take.
+   - `reserveUnit` takes its equipment type's row lock, as bulk reservations already do.
+   - Each loser now meets an already committed winner and gets the clean refusal. The exclusion constraints still decide.
+   - This is recorded as rule 4 in `implementation.md` §4.6 and in ADR-0006.
+
+## Verified
+
+- **CI, with the fix:** all four races pass, ten rounds of fifty for each "exactly one" race, with no deadlocks. Planning-core's suite is 480 tests on the throwaway Postgres. The job was re-run once more and passed again.
+- **Before the fix:** the same tests failed with `deadlock detected` in the venue and projector races.
+
+---
+
 # EN-02.2: Equipment availability is checked over a period
 
 **Timestamp:** 2026-10-06T22:20+08:00 (SGT)
