@@ -410,6 +410,12 @@ select total_quantity from equipment.equipment_types where id = $type for update
 
 Steps 1 to 3 run in one transaction at `READ COMMITTED`. The row lock is what makes the check safe. Never check availability without taking that lock first.
 
+**As built (EN-02.2, `migrations/equipment/0001_equipment_inventory.sql`).** P1, P2, Q1 and Q2 call these, in the equipment module's `repo/inventory.ts`:
+- `reserveUnit(tx, …)` claims one serialized unit. An overlap comes back as `UnitAlreadyReservedError`; Q1 then tries the next unit from `availableUnits(tx, typeId, period)`, or refuses with the shortfall.
+- `reserveBulk(tx, …)` runs steps 1 to 3 above. A refusal is `InsufficientEquipmentError` (`INSUFFICIENT_EQUIPMENT`), carrying the requested, available and shortfall quantities.
+- `peakUse(tx, typeId, period)` counts quantities recorded unavailable as in use. `lockEquipmentType(tx, typeId)` is the lock P2 takes before reducing a total.
+- The formula itself is `peakConcurrentUse` in `domain/availability.ts`, the only place to change if CQ-02 is answered "summed overlaps".
+
 **P1 is waiting on a customer answer (CQ-02, SPM-157).** P1's literal text subtracts every overlapping reservation added up, which counts back-to-back bookings as simultaneous. The design computes **peak concurrent use**, and it can switch to summed overlaps if the customer says so. Don't change P1's acceptance criteria until the answer is recorded in `documentation/clarifications.md`.
 
 **Registration capacity** (R2, R7) — the ceiling is read **synchronously from the Venue Service at the moment of registration**, never from a cached figure:
