@@ -4,6 +4,22 @@
 
 ---
 
+# PX-07: The customer clarification log exists
+
+**Timestamp:** 2026-10-07T00:25+08:00 (SGT)
+**Author:** Joash
+**Scope:** `documentation/clarifications.md` (new).
+
+**Reason:** PX-07 (SPM-148). `implementation.md` §4.6, `change-requests.md` and the PX-07 and PX-14 Jira comments all said "record the answer in `documentation/clarifications.md`", and the file didn't exist.
+
+## What it does
+
+1. **It says how to record an answer:** in the customer's words, with dates and where it was asked. Then the story is revised with a ⚠ note citing the entry.
+2. **It lists the ten open questions,** CQ-01 to CQ-10 with their Jira keys and the stories each affects. None has an answer yet. CQ-01 to CQ-03 have been open since 1 Oct, and P1 is blocked on CQ-02.
+3. **It indexes the earlier answers the stories cite** (C-04, C-10, C-11, C-12, C-13) with what each decided. Their original wording isn't in the repo, so the PO is asked to add it. No answer was invented.
+
+---
+
 # EN-06.2: Mutation testing shows the domain tests actually check things
 
 **Timestamp:** 2026-10-07T00:10+08:00 (SGT)
