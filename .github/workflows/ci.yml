@@ -1,10 +1,10 @@
 # CI v1 (SPM-114, first step of EN-06). Every pull request and every push to
 # main must pass lint, typecheck, build and unit tests before it can merge.
 #
-# Integration tests are deliberately not run here yet: today they write to the
-# team's shared Supabase project, and CI must never touch that database
-# (CLAUDE.md, EN-06). EN-06.1 (SPM-162) adds a throwaway Postgres on the runner
-# and turns them on.
+# The integration job (EN-06.1, SPM-162) runs every test that needs a database
+# against a throwaway Postgres on the runner. CI never touches the team's shared
+# Supabase project (CLAUDE.md, EN-06): the job refuses to start if DATABASE_URL
+# points anywhere but the runner itself.
 name: CI
 
 on:
@@ -77,3 +77,64 @@ jobs:
       # downloads the pinned release and checks its SHA-256 first.
       - name: Permission policy tests (Cerbos)
         run: npm run policies:test
+
+  integration:
+    name: Integration tests (throwaway Postgres)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # A service container is the one place CLAUDE.md allows a container: CI only.
+    # It lives as long as this job and is thrown away with the runner.
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: connectsphere_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci -d connectsphere_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      # The runner's own database. These are throwaway credentials for a
+      # container nobody else can reach, not secrets.
+      DATABASE_URL: postgres://ci:ci@127.0.0.1:5432/connectsphere_ci
+      # Tests replace token checks with stubs, so nothing calls Supabase or Kafka.
+      # The services still read these when they load, hence placeholders that
+      # cannot reach anything (.invalid, port 1).
+      SUPABASE_URL: https://ci.invalid
+      SUPABASE_ANON_KEY: ci-placeholder
+      SUPABASE_JWKS_URL: https://ci.invalid/auth/v1/.well-known/jwks.json
+      KAFKA_BROKERS: 127.0.0.1:1
+      KAFKA_SASL_MECHANISM: plain
+      KAFKA_SASL_USERNAME: ci
+      KAFKA_SASL_PASSWORD: ci-placeholder
+    steps:
+      - name: Refuse any database but the runner's own
+        run: |
+          case "$DATABASE_URL" in
+            postgres://*@127.0.0.1:5432/*|postgres://*@localhost:5432/*) echo "DATABASE_URL is the runner's throwaway Postgres." ;;
+            *) echo "::error::DATABASE_URL must point at the runner's own Postgres, never a shared database (EN-06)"; exit 1 ;;
+          esac
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Build the database from the migrations (every module and service, with seeds)
+        run: npm run migrate:all
+
+      - name: Integration tests (planning-core)
+        run: npm test -w @connectsphere/planning-core
+
+      - name: Integration tests (notification)
+        run: npm test -w @connectsphere/notification

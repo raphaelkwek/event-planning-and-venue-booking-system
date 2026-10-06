@@ -9,9 +9,14 @@ import postgres from "postgres";
 // is backend/services/<service>/migrations. The name is also the key in
 // public.schema_migrations, which is why the column is still called `service`:
 // rows recorded before the merge keep matching.
-const service = process.argv[2];
-if (!service) {
-  console.error("Usage: tsx backend/scripts/migrate.ts <module-or-service> [--seed]");
+//
+// `all` migrates every module and service in this order. CI uses it to build a
+// throwaway database from nothing (EN-06.1), so a new module belongs here too.
+const ALL = ["identity", "event", "venue", "equipment", "change", "notification"] as const;
+
+const target = process.argv[2];
+if (!target) {
+  console.error("Usage: tsx backend/scripts/migrate.ts <module-or-service|all> [--seed]");
   process.exit(1);
 }
 const withSeed = process.argv.includes("--seed");
@@ -24,22 +29,17 @@ if (!databaseUrl) {
 
 const sql = postgres(databaseUrl, { max: 1 });
 
-async function run() {
-  await sql`create table if not exists public.schema_migrations (
-    service    text        not null,
-    filename   text        not null,
-    applied_at timestamptz not null default now(),
-    primary key (service, filename)
-  )`;
-
+function migrationDirs(service: string): string[] {
   const serviceDir = join("backend", "services", service, "migrations");
   const moduleDir = existsSync(serviceDir)
     ? serviceDir
     : join("backend", "services", "planning-core", "migrations", service);
-  const dirs = [moduleDir];
-  if (withSeed) dirs.push(join(moduleDir, "seed"));
+  const seedDir = join(moduleDir, "seed");
+  return withSeed && existsSync(seedDir) ? [moduleDir, seedDir] : [moduleDir];
+}
 
-  for (const dir of dirs) {
+async function migrate(service: string) {
+  for (const dir of migrationDirs(service)) {
     const files = readdirSync(dir)
       .filter((f) => f.endsWith(".sql"))
       .sort();
@@ -64,6 +64,19 @@ async function run() {
         `;
       });
     }
+  }
+}
+
+async function run() {
+  await sql`create table if not exists public.schema_migrations (
+    service    text        not null,
+    filename   text        not null,
+    applied_at timestamptz not null default now(),
+    primary key (service, filename)
+  )`;
+
+  for (const service of target === "all" ? ALL : [target]) {
+    await migrate(service);
   }
 
   await sql.end();
