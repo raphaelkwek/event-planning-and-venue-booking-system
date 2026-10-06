@@ -376,15 +376,16 @@ Model holds and confirmed bookings as rows in one table (`venue_slots`) so a sin
 
 **As built (EN-02.1, `migrations/venue/0003_venue_slots_and_unavailability.sql`).** Stories that take or check a slot call these, in the venue module:
 - `insertVenueSlot(tx, slot)` in `repo/slots.ts` inserts a HELD or CONFIRMED slot. Pass the venue's current setup and turnaround minutes; the slot keeps its own copy. An overlap comes back as `VenueSlotConflictError` (`VENUE_SLOT_CONFLICT`), naming every overlapped reference.
-- `lockVenue(tx, venueId)` takes the venue row lock (rule 1 below).
+- `lockVenue(tx, venueId)` takes the venue row lock (rule 1 below). `insertVenueSlot` takes it too, before inserting (rule 4).
 - `venue.unavailability_blocks` holds I2's blocks. A block is removed by setting its status to `REMOVED`.
 - The status and reason values are in contracts (`VENUE_SLOT_STATUSES`, `UNAVAILABILITY_REASON_TYPES`).
 
-**Three rules the constraint alone doesn't give you:**
+**Four rules the constraint alone doesn't give you:**
 
 1. **Approval and blocking take the venue row lock first (M1, I2).** M1 approving a booking and I2 recording a period of unavailability both start with `select … from venue.venues where id = $venue for update`. Without it, a block created during an approval can leave an unflagged confirmed booking overlapping the block. With it, the two serialise per venue: whichever runs second sees the other's result, and I2 flags the overlapping booking.
 2. **Requires Reconfirmation is a flag, never a status.** Store it as `requires_reconfirmation boolean not null default false` on the slot. Keep the status CONFIRMED, so the flagged booking **keeps blocking its slot**. A status value outside `('HELD','CONFIRMED')` would silently free the slot for someone else.
 3. **A converted hold stays HELD until decided (L3 → L1).** When L1 turns a hold into a booking request, the slot row keeps status HELD until M1 approves (→ CONFIRMED) or M2 rejects (→ RELEASED). Never release and then re-insert it, because that opens a window in which another hold can take the slot.
+4. **Conflicting inserts queue on a row lock (EN-02.3).** Every slot insert takes the venue row lock first, and every equipment reservation takes its type's row lock. The exclusion constraints still decide. The lock is there because two conflicting inserts in flight at once can each wait for the other on the constraint, and Postgres then aborts one as a **deadlock (`40P01`)** instead of an overlap (`23P01`). The user would get a server error instead of the refusal. EN-02.3's race (ten rounds of fifty attempts) found this; with the locks, every loser meets an already committed winner and is refused cleanly.
 
 **Equipment availability** (P1, P2, Q1): never over-reserve, **over a period**. The old design kept one `total`/`reserved` counter per equipment type with no time dimension, so it couldn't tell Friday 2–5 pm from Saturday. It's replaced by two mechanisms.
 
@@ -411,7 +412,7 @@ select total_quantity from equipment.equipment_types where id = $type for update
 Steps 1 to 3 run in one transaction at `READ COMMITTED`. The row lock is what makes the check safe. Never check availability without taking that lock first.
 
 **As built (EN-02.2, `migrations/equipment/0001_equipment_inventory.sql`).** P1, P2, Q1 and Q2 call these, in the equipment module's `repo/inventory.ts`:
-- `reserveUnit(tx, …)` claims one serialized unit. An overlap comes back as `UnitAlreadyReservedError`; Q1 then tries the next unit from `availableUnits(tx, typeId, period)`, or refuses with the shortfall.
+- `reserveUnit(tx, …)` takes the type's row lock (rule 4 above), then claims one serialized unit. An overlap comes back as `UnitAlreadyReservedError`; Q1 then tries the next unit from `availableUnits(tx, typeId, period)`, or refuses with the shortfall.
 - `reserveBulk(tx, …)` runs steps 1 to 3 above. A refusal is `InsufficientEquipmentError` (`INSUFFICIENT_EQUIPMENT`), carrying the requested, available and shortfall quantities.
 - `peakUse(tx, typeId, period)` counts quantities recorded unavailable as in use. `lockEquipmentType(tx, typeId)` is the lock P2 takes before reducing a total.
 - The formula itself is `peakConcurrentUse` in `domain/availability.ts`, the only place to change if CQ-02 is answered "summed overlaps".

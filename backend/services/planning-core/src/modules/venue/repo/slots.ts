@@ -72,10 +72,11 @@ function toSlot(row: SlotRow): VenueSlot {
 }
 
 /**
- * Takes the venue row lock (§4.6 rule 1). M1 approving a booking and I2
- * recording a block both call this first, so the two serialise per venue and
- * whichever runs second sees the other's result. Held until the transaction
- * ends. False when there is no such venue.
+ * Takes the venue row lock (§4.6 rule 1). M1 approving a booking, I2 recording
+ * a block and every slot insert call this first, so they serialise per venue
+ * and whichever runs second sees the other's result. Held until the
+ * transaction ends; taking it twice in one transaction is harmless. False when
+ * there is no such venue.
  */
 export async function lockVenue(tx: TransactionSql, venueId: string): Promise<boolean> {
   const rows = await tx`select id from venue.venues where id = ${venueId} for update`;
@@ -88,11 +89,18 @@ export async function lockVenue(tx: TransactionSql, venueId: string): Promise<bo
  * decides: there is no availability check first, so two simultaneous attempts
  * can't both pass one.
  *
+ * It takes the venue row lock before inserting. Without it, two conflicting
+ * inserts in flight at once can each wait for the other on the constraint, and
+ * Postgres aborts one as a deadlock (40P01) instead of an overlap. EN-02.3's
+ * race of fifty attempts showed this. With the lock they queue, and each loser
+ * meets an already committed winner and is refused cleanly.
+ *
  * The insert runs in a savepoint so that, when the constraint refuses it, the
  * transaction can still look up what the period overlapped and name it. That
  * look-up only shapes the message; it never decides anything.
  */
 export async function insertVenueSlot(tx: TransactionSql, slot: NewVenueSlot): Promise<VenueSlot> {
+  await lockVenue(tx, slot.venueId);
   try {
     const [row] = await tx.savepoint(
       (sp) => sp<SlotRow[]>`

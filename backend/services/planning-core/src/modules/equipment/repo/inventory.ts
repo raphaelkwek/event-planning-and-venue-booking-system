@@ -12,10 +12,15 @@ import {
  * Equipment availability and reservations (EN-02.2, ADR-0006, implementation.md
  * §4.6). SQL for the equipment schema only. P1, P2, Q1 and Q2 build on these.
  *
- * Serialized units are guarded by their exclusion constraint, so reserving one
- * needs no check first. Bulk stock has no row per unit to constrain, so a bulk
- * reservation takes the type's row lock and only then checks peak use: the lock
- * is what makes the check safe against a simultaneous reservation.
+ * Every reservation takes its equipment type's row lock first, so reservations
+ * of one type queue.
+ * - Bulk stock has no row per unit to constrain, so the lock is what makes its
+ *   peak check safe against a simultaneous reservation.
+ * - Serialized units are guarded by their exclusion constraint, which decides
+ *   on its own. The lock is there because two conflicting inserts in flight at
+ *   once can each wait for the other, and Postgres then aborts one as a
+ *   deadlock (40P01) instead of an overlap; EN-02.3's race showed it. Queued,
+ *   each loser meets an already committed winner and is refused cleanly.
  */
 
 export interface Period {
@@ -59,9 +64,9 @@ export interface FreeUnit {
 const windowOf = (period: Period) => ({ start: period.startsAt, end: period.endsAt });
 
 /**
- * Takes the equipment type's row lock, held until the transaction ends. Bulk
- * reservations (Q1) and P2's reductions of the total both take it first, so
- * they serialise per type. Null when there is no such type.
+ * Takes the equipment type's row lock, held until the transaction ends. Every
+ * reservation (Q1) and P2's reductions of the total take it first, so they
+ * serialise per type. Null when there is no such type.
  */
 export async function lockEquipmentType(tx: TransactionSql, typeId: string): Promise<LockedType | null> {
   const [row] = await tx<{ kind: EquipmentKind; total_quantity: number | null }[]>`
@@ -116,12 +121,17 @@ export async function availableUnits(tx: TransactionSql, typeId: string, period:
 }
 
 /**
- * Reserves one serialized unit for a period. The per-unit exclusion constraint
- * refuses an overlapping reservation; that refusal becomes
- * UnitAlreadyReservedError, naming the unit. The insert runs in a savepoint so
- * the unit's label can still be read after the refusal.
+ * Reserves one serialized unit for a period, after taking its type's row lock.
+ * The per-unit exclusion constraint refuses an overlapping reservation; that
+ * refusal becomes UnitAlreadyReservedError, naming the unit. The insert runs in
+ * a savepoint so the unit's label can still be read after the refusal.
  */
 export async function reserveUnit(tx: TransactionSql, input: UnitReservationInput): Promise<Reservation> {
+  await tx`
+    select t.id from equipment.equipment_types t
+     where t.id = (select equipment_type_id from equipment.equipment_units where id = ${input.unitId})
+       for update
+  `;
   try {
     const [row] = await tx.savepoint(
       (sp) => sp<{ id: string }[]>`
