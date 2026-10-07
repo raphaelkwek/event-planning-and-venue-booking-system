@@ -387,4 +387,16 @@ describe("POST /api/v1/event-drafts/:id/submit (C2)", () => {
     expect(again.status).toBe(409);
     expect(again.body.error.code).toBe("DRAFT_ALREADY_SUBMITTED");
   });
+
+  it("names the current status and Submitted when a request is submitted twice (F1)", async () => {
+    const draft = await givenADraft(validRequest);
+    await request(app).post(`/api/v1/event-drafts/${draft.id}/submit`).set(bearer).send();
+
+    const again = await request(app).post(`/api/v1/event-drafts/${draft.id}/submit`).set(bearer).send();
+
+    expect(again.body.error).toMatchObject({
+      code: "DRAFT_ALREADY_SUBMITTED",
+      message: "This event is Submitted and cannot move to Submitted.",
+    });
+  });
 });

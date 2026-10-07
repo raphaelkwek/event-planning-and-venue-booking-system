@@ -3,6 +3,7 @@ import type { Sql } from "postgres";
 import { authenticate, requireRole, type ActorRequest } from "../auth/actor.js";
 import { findDraftForOwner, findOwnedRequest, insertDraft, updateDraft } from "../repo/drafts.js";
 import { validateSubmission } from "../domain/validation.js";
+import { evaluateTransition } from "../domain/statusMachine.js";
 import { submitEvent } from "./submitEvent.js";
 import { draftBodySchema, submissionBodySchema, toDraftFields } from "./schemas.js";
 import { fieldsFromZod, refuse } from "./errors.js";
@@ -82,11 +83,15 @@ export function draftsRouter(sql: Sql) {
         // which is worth saying plainly rather than reporting it as missing.
         const existing = await findOwnedRequest(sql, req.params.id, req.actor!.userId);
         if (existing) {
+          // F1 — name the status the request is in and the one it cannot
+          // reach again. The code stays DRAFT_ALREADY_SUBMITTED for the
+          // screens and cards that read it (D5-T5).
+          const refused = evaluateTransition(existing.status, "SUBMIT");
           refuse(
             res,
             409,
             "DRAFT_ALREADY_SUBMITTED",
-            "This request has already been submitted and can no longer be edited here."
+            refused.permitted ? "This request can no longer be submitted." : refused.message
           );
           return;
         }
@@ -118,7 +123,7 @@ export function draftsRouter(sql: Sql) {
         return;
       }
 
-      const event = await submitEvent(sql, {
+      const submitted = await submitEvent(sql, {
         ownerId: req.actor!.userId,
         actorRole: req.actor!.role,
         draftId: draft.id,
@@ -126,17 +131,13 @@ export function draftsRouter(sql: Sql) {
         correlationId: req.header("x-correlation-id") ?? null,
       });
 
-      if (!event) {
-        refuse(
-          res,
-          409,
-          "DRAFT_ALREADY_SUBMITTED",
-          "This request has already been submitted and can no longer be edited here."
-        );
+      if (!submitted.ok) {
+        // A concurrent submission of the same draft won the transition.
+        refuse(res, 409, "DRAFT_ALREADY_SUBMITTED", submitted.message);
         return;
       }
 
-      res.status(201).json(event);
+      res.status(201).json(submitted.event);
     }
   );
 

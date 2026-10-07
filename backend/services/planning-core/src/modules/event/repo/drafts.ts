@@ -1,4 +1,4 @@
-import type { Sql } from "postgres";
+import type { ISql, Sql } from "postgres";
 import { toEvent, type EventRow, type RawEvent } from "./events.js";
 
 /**
@@ -26,11 +26,11 @@ export interface DraftFields {
   registrationClosesAt: string | null;
 }
 
-function jsonOrNull(sql: Sql, value: unknown) {
+function jsonOrNull(sql: ISql, value: unknown) {
   return value === null || value === undefined ? null : sql.json(value as never);
 }
 
-export async function insertDraft(sql: Sql, ownerId: string, fields: DraftFields): Promise<EventRow> {
+export async function insertDraft(sql: ISql, ownerId: string, fields: DraftFields): Promise<EventRow> {
   const rows = await sql<RawEvent[]>`
     insert into event.events (
       owner_id, name, purpose, description, proposed_start_at, proposed_end_at,

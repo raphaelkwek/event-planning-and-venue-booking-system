@@ -65,14 +65,21 @@ export function eventsRouter(sql: Sql) {
         return;
       }
 
-      const event = await submitEvent(sql, {
+      const submitted = await submitEvent(sql, {
         ownerId: req.actor!.userId,
         actorRole: req.actor!.role,
         fields: toEventFields(parsed.data),
         correlationId: req.header("x-correlation-id") ?? null,
       });
 
-      res.status(201).json(event);
+      if (!submitted.ok) {
+        // Unreachable in practice: the draft was created in the same
+        // transaction. Answered rather than assumed.
+        refuse(res, 409, "STATUS_TRANSITION_NOT_PERMITTED", submitted.message);
+        return;
+      }
+
+      res.status(201).json(submitted.event);
     }
   );
 
