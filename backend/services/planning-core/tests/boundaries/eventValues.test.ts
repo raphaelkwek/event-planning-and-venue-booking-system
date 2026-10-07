@@ -4,6 +4,8 @@ import { checkedValues, readMigration } from "../support/checkConstraints.js";
 
 /** The event status check lists exactly what contracts lists (implementation.md §4.1). */
 
+// Point this at the latest migration that redefines events_status_check; a later
+// one would otherwise leave this test passing against a stale list.
 const migration = readMigration("migrations/event/0007_add_safety_review_status.sql");
 
 describe("event migration 0007 and contracts", () => {

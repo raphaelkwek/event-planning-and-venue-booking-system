@@ -42,6 +42,8 @@ const TRANSITIONS: Record<EventAction, TransitionRule> = {
   // U1 — a request for changes sends the event back to Planning, from where it
   // passes F5 and the safety check again. Rejecting the safety arrangement has
   // no row: its outcome waits on the customer's answer to CQ-08.
+  // CR-06 proposes Planning; CQ-08 also asks which stage this returns to, so
+  // the target may change with the customer's answer.
   REQUEST_SAFETY_CHANGES: { from: ["SAFETY_REVIEW"], to: "PLANNING" },
   // F1 — only a confirmed event took place, so only a confirmed event
   // completes, and only once its end has passed (checked where the transition

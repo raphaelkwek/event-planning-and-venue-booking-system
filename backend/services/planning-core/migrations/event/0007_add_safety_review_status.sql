@@ -4,8 +4,10 @@
 -- (EVENT_STATUSES), and tests/boundaries/eventValues.test.ts holds this check
 -- to exactly that list.
 --
--- Added NOT VALID and then validated, so the new check is added without
--- holding a lock that blocks writes while every row is checked.
+-- The check is added NOT VALID here and validated in 0008, because migrate.ts
+-- runs each file in its own transaction: validating in a separate one means
+-- the full-table scan doesn't run while 0007's exclusive lock is held. New rows
+-- are checked from 0007 on.
 alter table event.events drop constraint events_status_check;
 
 alter table event.events add constraint events_status_check
@@ -14,5 +16,3 @@ alter table event.events add constraint events_status_check
     'APPROVED', 'PLANNING', 'SAFETY_REVIEW', 'CONFIRMED', 'COMPLETED',
     'CANCELLED', 'REJECTED'
   )) not valid;
-
-alter table event.events validate constraint events_status_check;
