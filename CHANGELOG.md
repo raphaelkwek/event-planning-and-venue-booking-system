@@ -40,6 +40,58 @@
 
 ---
 
+# F1 / CR-06: the Safety Review status
+
+**Timestamp:** 2026-10-07T18:36+08:00 (SGT)
+**Author:** Raphael, via Claude
+**Scope:** F1 (SPM-27), CR-06. `contracts`, the event module's domain, migrations 0007–0008, the
+OpenAPI contract, the status lozenges, and `tests/F1/`.
+**Reason:** CR-06 (Week 7) adds an Operational Safety Check: confirming an event's arrangements
+(F5) now leads to **Safety Review**, and only the Safety Officer's approval (U1) leads to
+Confirmed. F1 owns the status list and the transition table, so the status and its transitions
+land here, before F5 and U1 build the actions that perform them.
+
+## Added
+
+- **`SAFETY_REVIEW`**, the eleventh status, between Planning and Confirmed: in contracts
+  (`EVENT_STATUSES`, `DECIDED_STATUSES`, labels), the OpenAPI `EventStatus` enum, the frontend type
+  and the lozenge map ("Safety Review", in-progress colour).
+- **Transitions:** `CONFIRM_ARRANGEMENTS` (Approved/Planning → Safety Review; F5 will perform it),
+  `APPROVE_SAFETY` (Safety Review → Confirmed) and `REQUEST_SAFETY_CHANGES` (Safety Review →
+  Planning), both performed by U1.
+- **Migrations 0007–0008:** the status check is re-added with the new value `NOT VALID`, then
+  validated in its own migration. `migrate.ts` runs one file per transaction, so validating in
+  0007 would have scanned the table while holding 0007's exclusive lock.
+- **`tests/boundaries/eventValues.test.ts`** holds the database check to the contracts list, as
+  venue and equipment already have.
+- **Cards F1-T12 and F1-T13** for the Safety Officer's two decisions. Both stay Not Executed until
+  U1 exists.
+
+## Changed
+
+- `CONFIRM` is renamed **`CONFIRM_ARRANGEMENTS`**, since it no longer leads to Confirmed. Nothing
+  ever recorded `CONFIRM` (F5 isn't built), so no history row is left stale.
+- F1-T1 no longer says "ten" statuses; F1-T7 expects Safety Review rather than Confirmed.
+
+## Decided, and raised
+
+- **Rejecting the safety arrangement has no transition yet.** Its outcome is CQ-08, still
+  unanswered by the customer. Raphael agreed to leave it out (2026-10-07), and a test pins its
+  absence.
+- **"Request changes → Planning" is CR-06's proposal.** CQ-08 also asks which stage it returns to,
+  so the target may change with the customer's answer.
+- **F1 itself is not finished.** The guarded write path, the completion sweep and executing the
+  cards follow in the next PR. SPM-27 is back to In Progress.
+
+## Verified
+
+- `npm run lint`, `typecheck`, `build`; `npm run test:unit` 287/287 with domain coverage at 100%.
+- squawk reports no issues on 0007 or 0008. The migrations were **not** run against the shared
+  Supabase database; CI applies them to a throwaway Postgres, and the shared database gets them
+  after merge.
+
+---
+
 # PX-07: The customer clarification log exists
 
 **Timestamp:** 2026-10-06T22:15+08:00 (SGT)
