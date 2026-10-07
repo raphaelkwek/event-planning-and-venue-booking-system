@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   assembleCalendar,
+  CALENDAR_TIME_ZONE,
   calendarDays,
   MAX_CALENDAR_DAYS,
   readCalendarRange,
@@ -70,6 +71,29 @@ describe("readCalendarRange", () => {
         { field: "to", message: "Enter the end date as YYYY-MM-DD, for example 2026-12-13." },
       ],
     });
+  });
+
+  it("names only the date that is wrong", () => {
+    expect(readCalendarRange("2026-12-07", "")).toEqual({
+      ok: false,
+      fields: [{ field: "to", message: "Enter the end date as YYYY-MM-DD, for example 2026-12-13." }],
+    });
+    expect(readCalendarRange("7 Dec", "2026-12-13")).toEqual({
+      ok: false,
+      fields: [{ field: "from", message: "Enter the start date as YYYY-MM-DD, for example 2026-12-07." }],
+    });
+  });
+
+  it("refuses a month or day that doesn't exist, and anything around the date", () => {
+    for (const value of ["2026-13-01", "2026-12-32", "x2026-12-07", "2026-12-07x", "2026-12-07T00:00"]) {
+      expect(readCalendarRange(value, "2026-12-13"), value).toMatchObject({ ok: false, fields: [{ field: "from" }] });
+    }
+  });
+});
+
+describe("CALENDAR_TIME_ZONE", () => {
+  it("is Singapore's, where the venues are", () => {
+    expect(CALENDAR_TIME_ZONE).toBe("Asia/Singapore");
   });
 });
 
