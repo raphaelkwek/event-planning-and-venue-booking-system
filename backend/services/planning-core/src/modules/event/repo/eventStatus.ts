@@ -1,7 +1,9 @@
-import type { ISql, PendingQuery, Row, Sql, TransactionSql } from "postgres";
+import type { ISql, Sql, TransactionSql } from "postgres";
 import type { EventStatus } from "@connectsphere/contracts";
 import { transitionRule } from "../domain/statusMachine.js";
-import { toEvent, type EventRow, type RawEvent } from "./events.js";
+import { toEvent, type EventRow, type Fragment, type RawEvent } from "./events.js";
+
+export type { Fragment };
 
 /**
  * F1 — the one statement in this service that changes an event's status.
@@ -9,9 +11,6 @@ import { toEvent, type EventRow, type RawEvent } from "./events.js";
  * transition table and the history entry; an architecture test fails if any
  * other statement sets `event.events.status`.
  */
-
-/** A piece of SQL spliced into a statement: column assignments or a condition. */
-export type Fragment = PendingQuery<Row[]>;
 
 export interface StatusUpdate {
   eventId: string;

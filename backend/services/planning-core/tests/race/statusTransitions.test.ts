@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { testDb } from "../support/testDb.js";
 import { isThrowawayDatabase, losers, race, winners } from "../support/race.js";
 import { deleteSeededEvents, seedEvent } from "../support/seedEvent.js";
+import { transitionEvent } from "../../src/modules/event/api/transitionEvent.js";
 import { updateStatusIf } from "../../src/modules/event/repo/eventStatus.js";
 
 /**
@@ -53,6 +54,32 @@ describe.runIf(isThrowawayDatabase())(`${ATTEMPTS} status changes at the same mo
       expect(actors).toContain(row!.updated_by);
       const winnerIndex = results.findIndex((r) => r.status === "fulfilled" && r.value !== null);
       expect(row!.updated_by).toBe(actors[winnerIndex]);
+    }
+  });
+
+  it("exactly one of 50 approvals through transitionEvent succeeds, writing one history entry", async () => {
+    for (let round = 0; round < ROUNDS; round += 1) {
+      const eventId = await seedEvent(sql, { ownerId: OWNER, status: "UNDER_REVIEW", endsAt: FAR_FUTURE });
+      const actors = Array.from({ length: ATTEMPTS }, () => randomUUID());
+
+      const results = await race(ATTEMPTS, (tx, i) =>
+        transitionEvent(tx, eventId, "APPROVE", { userId: actors[i]!, role: "EVENT_COORDINATOR" })
+      );
+
+      expect(losers(results)).toEqual([]);
+      const outcomes = winners(results);
+      expect(outcomes.filter((outcome) => outcome.ok)).toHaveLength(1);
+      const refused = outcomes.filter((outcome) => !outcome.ok);
+      expect(refused).toHaveLength(ATTEMPTS - 1);
+      for (const outcome of refused) {
+        expect(outcome).toMatchObject({ message: "This event is Approved and cannot move to Approved." });
+      }
+
+      const history = await sql`
+        select 1 from event.event_history
+        where event_id = ${eventId} and triggering_action = 'APPROVE'
+      `;
+      expect(history).toHaveLength(1);
     }
   });
 });

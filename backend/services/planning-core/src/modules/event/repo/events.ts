@@ -1,4 +1,4 @@
-import type { Sql, TransactionSql } from "postgres";
+import type { PendingQuery, Row, Sql, TransactionSql } from "postgres";
 import type { AccessScope, EventStatus } from "@connectsphere/contracts";
 
 /**
@@ -7,6 +7,9 @@ import type { AccessScope, EventStatus } from "@connectsphere/contracts";
  * with most fields still empty; B2 is what makes them mandatory, and it is
  * applied at submission rather than by the table.
  */
+
+/** A piece of SQL spliced into a statement: column assignments or a condition. */
+export type Fragment = PendingQuery<Row[]>;
 
 export interface EventFields {
   name: string;
@@ -343,4 +346,56 @@ export async function recordDecision(
     returning *, null::uuid as assigned_coordinator_id
   `;
   return rows[0] ? toEvent(rows[0]) : null;
+}
+
+/**
+ * The columns each action sets in the same statement as its status change
+ * (F1). They are fragments, not statements: `updateStatusIf` splices them into
+ * its conditional UPDATE, so the decision, the review claim or the submission
+ * can never be stored without the status change, or the other way round.
+ */
+
+/** D4/D5 — the decision, its maker and its time; the reason for a rejection. */
+export function decisionColumns(
+  tx: TransactionSql,
+  deciderId: string,
+  rejectionReason: string | null
+): Fragment {
+  return tx`decided_by = ${deciderId}, decided_at = now(), rejection_reason = ${rejectionReason},`;
+}
+
+/** D1 — the coordinator who opened the request, and when. */
+export function reviewColumns(tx: TransactionSql, coordinatorId: string): Fragment {
+  return tx`reviewing_coordinator_id = ${coordinatorId}, review_started_at = now(),`;
+}
+
+/**
+ * B1/C2 — the reference and submission time, plus the values on screen when
+ * they are sent with a draft's submission, so they are stored only if the
+ * submission succeeds.
+ */
+export function submissionColumns(tx: TransactionSql, fields?: EventFields): Fragment {
+  const values = fields
+    ? tx`
+        name = ${fields.name},
+        purpose = ${fields.purpose},
+        description = ${fields.description},
+        proposed_start_at = ${fields.proposedStartAt},
+        proposed_end_at = ${fields.proposedEndAt},
+        expected_attendance = ${fields.expectedAttendance},
+        venue_requirements = ${jsonOrNull(tx, fields.venueRequirements)},
+        accessibility_needs = ${fields.accessibilityNeeds},
+        equipment_required = ${fields.equipmentRequired},
+        equipment_requirements = ${jsonOrNull(tx, fields.equipmentRequirements)},
+        registration_required = ${fields.registrationRequired},
+        registration_opens_at = ${fields.registrationOpensAt},
+        registration_closes_at = ${fields.registrationClosesAt},
+        last_saved_at = now(),
+      `
+    : tx``;
+  return tx`
+    ${values}
+    reference = 'EVT-' || lpad(nextval('event.event_reference_seq')::text, 6, '0'),
+    submitted_at = now(),
+  `;
 }
