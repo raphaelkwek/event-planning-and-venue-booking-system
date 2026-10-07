@@ -1,8 +1,9 @@
 import { randomUUID } from "node:crypto";
-import { afterAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { testDb } from "../../support/testDb.js";
 import { deleteSeededEvents, seedEvent } from "../../support/seedEvent.js";
-import { completeDueEvents } from "../../../src/modules/event/jobs/completeEvents.js";
+import { logger } from "../../../src/shared/logger.js";
+import { completeDueEvents, runCompletionSweep } from "../../../src/modules/event/jobs/completeEvents.js";
 
 /**
  * F1 AC6 — the completion sweep. The database is shared and the sweep completes
@@ -104,5 +105,20 @@ describe("completeDueEvents (F1)", () => {
 
     expect(second.completed).not.toContain(id);
     expect(await completionsOf(id)).toBe(1);
+  });
+});
+
+describe("runCompletionSweep (F1)", () => {
+  it("completes a due event, logs it by id, and exits 0", async () => {
+    const id = await seedEvent(sql, { ownerId: OWNER, status: "CONFIRMED", endsAt: at(-60_000) });
+    const info = vi.spyOn(logger, "info").mockImplementation(() => undefined);
+
+    try {
+      expect(await runCompletionSweep(sql, NOW)).toBe(0);
+      expect(info).toHaveBeenCalledWith("event completed", expect.objectContaining({ eventId: id }));
+      expect(await statusOf(id)).toBe("COMPLETED");
+    } finally {
+      info.mockRestore();
+    }
   });
 });

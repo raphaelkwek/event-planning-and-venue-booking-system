@@ -1,5 +1,7 @@
+import { randomUUID } from "node:crypto";
 import type { Sql } from "postgres";
 import type { EventStatus } from "@connectsphere/contracts";
+import { logger } from "../../../shared/logger.js";
 import { listDueForCompletion } from "../repo/eventStatus.js";
 import { SYSTEM_ACTOR, transitionEvent } from "../api/transitionEvent.js";
 
@@ -44,4 +46,77 @@ export async function completeDueEvents(sql: Sql, now?: Date): Promise<Completio
   }
 
   return run;
+}
+
+const ROUTE = "job complete-events";
+
+/**
+ * Logs one sweep (implementation.md §9): a line per event and a summary.
+ * Returns the process exit code — non-zero if any event could not be completed.
+ */
+export function reportCompletionRun(run: CompletionRun, correlationId: string, started: number): number {
+  for (const eventId of run.completed) {
+    logger.info("event completed", { correlationId, userId: null, route: ROUTE, outcome: "success", code: null, eventId });
+  }
+  for (const { id: eventId, currentStatus, message } of run.skipped) {
+    logger.info(message, {
+      correlationId,
+      userId: null,
+      route: ROUTE,
+      outcome: "refused",
+      code: "STATUS_TRANSITION_NOT_PERMITTED",
+      eventId,
+      currentStatus,
+    });
+  }
+  for (const failure of run.failed) {
+    logger.error("event could not be completed", {
+      correlationId,
+      userId: null,
+      route: ROUTE,
+      outcome: "error",
+      code: null,
+      eventId: failure.id,
+      error: failure.error,
+    });
+  }
+
+  logger.info("completion sweep finished", {
+    correlationId,
+    userId: null,
+    route: ROUTE,
+    durationMs: Date.now() - started,
+    outcome: run.failed.length > 0 ? "error" : "success",
+    code: null,
+    completed: run.completed.length,
+    skipped: run.skipped.length,
+    failed: run.failed.length,
+  });
+
+  return run.failed.length > 0 ? 1 : 0;
+}
+
+/**
+ * One run of `npm run jobs:complete-events`: sweep, log, and return the exit
+ * code. A sweep that fails outright (say, the database is unreachable) is
+ * logged as a structured error and exits 1.
+ */
+export async function runCompletionSweep(sql: Sql, now?: Date): Promise<number> {
+  const correlationId = randomUUID();
+  const started = Date.now();
+
+  try {
+    return reportCompletionRun(await completeDueEvents(sql, now), correlationId, started);
+  } catch (error) {
+    logger.error("completion sweep failed", {
+      correlationId,
+      userId: null,
+      route: ROUTE,
+      durationMs: Date.now() - started,
+      outcome: "error",
+      code: null,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return 1;
+  }
 }
