@@ -8,7 +8,7 @@
 | Test Scenario | Approving a request emits the event the organiser's notification is built from |
 | Pre-conditions | 1. Standard environment running and test data reset (`tests/README.md`).<br>2. FX-APPROVED completed; note the request **id** and the **reference**. |
 | Test Steps | 1. In the Supabase SQL editor, run the query from Test Data with the noted id. |
-| Test Data | Query: `select envelope->>'messageType' as message_type, envelope->'payload'->>'eventReference' as reference, envelope->'payload'->>'ownerId' as owner_id, envelope->'payload'->>'approvedBy' as approved_by from event.outbox where message_key = '<id>' order by created_at;` |
+| Test Data | Query: `select envelope->>'type' as message_type, envelope->'data'->>'eventReference' as reference, envelope->'data'->>'ownerId' as owner_id, envelope->'data'->>'approvedBy' as approved_by from event.outbox where message_key = '<id>' order by created_at;` |
 | Expected Result | One row has `message_type` = `event.approved`, `reference` = the noted reference, `owner_id` = `00000000-0000-0000-0000-000000000001` (the organiser the notification is for) and `approved_by` = the deciding coordinator. No `event.rejected` row exists for this id. |
 | Created By | Seann Khoo |
 | Date of Creation | 2026-09-17 |
