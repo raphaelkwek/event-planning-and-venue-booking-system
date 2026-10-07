@@ -54,6 +54,12 @@ export async function insertDraft(sql: ISql, ownerId: string, fields: DraftField
  * C1/C2 — ownership and the Draft status are part of the query, not a check
  * applied to the result, so a request that is neither yields no row at all.
  */
+/** Whether the request exists and belongs to the owner, whatever its status. */
+export async function isOwnedBy(sql: ISql, id: string, ownerId: string): Promise<boolean> {
+  const rows = await sql`select 1 from event.events where id = ${id} and owner_id = ${ownerId}`;
+  return rows.length > 0;
+}
+
 export async function findDraftForOwner(
   sql: Sql,
   draftId: string,

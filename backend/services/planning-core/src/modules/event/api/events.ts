@@ -73,8 +73,8 @@ export function eventsRouter(sql: Sql) {
       });
 
       if (!submitted.ok) {
-        // Unreachable in practice: the draft was created in the same
-        // transaction. Answered rather than assumed.
+        // Unreachable: submitEvent throws when a request it inserted in
+        // this transaction cannot be submitted. Kept as a defensive 409.
         refuse(res, 409, "STATUS_TRANSITION_NOT_PERMITTED", submitted.message);
         return;
       }

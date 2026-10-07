@@ -86,6 +86,7 @@ export function draftsRouter(sql: Sql) {
           // F1 — name the status the request is in and the one it cannot
           // reach again. The code stays DRAFT_ALREADY_SUBMITTED for the
           // screens and cards that read it (D5-T5).
+          // permitted can't be true here: the row exists and isn't a Draft; the branch only narrows the type.
           const refused = evaluateTransition(existing.status, "SUBMIT");
           refuse(
             res,

@@ -77,14 +77,17 @@ describe("status history (F1)", () => {
     signedInAs(ORGANISER, "EVENT_ORGANISER");
     const created = await request(app).post("/api/v1/events").set(bearer).send(validRequest);
     signedInAs(COORDINATOR, "EVENT_COORDINATOR");
-    await request(app).get(`/api/v1/events/${created.body.id}`).set(bearer);
-    await request(app).post(`/api/v1/events/${created.body.id}/approve`).set(bearer).send();
+    const opened = await request(app).get(`/api/v1/events/${created.body.id}`).set(bearer);
+    const approved = await request(app).post(`/api/v1/events/${created.body.id}/approve`).set(bearer).send();
+    expect(created.status).toBe(201);
+    expect(opened.status).toBe(200);
+    expect(approved.status).toBe(200);
 
     const history = await sql`
       select previous_status, new_status, actor_user_id, actor_role, triggering_action, occurred_at
       from event.event_history
       where event_id = ${created.body.id} and entry_type = 'STATUS_CHANGE'
-      order by occurred_at
+      order by occurred_at, id
     `;
 
     expect(history.map((entry) => ({

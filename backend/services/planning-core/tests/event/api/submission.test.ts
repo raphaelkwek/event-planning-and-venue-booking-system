@@ -113,7 +113,9 @@ describe("POST /api/v1/events (B1)", () => {
       new_status: "SUBMITTED",
       actor_user_id: ORGANISER,
       actor_role: "EVENT_ORGANISER",
+      triggering_action: "SUBMIT",
     });
+    expect(history).toHaveLength(1);
   });
 
   it("raises the notification that a new request awaits review, in the same transaction", async () => {
@@ -386,6 +388,24 @@ describe("POST /api/v1/event-drafts/:id/submit (C2)", () => {
 
     expect(again.status).toBe(409);
     expect(again.body.error.code).toBe("DRAFT_ALREADY_SUBMITTED");
+  });
+
+  it("records a draft's submission as SUBMIT", async () => {
+    const draft = await givenADraft(validRequest);
+    await request(app).post(`/api/v1/event-drafts/${draft.id}/submit`).set(bearer).send();
+
+    const history = await sql`
+      select previous_status, new_status, actor_user_id, actor_role, triggering_action
+      from event.event_history where event_id = ${draft.id} and entry_type = 'STATUS_CHANGE'
+    `;
+    expect(history).toHaveLength(1);
+    expect(history[0]).toMatchObject({
+      previous_status: "DRAFT",
+      new_status: "SUBMITTED",
+      actor_user_id: ORGANISER,
+      actor_role: "EVENT_ORGANISER",
+      triggering_action: "SUBMIT",
+    });
   });
 
   it("names the current status and Submitted when a request is submitted twice (F1)", async () => {

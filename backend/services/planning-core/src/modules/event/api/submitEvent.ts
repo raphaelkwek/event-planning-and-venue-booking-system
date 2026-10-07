@@ -3,7 +3,7 @@ import { KAFKA_TOPICS } from "@connectsphere/contracts";
 import { eventConfig } from "../config.js";
 import { allocateCoordinator } from "../domain/assignment.js";
 import { submissionColumns, type EventFields, type EventRow } from "../repo/events.js";
-import { insertDraft } from "../repo/drafts.js";
+import { insertDraft, isOwnedBy } from "../repo/drafts.js";
 import { insertAssignment, saveCursor, takeCursor } from "../repo/assignments.js";
 import { writeOutbox } from "../events/outbox.js";
 import { transitionEvent } from "./transitionEvent.js";
@@ -32,6 +32,10 @@ export async function submitEvent(
 ): Promise<SubmitResult> {
   return sql.begin(async (tx) => {
     const fromDraft = "draftId" in params;
+    if (fromDraft && !(await isOwnedBy(tx, params.draftId, params.ownerId))) {
+      // Callers have already checked; this is defence in depth.
+      return { ok: false as const, message: "No draft with that reference is available to you." };
+    }
     const draftId = fromDraft
       ? params.draftId
       : (await insertDraft(tx, params.ownerId, params.fields)).id;
@@ -43,7 +47,16 @@ export async function submitEvent(
       { userId: params.ownerId, role: params.actorRole },
       { set: submissionColumns(tx, fromDraft ? params.fields : undefined) }
     );
-    if (!submitted.ok) return { ok: false as const, message: submitted.message };
+    if (!submitted.ok) {
+      // The draft was inserted in this transaction: returning normally would
+      // commit an orphan Draft, so throw and let it roll back.
+      if (!fromDraft) {
+        throw new Error(
+          "submitEvent: a request inserted in this transaction could not be submitted: " + submitted.message
+        );
+      }
+      return { ok: false as const, message: submitted.message };
+    }
     const event = submitted.event;
 
     await writeOutbox(tx, {
