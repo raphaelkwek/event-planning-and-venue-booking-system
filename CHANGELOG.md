@@ -22,10 +22,11 @@ tests covered it. F1's first repo file took the figure to 92.04%.
   floor.
 - **The integration run now enforces the global floor.** `npm run test:coverage -w
   @connectsphere/planning-core`, which CI's integration job runs against its throwaway Postgres,
-  is the one run that executes repo and API code. Floors: lines and statements 91%, branches 88%,
-  functions 89%. That's just under the first measurement of `main`.
+  is the one run that executes repo and API code. Floors: lines and statements 94%, branches 89%,
+  functions 94%. That's just under CI's measurement of `main` (lines 94.59%, branches 89.68%,
+  functions 95.03%, all 493 tests passing).
 - In practice it's **stricter, not looser**: lines and functions go from 39% and 24% (unit-only)
-  to about 91% and 89%, measured where the code actually runs.
+  to 94%, measured where the code actually runs.
 
 ## Found on the way (not fixed here)
 
@@ -33,9 +34,8 @@ tests covered it. F1's first repo file took the figure to 92.04%.
   and the venue slot tables don't exist there, so 34 venue and equipment tests fail for anyone
   running the suite locally. CI is unaffected, since it builds its database from the migrations.
   Someone should run `npm run migrate:all` against the shared project, as a deliberate team step.
-- Because of that, the floors are set from a measurement that undercounts venue and equipment
-  code. Once CI's first run reports its figures, raise the floors to match. They should only ever
-  go up.
+- Because of that, a local run undercounts venue and equipment code (92.02% lines, 88.85%
+  branches), so the floors were set from CI's figures instead.
 
 ## Verified
 

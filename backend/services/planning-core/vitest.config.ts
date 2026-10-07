@@ -21,14 +21,13 @@ export default defineConfig({
       include: ["src/**"],
       reporter: ["text-summary", "json-summary"],
       thresholds: {
-        // Just under the first measurement of main (2026-10-07: lines and
-        // statements 92.02%, branches 88.85%, functions 90.06%), taken against
-        // a database missing EN-02's venue and equipment tables, so CI's own
-        // figure is higher. Raise these to CI's, then only ever upwards.
-        lines: 91,
-        statements: 91,
-        branches: 88,
-        functions: 89,
+        // Just under CI's first measurement of main (2026-10-07, all 493 tests
+        // on the throwaway Postgres: lines and statements 94.59%, branches
+        // 89.68%, functions 95.03%). Only ever raise these.
+        lines: 94,
+        statements: 94,
+        branches: 89,
+        functions: 94,
       },
     },
   },
