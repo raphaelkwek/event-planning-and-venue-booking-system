@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | Between the outside-hours rows, Monday read: 09:30–10:00 Setup EVT-006604 · occupied; 10:00–12:00 Confirmed EVT-006604; 12:00–12:30 Turnaround EVT-006604 · occupied; 13:45–14:00 Setup EVT-006605 · occupied; 14:00–16:00 Pending EVT-006605; 16:00–16:45 Turnaround EVT-006605 · occupied. Setup and Turnaround markers were rgb(222, 235, 255); the Confirmed marker was rgb(255, 235, 230) and the Pending marker rgb(255, 250, 230). Free periods were 08:00–09:30, 12:30–13:45, 16:45–22:00. |
+| Actual Result | Between the outside-hours rows, Monday read: 09:30–10:00 Setup EVT-006660 · occupied; 10:00–12:00 Confirmed EVT-006660; 12:00–12:30 Turnaround EVT-006660 · occupied; 13:45–14:00 Setup EVT-006661 · occupied; 14:00–16:00 Pending EVT-006661; 16:00–16:45 Turnaround EVT-006661 · occupied. Setup and Turnaround markers were rgb(222, 235, 255); the Confirmed marker was rgb(255, 235, 230) and the Pending marker rgb(255, 250, 230). Free periods were 08:00–09:30, 12:30–13:45, 16:45–22:00. |
 | Status | Pass |
-| Remarks | Commit: af33eaf · Evidence: tests/I1/evidence/I1-T5.png · Defect: — |
+| Remarks | Commit: ac840b7 · Evidence: tests/I1/evidence/I1-T5.png · Defect: — |
 | Executed By | Yichen, via automated testing |
 | Date of Execution | 2026-10-07 |

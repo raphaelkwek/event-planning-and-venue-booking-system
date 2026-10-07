@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | Each of organiser, venuestaff, techsupport saw Monday with "10:00–12:00 Confirmed EVT-006628" and free periods 08:00–09:30, 12:30–13:45, 16:45–22:00. |
+| Actual Result | Each of organiser, venuestaff, techsupport saw Monday with "10:00–12:00 Confirmed EVT-006684" and free periods 08:00–09:30, 12:30–13:45, 16:45–22:00. |
 | Status | Pass |
-| Remarks | Commit: af33eaf · Evidence: tests/I1/evidence/I1-T11.png · Defect: — |
+| Remarks | Commit: ac840b7 · Evidence: tests/I1/evidence/I1-T11.png · Defect: — |
 | Executed By | Yichen, via automated testing |
 | Date of Execution | 2026-10-07 |

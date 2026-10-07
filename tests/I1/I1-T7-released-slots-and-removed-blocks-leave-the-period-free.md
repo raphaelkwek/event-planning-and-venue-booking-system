@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | Friday's Committed list had only 00:00–08:00 Outside operating hours and 22:00–24:00 Outside operating hours. Neither EVT-006615 nor "Fire drill" appeared. The free period was 08:00–22:00. |
+| Actual Result | Friday's Committed list had only 00:00–08:00 Outside operating hours and 22:00–24:00 Outside operating hours. Neither EVT-006671 nor "Fire drill" appeared. The free period was 08:00–22:00. |
 | Status | Pass |
-| Remarks | Commit: af33eaf · Evidence: tests/I1/evidence/I1-T7.png · Defect: — |
+| Remarks | Commit: ac840b7 · Evidence: tests/I1/evidence/I1-T7.png · Defect: — |
 | Executed By | Yichen, via automated testing |
 | Date of Execution | 2026-10-07 |

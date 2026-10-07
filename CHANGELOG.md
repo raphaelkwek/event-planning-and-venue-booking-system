@@ -1,6 +1,6 @@
-# Changelog
+﻿# Changelog
 
-> **Convention — read before editing this file:** entries are newest-first. When adding a new entry, insert it directly below this header, above every existing entry. Never append to the bottom. This header itself never moves and is never treated as an entry.
+> **Convention â€” read before editing this file:** entries are newest-first. When adding a new entry, insert it directly below this header, above every existing entry. Never append to the bottom. This header itself never moves and is never treated as an entry.
 
 ---
 
@@ -31,11 +31,11 @@
 1. **"Availability" on a venue's page opens its calendar** for every internal role. It shows the week from today, and "Show" reads any range of up to 31 days.
 2. **Each day has a bar, a Committed list and a Free list,** in Singapore time.
    - A confirmed booking is labelled with its event reference.
-   - A held slot shows as **Pending**, in a different colour from Confirmed. A booking request stays HELD until it's decided (§4.6 rule 3), so until L1 exists every hold shows this way.
+   - A held slot shows as **Pending**, in a different colour from Confirmed. A booking request stays HELD until it's decided (Â§4.6 rule 3), so until L1 exists every hold shows this way.
    - Setup and turnaround are their own rows, before and after the event, marked occupied and in their own colour.
    - Unavailability shows its type and reason.
    - The hours the venue is closed show as unavailable, all day on a closed day.
-3. **Postgres does every comparison** (§4.4):
+3. **Postgres does every comparison** (Â§4.4):
    - `&&` finds the slots and blocks touching each day;
    - `*` clips them to the day;
    - subtracting multiranges leaves the free time inside opening hours.
@@ -46,7 +46,7 @@
 
 ## Testing ahead of L1, L3, M1 and I2
 
-8. **No story creates holds, requests, approvals or blocks yet.** So FX-CALENDAR inserts one week of them directly (7–13 Dec 2026), and two statements in `tests/I1/README.md` approve or release a slot the way M1, M2 and L5 will.
+8. **No story creates holds, requests, approvals or blocks yet.** So FX-CALENDAR inserts one week of them directly (7â€“13 Dec 2026), and two statements in `tests/I1/README.md` approve or release a slot the way M1, M2 and L5 will.
 
 ## Notes for the team
 
@@ -61,7 +61,7 @@
 
 ## Verified
 
-- **The 15 I1 cards pass in Chrome** through the automated runner, against `af33eaf`. H2's 8 cases still pass with the new button.
+- **The 15 I1 cards pass in Chrome** through the automated runner, against `ac840b7`. H2's 8 cases still pass with the new button.
 - **planning-core:**
   - unit tests: 274/274, with the calendar's rules at 100% line, branch and mutation coverage;
   - integration tests: all pass against the shared database, apart from the 16 equipment tests above. The new suite passes 9/9.
@@ -112,7 +112,7 @@ tests covered it. F1's first repo file took the figure to 92.04%.
 
 **Timestamp:** 2026-10-07T18:36+08:00 (SGT)
 **Author:** Raphael, via Claude
-**Scope:** F1 (SPM-27), CR-06. `contracts`, the event module's domain, migrations 0007–0008, the
+**Scope:** F1 (SPM-27), CR-06. `contracts`, the event module's domain, migrations 0007â€“0008, the
 OpenAPI contract, the status lozenges, and `tests/F1/`.
 **Reason:** CR-06 (Week 7) adds an Operational Safety Check: confirming an event's arrangements
 (F5) now leads to **Safety Review**, and only the Safety Officer's approval (U1) leads to
@@ -124,10 +124,10 @@ land here, before F5 and U1 build the actions that perform them.
 - **`SAFETY_REVIEW`**, the eleventh status, between Planning and Confirmed: in contracts
   (`EVENT_STATUSES`, `DECIDED_STATUSES`, labels), the OpenAPI `EventStatus` enum, the frontend type
   and the lozenge map ("Safety Review", in-progress colour).
-- **Transitions:** `CONFIRM_ARRANGEMENTS` (Approved/Planning → Safety Review; F5 will perform it),
-  `APPROVE_SAFETY` (Safety Review → Confirmed) and `REQUEST_SAFETY_CHANGES` (Safety Review →
+- **Transitions:** `CONFIRM_ARRANGEMENTS` (Approved/Planning â†’ Safety Review; F5 will perform it),
+  `APPROVE_SAFETY` (Safety Review â†’ Confirmed) and `REQUEST_SAFETY_CHANGES` (Safety Review â†’
   Planning), both performed by U1.
-- **Migrations 0007–0008:** the status check is re-added with the new value `NOT VALID`, then
+- **Migrations 0007â€“0008:** the status check is re-added with the new value `NOT VALID`, then
   validated in its own migration. `migrate.ts` runs one file per transaction, so validating in
   0007 would have scanned the table while holding 0007's exclusive lock.
 - **`tests/boundaries/eventValues.test.ts`** holds the database check to the contracts list, as
@@ -146,7 +146,7 @@ land here, before F5 and U1 build the actions that perform them.
 - **Rejecting the safety arrangement has no transition yet.** Its outcome is CQ-08, still
   unanswered by the customer. Raphael agreed to leave it out (2026-10-07), and a test pins its
   absence.
-- **"Request changes → Planning" is CR-06's proposal.** CQ-08 also asks which stage it returns to,
+- **"Request changes â†’ Planning" is CR-06's proposal.** CQ-08 also asks which stage it returns to,
   so the target may change with the customer's answer.
 - **F1 itself is not finished.** The guarded write path, the completion sweep and executing the
   cards follow in the next PR. SPM-27 is back to In Progress.
@@ -166,11 +166,11 @@ land here, before F5 and U1 build the actions that perform them.
 **Author:** Joash
 **Scope:** `documentation/clarifications.md` (new).
 
-**Reason:** PX-07 (SPM-148). `implementation.md` §4.6, `change-requests.md` and the PX-07 and PX-14 Jira comments all said "record the answer in `documentation/clarifications.md`", and the file didn't exist.
+**Reason:** PX-07 (SPM-148). `implementation.md` Â§4.6, `change-requests.md` and the PX-07 and PX-14 Jira comments all said "record the answer in `documentation/clarifications.md`", and the file didn't exist.
 
 ## What it does
 
-1. **It says how to record an answer:** in the customer's words, with dates and where it was asked. Then the story is revised with a ⚠ note citing the entry.
+1. **It says how to record an answer:** in the customer's words, with dates and where it was asked. Then the story is revised with a âš  note citing the entry.
 2. **It lists the ten open questions,** CQ-01 to CQ-10 with their Jira keys and the stories each affects. None has an answer yet. CQ-01 to CQ-03 have been open since 1 Oct, and P1 is blocked on CQ-02.
 3. **It indexes the earlier answers the stories cite** (C-04, C-10, C-11, C-12, C-13) with what each decided. Their original wording isn't in the repo, so the PO is asked to add it. No answer was invented.
 
@@ -193,7 +193,7 @@ land here, before F5 and U1 build the actions that perform them.
   - `tests/equipment/domain/availability.test.ts`;
   - the two boundaries values tests.
 - `availability.ts`: a comment marking two equivalent mutants. `.gitignore`: the reports and sandbox.
-- `implementation.md` §8.1.
+- `implementation.md` Â§8.1.
 
 **Reason:** EN-06.2 (SPM-167), part of EN-06. The rubric asks for 100% domain coverage, but coverage only shows a line ran, not that a test would notice it was wrong. Mutation testing is that proof.
 
@@ -232,7 +232,7 @@ land here, before F5 and U1 build the actions that perform them.
 - `.github/workflows/codeql.yml` (new).
 - `.squawk.toml` (new).
 - `backend/scripts/migrate.ts`: a lock timeout and a statement timeout for every migration.
-- `implementation.md` §4.8 and §8.1.
+- `implementation.md` Â§4.8 and Â§8.1.
 
 **Reason:** EN-06.3 (SPM-172), the last piece of EN-06's pipeline. The rubric's "code quality and CI" row asks for checks beyond tests, and a team of six with AI agents writing code needs a net for risky schema changes and for passwords committed by accident.
 
@@ -256,7 +256,7 @@ land here, before F5 and U1 build the actions that perform them.
 Each check was proved to fail on a bad change, locally with the same commands and config, so no secret or risky migration was ever pushed to the shared repo:
 - **squawk** exits 1 on a migration that drops a column and changes a column's type, and exits 0 on this week's new migrations (venue 0003, equipment 0001).
 - **gitleaks** exits 1 on a throwaway repo where a fake GitHub token was committed and then deleted in a later commit. The repo's own 159 commits are clean.
-- **The changed-migration filter** picks out exactly `venue/0003…` over PR #18's range.
+- **The changed-migration filter** picks out exactly `venue/0003â€¦` over PR #18's range.
 - In CI, all jobs pass on this pull request, and CodeQL uploads its results.
 
 ---
@@ -268,7 +268,7 @@ Each check was proved to fail on a bad change, locally with the same commands an
 **Scope:**
 - planning-core tests: `tests/support/race.ts` (new, the harness) and `tests/race/invariants.test.ts` (new).
 - The fix: `src/modules/venue/repo/slots.ts` (`insertVenueSlot` takes the venue lock) and `src/modules/equipment/repo/inventory.ts` (`reserveUnit` takes the type lock).
-- Docs: `implementation.md` §4.6 rule 4 and the as-built notes; ADR-0006, an "As built" section.
+- Docs: `implementation.md` Â§4.6 rule 4 and the as-built notes; ADR-0006, an "As built" section.
 - Traceability: four rows linking N1's and Q1's "exactly one succeeds" and "touching periods" criteria to the races.
 
 **Reason:** EN-02.3 (SPM-170), the last piece of EN-02. N1, L3 and Q1 promise that when attempts race, exactly one wins. EN-02.1 and EN-02.2 built that guarantee into the database; this proves it under real contention.
@@ -293,7 +293,7 @@ Each check was proved to fail on a bad change, locally with the same commands an
    - `insertVenueSlot` takes the venue row lock first, the lock M1 and I2 already take.
    - `reserveUnit` takes its equipment type's row lock, as bulk reservations already do.
    - Each loser now meets an already committed winner and gets the clean refusal. The exclusion constraints still decide.
-   - This is recorded as rule 4 in `implementation.md` §4.6 and in ADR-0006.
+   - This is recorded as rule 4 in `implementation.md` Â§4.6 and in ADR-0006.
 
 ## Verified
 
@@ -313,7 +313,7 @@ Each check was proved to fail on a bad change, locally with the same commands an
   - `domain/availability.ts` (new).
 - contracts: `equipment.ts` (new) and the `INSUFFICIENT_EQUIPMENT` error code.
 - Tests: `tests/equipment/repo/inventory.test.ts` (integration), `tests/equipment/domain/availability.test.ts`, `tests/boundaries/equipmentValues.test.ts`, and `contracts/tests/equipment.test.ts`. `tests/support/checkConstraints.ts` (new) is now shared with EN-02.1's values test.
-- `implementation.md` §4.6, an "as built" note.
+- `implementation.md` Â§4.6, an "as built" note.
 
 **Reason:** EN-02.2 (SPM-165), the equipment half of EN-02 (ADR-0006). The old design kept one counter per equipment type with no dates, so it couldn't tell Friday afternoon from Saturday. This unblocks O1, P2, P1 (once CQ-02 is answered) and EN-02.3, and gives Q1 and Q2 the tables they build on.
 
@@ -348,19 +348,19 @@ Each check was proved to fail on a bad change, locally with the same commands an
   - `domain/slotConflict.ts` (new).
 - contracts: `venueSlots.ts` (new) and the `VENUE_SLOT_CONFLICT` error code.
 - Tests: `tests/venue/repo/slots.test.ts` (integration), `tests/venue/domain/slotConflict.test.ts`, `tests/boundaries/venueValues.test.ts`, and `contracts/tests/venueSlots.test.ts`.
-- `implementation.md` §4.6, an "as built" note.
+- `implementation.md` Â§4.6, an "as built" note.
 
 **Reason:** EN-02.1 (SPM-160), the venue half of EN-02 (ADR-0006). N1, L3 and M1 require that exactly one of two racing holds or bookings succeeds, which a check in application code can't promise. This also unblocks I1, J1 and EN-02.3, and gives Sprint 3's L3, L1, M1, N1 and I2 the table they build on.
 
 ## What it does
 
 1. **`venue.venue_slots` holds every hold and confirmed booking.** One exclusion constraint, `venue_slot_no_overlap`, refuses any two HELD or CONFIRMED slots at the same venue whose occupied periods overlap. Periods that merely touch are allowed.
-2. **The occupied period includes setup and turnaround time** (CR-01, H3): `[start − setup, end + turnaround)`.
+2. **The occupied period includes setup and turnaround time** (CR-01, H3): `[start âˆ’ setup, end + turnaround)`.
    - Each slot copies the venue's two times when it's taken, so changing them later never rewrites a stored period. H3 flags the bookings that would now conflict instead.
    - A small `venue.occupied_period` function computes it. It's declared immutable, because Postgres treats `timestamptz + interval` as only stable (days and months depend on the time zone; whole minutes don't).
 3. **Requires Reconfirmation is a boolean column,** so a flagged booking stays CONFIRMED and keeps blocking its period. RELEASED and EXPIRED slots block nothing (L6's expiry needs no constraint change).
 4. **`insertVenueSlot` turns the constraint's refusal into one people can act on.** It inserts in a savepoint. On Postgres `23P01` it looks up what the period overlapped and throws `VenueSlotConflictError` (`VENUE_SLOT_CONFLICT`), naming every reference. The look-up only shapes the message; the constraint already decided.
-5. **`lockVenue` takes the venue row `for update`.** M1's approval and I2's block both call it first, so they serialise per venue (§4.6 rule 1).
+5. **`lockVenue` takes the venue row `for update`.** M1's approval and I2's block both call it first, so they serialise per venue (Â§4.6 rule 1).
 6. **`venue.unavailability_blocks` is I2's table:**
    - CR-02's reason types (maintenance, equipment failure, renovation, safety, other);
    - a mandatory description;
@@ -372,7 +372,7 @@ The migration is numbered 0003 because H3's branch takes 0002 for the venue's tw
 
 ## Verified
 
-- **CI integration job:** all slot tests pass on the throwaway Postgres (EN-06.1), including **two simultaneous bookings where exactly one wins**, the customer's own CR-01 example (10:00–12:00 with 30 and 45 minutes occupies 09:30–12:45), and a second locker waiting on `lockVenue`.
+- **CI integration job:** all slot tests pass on the throwaway Postgres (EN-06.1), including **two simultaneous bookings where exactly one wins**, the customer's own CR-01 example (10:00â€“12:00 with 30 and 45 minutes occupies 09:30â€“12:45), and a second locker waiting on `lockVenue`.
 - **The first CI run caught one wrong expectation in my tests:** an end before the start fails as a range error (`22000`) before the check constraint runs (`23514`). It is refused either way and nothing is stored; the test now says so.
 - Unit tests: planning-core 223 and contracts 73. Domain coverage stays at 100%.
 
@@ -385,7 +385,7 @@ The migration is numbered 0003 because H3's branch takes 0002 for the venue's tw
 **Scope:**
 - `.github/workflows/ci.yml`: a new `integration` job.
 - `backend/scripts/migrate.ts`: an `all` target. Root `package.json`: `npm run migrate:all`.
-- `implementation.md` §8.1 and `README.md` (setup steps 4 to 7).
+- `implementation.md` Â§8.1 and `README.md` (setup steps 4 to 7).
 
 **Reason:** EN-06.1 (SPM-162), part of EN-06. Integration tests only ran on laptops, against the team's shared Supabase database, so no pull request ever ran them. EN-02.3's race tests also need a database CI owns.
 
@@ -451,7 +451,7 @@ No API change: the page reads H1's `GET /api/v1/venues/{id}`.
 - `contracts`: `NOTIFICATION_NOT_FOUND`. The API specs: `notification.openapi.yaml` (new), the API README, and `lint:api` now covering both specs.
 - The web app: `api/notifications.ts`, the `Notifications` screen, `shared/useUnreadCount.ts`, `App.tsx`, the `/notification` proxy, and a test file.
 - The test cards: `tests/T2/` (14 new, 6 re-checked), `tests/README.md`, and the reset script.
-- `.env.example`, `implementation.md` §2 and §10, and traceability.
+- `.env.example`, `implementation.md` Â§2 and Â§10, and traceability.
 
 **Reason:** T2 (SPM-61), Sprint 2. EN-04.3 stores notifications; this lets people read them.
 
@@ -586,7 +586,7 @@ No API change: the page reads H1's `GET /api/v1/venues/{id}`.
 - planning-core: `src/shared/kafka/client.ts`, two test files and `package.json`.
 - `backend/scripts/migrate.ts` and `kafka-check.ts`.
 - Root `package.json` (`npm run dev`, `migrate:notification`), `.env.example`, and CI's coverage summary and artifacts.
-- `implementation.md` §2, §3.5 and §10, and `tests/T2/README.md`.
+- `implementation.md` Â§2, Â§3.5 and Â§10, and `tests/T2/README.md`.
 
 **Reason:** EN-04.3 (SPM-171), ADR-0008. The relay (EN-04.2) publishes every event message, but nothing turned them into notifications. T2 (SPM-61) builds its read API and screen on top of this.
 
@@ -615,7 +615,7 @@ No API change: the page reads H1's `GET /api/v1/venues/{id}`.
    | E2 decline | the proposer |
 
    **B1 and E1:** `event.submitted` doesn't name the coordinator, so it notifies nobody. The `event.coordinator-assigned` message, written in the same transaction, tells the assigned coordinator the request is awaiting their review. That covers both stories' criteria. E3 (CR-05) will replace automatic assignment.
-5. **Consumer groups** follow the rule already in `implementation.md` §3.1 and `.env.example` (SPM-113): `connectsphere.notification.event-notifier` and `connectsphere.notification.retry-worker`, plus `.<KAFKA_GROUP_SUFFIX>` on a laptop.
+5. **Consumer groups** follow the rule already in `implementation.md` Â§3.1 and `.env.example` (SPM-113): `connectsphere.notification.event-notifier` and `connectsphere.notification.retry-worker`, plus `.<KAFKA_GROUP_SUFFIX>` on a laptop.
    - Jira's description suggested `notification.<env>`, which was written before that rule was agreed.
    - A new group starts at the newest message.
    - Every laptop's consumer writes to the same shared inbox, so a message is stored once however many are running.
@@ -676,7 +676,7 @@ No API change: the page reads H1's `GET /api/v1/venues/{id}`.
   - `tests/shared/` (new: five files);
   - the outbox assertions in five event API tests;
   - a separate commit fixing the dates in six of them.
-- `backend/scripts/kafka-check.ts`, root `package.json`, `.env.example`, and `implementation.md` §3 and §10.
+- `backend/scripts/kafka-check.ts`, root `package.json`, `.env.example`, and `implementation.md` Â§3 and Â§10.
 
 **Reason:** EN-04.2 (SPM-166), ADR-0008. Outbox rows were written but nothing published them, which is what T2 (through EN-04.3) is waiting for.
 
@@ -695,7 +695,7 @@ No API change: the page reads H1's `GET /api/v1/venues/{id}`.
    - A transaction that started first but waited for the event's row lock stamps an earlier time than one that committed before it.
    - `seq` is taken at insert, after that lock.
 5. **A row that can never publish is set aside, never retried.** That covers a schema failure or an unknown topic.
-   - Its `last_error` reads `unpublishable: …`, and it's logged.
+   - Its `last_error` reads `unpublishable: â€¦`, and it's logged.
    - It doesn't block the rows behind it.
 6. **Failures back off:** 1 s, doubling, up to 30 s.
    - A pass that throws, e.g. when the database goes away, is logged and retried.
@@ -715,7 +715,7 @@ No API change: the page reads H1's `GET /api/v1/venues/{id}`.
 10. **The event module's `writeOutbox` now writes and validates a CloudEvent** with `parseCloudEvent`, with source `/connectsphere/planning-core/event`.
     - Its callers are unchanged.
     - `EVENT_SERVICE_NAME` is no longer read, and `causationId` is gone.
-11. **The relay converts rows still in the old envelope,** using §3.3's mapping. That covers rows written by code on `main` until this merges.
+11. **The relay converts rows still in the old envelope,** using Â§3.3's mapping. That covers rows written by code on `main` until this merges.
 
 ## The backlog (team decision, 3 Oct 2026)
 
@@ -753,7 +753,7 @@ No API change: the page reads H1's `GET /api/v1/venues/{id}`.
 
 ---
 
-# EN-04.1: CloudEvents 1.0 envelope, per-aggregate topics and contract tests in `contracts`; `implementation.md` §3 rewritten
+# EN-04.1: CloudEvents 1.0 envelope, per-aggregate topics and contract tests in `contracts`; `implementation.md` Â§3 rewritten
 
 **Timestamp:** 2026-10-03T11:16+08:00 (SGT)
 **Author:** Seann, via Claude
@@ -763,7 +763,7 @@ No API change: the page reads H1's `GET /api/v1/venues/{id}`.
   - `src/topics.ts` and `tests/topics.test.ts`;
   - `src/envelope.ts` (comment only) and `src/index.ts`.
 - `backend/scripts/kafka-check.ts`
-- `implementation.md`: the header note, §1, §3, §8.1 and the appendix
+- `implementation.md`: the header note, Â§1, Â§3, Â§8.1 and the appendix
 - one comment in planning-core's `modules/event/config.ts`
 
 **Reason:** EN-04.1 (SPM-161), the first step of EN-04. ADR-0008 replaced the custom envelope and the per-event-type topics, and EN-04.2 (the relay) and EN-04.3 (the notification service) build on this contract.
@@ -788,7 +788,7 @@ No API change: the page reads H1's `GET /api/v1/venues/{id}`.
    - A user role must name its user, and `SYSTEM` must not.
 4. **The old envelope (`envelope.ts`) stays for now,** marked as superseded.
    - The event module's outbox writer still produces it, and EN-04.2 moves the writer to CloudEvents.
-   - §3.3 gives the field-by-field mapping, so the relay can convert rows already written in the old shape.
+   - Â§3.3 gives the field-by-field mapping, so the relay can convert rows already written in the old shape.
    - `causationId` was dropped. No producer ever set it.
 
 ## Topics
@@ -816,19 +816,19 @@ No API change: the page reads H1's `GET /api/v1/venues/{id}`.
 
 ## `implementation.md`
 
-10. **§3 is rewritten for ADR-0008.** It covers:
+10. **Â§3 is rewritten for ADR-0008.** It covers:
     - the topic table, retry and DLQ naming, the before-cutover set, legacy names and consumer groups;
     - the key = `subject` rule;
     - the CloudEvents attributes, with an example and the old-to-new mapping;
     - the outbox relay with `SKIP LOCKED`;
     - inbox, retry and DLQ handling.
 11. **Elsewhere in `implementation.md`:**
-    - §3 is removed from the header's list of sections that conflict with the ADRs.
-    - §9 is added to that list, because it still sends logs to a Kafka topic. ADR-0013 sends them to Loki, and the rewrite belongs to EN-08.
-    - §1 now cites ADR-0008 for Kafka, and §8.1 says "message `id`".
-    - The appendix item "Hosted Kafka provider not yet chosen" is removed. The ADR-0008 note and §3 now decide it.
+    - Â§3 is removed from the header's list of sections that conflict with the ADRs.
+    - Â§9 is added to that list, because it still sends logs to a Kafka topic. ADR-0013 sends them to Loki, and the rewrite belongs to EN-08.
+    - Â§1 now cites ADR-0008 for Kafka, and Â§8.1 says "message `id`".
+    - The appendix item "Hosted Kafka provider not yet chosen" is removed. The ADR-0008 note and Â§3 now decide it.
 
-**Needs a second owner's review** before merge, because it changes `contracts` (`implementation.md` §2).
+**Needs a second owner's review** before merge, because it changes `contracts` (`implementation.md` Â§2).
 
 ## Verified locally
 
@@ -919,7 +919,7 @@ No credential is in any file in this change.
 - `documentation/final user stories.md` (revision 4)
 - `documentation/c4/connectsphere.dsl` and its README
 - ADR-0006, ADR-0009 and ADR-0010
-- `implementation.md` §4.6, `plan.md` §1
+- `implementation.md` Â§4.6, `plan.md` Â§1
 - `documentation/proposals/2026-10-02-week7-customer-changes.md`
 
 **Reason:** The customer's Week 7 changes, all required for Release 1 (Week 12), handled as the course's *Managing Changes* guide describes. They arrived in the last week of Sprint 2, so they're planned at Sprint 3 and Sprint 4 planning.
@@ -933,7 +933,7 @@ No credential is in any file in this change.
    - CR-04: tentative holds expire.
    - CR-05: the Event Coordinator Lead.
    - CR-06: the Operational Safety Check.
-2. **Two earlier decisions are reversed, on the record:** buffers were out of scope (`plan.md` §1), and coordinators could see all events (A3).
+2. **Two earlier decisions are reversed, on the record:** buffers were out of scope (`plan.md` Â§1), and coordinators could see all events (A3).
 3. **Seven new customer questions, CQ-04 to CQ-10,** cover what the changes leave open:
    - which capacity limits registrations for a multi-venue event;
    - whether every booking must be confirmed;
@@ -955,7 +955,7 @@ No credential is in any file in this change.
    - L5: requesting a replacement venue;
    - L6: holds expire;
    - U1: the Operational Safety Check, in new feature 21.
-5. **Sixteen stories not yet Done have revised acceptance criteria, each marked ⚠ REVISED with its change:** F1, F5, H1, I1, I2, J1, K1, L1, L3, M1, N1, N2, R1, R2, R7 and S3.
+5. **Sixteen stories not yet Done have revised acceptance criteria, each marked âš  REVISED with its change:** F1, F5, H1, I1, I2, J1, K1, L1, L3, M1, N1, N2, R1, R2, R7 and S3.
    - Overlaps now compare occupied periods.
    - L3's "holds do not expire" is replaced.
    - F1's status list gains Safety Review.
@@ -976,7 +976,7 @@ No credential is in any file in this change.
    - ADR-0006 notes how CR-01, CR-03 and CR-04 fit the existing constraint: buffers in `blocked_period`, conflicts flagged when buffers change, and `EXPIRED` holds already ignored;
    - ADR-0009 adds the `HoldExpiry` workflow;
    - ADR-0010 records the two new roles and the narrower coordinator scope.
-10. **Planning docs:** `implementation.md` §4.6 and `plan.md` §1 no longer say buffers are out of scope.
+10. **Planning docs:** `implementation.md` Â§4.6 and `plan.md` Â§1 no longer say buffers are out of scope.
 
 ---
 
@@ -988,9 +988,9 @@ No credential is in any file in this change.
 - the Vitest configs and `test:unit` scripts of planning-core, contracts and web
 - `.github/workflows/ci.yml`, `.github/scripts/coverage-summary.mjs` (new)
 - four new domain tests, in planning-core's validation and access-scope suites
-- `implementation.md` §8.1, `README.md`
+- `implementation.md` Â§8.1, `README.md`
 
-**Reason:** SPM-116, part of EN-06. `implementation.md` §8.1 and the rubric target 100% coverage of domain code, but nothing measured it.
+**Reason:** SPM-116, part of EN-06. `implementation.md` Â§8.1 and the rubric target 100% coverage of domain code, but nothing measured it.
 
 1. **Coverage is measured on every unit run.** Each workspace's `test:unit` now runs Vitest with the v8 coverage provider, and the thresholds in its config fail the build.
 2. **`src/**/domain/**` in planning-core is held at 100%** of lines, branches, functions and statements. Reaching it took four new tests for paths nobody had tested:
@@ -1094,7 +1094,7 @@ No credential is in any file in this change.
 
 ---
 
-# SPM-114: CI on every pull request — lint, typecheck, build, unit tests
+# SPM-114: CI on every pull request â€” lint, typecheck, build, unit tests
 
 **Timestamp:** 2026-10-02T12:30+08:00 (SGT)
 **Author:** Joash
@@ -1103,7 +1103,7 @@ No credential is in any file in this change.
 - `package.json` scripts in the root, planning-core, contracts and web
 - `planning-core/vitest.unit.config.ts` (new)
 - small type-only edits in nine planning-core API tests
-- `implementation.md` §2 and §8.1, `README.md`
+- `implementation.md` Â§2 and Â§8.1, `README.md`
 
 **Reason:** SPM-114, the first step of EN-06. The repo had no CI at all, and every other item's Definition of Done needs a green pipeline.
 
@@ -1146,12 +1146,12 @@ No credential is in any file in this change.
 **Scope:**
 - `backend/services/planning-core` (new; replaces `backend/services/identity` and `backend/services/event`)
 - root `package.json` and `package-lock.json`, `backend/scripts/migrate.ts`, `.env.example`, `frontend/vite.config.ts`
-- `README.md`, `tests/README.md`, `implementation.md` §2 and §11, `definition-of-ready.md`, `plan.md` §8, ADR-0004
+- `README.md`, `tests/README.md`, `implementation.md` Â§2 and Â§11, `definition-of-ready.md`, `plan.md` Â§8, ADR-0004
 - `documentation/traceability/sprint-1.csv` and `sprint-2.csv` (test paths only)
 
 **Reason:** EN-01 (SPM-119), ADR-0004. Until this change the architecture was decided on paper only; the code was still two services. Almost every Sprint 2 story builds inside the new layout, so this unblocks them. **No HTTP route, status code, error message or event message changed.** The only visible difference is that log lines now say `"service": "planning-core"`.
 
-## EN-01.1 — the skeleton and the boundary checks
+## EN-01.1 â€” the skeleton and the boundary checks
 
 1. **One deployable, `@connectsphere/planning-core`:**
    - `src/app.ts` mounts each module's router;
@@ -1165,7 +1165,7 @@ No credential is in any file in this change.
    - **SQL:** `scripts/check-schema-boundaries.ts` fails when a file in `src/` or `migrations/` names another module's schema. Its matching rule is unit-tested (11 cases, including a reference split across lines).
 4. **Migrations** now live in `migrations/<module>/`, and `migrate.ts` reads them there. The `schema_migrations` keys are still `identity` and `event`, so nothing is re-applied. I checked read-only that all 9 files are recorded as applied.
 
-## EN-01.2 and EN-01.3 — Identity and Event moved in
+## EN-01.2 and EN-01.3 â€” Identity and Event moved in
 
 5. **Code, migrations and tests moved with `git mv`,** so `git log --follow` still shows each file's history. Each service's copy of the shared files was replaced by the one in `src/shared/`, and Identity's duplicate health test was dropped.
 6. **The event module no longer calls Identity over HTTP.**
@@ -1199,7 +1199,7 @@ The injected-`sql` point is a deliberate follow-up. The event module's `authenti
 
 ## For the team
 
-- **Raphael (F1):** F1's next tasks move from `backend/services/event/src/…` to `backend/services/planning-core/src/modules/event/…`, and its tests to `tests/event/…`. Rebase onto this branch, and git will follow the renames for files you've already changed.
+- **Raphael (F1):** F1's next tasks move from `backend/services/event/src/â€¦` to `backend/services/planning-core/src/modules/event/â€¦`, and its tests to `tests/event/â€¦`. Rebase onto this branch, and git will follow the renames for files you've already changed.
 - **Unblocked once this merges:**
   - H1, F2, G1, EN-02.2, EN-07.2, EN-08 and EN-03;
   - F1 too, as far as EN-01.3 is concerned;
@@ -1207,7 +1207,7 @@ The injected-`sql` point is a deliberate follow-up. The event module's `authenti
 
 ---
 
-# Jira changes — pull-ready Sprint 2: subtasks, blocker links, Start-here sections, ranking; Definition of Ready
+# Jira changes â€” pull-ready Sprint 2: subtasks, blocker links, Start-here sections, ranking; Definition of Ready
 
 **Timestamp:** 2026-10-02T07:50+08:00 (SGT)
 **Author:** Joash
@@ -1254,7 +1254,7 @@ The injected-`sql` point is a deliberate follow-up. The event module's `authenti
    - then EN-08, EN-03 and EN-05;
    - the process lane (PX and CQ) at the bottom, so it never looks like the next coding task.
 
-   Ready subtasks are ranked beside their parents. The ready list now reads SPM-114 → EN-01.1 → SPM-113 → EN-09 → EN-07.1 → EN-04.1.
+   Ready subtasks are ranked beside their parents. The ready list now reads SPM-114 â†’ EN-01.1 â†’ SPM-113 â†’ EN-09 â†’ EN-07.1 â†’ EN-04.1.
 
 ## Repo
 
@@ -1286,8 +1286,8 @@ The injected-`sql` point is a deliberate follow-up. The event module's `authenti
 **Author:** Joash
 **Scope:**
 - `documentation/adr/` (12 new ADRs, 3 status changes, the index)
-- `documentation/planning/implementation.md` (§4.5–§4.7, a top note, §8.4 attendee-shell line)
-- `documentation/planning/plan.md` (§2–§9)
+- `documentation/planning/implementation.md` (Â§4.5â€“Â§4.7, a top note, Â§8.4 attendee-shell line)
+- `documentation/planning/plan.md` (Â§2â€“Â§9)
 - `documentation/sprint allocation.csv`
 - `CLAUDE.md`
 - `documentation/proposals/2026-10-01-target-architecture-and-jira-plan.md` (gate log)
@@ -1296,7 +1296,7 @@ The injected-`sql` point is a deliberate follow-up. The event module's `authenti
 
 ## Architecture decisions
 
-1. **ADR-0004 to ADR-0015 written as Accepted**, one per decision D1–D12 on the target architecture page:
+1. **ADR-0004 to ADR-0015 written as Accepted**, one per decision D1â€“D12 on the target architecture page:
    - **0004** modular core instead of six microservices, which **amends ADR-0001**.
    - **0005** registration service with seat rows.
    - **0006** Postgres enforces every invariant.
@@ -1320,16 +1320,16 @@ The injected-`sql` point is a deliberate follow-up. The event module's `authenti
    - an equipment-type row lock plus a peak-concurrent-use check, for bulk stock.
 
    P2's reduction check uses the same lock instead of `SERIALIZABLE`. P1's counting rule is marked as waiting on CQ-02.
-4. **A block could slip past an in-flight approval.** M1 (approve) and I2 (block) now both take `SELECT … FOR UPDATE` on the venue row first.
+4. **A block could slip past an in-flight approval.** M1 (approve) and I2 (block) now both take `SELECT â€¦ FOR UPDATE` on the venue row first.
 5. **Requires Reconfirmation is a flag, never a status,** so a flagged booking keeps blocking its slot. A hold converted by L1 stays HELD until M1 or M2 decides. The slot constraint now uses `blocked_period` (buffers zero in Release 1).
-6. **The F5 contradiction is resolved.** §4.7 told us both to re-verify across services inside the writing transaction and never to hold a transaction across HTTP. Under ADR-0004, F5 reads the booking and the reservations in one core transaction, so the "never HTTP inside a transaction" rule has no exception.
+6. **The F5 contradiction is resolved.** Â§4.7 told us both to re-verify across services inside the writing transaction and never to hold a transaction across HTTP. Under ADR-0004, F5 reads the booking and the reservations in one core transaction, so the "never HTTP inside a transaction" rule has no exception.
 
-7. **A note at the top of `implementation.md`** lists the sections that still describe the six-service design (§2, §3, the registration counters in §4.6, §6), the ADR that wins for each, and the enabler owner who rewrites it. Those sections were deliberately not rewritten here.
+7. **A note at the top of `implementation.md`** lists the sections that still describe the six-service design (Â§2, Â§3, the registration counters in Â§4.6, Â§6), the ADR that wins for each, and the enabler owner who rewrites it. Those sections were deliberately not rewritten here.
 
-## `plan.md` §2–§9 and the sprint allocation
+## `plan.md` Â§2â€“Â§9 and the sprint allocation
 
-8. **§2–§8** now describe the accepted architecture: the modular core plus two edge services, the containers, module ownership and schemas, how things talk, the invariants with a per-operation consistency table, the F4 semantic lock (replacing the saga), and the local and staging topology. The section numbers are unchanged, because other documents link to them.
-9. **§9 now copies Jira, the single source of story points.**
+8. **Â§2â€“Â§8** now describe the accepted architecture: the modular core plus two edge services, the containers, module ownership and schemas, how things talk, the invariants with a per-operation consistency table, the F4 semantic lock (replacing the saga), and the local and staging topology. The section numbers are unchanged, because other documents link to them.
+9. **Â§9 now copies Jira, the single source of story points.**
    - **Sprint 1 is restated as 35** (all fifteen stories Done). Sprint 2 shows Jira's 34 story points after F3 left (37 at the 27 Sep estimate), plus P1, which is not yet estimated.
    - Sprints 3 and 4 show only F5 (5) and F3 (3). Everything else waits for planning poker (PX-02).
    - The 1 Oct moves are recorded with reasons, with enablers per sprint and the sprint dates.
@@ -1350,7 +1350,7 @@ The injected-`sql` point is a deliberate follow-up. The event module's `authenti
 
 ---
 
-# Jira changes — Batch 3: sprint placement (story moves, enablers, scrum-evidence tasks)
+# Jira changes â€” Batch 3: sprint placement (story moves, enablers, scrum-evidence tasks)
 
 **Timestamp:** 2026-10-01T20:40+08:00 (SGT)
 **Author:** Joash
@@ -1359,10 +1359,10 @@ The injected-`sql` point is a deliberate follow-up. The event module's `authenti
 
 ## Story moves, each with a comment on the issue giving the reason
 
-1. **F3 (SPM-29): Sprint 2 → Sprint 4.** Cancellation is one command with F4; shipping it alone means rewriting it.
-2. **P1 (SPM-48): backlog (planned for Sprint 3) → Sprint 2.** It shares its time-based availability model with P2. It has no points in Jira yet, and it waits on the answer to CQ-02.
-3. **F5 (SPM-109): backlog (planned for Sprint 4) → Sprint 3.** Readiness becomes an in-core query once M1 and Q1 exist.
-4. **R1 (SPM-52): backlog (planned for Sprint 3) → Sprint 4.** It is built on the registration service's seat inventory, and the attendee PWA shell moves into EN-13.
+1. **F3 (SPM-29): Sprint 2 â†’ Sprint 4.** Cancellation is one command with F4; shipping it alone means rewriting it.
+2. **P1 (SPM-48): backlog (planned for Sprint 3) â†’ Sprint 2.** It shares its time-based availability model with P2. It has no points in Jira yet, and it waits on the answer to CQ-02.
+3. **F5 (SPM-109): backlog (planned for Sprint 4) â†’ Sprint 3.** Readiness becomes an in-core query once M1 and Q1 exist.
+4. **R1 (SPM-52): backlog (planned for Sprint 3) â†’ Sprint 4.** It is built on the registration service's seat inventory, and the attendee PWA shell moves into EN-13.
 5. **S1 (SPM-57) and S2 (SPM-58): placed in Sprint 3** behind feature flag `change-approval` (EN-15). Approval stays off in production until S3 lands.
 
 ## Stories placed in the sprints that now exist
@@ -1394,7 +1394,7 @@ No assignees were set; the team picks items up at standup. Nothing was deleted.
 
 ---
 
-# Jira changes — Batch 2: enabler and process epics, EN-01 to EN-23, PX-01 to PX-14, CQ-01 to CQ-03
+# Jira changes â€” Batch 2: enabler and process epics, EN-01 to EN-23, PX-01 to PX-14, CQ-01 to CQ-03
 
 **Timestamp:** 2026-10-01T20:39+08:00 (SGT)
 **Author:** Joash
@@ -1403,12 +1403,12 @@ No assignees were set; the team picks items up at standup. Nothing was deleted.
 
 ## Epics
 
-1. **SPM-117 — Platform and quality enablers** (label `enabler`).
-2. **SPM-118 — Scrum process evidence** (label `process`).
+1. **SPM-117 â€” Platform and quality enablers** (label `enabler`).
+2. **SPM-118 â€” Scrum process evidence** (label `process`).
 
 ## Enablers (Task, parent SPM-117, labels `enabler` plus `tier-1` or `tier-2`)
 
-3. **EN-01 to EN-23 created as SPM-119 to SPM-141, in order** (EN-01 = SPM-119 … EN-23 = SPM-141).
+3. **EN-01 to EN-23 created as SPM-119 to SPM-141, in order** (EN-01 = SPM-119 â€¦ EN-23 = SPM-141).
    - Each description holds the tier, the proposed sprint and "Proposed estimate (to be poker'd): N".
    - It also holds what the enabler blocks and the target architecture page's plain-language "what it is" and "why we need it".
    - Then come the plan's acceptance criteria word for word, a one-line Week 13 Q&A answer and the matching ADR.
@@ -1421,9 +1421,9 @@ No assignees were set; the team picks items up at standup. Nothing was deleted.
 
 ## Customer questions (Task, parent SPM-118, label `customer-question`)
 
-5. **CQ-01 — R7 VIP adds versus registration places** (SPM-156).
-6. **CQ-02 — P1 peak concurrent use or summed overlaps** (SPM-157).
-7. **CQ-03 — T2 notification visible within about 10 seconds** (SPM-158).
+5. **CQ-01 â€” R7 VIP adds versus registration places** (SPM-156).
+6. **CQ-02 â€” P1 peak concurrent use or summed overlaps** (SPM-157).
+7. **CQ-03 â€” T2 notification visible within about 10 seconds** (SPM-158).
 
 Each holds the question, why it matters and the design's proposal. They are unassigned until the Sprint 2 PO is named (PX-11).
 
@@ -1436,24 +1436,24 @@ Each holds the question, why it matters and the design's proposal. They are unas
 
 ## Links
 
-9. **41 "blocks" links**, from the plan's §5 "Blocks" and "(needs …)" columns:
-   - EN-01 → F5, F4, S2, S3, G2
-   - EN-02 → L3, M1, N1, I2, P1, P2, Q1
-   - EN-03 → F1, F2, G1, S2
-   - EN-04 → T2, EN-20
-   - EN-06 → EN-21
-   - EN-08 → EN-17
-   - EN-10 → EN-16, EN-21
-   - EN-11 → F1, F4, R6, S3, EN-20
-   - EN-12 → R1, R2, EN-19
-   - EN-13 → R1–R7, EN-18, EN-20
-   - EN-15 → S1, S2
+9. **41 "blocks" links**, from the plan's Â§5 "Blocks" and "(needs â€¦)" columns:
+   - EN-01 â†’ F5, F4, S2, S3, G2
+   - EN-02 â†’ L3, M1, N1, I2, P1, P2, Q1
+   - EN-03 â†’ F1, F2, G1, S2
+   - EN-04 â†’ T2, EN-20
+   - EN-06 â†’ EN-21
+   - EN-08 â†’ EN-17
+   - EN-10 â†’ EN-16, EN-21
+   - EN-11 â†’ F1, F4, R6, S3, EN-20
+   - EN-12 â†’ R1, R2, EN-19
+   - EN-13 â†’ R1â€“R7, EN-18, EN-20
+   - EN-15 â†’ S1, S2
 10. **7 "relates to" links:**
-    - EN-05 ↔ EN-04: "improves EN-04".
-    - EN-07 ↔ A2 and EN-07 ↔ A3: both stories are Done, so they can't be blocked.
-    - SPM-113 ↔ EN-04 and SPM-114, 115, 116 ↔ EN-06.
+    - EN-05 â†” EN-04: "improves EN-04".
+    - EN-07 â†” A2 and EN-07 â†” A3: both stories are Done, so they can't be blocked.
+    - SPM-113 â†” EN-04 and SPM-114, 115, 116 â†” EN-06.
 
-One link timed out on the first try (EN-10 → EN-16). It was confirmed missing, then retried successfully.
+One link timed out on the first try (EN-10 â†’ EN-16). It was confirmed missing, then retried successfully.
 
 **Known ordering issue:** EN-11 (Sprint 3) blocks F1 (Sprint 2), because F1's "Completed after the end time" needs the Sprint 3 timer. EN-11's description says so; raise it at the Sprint 2 review.
 
@@ -1461,16 +1461,16 @@ Nothing was deleted.
 
 ---
 
-# Jira changes — Batch 1: housekeeping (start Sprint 2, close finished epics, create Sprints 3 and 4)
+# Jira changes â€” Batch 1: housekeeping (start Sprint 2, close finished epics, create Sprints 3 and 4)
 
 **Timestamp:** 2026-10-01T20:35+08:00 (SGT)
 **Author:** Joash
 **Scope:** Jira project SPM, board 2.
 **Reason:** The team approved the target architecture and Jira plan (Gates A, B and D, reported 1 Oct 2026). Batch 1 of `documentation/proposals/2026-10-jira-changeset.md` puts the board into a state the rest of the rollout can build on. The starting state is recorded in `documentation/planning/jira-snapshot-2026-10.md`.
 
-1. **SPM Sprint 2 (id 68) started.** It had never been started in Jira (state `future`), so Jira had no burndown or sprint report for it. Its original dates were kept: 23 Sep 15:30 to 6 Oct 23:30 SGT. Goal set from `plan.md` §9's Sprint 2 theme: "Status, notifications, venue catalogue, equipment intake". The first start attempt, which re-sent the dates, timed out without effect. A second attempt with only the goal succeeded.
-2. **Feature 1 to 5 epics moved to Done:** SPM-62, SPM-63, SPM-64, SPM-65, SPM-66. Every story under them (A1–E2) was already Done.
-3. **T1 (SPM-60) commented.** It was already Done (closed by Chai on 15 Sep). The comment records that it was removed in Revision 3, where its triggers went, and that it is closed, not deleted (`implementation.md` §4.3).
+1. **SPM Sprint 2 (id 68) started.** It had never been started in Jira (state `future`), so Jira had no burndown or sprint report for it. Its original dates were kept: 23 Sep 15:30 to 6 Oct 23:30 SGT. Goal set from `plan.md` Â§9's Sprint 2 theme: "Status, notifications, venue catalogue, equipment intake". The first start attempt, which re-sent the dates, timed out without effect. A second attempt with only the goal succeeded.
+2. **Feature 1 to 5 epics moved to Done:** SPM-62, SPM-63, SPM-64, SPM-65, SPM-66. Every story under them (A1â€“E2) was already Done.
+3. **T1 (SPM-60) commented.** It was already Done (closed by Chai on 15 Sep). The comment records that it was removed in Revision 3, where its triggers went, and that it is closed, not deleted (`implementation.md` Â§4.3).
 4. **SPM Sprint 3 created** (id 101): 7 Oct 15:30 to 20 Oct 23:30 SGT. Goal: "Holds, booking, conflict, reservation, attendee shell".
 5. **SPM Sprint 4 created** (id 102): 21 Oct 15:30 to 3 Nov 23:30 SGT. Goal: "Registration, readiness, change impact (showcase)". This ends before Friday of Week 12, which the project instructions set as the latest end for the final sprint.
 
@@ -1478,7 +1478,7 @@ Nothing was deleted.
 
 ---
 
-# F1 in progress — design, plan, cards, and the transition table
+# F1 in progress â€” design, plan, cards, and the transition table
 
 **Timestamp:** 2026-09-30T21:30+08:00 (SGT)
 **Author:** Raphael, via Claude
@@ -1486,16 +1486,16 @@ Nothing was deleted.
 **Reason:** F1 (event status lifecycle) is Sprint 2 work. Sprint 1 built the transition rule its
 own stories needed, but only four of six transitions consult it, `setStatus()` accepts any status
 unguarded, and nothing completes an event. This push is the first slice: the agreed design, the
-twelve-task plan, F1's functional cards, and the transition table. **F1 is not done.** Tasks 3–12
+twelve-task plan, F1's functional cards, and the transition table. **F1 is not done.** Tasks 3â€“12
 (the guarded write path, moving each Sprint 1 path onto it, the completion sweep) follow.
 
 ## Added
 
 - **Design and plan:** `documentation/superpowers/specs/2026-09-30-f1-status-lifecycle-design.md`
   and `documentation/superpowers/plans/2026-09-30-f1-status-lifecycle.md` (with its `.tasks.json`).
-- **`tests/F1/`** — eleven functional cards written from F1's acceptance criteria before any code,
+- **`tests/F1/`** â€” eleven functional cards written from F1's acceptance criteria before any code,
   and **FX-SEEDED** in `tests/README.md` for statuses no user action can reach yet.
-- **`CONFIRM`** (Approved/Planning → Confirmed; F5 performs it) and **`COMPLETE`** (Confirmed →
+- **`CONFIRM`** (Approved/Planning â†’ Confirmed; F5 performs it) and **`COMPLETE`** (Confirmed â†’
   Completed) in the transition table, with `transitionRule()`, `refusalMessage()` and the
   not-yet-due message built from the status labels.
 - **Tests:** every status against every action, checked against an independently written table of
@@ -1505,11 +1505,11 @@ twelve-task plan, F1's functional cards, and the transition table. **F1 is not d
 
 - **Only Confirmed events complete.** AC6 says when an event completes but not from which status;
   Raphael decided on 2026-09-30. The Sprint 2 Product Owner, once named, should see it.
-- **§11.12 was waived for F1.** The team decided the cards are not confirmed by a second person
+- **Â§11.12 was waived for F1.** The team decided the cards are not confirmed by a second person
   before code is written, and dropped the agent pre-review. The human check moves to merge time:
-  the PR reviewer checks each card's expected result against its AC. `implementation.md` §11.12
+  the PR reviewer checks each card's expected result against its AC. `implementation.md` Â§11.12
   still states the before-code rule; amending it is a separate, reviewed change. For that check to
-  be enforced, `main` needs branch protection requiring an approving review — **not yet enabled**.
+  be enforced, `main` needs branch protection requiring an approving review â€” **not yet enabled**.
 - **No story moves an event into Planning.** Raised; F1 does not invent the action.
 
 ## Verified
@@ -1525,7 +1525,7 @@ twelve-task plan, F1's functional cards, and the transition table. **F1 is not d
 **Timestamp:** 2026-09-30T15:00+08:00 (SGT)
 **Author:** Chai, via Claude
 **Scope:** `submission/`, `documentation/scripts/build-submission.ts` (+ test), `package.json` (`exceljs`, `submission:build`), `confluence-digest.ts` (`standupName` exported).
-**Reason:** The Week 12 zip needs numbered folders 1–7, and last year's G4T2 handed in test cases, sprint backlogs and standups as spreadsheets. Hand-typing those would create a second copy of the test cards, the backlog and CHANGELOG, and it would drift. `npm run submission:build` now derives them instead.
+**Reason:** The Week 12 zip needs numbered folders 1â€“7, and last year's G4T2 handed in test cases, sprint backlogs and standups as spreadsheets. Hand-typing those would create a second copy of the test cards, the backlog and CHANGELOG, and it would drift. `npm run submission:build` now derives them instead.
 
 ## Added
 
@@ -1544,42 +1544,42 @@ twelve-task plan, F1's functional cards, and the transition table. **F1 is not d
 
 ---
 
-# Correct the Sprint 1 scope to A1–E2, and move F1 to Sprint 2
+# Correct the Sprint 1 scope to A1â€“E2, and move F1 to Sprint 2
 
 **Timestamp:** 2026-09-20T23:05+08:00 (SGT)
 **Author:** Seann, via Claude
-**Scope:** `documentation/sprint allocation.csv`, plan.md §9, definition-of-done.md, the traceability files, the notification cases.
-**Reason:** The planning documents said Sprint 1 ran A1–E2 **plus F1**, at 52 points. Sprint 1 was
-scoped to A1–E2 only. Every document that said otherwise now agrees.
+**Scope:** `documentation/sprint allocation.csv`, plan.md Â§9, definition-of-done.md, the traceability files, the notification cases.
+**Reason:** The planning documents said Sprint 1 ran A1â€“E2 **plus F1**, at 52 points. Sprint 1 was
+scoped to A1â€“E2 only. Every document that said otherwise now agrees.
 
 ## The allocation
 
 | Sprint | Stories | Points |
 |---|---|---|
-| 1 (Weeks 4–5) | A1, A2, A3, B1, B2, C1, C2, C3, D1, D2, D3, D4, D5, E1, E2 | **47** |
-| 2 (Weeks 6–7) | **F1**, F2, T2, F3, G1, H1, H2, I1, J1, J2, K1, O1, O2, P2 | **46** |
-| 3 (Weeks 8–9) | unchanged | 55 |
-| 4 (Weeks 10–11) | unchanged | 47 |
+| 1 (Weeks 4â€“5) | A1, A2, A3, B1, B2, C1, C2, C3, D1, D2, D3, D4, D5, E1, E2 | **47** |
+| 2 (Weeks 6â€“7) | **F1**, F2, T2, F3, G1, H1, H2, I1, J1, J2, K1, O1, O2, P2 | **46** |
+| 3 (Weeks 8â€“9) | unchanged | 55 |
+| 4 (Weeks 10â€“11) | unchanged | 47 |
 
 Still 195 points across 54 stories. The sprint table and the CSV were checked story-for-story
 against each other after the change; all four sprints match.
 
 **F1 needs saying plainly at the review.** B1, C2 and D1 all change an event's status, so the
 transition rule had to be written inside Sprint 1 for those stories to work at all. Sprint 1 is
-scoped to A1–E2, so **F1 is not counted there**: the story — the full lifecycle, its permitted
-transitions and the history view — is Sprint 2 work. plan.md §9.1 says so rather than implying the
+scoped to A1â€“E2, so **F1 is not counted there**: the story â€” the full lifecycle, its permitted
+transitions and the history view â€” is Sprint 2 work. plan.md Â§9.1 says so rather than implying the
 code appeared in Sprint 2.
 
 ## Changed to match
 
-- **`sprint allocation.csv`:** F1 moves to Sprint 2 (weeks 6–7) with its reason rewritten. F2 is
-  "Unchanged" (it was always Sprint 2, alongside F1), and T2 is "Moved earlier" from Sprint 4 —
+- **`sprint allocation.csv`:** F1 moves to Sprint 2 (weeks 6â€“7) with its reason rewritten. F2 is
+  "Unchanged" (it was always Sprint 2, alongside F1), and T2 is "Moved earlier" from Sprint 4 â€”
   neither was ever Sprint 1 scope, so "Not delivered in Sprint 1" was the wrong reason for both.
-- **plan.md §9:** the sprint table, the totals paragraph, the F1 and T2 entries in §9.1, the
-  Sprint 1 outcome in §9.2, and the cross-sprint note that pairs F5 with F1.
+- **plan.md Â§9:** the sprint table, the totals paragraph, the F1 and T2 entries in Â§9.1, the
+  Sprint 1 outcome in Â§9.2, and the cross-sprint note that pairs F5 with F1.
 - **definition-of-done.md:** its examples of Sprint 1 stories that cross a service boundary cited
   F1 and T2; they now cite D1's move to Under Review and B1's notification event.
-- **Traceability:** `sprint-1.csv` holds all fifteen Sprint 1 stories (D2–D5 and E2 moved in from
+- **Traceability:** `sprint-1.csv` holds all fifteen Sprint 1 stories (D2â€“D5 and E2 moved in from
   sprint 2), and `sprint-2.csv` now holds F1.
 - **The six notification cases and `tests/T2/README.md`** said T2 "was planned for Sprint 1"; they
   say it is counted in Sprint 2.
@@ -1593,24 +1593,24 @@ what was believed at the time.
 
 **Timestamp:** 2026-09-20T22:45+08:00 (SGT)
 **Author:** Chai, via Claude
-**Scope:** none (process document, no story) — closes out Sprint 1's documentation.
+**Scope:** none (process document, no story) â€” closes out Sprint 1's documentation.
 
 ## Added
 
-- **`documentation/transcript/sprint-1-review-retrospective.md`** — the Sprint Review and Sprint
+- **`documentation/transcript/sprint-1-review-retrospective.md`** â€” the Sprint Review and Sprint
   Retrospective for Sprint 1, written up from the 20 Sep team call transcript and categorised
   against the Scrum Review/Retro structure from the course's Week 3 slides (increment inspected,
-  progress toward the product goal, stakeholder feedback — explicitly none this sprint — and
+  progress toward the product goal, stakeholder feedback â€” explicitly none this sprint â€” and
   backlog adaptation for Review; people/interactions/processes/tools/DoD, what went well, what
   problems occurred, and a Start/Stop/Continue improvement set for Retro). Intended to be pasted
   into Confluence.
 - **Deliberately carries no story-point figures.** An earlier draft cited "52 of 44 planned
-  points" and listed F1 as delivered, both sourced from `plan.md` §9. The team confirmed live that
+  points" and listed F1 as delivered, both sourced from `plan.md` Â§9. The team confirmed live that
   F1 was **not** built this sprint, and that story-point totals for Sprint 1 currently disagree
-  across the team's planning documents — likely accumulated drift from different agents/sessions
+  across the team's planning documents â€” likely accumulated drift from different agents/sessions
   editing different documents without reconciling them. Rather than pick one figure as correct,
-  this document states delivered scope only as a story list (A1–E2, no F-series items) and flags
-  the point-total conflict itself as an open reconciliation item — `plan.md` is left untouched
+  this document states delivered scope only as a story list (A1â€“E2, no F-series items) and flags
+  the point-total conflict itself as an open reconciliation item â€” `plan.md` is left untouched
   here; correcting it is separate, later work.
 
 ---
@@ -1622,8 +1622,8 @@ what was believed at the time.
 **Scope:** A3, B1, D2, D3, D4, D5, E1, T2
 **Reason:** Eleven cases were recorded `Blocked` on 2026-09-20. `Blocked` was doing two different
 jobs: "this should run today and doesn't" and "this describes a story nobody has built". The second
-kind isn't a defect and isn't this sprint's problem, but it read like one — and for the six
-notification cases it also hid the fact that the half of each case B1/D2–D5/E1 actually own is
+kind isn't a defect and isn't this sprint's problem, but it read like one â€” and for the six
+notification cases it also hid the fact that the half of each case B1/D2â€“D5/E1 actually own is
 implemented and testable right now.
 
 ## Changed
@@ -1637,32 +1637,32 @@ implemented and testable right now.
 - **D4-T6** ("approval creates no booking or reservation") no longer asks for two lists that don't
   exist. The outbox is the only way the Event service asks another service to act, so the assertion
   is now that approval emits exactly `event.submitted`, `event.coordinator-assigned` and
-  `event.approved` — nothing that would book or reserve. It is executable today.
+  `event.approved` â€” nothing that would book or reserve. It is executable today.
 - **A3-T7, A3-T8 and A3-T9** are `Not Executed`, not `Blocked`, each naming the story and sprint it
-  waits for (R1/F5, H1/L1, O1/Q1). These could not be split — no Sprint 1 surface, API or record
+  waits for (R1/F5, H1/L1, O1/Q1). These could not be split â€” no Sprint 1 surface, API or record
   carries an attendee, venue-staff or technical-support view, so no half of them runs today.
 - **`tests/README.md`** now defines the boundary between `Blocked` and `Not Executed`, and says to
   split a case rather than block it when only part of it reaches into an unbuilt story.
 
 ## Added
 
-- **`tests/T2/`** — the six reader-half cases, T2-T1 to T2-T6, all `Not Executed`, plus a README
+- **`tests/T2/`** â€” the six reader-half cases, T2-T1 to T2-T6, all `Not Executed`, plus a README
   explaining what T2 needs (outbox relay, Notification Service, notifications screen), which case
   each was split from, and that nothing in the folder counts towards Sprint 1's Definition of Done.
 
 ## Noted, not changed
 
-- **T2 is descoped from Sprint 1, not deferred quietly.** `plan.md` §9.1 pulled T2 *into* Sprint 1
-  because removing T1 put notification ACs on B1, D2–D5, E1 and E2; §9.2 already records that it was
+- **T2 is descoped from Sprint 1, not deferred quietly.** `plan.md` Â§9.1 pulled T2 *into* Sprint 1
+  because removing T1 put notification ACs on B1, D2â€“D5, E1 and E2; Â§9.2 already records that it was
   not started and carried to Sprint 2. This entry makes the test cards agree with the plan. Building
-  T2 now would mean the outbox relay, Kafka and a third service — Sprint 2 work, already priced
+  T2 now would mean the outbox relay, Kafka and a third service â€” Sprint 2 work, already priced
   there at 41 points.
 - **The Sprint 1 Definition of Done is not met by A3, and the team should say so at the review.**
   It requires every case to Pass, and names "T2's notification trigger" as an example of the
   cross-cutting end-to-end bullet. The six trigger cases satisfy that bullet once run. A3-T7/T8/T9
-  cannot be satisfied in Sprint 1 — that is a real gap in A3's role coverage, to be raised rather
+  cannot be satisfied in Sprint 1 â€” that is a real gap in A3's role coverage, to be raised rather
   than papered over.
-- **T2-T1 … T2-T6 do not exist in Jira.** `tests/README.md` ties a case ID to its Jira Test issue;
+- **T2-T1 â€¦ T2-T6 do not exist in Jira.** `tests/README.md` ties a case ID to its Jira Test issue;
   these six issues still need creating under T2.
 
 ## Verified
@@ -1697,7 +1697,7 @@ records with the latest verified observations.
   execution date. Twenty cases passed. B1-T5 remains Blocked because the Notifications/T2
   user-facing feature is not implemented.
 - **B2-T14** was reconciled with the latest card specification: the successful request detail shows
-  `Equipment requirements — None required`, so the case passes. The temporary wording-mismatch issue
+  `Equipment requirements â€” None required`, so the case passes. The temporary wording-mismatch issue
   raised against the superseded expectation was closed.
 
 ## Verified
@@ -1713,19 +1713,19 @@ records with the latest verified observations.
 **Author:** Sahanya, via Claude
 **Scope:** none (process document, no story).
 **Reason:** Sprint 1's gradable evidence is manual functional test cases, not the automated suite
-implementation.md §8.3 assumes — the curriculum hasn't covered scripted testing yet. The team needed
-a written, Sprint 1-specific Done bar rather than deferring to §8.3.
+implementation.md Â§8.3 assumes â€” the curriculum hasn't covered scripted testing yet. The team needed
+a written, Sprint 1-specific Done bar rather than deferring to Â§8.3.
 
 ## Added
 
-- **`documentation/planning/definition-of-done.md`** — the Sprint 1 Definition of Done. Marked
-  *Proposed*, pending team sign-off. Explains why it differs from implementation.md §8.3 (manual test
+- **`documentation/planning/definition-of-done.md`** â€” the Sprint 1 Definition of Done. Marked
+  *Proposed*, pending team sign-off. Explains why it differs from implementation.md Â§8.3 (manual test
   cases as the primary gate, automated tests a bonus); a per-story Done checklist (merged to `main`,
   a test case per acceptance criterion written before it's run, happy-path plus a negative case,
   end-to-end coverage for cross-cutting stories, every case executed and Pass, demoed to the PO, Jira
   moved to Done); the professor's test case template split into a written-once spec and a per-run
   execution record; a placeholder location for the cases (`documentation/test-cases/sprint-1.csv`,
-  pending the repo cleanup pass); and a note that implementation.md §8.1–§8.3 take over from Sprint 2
+  pending the repo cleanup pass); and a note that implementation.md Â§8.1â€“Â§8.3 take over from Sprint 2
   once scripted testing is covered.
 
 ---
@@ -1736,14 +1736,14 @@ a written, Sprint 1-specific Done bar rather than deferring to §8.3.
 **Author:** Shawmya, via Claude
 **Scope:** E1, E2
 **Reason:** E2 (propose/accept/decline reassignment of an event's coordinator) was built inside the
-Event Service, following the same domain → repo → api → outbox pattern the rest of the service
+Event Service, following the same domain â†’ repo â†’ api â†’ outbox pattern the rest of the service
 already uses.
 
 ## Added
 
-- **E2 — propose/accept/decline reassignment.** New table `event.reassignment_proposals`
+- **E2 â€” propose/accept/decline reassignment.** New table `event.reassignment_proposals`
   (migration `0004`), with a partial unique index enforcing "only one pending proposal per event" at
-  the database level rather than a read-then-write check — the same technique as E1's
+  the database level rather than a read-then-write check â€” the same technique as E1's
   `assignments_one_active_per_event`. New endpoints under
   `/api/v1/events/:id/reassignment-proposals` (list, propose, accept, decline) in a new
   `api/reassignments.ts`, and three new event types/topics
@@ -1752,7 +1752,7 @@ already uses.
   alongside `allocateCoordinator`.
 - Reassignment UI in `ReviewDetail.tsx` (propose modal, pending state, accept/decline for the
   nominee) and a read-only pending-reassignment note in `RequestDetail.tsx`, using Atlaskit
-  components throughout (implementation.md §7.1) rather than the discarded banner's inline styles.
+  components throughout (implementation.md Â§7.1) rather than the discarded banner's inline styles.
 - Functional test cases `/tests/E1/` (4 cases) and `/tests/E2/` (8 cases), and their rows in
   `documentation/traceability/sprint-2.csv`. `EVENT_COORDINATOR_POOL` in `.env.example` now lists
   both seeded coordinator accounts so E1's round-robin and E2's reassignment are both demonstrable
@@ -1761,15 +1761,15 @@ already uses.
 ## Fixed
 
 Found by running the migration and the automated suite, then clicking through the app against the
-real Supabase project — not by reading the code.
+real Supabase project â€” not by reading the code.
 
 - `tests/fixtures/reset-test-data.sql` deleted an event's `event_history`, `clarifications`,
   `assignments` and `outbox` rows before deleting the event itself, but never deleted its
   `reassignment_proposals` rows. Since that table has a foreign key back to the event, resetting
   test data for an event with a proposal on it would have failed outright. Added the missing
   `delete` line, in the same position the other child tables already had one.
-- `repo/events.ts`'s `claimForReview` — run the first time any coordinator opens a Submitted
-  request — always returned a hardcoded `null` for `assigned_coordinator_id` instead of the real
+- `repo/events.ts`'s `claimForReview` â€” run the first time any coordinator opens a Submitted
+  request â€” always returned a hardcoded `null` for `assigned_coordinator_id` instead of the real
   value, a pre-existing quirk from before E2. It never mattered until now, because nothing
   previously depended on that field being correct in that one response. E2's "Propose reassignment"
   button does depend on it (it only renders for whoever the assigned coordinator actually is), so
@@ -1778,13 +1778,13 @@ real Supabase project — not by reading the code.
   query to correlate against `event.assignments` instead of hardcoding the column.
 - The shared `.env` used for manual testing predated `EVENT_COORDINATOR_POOL` existing at all, so
   the pool was empty and every submission sat at "Awaiting assignment." Added the same value
-  `.env.example` already carries. Not a code change — `.env` isn't committed — but recorded here
+  `.env.example` already carries. Not a code change â€” `.env` isn't committed â€” but recorded here
   because it's why the `claimForReview` bug above wasn't caught until now; anyone whose local `.env`
   predates this story needs the same line added by hand.
 
 ## Changed
 
-- `ReviewDetail.tsx` — "Propose reassignment" moved out of its own "Coordinator assignment" section
+- `ReviewDetail.tsx` â€” "Propose reassignment" moved out of its own "Coordinator assignment" section
   and into the same button group as Approve/Reject. Product feedback after clicking through it live:
   as a separate, differently-styled button below a second heading, it read as a lesser, secondary
   action, when it's a peer action a coordinator chooses between, same as the other two. The
@@ -1794,10 +1794,10 @@ real Supabase project — not by reading the code.
 ## Known gap, raised rather than silently built around
 
 - E2's "the nominee does not gain coordinator actions until they accept" is not actually enforced
-  for Approve/Reject/clarification: D1–D5 already let *any* `EVENT_COORDINATOR` act on a request
+  for Approve/Reject/clarification: D1â€“D5 already let *any* `EVENT_COORDINATOR` act on a request
   regardless of who is assigned to it (only accept/decline of the reassignment proposal itself is
   nominee-scoped). Restricting D4/D5 to the assigned coordinator would change D1's existing
-  open-queue review model and is outside E2's stated scope — see `/tests/E2/E2-T8-...md`.
+  open-queue review model and is outside E2's stated scope â€” see `/tests/E2/E2-T8-...md`.
 
 ---
 
@@ -1805,35 +1805,35 @@ real Supabase project — not by reading the code.
 
 **Timestamp:** 2026-09-20T15:20+08:00 (SGT)
 **Author:** Seann, via Claude
-**Scope:** `tests/` (A1–E2), `documentation/sprint-reallocation.csv`, plan.md §9, the review screen (E2).
+**Scope:** `tests/` (A1â€“E2), `documentation/sprint-reallocation.csv`, plan.md Â§9, the review screen (E2).
 **Reason:** The 123 written test cases had never been executed, and the sprint record still showed
 what was planned rather than what Sprint 1 delivered.
 
 ## Sprint 1, as delivered
 
-`sprint-reallocation.csv` now records the actual allocation, and plan.md §9 matches it:
+`sprint-reallocation.csv` now records the actual allocation, and plan.md Â§9 matches it:
 
-- **D2, D3, D4, D5 and E2 moved into Sprint 1** — the whole review workflow and the reassignment
-  handshake were finished there, though D2–D5 and E2 had been planned for Sprint 2.
-- **F2 and T2 moved out to Sprint 2** — neither was built. F1 records the status history, but
+- **D2, D3, D4, D5 and E2 moved into Sprint 1** â€” the whole review workflow and the reassignment
+  handshake were finished there, though D2â€“D5 and E2 had been planned for Sprint 2.
+- **F2 and T2 moved out to Sprint 2** â€” neither was built. F1 records the status history, but
   nothing shows it (F2); submission and decisions write notification events to the outbox, but
   there is no notification record, read model or screen (T2).
-- **Sprint 1 delivered 52 points against a planned 44**, and Sprint 2 now carries 41. §9.2 records
+- **Sprint 1 delivered 52 points against a planned 44**, and Sprint 2 now carries 41. Â§9.2 records
   the outcome: more points than committed, while still missing two committed stories.
 - Fixed a pre-existing inconsistency: **R1 sat in Sprint 4 in the CSV** but in Sprint 3 in plan.md
-  §9.1 and its table. The CSV now says Sprint 3, which is what made the totals agree (195 across
+  Â§9.1 and its table. The CSV now says Sprint 3, which is what made the totals agree (195 across
   54 stories).
 
 ## The cases now run themselves
 
 `npm run test-cases:run` executes all 123 cases against the running app in real Chrome and **writes
-each result into that case's own execution record** — actual result, status, the commit it ran
+each result into that case's own execution record** â€” actual result, status, the commit it ran
 against, the evidence screenshot and the date. A full run takes about seven minutes.
 
 - **One script per story**, beside its cases: `tests/<story-id>/<story-id>.spec.ts`.
 - **Shared harness** in `tests/support/`: the accounts and standard request of `tests/README.md` as
-  constants, the FX-… fixtures, screen helpers, and the reporter that writes the records.
-- **`tests/playwright.config.ts`** — one worker (the cloud database and seeded accounts are
+  constants, the FX-â€¦ fixtures, screen helpers, and the reporter that writes the records.
+- **`tests/playwright.config.ts`** â€” one worker (the cloud database and seeded accounts are
   shared), test data reset before every case, and it starts `npm run dev` itself if the stack is
   not already up.
 - Three deliberate differences from a person doing it by hand, all documented in `tests/README.md`:
@@ -1846,15 +1846,15 @@ against, the evidence screenshot and the date. A full run takes about seven minu
 
 **One defect was found and fixed.** E2-T7 says "Propose reassignment" is not shown once a request is
 Rejected. The server refused correctly (`409 REASSIGNMENT_NOT_PERMITTED`), but the review screen
-still rendered the button — disabled — on any decided request, promising an action that can never
+still rendered the button â€” disabled â€” on any decided request, promising an action that can never
 be taken. `frontend/src/screens/ReviewDetail.tsx` now leaves it out entirely once a decision exists,
 and `frontend/tests/reassignmentOffer.test.tsx` holds it there: offered while under review, absent
 once approved or rejected. E2-T7 passes on the re-run.
 
-**Eleven cases are Blocked**, each with its reason in the record — they describe screens that
+**Eleven cases are Blocked**, each with its reason in the record â€” they describe screens that
 Sprint 1 never built: the notification cases (B1-T5, D2-T7, D3-T8, D4-T5, D5-T7, E1-T2) need T2;
 A3-T7 needs the attendee surface, A3-T8 venues, A3-T9 and D4-T6 equipment. E1-T3 needs the Event
-service restarted with an empty coordinator pool, which a shared run cannot do — run it by hand.
+service restarted with an empty coordinator pool, which a shared run cannot do â€” run it by hand.
 
 ## Also changed
 
@@ -1862,12 +1862,12 @@ service restarted with an empty coordinator pool, which a shared run cannot do �
   header to show the role code (`EVENT_ORGANISER`), which became "Event Organiser" on 2026-09-17;
   B2-T14 expected "Equipment required: No", which became "Equipment requirements: None required"
   when requirements were added the same day.
-- **Every card's "Created By" now names a person alone** — "Seann" (and "Shawmya" on the twelve she
-  wrote) rather than "…, via Claude" — and **"Executed By" reads "Joash"**, who owns the runs this
+- **Every card's "Created By" now names a person alone** â€” "Seann" (and "Shawmya" on the twelve she
+  wrote) rather than "â€¦, via Claude" â€” and **"Executed By" reads "Joash"**, who owns the runs this
   sprint. The runner writes that name; it is a sprint-level convention, deliberately not written
   into implementation.md, because the test workflow changes next sprint.
 - **`EVENT_COORDINATOR_POOL` now lists both seeded coordinators** in `.env.example` (and locally in
-  `.env`). `tests/README.md` already assumed this — A3-T5 and the E2 handshake need two.
+  `.env`). `tests/README.md` already assumed this â€” A3-T5 and the E2 handshake need two.
 - **`.gitignore`**: Playwright's `test-results/`, `playwright-report/`, and `tests/*/evidence/`,
   which every run rebuilds.
 - **New dev dependency:** `@playwright/test`. It drives the installed Chrome, so no browser
@@ -1879,7 +1879,7 @@ service restarted with an empty coordinator pool, which a shared run cannot do �
 
 **Timestamp:** 2026-09-18T00:35+08:00 (SGT)
 **Author:** Seann, via Claude
-**Scope:** whole repository — setup, run instructions and the architecture documents. No app behaviour change.
+**Scope:** whole repository â€” setup, run instructions and the architecture documents. No app behaviour change.
 **Reason:** Nobody ran Docker: every service, test and the web app already ran as plain Node against
 the hosted Supabase project, and no script or README step used the compose file. Its only real
 future use was running Kafka, and a single hosted cluster serves the team without anyone installing
@@ -1903,10 +1903,10 @@ Docker or Java. Recorded as **ADR-0003**.
   `KAFKA_SASL_USERNAME` and `KAFKA_SASL_PASSWORD`. The Supabase values are placeholders for the
   hosted project, including the transaction pooler for `DATABASE_URL`, instead of a local Supabase
   that needed Docker.
-- **`plan.md`:** §2 Messaging and Deployment rows, the Kafka row in §3, the §8 topology and how the
-  stack starts, and the Sprint 1 risk note in §9.2.
-- **`implementation.md`:** §1 stack table (database, messaging, testing), the §2 root listing, the
-  §8.1 E2E row, the §10 required variables and cloud-readiness rule, and the open items in the
+- **`plan.md`:** Â§2 Messaging and Deployment rows, the Kafka row in Â§3, the Â§8 topology and how the
+  stack starts, and the Sprint 1 risk note in Â§9.2.
+- **`implementation.md`:** Â§1 stack table (database, messaging, testing), the Â§2 root listing, the
+  Â§8.1 E2E row, the Â§10 required variables and cloud-readiness rule, and the open items in the
   appendix: choosing the Kafka provider, and naming consumer groups so teammates sharing the cluster
   don't consume each other's messages.
 - **README:** setup no longer runs `supabase start`, and uses `npm test` and `npm run dev`.
@@ -1926,7 +1926,7 @@ Docker or Java. Recorded as **ADR-0003**.
 
 **Timestamp:** 2026-09-17T23:45+08:00 (SGT)
 **Author:** Seann, via Claude
-**Scope:** whole repository — no behaviour change.
+**Scope:** whole repository â€” no behaviour change.
 **Reason:** Implements `documentation/proposals/2026-09-17-repository-reorganisation.md`. The root
 mixed the app, the services and their data, and writing about the project, and had both `docs/`
 and `documentation/` doing the same job. Everything is now grouped by what it is.
@@ -1939,33 +1939,33 @@ and `documentation/` doing the same job. Everything is now grouped by what it is
 | `services/identity/`, `services/event/` | `backend/services/identity/`, `backend/services/event/` |
 | `packages/contracts/` | `backend/packages/contracts/` |
 | `scripts/migrate.ts` | `backend/scripts/migrate.ts` |
-| `supabase/` | `backend/supabase/` — run the CLI as `npx supabase … --workdir backend` |
+| `supabase/` | `backend/supabase/` â€” run the CLI as `npx supabase â€¦ --workdir backend` |
 | `tsconfig.base.json` | `backend/tsconfig.base.json` |
 | `Planning/` | `documentation/planning/` |
 | `docs/superpowers/` | `documentation/superpowers/` |
 | `packages/testkit/sprint-<n>/traceability.csv` | `documentation/traceability/sprint-<n>.csv` |
 | `scripts/confluence-digest.ts` and its test | `documentation/scripts/` |
 
-`tests/` stays at the root. The sprint flow tests of implementation.md §8.2 will go in
+`tests/` stays at the root. The sprint flow tests of implementation.md Â§8.2 will go in
 `tests/flows/sprint-<n>/` when they are written.
 
 ## Changed to match
 
 - **Root `package.json`:** workspaces are `frontend`, `backend/services/*`, `backend/packages/*`;
   the `migrate*`, `seed:auth`, `confluence:digest` and `test:scripts` paths. `package-lock.json`
-  regenerated, a pure rename of the four workspace entries — no dependency versions changed.
+  regenerated, a pure rename of the four workspace entries â€” no dependency versions changed.
 - **`backend/scripts/migrate.ts`** reads `backend/services/<name>/migrations`.
 - **Each service:** the `--env-file` in `dev` and the `.env` path in `vitest.config.ts` gain one
   `../`. The `tsconfig.json` `extends` paths did not need changing, because the base config moved
   into `backend/` along with them.
 - **Both Dockerfiles and `docker-compose.yml`:** every `COPY`, `CMD` and `dockerfile:` path. Not
-  built here — Docker was not run, so check the images before relying on them.
+  built here â€” Docker was not run, so check the images before relying on them.
 - **`frontend/vite.config.ts`** reads `.env` from one level up instead of two.
-- **Docs:** implementation.md §2 layout rewritten, plus its path mentions in §1, §3, §4, §7, §8
-  and §11; plan.md's `sprint-reallocation.csv` link; the ADR README; README (new folder table,
+- **Docs:** implementation.md Â§2 layout rewritten, plus its path mentions in Â§1, Â§3, Â§4, Â§7, Â§8
+  and Â§11; plan.md's `sprint-reallocation.csv` link; the ADR README; README (new folder table,
   Supabase and seed paths); `tests/README.md` and `tests/TEMPLATE.md`; the traceability files'
   `test_file` column. The proposal's status now says it is implemented.
-- **New `CLAUDE.md`** at the root. It points agents at implementation.md §2 and tells the
+- **New `CLAUDE.md`** at the root. It points agents at implementation.md Â§2 and tells the
   Superpowers plugin to write specs and plans under `documentation/superpowers/`.
 
 Not changed: the entries below in this file, and the dated spec and plan under
@@ -2009,11 +2009,11 @@ by Playwright) found one broken action and three smaller issues.
   quantity shown under the line, and both shown on the request and review pages.
 - All events with "Every event" and "Assigned to me"; the review queue's "Assigned to" column; a
   second coordinator sees the first reviewer by name.
-- "Last saved" shows "—" on submitted rows in My requests, as C3 specifies.
+- "Last saved" shows "â€”" on submitted rows in My requests, as C3 specifies.
 
 ---
 
-# Fix the six defects the A1–D5 test cases found
+# Fix the six defects the A1â€“D5 test cases found
 
 **Timestamp:** 2026-09-17T10:06+08:00 (SGT)
 **Author:** Seann, via Claude
@@ -2026,31 +2026,31 @@ didn't meet its acceptance criteria. Each fix started with a failing test.
 1. **A blocked submission from a draft no longer saves the edits** (B2-T15). The editor used to save
    the draft and then submit it as two calls, so a refused submission kept the edits.
    `POST /api/v1/event-drafts/:id/submit` now accepts the values on screen, validates them, and
-   stores and submits them in one statement — or, if refused, writes nothing. With no body it still
+   stores and submits them in one statement â€” or, if refused, writes nothing. With no body it still
    submits the draft as last saved. The editor now makes the single call.
 2. **A draft name of only spaces is refused** (C1-T5). The name is still stored exactly as typed,
    not trimmed, because C2 restores "the exact value that was saved".
 3. **The rejection refusal now shows inside the rejection dialog** (D5-T2, D5-T3), with the reason
    error under the reason box, and is cleared each time the dialog opens. It used to render on the
    page behind the dialog.
-4. **People are shown by name, not user id** (B1-T1, D1-T2, D1-T6) — the organiser on the request
+4. **People are shown by name, not user id** (B1-T1, D1-T2, D1-T6) â€” the organiser on the request
    page and in the queue, the reviewer, the assigned coordinator, and who decided.
    - **Identity:** new `display_name` column (migration `0002`), names for every seed account (seed
-     `0003`), and **`GET /api/v1/users?ids=…`**, returning only `id`, `displayName` and `email`. Staff
-     only — attendees get 403. At most 100 ids per call.
+     `0003`), and **`GET /api/v1/users?ids=â€¦`**, returning only `id`, `displayName` and `email`. Staff
+     only â€” attendees get 403. At most 100 ids per call.
    - **Web app:** a shared `useUserNames` hook fetches each name once and falls back to the email,
      then to the id, so a failed lookup never breaks a screen.
-   - Event service unchanged: it still stores and returns ids only (plan.md §4).
+   - Event service unchanged: it still stores and returns ids only (plan.md Â§4).
 5. **Venue and equipment requirements can be entered and are shown** (B1-T2, D1-T4). Their shape is
    now in `packages/contracts`: venue requirements are `{ layout, facilities[], notes }`, equipment
    requirements are lines of `{ equipmentType, quantity, notes }`, and the Event service validates
    both, naming the bad line (e.g. `equipmentRequirements.0.quantity`). Layout, facility and
    equipment type are **free text on purpose**: that vocabulary belongs to the Venue (H1) and
-   Equipment (P2) owners (implementation.md §11, rule 3). Both fields can also be amended when
+   Equipment (P2) owners (implementation.md Â§11, rule 3). Both fields can also be amended when
    answering a clarification (D3).
 6. **A coordinator can tell which events are theirs** (A3-T5). The review queue has an "Assigned to"
    column showing "You" for their own, and a new **"All events"** screen for coordinators lists every
-   event whatever its status, with an "Assigned to me" filter — A3 says a coordinator's list is
+   event whatever its status, with an "Assigned to me" filter â€” A3 says a coordinator's list is
    every event, and the queue only holds undecided ones.
 
 ## Changed
@@ -2080,26 +2080,26 @@ have still not been checked by eye.**
 
 ---
 
-# Functional test cases for A1–D5, two test accounts, and a reorganisation proposal
+# Functional test cases for A1â€“D5, two test accounts, and a reorganisation proposal
 
 **Timestamp:** 2026-09-17T09:11+08:00 (SGT)
 **Author:** Seann, via Claude
-**Scope:** A1, A2, A3, B1, B2, C1, C2, C3, D1, D2, D3, D4, D5 (functional test cases); process —
+**Scope:** A1, A2, A3, B1, B2, C1, C2, C3, D1, D2, D3, D4, D5 (functional test cases); process â€”
 repository layout proposal.
 
 ## Added
 
 - **111 functional test cases in `tests/<story-id>/`**, one file per case, in the implementation.md
-  §8.4 format: A1 11 · A2 7 · A3 9 · B1 6 · B2 15 · C1 10 · C2 7 · C3 6 · D1 8 · D2 8 · D3 9 · D4 8 ·
+  Â§8.4 format: A1 11 Â· A2 7 Â· A3 9 Â· B1 6 Â· B2 15 Â· C1 10 Â· C2 7 Â· C3 6 Â· D1 8 Â· D2 8 Â· D3 9 Â· D4 8 Â·
   D5 7. Each story has happy-path, negative and story-specific cross-cutting cases, plus boundaries
   wherever a criterion has a threshold (attendance 0/1, end time at/after start, registration closing
   at/after the event start, reason of nothing/spaces/one character). **102 are `Not Executed`; 9 are
-  `Blocked`**, each saying why — the services they need (Notification, Venue, Equipment,
+  `Blocked`**, each saying why â€” the services they need (Notification, Venue, Equipment,
   Registration) don't exist yet.
 - **Expected results were written from the acceptance criteria, not the implementation**
-  (implementation.md §11, rule 12),
-  so the cases under Known gaps below are expected to fail as built. **A1–A3 cases need their
-  owner's review** before they're relied on; B1–D5 need Seann's.
+  (implementation.md Â§11, rule 12),
+  so the cases under Known gaps below are expected to fail as built. **A1â€“A3 cases need their
+  owner's review** before they're relied on; B1â€“D5 need Seann's.
 - **`tests/README.md` now holds what every case shares:** the standard environment, all accounts with
   their ids, the standard request data, and six named setup procedures (`FX-DRAFT` through
   `FX-REJECTED`). Pre-conditions name a procedure instead of repeating it.
@@ -2107,19 +2107,19 @@ repository layout proposal.
   so it deletes only requests owned by the two seeded organisers and what hangs off them. Its first
   run removed 4 leftover requests from earlier smoke tests.
 - **Two seeded accounts: `organiser2@` and `coordinator2@connectsphere.test`**, in a new
-  forward-only seed `services/identity/migrations/seed/0002_…sql` and in `seed-auth-users.ts` — both
+  forward-only seed `services/identity/migrations/seed/0002_â€¦sql` and in `seed-auth-users.ts` â€” both
   Identity's files, so **flagged for its owner's review**. Without them, "another organiser cannot
   see this" (A3, C1, C2, D3, D5) and "a second coordinator opening it" (D1) could not be executed.
   Applied to the shared project; both accounts sign in with the right role. Also listed on the web
   app's sign-in screen.
-- **`documentation/proposals/2026-09-17-repository-reorganisation.md`** — the proposed
+- **`documentation/proposals/2026-09-17-repository-reorganisation.md`** â€” the proposed
   frontend / backend / documentation / tests layout, what must stay at the root, every path that has
   to change, how to carry it out without breaking open branches, and three open questions. **Nothing
   has moved**; it needs team agreement first.
 
 ## Changed
 
-- `implementation.md` §8.4 — points to `tests/README.md` and the reset command; the worked D5-T1
+- `implementation.md` Â§8.4 â€” points to `tests/README.md` and the reset command; the worked D5-T1
   example now matches the real file.
 
 ## Known gaps found while writing the cases
@@ -2127,18 +2127,18 @@ repository layout proposal.
 These cases are expected to **fail** against the current build. They are defects to fix, not
 mistakes in the cases:
 
-1. **B1-T1, D1-T2, D1-T6** — the app shows user **ids** where the criteria want the person: the
+1. **B1-T1, D1-T2, D1-T6** â€” the app shows user **ids** where the criteria want the person: the
    submitting organiser isn't shown on the request page, the queue's Organiser column holds a uuid,
    and "already under review" names the other coordinator by id. One root cause: Identity has no way
    to look up a user's name.
-2. **B1-T2, D1-T4** — the request form has **no inputs for venue requirements or equipment
+2. **B1-T2, D1-T4** â€” the request form has **no inputs for venue requirements or equipment
    requirements**, so they can't be entered, and a coordinator can't see them.
-3. **B2-T15** — a blocked submission from a saved draft **still saves the edits**, because the
+3. **B2-T15** â€” a blocked submission from a saved draft **still saves the edits**, because the
    editor saves the draft before submitting it. B2 says a blocked submission changes no stored value.
-4. **C1-T5** — a draft name of **only spaces is accepted**.
-5. **A3-T5** — a coordinator **can't tell which events are assigned to them**; the queue has no such
+4. **C1-T5** â€” a draft name of **only spaces is accepted**.
+5. **A3-T5** â€” a coordinator **can't tell which events are assigned to them**; the queue has no such
    marker.
-6. **D5-T2, D5-T3** — when a rejection reason is missing, the refusal renders **behind the rejection
+6. **D5-T2, D5-T3** â€” when a rejection reason is missing, the refusal renders **behind the rejection
    dialog**, so the coordinator sees nothing happen.
 
 Also a question for the Product Owner, not a case: D2 says multiple clarifications are "retained in
@@ -2151,7 +2151,7 @@ The service currently refuses that, and no case asserts either way.
 
 **Timestamp:** 2026-09-17T08:33+08:00 (SGT)
 **Author:** Seann, via Claude
-**Scope:** F1, D3 (history table); A1, A2 (sign-out and route guard); process — functional test
+**Scope:** F1, D3 (history table); A1, A2 (sign-out and route guard); process â€” functional test
 cases for every story.
 
 ## Changed
@@ -2173,24 +2173,24 @@ cases for every story.
   role may not use redirects to the user's own landing screen. Navigation and guards read one
   permitted-role list, so they cannot drift.
 - **Web app: user story IDs removed from buttons, headings and descriptions.** Code comments keep
-  them, since implementation.md §11 wants code traceable to its story. The API console's "no token"
+  them, since implementation.md Â§11 wants code traceable to its story. The API console's "no token"
   preset used to detect itself by searching its own label for "unauthenticated"; renaming the label
   would have silently broken it, so it now carries an explicit flag.
-- **`Planning/plan.md` §4** — the Event row names `event_history`, and a note explains both merges.
+- **`Planning/plan.md` Â§4** â€” the Event row names `event_history`, and a note explains both merges.
   Commit `7a8f54a` had rewritten plan.md from an older copy and dropped the earlier drafts-merge
   fix; this re-applies it on top of that commit without undoing any of its other changes.
 
 ## Added
 
-- **`Planning/implementation.md` §8.4 — functional test cases.** Every story gets functional test
+- **`Planning/implementation.md` Â§8.4 â€” functional test cases.** Every story gets functional test
   cases in `/tests/<story-id>/`, one file per case, ID `<story-id>-T<n>` matching the Jira test
   issue. Format is the IS212 Week 4 template: a specification written once, and an execution record
   replaced on every run, with status `Pass` / `Fail` / `Not Executed` / `Blocked` and the commit SHA
-  in Remarks. Cases are derived in five steps — visualise the workflow, happy path, story-specific
-  cross-cutting checks, negative, boundary — with a worked D5 example. Also: §2 layout gains
-  `/tests`, the Definition of Done requires the cases, and §11 rule 12 says cases are written from
+  in Remarks. Cases are derived in five steps â€” visualise the workflow, happy path, story-specific
+  cross-cutting checks, negative, boundary â€” with a worked D5 example. Also: Â§2 layout gains
+  `/tests`, the Definition of Done requires the cases, and Â§11 rule 12 says cases are written from
   the story before the code, never from the implementation.
-- **`tests/TEMPLATE.md`** and **`tests/README.md`** — the blank template and a one-screen summary.
+- **`tests/TEMPLATE.md`** and **`tests/README.md`** â€” the blank template and a one-screen summary.
 - **`apps/web` has tests now** (`npm test -w @connectsphere/web`, Vitest + Testing Library + jsdom).
   Two regression tests for the sign-out bug. Both failed against the previously committed code,
   which is what shows they test the right thing.
@@ -2208,7 +2208,7 @@ wouldn't have. Only sign-out resets the address now; the route guard covers ever
    show that another organiser cannot see the request, and the identity seed has only one (the
    other organiser account is deactivated). Add one to the seed before writing that case.
 2. **No functional test case files exist yet.** `/tests` holds the standard, the template and the
-   README. The cases for A1–D5 are still to be written, by the story owners from the stories.
+   README. The cases for A1â€“D5 are still to be written, by the story owners from the stories.
 3. The rendered UI has still not been checked by eye. The sign-out tests exercise the real app in
    jsdom, but layout and Atlaskit styling remain unverified.
 
@@ -2218,29 +2218,29 @@ wouldn't have. Only sign-out resets the address now; the route guard covers ever
 
 **Timestamp:** 2026-09-17T01:03+08:00 (SGT)
 **Author:** Chai, via Claude
-**Scope:** none (docs/tooling, no story) — written ahead of the Week 13 Q&A.
+**Scope:** none (docs/tooling, no story) â€” written ahead of the Week 13 Q&A.
 
 ## Added
 
-- **`documentation/adr/0001-microservices-schema-per-service-cp-consistency.md`** — records *why*
+- **`documentation/adr/0001-microservices-schema-per-service-cp-consistency.md`** â€” records *why*
   microservices with schema-per-service boundaries and CP-over-AP were chosen: boundaries are drawn
   around transactional invariants (venue hold exclusivity, equipment reservation, registration
   capacity, the Confirmed gate), not around team headcount or the customer's ~500-staff scale,
   which alone wouldn't justify the choice. Names the trade-off explicitly rather than only the
   benefit, so it can be defended rather than just asserted.
-- **`documentation/adr/0002-orchestrated-saga-for-cross-service-cancellation.md`** — records the
+- **`documentation/adr/0002-orchestrated-saga-for-cross-service-cancellation.md`** â€” records the
   saga-with-compensation approach for F4 cancellation as a *direct, expensive consequence* of
   ADR-0001: three schemas means no single Postgres transaction can release venue, equipment, and
   registration atomically. States the actual weak point (a window of inconsistent state; compensation
-  can itself fail) instead of glossing over it — this is the answer plan.md §7 already commits to
+  can itself fail) instead of glossing over it â€” this is the answer plan.md Â§7 already commits to
   giving, now written down once instead of re-derived live.
-- **`scripts/confluence-digest.ts`** (+ test) — turns `CHANGELOG.md` into a Confluence-pasteable
+- **`scripts/confluence-digest.ts`** (+ test) â€” turns `CHANGELOG.md` into a Confluence-pasteable
   table, wired up as `npm run confluence:digest` and documented in `README.md`. Exists so the sprint
   log isn't hand-typed a second time into Confluence from what's already written here.
 
 ---
 
-# Local dev environment — port collision, missing migration, secrets hygiene, commit standard
+# Local dev environment â€” port collision, missing migration, secrets hygiene, commit standard
 
 **Timestamp:** 2026-09-16T20:15+08:00 (SGT)
 **Author:** Chai, via Claude
@@ -2252,23 +2252,23 @@ wouldn't have. Only sign-out resets the address now; the route guard covers ever
   back to the shared `PORT` env var when `EVENT_PORT` is unset; the local `.env` only defined
   `PORT=8081` for Identity. Whichever service lost the resulting bind race never listened where
   Vite's proxy expected it, surfacing as a 404 with a real `x-correlation-id` (the request *did*
-  reach a service — just the wrong one) or an `ECONNREFUSED` once the loser crashed outright.
+  reach a service â€” just the wrong one) or an `ECONNREFUSED` once the loser crashed outright.
   Added `EVENT_PORT=8082` to `.env`, matching `.env.example`, which already documented this.
 - **The `event` schema was never migrated locally.** `npm run migrate:event` (README step 6) had
-  not been run, so `event`-schema queries 500'd — not an empty-table/seed problem, the schema
+  not been run, so `event`-schema queries 500'd â€” not an empty-table/seed problem, the schema
   didn't exist. Running it created all seven tables. `git pull` only updates files; nothing in the
   repo runs migrations automatically, so this needs re-running by hand whenever a pull adds
   migration files for a service already set up locally.
 
 ## Changed
 
-- **`Planning/implementation.md` §11.1** — added a commit-message standard for agents committing
+- **`Planning/implementation.md` Â§11.1** â€” added a commit-message standard for agents committing
   to this shared repo: Conventional Commits (`type(scope): summary`), commit early and often, and
   a bad/good example pair. Not itself a code change, but affects every commit after it.
 
 ---
 
-# Identity Service — A1 (login/logout) and A3 (access-scope resolution)
+# Identity Service â€” A1 (login/logout) and A3 (access-scope resolution)
 
 **Timestamp:** 2026-09-16T16:23+08:00 (SGT)
 **Author:** Chai, via Claude
@@ -2276,17 +2276,17 @@ wouldn't have. Only sign-out resets the address now; the route guard covers ever
 
 ## Added
 
-**`services/identity` — login, logout, and access-scope resolution.**
+**`services/identity` â€” login, logout, and access-scope resolution.**
 
 - **Schema migration + seed data** for the identity schema, covering the accounts and login-audit
   rows A1 and A3 need.
-- **Login outcome policy** (`domain` layer, pure): the login rules — active/deactivated account,
-  bad credentials, audit outcome — decided independently of any transport or storage concern.
+- **Login outcome policy** (`domain` layer, pure): the login rules â€” active/deactivated account,
+  bad credentials, audit outcome â€” decided independently of any transport or storage concern.
 - **Repo layer**: user lookup and login-audit queries.
 - **API**: `POST` login and logout endpoints (A1), and the `GET /api/v1/access-scope/events`
   endpoint (A3) resolving what a caller's role is permitted to see.
 - **Docs**: `packages/testkit/sprint-1/traceability.csv` rows for A1/A3, and a `README.md` "Local
-  development" section (`supabase start` → migrate → seed → `npm test --workspaces` → run the
+  development" section (`supabase start` â†’ migrate â†’ seed â†’ `npm test --workspaces` â†’ run the
   service).
 
 27 tests pass, all against the real database (per the Event Service entry below, which confirms
@@ -2296,49 +2296,49 @@ this suite was left untouched by that later work).
 
 - **`services/identity/package.json`'s `dev` script** now runs
   `tsx watch --env-file=../../.env src/index.ts`. This resolves the gap the "Web app" entry below
-  flagged — `npm run dev -w @connectsphere/identity-service` was failing to load `.env`, forcing
+  flagged â€” `npm run dev -w @connectsphere/identity-service` was failing to load `.env`, forcing
   the `npx tsx --env-file=.env ...` workaround.
 
 ---
 
-# Web app — a testable surface for A1 to D5
+# Web app â€” a testable surface for A1 to D5
 
 **Timestamp:** 2026-09-16T09:05+08:00 (SGT)
 **Author:** Seann, via Claude
-**Reason:** A1–D5 could only be exercised with curl. `apps/web` makes them clickable, for manual
+**Reason:** A1â€“D5 could only be exercised with curl. `apps/web` makes them clickable, for manual
 testing and for the sprint review.
 
 ## Added
 
-**`apps/web`** — React 18 + TypeScript + Vite, with Atlassian Design System components per
-implementation.md §7.1 (un-restyled). This fills the `apps/*` workspace slot that has been in the
+**`apps/web`** â€” React 18 + TypeScript + Vite, with Atlassian Design System components per
+implementation.md Â§7.1 (un-restyled). This fills the `apps/*` workspace slot that has been in the
 root `package.json` since the skeleton commit.
 
-- **No CORS anywhere.** The Vite dev server proxies `/identity/*` → `:8081` and `/event/*` → `:8082`,
+- **No CORS anywhere.** The Vite dev server proxies `/identity/*` â†’ `:8081` and `/event/*` â†’ `:8082`,
   so the browser talks to one origin. Neither service needed changing.
 - **Login (A1) is two calls.** Identity's `/auth/login` owns A1's rules but returns no token, so the
-  app asks Identity first — a refusal stops there, which is what keeps a deactivated account from
-  ever reaching Supabase for one — then fetches the access token for the `Bearer` calls to `:8082`.
+  app asks Identity first â€” a refusal stops there, which is what keeps a deactivated account from
+  ever reaching Supabase for one â€” then fetches the access token for the `Bearer` calls to `:8082`.
 - **Screens:** login with the seeded accounts listed; role-driven nav (A2); My Requests (C3, with the
   draft/submitted filter); the request editor (C1 save, C2 resume and submit, B1/B2 refusals bound
   to their fields); request detail with the clarification thread and D3 reply; the review queue (D1);
   and the review screen (D2 clarify, D4 approve, D5 reject behind a confirmation modal).
 - **Refusals render inline** as section messages carrying the server's own `code`, `message` and
-  `fields[]`, per implementation.md §7.1 — so B2's "names every field" is visible rather than
+  `fields[]`, per implementation.md Â§7.1 â€” so B2's "names every field" is visible rather than
   swallowed.
 - **A direct API console.** A2's "the refusal applies to a direct URL or API call, not only to hidden
   menu items" and A3's "returns no event data at all" cannot be shown by clicking around, because
   both are about what happens when the UI is bypassed. The console fires raw requests with the
   signed-in user's token, with presets for each.
-- Status colours are defined once in `src/shared/status.ts`, never inlined (implementation.md §7.1).
+- Status colours are defined once in `src/shared/status.ts`, never inlined (implementation.md Â§7.1).
 
 ## Verified
 
 Typecheck and production build clean. Both services and the dev server were started together and
-the full journey driven through the proxy exactly as the browser makes it: sign in as three roles →
-save a draft (no reference) → C3 list → B2 refusal naming 7 fields → submit in place keeping the
-same id → attendee gets 404 → organiser's approve gets 403 → coordinator opens, clarifies, organiser
-responds with an amendment → empty rejection reason refused → approved.
+the full journey driven through the proxy exactly as the browser makes it: sign in as three roles â†’
+save a draft (no reference) â†’ C3 list â†’ B2 refusal naming 7 fields â†’ submit in place keeping the
+same id â†’ attendee gets 404 â†’ organiser's approve gets 403 â†’ coordinator opens, clarifies, organiser
+responds with an amendment â†’ empty rejection reason refused â†’ approved.
 
 **Not verified: the rendered UI itself.** I have no browser automation in this environment, so while
 every request path behind the screens is confirmed against the live services, nobody has yet looked
@@ -2346,25 +2346,25 @@ at the pages. Expect to find layout and Atlaskit-prop details to fix on first ru
 
 ## Follow-ups
 
-1. The Playwright flow test implementation.md §8.2 asks for (`packages/testkit/sprint-1/flow.spec.ts`)
+1. The Playwright flow test implementation.md Â§8.2 asks for (`packages/testkit/sprint-1/flow.spec.ts`)
    now has a UI to drive. That is the missing deliverable, not more unit tests.
-2. Attendee, Venue Staff and Tech Support have no screens — correctly, since no story in A1–D5 gives
+2. Attendee, Venue Staff and Tech Support have no screens â€” correctly, since no story in A1â€“D5 gives
    them one. They land on the console.
 3. `npm run dev -w @connectsphere/identity-service` still fails to load `.env`; use
    `npx tsx --env-file=.env services/identity/src/index.ts` until its owner adds the flag.
 
 ---
 
-# Event Service — drafts merged into the events table
+# Event Service â€” drafts merged into the events table
 
 **Timestamp:** 2026-09-16T00:20+08:00 (SGT)
 **Author:** Seann, via Claude
 **Reason:** The separate `event_drafts` table was a wrong call, corrected. A draft is an event at
-status Draft — which is what F1's status list says by naming Draft among the ten statuses.
+status Draft â€” which is what F1's status list says by naming Draft among the ten statuses.
 
 ## Changed
 
-- **Migration `0002_merge_drafts_into_events.sql`** — forward-only. Relaxes the NOT NULL columns a
+- **Migration `0002_merge_drafts_into_events.sql`** â€” forward-only. Relaxes the NOT NULL columns a
   draft may leave empty, adds `last_saved_at`, carries the existing unsubmitted drafts into
   `event.events` at status `DRAFT`, drops `source_draft_id`, and drops `event_drafts`.
 - **Submitting a draft now updates that row in place.** It keeps its id, its history and everything
@@ -2372,7 +2372,7 @@ status Draft — which is what F1's status list says by naming Draft among the t
   into a new `events` row, so the submitted event had a different id from the draft the organiser
   had been working on. `converted_to_event_id` is gone with the table.
 - **`ends_after_start` and `attendance_positive` are now conditional on the status**, because C1
-  says the B2 rules are not applied on save — a draft may legitimately hold an attendance of zero.
+  says the B2 rules are not applied on save â€” a draft may legitimately hold an attendance of zero.
   A new check holds the other line: anything past Draft has a reference and a submission time.
 - **C3's list is one query instead of a `union all`.**
 
@@ -2381,14 +2381,14 @@ status Draft — which is what F1's status list says by naming Draft among the t
 Drafts now share a table with events, so **the A3 scope filter is what keeps a draft private**,
 where before it was the table boundary. A coordinator's scope is every event, which would have
 exposed other organisers' drafts; the filter now reads "every event, plus my own drafts". Four
-tests in `tests/api/review.test.ts` cover it — a coordinator gets `404` on someone's draft, it stays
+tests in `tests/api/review.test.ts` cover it â€” a coordinator gets `404` on someone's draft, it stays
 out of their list, opening it does not move it to Under Review, and the owner still sees their own.
 
 139 tests pass (was 134). The end-to-end smoke run against the live project was repeated.
 
 ---
 
-# Event Service — B1 to D5
+# Event Service â€” B1 to D5
 
 **Timestamp:** 2026-09-15T23:40+08:00 (SGT)
 **Author:** Seann, via Claude
@@ -2397,7 +2397,7 @@ out of their list, opening it does not move it to Under Review, and the owner st
 
 ## Added
 
-**`services/event` — a new service, schema `event`, port 8082.**
+**`services/event` â€” a new service, schema `event`, port 8082.**
 
 - **Migration** `0001_init_event_schema.sql`: `event_drafts`, `events`, `assignments`,
   `assignment_cursor`, `status_history`, `clarifications`, `event_field_edits`, `outbox`, and an
@@ -2411,43 +2411,43 @@ out of their list, opening it does not move it to Under Review, and the owner st
   draft-and-submitted list (C3), the review queue and open-for-review (D1), clarification request
   and response (D2, D3), approve (D4) and reject (D5).
 - **Outbox**: six event types written in the same transaction as their state change. No Kafka relay
-  runs yet, so rows accumulate unpublished — the correct resting state for a transactional outbox.
+  runs yet, so rows accumulate unpublished â€” the correct resting state for a transactional outbox.
 - **Tests**: 134, all against the real database. Written test-first; every one was watched failing
   before the code existed.
 
 **`packages/contracts`** gained `eventStatus.ts` (the ten F1 statuses), `errorCodes.ts`,
-`envelope.ts` (implementation.md §3.3), `eventEvents.ts` (six payload schemas + topic names), and
+`envelope.ts` (implementation.md Â§3.3), `eventEvents.ts` (six payload schemas + topic names), and
 `user.ts`.
 
-**`packages/testkit/sprint-2/traceability.csv`** — new, covering D2–D5. Sprint 1's file gained rows
-for B1–C3, D1, E1, F1 and the A2/A3 checks the Event Service enforces itself.
+**`packages/testkit/sprint-2/traceability.csv`** â€” new, covering D2â€“D5. Sprint 1's file gained rows
+for B1â€“C3, D1, E1, F1 and the A2/A3 checks the Event Service enforces itself.
 
 **Deployment**: `services/event/Dockerfile`, a compose block, `.env.example` entries, a
 `migrate:event` script, README steps.
 
 ## Changed
 
-- **`services/identity/src/api/usersMe.ts` — new endpoint `GET /api/v1/users/me`, in another
+- **`services/identity/src/api/usersMe.ts` â€” new endpoint `GET /api/v1/users/me`, in another
   owner's service.** Raphael/whoever owns Identity should review this. It was needed because the
-  Event Service may not query `identity`'s tables (plan.md §2) and `GET /api/v1/access-scope/events`
-  returns no user id for a coordinator (`{scopeType:"ALL"}`) — but D1/D4/D5 must record *which*
+  Event Service may not query `identity`'s tables (plan.md Â§2) and `GET /api/v1/access-scope/events`
+  returns no user id for a coordinator (`{scopeType:"ALL"}`) â€” but D1/D4/D5 must record *which*
   coordinator reviewed, approved or rejected. Three tests accompany it; Identity's existing 27 tests
   are untouched and still pass.
 
 ## Decisions worth knowing
 
-- **Two tables for drafts and events**, as `plan.md` §4 lists them, rather than one table with a
+- **Two tables for drafts and events**, as `plan.md` Â§4 lists them, rather than one table with a
   Draft status. `events.status` still lists all ten F1 statuses for completeness, but no row is ever
   inserted at `DRAFT`; the first history entry records `DRAFT` as the previous state.
 - **Identity owns the access-scope rule; the JWT proves the subject.** The Event Service verifies
   the token itself (`jose` + JWKS, mirroring Identity) and then makes one synchronous call per
-  request for the caller's identity and scope — the hop `plan.md` §5 permits. `resolveAccessScope`
+  request for the caller's identity and scope â€” the hop `plan.md` Â§5 permits. `resolveAccessScope`
   is not duplicated here. If Identity is unreachable the request is refused with `503` and nothing
-  is written, which is the CP posture `plan.md` §2 requires.
+  is written, which is the CP posture `plan.md` Â§2 requires.
 - **`prepare: false` on the postgres client.** The hosted `DATABASE_URL` points at Supabase's
   transaction-mode pooler, which hands a different backend to each transaction and cannot keep named
   prepared statements alive. This surfaced only under concurrent load. `services/identity/src/db.ts`
-  does not set it and may hit the same failure — flagged, not changed, since it is another owner's
+  does not set it and may hit the same failure â€” flagged, not changed, since it is another owner's
   file.
 
 ## Known gaps
@@ -2457,8 +2457,8 @@ for B1–C3, D1, E1, F1 and the A2/A3 checks the Event Service enforces itself.
    itself (round-robin, recorded per assignment, explainable) is real. Marked `TODO(E1)` throughout.
 2. **No Kafka relay.** Outbox rows are written correctly but nothing publishes them, and the
    Notification service does not exist yet, so T2's records are not created downstream.
-3. **`packages/contracts` is shared** — its additions need a second service owner's review before
-   merge, per implementation.md §2.
+3. **`packages/contracts` is shared** â€” its additions need a second service owner's review before
+   merge, per implementation.md Â§2.
 4. D1's "the name of that coordinator is displayed" returns the coordinator's id; resolving ids to
    names is the SPA's job via Identity.
 
@@ -2468,18 +2468,18 @@ for B1–C3, D1, E1, F1 and the A2/A3 checks the Event Service enforces itself.
 
 **Timestamp:** 2026-09-15T16:30+08:00 (SGT)
 **Author:** Chai, via Claude
-**Reason:** Live-Jira cross-reference of the Rovo agent's first pass against `Jira__2_.md`'s 23-item instruction set found a missed edit and two missing links; naming-convention drift on Sprint 1's test issues was found separately. `Jira__2_.md` sections 0–0e cover both. All have now been applied in Jira.
+**Reason:** Live-Jira cross-reference of the Rovo agent's first pass against `Jira__2_.md`'s 23-item instruction set found a missed edit and two missing links; naming-convention drift on Sprint 1's test issues was found separately. `Jira__2_.md` sections 0â€“0e cover both. All have now been applied in Jira.
 
-## `Jira__2_.md` sections 0–0e — applied
+## `Jira__2_.md` sections 0â€“0e â€” applied
 
-1. **Section 0 (rectification)** — R1's REPLACE LINE, missed in the first pass, applied. F5's missing "relates to" links to M1 and Q1 added (only the F1 link had been created).
-2. **Section 0c** — SPM-61 (T2, a Story issue) renamed to fix its dash: `T2 - ...` → `T2 — ...`.
-3. **Section 0d** — SPM-86–107, the 22 Test issues for Sprint 1's stories (A1–E2), renamed from their legacy ticket-number prefix (`SPM-11:`, `SPM-12:`, …) to `<code>-T<n> — <title>` (e.g. `A1-T1 — Valid login (Organiser)`), so a test case's summary can never be mistaken for its story's.
-4. **Section 0e** — SPM-82–85, four shared service-test subtasks that each span more than one story, tagged to their parent feature letter only, no story number: `R-T1`, `F-T1`, `E-T1`, `E-T2`.
+1. **Section 0 (rectification)** â€” R1's REPLACE LINE, missed in the first pass, applied. F5's missing "relates to" links to M1 and Q1 added (only the F1 link had been created).
+2. **Section 0c** â€” SPM-61 (T2, a Story issue) renamed to fix its dash: `T2 - ...` â†’ `T2 â€” ...`.
+3. **Section 0d** â€” SPM-86â€“107, the 22 Test issues for Sprint 1's stories (A1â€“E2), renamed from their legacy ticket-number prefix (`SPM-11:`, `SPM-12:`, â€¦) to `<code>-T<n> â€” <title>` (e.g. `A1-T1 â€” Valid login (Organiser)`), so a test case's summary can never be mistaken for its story's.
+4. **Section 0e** â€” SPM-82â€“85, four shared service-test subtasks that each span more than one story, tagged to their parent feature letter only, no story number: `R-T1`, `F-T1`, `E-T1`, `E-T2`.
 
-## Sprint 1 point total — unchanged at 35
+## Sprint 1 point total â€” unchanged at 35
 
-All Sprint 1 test issues (SPM-86–107, plus the shared SPM-82–85) have been moved into the Sprint 1 to-do list. The Sprint 1 story-point total is **not** increased for this: each story's original point estimate is taken to have already factored in the effort of testing that story, so the tests are additional *issues* tracked in the sprint, not additional *scope* against the estimate.
+All Sprint 1 test issues (SPM-86â€“107, plus the shared SPM-82â€“85) have been moved into the Sprint 1 to-do list. The Sprint 1 story-point total is **not** increased for this: each story's original point estimate is taken to have already factored in the effort of testing that story, so the tests are additional *issues* tracked in the sprint, not additional *scope* against the estimate.
 
 ## Net effect
 
@@ -2487,31 +2487,31 @@ All Sprint 1 test issues (SPM-86–107, plus the shared SPM-82–85) have been m
 
 ---
 
-# Changelog — Stale Cross-Reference Fixes (Revision 3 follow-up)
+# Changelog â€” Stale Cross-Reference Fixes (Revision 3 follow-up)
 
 **Timestamp:** 2026-09-15T05:19:53Z
 **Author:** Chai, via Claude
-**Reason:** The F1/F5 and F3/F4 story splits in Revision 3 left several cross-references pointing at the wrong story. These are corrections only — no acceptance criteria were changed in substance, only which story they cite.
+**Reason:** The F1/F5 and F3/F4 story splits in Revision 3 left several cross-references pointing at the wrong story. These are corrections only â€” no acceptance criteria were changed in substance, only which story they cite.
 
 ---
 
 ## `Final_User_Stories__2_.md`
 
-1. **B2** — `(F1)` → `(F5)` in the equipment-required-flag bullet. The confirmation-readiness rule it cites lives in F5, not F1.
-2. **L3** — `(F1)` → `(F5)` in the "does not by itself allow the event to become Confirmed" bullet. Same reason as #1.
-3. **L3** — `(F3)` → "as part of the release run in F4" in the "released automatically when the event is cancelled" bullet. F3 only records the cancellation decision; F4 owns the actual release.
-4. **S3** — `(F1 readiness rule)` → `(F5 readiness rule)` in the Confirmed-status refusal bullet. Same reason as #1.
-5. **Q2** — `(F3)` → "as part of the release run in F4" in the reservation-release bullet. Same reason as #3. Q2 was not in Revision 3's official revised-stories list, so this reference was never revisited when F3 split.
-6. **R1** — Reworded "when a registration capacity is set — the number of places remaining" to "the number of places remaining, derived from the capacity of the booked venue for the booked layout (R2)." R1's sibling story R2 already states capacity is always derived from the booked venue, never a separate optional field; R1 was not updated to match when R2 changed.
+1. **B2** â€” `(F1)` â†’ `(F5)` in the equipment-required-flag bullet. The confirmation-readiness rule it cites lives in F5, not F1.
+2. **L3** â€” `(F1)` â†’ `(F5)` in the "does not by itself allow the event to become Confirmed" bullet. Same reason as #1.
+3. **L3** â€” `(F3)` â†’ "as part of the release run in F4" in the "released automatically when the event is cancelled" bullet. F3 only records the cancellation decision; F4 owns the actual release.
+4. **S3** â€” `(F1 readiness rule)` â†’ `(F5 readiness rule)` in the Confirmed-status refusal bullet. Same reason as #1.
+5. **Q2** â€” `(F3)` â†’ "as part of the release run in F4" in the reservation-release bullet. Same reason as #3. Q2 was not in Revision 3's official revised-stories list, so this reference was never revisited when F3 split.
+6. **R1** â€” Reworded "when a registration capacity is set â€” the number of places remaining" to "the number of places remaining, derived from the capacity of the booked venue for the booked layout (R2)." R1's sibling story R2 already states capacity is always derived from the booked venue, never a separate optional field; R1 was not updated to match when R2 changed.
 
 ## `Jira__2_.md`
 
-1. **Header** — Scope updated from "21 changes — 5 new work items, 1 deletion, 15 edits" to "23 changes — 5 new work items, 1 deletion, 17 edits" to account for the two added items below. Out-of-scope note reworded: A3/B2/E1/E2 are now marked as already completed rather than "handled separately," since that work is done.
-2. **Item 11 (L3)** — Same fix as source-doc change #2 above, applied to the CREATE block's description.
-3. **Item 21 (S3)** — Same fix as source-doc change #4 above, applied to the REPLACE DESCRIPTION block.
-4. **New item 15 (Q2)** — Added, carrying source-doc change #5 above as a REPLACE LINE instruction, with a "Why" note explaining the knock-on effect.
-5. **New item 16 (R1)** — Added, carrying source-doc change #6 above as a REPLACE LINE instruction, with a "Why" note explaining the knock-on effect.
-6. **Renumbering** — Items formerly numbered 16–21 (R4, R6, R7, S3, T1, T2) shifted to 18–23 to make room for the two insertions.
+1. **Header** â€” Scope updated from "21 changes â€” 5 new work items, 1 deletion, 15 edits" to "23 changes â€” 5 new work items, 1 deletion, 17 edits" to account for the two added items below. Out-of-scope note reworded: A3/B2/E1/E2 are now marked as already completed rather than "handled separately," since that work is done.
+2. **Item 11 (L3)** â€” Same fix as source-doc change #2 above, applied to the CREATE block's description.
+3. **Item 21 (S3)** â€” Same fix as source-doc change #4 above, applied to the REPLACE DESCRIPTION block.
+4. **New item 15 (Q2)** â€” Added, carrying source-doc change #5 above as a REPLACE LINE instruction, with a "Why" note explaining the knock-on effect.
+5. **New item 16 (R1)** â€” Added, carrying source-doc change #6 above as a REPLACE LINE instruction, with a "Why" note explaining the knock-on effect.
+6. **Renumbering** â€” Items formerly numbered 16â€“21 (R4, R6, R7, S3, T1, T2) shifted to 18â€“23 to make room for the two insertions.
 
 ---
 
