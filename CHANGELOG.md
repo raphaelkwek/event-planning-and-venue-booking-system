@@ -4,6 +4,40 @@
 
 ---
 
+# SPM-115: `main` is branch-protected
+
+**Timestamp:** 2026-10-07T18:25+08:00 (SGT)
+**Author:** Raphael, via Claude
+**Scope:** GitHub repository settings (no code). SPM-115, part of EN-06.
+**Reason:** `main` had no protection, so anyone with write access could push to it directly or merge
+without review or green CI. That happened in practice: PR #2 merged unreviewed, and an early F1
+commit went straight to `main`. The Definition of Done (`implementation.md` §8.3) requires both a
+peer review and green CI; until now neither was enforced.
+
+## Changed
+
+- **Branch protection on `main`:**
+  - a pull request with **one approving review** is required before merging;
+  - three CI checks must pass: *Lint, typecheck, build, unit tests*, *Integration tests (throwaway
+    Postgres)* and *Secret scan (gitleaks)*;
+  - force pushes and branch deletion are blocked;
+  - **enforced for administrators too.** Without this the repo owner could still push directly,
+    which the ticket's done-when rules out.
+- **Not required, deliberately:** *Migration lint (squawk)* and *Mutation testing* are skipped
+  unless a change touches migrations or domain code, so requiring them would block unrelated PRs.
+  *CodeQL* and *Diagrams* run in separate workflows and can be added once the team agrees.
+
+## Verified
+
+- Read back through the GitHub API: one approval, the three checks, `enforce_admins` on, force
+  pushes and deletions off.
+- A direct push of an empty commit to `main` was refused: "Changes must be made through a pull
+  request" and "3 of 3 required status checks are expected" (protected branch hook declined).
+  `main` stayed at `ba59293`.
+- This entry is the first change to reach `main` under the rule, through a reviewed PR.
+
+---
+
 # PX-07: The customer clarification log exists
 
 **Timestamp:** 2026-10-06T22:15+08:00 (SGT)
