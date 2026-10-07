@@ -4,6 +4,47 @@
 
 ---
 
+# SPM-116 follow-up: the non-domain coverage floor moves to the integration run
+
+**Timestamp:** 2026-10-07T18:50+08:00 (SGT)
+**Author:** Raphael, via Claude
+**Scope:** `backend/services/planning-core/vitest.config.ts`, `vitest.unit.config.ts`, its
+`package.json`, and CI's integration job.
+**Reason:** The unit run enforced a 93% branch floor across all of `src/`. Its own comment says
+that floor was set at "today's unit-only figures" until EN-06.1 gave CI a database. EN-06.1 merged
+on 6 Oct, but the floor stayed in the unit run, where repo and API code never executes and so
+counts as uncovered. Every new repo file therefore failed the build, however well its integration
+tests covered it. F1's first repo file took the figure to 92.04%.
+
+## Changed
+
+- **The unit run keeps the 100% floor on domain code**, exactly as before, and drops the global
+  floor.
+- **The integration run now enforces the global floor.** `npm run test:coverage -w
+  @connectsphere/planning-core`, which CI's integration job runs against its throwaway Postgres,
+  is the one run that executes repo and API code. Floors: lines and statements 91%, branches 88%,
+  functions 89%. That's just under the first measurement of `main`.
+- In practice it's **stricter, not looser**: lines and functions go from 39% and 24% (unit-only)
+  to about 91% and 89%, measured where the code actually runs.
+
+## Found on the way (not fixed here)
+
+- **The shared Supabase database is missing EN-02's migrations.** `equipment.equipment_types`
+  and the venue slot tables don't exist there, so 34 venue and equipment tests fail for anyone
+  running the suite locally. CI is unaffected, since it builds its database from the migrations.
+  Someone should run `npm run migrate:all` against the shared project, as a deliberate team step.
+- Because of that, the floors are set from a measurement that undercounts venue and equipment
+  code. Once CI's first run reports its figures, raise the floors to match. They should only ever
+  go up.
+
+## Verified
+
+- Unit run: exit 0, domain coverage 100%. `npm run lint` passes. `ci.yml` parses.
+- Full local run of `main` with coverage: lines and statements 92.02%, branches 88.85%, functions
+  90.06% (455 passed, with 34 failing only on the missing EN-02 tables).
+
+---
+
 # PX-07: The customer clarification log exists
 
 **Timestamp:** 2026-10-06T22:15+08:00 (SGT)
