@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | After the release statement, "Show" listed nothing for EVT-006121, no Setup or Turnaround for it, and Monday's free periods were 08:00–13:45, 16:45–22:00. |
+| Status | Pass |
+| Remarks | Commit: 69e657d · Evidence: tests/I1/evidence/I1-T9.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-07 |

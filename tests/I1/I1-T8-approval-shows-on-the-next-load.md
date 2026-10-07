@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | After the approval statement, "Show" gave "14:00–16:00 Confirmed EVT-006118", with its 13:45–14:00 Setup and 16:00–16:45 Turnaround rows. No row was Pending, and the free periods were unchanged (08:00–09:30, 12:30–13:45, 16:45–22:00). |
+| Status | Pass |
+| Remarks | Commit: 69e657d · Evidence: tests/I1/evidence/I1-T8.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-07 |

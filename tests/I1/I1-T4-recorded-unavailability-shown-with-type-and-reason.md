@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | Tuesday listed "09:00–13:00 Maintenance Stage lighting rewiring". Wednesday listed "18:00–24:00 Renovation Seat replacement" and Thursday "00:00–12:00 Renovation Seat replacement". None was marked as a booking. |
+| Status | Pass |
+| Remarks | Commit: 69e657d · Evidence: tests/I1/evidence/I1-T4.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-07 |

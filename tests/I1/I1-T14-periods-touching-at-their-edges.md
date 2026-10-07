@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | Monday had a free period starting at exactly 12:30 (12:30–13:45). Saturday listed 15:00–17:00 Confirmed EVT-006143 and 17:00–18:00 Turnaround EVT-006143 · occupied, with no Setup row, and its only free period was 09:00–15:00. No zero-length period appeared. |
+| Status | Pass |
+| Remarks | Commit: 69e657d · Evidence: tests/I1/evidence/I1-T14.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-07 |

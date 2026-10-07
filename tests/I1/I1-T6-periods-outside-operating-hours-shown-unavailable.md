@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | Friday: 00:00–08:00 Outside operating hours; 22:00–24:00 Outside operating hours, free 08:00–22:00. Saturday began "00:00–09:00 Outside operating hours" and ended "18:00–24:00 Outside operating hours". Sunday: "00:00–24:00 Outside operating hours Closed all day", and "No free periods". |
+| Status | Pass |
+| Remarks | Commit: 69e657d · Evidence: tests/I1/evidence/I1-T6.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-07 |

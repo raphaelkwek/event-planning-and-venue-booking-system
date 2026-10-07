@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | 1–31 December showed 31 days, Tuesday 1 December 2026 to Thursday 31 December 2026, with the FX-CALENDAR periods. 1 December to 1 January showed no calendar and, under To, "A range can be at most 31 days; this one is 32.". 13 to 7 December showed no calendar and "The end date must not be before the start date.". |
+| Status | Pass |
+| Remarks | Commit: 69e657d · Evidence: tests/I1/evidence/I1-T13.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-07 |

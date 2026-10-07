@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | The 14:00–16:00 row read "Pending EVT-006098". Its marker's colour was rgb(255, 250, 230); the Confirmed marker on 10:00–12:00 was rgb(255, 235, 230). Free periods were 08:00–09:30, 12:30–13:45, 16:45–22:00, none overlapping 14:00–16:00. |
+| Status | Pass |
+| Remarks | Commit: 69e657d · Evidence: tests/I1/evidence/I1-T3.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-07 |
