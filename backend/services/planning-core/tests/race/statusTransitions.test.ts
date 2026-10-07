@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { testDb } from "../support/testDb.js";
 import { isThrowawayDatabase, losers, race, winners } from "../support/race.js";
 import { deleteSeededEvents, seedEvent } from "../support/seedEvent.js";
-import { transitionEvent } from "../../src/modules/event/api/transitionEvent.js";
+import { SYSTEM_ACTOR, transitionEvent } from "../../src/modules/event/api/transitionEvent.js";
 import { updateStatusIf } from "../../src/modules/event/repo/eventStatus.js";
 
 /**
@@ -84,6 +84,33 @@ describe.runIf(isThrowawayDatabase())(`${ATTEMPTS} status changes at the same mo
       expect(history[0]!.actor_user_id).toBe(actors[winnerIndex]);
       const [row] = await sql<{ status: string }[]>`select status from event.events where id = ${eventId}`;
       expect(row!.status).toBe("APPROVED");
+    }
+  });
+
+  it("exactly one of 50 system completions succeeds, writing one SYSTEM history entry", async () => {
+    // Ends in 2001, so no real sweep or teammate's test treats it as anything but long over.
+    const ended = new Date("2001-06-01T12:00:00.000Z");
+    const after = new Date(ended.getTime() + 60_000);
+    for (let round = 0; round < ROUNDS; round += 1) {
+      const eventId = await seedEvent(sql, { ownerId: OWNER, status: "CONFIRMED", endsAt: ended });
+
+      const results = await race(ATTEMPTS, (tx) =>
+        transitionEvent(tx, eventId, "COMPLETE", SYSTEM_ACTOR, { now: after })
+      );
+
+      expect(losers(results)).toEqual([]);
+      const outcomes = winners(results);
+      expect(outcomes.filter((outcome) => outcome.ok)).toHaveLength(1);
+      expect(outcomes.filter((outcome) => !outcome.ok)).toHaveLength(ATTEMPTS - 1);
+
+      const history = await sql<{ actor_role: string }[]>`
+        select actor_role from event.event_history
+        where event_id = ${eventId} and triggering_action = 'COMPLETE'
+      `;
+      expect(history).toHaveLength(1);
+      expect(history[0]!.actor_role).toBe("SYSTEM");
+      const [row] = await sql<{ status: string }[]>`select status from event.events where id = ${eventId}`;
+      expect(row!.status).toBe("COMPLETED");
     }
   });
 });
