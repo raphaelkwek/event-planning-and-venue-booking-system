@@ -4,6 +4,18 @@
 
 ---
 
+# P1: Check equipment availability using peak concurrent use
+
+**Timestamp:** 2026-10-08T02:04+08:00 (SGT)
+**Author:** Yichen, via Codex
+**Scope:** equipment availability API, input validation and tests, shared error contract, API documentation, and CQ-02 decision records.
+
+**Reason:** The user selected peak concurrent use for CQ-02 and authorized P1 (SPM-48). Record that decision and its provenance, then expose a period check that reports numeric availability and requested shortfall without creating a reservation or changing inventory. Bulk checks combine reserved and unavailable quantities on one timeline; serialized units must be free for the whole period and are excluded only once when both reserved and unavailable.
+
+**Verification:** Backend typecheck and module boundaries passed. All 268 planning-core unit tests and coverage thresholds passed; new input validation has 100% coverage and a 96.77% focused mutation score. Database API acceptance verification awaits CI's throwaway Postgres. No shared database was used.
+
+---
+
 # PX-07: The customer clarification log exists
 
 **Timestamp:** 2026-10-06T22:15+08:00 (SGT)

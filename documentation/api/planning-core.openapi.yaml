@@ -49,6 +49,8 @@ tags:
     description: E2 propose, accept and decline coordinator reassignment (event module)
   - name: Venues
     description: H1 maintain venue records, H2 view them (venue module)
+  - name: Equipment
+    description: P1 equipment availability checks (equipment module)
 
 security:
   - bearerAuth: []
@@ -716,6 +718,72 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
         "503": { $ref: "#/components/responses/IdentityUnavailable" }
 
+  /api/v1/equipment/types:
+    get:
+      tags: [Equipment]
+      summary: List equipment types for an availability check (P1)
+      description: Technical Support Staff only. This read does not change inventory.
+      operationId: listEquipmentAvailabilityTypes
+      responses:
+        "200":
+          description: Equipment types with bulk totals or individually tracked unit counts.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, nextCursor]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/EquipmentAvailabilityType" }
+                  nextCursor: { type: "null" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
+  /api/v1/equipment/types/{id}/availability:
+    parameters:
+      - $ref: "#/components/parameters/RecordId"
+    get:
+      tags: [Equipment]
+      summary: Check numeric availability and shortfall over a period (P1)
+      description: |
+        Technical Support Staff only. Holds the equipment-type row lock within one
+        transaction and writes no inventory, reservations, history or outbox data.
+        Bulk availability is total minus peak concurrent combined reserved and
+        unavailable quantities inside the half-open period (CQ-02). Individually
+        tracked units must be free for the whole period; a unit both reserved and
+        unavailable is excluded once. Touching periods do not overlap. Availability
+        is clamped to zero. A shortage is a successful check, not a reservation refusal.
+      operationId: checkEquipmentAvailability
+      parameters:
+        - name: startsAt
+          in: query
+          required: true
+          description: RFC 3339 instant with an explicit timezone offset.
+          schema: { type: string, format: date-time }
+        - name: endsAt
+          in: query
+          required: true
+          description: RFC 3339 instant later than startsAt, with an explicit timezone offset.
+          schema: { type: string, format: date-time }
+        - name: requestedQuantity
+          in: query
+          required: true
+          description: Whole quantity to compare against availability, including zero.
+          schema: { type: integer, minimum: 0, maximum: 9007199254740991 }
+      responses:
+        "200":
+          description: Numeric availability, requested quantity and shortfall. No reservation is created.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EquipmentAvailabilityResult" }
+        "400": { $ref: "#/components/responses/ValidationFailed" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
 components:
   securitySchemes:
     bearerAuth:
@@ -748,7 +816,7 @@ components:
         application/json:
           schema: { $ref: "#/components/schemas/ErrorEnvelope" }
     NotFound:
-      description: "`EVENT_NOT_FOUND`, `DRAFT_NOT_FOUND`, `REASSIGNMENT_PROPOSAL_NOT_FOUND` or `VENUE_NOT_FOUND`. Also returned when the record exists but is outside the caller's scope (A3)."
+      description: "`EVENT_NOT_FOUND`, `DRAFT_NOT_FOUND`, `REASSIGNMENT_PROPOSAL_NOT_FOUND`, `VENUE_NOT_FOUND` or `EQUIPMENT_TYPE_NOT_FOUND`. Also returned when the record exists but is outside the caller's scope (A3)."
       content:
         application/json:
           schema: { $ref: "#/components/schemas/ErrorEnvelope" }
@@ -788,6 +856,30 @@ components:
         - REASSIGNMENT_ALREADY_PENDING
         - REASSIGNMENT_PROPOSAL_NOT_FOUND
         - VENUE_NOT_FOUND
+        - EQUIPMENT_TYPE_NOT_FOUND
+
+    EquipmentAvailabilityType:
+      type: object
+      required: [id, name, description, kind, totalQuantity]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        description: { type: string }
+        kind: { type: string, enum: [BULK, SERIALIZED] }
+        totalQuantity: { type: integer, minimum: 0 }
+
+    EquipmentAvailabilityResult:
+      type: object
+      required: [equipmentTypeId, kind, totalQuantity, availableQuantity, requestedQuantity, shortfallQuantity, startsAt, endsAt]
+      properties:
+        equipmentTypeId: { type: string, format: uuid }
+        kind: { type: string, enum: [BULK, SERIALIZED] }
+        totalQuantity: { type: integer, minimum: 0 }
+        availableQuantity: { type: integer, minimum: 0 }
+        requestedQuantity: { type: integer, minimum: 0 }
+        shortfallQuantity: { type: integer, minimum: 0 }
+        startsAt: { type: string, format: date-time }
+        endsAt: { type: string, format: date-time }
 
     ErrorEnvelope:
       type: object

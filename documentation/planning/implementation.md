@@ -415,9 +415,9 @@ Steps 1 to 3 run in one transaction at `READ COMMITTED`. The row lock is what ma
 - `reserveUnit(tx, …)` takes the type's row lock (rule 4 above), then claims one serialized unit. An overlap comes back as `UnitAlreadyReservedError`; Q1 then tries the next unit from `availableUnits(tx, typeId, period)`, or refuses with the shortfall.
 - `reserveBulk(tx, …)` runs steps 1 to 3 above. A refusal is `InsufficientEquipmentError` (`INSUFFICIENT_EQUIPMENT`), carrying the requested, available and shortfall quantities.
 - `peakUse(tx, typeId, period)` counts quantities recorded unavailable as in use. `lockEquipmentType(tx, typeId)` is the lock P2 takes before reducing a total.
-- The formula itself is `peakConcurrentUse` in `domain/availability.ts`, the only place to change if CQ-02 is answered "summed overlaps".
+- The formula itself is `peakConcurrentUse` in `domain/availability.ts`.
 
-**P1 is waiting on a customer answer (CQ-02, SPM-157).** P1's literal text subtracts every overlapping reservation added up, which counts back-to-back bookings as simultaneous. The design computes **peak concurrent use**, and it can switch to summed overlaps if the customer says so. Don't change P1's acceptance criteria until the answer is recorded in `documentation/clarifications.md`.
+**P1's implementation decision (CQ-02, SPM-157).** On 8 October 2026 the user selected **peak concurrent use** and authorized implementation. The decision and its provenance are recorded in `documentation/clarifications.md`, and P1's acceptance criteria cite it. Bulk availability subtracts the peak of combined reservations and unavailability inside the requested window. Individually tracked units must be free for the whole window and are excluded once if both reserved and unavailable. An original customer statement/source has not been supplied.
 
 **Registration capacity** (R2, R7) — the ceiling is read **synchronously from the Venue Service at the moment of registration**, never from a cached figure:
 

@@ -17,12 +17,12 @@ Other documents already point here:
 
 ## Open questions
 
-None of these has a recorded answer yet. The first three have been open since 1 Oct, and P1 (Sprint 2) is blocked on CQ-02.
+CQ-02 has an implementation decision recorded below; the other questions remain unanswered. The first three have been open since 1 Oct.
 
 | Id | Jira | Question | Affects | Asked | Answered | Answer |
 |---|---|---|---|---|---|---|
 | CQ-01 | SPM-156 | R7 lets a VIP be added "even when no registration places remain", but R2 defines places as capacity minus VIP additions, so that clause can never apply. Should VIPs come from a pool the organiser reserves? | R2, R7 | | | |
-| CQ-02 | SPM-157 | P1: is available equipment the total minus the **peak** use at any moment in the period, or minus **every** overlapping reservation added up (which counts back-to-back bookings as simultaneous)? | P1, Q1 | | | |
+| CQ-02 | SPM-157 | P1: is available equipment the total minus the **peak** use at any moment in the period, or minus **every** overlapping reservation added up (which counts back-to-back bookings as simultaneous)? | P1, Q1 | | 2026-10-08 | User instruction in the Codex session: "take peak concurrent use. continue". Implementation proceeds with the peak of combined reserved and unavailable quantities within the requested period. This records the user's decision; an original customer statement/source has not been supplied. |
 | CQ-03 | SPM-158 | T2: must a notification be visible within about 10 seconds of the event that causes it? | T2 | | | |
 | CQ-04 | SPM-184 | When an event uses several venues, which capacity limits registrations: a designated main venue, the total of all its venues, or another rule? | R2, R7 | | | |
 | CQ-05 | SPM-185 | Must *every* active venue booking be confirmed before an event can be confirmed, or is one enough? | F5 | | | |
