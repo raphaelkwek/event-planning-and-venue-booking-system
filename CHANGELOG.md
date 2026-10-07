@@ -4,6 +4,18 @@
 
 ---
 
+# P1: Record independently verified API cards and CI evidence
+
+**Timestamp:** 2026-10-08T02:25+08:00 (SGT)
+**Author:** Yichen, via Codex
+**Scope:** P1 card execution records and captured CI evidence.
+
+**Reason:** Record observed results at `a00b6bf3e17ddcd4db343e9e15e5495f61ac6c57` against independently specified acceptance expectations. The fifteen API/database cards pass in disposable Postgres with declared authentication stubs. Actual signed-in browser card T14 and human story-owner review remain pending.
+
+**Verification:** All CI jobs and CodeQL passed. Planning-core integration: 585 tests, 94.77% lines/statements, 90.31% branches, 94.76% functions. Backend unit: 319 tests; frontend: 62 tests, including 19 P1 checks. Changed-domain mutation score: 95.51%. Evidence captures the complete planning-core command output and source CI link.
+
+---
+
 # P1: Verify authentication and database refusal paths on current main
 
 **Timestamp:** 2026-10-08T02:15+08:00 (SGT)

@@ -34,3 +34,9 @@ API suite implementation assertions cover full response quantities and UTC time 
 ## Browser fixture
 
 Use a throwaway database for the local app and the standard account setup from `tests/README.md`, with `npm run migrate -- equipment` included. Set the browser timezone to Asia/Singapore. Run `tests/P1/fixtures/ui-availability.sql` immediately before T14. It creates a named bulk type with total 10 and reservations 4 at 10:00–12:00 UTC and 5 at 12:00–14:00 UTC. Rerunning removes only this fixture's exact rows. Do not run it in the shared team database.
+
+## Verified run — 2026-10-08 (Asia/Singapore)
+
+Tested commit: `a00b6bf3e17ddcd4db343e9e15e5495f61ac6c57`. [CI run 37665394086](https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/37665394086) and CodeQL passed. The [complete planning-core test output](evidence/P1-CI-2026-10-08.txt) records all fifteen named API cards passing within 585 tests; additional availability API tests also passed. Integration coverage: 94.77% lines/statements, 90.31% branches, 94.76% functions. Unit job: 319 backend and 62 frontend tests passed, including 19 P1 UI checks. Changed-domain mutation score: 95.51%, above the 80% floor.
+
+T1–T13, T15 and T16 are Pass for their stated real API/Postgres procedures with authentication stubbed. T14 remains Not Executed; frontend automation does not establish actual sign-in/browser completion. Human story-owner review remains pending.
