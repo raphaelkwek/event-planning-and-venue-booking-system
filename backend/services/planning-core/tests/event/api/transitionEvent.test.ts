@@ -277,6 +277,19 @@ describe("completing an event (F1)", () => {
     expect(await statusOf(id)).toBe("COMPLETED");
   });
 
+  it("uses the database clock when no time is given", async () => {
+    const id = await seedEvent(sql, {
+      ownerId: OWNER,
+      status: "CONFIRMED",
+      endsAt: new Date("2020-01-01T12:00:00.000Z"),
+    });
+
+    const result = await sql.begin((tx) => transitionEvent(tx, id, "COMPLETE", SYSTEM_ACTOR));
+
+    expect(result.ok).toBe(true);
+    expect(await statusOf(id)).toBe("COMPLETED");
+  });
+
   it("refuses completing an Approved event whose end has passed", async () => {
     const id = await seedEvent(sql, { ownerId: OWNER, status: "APPROVED", endsAt: END });
 
