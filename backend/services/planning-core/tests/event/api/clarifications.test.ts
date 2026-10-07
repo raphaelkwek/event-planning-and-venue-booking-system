@@ -323,3 +323,33 @@ describe("POST /api/v1/events/:id/clarifications/respond (D3)", () => {
     expect(answer.status).toBe(404);
   });
 });
+
+describe("a refused clarification request stores nothing (F1)", () => {
+  async function counts(eventId: string) {
+    const rows = await sql<{ history: number; clarifications: number; outbox: number }[]>`
+      select
+        (select count(*)::int from event.event_history where event_id = ${eventId}) as history,
+        (select count(*)::int from event.clarifications where event_id = ${eventId}) as clarifications,
+        (select count(*)::int from event.outbox where message_key = ${eventId}) as outbox
+    `;
+    return rows[0]!;
+  }
+
+  it("refuses asking an Approved event for clarification, storing no clarification, history or outbox row", async () => {
+    const event = await givenEventUnderReview();
+    await request(app).post(`/api/v1/events/${event.id}/approve`).set(bearer).send();
+    const before = await counts(event.id);
+
+    const res = await request(app)
+      .post(`/api/v1/events/${event.id}/clarifications`)
+      .set(bearer)
+      .send({ message: "Please confirm the attendance." });
+
+    expect(res.status).toBe(409);
+    expect(res.body.error).toMatchObject({
+      code: "STATUS_TRANSITION_NOT_PERMITTED",
+      message: "This event is Approved and cannot move to Awaiting Clarification.",
+    });
+    expect(await counts(event.id)).toEqual(before);
+  });
+});
