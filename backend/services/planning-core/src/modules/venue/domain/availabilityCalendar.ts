@@ -12,7 +12,6 @@ import type { ErrorField, UnavailabilityReasonType } from "@connectsphere/contra
 export const CALENDAR_TIME_ZONE = "Asia/Singapore";
 export const MAX_CALENDAR_DAYS = 31;
 
-const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const WEEKDAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"] as const;
 
@@ -22,10 +21,14 @@ export interface CalendarRange {
   dates: string[];
 }
 
-/** Milliseconds at UTC midnight for a real YYYY-MM-DD date; null for anything else, 2026-02-30 included. */
+/**
+ * Milliseconds at UTC midnight for a real YYYY-MM-DD date; null for anything
+ * else. Writing the parsed date back out and comparing it with the input is the
+ * whole check: it refuses every other shape, 2026-02-30 included.
+ */
 function parseDate(value: unknown): number | null {
-  if (typeof value !== "string" || !DATE.test(value)) return null;
   const time = Date.parse(`${value}T00:00:00Z`);
+  if (Number.isNaN(time)) return null;
   return new Date(time).toISOString().slice(0, 10) === value ? time : null;
 }
 
