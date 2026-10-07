@@ -4,6 +4,18 @@
 
 ---
 
+# P2: Check the functional card inputs independently
+
+**Timestamp:** 2026-10-08T01:43+08:00 (SGT)
+**Author:** Yichen, via Codex
+**Scope:** P2 inventory API response mapping, API tests, and `frontend/tests/equipmentCards.test.tsx`.
+
+**Reason:** Self-check the acceptance criteria and functional card inputs before presenting the PR for review. Replace the list route's unused destructured variables, which failed CI lint, with explicit response fields. Add real-client UI checks and persisted-state checks for refused inventory/unavailability changes, reservation boundaries 9/10/11, audit timestamps, and forbidden roles.
+
+**Verification:** Dependencies restored. Local lint, typecheck, build, 56 frontend tests with coverage, and 270 planning-core unit tests with coverage pass. Expanded database tests await CI's throwaway Postgres. Signed-in functional card execution remains pending.
+
+---
+
 # P2: Equipment inventory can be maintained safely
 
 **Timestamp:** 2026-10-08T00:32+08:00 (SGT)

@@ -85,6 +85,91 @@ async function create(body = bulk()) {
 }
 
 describe("P2 equipment type inventory", () => {
+  it.each([
+    ["P2-T1", "P2 Wireless Microphone", "Handheld wireless microphone for talks and panels.", { "Frequency band": "534–598 MHz", Connector: "XLR", Power: "2×AA" }, 20, 201],
+    ["P2-T2", "P2 Spare Audio Mixer", "Inventory type created before stock arrives.", { Inputs: "12" }, 0, 201],
+    ["P2-T3", "P2 Negative Quantity", "Boundary test record", { Category: "Test" }, -1, 400],
+  ])("%s verifies the card's inventory quantity through save, list and reopen", async (_card, name, description, characteristics, totalQuantity, status) => {
+    const input = bulk({
+      name,
+      description,
+      characteristics,
+      totalQuantity,
+    });
+    const response = await request(app).post("/api/v1/equipment/types").set(bearer).send(input);
+    expect(response.status).toBe(status);
+    const listing = await request(app).get("/api/v1/equipment/types").set(bearer);
+    expect(listing.status).toBe(200);
+    if (status === 400) {
+      expect(response.body.error.fields).toContainEqual({
+        field: "totalQuantity", message: "Total quantity must be a whole number of zero or greater.",
+      });
+      expect(listing.body.items.some((item: { name: string }) => item.name === name)).toBe(false);
+      expect(await sql`select * from equipment.inventory_history where actor_user_id = ${TECH}`).toHaveLength(0);
+      return;
+    }
+    expect(listing.body.items).toContainEqual(expect.objectContaining({ id: response.body.id, name, totalQuantity }));
+    const reopened = await request(app).get(`/api/v1/equipment/types/${response.body.id}`).set(bearer);
+    expect(reopened.status).toBe(200);
+    expect(reopened.body).toMatchObject(input);
+  });
+
+  it.each([
+    ["P2-T4", "Battery compartments under repair", "2026-12-10T01:00:00Z", "2026-12-10T01:01:00Z", 201],
+    ["P2-T5", "", "2026-12-10T01:00:00Z", "2026-12-12T09:00:00Z", 400],
+    ["P2-T6", "   ", "2026-12-10T01:00:00Z", "2026-12-12T09:00:00Z", 400],
+    ["P2-T7", "Battery compartments under repair", "2026-12-10T01:00:00Z", "2026-12-10T01:00:00Z", 400],
+    ["P2-T8", "Battery compartments under repair", "2026-12-10T09:00:00Z", "2026-12-10T01:00:00Z", 400],
+  ])("%s verifies unavailability and its persisted outcome", async (_card, reason, startsAt, endsAt, status) => {
+    const type = await create(bulk({ name: "P2 Wireless Microphone" }));
+    const before = (await request(app).get(`/api/v1/equipment/types/${type.id}`).set(bearer)).body;
+    const input = unavailable({ quantity: 2, startsAt, endsAt, reason });
+    const response = await request(app).post(`/api/v1/equipment/types/${type.id}/unavailability`).set(bearer).send(input);
+    expect(response.status).toBe(status);
+    const reopened = (await request(app).get(`/api/v1/equipment/types/${type.id}`).set(bearer)).body;
+    expect(reopened.totalQuantity).toBe(20);
+    if (status === 400) {
+      expect(reopened).toEqual(before);
+      expect(response.body.error.fields).toContainEqual(expect.objectContaining({
+        field: reason.trim() ? "endsAt" : "reason",
+      }));
+      return;
+    }
+    expect(reopened.unavailability).toHaveLength(1);
+    expect(reopened.unavailability[0]).toMatchObject({
+      quantity: 2, reason, status: "ACTIVE", startsAt: "2026-12-10T01:00:00.000Z", endsAt: "2026-12-10T01:01:00.000Z",
+    });
+  });
+
+  it.each([
+    ["P2-T9", 10, 200],
+    ["P2-T10", 9, 409],
+    ["P2-T13", 11, 200],
+  ])("%s checks below, at and above ten reserved units without altering reservations", async (_card, totalQuantity, status) => {
+    const type = await create(bulk({ name: "P2 Reserved Conference Chair", totalQuantity: 12 }));
+    await sql`
+      insert into equipment.bulk_reservations
+        (equipment_type_id, event_id, event_reference, quantity, starts_at, ends_at, status, created_by, updated_by)
+      values
+        (${type.id}, ${randomUUID()}, 'EVT-700101', 6, '2026-12-15T02:00:00Z', '2026-12-15T04:00:00Z', 'RESERVED', ${TECH}, ${TECH}),
+        (${type.id}, ${randomUUID()}, 'EVT-700102', 4, '2026-12-15T02:30:00Z', '2026-12-15T03:30:00Z', 'RESERVED', ${TECH}, ${TECH})
+    `;
+    const reservations = await sql`select * from equipment.bulk_reservations where equipment_type_id = ${type.id} order by id`;
+    const before = (await request(app).get(`/api/v1/equipment/types/${type.id}`).set(bearer)).body;
+    const response = await request(app).put(`/api/v1/equipment/types/${type.id}`).set(bearer)
+      .send(bulk({ name: type.name, totalQuantity }));
+    expect(response.status).toBe(status);
+    expect(await sql`select * from equipment.bulk_reservations where equipment_type_id = ${type.id} order by id`).toEqual(reservations);
+    const reopened = (await request(app).get(`/api/v1/equipment/types/${type.id}`).set(bearer)).body;
+    if (status === 409) {
+      expect(reopened).toEqual(before);
+      expect(response.body.error.message).toContain("EVT-700101 (6)");
+      expect(response.body.error.message).toContain("EVT-700102 (4)");
+    } else {
+      expect(reopened.totalQuantity).toBe(totalQuantity);
+    }
+  });
+
   it("P2 AC1 creates bulk and serialized equipment types with every required detail and accepts zero", async () => {
     const zero = await create(bulk({ totalQuantity: 0 }));
     expect(zero).toMatchObject({
@@ -209,6 +294,7 @@ describe("P2 equipment type inventory", () => {
   });
 
   it("P2 AC4 audits inventory and unavailability with actor, timestamp, and previous/new quantity", async () => {
+    const [started] = await sql`select clock_timestamp() as at`;
     const chairs = await create(bulk({ totalQuantity: 20 }));
     await request(app).put(`/api/v1/equipment/types/${chairs.id}`).set(bearer)
       .send(bulk({ name: chairs.name, totalQuantity: 24 }));
@@ -226,6 +312,8 @@ describe("P2 equipment type inventory", () => {
       { action: "UNAVAILABILITY_RECORDED", previous_quantity: 0, new_quantity: 3, actor_user_id: TECH, actor_role: "TECH_SUPPORT_STAFF" },
     ]);
     expect(rows.every((row) => row.occurred_at instanceof Date)).toBe(true);
+    const [finished] = await sql`select clock_timestamp() as at`;
+    expect(rows.every((row) => row.occurred_at >= started!.at && row.occurred_at <= finished!.at)).toBe(true);
   });
 
   it.each(["EVENT_ORGANISER", "EVENT_COORDINATOR", "VENUE_STAFF", "ATTENDEE"])(
@@ -239,6 +327,7 @@ describe("P2 equipment type inventory", () => {
 
       signedInAs(TECH, "TECH_SUPPORT_STAFF");
       const chairs = await create();
+      const before = (await request(app).get(`/api/v1/equipment/types/${chairs.id}`).set(bearer)).body;
       signedInAs(OTHER, role);
       const updateResponse = await request(app).put(`/api/v1/equipment/types/${chairs.id}`).set(bearer)
         .send(bulk({ name: chairs.name, totalQuantity: 99 }));
@@ -249,6 +338,8 @@ describe("P2 equipment type inventory", () => {
       expect((await sql`select total_quantity from equipment.equipment_types where id = ${chairs.id}`)[0]!.total_quantity).toBe(20);
       expect(await sql`select 1 from equipment.unavailability where equipment_type_id = ${chairs.id}`).toHaveLength(0);
       expect(await sql`select 1 from equipment.inventory_history where equipment_type_id = ${chairs.id}`).toHaveLength(1);
+      signedInAs(TECH, "TECH_SUPPORT_STAFF");
+      expect((await request(app).get(`/api/v1/equipment/types/${chairs.id}`).set(bearer)).body).toEqual(before);
     },
   );
 });

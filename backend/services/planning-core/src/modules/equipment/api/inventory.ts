@@ -81,7 +81,21 @@ export function inventoryRouter(sql: Sql) {
   router.get("/api/v1/equipment/types", authenticate, requireRole(...READERS), async (_req: ActorRequest, res: Response, next: NextFunction) => {
     try {
       const items = await listEquipmentTypes(sql);
-      res.json({ items: items.map(({ units: _units, unitLabels: _labels, ...item }) => item), nextCursor: null });
+      res.json({
+        items: items.map((item) => ({
+          id: item.id,
+          name: item.name,
+          description: item.description,
+          characteristics: item.characteristics,
+          kind: item.kind,
+          totalQuantity: item.totalQuantity,
+          createdAt: item.createdAt,
+          createdBy: item.createdBy,
+          updatedAt: item.updatedAt,
+          updatedBy: item.updatedBy,
+        })),
+        nextCursor: null,
+      });
     } catch (error) {
       next(error);
     }
