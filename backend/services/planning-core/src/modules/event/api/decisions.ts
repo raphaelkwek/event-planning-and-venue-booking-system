@@ -14,7 +14,10 @@ import { refuse } from "./errors.js";
  * A decision is one transition (F1): the status, the decision and its time are
  * written by one conditional statement, so an event that already carries a
  * decision cannot be decided again, and two coordinators deciding at once
- * cannot both succeed. The history entry and the organiser's notification are
+ * cannot both succeed. "Cannot be decided twice" holds because the transition
+ * table has no way back into Under Review or Awaiting Clarification from a
+ * decided status (tested in statusMachine.test.ts). A3 scope is checked once,
+ * before the transaction (coordinators have scope ALL). The history entry and the organiser's notification are
  * written in the same transaction, so a refusal leaves no trace and a success
  * leaves no half-finished state.
  */
@@ -56,17 +59,17 @@ export function decisionsRouter(sql: Sql) {
           outcome === "APPROVED"
             ? {
                 eventId: event.id,
-                eventReference: event.reference,
-                eventName: event.name,
-                ownerId: event.ownerId,
+                eventReference: decided.event.reference,
+                eventName: decided.event.name,
+                ownerId: decided.event.ownerId,
                 approvedBy: userId,
                 approvedAt: decided.event.decidedAt!,
               }
             : {
                 eventId: event.id,
-                eventReference: event.reference,
-                eventName: event.name,
-                ownerId: event.ownerId,
+                eventReference: decided.event.reference,
+                eventName: decided.event.name,
+                ownerId: decided.event.ownerId,
                 rejectedBy: userId,
                 rejectedAt: decided.event.decidedAt!,
                 reason: reason!,

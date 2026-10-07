@@ -197,9 +197,25 @@ describe("POST /api/v1/events/:id/approve (D4)", () => {
     const second = await request(app).post(`/api/v1/events/${event.id}/approve`).set(bearer).send();
 
     expect(second.status).toBe(409);
+    expect(second.body.error.code).toBe("STATUS_TRANSITION_NOT_PERMITTED");
     const stored = await sql`select decided_at, decided_by from event.events where id = ${event.id}`;
     expect(stored[0]!.decided_at.toISOString()).toBe(first.body.decidedAt);
     expect(stored[0]!.decided_by).toBe(COORDINATOR);
+  });
+
+  it("writes exactly one approval notification", async () => {
+    const event = await givenEventUnderReview();
+
+    const first = await request(app).post(`/api/v1/events/${event.id}/approve`).set(bearer).send();
+    const second = await request(app).post(`/api/v1/events/${event.id}/approve`).set(bearer).send();
+
+    expect(first.status).toBe(200);
+    expect(second.status).toBe(409);
+    const rows = await sql<{ type: string }[]>`
+      select envelope->>'type' as type from event.outbox
+      where message_key = ${event.id} and envelope->>'type' = 'event.approved'
+    `;
+    expect(rows).toHaveLength(1);
   });
 
   it("cannot approve an event that was already rejected", async () => {
@@ -377,6 +393,13 @@ describe("refused decisions store nothing (F1)", () => {
     return rows[0]!.n;
   }
 
+  async function outboxCount(eventId: string) {
+    const rows = await sql<{ n: number }[]>`
+      select count(*)::int as n from event.outbox where message_key = ${eventId}
+    `;
+    return rows[0]!.n;
+  }
+
   it("refuses approving a Rejected event, naming both statuses, and writes no history", async () => {
     const event = await givenEventUnderReview();
     await request(app)
@@ -384,6 +407,10 @@ describe("refused decisions store nothing (F1)", () => {
       .set(bearer)
       .send({ reason: "No venue can host this date." });
     const before = await historyCount(event.id);
+    const outboxBefore = await outboxCount(event.id);
+    const decisionBefore = await sql`
+      select decided_by, decided_at, rejection_reason from event.events where id = ${event.id}
+    `;
 
     const res = await request(app).post(`/api/v1/events/${event.id}/approve`).set(bearer).send();
 
@@ -393,6 +420,14 @@ describe("refused decisions store nothing (F1)", () => {
       message: "This event is Rejected and cannot move to Approved.",
     });
     expect(await historyCount(event.id)).toBe(before);
+    expect(await outboxCount(event.id)).toBe(outboxBefore);
+    const decisionAfter = await sql`
+      select decided_by, decided_at, rejection_reason from event.events where id = ${event.id}
+    `;
+    expect(decisionAfter[0]).toEqual(decisionBefore[0]);
+    expect(decisionAfter[0]!.decided_by).toBe(COORDINATOR);
+    expect(decisionAfter[0]!.decided_at).not.toBeNull();
+    expect(decisionAfter[0]!.rejection_reason).toBe("No venue can host this date.");
     const rows = await sql<{ status: string }[]>`select status from event.events where id = ${event.id}`;
     expect(rows[0]!.status).toBe("REJECTED");
   });

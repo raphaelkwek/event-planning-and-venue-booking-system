@@ -753,7 +753,7 @@ components:
         application/json:
           schema: { $ref: "#/components/schemas/ErrorEnvelope" }
     Conflict:
-      description: "`STATUS_TRANSITION_NOT_PERMITTED`, `EVENT_ALREADY_DECIDED`, `NO_OPEN_CLARIFICATION`, `REASSIGNMENT_NOT_PERMITTED` or `REASSIGNMENT_ALREADY_PENDING`. The message names the current state."
+      description: "`STATUS_TRANSITION_NOT_PERMITTED`, `NO_OPEN_CLARIFICATION`, `REASSIGNMENT_NOT_PERMITTED` or `REASSIGNMENT_ALREADY_PENDING`. The message names the current state."
       content:
         application/json:
           schema: { $ref: "#/components/schemas/ErrorEnvelope" }
@@ -778,7 +778,7 @@ components:
         - EVENT_NOT_FOUND
         - DRAFT_NOT_FOUND
         - STATUS_TRANSITION_NOT_PERMITTED
-        - EVENT_ALREADY_DECIDED
+        - EVENT_ALREADY_DECIDED # no longer emitted since F1 (decisions refuse with STATUS_TRANSITION_NOT_PERMITTED)
         - DRAFT_ALREADY_SUBMITTED
         - NO_OPEN_CLARIFICATION
         - IDENTITY_UNAVAILABLE
