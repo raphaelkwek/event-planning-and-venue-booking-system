@@ -9,6 +9,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "start": "node dist/index.js",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "test:unit": "vitest run --config vitest.unit.config.ts --coverage",
     "test:mutation": "stryker run",
     "lint:boundaries": "depcruise src --config .dependency-cruiser.mjs && tsx scripts/check-schema-boundaries.ts"
