@@ -11,8 +11,9 @@
 **Scope:**
 - planning-core, venue module: `domain/availabilityCalendar.ts`, `repo/availability.ts` and `api/availability.ts` (new), mounted in `index.ts`.
 - planning-core, event module: `findEventReferences` in `index.ts`, backed by `findReferences` in `repo/events.ts`.
-- Tests: `tests/venue/domain/availabilityCalendar.test.ts` and `tests/venue/api/availability.test.ts` (new).
-- `planning-core.openapi.yaml`: `GET /api/v1/venues/{id}/availability` and four schemas.
+- Tests: `tests/venue/domain/availabilityCalendar.test.ts`, `tests/venue/api/availability.test.ts`, `availabilityRateLimit.unit.test.ts` and `errors.unit.test.ts` (new).
+- A rate limit on the calendar: `express-rate-limit` (planning-core dependency), and `RATE_LIMITED` in contracts' error codes.
+- `planning-core.openapi.yaml`: `GET /api/v1/venues/{id}/availability`, its `429`, and four schemas.
 - The web app:
   - `VenueAvailability` (new);
   - an "Availability" button on `VenueDetail`;
@@ -53,13 +54,17 @@
    - It still lacks EN-02.2's equipment migration, so `tests/equipment/repo/inventory.test.ts` fails locally against it. CI isn't affected, because it builds its own database from every migration.
    - H3's `venue/0002` is applied there too, from 4 Oct, though H3 isn't merged.
 10. **Mutation testing found a bug** in the date rules. A date-shaped string that isn't a date (`2026-13-01`) made the endpoint fail with a 500. It's now refused with a 400, and the calendar's rules score 100%.
+11. **The calendar route has its own rate limit, against ADR-0011 for now.**
+    - CodeQL (`js/missing-rate-limiting`) failed the PR because the route had no limiter.
+    - ADR-0011 puts rate limits at the Kong gateway (EN-12), which isn't built, and rejects each service limiting itself. So this is a stopgap on one route, planning-core's heaviest read: 120 requests a minute per address, refused with `429 RATE_LIMITED` before any identity lookup.
+    - Remove it when EN-12 lands. Every other planning-core route is still unlimited, and the next route a story adds will trip the same CodeQL rule.
 
 ## Verified
 
-- **The 15 I1 cards pass in Chrome** through the automated runner, against `4bb7070`. H2's 8 cases still pass with the new button.
+- **The 15 I1 cards pass in Chrome** through the automated runner, against `af33eaf`. H2's 8 cases still pass with the new button.
 - **planning-core:**
-  - unit tests: 270/270, with the calendar's rules at 100% line, branch and mutation coverage;
-  - integration tests: all pass against the shared database, apart from the 16 equipment tests above. The new suite passes 8/8.
+  - unit tests: 274/274, with the calendar's rules at 100% line, branch and mutation coverage;
+  - integration tests: all pass against the shared database, apart from the 16 equipment tests above. The new suite passes 9/9.
 - **web:** 53/53, including 10 tests for the calendar.
 - **Lint, typecheck, build and `lint:api` pass.** The policy tests need Linux and run in CI.
 
