@@ -1,4 +1,4 @@
--- Reproducible P2 fixture for the reduction-boundary cases P2-T9 and P2-T10.
+-- Reproducible P2 fixture for the reduction-boundary cases P2-T9, P2-T10 and P2-T13.
 -- It deliberately uses fixed identifiers that no application seed uses.
 begin;
 

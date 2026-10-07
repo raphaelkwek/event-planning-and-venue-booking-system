@@ -4,6 +4,18 @@
 
 ---
 
+# P2: Record verified checks and complete the boundary cards
+
+**Timestamp:** 2026-10-08T01:46+08:00 (SGT)
+**Author:** Yichen, via Codex
+**Scope:** `tests/P2/`, test setup instructions, and Sprint 2 traceability.
+
+**Reason:** After running the independent P2 checks, compare them against all five acceptance criteria and record the evidence. Add P2-T13 for the stock-reduction boundary just above the reserved quantity, correct the role-refusal expectation to its documented error code, and include the equipment migration in the standard test setup.
+
+**Verification:** All CI jobs and CodeQL passed for `99f6073`, including 22 P2 API tests, 17 P2 domain tests, 13 P2 UI tests, and the configured coverage/mutation thresholds. Test result excerpts and a card-by-card scope comparison are recorded in `tests/P2/`. The thirteen full signed-in functional cards remain Not Executed.
+
+---
+
 # P2: Check the functional card inputs independently
 
 **Timestamp:** 2026-10-08T01:43+08:00 (SGT)
