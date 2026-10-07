@@ -2,15 +2,15 @@ import { Router } from "express";
 import type { Sql } from "postgres";
 import { KAFKA_TOPICS } from "@connectsphere/contracts";
 import { authenticate, requireRole, type ActorRequest } from "../auth/actor.js";
-import { evaluateTransition } from "../domain/statusMachine.js";
-import { applyAmendments, findEventInScope, setStatus, type EventRow } from "../repo/events.js";
+import { applyAmendments, findEventInScope, type EventRow } from "../repo/events.js";
 import {
   findOpenClarification,
   insertClarification,
   listClarifications,
   recordResponse,
 } from "../repo/clarifications.js";
-import { recordFieldChanges, recordStatusChange } from "../repo/eventHistory.js";
+import { recordFieldChanges } from "../repo/eventHistory.js";
+import { transitionEvent } from "./transitionEvent.js";
 import { writeOutbox } from "../events/outbox.js";
 import { clarificationBodySchema, clarificationResponseBodySchema, AMENDABLE_COLUMNS } from "./schemas.js";
 import { refuse } from "./errors.js";
@@ -20,6 +20,9 @@ import { refuse } from "./errors.js";
 function hasContent(value: string | null | undefined): value is string {
   return typeof value === "string" && value.trim().length > 0;
 }
+
+/** Thrown inside the response transaction so that the status change rolls back. */
+class NoOpenClarification extends Error {}
 
 export function clarificationsRouter(sql: Sql) {
   const router = Router();
@@ -61,22 +64,13 @@ export function clarificationsRouter(sql: Sql) {
         return;
       }
 
-      const transition = evaluateTransition(event.status, "REQUEST_CLARIFICATION");
-      if (!transition.permitted) {
-        refuse(res, 409, "STATUS_TRANSITION_NOT_PERMITTED", transition.message);
-        return;
-      }
+      const result = await sql.begin(async (tx) => {
+        // F1 — the transition is the first write, so a refusal stores nothing:
+        // no status change, no history entry and no clarification.
+        const moved = await transitionEvent(tx, event.id, "REQUEST_CLARIFICATION", { userId, role });
+        if (!moved.ok) return moved;
 
-      const clarification = await sql.begin(async (tx) => {
         const created = await insertClarification(tx, event.id, message.trim(), userId);
-        await setStatus(tx, event.id, transition.to, userId);
-        await recordStatusChange(tx, event.id, {
-          previousStatus: transition.from,
-          newStatus: transition.to,
-          actorUserId: userId,
-          actorRole: role,
-          triggeringAction: "REQUEST_CLARIFICATION",
-        });
 
         await writeOutbox(tx, {
           topic: KAFKA_TOPICS.event,
@@ -86,19 +80,24 @@ export function clarificationsRouter(sql: Sql) {
           correlationId: req.header("x-correlation-id") ?? null,
           payload: {
             eventId: event.id,
-            eventReference: event.reference,
-            eventName: event.name,
+            eventReference: moved.event.reference,
+            eventName: moved.event.name,
             clarificationId: created.id,
-            ownerId: event.ownerId,
+            ownerId: moved.event.ownerId,
             requestedBy: userId,
             requestedAt: created.requestedAt,
           },
         });
 
-        return created;
+        return { ok: true as const, clarification: created };
       });
 
-      res.status(201).json(clarification);
+      if (!result.ok) {
+        refuse(res, 409, "STATUS_TRANSITION_NOT_PERMITTED", result.message);
+        return;
+      }
+
+      res.status(201).json(result.clarification);
     }
   );
 
@@ -138,92 +137,99 @@ export function clarificationsRouter(sql: Sql) {
         return;
       }
 
-      const transition = evaluateTransition(event.status, "RESPOND_TO_CLARIFICATION");
-      if (!transition.permitted) {
-        refuse(res, 409, "STATUS_TRANSITION_NOT_PERMITTED", transition.message);
-        return;
-      }
+      const result = await sql
+        .begin(async (tx) => {
+          // F1 — the transition is the first write, so a refusal stores nothing.
+          const moved = await transitionEvent(tx, event.id, "RESPOND_TO_CLARIFICATION", {
+            userId,
+            role,
+          });
+          if (!moved.ok) return moved;
 
-      const result = await sql.begin(async (tx) => {
-        const open = await findOpenClarification(tx, event.id);
-        if (!open) return null;
+          const open = await findOpenClarification(tx, event.id);
+          if (!open) throw new NoOpenClarification();
 
-        const clarification = await recordResponse(
-          tx,
-          open.id,
-          hasContent(message) ? message.trim() : null,
-          userId
-        );
-
-        let updated: EventRow = event;
-        if (amendedFields.length > 0) {
-          // D3 — the values as originally submitted are retained in the
-          // history alongside the amended values.
-          await recordFieldChanges(
+          const clarification = await recordResponse(
             tx,
-            event.id,
-            amendedFields.map((field) => ({
-              fieldName: field,
-              previousValue: stringify(event[field as keyof EventRow]),
-              newValue: stringify((amendments as Record<string, unknown>)[field]),
-            })),
-            { userId, role },
-            "RESPOND_TO_CLARIFICATION"
-          );
-
-          updated = await applyAmendments(
-            tx,
-            event.id,
-            Object.fromEntries(
-              amendedFields.map((field) => {
-                const column = AMENDABLE_COLUMNS[field as keyof typeof AMENDABLE_COLUMNS];
-                const value = (amendments as Record<string, unknown>)[field];
-                // The requirements columns are jsonb, so structured values are
-                // sent as JSON rather than left to the driver to guess.
-                const isJson = column === "venue_requirements" || column === "equipment_requirements";
-                return [column, isJson && value != null ? tx.json(value as never) : value];
-              })
-            ),
+            open.id,
+            hasContent(message) ? message.trim() : null,
             userId
           );
-        }
 
-        await setStatus(tx, event.id, transition.to, userId);
-        await recordStatusChange(tx, event.id, {
-          previousStatus: transition.from,
-          newStatus: transition.to,
-          actorUserId: userId,
-          actorRole: role,
-          triggeringAction: "RESPOND_TO_CLARIFICATION",
+          let updated: EventRow = moved.event;
+          if (amendedFields.length > 0) {
+            // D3 — the values as originally submitted are retained in the
+            // history alongside the amended values.
+            await recordFieldChanges(
+              tx,
+              event.id,
+              amendedFields.map((field) => ({
+                fieldName: field,
+                previousValue: stringify(moved.event[field as keyof EventRow]),
+                newValue: stringify((amendments as Record<string, unknown>)[field]),
+              })),
+              { userId, role },
+              "RESPOND_TO_CLARIFICATION"
+            );
+
+            updated = {
+              ...(await applyAmendments(
+                tx,
+                event.id,
+                Object.fromEntries(
+                  amendedFields.map((field) => {
+                    const column = AMENDABLE_COLUMNS[field as keyof typeof AMENDABLE_COLUMNS];
+                    const value = (amendments as Record<string, unknown>)[field];
+                    // The requirements columns are jsonb, so structured values are
+                    // sent as JSON rather than left to the driver to guess.
+                    const isJson =
+                      column === "venue_requirements" || column === "equipment_requirements";
+                    return [column, isJson && value != null ? tx.json(value as never) : value];
+                  })
+                ),
+                userId
+              )),
+              assignedCoordinatorId: moved.event.assignedCoordinatorId,
+            };
+          }
+
+          await writeOutbox(tx, {
+            topic: KAFKA_TOPICS.event,
+            messageType: "event.clarification-responded",
+            aggregateId: event.id,
+            actor: { userId, role },
+            correlationId: req.header("x-correlation-id") ?? null,
+            payload: {
+              eventId: event.id,
+              eventReference: updated.reference,
+              eventName: updated.name,
+              clarificationId: clarification.id,
+              requestedBy: clarification.requestedBy,
+              respondedBy: userId,
+              respondedAt: clarification.respondedAt!,
+              amendedFields,
+            },
+          });
+
+          return { ok: true as const, clarification, event: updated };
+        })
+        .catch((error: unknown) => {
+          // The throw rolled the transaction back, so the status is unchanged.
+          if (error instanceof NoOpenClarification) return "NO_OPEN_CLARIFICATION" as const;
+          throw error;
         });
 
-        await writeOutbox(tx, {
-          topic: KAFKA_TOPICS.event,
-          messageType: "event.clarification-responded",
-          aggregateId: event.id,
-          actor: { userId, role },
-          correlationId: req.header("x-correlation-id") ?? null,
-          payload: {
-            eventId: event.id,
-            eventReference: event.reference,
-            eventName: event.name,
-            clarificationId: clarification.id,
-            requestedBy: clarification.requestedBy,
-            respondedBy: userId,
-            respondedAt: clarification.respondedAt!,
-            amendedFields,
-          },
-        });
-
-        return { clarification, event: { ...updated, status: transition.to } };
-      });
-
-      if (!result) {
+      if (result === "NO_OPEN_CLARIFICATION") {
         refuse(res, 409, "NO_OPEN_CLARIFICATION", "This event has no outstanding clarification.");
         return;
       }
 
-      res.status(200).json(result);
+      if (!result.ok) {
+        refuse(res, 409, "STATUS_TRANSITION_NOT_PERMITTED", result.message);
+        return;
+      }
+
+      res.status(200).json({ clarification: result.clarification, event: result.event });
     }
   );
 
