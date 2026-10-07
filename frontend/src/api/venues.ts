@@ -131,3 +131,36 @@ export function createVenue(token: string, body: VenueBody) {
 export function updateVenue(token: string, id: string, body: VenueBody) {
   return request<Venue>(`${VENUE}/venues/${id}`, { method: "PUT", token, body });
 }
+
+/** I1: a venue's availability calendar. Times are UTC; the screen shows them in `timeZone`. */
+export type CommittedKind = "OUTSIDE_HOURS" | "SETUP" | "BOOKING" | "TURNAROUND" | "UNAVAILABLE";
+export type UnavailabilityReasonType = "MAINTENANCE" | "EQUIPMENT_FAILURE" | "RENOVATION" | "SAFETY" | "OTHER";
+
+export interface CommittedPeriod {
+  kind: CommittedKind;
+  startsAt: string;
+  endsAt: string;
+  bookingStatus?: "CONFIRMED" | "PENDING";
+  eventReference?: string | null;
+  reasonType?: UnavailabilityReasonType;
+  description?: string;
+}
+
+export interface AvailabilityDay {
+  date: string;
+  committed: CommittedPeriod[];
+  free: { startsAt: string; endsAt: string }[];
+}
+
+export interface VenueAvailability {
+  venueId: string;
+  timeZone: string;
+  from: string;
+  to: string;
+  days: AvailabilityDay[];
+}
+
+export function getVenueAvailability(token: string, id: string, from: string, to: string) {
+  const query = new URLSearchParams({ from, to });
+  return request<VenueAvailability>(`${VENUE}/venues/${id}/availability?${query}`, { token });
+}
