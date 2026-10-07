@@ -213,6 +213,15 @@ export async function findEventInScope(
   return rows[0] ? toEvent(rows[0]) : null;
 }
 
+/** I1 — each event's reference, for those of `eventIds` that exist. */
+export async function findReferences(sql: Sql, eventIds: readonly string[]): Promise<Map<string, string | null>> {
+  if (eventIds.length === 0) return new Map();
+  const rows = await sql<{ id: string; reference: string | null }[]>`
+    select id, reference from event.events where id in ${sql(eventIds as string[])}
+  `;
+  return new Map(rows.map((row) => [row.id, row.reference]));
+}
+
 /** C3 — the caller's own requests, filtered by the scope rule (A3). */
 export async function listEventsInScope(
   sql: Sql,

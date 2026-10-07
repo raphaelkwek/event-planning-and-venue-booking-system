@@ -716,6 +716,40 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
         "503": { $ref: "#/components/responses/IdentityUnavailable" }
 
+  /api/v1/venues/{id}/availability:
+    parameters:
+      - $ref: "#/components/parameters/RecordId"
+    get:
+      tags: [Venues]
+      summary: A venue's availability calendar (I1)
+      description: |
+        Every internal role; attendees are refused. Each day from `from` to `to`, both
+        included and at most 31 days, with its committed and free periods. Days run
+        midnight to midnight in `timeZone` (Asia/Singapore), and each period includes
+        its start but not its end.
+
+        Committed periods are confirmed bookings, held slots (shown as pending
+        requests), each one's setup and turnaround time, active unavailability
+        blocks, and the time outside operating hours. Free periods are the opening
+        hours left over. Released and expired slots and removed blocks commit
+        nothing. Read afresh on every request.
+      operationId: getVenueAvailability
+      parameters:
+        - { name: from, in: query, required: true, schema: { type: string, format: date }, example: "2026-12-07" }
+        - { name: to, in: query, required: true, schema: { type: string, format: date }, example: "2026-12-13" }
+      responses:
+        "200":
+          description: One entry per date in the range, in order.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/VenueAvailability" }
+        "400": { $ref: "#/components/responses/ValidationFailed" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
+
 components:
   securitySchemes:
     bearerAuth:
@@ -1081,3 +1115,51 @@ components:
         building: { type: string }
         maxCapacity: { type: integer }
         isActive: { type: boolean }
+    VenueAvailability:
+      type: object
+      required: [venueId, timeZone, from, to, days]
+      properties:
+        venueId: { type: string, format: uuid }
+        timeZone: { type: string, example: Asia/Singapore }
+        from: { type: string, format: date }
+        to: { type: string, format: date }
+        days:
+          type: array
+          items: { $ref: "#/components/schemas/AvailabilityDay" }
+    AvailabilityDay:
+      type: object
+      required: [date, committed, free]
+      properties:
+        date: { type: string, format: date }
+        committed:
+          type: array
+          description: In time order. Periods may overlap, for example a block running past closing time.
+          items: { $ref: "#/components/schemas/CommittedPeriod" }
+        free:
+          type: array
+          items: { $ref: "#/components/schemas/FreePeriod" }
+    CommittedPeriod:
+      type: object
+      required: [kind, startsAt, endsAt]
+      properties:
+        kind: { type: string, enum: [OUTSIDE_HOURS, SETUP, BOOKING, TURNAROUND, UNAVAILABLE] }
+        startsAt: { type: string, format: date-time }
+        endsAt: { type: string, format: date-time }
+        bookingStatus:
+          type: string
+          enum: [CONFIRMED, PENDING]
+          description: On BOOKING, SETUP and TURNAROUND. A held slot is a pending request.
+        eventReference:
+          type: [string, "null"]
+          description: On BOOKING, SETUP and TURNAROUND. Null if the event can no longer be found.
+        reasonType:
+          type: string
+          enum: [MAINTENANCE, EQUIPMENT_FAILURE, RENOVATION, SAFETY, OTHER]
+          description: On UNAVAILABLE.
+        description: { type: string, description: "On UNAVAILABLE, the recorded reason." }
+    FreePeriod:
+      type: object
+      required: [startsAt, endsAt]
+      properties:
+        startsAt: { type: string, format: date-time }
+        endsAt: { type: string, format: date-time }

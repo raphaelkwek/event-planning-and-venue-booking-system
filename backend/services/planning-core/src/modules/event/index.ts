@@ -6,7 +6,7 @@ import { eventsRouter } from "./api/events.js";
 import { clarificationsRouter } from "./api/clarifications.js";
 import { decisionsRouter } from "./api/decisions.js";
 import { reassignmentsRouter } from "./api/reassignments.js";
-import { findEventInScope } from "./repo/events.js";
+import { findEventInScope, findReferences } from "./repo/events.js";
 
 /** The module's outbox table, for the outbox relay (implementation.md §3.4). */
 export { EVENT_OUTBOX_TABLE } from "./events/outbox.js";
@@ -76,4 +76,14 @@ export async function findEventForPlanning(
     equipmentRequired: event.equipmentRequired,
     equipmentRequirements: event.equipmentRequirements,
   };
+}
+
+/**
+ * I1 — the reference of each event among `eventIds` that exists, so the venue
+ * calendar can label a booking with its event reference. Only the reference:
+ * the calendar is open to every internal role, so it carries nothing an
+ * organiser outside the event's scope (A3) should not see.
+ */
+export function findEventReferences(sql: Sql, eventIds: readonly string[]): Promise<Map<string, string | null>> {
+  return findReferences(sql, eventIds);
 }
