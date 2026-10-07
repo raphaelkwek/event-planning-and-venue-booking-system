@@ -19,6 +19,6 @@
 |---|---|
 | Actual Result | The screen showed "No venue with that id exists." and no calendar. The API returned 404 VENUE_NOT_FOUND. |
 | Status | Pass |
-| Remarks | Commit: 69e657d · Evidence: tests/I1/evidence/I1-T15.png · Defect: — |
+| Remarks | Commit: 4bb7070 · Evidence: tests/I1/evidence/I1-T15.png · Defect: — |
 | Executed By | Yichen, via automated testing |
 | Date of Execution | 2026-10-07 |
