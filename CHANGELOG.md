@@ -4,6 +4,18 @@
 
 ---
 
+# P1: Verify authentication and database refusal paths on current main
+
+**Timestamp:** 2026-10-08T02:15+08:00 (SGT)
+**Author:** Yichen, via Codex
+**Scope:** equipment identity, actor and route unit tests; integration with current main.
+
+**Reason:** Main advanced during P1 development. Merge its F1/CR-06 changes and integration coverage floors, retaining both changelog histories. Cover P1's identity outcomes, role verification and unexpected database failures independently so these refusal paths are checked alongside the happy path. Implementation behavior is unchanged.
+
+**Verification:** All 319 backend unit tests and domain coverage passed on the updated base. Seventeen new unit checks exercise authentication and error propagation. CI's database run is verifying P1's functional card cases and the inherited integration coverage floors.
+
+---
+
 # P1: Add independent acceptance checks and functional cards
 
 **Timestamp:** 2026-10-08T02:09+08:00 (SGT)
