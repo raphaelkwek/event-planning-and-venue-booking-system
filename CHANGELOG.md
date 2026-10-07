@@ -4,6 +4,24 @@
 
 ---
 
+# P2: Equipment inventory can be maintained safely
+
+**Timestamp:** 2026-10-08T00:32+08:00 (SGT)
+**Author:** Raphael
+**Scope:**
+- `backend/services/planning-core`: equipment type inventory APIs, role checks, reservation-safe quantity reductions, unavailability records, audit history, and migration `0002_p2_inventory_history.sql`.
+- `frontend`: equipment inventory list and maintenance screens for technical support.
+- `documentation/api/planning-core.openapi.yaml`, `documentation/traceability/sprint-2.csv`, and `tests/P2/` functional test cards.
+
+**Reason:** P2 adds the equipment inventory and maintenance workflow required for equipment booking. Inventory changes must be permission-controlled, auditable, and cannot reduce stock below existing reservation demand.
+
+## Verification status
+
+- Focused frontend and backend domain tests passed before dependencies were removed by a failed `npm ci` attempt. Re-running them is currently blocked because registry access is unavailable and the required packages are not cached.
+- Manual functional verification remains pending; the P2 test cards are marked Not Executed.
+
+---
+
 # PX-07: The customer clarification log exists
 
 **Timestamp:** 2026-10-06T22:15+08:00 (SGT)

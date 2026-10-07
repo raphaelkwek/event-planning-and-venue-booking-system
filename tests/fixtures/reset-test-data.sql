@@ -37,6 +37,28 @@ delete from venue.venue_history where venue_id in (select id from test_owned_ven
 delete from venue.venue_staff   where venue_id in (select id from test_owned_venues);
 delete from venue.venues        where id in (select id from test_owned_venues);
 
+-- Equipment the seeded Technical Support account created (P2), including all
+-- audit, reservation, unavailability and unit rows that refer to those types.
+create temporary table test_owned_equipment on commit drop as
+  select id from equipment.equipment_types
+  where created_by = '00000000-0000-0000-0000-000000000004'; -- techsupport@connectsphere.test
+
+delete from equipment.inventory_history
+  where equipment_type_id in (select id from test_owned_equipment);
+delete from equipment.unit_reservations
+  where unit_id in (
+    select id from equipment.equipment_units
+    where equipment_type_id in (select id from test_owned_equipment)
+  );
+delete from equipment.bulk_reservations
+  where equipment_type_id in (select id from test_owned_equipment);
+delete from equipment.unavailability
+  where equipment_type_id in (select id from test_owned_equipment);
+delete from equipment.equipment_units
+  where equipment_type_id in (select id from test_owned_equipment);
+delete from equipment.equipment_types
+  where id in (select id from test_owned_equipment);
+
 -- The seeded accounts' notifications (T2), and the inbox rows of the messages that raised them.
 create temporary table test_notification_messages on commit drop as
   select distinct source_message_id as message_id from notification.notifications
