@@ -42,6 +42,7 @@ export function VenueDetail() {
     <div style={{ maxWidth: 760 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
         <h2 style={{ flex: 1 }}>{venue.name}</h2>
+        <Button onClick={() => navigate(`/venues/${venue.id}/availability`)}>Availability</Button>
         {session.role === "VENUE_STAFF" && (
           <Button appearance="primary" onClick={() => navigate(`/venues/${venue.id}/edit`)}>
             Edit venue

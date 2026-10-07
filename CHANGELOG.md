@@ -4,6 +4,69 @@
 
 ---
 
+# I1: A venue's availability calendar
+
+**Timestamp:** 2026-10-07T23:24+08:00 (SGT)
+**Author:** Seann, via Claude
+**Scope:**
+- planning-core, venue module: `domain/availabilityCalendar.ts`, `repo/availability.ts` and `api/availability.ts` (new), mounted in `index.ts`.
+- planning-core, event module: `findEventReferences` in `index.ts`, backed by `findReferences` in `repo/events.ts`.
+- Tests: `tests/venue/domain/availabilityCalendar.test.ts`, `tests/venue/api/availability.test.ts`, `availabilityRateLimit.unit.test.ts` and `errors.unit.test.ts` (new).
+- A rate limit on the calendar: `express-rate-limit` (planning-core dependency), and `RATE_LIMITED` in contracts' error codes.
+- `planning-core.openapi.yaml`: `GET /api/v1/venues/{id}/availability`, its `429`, and four schemas.
+- The web app:
+  - `VenueAvailability` (new);
+  - an "Availability" button on `VenueDetail`;
+  - the route in `App.tsx`;
+  - `getVenueAvailability` in `api/venues.ts`;
+  - the calendar's colours in `shared/status.ts`;
+  - `tests/venueAvailability.test.tsx`.
+- Test cards: `tests/I1/` (15 cases), and FX-CALENDAR in `tests/I1/README.md` and `tests/README.md`.
+- `tests/fixtures/reset-test-data.sql`: it also removes the seeded Venue Staff account's venues' slots and blocks. Traceability.
+
+**Reason:** I1 (Sprint 2), now that EN-02.1 has added `venue_slots` and `unavailability_blocks`. Coordinators check a venue's calendar before asking for a period, and J1, L1 and L3 build on it.
+
+## What it does
+
+1. **"Availability" on a venue's page opens its calendar** for every internal role. It shows the week from today, and "Show" reads any range of up to 31 days.
+2. **Each day has a bar, a Committed list and a Free list,** in Singapore time.
+   - A confirmed booking is labelled with its event reference.
+   - A held slot shows as **Pending**, in a different colour from Confirmed. A booking request stays HELD until it's decided (§4.6 rule 3), so until L1 exists every hold shows this way.
+   - Setup and turnaround are their own rows, before and after the event, marked occupied and in their own colour.
+   - Unavailability shows its type and reason.
+   - The hours the venue is closed show as unavailable, all day on a closed day.
+3. **Postgres does every comparison** (§4.4):
+   - `&&` finds the slots and blocks touching each day;
+   - `*` clips them to the day;
+   - subtracting multiranges leaves the free time inside opening hours.
+4. **Setup and turnaround come from each slot's own copy** of the times, so I1 doesn't wait for H3.
+5. **Released and expired slots and removed blocks commit nothing.** The calendar is read afresh each time, so an approval, rejection, withdrawal or release shows the next time it's loaded.
+6. **Attendees have no route to the calendar,** and the API refuses them (`403`). An unknown venue is `404`. A range longer than 31 days, reversed, or with a date that doesn't exist is `400`, naming the field.
+7. **The event reference comes through the event module's interface.** The new `findEventReferences` returns only references, because organisers outside an event's scope can see the calendar.
+
+## Testing ahead of L1, L3, M1 and I2
+
+8. **No story creates holds, requests, approvals or blocks yet.** So FX-CALENDAR inserts one week of them directly (7–13 Dec 2026), and two statements in `tests/I1/README.md` approve or release a slot the way M1, M2 and L5 will.
+
+## Notes for the team
+
+9. **The shared database now has EN-02.1's migration** (`venue/0003`), which I applied with `npm run migrate -- venue`.
+   - It still lacks EN-02.2's equipment migration, so `tests/equipment/repo/inventory.test.ts` fails locally against it. CI isn't affected, because it builds its own database from every migration.
+   - H3's `venue/0002` is applied there too, from 4 Oct, though H3 isn't merged.
+10. **Mutation testing found a bug** in the date rules. A date-shaped string that isn't a date (`2026-13-01`) made the endpoint fail with a 500. It's now refused with a 400, and the calendar's rules score 100%.
+11. **The calendar route has its own rate limit, against ADR-0011 for now.**
+    - CodeQL (`js/missing-rate-limiting`) failed the PR because the route had no limiter.
+    - ADR-0011 puts rate limits at the Kong gateway (EN-12), which isn't built, and rejects each service limiting itself. So this is a stopgap on one route, planning-core's heaviest read: 120 requests a minute per address, refused with `429 RATE_LIMITED` before any identity lookup.
+    - Remove it when EN-12 lands. Every other planning-core route is still unlimited, and the next route a story adds will trip the same CodeQL rule.
+
+## Verified
+
+- **The 15 I1 cards pass in Chrome** through the automated runner, against `ac840b7`. H2's 8 cases still pass with the new button.
+- **planning-core:**
+  - unit tests: 274/274, with the calendar's rules at 100% line, branch and mutation coverage;
+  - integration tests: all pass against the shared database, apart from the 16 equipment tests above. The new suite passes 9/9.
+- **web:** 53/53, including 10 tests for the calendar.
+- **Lint, typecheck, build and `lint:api` pass.** The policy tests need Linux and run in CI.
 # Outbox cards: query the CloudEvent envelope's `type` and `data`
 
 **Timestamp:** 2026-10-07T19:09+08:00 (SGT)

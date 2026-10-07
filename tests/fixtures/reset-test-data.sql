@@ -28,11 +28,14 @@ delete from event.events                   where id in (select id from test_owne
 -- Coordinator assignment starts from the first coordinator in the pool again.
 update event.assignment_cursor set next_index = 0 where id = true;
 
--- Venues the seeded Venue Staff account created (H1), with their history and staff links.
+-- Venues the seeded Venue Staff account created (H1), with their history, staff links,
+-- slots and unavailability blocks (FX-CALENDAR, I1).
 create temporary table test_owned_venues on commit drop as
   select id from venue.venues
   where created_by = '00000000-0000-0000-0000-000000000003'; -- venuestaff@connectsphere.test
 
+delete from venue.venue_slots           where venue_id in (select id from test_owned_venues);
+delete from venue.unavailability_blocks where venue_id in (select id from test_owned_venues);
 delete from venue.venue_history where venue_id in (select id from test_owned_venues);
 delete from venue.venue_staff   where venue_id in (select id from test_owned_venues);
 delete from venue.venues        where id in (select id from test_owned_venues);
