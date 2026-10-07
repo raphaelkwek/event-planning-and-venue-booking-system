@@ -1,6 +1,7 @@
+import { randomUUID } from "node:crypto";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { testDb } from "../../support/testDb.js";
-import { seedEvent } from "../../support/seedEvent.js";
+import { deleteSeededEvents, seedEvent } from "../../support/seedEvent.js";
 import {
   endHasPassed,
   listDueForCompletion,
@@ -12,16 +13,12 @@ import {
 
 const sql = testDb();
 
-const OWNER = "af222222-0000-0000-0000-000000000001";
+const OWNER = randomUUID();
 const COORDINATOR = "af222222-0000-0000-0000-000000000002";
-const OTHER_COORDINATOR = "af222222-0000-0000-0000-000000000003";
 const FAR_FUTURE = new Date("2030-01-01T12:00:00.000Z");
 
 async function cleanUp() {
-  await sql`delete from event.event_history where event_id in (
-    select id from event.events where owner_id = ${OWNER}
-  )`;
-  await sql`delete from event.events where owner_id = ${OWNER}`;
+  await deleteSeededEvents(sql, [OWNER]);
 }
 
 async function statusOf(id: string) {
@@ -98,18 +95,35 @@ describe("updateStatusIf (F1)", () => {
     expect(await statusOf(id)).toBe("CONFIRMED");
   });
 
-  it("lets exactly one of two concurrent changes from the same status succeed", async () => {
-    const id = await seedEvent(sql, { ownerId: OWNER, status: "UNDER_REVIEW", endsAt: FAR_FUTURE });
+  it("moves an event to Completed when the end-has-passed condition holds", async () => {
+    const now = new Date("2029-06-01T12:00:00.000Z");
+    const id = await seedEvent(sql, {
+      ownerId: OWNER,
+      status: "CONFIRMED",
+      endsAt: new Date(now.getTime() - 1),
+    });
 
-    const results = await Promise.all(
-      [COORDINATOR, OTHER_COORDINATOR].map((actorId) =>
-        sql.begin((tx) =>
-          updateStatusIf(tx, { eventId: id, from: ["UNDER_REVIEW"], to: "APPROVED", actorId })
-        )
-      )
+    const changed = await sql.begin((tx) =>
+      updateStatusIf(tx, {
+        eventId: id,
+        from: ["CONFIRMED"],
+        to: "COMPLETED",
+        actorId: null,
+        onlyIf: endHasPassed(tx, now),
+      })
     );
 
-    expect(results.filter((result) => result !== null)).toHaveLength(1);
+    expect(changed).toMatchObject({ previousStatus: "CONFIRMED", event: { id, status: "COMPLETED" } });
+    expect(await statusOf(id)).toBe("COMPLETED");
+  });
+
+  it("refuses an empty from-list instead of reporting a lost race", async () => {
+    const id = await seedEvent(sql, { ownerId: OWNER, status: "UNDER_REVIEW", endsAt: FAR_FUTURE });
+
+    await expect(
+      sql.begin((tx) => updateStatusIf(tx, { eventId: id, from: [], to: "APPROVED", actorId: COORDINATOR }))
+    ).rejects.toThrow("an empty from-list can never match");
+    expect(await statusOf(id)).toBe("UNDER_REVIEW");
   });
 });
 
