@@ -2,21 +2,21 @@ import { Router, type Response } from "express";
 import type { Sql } from "postgres";
 import { KAFKA_TOPICS } from "@connectsphere/contracts";
 import { authenticate, requireRole, type ActorRequest } from "../auth/actor.js";
-import { evaluateTransition } from "../domain/statusMachine.js";
-import { findEventInScope, lockEventInScope, recordDecision } from "../repo/events.js";
-import { recordStatusChange } from "../repo/eventHistory.js";
+import { decisionColumns, findEventInScope } from "../repo/events.js";
 import { writeOutbox } from "../events/outbox.js";
+import { transitionEvent } from "./transitionEvent.js";
 import { rejectionBodySchema } from "./schemas.js";
 import { refuse } from "./errors.js";
 
 /**
  * D4, D5 — approving and rejecting an event request.
  *
- * Both decisions are the same shape: check the transition is permitted from
- * the current status (F1), write the decision conditionally so an event that
- * already carries one cannot be decided twice, record the history entry, and
- * raise the organiser's notification — all in one transaction, so a refusal
- * leaves no trace and a success leaves no half-finished state.
+ * A decision is one transition (F1): the status, the decision and its time are
+ * written by one conditional statement, so an event that already carries a
+ * decision cannot be decided again, and two coordinators deciding at once
+ * cannot both succeed. The history entry and the organiser's notification are
+ * written in the same transaction, so a refusal leaves no trace and a success
+ * leaves no half-finished state.
  */
 export function decisionsRouter(sql: Sql) {
   const router = Router();
@@ -36,30 +36,15 @@ export function decisionsRouter(sql: Sql) {
       return;
     }
 
-    const transition = evaluateTransition(event.status, action);
-    if (!transition.permitted) {
-      refuse(res, 409, "STATUS_TRANSITION_NOT_PERMITTED", transition.message);
-      return;
-    }
-
-    const decided = await sql.begin(async (tx) => {
-      // Re-read under a row lock so that two coordinators deciding at once
-      // cannot both pass the check above.
-      const current = await lockEventInScope(tx, event.id, scope, userId);
-      if (!current || !evaluateTransition(current.status, action).permitted) {
-        return null;
-      }
-
-      const updated = await recordDecision(tx, event.id, outcome, userId, reason);
-      if (!updated) return null;
-
-      await recordStatusChange(tx, event.id, {
-        previousStatus: current.status,
-        newStatus: outcome,
-        actorUserId: userId,
-        actorRole: role,
-        triggeringAction: action,
-      });
+    const result = await sql.begin(async (tx) => {
+      const decided = await transitionEvent(
+        tx,
+        event.id,
+        action,
+        { userId, role },
+        { set: decisionColumns(tx, userId, reason) }
+      );
+      if (!decided.ok) return decided;
 
       await writeOutbox(tx, {
         topic: KAFKA_TOPICS.event,
@@ -75,7 +60,7 @@ export function decisionsRouter(sql: Sql) {
                 eventName: event.name,
                 ownerId: event.ownerId,
                 approvedBy: userId,
-                approvedAt: updated.decidedAt!,
+                approvedAt: decided.event.decidedAt!,
               }
             : {
                 eventId: event.id,
@@ -83,27 +68,22 @@ export function decisionsRouter(sql: Sql) {
                 eventName: event.name,
                 ownerId: event.ownerId,
                 rejectedBy: userId,
-                rejectedAt: updated.decidedAt!,
+                rejectedAt: decided.event.decidedAt!,
                 reason: reason!,
               },
       });
 
-      return updated;
+      return decided;
     });
 
-    if (!decided) {
-      // D4/D5 — an event that already carries a decision cannot be decided
-      // again, and no second decision timestamp is written.
-      refuse(
-        res,
-        409,
-        "EVENT_ALREADY_DECIDED",
-        "This event already carries a recorded decision and cannot be decided again."
-      );
+    if (!result.ok) {
+      // F1 — a refused transition stores nothing, and names the status the
+      // event is in and the one it could not move to.
+      refuse(res, 409, "STATUS_TRANSITION_NOT_PERMITTED", result.message);
       return;
     }
 
-    res.status(200).json(decided);
+    res.status(200).json(result.event);
   }
 
   /** D4 — approval alone creates no venue booking and no equipment reservation. */

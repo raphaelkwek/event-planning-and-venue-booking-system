@@ -368,3 +368,32 @@ describe("POST /api/v1/events/:id/reject (D5)", () => {
     expect(stored[0]!.status).toBe("UNDER_REVIEW");
   });
 });
+
+describe("refused decisions store nothing (F1)", () => {
+  async function historyCount(eventId: string) {
+    const rows = await sql<{ n: number }[]>`
+      select count(*)::int as n from event.event_history where event_id = ${eventId}
+    `;
+    return rows[0]!.n;
+  }
+
+  it("refuses approving a Rejected event, naming both statuses, and writes no history", async () => {
+    const event = await givenEventUnderReview();
+    await request(app)
+      .post(`/api/v1/events/${event.id}/reject`)
+      .set(bearer)
+      .send({ reason: "No venue can host this date." });
+    const before = await historyCount(event.id);
+
+    const res = await request(app).post(`/api/v1/events/${event.id}/approve`).set(bearer).send();
+
+    expect(res.status).toBe(409);
+    expect(res.body.error).toMatchObject({
+      code: "STATUS_TRANSITION_NOT_PERMITTED",
+      message: "This event is Rejected and cannot move to Approved.",
+    });
+    expect(await historyCount(event.id)).toBe(before);
+    const rows = await sql<{ status: string }[]>`select status from event.events where id = ${event.id}`;
+    expect(rows[0]!.status).toBe("REJECTED");
+  });
+});
