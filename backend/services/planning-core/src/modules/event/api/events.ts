@@ -89,9 +89,10 @@ export function eventsRouter(sql: Sql) {
 
   /**
    * D1 — opening a request shows its full submitted content, and opening one
-   * that is still Submitted claims it for review. The claim is conditional, so
-   * a second coordinator opening the same request sees the first reviewer
-   * rather than replacing them.
+   * that is still Submitted claims it for review. The claim's condition is the
+   * status guard in transitionEvent, so a second
+   * coordinator opening the same request sees the first reviewer rather than
+   * replacing them.
    */
   router.get("/api/v1/events/:id", ...authenticate, async (req: ActorRequest, res) => {
     const { userId, role, scope } = req.actor!;
@@ -111,8 +112,9 @@ export function eventsRouter(sql: Sql) {
       transitionEvent(tx, event.id, "OPEN_FOR_REVIEW", { userId, role }, { set: reviewColumns(tx, userId) })
     );
 
-    // D1 — a second coordinator opening the same request is refused by the
-    // transition and changes nothing, so they see the first reviewer.
+    // If another coordinator claimed it between our read and the transition, the
+    // transition is refused and changes nothing; re-read so this coordinator
+    // sees the first reviewer (D1).
     res.status(200).json(opened.ok ? opened.event : await findEventInScope(sql, event.id, scope, userId));
   });
 
