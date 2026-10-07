@@ -850,8 +850,8 @@ components:
 
     EventStatus:
       type: string
-      description: F1's exhaustive list.
-      enum: [DRAFT, SUBMITTED, UNDER_REVIEW, AWAITING_CLARIFICATION, APPROVED, PLANNING, CONFIRMED, COMPLETED, CANCELLED, REJECTED]
+      description: F1's exhaustive list (CR-06 adds SAFETY_REVIEW).
+      enum: [DRAFT, SUBMITTED, UNDER_REVIEW, AWAITING_CLARIFICATION, APPROVED, PLANNING, SAFETY_REVIEW, CONFIRMED, COMPLETED, CANCELLED, REJECTED]
 
     LoginRequest:
       type: object

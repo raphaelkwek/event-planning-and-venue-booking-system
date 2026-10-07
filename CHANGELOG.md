@@ -63,43 +63,55 @@
 - **web:** 53/53, including 10 tests for the calendar.
 - **Lint, typecheck, build and `lint:api` pass.** The policy tests need Linux and run in CI.
 # SPM-116 follow-up: the non-domain coverage floor moves to the integration run
+# F1 / CR-06: the Safety Review status
 
-**Timestamp:** 2026-10-07T18:50+08:00 (SGT)
+**Timestamp:** 2026-10-07T18:36+08:00 (SGT)
 **Author:** Raphael, via Claude
-**Scope:** `backend/services/planning-core/vitest.config.ts`, `vitest.unit.config.ts`, its
-`package.json`, and CI's integration job.
-**Reason:** The unit run enforced a 93% branch floor across all of `src/`. Its own comment says
-that floor was set at "today's unit-only figures" until EN-06.1 gave CI a database. EN-06.1 merged
-on 6 Oct, but the floor stayed in the unit run, where repo and API code never executes and so
-counts as uncovered. Every new repo file therefore failed the build, however well its integration
-tests covered it. F1's first repo file took the figure to 92.04%.
+**Scope:** F1 (SPM-27), CR-06. `contracts`, the event module's domain, migrations 0007–0008, the
+OpenAPI contract, the status lozenges, and `tests/F1/`.
+**Reason:** CR-06 (Week 7) adds an Operational Safety Check: confirming an event's arrangements
+(F5) now leads to **Safety Review**, and only the Safety Officer's approval (U1) leads to
+Confirmed. F1 owns the status list and the transition table, so the status and its transitions
+land here, before F5 and U1 build the actions that perform them.
+
+## Added
+
+- **`SAFETY_REVIEW`**, the eleventh status, between Planning and Confirmed: in contracts
+  (`EVENT_STATUSES`, `DECIDED_STATUSES`, labels), the OpenAPI `EventStatus` enum, the frontend type
+  and the lozenge map ("Safety Review", in-progress colour).
+- **Transitions:** `CONFIRM_ARRANGEMENTS` (Approved/Planning → Safety Review; F5 will perform it),
+  `APPROVE_SAFETY` (Safety Review → Confirmed) and `REQUEST_SAFETY_CHANGES` (Safety Review →
+  Planning), both performed by U1.
+- **Migrations 0007–0008:** the status check is re-added with the new value `NOT VALID`, then
+  validated in its own migration. `migrate.ts` runs one file per transaction, so validating in
+  0007 would have scanned the table while holding 0007's exclusive lock.
+- **`tests/boundaries/eventValues.test.ts`** holds the database check to the contracts list, as
+  venue and equipment already have.
+- **Cards F1-T12 and F1-T13** for the Safety Officer's two decisions. Both stay Not Executed until
+  U1 exists.
 
 ## Changed
 
-- **The unit run keeps the 100% floor on domain code**, exactly as before, and drops the global
-  floor.
-- **The integration run now enforces the global floor.** `npm run test:coverage -w
-  @connectsphere/planning-core`, which CI's integration job runs against its throwaway Postgres,
-  is the one run that executes repo and API code. Floors: lines and statements 94%, branches 89%,
-  functions 94%. That's just under CI's measurement of `main` (lines 94.59%, branches 89.68%,
-  functions 95.03%, all 493 tests passing).
-- In practice it's **stricter, not looser**: lines and functions go from 39% and 24% (unit-only)
-  to 94%, measured where the code actually runs.
+- `CONFIRM` is renamed **`CONFIRM_ARRANGEMENTS`**, since it no longer leads to Confirmed. Nothing
+  ever recorded `CONFIRM` (F5 isn't built), so no history row is left stale.
+- F1-T1 no longer says "ten" statuses; F1-T7 expects Safety Review rather than Confirmed.
 
-## Found on the way (not fixed here)
+## Decided, and raised
 
-- **The shared Supabase database is missing EN-02's migrations.** `equipment.equipment_types`
-  and the venue slot tables don't exist there, so 34 venue and equipment tests fail for anyone
-  running the suite locally. CI is unaffected, since it builds its database from the migrations.
-  Someone should run `npm run migrate:all` against the shared project, as a deliberate team step.
-- Because of that, a local run undercounts venue and equipment code (92.02% lines, 88.85%
-  branches), so the floors were set from CI's figures instead.
+- **Rejecting the safety arrangement has no transition yet.** Its outcome is CQ-08, still
+  unanswered by the customer. Raphael agreed to leave it out (2026-10-07), and a test pins its
+  absence.
+- **"Request changes → Planning" is CR-06's proposal.** CQ-08 also asks which stage it returns to,
+  so the target may change with the customer's answer.
+- **F1 itself is not finished.** The guarded write path, the completion sweep and executing the
+  cards follow in the next PR. SPM-27 is back to In Progress.
 
 ## Verified
 
-- Unit run: exit 0, domain coverage 100%. `npm run lint` passes. `ci.yml` parses.
-- Full local run of `main` with coverage: lines and statements 92.02%, branches 88.85%, functions
-  90.06% (455 passed, with 34 failing only on the missing EN-02 tables).
+- `npm run lint`, `typecheck`, `build`; `npm run test:unit` 287/287 with domain coverage at 100%.
+- squawk reports no issues on 0007 or 0008. The migrations were **not** run against the shared
+  Supabase database; CI applies them to a throwaway Postgres, and the shared database gets them
+  after merge.
 
 ---
 
