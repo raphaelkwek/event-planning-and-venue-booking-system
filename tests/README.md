@@ -37,7 +37,7 @@ tests/
 Every case's first pre-condition is "Standard environment running and test data reset". That means:
 
 1. `npm install` (once).
-2. `npm run migrate:identity`, `npm run migrate:event`, `npm run migrate -- venue`, `npm run migrate:notification`, `npm run seed:auth` (safe to repeat).
+2. `npm run migrate:identity`, `npm run migrate:event`, `npm run migrate -- venue`, `npm run migrate -- equipment`, `npm run migrate:notification`, `npm run seed:auth` (safe to repeat).
 3. `npm run dev` at the repo root, left running. It starts planning-core (the identity and event
    modules in one process, ADR-0004) and the web app in one terminal. To run them separately:
    `npm run dev -w @connectsphere/planning-core` and `npm run dev -w @connectsphere/web`.

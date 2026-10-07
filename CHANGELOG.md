@@ -4,6 +4,18 @@
 
 ---
 
+# P1: Add independent acceptance checks and functional cards
+
+**Timestamp:** 2026-10-08T02:09+08:00 (SGT)
+**Author:** Yichen, via Codex
+**Scope:** independent API acceptance suite, `tests/P1/` cards and scoped browser fixture, standard equipment migration setup, planning decision note, and Sprint 2 traceability.
+
+**Reason:** Verify P1 against its acceptance criteria with independently derived expectations, including peak versus summed use, combined maintenance, overlap boundaries, requested quantities, serialized identities, zero inventory and unchanged state. API cards explicitly declare stubbed authentication; P1-T14 specifies the real signed-in browser workflow separately.
+
+**Verification:** Fifteen independent API cases are prepared for CI's throwaway Postgres; strict test TypeScript checks passed. All sixteen cards currently remain Not Executed pending their actual verification records. Local tests used no shared database. Human story-owner review and full signed-in browser execution remain pending.
+
+---
+
 # P1: Show the equipment availability check to Technical Support
 
 **Timestamp:** 2026-10-08T02:09+08:00 (SGT)
