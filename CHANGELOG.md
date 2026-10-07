@@ -4,6 +4,50 @@
 
 ---
 
+# F1: one guarded way to change an event's status, and the completion sweep
+
+**Timestamp:** 2026-10-07T22:20+08:00 (SGT)
+**Author:** Raphael, via Claude
+**Scope:** F1 (SPM-27). The event module's `repo/`, `api/` and new `jobs/`, the root
+`package.json`, `tests/event/`, `tests/race/`, `tests/support/`, `tests/F1/` and the traceability CSV.
+**Reason:** F1 was marked Done with its write path still spread over six repository functions, no
+completion of past events, and none of its cards run. This finishes it.
+
+## Added
+
+- **`updateStatusIf`** (`repo/eventStatus.ts`): the one SQL statement that writes `status`. It
+  locks the row and changes it only if the status is still one the action may start from.
+- **`transitionEvent(tx, eventId, action, actor)`**: the one way any route changes status. It looks
+  the action up in the transition table, refuses with both statuses named, and for `COMPLETE`
+  checks the end has passed by the database clock. It writes the history row in the same
+  transaction as the change.
+- **`npm run jobs:complete-events`**: completes every Confirmed event whose end has passed, one
+  transaction per event, as `SYSTEM`. Only Confirmed events complete (spec decision 2); an Approved
+  event past its end is left alone.
+- **`tests/event/architecture/statusWrites.unit.test.ts`** fails if any file other than
+  `updateStatusIf` writes `status`.
+- Race tests in `tests/race/statusTransitions.test.ts` (EN-02.3 harness, CI's throwaway Postgres
+  only) prove that two concurrent transitions on one event make exactly one change.
+
+## Changed
+
+- Submission, opening for review, clarification, approval and rejection all go through
+  `transitionEvent`. `insertSubmittedEvent`, `submitDraft`, `claimForReview`, `lockEventInScope`,
+  `setStatus` and `recordDecision` are deleted.
+- D3's clarification history now takes its previous values from the locked row, not a read made
+  before the lock.
+- Tests that share the team database seed with random owners and clean up after themselves
+  (`tests/support/seedEvent.ts`).
+
+## Tested
+
+- F1-T1, F1-T8, F1-T9, F1-T10 and F1-T11 were run on 2026-10-07 against 3d313c1 and pass; evidence is
+  in `tests/F1/evidence/`. F1-T1 used FX-SEEDED for its Submitted request (noted in its record).
+- F1-T2 to F1-T6 need a signed-in user and are still to be run. F1-T7, T12 and T13 stay Not
+  Executed until F5 and U1 exist.
+
+---
+
 # F1 / CR-06: the Safety Review status
 
 **Timestamp:** 2026-10-07T18:36+08:00 (SGT)
