@@ -19,6 +19,6 @@
 |---|---|
 | Actual Result | Only Thursday 10 December 2026 was shown. Its Committed list was 00:00–08:00 Outside operating hours; 00:00–12:00 Renovation Seat replacement; 22:00–24:00 Outside operating hours, and its only free period 12:00–22:00. |
 | Status | Pass |
-| Remarks | Commit: 4bb7070 · Evidence: tests/I1/evidence/I1-T12.png · Defect: — |
+| Remarks | Commit: af33eaf · Evidence: tests/I1/evidence/I1-T12.png · Defect: — |
 | Executed By | Yichen, via automated testing |
 | Date of Execution | 2026-10-07 |

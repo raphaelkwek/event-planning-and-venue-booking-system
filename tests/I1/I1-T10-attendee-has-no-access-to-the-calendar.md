@@ -19,6 +19,6 @@
 |---|---|
 | Actual Result | No "Venues" link. Going to the calendar's address showed the attendee's own landing screen (#/console) with no calendar. The API returned 403 ROLE_NOT_AUTHORISED and no availability data. |
 | Status | Pass |
-| Remarks | Commit: 4bb7070 · Evidence: tests/I1/evidence/I1-T10.png · Defect: — |
+| Remarks | Commit: af33eaf · Evidence: tests/I1/evidence/I1-T10.png · Defect: — |
 | Executed By | Yichen, via automated testing |
 | Date of Execution | 2026-10-07 |
