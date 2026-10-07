@@ -133,8 +133,10 @@ jobs:
       - name: Build the database from the migrations (every module and service, with seeds)
         run: npm run migrate:all
 
-      - name: Integration tests (planning-core)
-        run: npm test -w @connectsphere/planning-core
+      - name: Integration tests with coverage (planning-core)
+        # SPM-116's floor for code outside domain/ is enforced here, the one run
+        # that executes repo/ and api/ (vitest.config.ts).
+        run: npm run test:coverage -w @connectsphere/planning-core
 
       - name: Integration tests (notification)
         run: npm test -w @connectsphere/notification
