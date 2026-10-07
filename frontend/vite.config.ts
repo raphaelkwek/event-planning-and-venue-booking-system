@@ -44,6 +44,11 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/venue/, ""),
         },
+        "/equipment": {
+          target: planningCore,
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/equipment/, ""),
+        },
         // The notification service (T2).
         "/notification": {
           target: notification,

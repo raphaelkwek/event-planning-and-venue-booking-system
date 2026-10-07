@@ -15,6 +15,7 @@ import { VenueEditor } from "./screens/VenueEditor.js";
 import { Notifications } from "./screens/Notifications.js";
 import { useUnreadCount } from "./shared/useUnreadCount.js";
 import { VenueDetail } from "./screens/VenueDetail.js";
+import { EquipmentAvailability } from "./screens/EquipmentAvailability.js";
 import type { Role } from "./api/types.js";
 
 const ROLE_LABELS: Record<Role, string> = {
@@ -86,6 +87,12 @@ const ROUTES: {
   },
   { path: "/venues/new", element: <VenueEditor />, roles: ["VENUE_STAFF"] },
   { path: "/venues/:id/edit", element: <VenueEditor />, roles: ["VENUE_STAFF"] },
+  {
+    path: "/equipment/availability",
+    element: <EquipmentAvailability />,
+    roles: ["TECH_SUPPORT_STAFF"],
+    nav: { label: "Equipment availability", to: "/equipment/availability" },
+  },
   // T2: every role reads its own notifications.
   {
     path: "/notifications",
@@ -104,6 +111,7 @@ const ROUTES: {
 function landingFor(role: Role): string {
   if (role === "EVENT_ORGANISER") return "/requests";
   if (role === "EVENT_COORDINATOR") return "/queue";
+  if (role === "TECH_SUPPORT_STAFF") return "/equipment/availability";
   return "/console";
 }
 

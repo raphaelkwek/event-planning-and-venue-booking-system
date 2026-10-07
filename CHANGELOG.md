@@ -4,6 +4,18 @@
 
 ---
 
+# P1: Show the equipment availability check to Technical Support
+
+**Timestamp:** 2026-10-08T02:09+08:00 (SGT)
+**Author:** Yichen, via Codex
+**Scope:** frontend equipment availability client, screen, routes, proxy and acceptance tests.
+
+**Reason:** Let Technical Support Staff choose equipment and an event period, then compare requested quantity with numeric availability and shortfall. Changing any input clears the old result; late responses cannot replace a result for the current form. The workflow sends only read requests and preserves field-level refusals.
+
+**Verification:** Tests were written first and observed failing before implementation. All 19 P1 frontend checks and all 62 frontend tests passed under Asia/Singapore time, with coverage thresholds satisfied (75.21% lines, 79.74% branches). Frontend typecheck and the full build passed.
+
+---
+
 # P1: Check equipment availability using peak concurrent use
 
 **Timestamp:** 2026-10-08T02:04+08:00 (SGT)
