@@ -117,7 +117,9 @@ const EXPECTED: Record<EventAction, { from: EventStatus[]; to: EventStatus }> = 
   RESPOND_TO_CLARIFICATION: { from: ["AWAITING_CLARIFICATION"], to: "UNDER_REVIEW" },
   APPROVE: { from: ["UNDER_REVIEW", "AWAITING_CLARIFICATION"], to: "APPROVED" },
   REJECT: { from: ["UNDER_REVIEW", "AWAITING_CLARIFICATION"], to: "REJECTED" },
-  CONFIRM: { from: ["APPROVED", "PLANNING"], to: "CONFIRMED" },
+  CONFIRM_ARRANGEMENTS: { from: ["APPROVED", "PLANNING"], to: "SAFETY_REVIEW" },
+  APPROVE_SAFETY: { from: ["SAFETY_REVIEW"], to: "CONFIRMED" },
+  REQUEST_SAFETY_CHANGES: { from: ["SAFETY_REVIEW"], to: "PLANNING" },
   COMPLETE: { from: ["CONFIRMED"], to: "COMPLETED" },
 };
 
@@ -139,9 +141,36 @@ describe("every status against every action (F1)", () => {
   }
 });
 
-describe("CONFIRM and COMPLETE (F1)", () => {
-  it("reaches Confirmed from Approved or Planning (F1, performed by F5)", () => {
-    expect(transitionRule("CONFIRM")).toEqual({ from: ["APPROVED", "PLANNING"], to: "CONFIRMED" });
+describe("Safety Review, Confirmed and Completed (F1, CR-06)", () => {
+  const actions = Object.keys(EXPECTED) as EventAction[];
+
+  it("reaches Safety Review when F5 confirms the arrangements", () => {
+    expect(transitionRule("CONFIRM_ARRANGEMENTS")).toEqual({
+      from: ["APPROVED", "PLANNING"],
+      to: "SAFETY_REVIEW",
+    });
+  });
+
+  it("reaches Confirmed only through the Safety Officer's approval", () => {
+    expect(actions.filter((action) => transitionRule(action).to === "CONFIRMED")).toEqual([
+      "APPROVE_SAFETY",
+    ]);
+  });
+
+  it("returns the event to Planning when the Safety Officer requests changes", () => {
+    expect(transitionRule("REQUEST_SAFETY_CHANGES")).toEqual({
+      from: ["SAFETY_REVIEW"],
+      to: "PLANNING",
+    });
+  });
+
+  it("has no transition for rejecting the safety arrangement until CQ-08 is answered", () => {
+    expect(
+      actions.filter(
+        (action) =>
+          transitionRule(action).from.includes("SAFETY_REVIEW") && transitionRule(action).to === "REJECTED"
+      )
+    ).toEqual([]);
   });
 
   it("completes only a Confirmed event", () => {
