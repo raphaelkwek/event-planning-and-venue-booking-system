@@ -747,6 +747,14 @@ paths:
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "429":
+          description: |
+            `RATE_LIMITED`: more than 120 calendar requests in a minute from one address. A
+            stopgap until the gateway applies limits (ADR-0011, EN-12). `Retry-After` gives the
+            seconds to wait.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
         "503": { $ref: "#/components/responses/IdentityUnavailable" }
 
 

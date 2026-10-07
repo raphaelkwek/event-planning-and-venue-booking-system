@@ -27,6 +27,7 @@ export const ERROR_CODES = [
   "VENUE_SLOT_CONFLICT",
   "NOTIFICATION_NOT_FOUND",
   "INSUFFICIENT_EQUIPMENT",
+  "RATE_LIMITED",
 ] as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[number];

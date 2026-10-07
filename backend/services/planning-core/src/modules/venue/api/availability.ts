@@ -1,4 +1,5 @@
 import { Router, type Response } from "express";
+import { rateLimit } from "express-rate-limit";
 import type { Sql } from "postgres";
 import { findEventReferences } from "../../event/index.js";
 import { authenticate, requireRole, type ActorRequest } from "../auth/actor.js";
@@ -16,11 +17,29 @@ import { refuse } from "./errors.js";
 const READERS = ["EVENT_ORGANISER", "EVENT_COORDINATOR", "VENUE_STAFF", "TECH_SUPPORT_STAFF"] as const;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+/**
+ * At most 120 calendar requests a minute from one address, refused before any
+ * identity lookup or query. ADR-0011 puts rate limits at the gateway (EN-12),
+ * which isn't built yet. Until it is, this route, planning-core's heaviest read,
+ * carries its own, and CodeQL (js/missing-rate-limiting) requires one. Remove
+ * it once the gateway limits requests.
+ */
+export function calendarRateLimit() {
+  return rateLimit({
+    windowMs: 60_000,
+    limit: 120,
+    standardHeaders: "draft-8",
+    legacyHeaders: false,
+    handler: (_req, res) => refuse(res, 429, "RATE_LIMITED", "Too many calendar requests. Wait a minute and try again."),
+  });
+}
+
 export function availabilityRouter(sql: Sql) {
   const router = Router();
 
   router.get(
     "/api/v1/venues/:id/availability",
+    calendarRateLimit(),
     authenticate,
     requireRole(...READERS),
     async (req: ActorRequest, res: Response) => {
