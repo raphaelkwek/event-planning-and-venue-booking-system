@@ -80,10 +80,10 @@ export function clarificationsRouter(sql: Sql) {
           correlationId: req.header("x-correlation-id") ?? null,
           payload: {
             eventId: event.id,
-            eventReference: event.reference,
-            eventName: event.name,
+            eventReference: moved.event.reference,
+            eventName: moved.event.name,
             clarificationId: created.id,
-            ownerId: event.ownerId,
+            ownerId: moved.event.ownerId,
             requestedBy: userId,
             requestedAt: created.requestedAt,
           },
@@ -165,29 +165,32 @@ export function clarificationsRouter(sql: Sql) {
               event.id,
               amendedFields.map((field) => ({
                 fieldName: field,
-                previousValue: stringify(event[field as keyof EventRow]),
+                previousValue: stringify(moved.event[field as keyof EventRow]),
                 newValue: stringify((amendments as Record<string, unknown>)[field]),
               })),
               { userId, role },
               "RESPOND_TO_CLARIFICATION"
             );
 
-            updated = await applyAmendments(
-              tx,
-              event.id,
-              Object.fromEntries(
-                amendedFields.map((field) => {
-                  const column = AMENDABLE_COLUMNS[field as keyof typeof AMENDABLE_COLUMNS];
-                  const value = (amendments as Record<string, unknown>)[field];
-                  // The requirements columns are jsonb, so structured values are
-                  // sent as JSON rather than left to the driver to guess.
-                  const isJson =
-                    column === "venue_requirements" || column === "equipment_requirements";
-                  return [column, isJson && value != null ? tx.json(value as never) : value];
-                })
-              ),
-              userId
-            );
+            updated = {
+              ...(await applyAmendments(
+                tx,
+                event.id,
+                Object.fromEntries(
+                  amendedFields.map((field) => {
+                    const column = AMENDABLE_COLUMNS[field as keyof typeof AMENDABLE_COLUMNS];
+                    const value = (amendments as Record<string, unknown>)[field];
+                    // The requirements columns are jsonb, so structured values are
+                    // sent as JSON rather than left to the driver to guess.
+                    const isJson =
+                      column === "venue_requirements" || column === "equipment_requirements";
+                    return [column, isJson && value != null ? tx.json(value as never) : value];
+                  })
+                ),
+                userId
+              )),
+              assignedCoordinatorId: moved.event.assignedCoordinatorId,
+            };
           }
 
           await writeOutbox(tx, {
@@ -198,8 +201,8 @@ export function clarificationsRouter(sql: Sql) {
             correlationId: req.header("x-correlation-id") ?? null,
             payload: {
               eventId: event.id,
-              eventReference: event.reference,
-              eventName: event.name,
+              eventReference: updated.reference,
+              eventName: updated.name,
               clarificationId: clarification.id,
               requestedBy: clarification.requestedBy,
               respondedBy: userId,
