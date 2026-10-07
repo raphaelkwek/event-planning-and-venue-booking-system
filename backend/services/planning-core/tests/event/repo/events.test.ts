@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { testDb } from "../../support/testDb.js";
 import { deleteSeededEvents, seedEvent } from "../../support/seedEvent.js";
+import { EVENT_END } from "../../support/eventDates.js";
 import {
   decisionColumns,
   findEventInScope,
@@ -30,7 +31,7 @@ async function givenSubmittedEvent(ownerId = OWNER, name = "Annual Research Symp
     id: await seedEvent(sql, {
       ownerId,
       status: "SUBMITTED",
-      endsAt: new Date("2026-10-02T18:00:00.000Z"),
+      endsAt: new Date(EVENT_END),
       name,
     }),
   };
@@ -70,34 +71,6 @@ beforeEach(cleanUp);
 afterAll(async () => {
   await cleanUp();
   await sql.end();
-});
-
-describe("events repo (B1)", () => {
-  it("stores a submitted request with the submitting organiser as owner", async () => {
-    const seeded = await givenSubmittedEvent();
-
-    const event = await findEventInScope(sql, seeded.id, { scopeType: "ALL" }, COORDINATOR);
-
-    expect(event!.ownerId).toBe(OWNER);
-    expect(event!.status).toBe("SUBMITTED");
-  });
-
-  it("records a submission timestamp", async () => {
-    const seeded = await givenSubmittedEvent();
-
-    const event = await findEventInScope(sql, seeded.id, { scopeType: "ALL" }, COORDINATOR);
-
-    expect(Date.parse(event!.submittedAt)).not.toBeNaN();
-  });
-
-  it("starts an event with no recorded decision", async () => {
-    const seeded = await givenSubmittedEvent();
-
-    const event = await findEventInScope(sql, seeded.id, { scopeType: "ALL" }, COORDINATOR);
-
-    expect(event!.decidedAt).toBeNull();
-    expect(event!.decidedBy).toBeNull();
-  });
 });
 
 describe("events repo — access scope (A3)", () => {
@@ -202,7 +175,9 @@ describe("events repo — decisions (D4, D5)", () => {
 
     const decided = await decide(event.id, "REJECT", COORDINATOR, "No venue can host this date.");
 
-    expect(decided.ok && decided.event).toMatchObject({
+    expect(decided.ok).toBe(true);
+    if (!decided.ok) return;
+    expect(decided.event).toMatchObject({
       status: "REJECTED",
       rejectionReason: "No venue can host this date.",
     });

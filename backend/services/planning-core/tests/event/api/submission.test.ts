@@ -94,6 +94,17 @@ describe("POST /api/v1/events (B1)", () => {
     expect(res.body.submittedAt).toBeTruthy();
   });
 
+  it("gives each submission its own reference", async () => {
+    const first = await request(app).post("/api/v1/events").set(bearer).send(validRequest);
+    const second = await request(app).post("/api/v1/events").set(bearer).send(validRequest);
+
+    expect(first.status).toBe(201);
+    expect(second.status).toBe(201);
+    expect(first.body.reference).toMatch(/^EVT-\d{6}$/);
+    expect(second.body.reference).toMatch(/^EVT-\d{6}$/);
+    expect(second.body.reference).not.toBe(first.body.reference);
+  });
+
   it("records the submitting organiser as the owner of the event", async () => {
     const res = await request(app).post("/api/v1/events").set(bearer).send(validRequest);
 

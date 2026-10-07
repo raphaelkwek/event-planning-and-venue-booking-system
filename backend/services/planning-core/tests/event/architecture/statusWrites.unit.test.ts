@@ -11,7 +11,10 @@ import { EVENT_STATUSES } from "@connectsphere/contracts";
  *
  * It reads SQL written as tagged templates. A status set through a dynamic
  * column list (`${tx(columns)}`) is not visible to it; AMENDABLE_COLUMNS is
- * what keeps status out of the amendable columns.
+ * what keeps status out of the amendable columns. Likewise SQL fragments
+ * spliced into an `update event.events` from elsewhere (`${fragment}`) are not
+ * inspected, and migrations/ is not scanned (a trigger could still write
+ * status). Reviewers own those.
  */
 
 const SRC = join(__dirname, "../../../src/modules/event");
@@ -34,17 +37,20 @@ function statements(source: string, pattern: RegExp): string[] {
  * filters on status and must not be mistaken for writing it.
  */
 export function updatesSetStatus(source: string): boolean {
-  return statements(source, /update\s+event\.events\b([\s\S]*?)`/gi).some((text) => {
+  return statements(source, /update\s+"?event"?\s*\.\s*"?events"?\b([\s\S]*?)`/gi).some((text) => {
     const setClause = /\bset\b([\s\S]*?)(?:\bwhere\b|\bfrom\b|\breturning\b|$)/i.exec(text)?.[1] ?? "";
-    return /\bstatus\s*=/.test(setClause);
+    return /\b"?status"?\s*=/i.test(setClause);
   });
 }
 
 export function insertsPastDraft(source: string): boolean {
   const pastDraft = EVENT_STATUSES.filter((status) => status !== "DRAFT");
-  return statements(source, /insert\s+into\s+event\.events\b([\s\S]*?)`/gi).some((text) =>
-    pastDraft.some((status) => text.includes(`'${status}'`))
-  );
+  return statements(source, /insert\s+into\s+"?event"?\s*\.\s*"?events"?\b([\s\S]*?)`/gi).some((text) => {
+    const literalPastDraft = pastDraft.some((status) => text.includes(`'${status}'`));
+    const columns = /\(([\s\S]*?)\)/.exec(text)?.[1] ?? "";
+    const namesStatus = /\b"?status"?\b/i.test(columns);
+    return literalPastDraft || (namesStatus && !text.includes("'DRAFT'"));
+  });
 }
 
 describe("status writes (F1)", () => {
@@ -54,6 +60,9 @@ describe("status writes (F1)", () => {
     expect(
       updatesSetStatus("update event.events set name = $1 where id = $2 and status = 'DRAFT'`")
     ).toBe(false);
+    expect(updatesSetStatus('UPDATE "event"."events" SET "status" = $1 where id = $2`')).toBe(true);
+    expect(updatesSetStatus("update event.events set STATUS = $1 where id = $2`")).toBe(true);
+    expect(insertsPastDraft("insert into event.events (name, status) values ($1, ${s})`")).toBe(true);
     expect(insertsPastDraft("insert into event.events (status) values ('SUBMITTED')`")).toBe(true);
     expect(insertsPastDraft("insert into event.events (status) values ('DRAFT')`")).toBe(false);
   });
