@@ -3,16 +3,16 @@ import type { Sql } from "postgres";
 import { authenticate, requireRole, type ActorRequest } from "../auth/actor.js";
 import { validateSubmission } from "../domain/validation.js";
 import {
-  claimForReview,
   findEventInScope,
   listEventsInScope,
   listReviewQueue,
+  reviewColumns,
   type EventRow,
 } from "../repo/events.js";
 import { listDraftsForOwner } from "../repo/drafts.js";
-import { recordStatusChange } from "../repo/eventHistory.js";
 import { QUEUE_STATUSES } from "../domain/statusMachine.js";
 import { submitEvent } from "./submitEvent.js";
+import { transitionEvent } from "./transitionEvent.js";
 import { submissionBodySchema, toEventFields } from "./schemas.js";
 import { fieldsFromZod, refuse } from "./errors.js";
 
@@ -107,21 +107,13 @@ export function eventsRouter(sql: Sql) {
       return;
     }
 
-    const claimed = await sql.begin(async (tx) => {
-      const opened = await claimForReview(tx, event.id, userId);
-      if (opened) {
-        await recordStatusChange(tx, event.id, {
-          previousStatus: "SUBMITTED",
-          newStatus: "UNDER_REVIEW",
-          actorUserId: userId,
-          actorRole: role,
-          triggeringAction: "OPEN_FOR_REVIEW",
-        });
-      }
-      return opened;
-    });
+    const opened = await sql.begin((tx) =>
+      transitionEvent(tx, event.id, "OPEN_FOR_REVIEW", { userId, role }, { set: reviewColumns(tx, userId) })
+    );
 
-    res.status(200).json(claimed ?? (await findEventInScope(sql, event.id, scope, userId)));
+    // D1 — a second coordinator opening the same request is refused by the
+    // transition and changes nothing, so they see the first reviewer.
+    res.status(200).json(opened.ok ? opened.event : await findEventInScope(sql, event.id, scope, userId));
   });
 
   router.get("/api/v1/events", ...authenticate, async (req: ActorRequest, res) => {
