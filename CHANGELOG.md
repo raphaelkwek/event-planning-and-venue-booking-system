@@ -12,7 +12,7 @@
 
 **Reason:** Record observed results at `a00b6bf3e17ddcd4db343e9e15e5495f61ac6c57` against independently specified acceptance expectations. The fifteen API/database cards pass in disposable Postgres with declared authentication stubs. Actual signed-in browser card T14 and human story-owner review remain pending.
 
-**Verification:** All CI jobs and CodeQL passed. Planning-core integration: 585 tests, 94.77% lines/statements, 90.31% branches, 94.76% functions. Backend unit: 319 tests; frontend: 62 tests, including 19 P1 checks. Changed-domain mutation score: 95.51%. Evidence captures the complete planning-core command output and source CI link.
+**Verification:** All CI jobs and CodeQL passed. Planning-core integration: 585 tests, 94.77% lines/statements, 90.31% branches, 94.76% functions. Backend unit: 319 tests; frontend: 62 tests, including 19 P1 checks. Changed-domain mutation score: 95.51%. Evidence captures the complete planning-core command output (terminal formatting and trailing whitespace removed) and source CI link.
 
 ---
 
