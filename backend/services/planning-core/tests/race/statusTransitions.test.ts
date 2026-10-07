@@ -75,11 +75,15 @@ describe.runIf(isThrowawayDatabase())(`${ATTEMPTS} status changes at the same mo
         expect(outcome).toMatchObject({ message: "This event is Approved and cannot move to Approved." });
       }
 
-      const history = await sql`
-        select 1 from event.event_history
-        where event_id = ${eventId} and triggering_action = 'APPROVE'
+      const winnerIndex = results.findIndex((r) => r.status === "fulfilled" && r.value.ok);
+      const history = await sql<{ actor_user_id: string }[]>`
+        select actor_user_id from event.event_history
+        where event_id = ${eventId} and entry_type = 'STATUS_CHANGE' and triggering_action = 'APPROVE'
       `;
       expect(history).toHaveLength(1);
+      expect(history[0]!.actor_user_id).toBe(actors[winnerIndex]);
+      const [row] = await sql<{ status: string }[]>`select status from event.events where id = ${eventId}`;
+      expect(row!.status).toBe("APPROVED");
     }
   });
 });

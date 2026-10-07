@@ -1,16 +1,8 @@
 import type { ISql, Sql, TransactionSql } from "postgres";
 import type { EventStatus } from "@connectsphere/contracts";
 import { transitionRule } from "../domain/statusMachine.js";
-import { toEvent, type EventRow, type Fragment, type RawEvent } from "./events.js";
-
-export type { Fragment };
-
-/**
- * F1 — the one statement in this service that changes an event's status.
- * Everything else reaches it through `transitionEvent`, which pairs it with the
- * transition table and the history entry; an architecture test fails if any
- * other statement sets `event.events.status`.
- */
+import { toEvent, type EventRow, type RawEvent } from "./events.js";
+import type { Fragment } from "./sqlFragment.js";
 
 export interface StatusUpdate {
   eventId: string;
@@ -18,7 +10,11 @@ export interface StatusUpdate {
   to: EventStatus;
   /** Null for a system-initiated change. */
   actorId: string | null;
-  /** Column assignments the action makes alongside the status, each followed by a comma. */
+  /**
+   * Column assignments the action makes alongside the status, each followed by
+   * a comma. The UPDATE joins `previous`, which exposes id and status — qualify
+   * those as e.id/e.status if a fragment ever reads them.
+   */
   set?: Fragment;
   /**
    * A further condition on the row, beginning with `and`. It refers to columns
@@ -30,6 +26,11 @@ export interface StatusUpdate {
 }
 
 /**
+ * F1 — the one statement in this service that changes an event's status.
+ * Everything else reaches it through `transitionEvent`, which pairs it with the
+ * transition table and the history entry; an architecture test fails if any
+ * other statement sets `event.events.status`.
+ *
  * The guard is the WHERE clause, re-checked under the row lock: the row is
  * locked only if its status is one the action may leave, so two concurrent
  * actions cannot both succeed — the second waits for the lock, re-reads the
@@ -83,9 +84,11 @@ export async function readStatus(tx: TransactionSql, eventId: string): Promise<E
  * instant it counts as passed: periods are half-open, `'[)'`, so the end
  * instant is not part of the event (implementation.md §4.4). The one place
  * this rule is written; both the completion guard and the sweep use it.
+ * Without `now` it compares against the database clock; pass one to make the
+ * moment explicit (tests, the sweep).
  */
-export function endHasPassed(db: ISql, now: Date): Fragment {
-  return db`and proposed_end_at <= ${now}`;
+export function endHasPassed(db: ISql, now?: Date): Fragment {
+  return now ? db`and proposed_end_at <= ${now}` : db`and proposed_end_at <= now()`;
 }
 
 /** F1 — the events the completion sweep should complete, oldest ending first. */

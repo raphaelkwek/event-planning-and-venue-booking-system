@@ -3,7 +3,13 @@ import { randomUUID } from "node:crypto";
 import { testDb } from "../../support/testDb.js";
 import { deleteSeededEvents, seedEvent } from "../../support/seedEvent.js";
 import { SYSTEM_ACTOR, transitionEvent } from "../../../src/modules/event/api/transitionEvent.js";
-import { decisionColumns } from "../../../src/modules/event/repo/events.js";
+import {
+  decisionColumns,
+  reviewColumns,
+  submissionColumns,
+  type EventFields,
+} from "../../../src/modules/event/repo/events.js";
+import { EVENT_END, EVENT_START } from "../../support/eventDates.js";
 
 /** F1 — the one way an event's status changes. */
 
@@ -30,6 +36,34 @@ async function historyOf(id: string) {
     order by occurred_at
   `;
 }
+
+/** A draft as a user leaves it: no reference and no submission time yet. */
+async function seedDraft() {
+  const id = await seedEvent(sql, { ownerId: OWNER, status: "DRAFT", endsAt: FAR_FUTURE });
+  await sql`update event.events set reference = null, submitted_at = null where id = ${id}`;
+  return id;
+}
+
+async function rowOf(id: string) {
+  const rows = await sql`select * from event.events where id = ${id}`;
+  return rows[0]!;
+}
+
+const sentFields: EventFields = {
+  name: "Sent with the submission",
+  purpose: "Sent purpose",
+  description: "Sent description",
+  proposedStartAt: EVENT_START,
+  proposedEndAt: EVENT_END,
+  expectedAttendance: 80,
+  venueRequirements: null,
+  accessibilityNeeds: null,
+  equipmentRequired: false,
+  equipmentRequirements: null,
+  registrationRequired: false,
+  registrationOpensAt: null,
+  registrationClosesAt: null,
+};
 
 beforeEach(cleanUp);
 
@@ -87,12 +121,14 @@ describe("transitionEvent (F1)", () => {
       endsAt: new Date("2029-06-01T12:00:00.000Z"),
     });
 
-    await sql.begin((tx) =>
+    const result = await sql.begin((tx) =>
       transitionEvent(tx, id, "COMPLETE", SYSTEM_ACTOR, { now: new Date("2029-06-01T12:00:00.001Z") })
     );
 
+    expect(result.ok).toBe(true);
     const history = await historyOf(id);
-    expect(history[0]).toMatchObject({ actor_user_id: null, actor_role: "SYSTEM", triggering_action: "COMPLETE" });
+    expect(history).toHaveLength(1);
+    expect(history[0]).toMatchObject({ actor_user_id: null, actor_role: "SYSTEM", triggering_action: "COMPLETE", new_status: "COMPLETED" });
   });
 
   it("writes the action's own columns in the same statement as the status", async () => {
@@ -109,6 +145,91 @@ describe("transitionEvent (F1)", () => {
       decidedBy: COORDINATOR,
       rejectionReason: "No venue can host this date.",
     });
+  });
+
+  it("does not store the decision columns when the transition is refused", async () => {
+    const id = await seedEvent(sql, { ownerId: OWNER, status: "APPROVED", endsAt: FAR_FUTURE });
+
+    const result = await sql.begin((tx) =>
+      transitionEvent(tx, id, "REJECT", coordinator, { set: decisionColumns(tx, COORDINATOR, "reason") })
+    );
+
+    expect(result.ok).toBe(false);
+    const row = await rowOf(id);
+    expect(row.decided_by).toBeNull();
+    expect(row.rejection_reason).toBeNull();
+  });
+
+  it("gives a submitted draft its reference, submission time and the fields sent with it", async () => {
+    const id = await seedDraft();
+
+    const result = await sql.begin((tx) =>
+      transitionEvent(tx, id, "SUBMIT", coordinator, { set: submissionColumns(tx, sentFields) })
+    );
+
+    expect(result.ok).toBe(true);
+    const row = await rowOf(id);
+    expect(row.status).toBe("SUBMITTED");
+    expect(row.reference).toMatch(/^EVT-\d{6}$/);
+    expect(row.submitted_at).not.toBeNull();
+    expect(row.name).toBe("Sent with the submission");
+    expect(row.purpose).toBe("Sent purpose");
+  });
+
+  it("submits without fields, leaving the stored ones alone", async () => {
+    const id = await seedDraft();
+
+    const result = await sql.begin((tx) =>
+      transitionEvent(tx, id, "SUBMIT", coordinator, { set: submissionColumns(tx) })
+    );
+
+    expect(result.ok).toBe(true);
+    const row = await rowOf(id);
+    expect(row.reference).toMatch(/^EVT-\d{6}$/);
+    expect(row.submitted_at).not.toBeNull();
+    expect(row.name).toBe("Seeded event");
+  });
+
+  it("refuses submitting an event that is already submitted and keeps its reference", async () => {
+    const id = await seedEvent(sql, { ownerId: OWNER, status: "SUBMITTED", endsAt: FAR_FUTURE });
+    const before = (await rowOf(id)).reference;
+
+    const result = await sql.begin((tx) =>
+      transitionEvent(tx, id, "SUBMIT", coordinator, { set: submissionColumns(tx, sentFields) })
+    );
+
+    expect(result.ok).toBe(false);
+    const row = await rowOf(id);
+    expect(row.reference).toBe(before);
+    expect(row.name).toBe("Seeded event");
+  });
+
+  it("records the reviewing coordinator and when review started", async () => {
+    const id = await seedEvent(sql, { ownerId: OWNER, status: "SUBMITTED", endsAt: FAR_FUTURE });
+
+    const result = await sql.begin((tx) =>
+      transitionEvent(tx, id, "OPEN_FOR_REVIEW", coordinator, { set: reviewColumns(tx, COORDINATOR) })
+    );
+
+    expect(result.ok).toBe(true);
+    const row = await rowOf(id);
+    expect(row.reviewing_coordinator_id).toBe(COORDINATOR);
+    expect(row.review_started_at).not.toBeNull();
+  });
+
+  it("rolls the transition back when something later in the transaction fails", async () => {
+    const id = await seedEvent(sql, { ownerId: OWNER, status: "UNDER_REVIEW", endsAt: FAR_FUTURE });
+
+    await expect(
+      sql.begin(async (tx) => {
+        const result = await transitionEvent(tx, id, "APPROVE", coordinator);
+        expect(result.ok).toBe(true);
+        throw new Error("a later step failed");
+      })
+    ).rejects.toThrow("a later step failed");
+
+    expect(await statusOf(id)).toBe("UNDER_REVIEW");
+    expect(await historyOf(id)).toHaveLength(0);
   });
 
   it("throws for an event that does not exist", async () => {
@@ -131,6 +252,7 @@ describe("completing an event (F1)", () => {
 
     expect(result).toMatchObject({
       ok: false,
+      currentStatus: "CONFIRMED",
       message: "This event is Confirmed and cannot move to Completed until its end date and time have passed.",
     });
     expect(await statusOf(id)).toBe("CONFIRMED");
@@ -152,6 +274,7 @@ describe("completing an event (F1)", () => {
     const result = await sql.begin((tx) => transitionEvent(tx, id, "COMPLETE", SYSTEM_ACTOR, { now: at(1) }));
 
     expect(result.ok).toBe(true);
+    expect(await statusOf(id)).toBe("COMPLETED");
   });
 
   it("refuses completing an Approved event whose end has passed", async () => {

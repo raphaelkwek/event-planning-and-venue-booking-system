@@ -1,4 +1,5 @@
-import type { PendingQuery, Row, Sql, TransactionSql } from "postgres";
+import type { Sql, TransactionSql } from "postgres";
+import type { Fragment } from "./sqlFragment.js";
 import type { AccessScope, EventStatus } from "@connectsphere/contracts";
 
 /**
@@ -7,9 +8,6 @@ import type { AccessScope, EventStatus } from "@connectsphere/contracts";
  * with most fields still empty; B2 is what makes them mandatory, and it is
  * applied at submission rather than by the table.
  */
-
-/** A piece of SQL spliced into a statement: column assignments or a condition. */
-export type Fragment = PendingQuery<Row[]>;
 
 export interface EventFields {
   name: string;
