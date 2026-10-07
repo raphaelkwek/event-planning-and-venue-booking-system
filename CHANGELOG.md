@@ -25,6 +25,88 @@ since, which is why it went unnoticed.
 
 - The corrected query, run read-only against the shared database, returns real rows' type and
   reference (e.g. `event.coordinator-assigned`, `EVT-005237`).
+# F1: one guarded way to change an event's status, and the completion sweep
+
+**Timestamp:** 2026-10-07T22:20+08:00 (SGT)
+**Author:** Raphael, via Claude
+**Scope:** F1 (SPM-27). The event module's `repo/`, `api/` and new `jobs/`, the root
+`package.json`, `tests/event/`, `tests/race/`, `tests/support/`, `tests/F1/` and the traceability CSV.
+**Reason:** F1 was marked Done with its write path still spread over six repository functions, no
+completion of past events, and none of its cards run. This finishes it.
+
+## Added
+
+- **`updateStatusIf`** (`repo/eventStatus.ts`): the one SQL statement that writes `status`. It
+  locks the row and changes it only if the status is still one the action may start from.
+- **`transitionEvent(tx, eventId, action, actor)`**: the one way any route changes status. It looks
+  the action up in the transition table, refuses with both statuses named, and for `COMPLETE`
+  checks the end has passed by the database clock. It writes the history row in the same
+  transaction as the change.
+- **`npm run jobs:complete-events`**: completes every Confirmed event whose end has passed, one
+  transaction per event, as `SYSTEM`. Only Confirmed events complete (spec decision 2); an Approved
+  event past its end is left alone.
+- **`tests/event/architecture/statusWrites.unit.test.ts`** fails if any file other than
+  `updateStatusIf` writes `status`.
+- Race tests in `tests/race/statusTransitions.test.ts` (EN-02.3 harness, CI's throwaway Postgres
+  only) prove that two concurrent transitions on one event make exactly one change.
+
+## Changed
+
+- Submission, opening for review, clarification, approval and rejection all go through
+  `transitionEvent`. `insertSubmittedEvent`, `submitDraft`, `claimForReview`, `lockEventInScope`,
+  `setStatus` and `recordDecision` are deleted.
+- D3's clarification history now takes its previous values from the locked row, not a read made
+  before the lock.
+- Tests that share the team database seed with random owners and clean up after themselves
+  (`tests/support/seedEvent.ts`).
+
+## Tested
+
+- F1-T1, F1-T8, F1-T9, F1-T10 and F1-T11 were run on 2026-10-07 against 3d313c1 and pass; evidence is
+  in `tests/F1/evidence/`. F1-T1 used FX-SEEDED for its Submitted request (noted in its record).
+- F1-T2 to F1-T6 need a signed-in user and are still to be run. F1-T7, T12 and T13 stay Not
+  Executed until F5 and U1 exist.
+
+---
+
+# SPM-116 follow-up: the non-domain coverage floor moves to the integration run
+
+**Timestamp:** 2026-10-07T18:50+08:00 (SGT)
+**Author:** Raphael, via Claude
+**Scope:** `backend/services/planning-core/vitest.config.ts`, `vitest.unit.config.ts`, its
+`package.json`, and CI's integration job.
+**Reason:** The unit run enforced a 93% branch floor across all of `src/`. Its own comment says
+that floor was set at "today's unit-only figures" until EN-06.1 gave CI a database. EN-06.1 merged
+on 6 Oct, but the floor stayed in the unit run, where repo and API code never executes and so
+counts as uncovered. Every new repo file therefore failed the build, however well its integration
+tests covered it. F1's first repo file took the figure to 92.04%.
+
+## Changed
+
+- **The unit run keeps the 100% floor on domain code**, exactly as before, and drops the global
+  floor.
+- **The integration run now enforces the global floor.** `npm run test:coverage -w
+  @connectsphere/planning-core`, which CI's integration job runs against its throwaway Postgres,
+  is the one run that executes repo and API code. Floors: lines and statements 94%, branches 89%,
+  functions 94%. That's just under CI's measurement of `main` (lines 94.59%, branches 89.68%,
+  functions 95.03%, all 493 tests passing).
+- In practice it's **stricter, not looser**: lines and functions go from 39% and 24% (unit-only)
+  to 94%, measured where the code actually runs.
+
+## Found on the way (not fixed here)
+
+- **The shared Supabase database is missing EN-02's migrations.** `equipment.equipment_types`
+  and the venue slot tables don't exist there, so 34 venue and equipment tests fail for anyone
+  running the suite locally. CI is unaffected, since it builds its database from the migrations.
+  Someone should run `npm run migrate:all` against the shared project, as a deliberate team step.
+- Because of that, a local run undercounts venue and equipment code (92.02% lines, 88.85%
+  branches), so the floors were set from CI's figures instead.
+
+## Verified
+
+- Unit run: exit 0, domain coverage 100%. `npm run lint` passes. `ci.yml` parses.
+- Full local run of `main` with coverage: lines and statements 92.02%, branches 88.85%, functions
+  90.06% (455 passed, with 34 failing only on the missing EN-02 tables).
 
 ---
 
@@ -77,6 +159,40 @@ land here, before F5 and U1 build the actions that perform them.
 - squawk reports no issues on 0007 or 0008. The migrations were **not** run against the shared
   Supabase database; CI applies them to a throwaway Postgres, and the shared database gets them
   after merge.
+
+---
+
+# SPM-115: `main` is branch-protected
+
+**Timestamp:** 2026-10-07T18:25+08:00 (SGT)
+**Author:** Raphael, via Claude
+**Scope:** GitHub repository settings (no code). SPM-115, part of EN-06.
+**Reason:** `main` had no protection, so anyone with write access could push to it directly or merge
+without review or green CI. That happened in practice: PR #2 merged unreviewed, and an early F1
+commit went straight to `main`. The Definition of Done (`implementation.md` §8.3) requires both a
+peer review and green CI; until now neither was enforced.
+
+## Changed
+
+- **Branch protection on `main`:**
+  - a pull request with **one approving review** is required before merging;
+  - three CI checks must pass: *Lint, typecheck, build, unit tests*, *Integration tests (throwaway
+    Postgres)* and *Secret scan (gitleaks)*;
+  - force pushes and branch deletion are blocked;
+  - **enforced for administrators too.** Without this the repo owner could still push directly,
+    which the ticket's done-when rules out.
+- **Not required, deliberately:** *Migration lint (squawk)* and *Mutation testing* are skipped
+  unless a change touches migrations or domain code, so requiring them would block unrelated PRs.
+  *CodeQL* and *Diagrams* run in separate workflows and can be added once the team agrees.
+
+## Verified
+
+- Read back through the GitHub API: one approval, the three checks, `enforce_admins` on, force
+  pushes and deletions off.
+- A direct push of an empty commit to `main` was refused: "Changes must be made through a pull
+  request" and "3 of 3 required status checks are expected" (protected branch hook declined).
+  `main` stayed at `ba59293`.
+- This entry is the first change to reach `main` under the rule, through a reviewed PR.
 
 ---
 
