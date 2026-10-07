@@ -1,4 +1,5 @@
 import type { Sql } from "postgres";
+import type { EventStatus } from "@connectsphere/contracts";
 import { listDueForCompletion } from "../repo/eventStatus.js";
 import { SYSTEM_ACTOR, transitionEvent } from "../api/transitionEvent.js";
 
@@ -12,15 +13,21 @@ import { SYSTEM_ACTOR, transitionEvent } from "../api/transitionEvent.js";
  * Each event is completed in its own transaction, so one failure does not undo
  * the others. The sweep is idempotent: a second run finds nothing, and when
  * two runs race, the transition lets only one complete each event — the other
- * is refused and reported as skipped, not failed.
+ * is refused and reported as skipped, not failed. An event is skipped when
+ * another run already completed it, it was cancelled or moved, or it is no
+ * longer due; the status that refused it is recorded.
+ *
+ * Production omits `now`, so the database clock decides both which events are
+ * due and the completion guard, matching the history timestamps. Tests pass a
+ * fixed `now`.
  */
 export interface CompletionRun {
   completed: string[];
-  skipped: string[];
+  skipped: { id: string; currentStatus: EventStatus }[];
   failed: { id: string; error: string }[];
 }
 
-export async function completeDueEvents(sql: Sql, now: Date): Promise<CompletionRun> {
+export async function completeDueEvents(sql: Sql, now?: Date): Promise<CompletionRun> {
   const run: CompletionRun = { completed: [], skipped: [], failed: [] };
 
   for (const id of await listDueForCompletion(sql, now)) {
@@ -28,7 +35,8 @@ export async function completeDueEvents(sql: Sql, now: Date): Promise<Completion
       const outcome = await sql.begin((tx) =>
         transitionEvent(tx, id, "COMPLETE", SYSTEM_ACTOR, { now })
       );
-      (outcome.ok ? run.completed : run.skipped).push(id);
+      if (outcome.ok) run.completed.push(id);
+      else run.skipped.push({ id, currentStatus: outcome.currentStatus });
     } catch (error) {
       run.failed.push({ id, error: error instanceof Error ? error.message : String(error) });
     }

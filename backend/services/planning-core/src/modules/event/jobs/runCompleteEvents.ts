@@ -15,12 +15,12 @@ async function main() {
   const started = Date.now();
 
   try {
-    const run = await completeDueEvents(sql, new Date());
+    const run = await completeDueEvents(sql);
 
     for (const eventId of run.completed) {
       logger.info("event completed", { correlationId, userId: null, route, outcome: "success", code: null, eventId });
     }
-    for (const eventId of run.skipped) {
+    for (const { id: eventId, currentStatus } of run.skipped) {
       logger.info("event had already moved on; not completed", {
         correlationId,
         userId: null,
@@ -28,6 +28,7 @@ async function main() {
         outcome: "refused",
         code: "STATUS_TRANSITION_NOT_PERMITTED",
         eventId,
+        currentStatus,
       });
     }
     for (const failure of run.failed) {

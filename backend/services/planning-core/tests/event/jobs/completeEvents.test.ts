@@ -7,8 +7,11 @@ import { completeDueEvents } from "../../../src/modules/event/jobs/completeEvent
 /**
  * F1 AC6 — the completion sweep. The database is shared and the sweep completes
  * EVERY due Confirmed event, so the clock here is set far in the past (2001):
- * nothing real or seeded by anyone else ends that early, so the sweep can only
- * touch this file's rows. Assertions look only at this file's events.
+ * nothing real ends that early, so this test's sweep stays away from real data.
+ * It does not protect the test from a teammate running the real sweep (or these
+ * tests) against the shared database at the same moment: that would complete
+ * these 2001 rows and could flake the "stays Confirmed" assertions. Assertions
+ * look only at this file's events.
  */
 
 const sql = testDb();
@@ -45,7 +48,7 @@ describe("completeDueEvents (F1)", () => {
 
     const run = await completeDueEvents(sql, NOW);
 
-    expect(run.completed).toContain(id);
+    expect(run.failed).toEqual([]);
     expect(await statusOf(id)).toBe("COMPLETED");
     const history = await sql`
       select previous_status, new_status, actor_user_id, actor_role, triggering_action

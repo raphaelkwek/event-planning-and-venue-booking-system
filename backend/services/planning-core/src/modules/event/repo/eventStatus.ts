@@ -91,8 +91,11 @@ export function endHasPassed(db: ISql, now?: Date): Fragment {
   return now ? db`and proposed_end_at <= ${now}` : db`and proposed_end_at <= now()`;
 }
 
-/** F1 — the events the completion sweep should complete, oldest ending first. */
-export async function listDueForCompletion(sql: Sql, now: Date): Promise<string[]> {
+/**
+ * F1 — the events the completion sweep should complete, oldest ending first.
+ * Without `now` the database clock decides which are due; pass one in tests.
+ */
+export async function listDueForCompletion(sql: Sql, now?: Date): Promise<string[]> {
   const rows = await sql<{ id: string }[]>`
     select id from event.events
     where status in ${sql(transitionRule("COMPLETE").from as string[])}

@@ -5,8 +5,10 @@ import { deleteSeededEvents, seedEvent } from "../../support/seedEvent.js";
 
 /**
  * F1 — one event's failure does not stop the sweep completing the others.
- * The clock is far in the past (2001) so the sweep, which completes every due
- * Confirmed event in the shared database, can only touch this file's rows.
+ * The clock is far in the past (2001) so this test's sweep stays away from real
+ * data. It does not protect the test from a teammate running the real sweep (or
+ * these tests) against the shared database at the same moment, which would
+ * complete these 2001 rows and could flake the assertions.
  */
 
 const failing = vi.hoisted(() => ({ id: "" }));
@@ -16,8 +18,10 @@ vi.mock("../../../src/modules/event/api/transitionEvent.js", async () => {
     "../../../src/modules/event/api/transitionEvent.js"
   );
   const transitionEvent: typeof actual.transitionEvent = async (tx, eventId, ...rest) => {
+    // Run the real transition first, then fail: its writes must roll back with the event's own transaction.
+    const outcome = await actual.transitionEvent(tx, eventId, ...rest);
     if (eventId === failing.id) throw new Error("simulated failure");
-    return actual.transitionEvent(tx, eventId, ...rest);
+    return outcome;
   };
   return { ...actual, transitionEvent };
 });
@@ -56,5 +60,10 @@ describe("completeDueEvents isolation (F1)", () => {
       [broken]: "CONFIRMED",
       [fine]: "COMPLETED",
     });
+    const [completions] = await sql<{ n: number }[]>`
+      select count(*)::int as n from event.event_history
+      where event_id = ${broken} and triggering_action = 'COMPLETE'
+    `;
+    expect(completions!.n).toBe(0);
   });
 });
