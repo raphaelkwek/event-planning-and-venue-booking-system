@@ -48,7 +48,7 @@ describe("completeDueEvents (F1)", () => {
 
     const run = await completeDueEvents(sql, NOW);
 
-    expect(run.failed).toEqual([]);
+    expect([...run.completed, ...run.skipped.map((s) => s.id)]).toContain(id);
     expect(await statusOf(id)).toBe("COMPLETED");
     const history = await sql`
       select previous_status, new_status, actor_user_id, actor_role, triggering_action

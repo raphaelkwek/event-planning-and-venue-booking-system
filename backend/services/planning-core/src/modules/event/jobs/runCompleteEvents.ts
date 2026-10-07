@@ -8,6 +8,12 @@ import { completeDueEvents } from "./completeEvents.js";
  * line per event and a summary (implementation.md §9), and exits non-zero if
  * any event could not be completed. The scheduler replaces this trigger when
  * it exists; the sweep itself does not change.
+ *
+ * The npm script (with `--env-file=.env`) is for local and manual runs. A
+ * scheduler should run the compiled
+ * `node backend/services/planning-core/dist/modules/event/jobs/runCompleteEvents.js`
+ * with its environment injected: `--env-file` fails when the file is absent,
+ * and tsx is a dev dependency.
  */
 async function main() {
   const correlationId = randomUUID();
@@ -20,8 +26,8 @@ async function main() {
     for (const eventId of run.completed) {
       logger.info("event completed", { correlationId, userId: null, route, outcome: "success", code: null, eventId });
     }
-    for (const { id: eventId, currentStatus } of run.skipped) {
-      logger.info("event had already moved on; not completed", {
+    for (const { id: eventId, currentStatus, message } of run.skipped) {
+      logger.info(message, {
         correlationId,
         userId: null,
         route,
@@ -56,8 +62,19 @@ async function main() {
     });
 
     process.exitCode = run.failed.length > 0 ? 1 : 0;
+  } catch (error) {
+    logger.error("completion sweep failed", {
+      correlationId,
+      userId: null,
+      route,
+      durationMs: Date.now() - started,
+      outcome: "error",
+      code: null,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    process.exitCode = 1;
   } finally {
-    await sql.end();
+    await sql.end().catch(() => {});
   }
 }
 

@@ -3,6 +3,13 @@ import type { EventStatus } from "@connectsphere/contracts";
 import { listDueForCompletion } from "../repo/eventStatus.js";
 import { SYSTEM_ACTOR, transitionEvent } from "../api/transitionEvent.js";
 
+/** What one sweep did, per event. */
+export interface CompletionRun {
+  completed: string[];
+  skipped: { id: string; currentStatus: EventStatus; message: string }[];
+  failed: { id: string; error: string }[];
+}
+
 /**
  * F1 AC6 — move every Confirmed event whose end has passed to Completed.
  *
@@ -21,12 +28,6 @@ import { SYSTEM_ACTOR, transitionEvent } from "../api/transitionEvent.js";
  * due and the completion guard, matching the history timestamps. Tests pass a
  * fixed `now`.
  */
-export interface CompletionRun {
-  completed: string[];
-  skipped: { id: string; currentStatus: EventStatus }[];
-  failed: { id: string; error: string }[];
-}
-
 export async function completeDueEvents(sql: Sql, now?: Date): Promise<CompletionRun> {
   const run: CompletionRun = { completed: [], skipped: [], failed: [] };
 
@@ -36,7 +37,7 @@ export async function completeDueEvents(sql: Sql, now?: Date): Promise<Completio
         transitionEvent(tx, id, "COMPLETE", SYSTEM_ACTOR, { now })
       );
       if (outcome.ok) run.completed.push(id);
-      else run.skipped.push({ id, currentStatus: outcome.currentStatus });
+      else run.skipped.push({ id, currentStatus: outcome.currentStatus, message: outcome.message });
     } catch (error) {
       run.failed.push({ id, error: error instanceof Error ? error.message : String(error) });
     }

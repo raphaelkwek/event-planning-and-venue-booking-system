@@ -84,8 +84,8 @@ export async function readStatus(tx: TransactionSql, eventId: string): Promise<E
  * instant it counts as passed: periods are half-open, `'[)'`, so the end
  * instant is not part of the event (implementation.md §4.4). The one place
  * this rule is written; both the completion guard and the sweep use it.
- * Without `now` it compares against the database clock; pass one to make the
- * moment explicit (tests, the sweep).
+ * Without `now` it compares against the database clock; callers pass a time
+ * only in tests. The sweep relies on the database clock.
  */
 export function endHasPassed(db: ISql, now?: Date): Fragment {
   return now ? db`and proposed_end_at <= ${now}` : db`and proposed_end_at <= now()`;
