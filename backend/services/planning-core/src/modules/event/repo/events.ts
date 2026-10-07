@@ -124,81 +124,6 @@ function scopeCondition(sql: Sql | TransactionSql, scope: AccessScope, callerId:
   }
 }
 
-/** B1 — a request submitted directly, without having been saved as a draft. */
-export async function insertSubmittedEvent(
-  tx: TransactionSql,
-  ownerId: string,
-  fields: EventFields
-): Promise<EventRow> {
-  const rows = await tx<RawEvent[]>`
-    insert into event.events (
-      reference, owner_id, name, purpose, description, proposed_start_at, proposed_end_at,
-      expected_attendance, venue_requirements, accessibility_needs, equipment_required,
-      equipment_requirements, registration_required, registration_opens_at,
-      registration_closes_at, status, submitted_at, last_saved_at, created_by, updated_by
-    ) values (
-      'EVT-' || lpad(nextval('event.event_reference_seq')::text, 6, '0'),
-      ${ownerId}, ${fields.name}, ${fields.purpose}, ${fields.description},
-      ${fields.proposedStartAt}, ${fields.proposedEndAt}, ${fields.expectedAttendance},
-      ${jsonOrNull(tx, fields.venueRequirements)}, ${fields.accessibilityNeeds},
-      ${fields.equipmentRequired}, ${jsonOrNull(tx, fields.equipmentRequirements)},
-      ${fields.registrationRequired}, ${fields.registrationOpensAt},
-      ${fields.registrationClosesAt}, 'SUBMITTED', now(), now(),
-      ${ownerId}, ${ownerId}
-    )
-    returning *, null::uuid as assigned_coordinator_id
-  `;
-  return toEvent(rows[0]!);
-}
-
-/**
- * C2 — submitting a draft. The draft is the record, so it keeps its id and its
- * history and simply gains a reference and a submission time. The status in
- * the condition makes it idempotent: a request already submitted updates no
- * row, so it cannot be submitted twice or gain a second reference.
- */
-export async function submitDraft(
-  tx: TransactionSql,
-  draftId: string,
-  ownerId: string,
-  fields?: EventFields
-): Promise<EventRow | null> {
-  // The values on screen, when sent, are written by the same statement that
-  // submits them — so a submission either stores and submits them together, or
-  // (having already been refused by validation) never reaches here at all.
-  const values = fields
-    ? tx`
-        name = ${fields.name},
-        purpose = ${fields.purpose},
-        description = ${fields.description},
-        proposed_start_at = ${fields.proposedStartAt},
-        proposed_end_at = ${fields.proposedEndAt},
-        expected_attendance = ${fields.expectedAttendance},
-        venue_requirements = ${jsonOrNull(tx, fields.venueRequirements)},
-        accessibility_needs = ${fields.accessibilityNeeds},
-        equipment_required = ${fields.equipmentRequired},
-        equipment_requirements = ${jsonOrNull(tx, fields.equipmentRequirements)},
-        registration_required = ${fields.registrationRequired},
-        registration_opens_at = ${fields.registrationOpensAt},
-        registration_closes_at = ${fields.registrationClosesAt},
-        last_saved_at = now(),
-      `
-    : tx``;
-
-  const rows = await tx<RawEvent[]>`
-    update event.events set
-      ${values}
-      reference = 'EVT-' || lpad(nextval('event.event_reference_seq')::text, 6, '0'),
-      status = 'SUBMITTED',
-      submitted_at = now(),
-      updated_at = now(),
-      updated_by = ${ownerId}
-    where id = ${draftId} and owner_id = ${ownerId} and status = 'DRAFT'
-    returning *, null::uuid as assigned_coordinator_id
-  `;
-  return rows[0] ? toEvent(rows[0]) : null;
-}
-
 export async function findEventInScope(
   sql: Sql,
   eventId: string,
@@ -248,60 +173,6 @@ export async function listReviewQueue(
   return rows.map(toEvent);
 }
 
-/**
- * D1 — opening a Submitted request claims it for review. The condition makes
- * the claim atomic: a second coordinator opening it concurrently updates no
- * row, so the reviewer on the record is never overwritten.
- */
-export async function claimForReview(
-  tx: TransactionSql,
-  eventId: string,
-  coordinatorId: string
-): Promise<EventRow | null> {
-  const rows = await tx<RawEvent[]>`
-    update event.events e set
-      status = 'UNDER_REVIEW',
-      reviewing_coordinator_id = ${coordinatorId},
-      review_started_at = now(),
-      updated_at = now(),
-      updated_by = ${coordinatorId}
-    where e.id = ${eventId} and e.status = 'SUBMITTED' and e.reviewing_coordinator_id is null
-    returning e.*, (
-      select a.coordinator_id from event.assignments a where a.event_id = e.id and a.is_active
-    ) as assigned_coordinator_id
-  `;
-  return rows[0] ? toEvent(rows[0]) : null;
-}
-
-/** Re-reads an event under a row lock, for a decision that must not race. */
-export async function lockEventInScope(
-  tx: TransactionSql,
-  eventId: string,
-  scope: AccessScope,
-  callerId: string
-): Promise<EventRow | null> {
-  const rows = await tx<RawEvent[]>`
-    select e.*, null::uuid as assigned_coordinator_id
-    from event.events e
-    where e.id = ${eventId} and ${scopeCondition(tx, scope, callerId)}
-    for update
-  `;
-  return rows[0] ? toEvent(rows[0]) : null;
-}
-
-export async function setStatus(
-  tx: TransactionSql,
-  eventId: string,
-  status: EventStatus,
-  actorId: string
-): Promise<void> {
-  await tx`
-    update event.events
-    set status = ${status}, updated_at = now(), updated_by = ${actorId}
-    where id = ${eventId}
-  `;
-}
-
 /** D3 — the organiser's amendments, applied once the before values are captured. */
 export async function applyAmendments(
   tx: TransactionSql,
@@ -318,32 +189,6 @@ export async function applyAmendments(
     returning *, null::uuid as assigned_coordinator_id
   `;
   return toEvent(rows[0]!);
-}
-
-/**
- * D4/D5 — record the decision. `decided_at is null` in the condition is what
- * stops a second approval or rejection: an event that already carries a
- * decision updates no row, so no second decision timestamp can be written.
- */
-export async function recordDecision(
-  tx: TransactionSql,
-  eventId: string,
-  status: "APPROVED" | "REJECTED",
-  actorId: string,
-  rejectionReason: string | null
-): Promise<EventRow | null> {
-  const rows = await tx<RawEvent[]>`
-    update event.events set
-      status = ${status},
-      decided_by = ${actorId},
-      decided_at = now(),
-      rejection_reason = ${rejectionReason},
-      updated_at = now(),
-      updated_by = ${actorId}
-    where id = ${eventId} and decided_at is null
-    returning *, null::uuid as assigned_coordinator_id
-  `;
-  return rows[0] ? toEvent(rows[0]) : null;
 }
 
 /**
