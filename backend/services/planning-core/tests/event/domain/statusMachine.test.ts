@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { EVENT_STATUSES, type EventStatus } from "@connectsphere/contracts";
+import { DECIDED_STATUSES, EVENT_STATUSES, type EventStatus } from "@connectsphere/contracts";
 import {
   COMPLETION_NOT_DUE_MESSAGE,
   evaluateTransition,
@@ -196,5 +196,17 @@ describe("refusal messages (F1)", () => {
     expect(COMPLETION_NOT_DUE_MESSAGE).toBe(
       "This event is Confirmed and cannot move to Completed until its end date and time have passed."
     );
+  });
+});
+
+describe("decisions are final (D4, D5)", () => {
+  it("has no transition from a decided status back to one awaiting a decision", () => {
+    const awaiting = [...transitionRule("APPROVE").from];
+    const reopening = (Object.keys(EXPECTED) as EventAction[]).filter(
+      (action) =>
+        transitionRule(action).from.some((from) => DECIDED_STATUSES.includes(from)) &&
+        awaiting.includes(transitionRule(action).to)
+    );
+    expect(reopening).toEqual([]);
   });
 });

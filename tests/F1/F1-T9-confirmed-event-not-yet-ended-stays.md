@@ -22,8 +22,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | Command exited 0 (completed 0, skipped 0, failed 0); no output line carried the noted id. Query 1 returned `CONFIRMED`. Query 2 returned `0`. |
+| Status | Pass |
+| Remarks | Commit: 3d313c1 · Evidence: tests/F1/evidence/F1-T9-2026-10-07.txt · Defect: — |
+| Executed By | Raphael, via automated testing |
+| Date of Execution | 2026-10-07 |

@@ -4,6 +4,91 @@
 
 ---
 
+# F1: one guarded way to change an event's status, and the completion sweep
+
+**Timestamp:** 2026-10-07T22:20+08:00 (SGT)
+**Author:** Raphael, via Claude
+**Scope:** F1 (SPM-27). The event module's `repo/`, `api/` and new `jobs/`, the root
+`package.json`, `tests/event/`, `tests/race/`, `tests/support/`, `tests/F1/` and the traceability CSV.
+**Reason:** F1 was marked Done with its write path still spread over six repository functions, no
+completion of past events, and none of its cards run. This finishes it.
+
+## Added
+
+- **`updateStatusIf`** (`repo/eventStatus.ts`): the one SQL statement that writes `status`. It
+  locks the row and changes it only if the status is still one the action may start from.
+- **`transitionEvent(tx, eventId, action, actor)`**: the one way any route changes status. It looks
+  the action up in the transition table, refuses with both statuses named, and for `COMPLETE`
+  checks the end has passed by the database clock. It writes the history row in the same
+  transaction as the change.
+- **`npm run jobs:complete-events`**: completes every Confirmed event whose end has passed, one
+  transaction per event, as `SYSTEM`. Only Confirmed events complete (spec decision 2); an Approved
+  event past its end is left alone.
+- **`tests/event/architecture/statusWrites.unit.test.ts`** fails if any file other than
+  `updateStatusIf` writes `status`.
+- Race tests in `tests/race/statusTransitions.test.ts` (EN-02.3 harness, CI's throwaway Postgres
+  only) prove that two concurrent transitions on one event make exactly one change.
+
+## Changed
+
+- Submission, opening for review, clarification, approval and rejection all go through
+  `transitionEvent`. `insertSubmittedEvent`, `submitDraft`, `claimForReview`, `lockEventInScope`,
+  `setStatus` and `recordDecision` are deleted.
+- D3's clarification history now takes its previous values from the locked row, not a read made
+  before the lock.
+- Tests that share the team database seed with random owners and clean up after themselves
+  (`tests/support/seedEvent.ts`).
+
+## Tested
+
+- F1-T1, F1-T8, F1-T9, F1-T10 and F1-T11 were run on 2026-10-07 against 3d313c1 and pass; evidence is
+  in `tests/F1/evidence/`. F1-T1 used FX-SEEDED for its Submitted request (noted in its record).
+- F1-T2 to F1-T6 need a signed-in user and are still to be run. F1-T7, T12 and T13 stay Not
+  Executed until F5 and U1 exist.
+
+---
+
+# SPM-116 follow-up: the non-domain coverage floor moves to the integration run
+
+**Timestamp:** 2026-10-07T18:50+08:00 (SGT)
+**Author:** Raphael, via Claude
+**Scope:** `backend/services/planning-core/vitest.config.ts`, `vitest.unit.config.ts`, its
+`package.json`, and CI's integration job.
+**Reason:** The unit run enforced a 93% branch floor across all of `src/`. Its own comment says
+that floor was set at "today's unit-only figures" until EN-06.1 gave CI a database. EN-06.1 merged
+on 6 Oct, but the floor stayed in the unit run, where repo and API code never executes and so
+counts as uncovered. Every new repo file therefore failed the build, however well its integration
+tests covered it. F1's first repo file took the figure to 92.04%.
+
+## Changed
+
+- **The unit run keeps the 100% floor on domain code**, exactly as before, and drops the global
+  floor.
+- **The integration run now enforces the global floor.** `npm run test:coverage -w
+  @connectsphere/planning-core`, which CI's integration job runs against its throwaway Postgres,
+  is the one run that executes repo and API code. Floors: lines and statements 94%, branches 89%,
+  functions 94%. That's just under CI's measurement of `main` (lines 94.59%, branches 89.68%,
+  functions 95.03%, all 493 tests passing).
+- In practice it's **stricter, not looser**: lines and functions go from 39% and 24% (unit-only)
+  to 94%, measured where the code actually runs.
+
+## Found on the way (not fixed here)
+
+- **The shared Supabase database is missing EN-02's migrations.** `equipment.equipment_types`
+  and the venue slot tables don't exist there, so 34 venue and equipment tests fail for anyone
+  running the suite locally. CI is unaffected, since it builds its database from the migrations.
+  Someone should run `npm run migrate:all` against the shared project, as a deliberate team step.
+- Because of that, a local run undercounts venue and equipment code (92.02% lines, 88.85%
+  branches), so the floors were set from CI's figures instead.
+
+## Verified
+
+- Unit run: exit 0, domain coverage 100%. `npm run lint` passes. `ci.yml` parses.
+- Full local run of `main` with coverage: lines and statements 92.02%, branches 88.85%, functions
+  90.06% (455 passed, with 34 failing only on the missing EN-02 tables).
+
+---
+
 # F1 / CR-06: the Safety Review status
 
 **Timestamp:** 2026-10-07T18:36+08:00 (SGT)
