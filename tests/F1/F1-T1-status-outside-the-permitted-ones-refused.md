@@ -22,8 +22,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | Query 1 failed: ERROR 23514, new row violates check constraint "events_status_check". Query 2 returned `SUBMITTED`. |
+| Status | Pass |
+| Remarks | Pre-condition deviation: the Submitted request was made with FX-SEEDED (status `'SUBMITTED'`) rather than FX-SUBMITTED, because the run was done without signing in to the app; the row is the same shape. Commit: 3d313c1 · Evidence: tests/F1/evidence/F1-T1-2026-10-07.txt · Defect: — |
+| Executed By | Raphael, via automated testing |
+| Date of Execution | 2026-10-07 |
