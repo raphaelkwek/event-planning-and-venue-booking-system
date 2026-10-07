@@ -267,6 +267,16 @@ describe("GET /api/v1/venues/:id/availability", () => {
     expect(free(released)).toEqual(["08:00–13:45", "16:45–22:00"]);
   });
 
+  it("is rate limited to 120 requests a minute (until the gateway's limits, ADR-0011)", async () => {
+    const venueId = await newVenue();
+    signedInAs("EVENT_COORDINATOR");
+
+    const res = await calendar(venueId, "2026-12-07", "2026-12-07");
+
+    expect(res.status).toBe(200);
+    expect(res.headers["ratelimit-policy"]).toMatch(/q=120; w=60/);
+  });
+
   it("is open to every internal role", async () => {
     const venueId = await newVenue();
     for (const role of ["EVENT_ORGANISER", "EVENT_COORDINATOR", "VENUE_STAFF", "TECH_SUPPORT_STAFF"]) {
