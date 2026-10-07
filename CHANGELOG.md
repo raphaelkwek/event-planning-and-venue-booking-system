@@ -4,6 +4,30 @@
 
 ---
 
+# Outbox cards: query the CloudEvent envelope's `type` and `data`
+
+**Timestamp:** 2026-10-07T19:09+08:00 (SGT)
+**Author:** Raphael, via Claude
+**Scope:** `tests/` cards B1-T5, D2-T7, D3-T8, D4-T5, D4-T6, D5-T7, E1-T2 (Test Data only).
+**Reason:** Since EN-04 the outbox stores each message as a CloudEvent: the message type is in
+`envelope->>'type'` and the payload in `envelope->'data'`. These seven cards (written 2026-09-20)
+still queried `envelope->>'messageType'` and `envelope->'payload'`. They return nothing from
+those keys, so running any of them would fail even with the code correct. None had been run
+since, which is why it went unnoticed.
+
+## Changed
+
+- In each card's query: `envelope->>'messageType'` → `envelope->>'type'`, and
+  `envelope->'payload'` → `envelope->'data'`. Expected results are unchanged, since the type
+  strings (`event.submitted` and so on) and the payload field names are the same.
+
+## Verified
+
+- The corrected query, run read-only against the shared database, returns real rows' type and
+  reference (e.g. `event.coordinator-assigned`, `EVT-005237`).
+
+---
+
 # PX-07: The customer clarification log exists
 
 **Timestamp:** 2026-10-06T22:15+08:00 (SGT)
