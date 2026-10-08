@@ -50,9 +50,6 @@ tags:
   - name: Venues
     description: H1 maintain venue records, H2 view them (venue module)
 
-security:
-  - bearerAuth: []
-
   - name: Equipment
     description: P2 maintain equipment types, individually tracked units and out-of-service periods (equipment module)
 
@@ -1419,3 +1416,16 @@ components:
           type: integer
           minimum: 0
           description: Stored bulk quantity or count of serialized unit records.
+
+    InventoryHistoryEntry:
+      type: object
+      required: [id, action, previousQuantity, newQuantity, changes, actorUserId, actorRole, occurredAt]
+      properties:
+        id: { type: string, format: uuid }
+        action: { type: string, enum: [TYPE_CREATED, TYPE_UPDATED, UNAVAILABILITY_RECORDED] }
+        previousQuantity: { type: integer, minimum: 0 }
+        newQuantity: { type: integer, minimum: 0 }
+        changes: { type: object, additionalProperties: true }
+        actorUserId: { type: string, format: uuid }
+        actorRole: { type: string, const: TECH_SUPPORT_STAFF }
+        occurredAt: { type: string, format: date-time }
