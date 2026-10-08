@@ -18,6 +18,8 @@ import { VenueDetail } from "./screens/VenueDetail.js";
 import { EquipmentAvailability } from "./screens/EquipmentAvailability.js";
 import { VenueAvailability } from "./screens/VenueAvailability.js";
 import type { Role } from "./api/types.js";
+import { EquipmentList } from "./screens/EquipmentList.js";
+import { EquipmentEditor } from "./screens/EquipmentEditor.js";
 
 const ROLE_LABELS: Record<Role, string> = {
   EVENT_ORGANISER: "Event Organiser",
@@ -95,6 +97,14 @@ const ROUTES: {
   { path: "/venues/new", element: <VenueEditor />, roles: ["VENUE_STAFF"] },
   { path: "/venues/:id/edit", element: <VenueEditor />, roles: ["VENUE_STAFF"] },
   {
+    path: "/equipment",
+    element: <EquipmentList />,
+    roles: ["TECH_SUPPORT_STAFF"],
+    nav: { label: "Equipment", to: "/equipment" },
+  },
+  { path: "/equipment/new", element: <EquipmentEditor />, roles: ["TECH_SUPPORT_STAFF"] },
+  { path: "/equipment/:id/edit", element: <EquipmentEditor />, roles: ["TECH_SUPPORT_STAFF"] },
+  {
     path: "/equipment/availability",
     element: <EquipmentAvailability />,
     roles: ["TECH_SUPPORT_STAFF"],
@@ -118,7 +128,7 @@ const ROUTES: {
 function landingFor(role: Role): string {
   if (role === "EVENT_ORGANISER") return "/requests";
   if (role === "EVENT_COORDINATOR") return "/queue";
-  if (role === "TECH_SUPPORT_STAFF") return "/equipment/availability";
+  if (role === "TECH_SUPPORT_STAFF") return "/equipment";
   return "/console";
 }
 

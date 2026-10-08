@@ -43,13 +43,16 @@ describe("resolveCurrentUser", () => {
     vi.mocked(lookUpCaller).mockResolvedValue({ outcome: "NO_ROLE" });
 
     const error = await resolveCurrentUser("subject").catch((e: unknown) => e);
-    expect(error).toMatchObject({ status: 403, code: "NO_ROLE_ASSIGNED", message: "This user has no assigned role." });
+    expect(error).toBeInstanceOf(IdentityRefusedError);
+    expect(error).toMatchObject({ name: "IdentityRefusedError", status: 403, code: "NO_ROLE_ASSIGNED", message: "This user has no assigned role." });
   });
 
   it("reports identity as unavailable when its records cannot be read (CP: refuse, never guess)", async () => {
     vi.mocked(lookUpCaller).mockRejectedValue(new Error("connect ETIMEDOUT"));
 
-    await expect(resolveCurrentUser("subject")).rejects.toBeInstanceOf(IdentityUnavailableError);
+    const error = await resolveCurrentUser("subject").catch((cause: unknown) => cause);
+    expect(error).toBeInstanceOf(IdentityUnavailableError);
+    expect(error).toMatchObject({ name: "IdentityUnavailableError", message: "Identity records could not be read: connect ETIMEDOUT" });
   });
 
   it("lets a malformed identity record surface as a defect rather than an outage", async () => {

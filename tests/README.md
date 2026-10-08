@@ -44,9 +44,10 @@ Every case's first pre-condition is "Standard environment running and test data 
 4. **`npm run test-cases:reset`** — immediately before the case, every time.
 5. Open **http://localhost:5173**. Use `localhost`, not `127.0.0.1`, which the dev server refuses.
 
-The reset removes only requests owned by the two seeded organiser accounts, and everything attached
-to them, venues created by the seeded Venue Staff account (H1), and the seeded accounts' notifications
-(T2). The database is shared by the whole team, so don't reset while a teammate is mid-demo.
+The reset removes only requests owned by the two seeded organiser accounts and everything attached
+to them, venues created by the seeded Venue Staff account (H1), equipment created by the seeded
+Technical Support account (P2), and the seeded accounts' notifications (T2). The database is shared
+by the whole team, so don't reset while a teammate is mid-demo.
 
 **Notifications (T2) need Kafka.** `npm run dev` starts the notification service, and a notification
 appears about a second after the action that raises it (EN-04.2, EN-04.3). Your `.env` needs the

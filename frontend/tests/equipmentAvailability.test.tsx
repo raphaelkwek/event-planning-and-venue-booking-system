@@ -47,11 +47,11 @@ beforeEach(() => {
 afterEach(() => { cleanup(); sessionStorage.clear(); vi.unstubAllGlobals(); });
 
 describe("P1 equipment availability through the real fetch client", () => {
-  it("lands Technical Support at availability and shows exact numeric availability and shortfall", async () => {
+  it("takes Technical Support from its landing page to availability and shows exact numeric availability and shortfall", async () => {
     session("TECH_SUPPORT_STAFF", "#/");
     render(<App />);
+    fireEvent.click(await screen.findByRole("link", { name: "Equipment availability" }));
     await fill();
-    expect(screen.getByRole("link", { name: "Equipment availability" })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Check availability" }));
     expect(await screen.findByText("Available quantity: 6")).toBeTruthy();
     expect(screen.getByText("Shortfall quantity: 1")).toBeTruthy();
