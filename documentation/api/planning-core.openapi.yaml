@@ -50,9 +50,6 @@ tags:
   - name: Venues
     description: H1 maintain venue records, H2 view them (venue module)
 
-security:
-  - bearerAuth: []
-
   - name: Equipment
     description: P1 equipment availability checks (equipment module)
 

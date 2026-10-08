@@ -4,6 +4,18 @@
 
 ---
 
+# P1: Verify the rate-limit fix against the updated base
+
+**Timestamp:** 2026-10-08T10:09+08:00
+**Author:** Yichen, via Codex
+**Scope:** resolved OpenAPI merge and lockfile formatting.
+
+**Reason:** Keep the equipment API's full schema alongside main's venue availability API, without duplicate document keys. Retain main's equivalent lockfile unchanged.
+
+**Verification:** Clean npm install, full build, lint, typecheck and all 350 backend unit tests pass, including the three rate-limit regressions and domain coverage thresholds. No shared database was used. Pushed CI and actual merge-ref code-scanning results remain to be checked.
+
+---
+
 # P1: Rate-limit equipment routes before authentication
 
 **Timestamp:** 2026-10-08T10:06+08:00
