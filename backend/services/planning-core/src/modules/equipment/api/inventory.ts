@@ -1,4 +1,5 @@
 import { Router, type NextFunction, type Response } from "express";
+import { rateLimit } from "express-rate-limit";
 import type { Sql } from "postgres";
 import { authenticate, requireRole, type ActorRequest } from "../auth/actor.js";
 import {
@@ -77,8 +78,17 @@ function handleInventoryError(error: unknown, res: Response, next: NextFunction)
 /** P2 inventory HTTP surface. Every write role-check happens before any SQL. */
 export function inventoryRouter(sql: Sql) {
   const router = Router();
+  // One budget across this router's endpoints, before JWT/identity/SQL work.
+  // Express keeps trust proxy disabled; forwarded headers cannot choose the key.
+  const limiter = rateLimit({
+    windowMs: 60_000,
+    limit: 120,
+    standardHeaders: "draft-7",
+    legacyHeaders: false,
+    handler: (_req, res) => refuse(res, 429, "RATE_LIMIT_EXCEEDED", "Too many equipment requests. Try again after the Retry-After period."),
+  });
 
-  router.get("/api/v1/equipment/types", authenticate, requireRole(...READERS), async (_req: ActorRequest, res: Response, next: NextFunction) => {
+  router.get("/api/v1/equipment/types", limiter, authenticate, requireRole(...READERS), async (_req: ActorRequest, res: Response, next: NextFunction) => {
     try {
       const items = await listEquipmentTypes(sql);
       res.json({
@@ -101,7 +111,7 @@ export function inventoryRouter(sql: Sql) {
     }
   });
 
-  router.get("/api/v1/equipment/types/:id", authenticate, requireRole(...READERS), async (req: ActorRequest, res: Response, next: NextFunction) => {
+  router.get("/api/v1/equipment/types/:id", limiter, authenticate, requireRole(...READERS), async (req: ActorRequest, res: Response, next: NextFunction) => {
     try {
       const record = UUID.test(req.params.id!) ? await detail(sql, req.params.id!) : null;
       if (!record) return notFound(res);
@@ -111,7 +121,7 @@ export function inventoryRouter(sql: Sql) {
     }
   });
 
-  router.post("/api/v1/equipment/types", authenticate, requireRole("TECH_SUPPORT_STAFF"), async (req: ActorRequest, res: Response, next: NextFunction) => {
+  router.post("/api/v1/equipment/types", limiter, authenticate, requireRole("TECH_SUPPORT_STAFF"), async (req: ActorRequest, res: Response, next: NextFunction) => {
     const input = readEquipmentType(req, res);
     if (!input) return;
     try {
@@ -122,7 +132,7 @@ export function inventoryRouter(sql: Sql) {
     }
   });
 
-  router.put("/api/v1/equipment/types/:id", authenticate, requireRole("TECH_SUPPORT_STAFF"), async (req: ActorRequest, res: Response, next: NextFunction) => {
+  router.put("/api/v1/equipment/types/:id", limiter, authenticate, requireRole("TECH_SUPPORT_STAFF"), async (req: ActorRequest, res: Response, next: NextFunction) => {
     if (!UUID.test(req.params.id!)) return notFound(res);
     const input = readEquipmentType(req, res);
     if (!input) return;
@@ -147,7 +157,7 @@ export function inventoryRouter(sql: Sql) {
     }
   });
 
-  router.post("/api/v1/equipment/types/:id/unavailability", authenticate, requireRole("TECH_SUPPORT_STAFF"), async (req: ActorRequest, res: Response, next: NextFunction) => {
+  router.post("/api/v1/equipment/types/:id/unavailability", limiter, authenticate, requireRole("TECH_SUPPORT_STAFF"), async (req: ActorRequest, res: Response, next: NextFunction) => {
     if (!UUID.test(req.params.id!)) return notFound(res);
     const shape = unavailabilityBodySchema.safeParse(req.body);
     if (!shape.success) {

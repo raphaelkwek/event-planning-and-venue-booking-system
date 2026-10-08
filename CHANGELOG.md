@@ -4,6 +4,18 @@
 
 ---
 
+# P2: Rate-limit equipment routes before authentication
+
+**Timestamp:** 2026-10-08T10:06+08:00
+**Author:** Yichen, via Codex
+**Scope:** equipment router, express-rate-limit dependency, shared refusal code, OpenAPI and regression tests.
+
+**Reason:** Resolve CodeQL `js/missing-rate-limiting` findings. Each router shares a 120-request/minute/IP budget before JWT verification, identity resolution and SQL; excess requests receive 429 with Retry-After and the standard correlation envelope. Default Express proxy trust remains disabled. The in-memory budget is per process and resets on restart; deployments requiring one quota across replicas need a shared store.
+
+**Verification:** Three real-router HTTP regressions pass: every endpoint shares the limit despite changing bearer tokens, blocked traffic reaches no authentication/SQL, the budget recovers after a minute, and distinct client IPs remain independent. Lint and typecheck passed. Full CI and actual branch-alert reanalysis will verify the pushed fix; a green CodeQL workflow alone does not mean no findings.
+
+---
+
 # P2: Record verified checks and complete the boundary cards
 
 **Timestamp:** 2026-10-08T01:46+08:00 (SGT)
