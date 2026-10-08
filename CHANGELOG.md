@@ -4,6 +4,18 @@
 
 ---
 
+# P2: Verify identity refusal paths under the integration coverage floor
+
+**Timestamp:** 2026-10-08T10:13+08:00
+**Author:** Yichen, via Codex
+**Scope:** equipment actor and identity unit tests.
+
+**Reason:** All 653 integration tests passed after the security fix, but function coverage was 93.45%, below the current 94% floor. Exercise the identity boundary's previously uncovered error constructors and refusal paths rather than weakening the threshold.
+
+**Verification:** Fourteen additional focused checks pass for inactive/no-role callers, identity outages, malformed records, error propagation and current-role resolution. They use placeholder credentials and no database. Actual CodeQL merge-ref analysis already marked all five inventory alerts fixed, with zero open alerts. CI will verify coverage after this test-only follow-up.
+
+---
+
 # P2: Verify the rate-limit fix against the updated base
 
 **Timestamp:** 2026-10-08T10:09+08:00
