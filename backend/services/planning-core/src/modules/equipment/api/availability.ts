@@ -17,7 +17,7 @@ export function availabilityRouter(sql: Sql) {
     limit: 120,
     standardHeaders: "draft-7",
     legacyHeaders: false,
-    handler: (_req, res) => refuse(res, 429, "RATE_LIMIT_EXCEEDED", "Too many equipment requests. Try again after the Retry-After period."),
+    handler: (_req, res) => refuse(res, 429, "RATE_LIMITED", "Too many equipment requests. Try again after the Retry-After period."),
   });
   router.get("/api/v1/equipment/types", limiter, authenticate, requireRole("TECH_SUPPORT_STAFF"), async (_req: ActorRequest, res: Response, next: NextFunction) => {
     try { res.json({ items: await listAvailabilityTypes(sql), nextCursor: null }); }

@@ -1,6 +1,7 @@
+import { randomUUID } from "node:crypto";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { testDb } from "../../support/testDb.js";
-import { insertSubmittedEvent, type EventFields } from "../../../src/modules/event/repo/events.js";
+import { deleteSeededEvents, seedEvent } from "../../support/seedEvent.js";
 import { recordFieldChanges, recordStatusChange } from "../../../src/modules/event/repo/eventHistory.js";
 
 /**
@@ -10,34 +11,22 @@ import { recordFieldChanges, recordStatusChange } from "../../../src/modules/eve
 
 const sql = testDb();
 
-const OWNER = "a8888888-0000-0000-0000-000000000001";
-const COORDINATOR = "a8888888-0000-0000-0000-000000000002";
-
-const fields: EventFields = {
-  name: "History test",
-  purpose: "Purpose",
-  description: "Description",
-  proposedStartAt: "2026-10-02T14:00:00.000Z",
-  proposedEndAt: "2026-10-02T18:00:00.000Z",
-  expectedAttendance: 150,
-  venueRequirements: null,
-  accessibilityNeeds: null,
-  equipmentRequired: false,
-  equipmentRequirements: null,
-  registrationRequired: false,
-  registrationOpensAt: null,
-  registrationClosesAt: null,
-};
+const OWNER = randomUUID();
+const COORDINATOR = randomUUID();
 
 async function cleanUp() {
-  await sql`delete from event.event_history where event_id in (
-    select id from event.events where owner_id = ${OWNER}
-  )`;
-  await sql`delete from event.events where owner_id = ${OWNER}`;
+  await deleteSeededEvents(sql, [OWNER]);
 }
 
 async function givenAnEvent() {
-  return sql.begin((tx) => insertSubmittedEvent(tx, OWNER, fields));
+  return {
+    id: await seedEvent(sql, {
+      ownerId: OWNER,
+      status: "SUBMITTED",
+      endsAt: new Date("2026-10-02T18:00:00.000Z"),
+      name: "History test",
+    }),
+  };
 }
 
 beforeEach(cleanUp);

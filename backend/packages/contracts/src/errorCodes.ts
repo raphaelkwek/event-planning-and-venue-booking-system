@@ -5,7 +5,6 @@
  */
 export const ERROR_CODES = [
   "UNAUTHENTICATED",
-  "RATE_LIMIT_EXCEEDED",
   "NO_ROLE_ASSIGNED",
   "UNKNOWN_RESOURCE",
   "INVALID_CREDENTIALS",
@@ -29,6 +28,7 @@ export const ERROR_CODES = [
   "NOTIFICATION_NOT_FOUND",
   "INSUFFICIENT_EQUIPMENT",
   "EQUIPMENT_TYPE_NOT_FOUND",
+  "RATE_LIMITED",
 ] as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[number];

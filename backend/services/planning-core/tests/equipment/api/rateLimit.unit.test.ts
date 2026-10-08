@@ -49,7 +49,7 @@ describe("equipment route rate limiting before authentication", () => {
       const response = await request(app)[method](path).set("Authorization", "Bearer another-token");
       expect(response.status).toBe(429);
       expect(response.body).toEqual({ error: {
-        code: "RATE_LIMIT_EXCEEDED",
+        code: "RATE_LIMITED",
         message: "Too many equipment requests. Try again after the Retry-After period.",
         correlationId: "limiter-regression",
       } });

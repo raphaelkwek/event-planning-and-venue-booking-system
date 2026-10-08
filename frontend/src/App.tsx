@@ -16,6 +16,7 @@ import { Notifications } from "./screens/Notifications.js";
 import { useUnreadCount } from "./shared/useUnreadCount.js";
 import { VenueDetail } from "./screens/VenueDetail.js";
 import { EquipmentAvailability } from "./screens/EquipmentAvailability.js";
+import { VenueAvailability } from "./screens/VenueAvailability.js";
 import type { Role } from "./api/types.js";
 
 const ROLE_LABELS: Record<Role, string> = {
@@ -83,6 +84,12 @@ const ROUTES: {
   {
     path: "/venues/:id",
     element: <VenueDetail />,
+    roles: ["EVENT_ORGANISER", "EVENT_COORDINATOR", "VENUE_STAFF", "TECH_SUPPORT_STAFF"],
+  },
+  // I1: every internal role reads a venue's availability; attendees have no route to it.
+  {
+    path: "/venues/:id/availability",
+    element: <VenueAvailability />,
     roles: ["EVENT_ORGANISER", "EVENT_COORDINATOR", "VENUE_STAFF", "TECH_SUPPORT_STAFF"],
   },
   { path: "/venues/new", element: <VenueEditor />, roles: ["VENUE_STAFF"] },

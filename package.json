@@ -18,6 +18,7 @@
     "seed:auth": "tsx backend/services/planning-core/migrations/identity/seed/seed-auth-users.ts",
     "test-cases:reset": "tsx tests/fixtures/reset-test-data.ts",
     "test-cases:run": "playwright test --config tests/playwright.config.ts",
+    "jobs:complete-events": "tsx --env-file=.env backend/services/planning-core/src/modules/event/jobs/runCompleteEvents.ts",
     "confluence:digest": "tsx documentation/scripts/confluence-digest.ts",
     "submission:build": "tsx documentation/scripts/build-submission.ts",
     "test": "npm run test --workspaces --if-present && npm run test:scripts",
