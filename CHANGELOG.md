@@ -4,6 +4,84 @@
 
 ---
 
+# P2: Verify identity refusal paths under the integration coverage floor
+
+**Timestamp:** 2026-10-08T10:13+08:00
+**Author:** Yichen, via Codex
+**Scope:** equipment actor and identity unit tests.
+
+**Reason:** All 653 integration tests passed after the security fix, but function coverage was 93.45%, below the current 94% floor. Exercise the identity boundary's previously uncovered error constructors and refusal paths rather than weakening the threshold.
+
+**Verification:** Fourteen additional focused checks pass for inactive/no-role callers, identity outages, malformed records, error propagation and current-role resolution. They use placeholder credentials and no database. Actual CodeQL merge-ref analysis already marked all five inventory alerts fixed, with zero open alerts. CI will verify coverage after this test-only follow-up.
+
+---
+
+# P2: Verify the rate-limit fix against the updated base
+
+**Timestamp:** 2026-10-08T10:09+08:00
+**Author:** Yichen, via Codex
+**Scope:** resolved OpenAPI merge and lockfile formatting.
+
+**Reason:** Keep the equipment API's full schema alongside main's venue availability API, without duplicate document keys. Retain main's equivalent lockfile unchanged.
+
+**Verification:** Clean npm install, full build, lint, typecheck and all 335 backend unit tests pass, including the three rate-limit regressions and domain coverage thresholds. No shared database was used. Pushed CI and actual merge-ref code-scanning results remain to be checked.
+
+---
+
+# P2: Rate-limit equipment routes before authentication
+
+**Timestamp:** 2026-10-08T10:06+08:00
+**Author:** Yichen, via Codex
+**Scope:** equipment router, express-rate-limit dependency, OpenAPI and regression tests; current main merged.
+
+**Reason:** Resolve CodeQL `js/missing-rate-limiting` findings. Each router shares a 120-request/minute/IP budget before JWT verification, identity resolution and SQL; excess requests receive 429 with Retry-After and the standard correlation envelope. Reuse current main's RATE_LIMITED refusal code. Preserve the venue calendar API, frontend route, schema and traceability while merging current main; this also brings P2 onto the integration coverage floor. Default Express proxy trust remains disabled. The in-memory budget is per process and resets on restart; deployments requiring one quota across replicas need a shared store.
+
+**Verification:** Three real-router HTTP regressions pass: every endpoint shares the limit despite changing bearer tokens, blocked traffic reaches no authentication/SQL, the budget recovers after a minute, and distinct client IPs remain independent. Lint and typecheck passed. Full CI and actual branch-alert reanalysis will verify the pushed fix; a green CodeQL workflow alone does not mean no findings.
+
+---
+
+# P2: Record verified checks and complete the boundary cards
+
+**Timestamp:** 2026-10-08T01:46+08:00 (SGT)
+**Author:** Yichen, via Codex
+**Scope:** `tests/P2/`, test setup instructions, and Sprint 2 traceability.
+
+**Reason:** After running the independent P2 checks, compare them against all five acceptance criteria and record the evidence. Add P2-T13 for the stock-reduction boundary just above the reserved quantity, correct the role-refusal expectation to its documented error code, and include the equipment migration in the standard test setup.
+
+**Verification:** All CI jobs and CodeQL passed for `99f6073`, including 22 P2 API tests, 17 P2 domain tests, 13 P2 UI tests, and the configured coverage/mutation thresholds. Test result excerpts and a card-by-card scope comparison are recorded in `tests/P2/`. The thirteen full signed-in functional cards remain Not Executed.
+
+---
+
+# P2: Check the functional card inputs independently
+
+**Timestamp:** 2026-10-08T01:43+08:00 (SGT)
+**Author:** Yichen, via Codex
+**Scope:** P2 inventory API response mapping, API tests, and `frontend/tests/equipmentCards.test.tsx`.
+
+**Reason:** Self-check the acceptance criteria and functional card inputs before presenting the PR for review. Replace the list route's unused destructured variables, which failed CI lint, with explicit response fields. Add real-client UI checks and persisted-state checks for refused inventory/unavailability changes, reservation boundaries 9/10/11, audit timestamps, and forbidden roles.
+
+**Verification:** Dependencies restored. Local lint, typecheck, build, 56 frontend tests with coverage, and 270 planning-core unit tests with coverage pass. Expanded database tests await CI's throwaway Postgres. Signed-in functional card execution remains pending.
+
+---
+
+# P2: Equipment inventory can be maintained safely
+
+**Timestamp:** 2026-10-08T00:32+08:00 (SGT)
+**Author:** Raphael
+**Scope:**
+- `backend/services/planning-core`: equipment type inventory APIs, role checks, reservation-safe quantity reductions, unavailability records, audit history, and migration `0002_p2_inventory_history.sql`.
+- `frontend`: equipment inventory list and maintenance screens for technical support.
+- `documentation/api/planning-core.openapi.yaml`, `documentation/traceability/sprint-2.csv`, and `tests/P2/` functional test cards.
+
+**Reason:** P2 adds the equipment inventory and maintenance workflow required for equipment booking. Inventory changes must be permission-controlled, auditable, and cannot reduce stock below existing reservation demand.
+
+## Verification status
+
+- Focused frontend and backend domain tests passed before dependencies were removed by a failed `npm ci` attempt. Re-running them is currently blocked because registry access is unavailable and the required packages are not cached.
+- Manual functional verification remains pending; the P2 test cards are marked Not Executed.
+
+---
+
 # I1: A venue's availability calendar
 
 **Timestamp:** 2026-10-07T23:24+08:00 (SGT)

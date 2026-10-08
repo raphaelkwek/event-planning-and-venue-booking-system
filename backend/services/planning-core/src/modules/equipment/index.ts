@@ -1,4 +1,6 @@
 import { Router } from "express";
+import type { Sql } from "postgres";
+import { inventoryRouter } from "./api/inventory.js";
 
 /**
  * The equipment module's public interface (ADR-0004). Other modules import
@@ -10,6 +12,8 @@ import { Router } from "express";
  * in repo/, and outbox writers and consumers in events/. Add a `sql` parameter
  * to the router when the first route needs the database.
  */
-export function equipmentRouter(): Router {
-  return Router();
+export function equipmentRouter(sql: Sql): Router {
+  const router = Router();
+  router.use(inventoryRouter(sql));
+  return router;
 }

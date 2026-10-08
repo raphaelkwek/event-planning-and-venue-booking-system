@@ -37,16 +37,17 @@ tests/
 Every case's first pre-condition is "Standard environment running and test data reset". That means:
 
 1. `npm install` (once).
-2. `npm run migrate:identity`, `npm run migrate:event`, `npm run migrate -- venue`, `npm run migrate:notification`, `npm run seed:auth` (safe to repeat).
+2. `npm run migrate:identity`, `npm run migrate:event`, `npm run migrate -- venue`, `npm run migrate -- equipment`, `npm run migrate:notification`, `npm run seed:auth` (safe to repeat).
 3. `npm run dev` at the repo root, left running. It starts planning-core (the identity and event
    modules in one process, ADR-0004) and the web app in one terminal. To run them separately:
    `npm run dev -w @connectsphere/planning-core` and `npm run dev -w @connectsphere/web`.
 4. **`npm run test-cases:reset`** — immediately before the case, every time.
 5. Open **http://localhost:5173**. Use `localhost`, not `127.0.0.1`, which the dev server refuses.
 
-The reset removes only requests owned by the two seeded organiser accounts, and everything attached
-to them, venues created by the seeded Venue Staff account (H1), and the seeded accounts' notifications
-(T2). The database is shared by the whole team, so don't reset while a teammate is mid-demo.
+The reset removes only requests owned by the two seeded organiser accounts and everything attached
+to them, venues created by the seeded Venue Staff account (H1), equipment created by the seeded
+Technical Support account (P2), and the seeded accounts' notifications (T2). The database is shared
+by the whole team, so don't reset while a teammate is mid-demo.
 
 **Notifications (T2) need Kafka.** `npm run dev` starts the notification service, and a notification
 appears about a second after the action that raises it (EN-04.2, EN-04.3). Your `.env` needs the

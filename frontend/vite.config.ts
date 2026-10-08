@@ -44,6 +44,12 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/venue/, ""),
         },
+        // The equipment module (P1, P2, Q1, Q2), also in planning-core.
+        "/equipment": {
+          target: planningCore,
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/equipment/, ""),
+        },
         // The notification service (T2).
         "/notification": {
           target: notification,

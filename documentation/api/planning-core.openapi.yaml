@@ -50,6 +50,9 @@ tags:
   - name: Venues
     description: H1 maintain venue records, H2 view them (venue module)
 
+  - name: Equipment
+    description: P2 maintain equipment types, individually tracked units and out-of-service periods (equipment module)
+
 security:
   - bearerAuth: []
 
@@ -758,6 +761,143 @@ paths:
         "503": { $ref: "#/components/responses/IdentityUnavailable" }
 
 
+  /api/v1/equipment/types:
+    get:
+      tags: [Equipment]
+      summary: List equipment inventory (P2)
+      description: Event Coordinators and Technical Support Staff. Total quantity is stored for bulk stock and derived from unit records for serialized equipment.
+      operationId: listEquipmentTypes
+      responses:
+        "200":
+          description: Equipment types in name order.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/EquipmentTypeListItem" }
+                  nextCursor: { type: [string, "null"] }
+        "429": { $ref: "#/components/responses/RateLimitExceeded" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+    post:
+      tags: [Equipment]
+      summary: Create an equipment type (P2)
+      description: |
+        Technical Support Staff only. Bulk types carry a non-negative quantity;
+        serialized types carry unique unit labels. The creator, time, and initial
+        quantity are recorded in inventory history in the same transaction.
+      operationId: createEquipmentType
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EquipmentTypeInput" }
+      responses:
+        "201":
+          description: Created, including individually tracked units where applicable.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EquipmentType" }
+        "400": { $ref: "#/components/responses/ValidationFailed" }
+        "429": { $ref: "#/components/responses/RateLimitExceeded" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
+  /api/v1/equipment/types/{id}:
+    parameters:
+      - $ref: "#/components/parameters/RecordId"
+    get:
+      tags: [Equipment]
+      summary: Open an equipment type (P2)
+      operationId: getEquipmentType
+      responses:
+        "200":
+          description: Type details, units and active or removed unavailability records.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EquipmentType" }
+        "429": { $ref: "#/components/responses/RateLimitExceeded" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+    put:
+      tags: [Equipment]
+      summary: Update an equipment type and its held quantity (P2)
+      description: |
+        Technical Support Staff only. A reduction that would remove stock reserved
+        during an overlapping period is refused without changing inventory; the
+        refusal names each affected event reference and reserved quantity. Serialized
+        stock is changed by synchronising its unit labels.
+      operationId: updateEquipmentType
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EquipmentTypeInput" }
+      responses:
+        "200":
+          description: Updated; inventory history records actor, time and previous/new quantity.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EquipmentType" }
+        "400": { $ref: "#/components/responses/ValidationFailed" }
+        "429": { $ref: "#/components/responses/RateLimitExceeded" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: "`INSUFFICIENT_EQUIPMENT`: reducing held stock would invalidate reservations; the message names affected events and quantities."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "422":
+          description: "`VALIDATION_FAILED`: an existing type's tracking method cannot be changed."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
+  /api/v1/equipment/types/{id}/unavailability:
+    parameters:
+      - $ref: "#/components/parameters/RecordId"
+    post:
+      tags: [Equipment]
+      summary: Mark equipment unavailable for a period (P2)
+      description: |
+        Technical Support Staff only. Selects one unit for serialized equipment or a
+        positive quantity for bulk stock. The reason is mandatory and the end must be
+        later than the start. The change and its previous/new available quantity are audited.
+      operationId: createEquipmentUnavailability
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EquipmentUnavailabilityInput" }
+      responses:
+        "201":
+          description: The equipment is out of service for that half-open period.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EquipmentUnavailability" }
+        "400": { $ref: "#/components/responses/ValidationFailed" }
+        "429": { $ref: "#/components/responses/RateLimitExceeded" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422":
+          description: "`VALIDATION_FAILED` for a unit outside the type, or `INSUFFICIENT_EQUIPMENT` when the unavailable bulk quantity exceeds stock held."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
 components:
   securitySchemes:
     bearerAuth:
@@ -774,6 +914,18 @@ components:
       schema: { type: string, format: uuid }
 
   responses:
+    RateLimitExceeded:
+      description: "`RATE_LIMITED`: 120 equipment requests per minute per client IP and process, shared across this router's endpoints. Enforced before authentication. Counters reset on process restart."
+      headers:
+        Retry-After:
+          description: Seconds until this client's request window resets.
+          schema: { type: integer, minimum: 1 }
+        RateLimit:
+          description: Combined limit, remaining and reset values (draft-7).
+          schema: { type: string }
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
     ValidationFailed:
       description: "`VALIDATION_FAILED`: `fields[]` names every field that failed."
       content:
@@ -790,7 +942,7 @@ components:
         application/json:
           schema: { $ref: "#/components/schemas/ErrorEnvelope" }
     NotFound:
-      description: "`EVENT_NOT_FOUND`, `DRAFT_NOT_FOUND`, `REASSIGNMENT_PROPOSAL_NOT_FOUND` or `VENUE_NOT_FOUND`. Also returned when the record exists but is outside the caller's scope (A3)."
+      description: "`EVENT_NOT_FOUND`, `DRAFT_NOT_FOUND`, `REASSIGNMENT_PROPOSAL_NOT_FOUND` or `VENUE_NOT_FOUND` or `EQUIPMENT_TYPE_NOT_FOUND`. Also returned when the record exists but is outside the caller's scope (A3)."
       content:
         application/json:
           schema: { $ref: "#/components/schemas/ErrorEnvelope" }
@@ -1171,3 +1323,109 @@ components:
       properties:
         startsAt: { type: string, format: date-time }
         endsAt: { type: string, format: date-time }
+
+    EquipmentTypeInput:
+      type: object
+      required: [name, description, characteristics, kind, totalQuantity, unitLabels]
+      properties:
+        name: { type: string, minLength: 1 }
+        description: { type: string }
+        characteristics:
+          type: object
+          description: Technical characteristic names and their values.
+          additionalProperties: { type: string }
+        kind: { type: string, enum: [BULK, SERIALIZED] }
+        totalQuantity:
+          type: [integer, "null"]
+          minimum: 0
+          description: Required for BULK and null for SERIALIZED.
+        unitLabels:
+          type: array
+          uniqueItems: true
+          description: Empty for BULK; the unique physical-unit labels for SERIALIZED.
+          items: { type: string, minLength: 1 }
+
+    EquipmentUnit:
+      type: object
+      required: [id, label]
+      properties:
+        id: { type: string, format: uuid }
+        label: { type: string }
+
+    EquipmentUnavailabilityInput:
+      type: object
+      required: [unitId, quantity, startsAt, endsAt, reason]
+      properties:
+        unitId:
+          type: [string, "null"]
+          format: uuid
+          description: Required for SERIALIZED and null for BULK.
+        quantity:
+          type: [integer, "null"]
+          minimum: 1
+          description: Required for BULK and null for SERIALIZED.
+        startsAt: { type: string, format: date-time }
+        endsAt: { type: string, format: date-time, description: Must be later than startsAt. }
+        reason: { type: string, minLength: 1 }
+
+    EquipmentUnavailability:
+      allOf:
+        - $ref: "#/components/schemas/EquipmentUnavailabilityInput"
+        - type: object
+          required: [id, equipmentTypeId, status, createdAt, createdBy, updatedAt, updatedBy]
+          properties:
+            id: { type: string, format: uuid }
+            equipmentTypeId: { type: string, format: uuid }
+            status: { type: string, enum: [ACTIVE, REMOVED] }
+            createdAt: { type: string, format: date-time }
+            createdBy: { type: [string, "null"], format: uuid }
+            updatedAt: { type: string, format: date-time }
+            updatedBy: { type: [string, "null"], format: uuid }
+
+    EquipmentType:
+      allOf:
+        - $ref: "#/components/schemas/EquipmentTypeInput"
+        - type: object
+          required: [id, units, unavailability, history, createdAt, createdBy, updatedAt, updatedBy]
+          properties:
+            id: { type: string, format: uuid }
+            units:
+              type: array
+              items: { $ref: "#/components/schemas/EquipmentUnit" }
+            unavailability:
+              type: array
+              items: { $ref: "#/components/schemas/EquipmentUnavailability" }
+            history:
+              type: array
+              description: Newest-first immutable audit evidence for every inventory and unavailability change.
+              items: { $ref: "#/components/schemas/InventoryHistoryEntry" }
+            createdAt: { type: string, format: date-time }
+            createdBy: { type: [string, "null"], format: uuid }
+            updatedAt: { type: string, format: date-time }
+            updatedBy: { type: [string, "null"], format: uuid }
+
+    EquipmentTypeListItem:
+      type: object
+      required: [id, name, description, kind, totalQuantity]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        description: { type: string }
+        kind: { type: string, enum: [BULK, SERIALIZED] }
+        totalQuantity:
+          type: integer
+          minimum: 0
+          description: Stored bulk quantity or count of serialized unit records.
+
+    InventoryHistoryEntry:
+      type: object
+      required: [id, action, previousQuantity, newQuantity, changes, actorUserId, actorRole, occurredAt]
+      properties:
+        id: { type: string, format: uuid }
+        action: { type: string, enum: [TYPE_CREATED, TYPE_UPDATED, UNAVAILABILITY_RECORDED] }
+        previousQuantity: { type: integer, minimum: 0 }
+        newQuantity: { type: integer, minimum: 0 }
+        changes: { type: object, additionalProperties: true }
+        actorUserId: { type: string, format: uuid }
+        actorRole: { type: string, const: TECH_SUPPORT_STAFF }
+        occurredAt: { type: string, format: date-time }
