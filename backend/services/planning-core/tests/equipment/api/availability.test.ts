@@ -50,7 +50,8 @@ describe("P1 availability HTTP and persisted state", () => {
     expect((await check(id)).body).toMatchObject({ totalQuantity:3,availableQuantity:2,shortfallQuantity:5 });
     const listing = await request(app).get("/api/v1/equipment/types");
     expect(listing.status).toBe(200);
-    expect(listing.body.items).toContainEqual({id,name:"P1 isolated API type",description:"P1 fixture",kind:"SERIALIZED",totalQuantity:3});
+    // P2's inventory router serves the list; P1 relies on these fields of it.
+    expect(listing.body.items).toContainEqual(expect.objectContaining({id,name:"P1 isolated API type",description:"P1 fixture",kind:"SERIALIZED",totalQuantity:3}));
   });
   it("counts only active overlapping bulk unavailability", async () => {
     const id = await type();
@@ -63,7 +64,8 @@ describe("P1 availability HTTP and persisted state", () => {
   it.each(["EVENT_COORDINATOR","EVENT_ORGANISER","VENUE_STAFF","ATTENDEE"])("refuses %s before equipment SQL", async (role) => {
     vi.mocked(resolveCurrentUser).mockResolvedValue({ id:actor,email:"p1@test.invalid",role:role as never });
     expect((await check(randomUUID())).status).toBe(403);
-    expect((await request(app).get("/api/v1/equipment/types")).status).toBe(403);
+    // P2 lets Event Coordinators read the inventory list; everyone else is refused.
+    expect((await request(app).get("/api/v1/equipment/types")).status).toBe(role === "EVENT_COORDINATOR" ? 200 : 403);
   });
   it("returns the common identity outage refusal", async () => {
     vi.mocked(resolveCurrentUser).mockRejectedValue(new IdentityUnavailableError("isolated test outage"));
