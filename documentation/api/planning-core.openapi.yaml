@@ -737,6 +737,7 @@ paths:
                     type: array
                     items: { $ref: "#/components/schemas/EquipmentAvailabilityType" }
                   nextCursor: { type: "null" }
+        "429": { $ref: "#/components/responses/RateLimitExceeded" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "503": { $ref: "#/components/responses/IdentityUnavailable" }
@@ -779,6 +780,7 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/EquipmentAvailabilityResult" }
         "400": { $ref: "#/components/responses/ValidationFailed" }
+        "429": { $ref: "#/components/responses/RateLimitExceeded" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
@@ -800,6 +802,18 @@ components:
       schema: { type: string, format: uuid }
 
   responses:
+    RateLimitExceeded:
+      description: "`RATE_LIMIT_EXCEEDED`: 120 equipment requests per minute per client IP and process, shared across this router's endpoints. Enforced before authentication. Counters reset on process restart."
+      headers:
+        Retry-After:
+          description: Seconds until this client's request window resets.
+          schema: { type: integer, minimum: 1 }
+        RateLimit:
+          description: Combined limit, remaining and reset values (draft-7).
+          schema: { type: string }
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
     ValidationFailed:
       description: "`VALIDATION_FAILED`: `fields[]` names every field that failed."
       content:
@@ -837,6 +851,7 @@ components:
       description: The shared list in `backend/packages/contracts/src/errorCodes.ts`.
       enum:
         - UNAUTHENTICATED
+        - RATE_LIMIT_EXCEEDED
         - NO_ROLE_ASSIGNED
         - UNKNOWN_RESOURCE
         - INVALID_CREDENTIALS
