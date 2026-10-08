@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { EVENT_STATUSES, type EventStatus } from "@connectsphere/contracts";
+import { DECIDED_STATUSES, EVENT_STATUSES, type EventStatus } from "@connectsphere/contracts";
 import {
   COMPLETION_NOT_DUE_MESSAGE,
   evaluateTransition,
@@ -117,7 +117,9 @@ const EXPECTED: Record<EventAction, { from: EventStatus[]; to: EventStatus }> = 
   RESPOND_TO_CLARIFICATION: { from: ["AWAITING_CLARIFICATION"], to: "UNDER_REVIEW" },
   APPROVE: { from: ["UNDER_REVIEW", "AWAITING_CLARIFICATION"], to: "APPROVED" },
   REJECT: { from: ["UNDER_REVIEW", "AWAITING_CLARIFICATION"], to: "REJECTED" },
-  CONFIRM: { from: ["APPROVED", "PLANNING"], to: "CONFIRMED" },
+  CONFIRM_ARRANGEMENTS: { from: ["APPROVED", "PLANNING"], to: "SAFETY_REVIEW" },
+  APPROVE_SAFETY: { from: ["SAFETY_REVIEW"], to: "CONFIRMED" },
+  REQUEST_SAFETY_CHANGES: { from: ["SAFETY_REVIEW"], to: "PLANNING" },
   COMPLETE: { from: ["CONFIRMED"], to: "COMPLETED" },
 };
 
@@ -139,9 +141,35 @@ describe("every status against every action (F1)", () => {
   }
 });
 
-describe("CONFIRM and COMPLETE (F1)", () => {
-  it("reaches Confirmed from Approved or Planning (F1, performed by F5)", () => {
-    expect(transitionRule("CONFIRM")).toEqual({ from: ["APPROVED", "PLANNING"], to: "CONFIRMED" });
+describe("Safety Review, Confirmed and Completed (F1, CR-06)", () => {
+  const actions = Object.keys(EXPECTED) as EventAction[];
+
+  it("reaches Safety Review only when F5 confirms the arrangements", () => {
+    expect(actions.filter((action) => transitionRule(action).to === "SAFETY_REVIEW")).toEqual([
+      "CONFIRM_ARRANGEMENTS",
+    ]);
+  });
+
+  it("leaves Safety Review only through the Safety Officer's decisions", () => {
+    expect(actions.filter((action) => transitionRule(action).from.includes("SAFETY_REVIEW"))).toEqual([
+      "APPROVE_SAFETY",
+      "REQUEST_SAFETY_CHANGES",
+    ]);
+  });
+
+  it("reaches Confirmed only through the Safety Officer's approval", () => {
+    expect(actions.filter((action) => transitionRule(action).to === "CONFIRMED")).toEqual([
+      "APPROVE_SAFETY",
+    ]);
+  });
+
+  it("has no transition for rejecting the safety arrangement until CQ-08 is answered", () => {
+    expect(
+      actions.filter(
+        (action) =>
+          transitionRule(action).from.includes("SAFETY_REVIEW") && transitionRule(action).to === "REJECTED"
+      )
+    ).toEqual([]);
   });
 
   it("completes only a Confirmed event", () => {
@@ -168,5 +196,17 @@ describe("refusal messages (F1)", () => {
     expect(COMPLETION_NOT_DUE_MESSAGE).toBe(
       "This event is Confirmed and cannot move to Completed until its end date and time have passed."
     );
+  });
+});
+
+describe("decisions are final (D4, D5)", () => {
+  it("has no transition from a decided status back to one awaiting a decision", () => {
+    const awaiting = [...transitionRule("APPROVE").from];
+    const reopening = (Object.keys(EXPECTED) as EventAction[]).filter(
+      (action) =>
+        transitionRule(action).from.some((from) => DECIDED_STATUSES.includes(from)) &&
+        awaiting.includes(transitionRule(action).to)
+    );
+    expect(reopening).toEqual([]);
   });
 });

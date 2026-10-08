@@ -69,6 +69,16 @@ async function cleanUp() {
   await sql`delete from event.events where owner_id in ${sql(OWNERS)}`;
 }
 
+async function counts(eventId: string) {
+  const rows = await sql<{ history: number; clarifications: number; outbox: number }[]>`
+    select
+      (select count(*)::int from event.event_history where event_id = ${eventId}) as history,
+      (select count(*)::int from event.clarifications where event_id = ${eventId}) as clarifications,
+      (select count(*)::int from event.outbox where message_key = ${eventId}) as outbox
+  `;
+  return rows[0]!;
+}
+
 /** An event a coordinator has opened, so it is Under Review and can be queried. */
 async function givenEventUnderReview(owner = ORGANISER) {
   signedInAs(owner, "EVENT_ORGANISER");
@@ -321,5 +331,94 @@ describe("POST /api/v1/events/:id/clarifications/respond (D3)", () => {
 
     expect(view.status).toBe(404);
     expect(answer.status).toBe(404);
+  });
+});
+
+describe("a refused clarification request stores nothing (F1)", () => {
+  it("refuses asking an Approved event for clarification, storing no clarification, history or outbox row", async () => {
+    const event = await givenEventUnderReview();
+    await request(app).post(`/api/v1/events/${event.id}/approve`).set(bearer).send();
+    const before = await counts(event.id);
+
+    const res = await request(app)
+      .post(`/api/v1/events/${event.id}/clarifications`)
+      .set(bearer)
+      .send({ message: "Please confirm the attendance." });
+
+    expect(res.status).toBe(409);
+    expect(res.body.error).toMatchObject({
+      code: "STATUS_TRANSITION_NOT_PERMITTED",
+      message: "This event is Approved and cannot move to Awaiting Clarification.",
+    });
+    expect(await counts(event.id)).toEqual(before);
+  });
+});
+
+describe("clarification responses and their notifications (F1)", () => {
+  async function awaiting() {
+    const event = await givenEventUnderReview();
+    await request(app)
+      .post(`/api/v1/events/${event.id}/clarifications`)
+      .set(bearer)
+      .send({ message: "Please confirm the expected attendance." });
+    signedInAs(ORGANISER, "EVENT_ORGANISER");
+    return event;
+  }
+
+  it("refuses a response on an event that is not awaiting clarification, storing nothing", async () => {
+    const event = await givenEventUnderReview();
+    signedInAs(ORGANISER, "EVENT_ORGANISER");
+    const before = await counts(event.id);
+
+    const res = await request(app)
+      .post(`/api/v1/events/${event.id}/clarifications/respond`)
+      .set(bearer)
+      .send({ message: "Here is my answer." });
+
+    expect(res.status).toBe(409);
+    expect(res.body.error).toMatchObject({
+      code: "STATUS_TRANSITION_NOT_PERMITTED",
+      message: "This event is Under Review and cannot move to Under Review.",
+    });
+    expect(await counts(event.id)).toEqual(before);
+  });
+
+  it("rolls the status back when there is no open clarification", async () => {
+    const event = await awaiting();
+    await sql`update event.clarifications set status = 'RESPONDED' where event_id = ${event.id}`;
+    const before = await counts(event.id);
+
+    const res = await request(app)
+      .post(`/api/v1/events/${event.id}/clarifications/respond`)
+      .set(bearer)
+      .send({ message: "Too late." });
+
+    expect(res.status).toBe(409);
+    expect(res.body.error.code).toBe("NO_OPEN_CLARIFICATION");
+    const rows = await sql<{ status: string }[]>`select status from event.events where id = ${event.id}`;
+    expect(rows[0]!.status).toBe("AWAITING_CLARIFICATION");
+    const responded = await sql`
+      select 1 from event.event_history
+      where event_id = ${event.id} and triggering_action = 'RESPOND_TO_CLARIFICATION'
+    `;
+    expect(responded).toHaveLength(0);
+    expect(await counts(event.id)).toEqual(before);
+  });
+
+  it("names the amended event in the response notification", async () => {
+    const event = await awaiting();
+
+    const res = await request(app)
+      .post(`/api/v1/events/${event.id}/clarifications/respond`)
+      .set(bearer)
+      .send({ amendments: { name: "Renamed Symposium" } });
+
+    expect(res.status).toBe(200);
+    const outbox = await sql<{ name: string }[]>`
+      select envelope->'data'->>'eventName' as name from event.outbox
+      where message_key = ${event.id} and envelope->>'type' = 'event.clarification-responded'
+      order by created_at desc limit 1
+    `;
+    expect(outbox[0]!.name).toBe("Renamed Symposium");
   });
 });

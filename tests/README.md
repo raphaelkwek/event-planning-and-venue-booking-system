@@ -118,8 +118,9 @@ address bar (`#/requests/<id>`, `#/drafts/<id>` or `#/review/<id>`), and its **r
 | **FX-REJECTED** | FX-UNDER-REVIEW → "Reject" → reason `No suitable venue is available.` → "Reject request". |
 | **FX-REASSIGNMENT-PENDING** | FX-SUBMITTED → sign out → sign in as whichever of `coordinator@connectsphere.test` / `coordinator2@connectsphere.test` the "Assigned coordinator" field on the request names (E1's round-robin means either may be assigned) → open the request from the review queue → "Propose reassignment" → nominee's user id is the *other* seeded coordinator's id (see the Accounts table) → "Send proposal". Note which account is outgoing and which is the nominee — later steps refer to them by role, not by name. |
 | **FX-VENUE** | Sign in as `venuestaff@connectsphere.test` → "Venues" → "New venue" → enter the standard venue → "Save venue". Note the venue's **id**, the last part of the address bar (`#/venues/<id>/edit`). |
+| **FX-CALENDAR** | FX-VENUE, then run the FX-CALENDAR statement in `tests/I1/README.md` with the venue's id. It gives the venue a week of confirmed and held slots and unavailability blocks, 7 to 13 December 2026, and returns each event's **reference**. Used until L1, L3, M1 and I2 can create those rows. |
 | **FX-NOTIFICATION-ELSEWHERE** | Run the FX-NOTIFICATION-ELSEWHERE statement below in the SQL editor, with the event id the case gives. It gives `organiser2@connectsphere.test` a notification about an event they cannot see, which is how a case shows what happens once access to an event is lost. |
-| **FX-SEEDED** | Run the FX-SEEDED statement below in the Supabase SQL editor, with the status and end time the case gives. Note the returned **id** and **reference**. Used for statuses no user action can reach yet (Confirmed needs F5). |
+| **FX-SEEDED** | Run the FX-SEEDED statement below in the Supabase SQL editor, with the status and end time the case gives. Note the returned **id** and **reference**. Used for statuses no user action can reach yet (Safety Review needs F5; Confirmed needs U1). |
 
 ### FX-SEEDED statement
 

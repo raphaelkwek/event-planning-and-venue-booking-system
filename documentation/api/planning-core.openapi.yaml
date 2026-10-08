@@ -49,6 +49,10 @@ tags:
     description: E2 propose, accept and decline coordinator reassignment (event module)
   - name: Venues
     description: H1 maintain venue records, H2 view them (venue module)
+
+security:
+  - bearerAuth: []
+
   - name: Equipment
     description: P2 maintain equipment types, individually tracked units and out-of-service periods (equipment module)
 
@@ -718,6 +722,48 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
         "503": { $ref: "#/components/responses/IdentityUnavailable" }
 
+  /api/v1/venues/{id}/availability:
+    parameters:
+      - $ref: "#/components/parameters/RecordId"
+    get:
+      tags: [Venues]
+      summary: A venue's availability calendar (I1)
+      description: |
+        Every internal role; attendees are refused. Each day from `from` to `to`, both
+        included and at most 31 days, with its committed and free periods. Days run
+        midnight to midnight in `timeZone` (Asia/Singapore), and each period includes
+        its start but not its end.
+
+        Committed periods are confirmed bookings, held slots (shown as pending
+        requests), each one's setup and turnaround time, active unavailability
+        blocks, and the time outside operating hours. Free periods are the opening
+        hours left over. Released and expired slots and removed blocks commit
+        nothing. Read afresh on every request.
+      operationId: getVenueAvailability
+      parameters:
+        - { name: from, in: query, required: true, schema: { type: string, format: date }, example: "2026-12-07" }
+        - { name: to, in: query, required: true, schema: { type: string, format: date }, example: "2026-12-13" }
+      responses:
+        "200":
+          description: One entry per date in the range, in order.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/VenueAvailability" }
+        "400": { $ref: "#/components/responses/ValidationFailed" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "429":
+          description: |
+            `RATE_LIMITED`: more than 120 calendar requests in a minute from one address. A
+            stopgap until the gateway applies limits (ADR-0011, EN-12). `Retry-After` gives the
+            seconds to wait.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
+
   /api/v1/equipment/types:
     get:
       tags: [Equipment]
@@ -872,7 +918,7 @@ components:
 
   responses:
     RateLimitExceeded:
-      description: "`RATE_LIMIT_EXCEEDED`: 120 equipment requests per minute per client IP and process, shared across this router's endpoints. Enforced before authentication. Counters reset on process restart."
+      description: "`RATE_LIMITED`: 120 equipment requests per minute per client IP and process, shared across this router's endpoints. Enforced before authentication. Counters reset on process restart."
       headers:
         Retry-After:
           description: Seconds until this client's request window resets.
@@ -899,12 +945,12 @@ components:
         application/json:
           schema: { $ref: "#/components/schemas/ErrorEnvelope" }
     NotFound:
-      description: "`EVENT_NOT_FOUND`, `DRAFT_NOT_FOUND`, `REASSIGNMENT_PROPOSAL_NOT_FOUND`, `VENUE_NOT_FOUND` or `EQUIPMENT_TYPE_NOT_FOUND`. Also returned when the record exists but is outside the caller's scope (A3)."
+      description: "`EVENT_NOT_FOUND`, `DRAFT_NOT_FOUND`, `REASSIGNMENT_PROPOSAL_NOT_FOUND` or `VENUE_NOT_FOUND` or `EQUIPMENT_TYPE_NOT_FOUND`. Also returned when the record exists but is outside the caller's scope (A3)."
       content:
         application/json:
           schema: { $ref: "#/components/schemas/ErrorEnvelope" }
     Conflict:
-      description: "`STATUS_TRANSITION_NOT_PERMITTED`, `EVENT_ALREADY_DECIDED`, `NO_OPEN_CLARIFICATION`, `REASSIGNMENT_NOT_PERMITTED` or `REASSIGNMENT_ALREADY_PENDING`. The message names the current state."
+      description: "`STATUS_TRANSITION_NOT_PERMITTED`, `NO_OPEN_CLARIFICATION`, `REASSIGNMENT_NOT_PERMITTED` or `REASSIGNMENT_ALREADY_PENDING`. The message names the current state."
       content:
         application/json:
           schema: { $ref: "#/components/schemas/ErrorEnvelope" }
@@ -920,7 +966,6 @@ components:
       description: The shared list in `backend/packages/contracts/src/errorCodes.ts`.
       enum:
         - UNAUTHENTICATED
-        - RATE_LIMIT_EXCEEDED
         - NO_ROLE_ASSIGNED
         - UNKNOWN_RESOURCE
         - INVALID_CREDENTIALS
@@ -930,7 +975,7 @@ components:
         - EVENT_NOT_FOUND
         - DRAFT_NOT_FOUND
         - STATUS_TRANSITION_NOT_PERMITTED
-        - EVENT_ALREADY_DECIDED
+        - EVENT_ALREADY_DECIDED # no longer emitted since F1 (decisions refuse with STATUS_TRANSITION_NOT_PERMITTED)
         - DRAFT_ALREADY_SUBMITTED
         - NO_OPEN_CLARIFICATION
         - IDENTITY_UNAVAILABLE
@@ -940,8 +985,6 @@ components:
         - REASSIGNMENT_ALREADY_PENDING
         - REASSIGNMENT_PROPOSAL_NOT_FOUND
         - VENUE_NOT_FOUND
-        - EQUIPMENT_TYPE_NOT_FOUND
-        - INSUFFICIENT_EQUIPMENT
 
     ErrorEnvelope:
       type: object
@@ -970,8 +1013,8 @@ components:
 
     EventStatus:
       type: string
-      description: F1's exhaustive list.
-      enum: [DRAFT, SUBMITTED, UNDER_REVIEW, AWAITING_CLARIFICATION, APPROVED, PLANNING, CONFIRMED, COMPLETED, CANCELLED, REJECTED]
+      description: F1's exhaustive list (CR-06 adds SAFETY_REVIEW).
+      enum: [DRAFT, SUBMITTED, UNDER_REVIEW, AWAITING_CLARIFICATION, APPROVED, PLANNING, SAFETY_REVIEW, CONFIRMED, COMPLETED, CANCELLED, REJECTED]
 
     LoginRequest:
       type: object
@@ -1235,6 +1278,54 @@ components:
         building: { type: string }
         maxCapacity: { type: integer }
         isActive: { type: boolean }
+    VenueAvailability:
+      type: object
+      required: [venueId, timeZone, from, to, days]
+      properties:
+        venueId: { type: string, format: uuid }
+        timeZone: { type: string, example: Asia/Singapore }
+        from: { type: string, format: date }
+        to: { type: string, format: date }
+        days:
+          type: array
+          items: { $ref: "#/components/schemas/AvailabilityDay" }
+    AvailabilityDay:
+      type: object
+      required: [date, committed, free]
+      properties:
+        date: { type: string, format: date }
+        committed:
+          type: array
+          description: In time order. Periods may overlap, for example a block running past closing time.
+          items: { $ref: "#/components/schemas/CommittedPeriod" }
+        free:
+          type: array
+          items: { $ref: "#/components/schemas/FreePeriod" }
+    CommittedPeriod:
+      type: object
+      required: [kind, startsAt, endsAt]
+      properties:
+        kind: { type: string, enum: [OUTSIDE_HOURS, SETUP, BOOKING, TURNAROUND, UNAVAILABLE] }
+        startsAt: { type: string, format: date-time }
+        endsAt: { type: string, format: date-time }
+        bookingStatus:
+          type: string
+          enum: [CONFIRMED, PENDING]
+          description: On BOOKING, SETUP and TURNAROUND. A held slot is a pending request.
+        eventReference:
+          type: [string, "null"]
+          description: On BOOKING, SETUP and TURNAROUND. Null if the event can no longer be found.
+        reasonType:
+          type: string
+          enum: [MAINTENANCE, EQUIPMENT_FAILURE, RENOVATION, SAFETY, OTHER]
+          description: On UNAVAILABLE.
+        description: { type: string, description: "On UNAVAILABLE, the recorded reason." }
+    FreePeriod:
+      type: object
+      required: [startsAt, endsAt]
+      properties:
+        startsAt: { type: string, format: date-time }
+        endsAt: { type: string, format: date-time }
 
     EquipmentTypeInput:
       type: object
@@ -1315,19 +1406,6 @@ components:
             createdBy: { type: [string, "null"], format: uuid }
             updatedAt: { type: string, format: date-time }
             updatedBy: { type: [string, "null"], format: uuid }
-
-    InventoryHistoryEntry:
-      type: object
-      required: [id, action, previousQuantity, newQuantity, changes, actorUserId, actorRole, occurredAt]
-      properties:
-        id: { type: string, format: uuid }
-        action: { type: string, enum: [TYPE_CREATED, TYPE_UPDATED, UNAVAILABILITY_RECORDED] }
-        previousQuantity: { type: integer, minimum: 0 }
-        newQuantity: { type: integer, minimum: 0 }
-        changes: { type: object, additionalProperties: true }
-        actorUserId: { type: string, format: uuid }
-        actorRole: { type: string, const: TECH_SUPPORT_STAFF }
-        occurredAt: { type: string, format: date-time }
 
     EquipmentTypeListItem:
       type: object

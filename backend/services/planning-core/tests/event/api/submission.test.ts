@@ -94,6 +94,17 @@ describe("POST /api/v1/events (B1)", () => {
     expect(res.body.submittedAt).toBeTruthy();
   });
 
+  it("gives each submission its own reference", async () => {
+    const first = await request(app).post("/api/v1/events").set(bearer).send(validRequest);
+    const second = await request(app).post("/api/v1/events").set(bearer).send(validRequest);
+
+    expect(first.status).toBe(201);
+    expect(second.status).toBe(201);
+    expect(first.body.reference).toMatch(/^EVT-\d{6}$/);
+    expect(second.body.reference).toMatch(/^EVT-\d{6}$/);
+    expect(second.body.reference).not.toBe(first.body.reference);
+  });
+
   it("records the submitting organiser as the owner of the event", async () => {
     const res = await request(app).post("/api/v1/events").set(bearer).send(validRequest);
 
@@ -113,7 +124,9 @@ describe("POST /api/v1/events (B1)", () => {
       new_status: "SUBMITTED",
       actor_user_id: ORGANISER,
       actor_role: "EVENT_ORGANISER",
+      triggering_action: "SUBMIT",
     });
+    expect(history).toHaveLength(1);
   });
 
   it("raises the notification that a new request awaits review, in the same transaction", async () => {
@@ -386,5 +399,35 @@ describe("POST /api/v1/event-drafts/:id/submit (C2)", () => {
 
     expect(again.status).toBe(409);
     expect(again.body.error.code).toBe("DRAFT_ALREADY_SUBMITTED");
+  });
+
+  it("records a draft's submission as SUBMIT", async () => {
+    const draft = await givenADraft(validRequest);
+    await request(app).post(`/api/v1/event-drafts/${draft.id}/submit`).set(bearer).send();
+
+    const history = await sql`
+      select previous_status, new_status, actor_user_id, actor_role, triggering_action
+      from event.event_history where event_id = ${draft.id} and entry_type = 'STATUS_CHANGE'
+    `;
+    expect(history).toHaveLength(1);
+    expect(history[0]).toMatchObject({
+      previous_status: "DRAFT",
+      new_status: "SUBMITTED",
+      actor_user_id: ORGANISER,
+      actor_role: "EVENT_ORGANISER",
+      triggering_action: "SUBMIT",
+    });
+  });
+
+  it("names the current status and Submitted when a request is submitted twice (F1)", async () => {
+    const draft = await givenADraft(validRequest);
+    await request(app).post(`/api/v1/event-drafts/${draft.id}/submit`).set(bearer).send();
+
+    const again = await request(app).post(`/api/v1/event-drafts/${draft.id}/submit`).set(bearer).send();
+
+    expect(again.body.error).toMatchObject({
+      code: "DRAFT_ALREADY_SUBMITTED",
+      message: "This event is Submitted and cannot move to Submitted.",
+    });
   });
 });
