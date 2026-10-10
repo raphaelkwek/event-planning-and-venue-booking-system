@@ -115,6 +115,42 @@ describe("parseCloudEvent: an example message for every event type", () => {
   });
 });
 
+describe("parseCloudEvent: equipment request messages (O2)", () => {
+  const lineStatusChanged = {
+    ...ref,
+    lineId: "33333333-3333-4333-8333-333333333333",
+    coordinatorId: coordinator,
+    equipmentTypeName: "Folding Chairs",
+    quantity: 40,
+    previousStatus: "SUBMITTED",
+    newStatus: "UNAVAILABLE",
+    reason: "All chairs are out that week",
+    substituteEquipmentTypeName: null,
+    substituteQuantity: null,
+    changedBy: "00000000-0000-0000-0000-000000000004",
+    changedAt: at,
+  };
+  const message = (data: Record<string, unknown>) => ({
+    ...exampleMessage("equipment-request.line-status-changed", data),
+    source: "/connectsphere/planning-core/equipment",
+    actor: "TECH_SUPPORT_STAFF:00000000-0000-0000-0000-000000000004",
+  });
+
+  it("accepts a line status change and returns its data", () => {
+    const parsed = parseCloudEvent(message(lineStatusChanged));
+    expect(parsed.type).toBe("equipment-request.line-status-changed");
+    expect(parsed.data).toEqual(lineStatusChanged);
+  });
+
+  it("refuses a status outside the line statuses", () => {
+    expect(() => parseCloudEvent(message({ ...lineStatusChanged, newStatus: "DONE" }))).toThrow(/newStatus/);
+  });
+
+  it("refuses a message that does not name the coordinator to notify", () => {
+    expect(() => parseCloudEvent(message(without(lineStatusChanged, "coordinatorId")))).toThrow(/coordinatorId/);
+  });
+});
+
 describe("cloudEventSchema: the CloudEvents 1.0 attributes", () => {
   it("accepts a message without a correlationid, as a scheduled job sends", () => {
     expect(() => cloudEventSchema.parse(without(submitted(), "correlationid"))).not.toThrow();
