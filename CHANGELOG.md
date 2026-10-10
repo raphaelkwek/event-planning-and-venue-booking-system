@@ -82,6 +82,90 @@
 
 ---
 
+# P1: Verify the rate-limit fix against the updated base
+
+**Timestamp:** 2026-10-08T10:09+08:00
+**Author:** Yichen, via Codex
+**Scope:** resolved OpenAPI merge and lockfile formatting.
+
+**Reason:** Keep the equipment API's full schema alongside main's venue availability API, without duplicate document keys. Retain main's equivalent lockfile unchanged.
+
+**Verification:** Clean npm install, full build, lint, typecheck and all 350 backend unit tests pass, including the three rate-limit regressions and domain coverage thresholds. No shared database was used. Pushed CI and actual merge-ref code-scanning results remain to be checked.
+
+---
+
+# P1: Rate-limit equipment routes before authentication
+
+**Timestamp:** 2026-10-08T10:06+08:00
+**Author:** Yichen, via Codex
+**Scope:** equipment router, express-rate-limit dependency, OpenAPI and regression tests; current main merged.
+
+**Reason:** Resolve CodeQL `js/missing-rate-limiting` findings. Each router shares a 120-request/minute/IP budget before JWT verification, identity resolution and SQL; excess requests receive 429 with Retry-After and the standard correlation envelope. Reuse current main's RATE_LIMITED refusal code. Preserve the venue calendar API, frontend route, schema and traceability while merging current main; this also brings P2 onto the integration coverage floor. Default Express proxy trust remains disabled. The in-memory budget is per process and resets on restart; deployments requiring one quota across replicas need a shared store.
+
+**Verification:** Three real-router HTTP regressions pass: every endpoint shares the limit despite changing bearer tokens, blocked traffic reaches no authentication/SQL, the budget recovers after a minute, and distinct client IPs remain independent. Lint and typecheck passed. Full CI and actual branch-alert reanalysis will verify the pushed fix; a green CodeQL workflow alone does not mean no findings.
+
+---
+
+# P1: Record independently verified API cards and CI evidence
+
+**Timestamp:** 2026-10-08T02:25+08:00 (SGT)
+**Author:** Yichen, via Codex
+**Scope:** P1 card execution records and captured CI evidence.
+
+**Reason:** Record observed results at `a00b6bf3e17ddcd4db343e9e15e5495f61ac6c57` against independently specified acceptance expectations. The fifteen API/database cards pass in disposable Postgres with declared authentication stubs. Actual signed-in browser card T14 and human story-owner review remain pending.
+
+**Verification:** All CI jobs and CodeQL passed. Planning-core integration: 585 tests, 94.77% lines/statements, 90.31% branches, 94.76% functions. Backend unit: 319 tests; frontend: 62 tests, including 19 P1 checks. Changed-domain mutation score: 95.51%. Evidence captures the complete planning-core command output (terminal formatting and trailing whitespace removed) and source CI link.
+
+---
+
+# P1: Verify authentication and database refusal paths on current main
+
+**Timestamp:** 2026-10-08T02:15+08:00 (SGT)
+**Author:** Yichen, via Codex
+**Scope:** equipment identity, actor and route unit tests; integration with current main.
+
+**Reason:** Main advanced during P1 development. Merge its F1/CR-06 changes and integration coverage floors, retaining both changelog histories. Cover P1's identity outcomes, role verification and unexpected database failures independently so these refusal paths are checked alongside the happy path. Implementation behavior is unchanged.
+
+**Verification:** All 319 backend unit tests and domain coverage passed on the updated base. Seventeen new unit checks exercise authentication and error propagation. CI's database run is verifying P1's functional card cases and the inherited integration coverage floors.
+
+---
+
+# P1: Add independent acceptance checks and functional cards
+
+**Timestamp:** 2026-10-08T02:09+08:00 (SGT)
+**Author:** Yichen, via Codex
+**Scope:** independent API acceptance suite, `tests/P1/` cards and scoped browser fixture, standard equipment migration setup, planning decision note, and Sprint 2 traceability.
+
+**Reason:** Verify P1 against its acceptance criteria with independently derived expectations, including peak versus summed use, combined maintenance, overlap boundaries, requested quantities, serialized identities, zero inventory and unchanged state. API cards explicitly declare stubbed authentication; P1-T14 specifies the real signed-in browser workflow separately.
+
+**Verification:** Fifteen independent API cases are prepared for CI's throwaway Postgres; strict test TypeScript checks passed. All sixteen cards currently remain Not Executed pending their actual verification records. Local tests used no shared database. Human story-owner review and full signed-in browser execution remain pending.
+
+---
+
+# P1: Show the equipment availability check to Technical Support
+
+**Timestamp:** 2026-10-08T02:09+08:00 (SGT)
+**Author:** Yichen, via Codex
+**Scope:** frontend equipment availability client, screen, routes, proxy and acceptance tests.
+
+**Reason:** Let Technical Support Staff choose equipment and an event period, then compare requested quantity with numeric availability and shortfall. Changing any input clears the old result; late responses cannot replace a result for the current form. The workflow sends only read requests and preserves field-level refusals.
+
+**Verification:** Tests were written first and observed failing before implementation. All 19 P1 frontend checks and all 62 frontend tests passed under Asia/Singapore time, with coverage thresholds satisfied (75.21% lines, 79.74% branches). Frontend typecheck and the full build passed.
+
+---
+
+# P1: Check equipment availability using peak concurrent use
+
+**Timestamp:** 2026-10-08T02:04+08:00 (SGT)
+**Author:** Yichen, via Codex
+**Scope:** equipment availability API, input validation and tests, shared error contract, API documentation, and CQ-02 decision records.
+
+**Reason:** The user selected peak concurrent use for CQ-02 and authorized P1 (SPM-48). Record that decision and its provenance, then expose a period check that reports numeric availability and requested shortfall without creating a reservation or changing inventory. Bulk checks combine reserved and unavailable quantities on one timeline; serialized units must be free for the whole period and are excluded only once when both reserved and unavailable.
+
+**Verification:** Backend typecheck and module boundaries passed. All 268 planning-core unit tests and coverage thresholds passed; new input validation has 100% coverage and a 96.77% focused mutation score. Database API acceptance verification awaits CI's throwaway Postgres. No shared database was used.
+
+---
+
 # I1: A venue's availability calendar
 
 **Timestamp:** 2026-10-07T23:24+08:00 (SGT)

@@ -51,7 +51,7 @@ tags:
     description: H1 maintain venue records, H2 view them (venue module)
 
   - name: Equipment
-    description: P2 maintain equipment types, individually tracked units and out-of-service periods (equipment module)
+    description: P1 equipment availability checks, P2 maintain equipment types, individually tracked units and out-of-service periods (equipment module)
 
 security:
   - bearerAuth: []
@@ -765,7 +765,7 @@ paths:
     get:
       tags: [Equipment]
       summary: List equipment inventory (P2)
-      description: Event Coordinators and Technical Support Staff. Total quantity is stored for bulk stock and derived from unit records for serialized equipment.
+      description: Event Coordinators and Technical Support Staff. Total quantity is stored for bulk stock and derived from unit records for serialized equipment. P1's availability check picks its equipment type from this list.
       operationId: listEquipmentTypes
       responses:
         "200":
@@ -896,6 +896,50 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
+  /api/v1/equipment/types/{id}/availability:
+    parameters:
+      - $ref: "#/components/parameters/RecordId"
+    get:
+      tags: [Equipment]
+      summary: Check numeric availability and shortfall over a period (P1)
+      description: |
+        Technical Support Staff only. Holds the equipment-type row lock within one
+        transaction and writes no inventory, reservations, history or outbox data.
+        Bulk availability is total minus peak concurrent combined reserved and
+        unavailable quantities inside the half-open period (CQ-02). Individually
+        tracked units must be free for the whole period; a unit both reserved and
+        unavailable is excluded once. Touching periods do not overlap. Availability
+        is clamped to zero. A shortage is a successful check, not a reservation refusal.
+      operationId: checkEquipmentAvailability
+      parameters:
+        - name: startsAt
+          in: query
+          required: true
+          description: RFC 3339 instant with an explicit timezone offset.
+          schema: { type: string, format: date-time }
+        - name: endsAt
+          in: query
+          required: true
+          description: RFC 3339 instant later than startsAt, with an explicit timezone offset.
+          schema: { type: string, format: date-time }
+        - name: requestedQuantity
+          in: query
+          required: true
+          description: Whole quantity to compare against availability, including zero.
+          schema: { type: integer, minimum: 0, maximum: 9007199254740991 }
+      responses:
+        "200":
+          description: Numeric availability, requested quantity and shortfall. No reservation is created.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EquipmentAvailabilityResult" }
+        "400": { $ref: "#/components/responses/ValidationFailed" }
+        "429": { $ref: "#/components/responses/RateLimitExceeded" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
         "503": { $ref: "#/components/responses/IdentityUnavailable" }
 
 components:
@@ -1429,3 +1473,16 @@ components:
         actorUserId: { type: string, format: uuid }
         actorRole: { type: string, const: TECH_SUPPORT_STAFF }
         occurredAt: { type: string, format: date-time }
+
+    EquipmentAvailabilityResult:
+      type: object
+      required: [equipmentTypeId, kind, totalQuantity, availableQuantity, requestedQuantity, shortfallQuantity, startsAt, endsAt]
+      properties:
+        equipmentTypeId: { type: string, format: uuid }
+        kind: { type: string, enum: [BULK, SERIALIZED] }
+        totalQuantity: { type: integer, minimum: 0 }
+        availableQuantity: { type: integer, minimum: 0 }
+        requestedQuantity: { type: integer, minimum: 0 }
+        shortfallQuantity: { type: integer, minimum: 0 }
+        startsAt: { type: string, format: date-time }
+        endsAt: { type: string, format: date-time }

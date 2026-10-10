@@ -1,5 +1,4 @@
-import { Router, type NextFunction, type Response } from "express";
-import { rateLimit } from "express-rate-limit";
+import { Router, type NextFunction, type RequestHandler, type Response } from "express";
 import type { Sql } from "postgres";
 import { authenticate, requireRole, type ActorRequest } from "../auth/actor.js";
 import {
@@ -20,6 +19,7 @@ import {
   updateEquipmentType,
 } from "../repo/inventory.js";
 import { fieldsFromZod, refuse } from "./errors.js";
+import { equipmentRateLimiter } from "./limiter.js";
 import { equipmentTypeBodySchema, unavailabilityBodySchema } from "./schemas.js";
 
 const READERS = ["EVENT_COORDINATOR", "TECH_SUPPORT_STAFF"] as const;
@@ -76,17 +76,8 @@ function handleInventoryError(error: unknown, res: Response, next: NextFunction)
 }
 
 /** P2 inventory HTTP surface. Every write role-check happens before any SQL. */
-export function inventoryRouter(sql: Sql) {
+export function inventoryRouter(sql: Sql, limiter: RequestHandler = equipmentRateLimiter()) {
   const router = Router();
-  // One budget across this router's endpoints, before JWT/identity/SQL work.
-  // Express keeps trust proxy disabled; forwarded headers cannot choose the key.
-  const limiter = rateLimit({
-    windowMs: 60_000,
-    limit: 120,
-    standardHeaders: "draft-7",
-    legacyHeaders: false,
-    handler: (_req, res) => refuse(res, 429, "RATE_LIMITED", "Too many equipment requests. Try again after the Retry-After period."),
-  });
 
   router.get("/api/v1/equipment/types", limiter, authenticate, requireRole(...READERS), async (_req: ActorRequest, res: Response, next: NextFunction) => {
     try {

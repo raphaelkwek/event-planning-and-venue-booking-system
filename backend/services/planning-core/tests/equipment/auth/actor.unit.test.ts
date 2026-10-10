@@ -9,16 +9,16 @@ const { authenticate, requireRole } = await import("../../../src/modules/equipme
 const { verifyJwt } = await import("../../../src/shared/auth/verifyJwt.js");
 const { refuse } = await import("../../../src/modules/equipment/api/errors.js");
 const res = {} as Response;
-const req = () => ({ auth: { supabaseUserId: "p2-subject" } } as ActorRequest);
+const req = () => ({ auth: { supabaseUserId: "p1-subject" } } as ActorRequest);
 afterEach(() => vi.clearAllMocks());
-describe("P2 actor verification", () => {
+describe("P1 actor verification", () => {
   it("runs JWT verification before resolving current identity", () => { expect(authenticate[0]).toBe(verifyJwt); });
   it("resolves the current role into the request actor", async () => {
-    vi.mocked(resolveCurrentUser).mockResolvedValue({id:"p2-user",email:"p2@test.invalid",role:"TECH_SUPPORT_STAFF"});
+    vi.mocked(resolveCurrentUser).mockResolvedValue({id:"p1-user",email:"p1@test.invalid",role:"TECH_SUPPORT_STAFF"});
     const current = req(); const next = vi.fn();
     await authenticate[1]!(current,res,next);
-    expect(resolveCurrentUser).toHaveBeenCalledWith("p2-subject");
-    expect(current.actor).toEqual({userId:"p2-user",role:"TECH_SUPPORT_STAFF"});
+    expect(resolveCurrentUser).toHaveBeenCalledWith("p1-subject");
+    expect(current.actor).toEqual({userId:"p1-user",role:"TECH_SUPPORT_STAFF"});
     expect(next).toHaveBeenCalledWith(); expect(refuse).not.toHaveBeenCalled();
   });
   it("refuses identity outages with503 and no next middleware", async () => {
@@ -38,11 +38,11 @@ describe("P2 actor verification", () => {
     expect(next).toHaveBeenCalledWith(defect); expect(refuse).not.toHaveBeenCalled();
   });
   it.each(["TECH_SUPPORT_STAFF","EVENT_COORDINATOR"] as const)("allows explicitly permitted %s", (role) => {
-    const next=vi.fn(); requireRole("TECH_SUPPORT_STAFF","EVENT_COORDINATOR")({...req(),actor:{userId:"p2-user",role}},res,next as NextFunction);
+    const next=vi.fn(); requireRole("TECH_SUPPORT_STAFF","EVENT_COORDINATOR")({...req(),actor:{userId:"p1-user",role}},res,next as NextFunction);
     expect(next).toHaveBeenCalledWith(); expect(refuse).not.toHaveBeenCalled();
   });
   it("refuses a role outside the permitted set", () => {
-    const next=vi.fn(); requireRole("TECH_SUPPORT_STAFF")({...req(),actor:{userId:"p2-user",role:"EVENT_COORDINATOR"}},res,next);
+    const next=vi.fn(); requireRole("TECH_SUPPORT_STAFF")({...req(),actor:{userId:"p1-user",role:"EVENT_COORDINATOR"}},res,next);
     expect(next).not.toHaveBeenCalled(); expect(refuse).toHaveBeenCalledWith(res,403,"ROLE_NOT_AUTHORISED",expect.any(String));
   });
 });

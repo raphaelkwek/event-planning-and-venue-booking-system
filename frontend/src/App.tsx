@@ -15,6 +15,7 @@ import { VenueEditor } from "./screens/VenueEditor.js";
 import { Notifications } from "./screens/Notifications.js";
 import { useUnreadCount } from "./shared/useUnreadCount.js";
 import { VenueDetail } from "./screens/VenueDetail.js";
+import { EquipmentAvailability } from "./screens/EquipmentAvailability.js";
 import { VenueAvailability } from "./screens/VenueAvailability.js";
 import type { Role } from "./api/types.js";
 import { EquipmentList } from "./screens/EquipmentList.js";
@@ -103,6 +104,12 @@ const ROUTES: {
   },
   { path: "/equipment/new", element: <EquipmentEditor />, roles: ["TECH_SUPPORT_STAFF"] },
   { path: "/equipment/:id/edit", element: <EquipmentEditor />, roles: ["TECH_SUPPORT_STAFF"] },
+  {
+    path: "/equipment/availability",
+    element: <EquipmentAvailability />,
+    roles: ["TECH_SUPPORT_STAFF"],
+    nav: { label: "Equipment availability", to: "/equipment/availability" },
+  },
   // T2: every role reads its own notifications.
   {
     path: "/notifications",

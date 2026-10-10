@@ -6,9 +6,10 @@ import type { ErrorCode } from "@connectsphere/contracts";
  * window: the most in use at any one moment. Back-to-back reservations don't
  * count as simultaneous.
  *
- * P1's text could also be read as adding up every overlapping reservation. The
- * customer's answer to CQ-02 (SPM-157) decides. Until then the rule lives here
- * and nowhere else, so changing it is a one-file change.
+ * CQ-02 (SPM-157) was answered on 2026-10-08: use peak concurrent use.
+ * The user confirmed this in the implementation session; the decision is
+ * recorded in documentation/clarifications.md. This shared rule keeps P1's
+ * displayed availability consistent with Q1's reservation limit.
  */
 
 export interface QuantityInPeriod {

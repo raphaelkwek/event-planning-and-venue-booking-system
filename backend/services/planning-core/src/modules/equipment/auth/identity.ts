@@ -21,7 +21,7 @@ export class IdentityRefusedError extends Error {
   }
 }
 
-/** Resolves P2's caller through the identity module's public boundary. */
+/** Resolves the equipment caller through the identity module's public boundary. */
 export async function resolveCurrentUser(supabaseUserId: string): Promise<CurrentUser> {
   let lookup;
   try {

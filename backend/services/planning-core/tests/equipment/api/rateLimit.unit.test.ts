@@ -10,13 +10,15 @@ const { authenticate, roleCheck } = vi.hoisted(() => ({
 }));
 vi.mock("../../../src/shared/logger.js", () => ({ logger: { info: vi.fn() } }));
 vi.mock("../../../src/modules/equipment/auth/actor.js", () => ({ authenticate, requireRole: () => roleCheck }));
-const { inventoryRouter } = await import("../../../src/modules/equipment/api/inventory.js");
+const { equipmentRouter } = await import("../../../src/modules/equipment/index.js");
+// Every equipment endpoint, P1's and P2's, through the module router that shares one limiter.
 const routes = [
   ["get", "/api/v1/equipment/types"],
   ["get", "/api/v1/equipment/types/00000000-0000-0000-0000-000000000001"],
   ["post", "/api/v1/equipment/types"],
   ["put", "/api/v1/equipment/types/00000000-0000-0000-0000-000000000001"],
   ["post", "/api/v1/equipment/types/00000000-0000-0000-0000-000000000001/unavailability"],
+  ["get", "/api/v1/equipment/types/00000000-0000-0000-0000-000000000001/availability"],
 ] as const;
 
 function build() {
@@ -28,7 +30,7 @@ function build() {
     Object.defineProperty(req, "ip", { value: req.header("x-test-ip") ?? "192.0.2.1" });
     next();
   });
-  app.use(inventoryRouter(sql as unknown as Sql));
+  app.use(equipmentRouter(sql as unknown as Sql));
   return { app, sql };
 }
 
