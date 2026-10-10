@@ -4,6 +4,7 @@ export * from "./envelope.js";
 export * from "./equipment.js";
 export * from "./errorCodes.js";
 export * from "./eventEvents.js";
+export * from "./eventFields.js";
 export * from "./eventRequirements.js";
 export * from "./eventStatus.js";
 export * from "./topics.js";

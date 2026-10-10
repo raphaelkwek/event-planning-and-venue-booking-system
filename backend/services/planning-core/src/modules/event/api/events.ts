@@ -15,6 +15,7 @@ import { submitEvent } from "./submitEvent.js";
 import { transitionEvent } from "./transitionEvent.js";
 import { submissionBodySchema, toEventFields } from "./schemas.js";
 import { fieldsFromZod, refuse } from "./errors.js";
+import { etag } from "../domain/eventDetails.js";
 
 /** B1 — submission; C3 — the organiser's combined list of requests. */
 
@@ -110,8 +111,9 @@ export function eventsRouter(sql: Sql) {
       return;
     }
 
+    // G1: the version an edit must send back in If-Match (ADR-0015).
     if (role !== "EVENT_COORDINATOR" || event.status !== "SUBMITTED") {
-      res.status(200).json(event);
+      res.set("ETag", etag(event.version)).status(200).json(event);
       return;
     }
 
@@ -122,7 +124,8 @@ export function eventsRouter(sql: Sql) {
     // If another coordinator claimed it between our read and the transition, the
     // transition is refused and changes nothing; re-read so this coordinator
     // sees the first reviewer (D1).
-    res.status(200).json(opened.ok ? opened.event : await findEventInScope(sql, event.id, scope, userId));
+    const shown = opened.ok ? opened.event : (await findEventInScope(sql, event.id, scope, userId))!;
+    res.set("ETag", etag(shown.version)).status(200).json(shown);
   });
 
   router.get("/api/v1/events", ...authenticate, async (req: ActorRequest, res) => {

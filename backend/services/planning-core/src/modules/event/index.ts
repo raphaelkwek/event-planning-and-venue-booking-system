@@ -6,6 +6,7 @@ import { eventsRouter } from "./api/events.js";
 import { clarificationsRouter } from "./api/clarifications.js";
 import { decisionsRouter } from "./api/decisions.js";
 import { reassignmentsRouter } from "./api/reassignments.js";
+import { eventDetailsRouter } from "./api/eventDetails.js";
 import { findEventInScope, findReferences } from "./repo/events.js";
 
 /** The module's outbox table, for the outbox relay (implementation.md §3.4). */
@@ -23,6 +24,7 @@ export function eventRouter(sql: Sql): Router {
   router.use(clarificationsRouter(sql));
   router.use(decisionsRouter(sql));
   router.use(reassignmentsRouter(sql));
+  router.use(eventDetailsRouter(sql));
   // Last, so that its `/api/v1/events/:id` cannot shadow a more specific path above.
   router.use(eventsRouter(sql));
   return router;
