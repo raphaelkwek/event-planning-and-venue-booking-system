@@ -17,6 +17,7 @@ import { useUnreadCount } from "./shared/useUnreadCount.js";
 import { VenueDetail } from "./screens/VenueDetail.js";
 import { EquipmentAvailability } from "./screens/EquipmentAvailability.js";
 import { VenueAvailability } from "./screens/VenueAvailability.js";
+import { VenueSearch } from "./screens/VenueSearch.js";
 import type { Role } from "./api/types.js";
 import { EquipmentList } from "./screens/EquipmentList.js";
 import { EquipmentEditor } from "./screens/EquipmentEditor.js";
@@ -82,6 +83,14 @@ const ROUTES: {
     element: <VenueList />,
     roles: ["EVENT_ORGANISER", "EVENT_COORDINATOR", "VENUE_STAFF", "TECH_SUPPORT_STAFF"],
     nav: { label: "Venues", to: "/venues" },
+  },
+  // J1, J2: Event Coordinators find a venue by name, building and an event's requirements.
+  // "/venues/search" is a different path from "/venues/:id"; the router ranks the static one first.
+  {
+    path: "/venues/search",
+    element: <VenueSearch />,
+    roles: ["EVENT_COORDINATOR"],
+    nav: { label: "Find a venue", to: "/venues/search" },
   },
   {
     path: "/venues/:id",
