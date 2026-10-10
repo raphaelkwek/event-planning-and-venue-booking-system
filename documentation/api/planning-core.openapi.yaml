@@ -761,6 +761,53 @@ paths:
         "503": { $ref: "#/components/responses/IdentityUnavailable" }
 
 
+  /api/v1/venues/{id}/suitability:
+    parameters:
+      - $ref: "#/components/parameters/RecordId"
+    get:
+      tags: [Venues]
+      summary: Whether a venue suits an event, and why not (K1)
+      description: |
+        Event Coordinators only (Cerbos: venue `check_suitability`). Advisory: it reads the
+        event and the venue catalogue and writes nothing, so it creates, changes and blocks no
+        booking.
+
+        The result is `SUITABLE`, `SUITABLE_WITH_WARNINGS` or `NOT_SUITABLE`. It is
+        `NOT_SUITABLE` when expected attendance exceeds the capacity of the event's layout, a
+        required facility or accessibility feature is absent, or the proposed period falls
+        outside the venue's operating hours (Asia/Singapore). `reasons` lists each failing
+        condition separately with the two values compared. A condition the records cannot answer
+        (no layout, attendance or period on the event, or a layout the venue does not offer) is
+        not a failure: it is listed in `warnings`, and a result with warnings and no failure is
+        `SUITABLE_WITH_WARNINGS`. A `SUITABLE` result has no reasons and no warnings.
+
+        The event's accessibility needs are free text, so each line, or each comma- or
+        semicolon-separated entry, is one required feature. Names are compared without regard to
+        case. Until L1 and L4 land (CR-03) the venue is assessed against the event's own
+        requirements.
+      operationId: getVenueSuitability
+      parameters:
+        - { name: eventId, in: query, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: The assessment.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/VenueSuitability" }
+        "400": { $ref: "#/components/responses/ValidationFailed" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "429":
+          description: |
+            `RATE_LIMITED`: more than 120 suitability checks in a minute from one address. A
+            stopgap until the gateway applies limits (ADR-0011, EN-12). `Retry-After` gives the
+            seconds to wait.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
   /api/v1/equipment/types:
     get:
       tags: [Equipment]
@@ -1319,6 +1366,48 @@ components:
         building: { type: string }
         maxCapacity: { type: integer }
         isActive: { type: boolean }
+    VenueSuitability:
+      type: object
+      required: [venueId, venueName, eventId, eventReference, status, reasons, warnings]
+      properties:
+        venueId: { type: string, format: uuid }
+        venueName: { type: string }
+        eventId: { type: string, format: uuid }
+        eventReference: { type: [string, "null"], example: EVT-000123 }
+        status: { type: string, enum: [SUITABLE, SUITABLE_WITH_WARNINGS, NOT_SUITABLE] }
+        reasons:
+          type: array
+          description: The failing conditions, one entry each, in the order layout capacity, facilities, accessibility, operating hours.
+          items: { $ref: "#/components/schemas/SuitabilityCondition" }
+        warnings:
+          type: array
+          description: Conditions that could not be assessed from the records.
+          items: { $ref: "#/components/schemas/SuitabilityCondition" }
+    SuitabilityCondition:
+      type: object
+      required: [condition, outcome, required, available, message]
+      properties:
+        condition: { type: string, enum: [LAYOUT_CAPACITY, FACILITIES, ACCESSIBILITY, OPERATING_HOURS] }
+        outcome: { type: string, enum: [MET, FAILED, NOT_ASSESSED] }
+        required:
+          description: What the event asks for. Attendance (a number), the required entries (a list) or the requested period (text); null when the event records none.
+          oneOf:
+            - { type: "null" }
+            - { type: integer }
+            - { type: string }
+            - { type: array, items: { type: string } }
+        available:
+          description: What the venue offers. The layout's capacity (a number), the venue's entries (a list) or the day's hours (text); null when there is nothing to compare with.
+          oneOf:
+            - { type: "null" }
+            - { type: integer }
+            - { type: string }
+            - { type: array, items: { type: string } }
+        missing:
+          type: array
+          description: Facilities and accessibility only. The required entries the venue lacks.
+          items: { type: string }
+        message: { type: string, example: Expected attendance 150 against layout capacity 120 (Theatre). }
     VenueAvailability:
       type: object
       required: [venueId, timeZone, from, to, days]
