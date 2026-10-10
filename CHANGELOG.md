@@ -4,6 +4,50 @@
 
 ---
 
+# K1: See whether a venue is suitable for an event, and why not
+
+**Timestamp:** 2026-10-10T23:46+08:00 (SGT)
+**Author:** Joash
+**Scope:**
+- planning-core, venue module: `domain/suitability.ts`, `api/suitability.ts` (new), mounted in `index.ts`; `resolveEventsScope` in `auth/identity.ts`.
+- Tests: `tests/venue/domain/suitability.test.ts`, `tests/venue/api/suitability.test.ts`, `suitability.unit.test.ts` and `suitabilityRateLimit.unit.test.ts` (new).
+- `planning-core.openapi.yaml`: `GET /api/v1/venues/{id}/suitability`, its `429`, and two schemas.
+- The web app: `VenueSuitability` (new), a "Check suitability" button on `VenueDetail` for Event Coordinators, the route in `App.tsx`, `getVenueSuitability` in `api/venues.ts`, the three results' colours in `shared/status.ts`, and `tests/venueSuitability.test.tsx`.
+- Test cards: `tests/K1/` (13 cases) with FX-SUITABILITY in `tests/K1/README.md`. Traceability: seven rows in `sprint-2.csv`.
+- No migration, no new Cerbos action (`check_suitability` on `venue` already names Event Coordinators), no new error codes.
+
+**Reason:** K1 (Sprint 2). A coordinator should find out that a venue can't host an event before asking for it, not after Venue Staff refuse the request. K2 (justify an unsuitable choice) and L1 (the booking request) build on it.
+
+## What it does
+
+1. **"Check suitability" on a venue's page opens a screen for Event Coordinators.** They choose an event and click once. Nothing else is entered: the server reads the event through the event module's `index.ts` and the venue from the catalogue.
+2. **The result is Suitable, Suitable with warnings, or Not suitable.**
+   - Not suitable when expected attendance is more than the capacity of the event's layout, a required facility or accessibility feature is absent from the venue, or the proposed period falls outside the day's operating hours (Singapore time).
+   - Every failing condition is its own line with the values compared, for example "Expected attendance 150 against layout capacity 120 (Theatre)."
+   - Suitable lists no reasons.
+3. **It is advisory.** The route only reads. It creates, changes and blocks no booking, and the screen has no booking action.
+4. **Only Event Coordinators can run it,** enforced on the server (`ROLE_NOT_AUTHORISED` for the other four roles), and rate-limited before authentication.
+
+## Design
+
+- **One pure rule per condition,** each returning the two values it compared: `checkLayoutCapacity`, `checkFacilities`, `checkAccessibility`, `checkOperatingHours`. `assessSuitability` combines them.
+- **The requirements are a parameter.** `assessSuitability(requirements, venue)` doesn't read an event. The route builds the requirements from the event (`requirementsFromEvent`) today; L1 will pass each booking request's own later.
+- **Boundaries:** attendance equal to the capacity passes and one over fails; a period starting exactly at opening and ending exactly at closing passes and a minute either side fails.
+
+## Judgement calls
+
+- **A warning is a condition the records can't answer.** The story names "Suitable with warnings" but lists only failing conditions. So the only warning is a condition that can't be assessed because the event or catalogue holds no value to compare: no layout on the event, no expected attendance, no proposed period, or a layout the venue doesn't offer. It is neither a pass nor a failure. No other warning rule was invented.
+- **Accessibility needs are free text on the event (B1),** so each line, or each comma- or semicolon-separated entry, is one required feature. Facilities, layouts and features match without regard to case or surrounding spaces, and otherwise exactly, so "Wheelchair access needed" doesn't match a feature called "Wheelchair access".
+- **A period that runs past midnight fails the operating-hours check,** because no venue closes after 23:59. Setup and turnaround time aren't part of the requested period.
+
+## Not done
+
+- **CR-03 for several venues (L4) is partly built.** L1 and L4 are Sprint 3, so each booking request's own layout, attendance, facilities and accessibility can't be passed yet. The assessment is against the event's requirements, and K1-T13 is written but can't run.
+
+**Verification:** 47 domain tests at 100% coverage, Stryker 95.5% on `suitability.ts`. Lint, typecheck, build and the unit run pass locally. The integration test and the cards' walk-through need CI and the sprint review.
+
+---
+
 # P2: Verify identity refusal paths under the integration coverage floor
 
 **Timestamp:** 2026-10-08T10:13+08:00
