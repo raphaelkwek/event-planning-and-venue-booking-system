@@ -124,6 +124,61 @@ describe("notificationsFor", () => {
     });
   });
 
+  describe("O2: tells the assigned coordinator how Technical Support updated an equipment line", () => {
+    const line = {
+      lineId: "33333333-3333-4333-8333-333333333333",
+      coordinatorId: coordinator,
+      equipmentTypeName: "Folding Chairs",
+      quantity: 40,
+      previousStatus: "SUBMITTED",
+      reason: null,
+      substituteEquipmentTypeName: null,
+      substituteQuantity: null,
+      changedBy: "00000000-0000-0000-0000-000000000004",
+      changedAt: at,
+    };
+
+    it("names the event, the line and the new status", () => {
+      const notes = notificationsFor(message("equipment-request.line-status-changed", { ...line, newStatus: "CONFIRMED" }));
+      expect(notes).toEqual([
+        {
+          ...common,
+          notificationType: "equipment-request.line-status-changed",
+          recipientUserId: coordinator,
+          message: "Technical Support updated equipment for EVT-2026-0042 “Freshmen Orientation”: Folding Chairs × 40 is now Confirmed.",
+        },
+      ]);
+    });
+
+    it("adds the reason when the line is Unavailable", () => {
+      const [note] = notificationsFor(
+        message("equipment-request.line-status-changed", { ...line, newStatus: "UNAVAILABLE", reason: "All chairs are out that week" }),
+      );
+      expect(note!.message).toBe(
+        "Technical Support updated equipment for EVT-2026-0042 “Freshmen Orientation”: Folding Chairs × 40 is now Unavailable. Reason: All chairs are out that week",
+      );
+    });
+
+    it("adds the substitute when the line is Substituted", () => {
+      const [note] = notificationsFor(
+        message("equipment-request.line-status-changed", {
+          ...line,
+          newStatus: "SUBSTITUTED",
+          substituteEquipmentTypeName: "Stacking Stools",
+          substituteQuantity: 30,
+        }),
+      );
+      expect(note!.message).toBe(
+        "Technical Support updated equipment for EVT-2026-0042 “Freshmen Orientation”: Folding Chairs × 40 is now Substituted. Substitute: Stacking Stools × 30.",
+      );
+    });
+
+    it("notifies only the coordinator the message names", () => {
+      const notes = notificationsFor(message("equipment-request.line-status-changed", { ...line, newStatus: "UNDER_REVIEW" }));
+      expect(notes.map((note) => note.recipientUserId)).toEqual([coordinator]);
+    });
+  });
+
   it("notifies nobody for a message type it has no rule for", () => {
     expect(notificationsFor(message("event.something-new", {}))).toEqual([]);
   });
