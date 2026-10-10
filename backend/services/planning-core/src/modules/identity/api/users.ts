@@ -1,4 +1,5 @@
-import { Router } from "express";
+import { Router, type RequestHandler } from "express";
+import { identityRateLimiter } from "./limiter.js";
 import type { Sql } from "postgres";
 import { z } from "zod";
 import { verifyJwt, type AuthenticatedRequest } from "../../../shared/auth/verifyJwt.js";
@@ -18,10 +19,10 @@ const idsSchema = z
   .array(z.string().uuid("every id must be a uuid"))
   .max(MAX_IDS, `at most ${MAX_IDS} ids may be looked up at once`);
 
-export function usersRouter(sql: Sql) {
+export function usersRouter(sql: Sql, limiter: RequestHandler = identityRateLimiter()) {
   const router = Router();
 
-  router.get("/api/v1/users", verifyJwt, async (req: AuthenticatedRequest, res) => {
+  router.get("/api/v1/users", limiter, verifyJwt, async (req: AuthenticatedRequest, res) => {
     const correlationId = req.header("x-correlation-id") ?? null;
 
     const caller = await findUserBySupabaseId(sql, req.auth!.supabaseUserId);

@@ -4,6 +4,41 @@
 
 ---
 
+# Rate limits on sign-in and the identity routes (CodeQL)
+
+**Timestamp:** 2026-10-10T23:40+08:00 (SGT)
+**Author:** Joash
+**Scope:**
+- planning-core identity module: `api/limiter.ts` (new); `api/auth.ts`, `accessScope.ts`, `users.ts`, `usersMe.ts`; `index.ts`.
+- `tests/identity/api/rateLimit.unit.test.ts` (new).
+- `documentation/api/planning-core.openapi.yaml`: the 429 on the five identity operations.
+- `documentation/scripts/confluence-digest.ts` and its test.
+
+**Reason:** CodeQL had nine open alerts on `main`.
+- Eight are `js/missing-rate-limiting`: every identity route, sign-in included, and H1's venue routes.
+- One is `js/incomplete-sanitization`, in the Confluence digest.
+
+An unthrottled sign-in lets one address hammer Supabase Auth and the login audit.
+
+## What it does
+
+1. **The identity module carries its own limiters,** as equipment and the venue calendar do, until the gateway takes over (EN-12, ADR-0011).
+   - Sign-in and sign-out: **30 a minute** per address. Supabase Auth has its own limit on password grants, so this mainly stops floods, and it leaves room for the functional test runner, which signs in once per case.
+   - `/users/me`, `/users` and `/access-scope`: **120 a minute**, sharing one budget.
+   - Each runs before the token check, the Supabase call and any query, and refuses with `RATE_LIMITED` in the §5 envelope. Each takes its limiter as a parameter, so tests can set a small one.
+2. **The OpenAPI spec documents the 429** on all five identity operations.
+3. **The digest escapes backslashes before pipes,** so a cell holding `\|` can't split the table.
+
+**Left for later:** H1's venue routes (`api/venues.ts`) still need a limiter. The J1/J2 work is changing the same router, so they'll be done after it merges.
+
+## Verified
+
+- New unit tests (4): refusal after the budget, with the envelope and `Retry-After`; 30 sign-ins allowed and the 31st refused; sign-out guarded; reads refused once spent.
+- planning-core unit tests: 371 pass, coverage thresholds held. Script tests: 14 pass.
+- Lint, boundaries, typecheck, build and `lint:api` pass. CI and CodeQL run on the pull request.
+
+---
+
 # P2: Verify identity refusal paths under the integration coverage floor
 
 **Timestamp:** 2026-10-08T10:13+08:00
