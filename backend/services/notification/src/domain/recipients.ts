@@ -1,3 +1,5 @@
+import { EQUIPMENT_LINE_STATUS_LABELS, type EquipmentRequestLineStatus } from "@connectsphere/contracts";
+
 /**
  * T2's recipient rules (EN-04.3): who is told what, from the facts the message
  * itself carries. Each trigger is an acceptance criterion on the story that
@@ -29,6 +31,16 @@ export interface NewNotification {
 
 type Rule = (data: Record<string, string>, event: string) => Array<[recipient: string, message: string]>;
 
+/** O2: names the equipment line and its new status, with the reason or the substitute where there is one. */
+function equipmentLineMessage(d: Record<string, unknown>, event: string): string {
+  const status = EQUIPMENT_LINE_STATUS_LABELS[d.newStatus as EquipmentRequestLineStatus];
+  const line = `${d.equipmentTypeName} × ${d.quantity}`;
+  let text = `Technical Support updated equipment for ${event}: ${line} is now ${status}.`;
+  if (d.reason) text += ` Reason: ${d.reason}`;
+  if (d.substituteEquipmentTypeName) text += ` Substitute: ${d.substituteEquipmentTypeName} × ${d.substituteQuantity}.`;
+  return text;
+}
+
 const RULES: Record<string, Rule> = {
   // B1 asks for the coordinator assigned on submission to hear that a request
   // awaits review. event.submitted does not name that coordinator; this
@@ -54,6 +66,8 @@ const RULES: Record<string, Rule> = {
   "event.reassignment-declined": (d, event) => [
     [d.outgoingCoordinatorId!, `Your proposal to reassign ${event} was declined. You remain its coordinator.`],
   ],
+  // O2: the event's assigned coordinator learns what Technical Support decided about a line.
+  "equipment-request.line-status-changed": (d, event) => [[d.coordinatorId!, equipmentLineMessage(d, event)]],
 };
 
 /** The notifications a message raises; none for a type no story asks to notify about. */
