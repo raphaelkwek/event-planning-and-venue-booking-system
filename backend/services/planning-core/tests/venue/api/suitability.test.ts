@@ -157,8 +157,7 @@ describe("GET /api/v1/venues/:id/suitability", () => {
 
   it("names the absent accessibility feature and what the venue offers, and nothing else (K1-T5)", async () => {
     const venueId = await newVenue();
-    const event = await newEvent({ accessibilityNeeds: "Hearing loop
-Braille signage" });
+    const event = await newEvent({ accessibilityNeeds: "Hearing loop\nBraille signage" });
     signedInAs("EVENT_COORDINATOR");
 
     const res = await suitability(venueId, event.id);
