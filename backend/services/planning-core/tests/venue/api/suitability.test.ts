@@ -193,9 +193,13 @@ describe("GET /api/v1/venues/:id/suitability", () => {
     const late = await newEvent({ start: at(12, "09:00"), end: at(12, "18:01") });
     signedInAs("EVENT_COORDINATOR");
 
-    expect((await suitability(venueId, edges.id)).body.status).toBe("SUITABLE");
-    expect((await suitability(venueId, early.id)).body.status).toBe("NOT_SUITABLE");
-    expect((await suitability(venueId, late.id)).body.status).toBe("NOT_SUITABLE");
+    expect((await suitability(venueId, edges.id)).body).toMatchObject({ status: "SUITABLE", reasons: [] });
+    for (const outside of [early, late]) {
+      const res = await suitability(venueId, outside.id);
+      expect(res.body.status).toBe("NOT_SUITABLE");
+      expect(res.body.reasons).toHaveLength(1);
+      expect(res.body.reasons[0]).toMatchObject({ condition: "OPERATING_HOURS", available: "Saturday 09:00–18:00" });
+    }
   });
 
   it("lists every failing condition separately (K1-T8)", async () => {
@@ -211,11 +215,11 @@ describe("GET /api/v1/venues/:id/suitability", () => {
 
     const res = await suitability(venueId, event.id);
 
-    expect(res.body.reasons.map((reason: { condition: string }) => reason.condition)).toEqual([
-      "LAYOUT_CAPACITY",
-      "FACILITIES",
-      "ACCESSIBILITY",
-      "OPERATING_HOURS",
+    expect(res.body.reasons).toMatchObject([
+      { condition: "LAYOUT_CAPACITY", required: 150, available: 120 },
+      { condition: "FACILITIES", missing: ["Simultaneous interpretation"] },
+      { condition: "ACCESSIBILITY", missing: ["Braille signage"] },
+      { condition: "OPERATING_HOURS", required: "2026-12-07 07:00–09:00", available: "Monday 08:00–22:00" },
     ]);
   });
 
@@ -226,13 +230,14 @@ describe("GET /api/v1/venues/:id/suitability", () => {
     const oddLayout = await newEvent({ venueRequirements: { layout: "Banquet", facilities: [] } });
     signedInAs("EVENT_COORDINATOR");
 
-    for (const [event, condition] of [
-      [noLayout, "LAYOUT_CAPACITY"],
-      [noPeriod, "OPERATING_HOURS"],
-      [oddLayout, "LAYOUT_CAPACITY"],
+    for (const [event, condition, why] of [
+      [noLayout, "LAYOUT_CAPACITY", "records no room layout"],
+      [noPeriod, "OPERATING_HOURS", "records no proposed period"],
+      [oddLayout, "LAYOUT_CAPACITY", "does not offer the Banquet layout"],
     ] as const) {
       const res = await suitability(venueId, event.id);
       expect(res.body).toMatchObject({ status: "SUITABLE_WITH_WARNINGS", reasons: [], warnings: [{ condition }] });
+      expect(res.body.warnings[0].message).toContain(why);
     }
 
     const warnAndFail = await newEvent({ venueRequirements: { facilities: ["Projector", "Simultaneous interpretation"] } });
