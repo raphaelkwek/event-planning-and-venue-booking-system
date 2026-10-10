@@ -150,8 +150,13 @@ export function sortEntries(entries: ChangelogEntry[], order: "asc" | "desc"): C
   return order === "desc" ? sorted.reverse() : sorted;
 }
 
+/**
+ * Backslashes are escaped first, so a cell that already contains `\|` can't
+ * end up as an escaped backslash followed by a bare pipe, which would split the
+ * table cell (CodeQL js/incomplete-sanitization).
+ */
 function escapeCell(value: string): string {
-  return value.replace(/\|/g, "\\|").replace(/\n/g, " ").trim();
+  return value.replace(/\\/g, "\\\\").replace(/\|/g, "\\|").replace(/\n/g, " ").trim();
 }
 
 export function formatTable(entries: ChangelogEntry[]): string {

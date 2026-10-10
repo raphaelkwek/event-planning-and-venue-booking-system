@@ -5,6 +5,7 @@ import { authRouter } from "./api/auth.js";
 import { accessScopeRouter } from "./api/accessScope.js";
 import { usersMeRouter } from "./api/usersMe.js";
 import { usersRouter } from "./api/users.js";
+import { identityRateLimiter, loginRateLimiter } from "./api/limiter.js";
 import { findRoleForUser, findUserBySupabaseId } from "./repo/users.js";
 
 /**
@@ -15,10 +16,12 @@ import { findRoleForUser, findUserBySupabaseId } from "./repo/users.js";
 
 export function identityRouter(sql: Sql): Router {
   const router = Router();
-  router.use(authRouter(sql));
-  router.use(accessScopeRouter(sql));
-  router.use(usersMeRouter(sql));
-  router.use(usersRouter(sql));
+  // One instance each, so the budgets span every identity route of their kind.
+  const reads = identityRateLimiter();
+  router.use(authRouter(sql, loginRateLimiter()));
+  router.use(accessScopeRouter(sql, reads));
+  router.use(usersMeRouter(sql, reads));
+  router.use(usersRouter(sql, reads));
   return router;
 }
 
