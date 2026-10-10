@@ -47,8 +47,8 @@ function parseInstant(value: string): number | null {
   if (date.toISOString().slice(0, 10) !== `${year}-${month}-${day}`) return null;
   if (Number(hour) > 23 || Number(minute) > 59 || Number(second) > 59) return null;
   if (zone !== "Z" && (Number(zone!.slice(1, 3)) > 23 || Number(zone!.slice(4, 6)) > 59)) return null;
-  const time = Date.parse(value);
-  return Number.isNaN(time) ? null : time;
+  // Every part has been checked, so this is a real instant.
+  return Date.parse(value);
 }
 
 function readText(value: unknown, field: string, label: string, fields: ErrorField[]): string | null {
