@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | UI walk-through in Chrome pending at the sprint review |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | For 150 attendees, Simultaneous interpretation, Braille signage and Monday 07:00–09:00 the route listed four reasons in order: LAYOUT_CAPACITY (150 against 120), FACILITIES (missing Simultaneous interpretation), ACCESSIBILITY (missing Braille signage) and OPERATING_HOURS (2026-12-07 07:00–09:00 against Monday 08:00–22:00). |
+| Status | Pass (automated, API level) |
+| Remarks | Commit: a5038c9 · Evidence: backend/services/planning-core/tests/venue/api/suitability.test.ts › lists every failing condition separately (K1-T8), CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/38065630198 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-10-10 |

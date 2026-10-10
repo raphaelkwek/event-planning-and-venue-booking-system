@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | UI walk-through in Chrome pending at the sprint review |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | No layout, no period and a layout the venue does not offer each gave SUITABLE_WITH_WARNINGS with no reasons and one warning whose message says why (records no room layout, records no proposed period, does not offer the Banquet layout). No layout plus a missing facility gave NOT_SUITABLE with the facility reason and the layout warning listed separately. |
+| Status | Pass (automated, API level) |
+| Remarks | Commit: a5038c9 · Evidence: backend/services/planning-core/tests/venue/api/suitability.test.ts › is Suitable with warnings when the event records no layout or period, not a failure (K1-T11), CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/38065630198 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-10-10 |

@@ -19,6 +19,6 @@
 |---|---|
 | Actual Result | |
 | Status | Not Executed |
-| Remarks | UI walk-through in Chrome pending at the sprint review |
+| Remarks | Blocked until L1 and L4 exist (Sprint 3) |
 | Executed By | |
 | Date of Execution | |

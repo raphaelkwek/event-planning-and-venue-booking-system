@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | UI walk-through in Chrome pending at the sprint review |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | For an event needing Projector and Simultaneous interpretation the route answered NOT_SUITABLE with exactly one reason, FACILITIES, missing Simultaneous interpretation, the venue offering Projector, Microphone and Livestream. |
+| Status | Pass (automated, API level) |
+| Remarks | Commit: a5038c9 · Evidence: backend/services/planning-core/tests/venue/api/suitability.test.ts › names the absent facility and what the venue offers, and nothing else (K1-T4), CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/38065630198 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-10-10 |

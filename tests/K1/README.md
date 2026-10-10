@@ -46,3 +46,11 @@ differs.
 L1 (booking request) and L4 (several venues per event) are Sprint 3, so K1-T13 cannot run yet.
 The check takes a "requirements" input so that L1 can pass each request's own requirements
 later; for now it is given the event's.
+
+## Execution (10 Oct 2026)
+
+K1-T1 to K1-T8 and K1-T11 are recorded Pass (automated, API level): the API integration test in
+`backend/services/planning-core/tests/venue/api/suitability.test.ts` runs each card's data and
+checks its expected result, and passed in CI. The screen steps of those cards, and K1-T9, K1-T10
+and K1-T12 (which look at the screen), wait for the Chrome walk-through at the sprint review.
+K1-T13 is blocked until L1 and L4.

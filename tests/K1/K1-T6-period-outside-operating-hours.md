@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | UI walk-through in Chrome pending at the sprint review |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | 07:30–10:00 and 20:00–22:30 on Monday 7 Dec each gave exactly one OPERATING_HOURS reason with the period and Monday 08:00–22:00. Sunday 13 Dec 10:00–12:00 gave one OPERATING_HOURS reason against Sunday closed. |
+| Status | Pass (automated, API level) |
+| Remarks | Commit: a5038c9 · Evidence: backend/services/planning-core/tests/venue/api/suitability.test.ts › fails a period starting before opening, one ending after closing, and one on a closed day (K1-T6), CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/38065630198 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-10-10 |

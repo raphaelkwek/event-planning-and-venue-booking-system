@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | UI walk-through in Chrome pending at the sprint review |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | For an event of 100 attendees, Theatre layout, needing Projector and Hearing loop, Monday 7 Dec 2026 10:00–12:00, the route answered 200 with status SUITABLE, no reasons and no warnings. |
+| Status | Pass (automated, API level) |
+| Remarks | Commit: a5038c9 · Evidence: backend/services/planning-core/tests/venue/api/suitability.test.ts › is Suitable, with no reasons, when the event meets every requirement (K1-T1), CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/38065630198 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-10-10 |

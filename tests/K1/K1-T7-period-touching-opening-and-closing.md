@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | UI walk-through in Chrome pending at the sprint review |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | Saturday 09:00–18:00 gave SUITABLE with no reasons. 08:59–18:00 and 09:00–18:01 each gave NOT_SUITABLE with exactly one OPERATING_HOURS reason against Saturday 09:00–18:00. |
+| Status | Pass (automated, API level) |
+| Remarks | Commit: a5038c9 · Evidence: backend/services/planning-core/tests/venue/api/suitability.test.ts › accepts a period that touches opening and closing time, and refuses one minute outside (K1-T7), CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/38065630198 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-10-10 |
