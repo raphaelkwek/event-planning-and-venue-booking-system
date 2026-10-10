@@ -676,6 +676,122 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "503": { $ref: "#/components/responses/IdentityUnavailable" }
 
+  /api/v1/venues/search:
+    get:
+      tags: [Venues]
+      summary: Search venues by name or building, and filter them against an event's requirements (J1, J2)
+      description: |
+        Event Coordinators only (policy action `search` on `venue`); every other role is refused.
+        Returns the active venues that satisfy **every** filter given, in name order. With no filter
+        it returns every active venue.
+
+        - `q` matches part of the venue's name or building, ignoring case (J2).
+        - `from` and `to` are the window, both or neither, as RFC 3339 instants with an offset. A
+          venue is excluded when it is closed at any time in the window under its operating hours
+          (Singapore time), or when a held or confirmed slot or an active unavailability block
+          overlaps the window. Overlap is decided in SQL with `&&` on half-open ranges, so periods
+          that touch do not overlap. CR-01: a slot is compared by its occupied period (its own
+          setup and turnaround time included) and the window is widened by the venue's setup and
+          turnaround time. The venue's own times belong to H3 and are 0 minutes until it lands.
+        - `minCapacity` is compared with the chosen layout's capacity when `layout` is given, and
+          with the venue's maximum capacity otherwise.
+        - `location` matches part of the building, ignoring case. `layout` must be one the venue
+          offers. Every `facilities` and `accessibility` value must be present at the venue,
+          ignoring case; repeat the parameter for several.
+
+        When nothing matches the response is still 200, with an empty list and a `message` that
+        restates the filters applied (J1). Inactive venues never appear.
+      operationId: searchVenues
+      parameters:
+        - { name: q, in: query, schema: { type: string, maxLength: 100 }, example: audit }
+        - { name: from, in: query, schema: { type: string, format: date-time }, example: "2026-12-14T12:00:00+08:00" }
+        - { name: to, in: query, schema: { type: string, format: date-time }, example: "2026-12-14T14:00:00+08:00" }
+        - { name: minCapacity, in: query, schema: { type: integer, minimum: 1, maximum: 1000000 }, example: 150 }
+        - { name: location, in: query, schema: { type: string, maxLength: 100 } }
+        - { name: layout, in: query, schema: { type: string, maxLength: 100 }, example: Theatre }
+        - { name: facilities, in: query, style: form, explode: true, schema: { type: array, items: { type: string, maxLength: 100 } } }
+        - { name: accessibility, in: query, style: form, explode: true, schema: { type: array, items: { type: string, maxLength: 100 } } }
+      responses:
+        "200":
+          description: The matching venues, possibly none.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/VenueSearchResult" }
+        "400": { $ref: "#/components/responses/ValidationFailed" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "429":
+          description: |
+            `RATE_LIMITED`: more than 120 venue searches in a minute from one address. A stopgap
+            until the gateway applies limits (ADR-0011, EN-12). `Retry-After` gives the seconds to wait.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
+  /api/v1/venues/search/options:
+    get:
+      tags: [Venues]
+      summary: The layouts, facilities and accessibility features the filters offer (J1)
+      description: |
+        Event Coordinators only. What the active venues record, one spelling each, in name order,
+        so the search screen can offer them as choices.
+      operationId: getVenueSearchOptions
+      responses:
+        "200":
+          description: The choices.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/VenueSearchOptions" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "429":
+          description: |
+            `RATE_LIMITED`: more than 120 venue searches in a minute from one address. A stopgap
+            until the gateway applies limits (ADR-0011, EN-12). `Retry-After` gives the seconds to wait.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
+  /api/v1/venues/search/prefill:
+    get:
+      tags: [Venues]
+      summary: The search filters an event's requirements give (J1)
+      description: |
+        Event Coordinators only. Opened from an event, the search starts from the event's
+        recorded requirements and the coordinator can change every one (J1). The event is read
+        through the event module under the caller's access scope (A3); an event outside it is
+        a 404.
+
+        The window is the event's proposed start and end when it has both, the minimum capacity is
+        its expected attendance, and the layout and facilities are its venue requirements, spelled
+        as the catalogue spells them where a name matches ignoring case. Accessibility needs are
+        free text on the event, so each comma, semicolon or line-separated need is matched to a
+        catalogue feature; a need that matches none is not turned into a filter and is returned in
+        `unmatchedAccessibility` instead.
+      operationId: getVenueSearchPrefill
+      parameters:
+        - { name: eventId, in: query, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: The filters to start from.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/VenueSearchPrefill" }
+        "400": { $ref: "#/components/responses/ValidationFailed" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "429":
+          description: |
+            `RATE_LIMITED`: more than 120 venue searches in a minute from one address. A stopgap
+            until the gateway applies limits (ADR-0011, EN-12). `Retry-After` gives the seconds to wait.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
   /api/v1/venues/{id}:
     parameters:
       - $ref: "#/components/parameters/RecordId"
@@ -1319,6 +1435,77 @@ components:
         building: { type: string }
         maxCapacity: { type: integer }
         isActive: { type: boolean }
+    VenueSearchItem:
+      type: object
+      required: [id, name, building, maxCapacity, layoutCapacity, facilities, accessibilityFeatures]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        building: { type: string }
+        maxCapacity: { type: integer }
+        layoutCapacity:
+          type: [integer, "null"]
+          description: The chosen layout's capacity when a `layout` filter was given; otherwise null.
+        facilities: { type: array, items: { type: string } }
+        accessibilityFeatures: { type: array, items: { type: string } }
+    VenueSearchFilters:
+      type: object
+      description: The filters as the server read them; a filter not given is null or an empty list.
+      required: [q, from, to, minCapacity, location, layout, facilities, accessibility]
+      properties:
+        q: { type: [string, "null"] }
+        from: { type: [string, "null"], format: date-time }
+        to: { type: [string, "null"], format: date-time }
+        minCapacity: { type: [integer, "null"] }
+        location: { type: [string, "null"] }
+        layout: { type: [string, "null"] }
+        facilities: { type: array, items: { type: string } }
+        accessibility: { type: array, items: { type: string } }
+    VenueSearchResult:
+      type: object
+      required: [items, nextCursor, filters, appliedFilters, message]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/VenueSearchItem" }
+        nextCursor:
+          type: [string, "null"]
+          description: Always null; the result is not paginated yet.
+        filters: { $ref: "#/components/schemas/VenueSearchFilters" }
+        appliedFilters:
+          type: array
+          items: { type: string }
+          description: Each filter that was applied, in words.
+        message:
+          type: [string, "null"]
+          description: When `items` is empty, a sentence restating the filters applied; otherwise null.
+    VenueSearchOptions:
+      type: object
+      required: [layouts, facilities, accessibilityFeatures]
+      properties:
+        layouts: { type: array, items: { type: string } }
+        facilities: { type: array, items: { type: string } }
+        accessibilityFeatures: { type: array, items: { type: string } }
+    VenueSearchPrefill:
+      type: object
+      required: [eventId, reference, filters, unmatchedAccessibility]
+      properties:
+        eventId: { type: string, format: uuid }
+        reference: { type: [string, "null"] }
+        filters:
+          type: object
+          required: [from, to, minCapacity, layout, facilities, accessibility]
+          properties:
+            from: { type: [string, "null"], format: date-time }
+            to: { type: [string, "null"], format: date-time }
+            minCapacity: { type: [integer, "null"] }
+            layout: { type: [string, "null"] }
+            facilities: { type: array, items: { type: string } }
+            accessibility: { type: array, items: { type: string } }
+        unmatchedAccessibility:
+          type: array
+          items: { type: string }
+          description: Accessibility needs on the event that match no catalogue feature.
     VenueAvailability:
       type: object
       required: [venueId, timeZone, from, to, days]
