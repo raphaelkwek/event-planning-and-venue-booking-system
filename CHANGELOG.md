@@ -4,6 +4,59 @@
 
 ---
 
+# G1: Edit an event's descriptive details during planning
+
+**Timestamp:** 2026-10-11T00:34+08:00 (SGT)
+**Author:** Seann, via Claude
+**Scope:**
+- `contracts`: `SIGNIFICANT_EVENT_FIELDS` (new, `eventFields.ts`), and four error codes: `EVENT_NOT_EDITABLE`, `CHANGE_REQUEST_REQUIRED`, `EVENT_VERSION_MISMATCH`, `EVENT_VERSION_REQUIRED`. **Needs a second owner's review.**
+- planning-core, event module:
+  - migration `event/0009_event_contact_details_and_version.sql`;
+  - `domain/eventDetails.ts`, `repo/eventDetails.ts` and `api/eventDetails.ts` (new);
+  - `ETag` on `GET /api/v1/events/:id`, and the two new fields on every event read.
+- Tests: `tests/event/domain/eventDetails.test.ts`, `tests/event/api/eventDetails.test.ts`, and contracts' `eventFields.test.ts`.
+- `planning-core.openapi.yaml`: `PATCH /api/v1/events/{id}`, `EventDetailsEdit`, the `EventVersion` header, and `contactDetails` and `version` on `Event`.
+- The web app:
+  - `EventDetailsEditor` (new) at `#/events/:id/details`;
+  - "Edit details", contact details and a "Details saved." notice on `RequestDetail` and `ReviewDetail`;
+  - `updateEventDetails`, and a `headers` option on the request helper;
+  - `tests/eventDetailsEditor.test.tsx`.
+- Test cards: `tests/G1/` (12 cases). Traceability. `.gitignore`: `Old Venues/`.
+
+**Reason:** G1 (Sprint 2). Organisers and coordinators keep an event's record accurate during planning without disturbing the arrangements already made.
+
+## What it does
+
+1. **The owning organiser or the assigned coordinator can edit** purpose, description, accessibility notes and contact details. "Edit details" appears on their page while the event is Approved, Planning, Safety Review or Confirmed.
+2. **Safety Review is editable for the time being** (decided 11 Oct 2026). CR-06 added it between Planning and Confirmed after G1 was written, so G1's criteria don't name it.
+3. **The significant fields can't be edited here.** The edit screen shows the date and times, expected attendance, and venue and equipment requirements as text, under a note that they change only through a change request. Sending one to the API refuses the whole edit with `422 CHANGE_REQUEST_REQUIRED`, naming each, and stores nothing. The list is kept once, in contracts, for G2, S1 and S2 to reuse.
+4. **Each change is recorded.** One `event_history` entry per changed field, with its before and after value, the editor, their role and the time. Unchanged fields record nothing, and a save with no changes stores nothing.
+5. **Everyone else is refused,** and nothing is stored: a coordinator who isn't assigned gets `403`, another organiser `404` (out of scope, A3), and an event in any other status `409 EVENT_NOT_EDITABLE`, naming its status.
+6. **A save is all or nothing.** The changes and their history are written in one transaction. An invalid field fails the whole save, naming the field.
+7. **Two people can't overwrite each other.** Every change to an event raises its `version` (a database trigger, so no write path can forget). `GET` sends it as `ETag`, and the edit must send it back in `If-Match`. If the event changed since, the edit is refused with `412 EVENT_VERSION_MISMATCH` (ADR-0015), and the screen offers "Reload". Without `If-Match` it's `428`.
+8. **Contact details are new.** They're free text on the event and empty until someone adds them, since the request form (B1) doesn't ask for them.
+9. **The edit route has the same stopgap rate limit** as I1's calendar, until the gateway applies limits (ADR-0011, EN-12).
+
+## Notes for the team
+
+10. **The shared database now has these migrations,** applied with the standard setup steps:
+    - F1's `event/0007` and `0008` (Safety Review) and G1's `event/0009`;
+    - EN-02.2 and P2's `equipment/0001` and `0002`. Without them `npm run test-cases:reset` failed, so every story's cards were blocked, and the equipment integration tests failed locally.
+11. **Old Venues.** EN-02.1's slot tests (`tests/venue/repo/slots.test.ts`) leave an active "EN-02.1 Test Room" venue behind on every run, and these cluttered venue search.
+    - On 10 and 11 Oct, 270 of them, with their 88 slots and 8 blocks, were exported to a gitignored `Old Venues/` folder and deleted from the shared database.
+    - They'll keep coming back until those tests delete their venues afterwards.
+
+## Verified
+
+- **The 12 G1 cards pass in Chrome** through the automated runner, against `c1aa0cb`.
+- **planning-core:**
+  - unit tests: 382/382, with the new rules at 100% line, branch and mutation coverage;
+  - integration tests: the new suite passes 13/13, and every event and venue suite passes against the shared database.
+- **contracts** 80/80 and **web** 95/95, including 10 tests for the edit screen.
+- **Lint, typecheck, build, `lint:api`, `lint:boundaries` and squawk pass.** The policy tests need Linux and run in CI.
+
+---
+
 # P2: Verify identity refusal paths under the integration coverage floor
 
 **Timestamp:** 2026-10-08T10:13+08:00
