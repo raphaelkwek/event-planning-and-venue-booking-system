@@ -142,30 +142,45 @@ describe("GET /api/v1/venues/:id/suitability", () => {
     expect((await suitability(venueId, over.id)).body).toMatchObject({ status: "NOT_SUITABLE", reasons: [{ required: 121, available: 120 }] });
   });
 
-  it("names an absent facility and an absent accessibility feature (K1-T4, K1-T5)", async () => {
+  it("names the absent facility and what the venue offers, and nothing else (K1-T4)", async () => {
     const venueId = await newVenue();
-    const event = await newEvent({
-      venueRequirements: { layout: "Theatre", facilities: ["Projector", "Simultaneous interpretation"] },
-      accessibilityNeeds: "Hearing loop\nBraille signage",
-    });
+    const event = await newEvent({ venueRequirements: { layout: "Theatre", facilities: ["Projector", "Simultaneous interpretation"] } });
     signedInAs("EVENT_COORDINATOR");
 
     const res = await suitability(venueId, event.id);
 
+    expect(res.body.status).toBe("NOT_SUITABLE");
     expect(res.body.reasons).toMatchObject([
       { condition: "FACILITIES", missing: ["Simultaneous interpretation"], available: ["Projector", "Microphone", "Livestream"] },
+    ]);
+  });
+
+  it("names the absent accessibility feature and what the venue offers, and nothing else (K1-T5)", async () => {
+    const venueId = await newVenue();
+    const event = await newEvent({ accessibilityNeeds: "Hearing loop
+Braille signage" });
+    signedInAs("EVENT_COORDINATOR");
+
+    const res = await suitability(venueId, event.id);
+
+    expect(res.body.status).toBe("NOT_SUITABLE");
+    expect(res.body.reasons).toMatchObject([
       { condition: "ACCESSIBILITY", missing: ["Braille signage"], available: ["Step-free entrance", "Hearing loop"] },
     ]);
   });
 
-  it("fails a period outside the day's hours, and one on a closed day (K1-T6)", async () => {
+  it("fails a period starting before opening, one ending after closing, and one on a closed day (K1-T6)", async () => {
     const venueId = await newVenue();
     const early = await newEvent({ start: at(7, "07:30"), end: at(7, "10:00") });
+    const late = await newEvent({ start: at(7, "20:00"), end: at(7, "22:30") });
     const sunday = await newEvent({ start: at(13, "10:00"), end: at(13, "12:00") });
     signedInAs("EVENT_COORDINATOR");
 
     expect((await suitability(venueId, early.id)).body.reasons).toMatchObject([
       { condition: "OPERATING_HOURS", required: "2026-12-07 07:30–10:00", available: "Monday 08:00–22:00" },
+    ]);
+    expect((await suitability(venueId, late.id)).body.reasons).toMatchObject([
+      { condition: "OPERATING_HOURS", required: "2026-12-07 20:00–22:30", available: "Monday 08:00–22:00" },
     ]);
     expect((await suitability(venueId, sunday.id)).body.reasons).toMatchObject([
       { condition: "OPERATING_HOURS", available: "Sunday closed" },
@@ -220,6 +235,14 @@ describe("GET /api/v1/venues/:id/suitability", () => {
       const res = await suitability(venueId, event.id);
       expect(res.body).toMatchObject({ status: "SUITABLE_WITH_WARNINGS", reasons: [], warnings: [{ condition }] });
     }
+
+    const warnAndFail = await newEvent({ venueRequirements: { facilities: ["Projector", "Simultaneous interpretation"] } });
+    const mixed = await suitability(venueId, warnAndFail.id);
+    expect(mixed.body).toMatchObject({
+      status: "NOT_SUITABLE",
+      reasons: [{ condition: "FACILITIES" }],
+      warnings: [{ condition: "LAYOUT_CAPACITY" }],
+    });
   });
 
   it("creates and changes nothing: the venue's slots and the event are the same afterwards (K1-T10)", async () => {
