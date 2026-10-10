@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | As the assigned coordinator (coordinator@connectsphere.test), "Details saved." was shown, with Description "A one-day symposium with a poster session." and Contact details "Events Office, events@smu.edu.sg". Purpose stayed "Share faculty research". |
+| Status | Pass |
+| Remarks | Commit: c1aa0cb · Evidence: tests/G1/evidence/G1-T2.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-10 |

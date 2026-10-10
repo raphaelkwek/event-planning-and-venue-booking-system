@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | Neither the Under Review nor the Completed request offered "Edit details". The API returned 409 EVENT_NOT_EDITABLE: "Details can be edited only while the event is Approved, Planning, Safety Review or Confirmed. It is Under Review." The purpose stayed "Share faculty research", with no field-change history. |
+| Status | Pass |
+| Remarks | Commit: c1aa0cb · Evidence: tests/G1/evidence/G1-T4.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-10 |

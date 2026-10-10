@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | "No changes to save." was shown, and there was no field-change history. |
+| Status | Pass |
+| Remarks | Commit: c1aa0cb · Evidence: tests/G1/evidence/G1-T12.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-10 |

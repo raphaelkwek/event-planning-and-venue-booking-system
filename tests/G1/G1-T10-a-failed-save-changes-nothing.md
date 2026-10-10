@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | With Purpose blank, "Purpose is required." appeared under Purpose, the stored description was unchanged and there was no history. With Purpose "X", the save succeeded, and the history then held exactly two entries: description and purpose. |
+| Status | Pass |
+| Remarks | Commit: c1aa0cb · Evidence: tests/G1/evidence/G1-T10.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-10 |

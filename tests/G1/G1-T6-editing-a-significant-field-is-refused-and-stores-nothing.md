@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | The API returned 422 CHANGE_REQUEST_REQUIRED: "The event's date, times, expected attendance, and venue and equipment requirements can be changed only through a change request, because arrangements depend on them. Nothing was saved.", naming expectedAttendance and proposedStartAt. Nothing was stored: purpose "Share faculty research", attendance 150, start unchanged, and no field-change history. |
+| Status | Pass |
+| Remarks | Commit: c1aa0cb · Evidence: tests/G1/evidence/G1-T6.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-10 |
