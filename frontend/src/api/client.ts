@@ -39,11 +39,12 @@ export interface RawResponse {
 /** Sends a request and returns the raw result, refusals included. */
 export async function rawRequest(
   path: string,
-  options: { method?: string; token?: string | null; body?: unknown } = {}
+  options: { method?: string; token?: string | null; body?: unknown; headers?: Record<string, string> } = {}
 ): Promise<RawResponse> {
   const response = await fetch(path, {
     method: options.method ?? "GET",
     headers: {
+      ...options.headers,
       ...(options.body !== undefined ? { "Content-Type": "application/json" } : {}),
       ...(options.token ? { Authorization: `Bearer ${options.token}` } : {}),
     },
@@ -70,7 +71,7 @@ export async function rawRequest(
 /** Sends a request, throwing ApiError on any refusal so screens can render it. */
 export async function request<T>(
   path: string,
-  options: { method?: string; token?: string | null; body?: unknown } = {}
+  options: { method?: string; token?: string | null; body?: unknown; headers?: Record<string, string> } = {}
 ): Promise<T> {
   const { status, body, correlationId } = await rawRequest(path, options);
 
