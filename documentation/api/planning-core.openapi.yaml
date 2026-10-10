@@ -394,13 +394,88 @@ paths:
       operationId: getEvent
       responses:
         "200":
-          description: The full request.
+          description: "The full request. `ETag` carries its version, for an edit's `If-Match` (G1)."
+          headers:
+            ETag: { $ref: "#/components/headers/EventVersion" }
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Event" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+    patch:
+      tags: [Events]
+      summary: Edit an event's descriptive details (G1)
+      description: |
+        The owning organiser or the assigned coordinator, while the event is Approved, Planning,
+        Safety Review or Confirmed. Send only the fields to change: `purpose`, `description`,
+        `accessibilityNeeds`, `contactDetails`. Purpose and description can't be emptied; an empty
+        optional field is stored as null.
+
+        The significant fields (`SIGNIFICANT_EVENT_FIELDS` in contracts: the date and times,
+        expected attendance, and venue and equipment requirements) change only through a change
+        request; sending any of them refuses the whole edit with `422`.
+
+        `If-Match` must carry the version from the event's `ETag` (ADR-0015). If the event changed
+        since, the edit is refused with `412` and nothing is stored. The changes and one history
+        entry per changed field (before and after, the editor, their role, the time) are written
+        together, or not at all. Saving without changes stores nothing. Limited to 120 requests a
+        minute per address until the gateway applies limits (ADR-0011, EN-12).
+      operationId: editEventDetails
+      parameters:
+        - name: If-Match
+          in: header
+          required: true
+          schema: { type: string }
+          example: '"3"'
+          description: The event's version, as its `ETag` gave it.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EventDetailsEdit" }
+      responses:
+        "200":
+          description: The event as stored, with its new version in `ETag`.
+          headers:
+            ETag: { $ref: "#/components/headers/EventVersion" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Event" }
+        "400": { $ref: "#/components/responses/ValidationFailed" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403":
+          description: "`ROLE_NOT_AUTHORISED`: not the owning organiser or the assigned coordinator, or a role that never edits events."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: "`EVENT_NOT_EDITABLE`: the event isn't Approved, Planning, Safety Review or Confirmed. The message names its status."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "412":
+          description: "`EVENT_VERSION_MISMATCH`: the event changed after the version in `If-Match`. Nothing was stored."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "422":
+          description: "`CHANGE_REQUEST_REQUIRED`: the edit included a significant field; `fields` names each. Nothing was stored."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "428":
+          description: "`EVENT_VERSION_REQUIRED`: no `If-Match`."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "429":
+          description: "`RATE_LIMITED`: more than 120 edits in a minute from one address."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
         "503": { $ref: "#/components/responses/IdentityUnavailable" }
 
   /api/v1/events/{id}/approve:
@@ -957,6 +1032,11 @@ components:
       required: true
       schema: { type: string, format: uuid }
 
+  headers:
+    EventVersion:
+      description: 'The event''s version as a strong entity tag, for example "3".'
+      schema: { type: string }
+
   responses:
     RateLimitExceeded:
       description: "`RATE_LIMITED`: 120 equipment requests per minute per client IP and process, shared across this router's endpoints. Enforced before authentication. Counters reset on process restart."
@@ -1197,7 +1277,7 @@ components:
       allOf:
         - $ref: "#/components/schemas/RequestFields"
         - type: object
-          required: [id, reference, ownerId, name, status, submittedAt, lastSavedAt, reviewingCoordinatorId, reviewStartedAt, decidedBy, decidedAt, rejectionReason, assignedCoordinatorId]
+          required: [id, reference, ownerId, name, status, submittedAt, lastSavedAt, reviewingCoordinatorId, reviewStartedAt, decidedBy, decidedAt, rejectionReason, assignedCoordinatorId, contactDetails, version]
           properties:
             id: { type: string, format: uuid }
             reference: { type: [string, "null"], description: Null until submitted (C3). }
@@ -1212,6 +1292,18 @@ components:
             decidedAt: { type: [string, "null"], format: date-time }
             rejectionReason: { type: [string, "null"] }
             assignedCoordinatorId: { type: [string, "null"], format: uuid }
+            contactDetails: { type: [string, "null"], description: "Free text, such as a name, email and phone number (G1)." }
+            version: { type: integer, minimum: 1, description: "Raised by every change to the event. Send it back in If-Match to edit (G1)." }
+
+    EventDetailsEdit:
+      description: "G1: only the fields to change. Any significant field refuses the whole edit (422)."
+      type: object
+      additionalProperties: false
+      properties:
+        purpose: { type: string, minLength: 1 }
+        description: { type: string, minLength: 1 }
+        accessibilityNeeds: { type: [string, "null"] }
+        contactDetails: { type: [string, "null"] }
 
     EventListItem:
       description: "C3: one row of my requests. A draft has a last-saved time and no reference."

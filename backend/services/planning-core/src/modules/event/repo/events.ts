@@ -40,6 +40,10 @@ export interface EventRow extends EventFields {
   decidedAt: string | null;
   rejectionReason: string | null;
   assignedCoordinatorId: string | null;
+  /** G1: free text, such as a name, email and phone number. */
+  contactDetails: string | null;
+  /** G1: raised by every change to the event; edits carry it in If-Match (ADR-0015). */
+  version: number;
 }
 
 export interface RawEvent {
@@ -68,6 +72,8 @@ export interface RawEvent {
   decided_at: Date | null;
   rejection_reason: string | null;
   assigned_coordinator_id: string | null;
+  contact_details: string | null;
+  version: number;
 }
 
 export function toEvent(row: RawEvent): EventRow {
@@ -97,6 +103,8 @@ export function toEvent(row: RawEvent): EventRow {
     decidedAt: row.decided_at?.toISOString() ?? null,
     rejectionReason: row.rejection_reason,
     assignedCoordinatorId: row.assigned_coordinator_id ?? null,
+    contactDetails: row.contact_details ?? null,
+    version: row.version,
   };
 }
 

@@ -225,3 +225,21 @@ export function declineReassignment(token: string, eventId: string) {
     token,
   });
 }
+
+/** G1: the descriptive details an edit can change; null empties an optional one. */
+export interface DetailsChanges {
+  purpose?: string;
+  description?: string;
+  accessibilityNeeds?: string | null;
+  contactDetails?: string | null;
+}
+
+/** G1: saves only the given details, refused with 412 if the event changed since `version` was loaded. */
+export function updateEventDetails(token: string, eventId: string, version: number, changes: DetailsChanges) {
+  return request<EventRecord>(`${EVENT}/events/${eventId}`, {
+    method: "PATCH",
+    token,
+    body: changes,
+    headers: { "If-Match": `"${version}"` },
+  });
+}
