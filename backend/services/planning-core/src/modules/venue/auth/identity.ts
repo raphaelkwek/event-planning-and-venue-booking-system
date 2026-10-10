@@ -1,6 +1,6 @@
 import { ZodError } from "zod";
-import type { CurrentUser } from "@connectsphere/contracts";
-import { lookUpCaller } from "../../identity/index.js";
+import type { AccessScope, CurrentUser, Role } from "@connectsphere/contracts";
+import { lookUpCaller, resolveAccessScope } from "../../identity/index.js";
 import { sql } from "../../../shared/db.js";
 
 /**
@@ -43,4 +43,9 @@ export async function resolveCurrentUser(supabaseUserId: string): Promise<Curren
     throw new IdentityRefusedError(403, "NO_ROLE_ASSIGNED", "This user has no assigned role.");
   }
   return lookup.user;
+}
+
+/** A3: which events this caller may see, so opening a search from an event follows the event module's scope. */
+export function eventsScopeFor(actor: { userId: string; role: Role }): AccessScope {
+  return resolveAccessScope(actor.role, actor.userId, "events");
 }

@@ -4,6 +4,34 @@
 
 ---
 
+# J2: Search venues by name or building
+
+**Timestamp:** 2026-10-11T00:01+08:00
+**Author:** Joash
+**Scope:** the venue module's search query, `GET /api/v1/venues/search`, migration `venue/0004_venue_search_trigram.sql`, the "Find a venue" screen's search box, and `tests/J2/` (eight cases).
+
+**Reason:** An Event Coordinator who already has a venue in mind needs to go straight to it. J2 shares J1's query and screen, so the text search is one more condition in the same SQL: a partial, case-insensitive `ILIKE` on name or building, combined with every J1 filter, over active venues only. `%`, `_` and `\` in the term are escaped, so searching for them matches the character rather than everything. An empty search with no filters lists every active venue. A `pg_trgm` GIN index on name and on building keeps the leading-wildcard match fast; it is migration 0004 because 0002 is reserved for H3 and 0003 is EN-02.1's. Each row shows name, building, maximum capacity and facilities.
+
+**Verification:** Eight functional cards written from the story before the code, all Not Executed (the UI walk-through is pending at the sprint review). The query's J2 behaviour is covered by integration tests in `tests/venue/repo/venueSearch.test.ts` and `tests/venue/api/venueSearch.test.ts`, and the screen by `frontend/tests/venueSearch.test.tsx`; the traceability rows are in `sprint-2.csv`. Those integration tests were run locally against an in-process PGlite (Postgres 17 with `pg_trgm` and `btree_gist`) loaded with every module's migrations, never the team's shared database. They have not yet run on CI's throwaway Postgres.
+
+---
+
+# J1: Filter venues against event requirements
+
+**Timestamp:** 2026-10-11T00:00+08:00
+**Author:** Joash
+**Scope:** the venue module (`domain/venueSearch.ts`, `domain/searchPrefill.ts`, `repo/venueSearch.ts`, `api/search.ts`), three routes under `/api/v1/venues/search` with their OpenAPI entries, the "Find a venue" screen and its link from the review screen, and `tests/J1/` (24 cases).
+
+**Reason:** A coordinator needs to see only venues that could actually host an event. One SQL query applies every filter: the date and time window, minimum capacity (the chosen layout's capacity when a layout is set, the maximum otherwise), building, required layout, and every required facility and accessibility feature. A venue is excluded when a held or confirmed slot overlaps the window (`blocked_period && …`, so an existing booking is compared by its occupied period with its own setup and turnaround, CR-01), when an active unavailability block overlaps it (`period && …`), or when the window is not inside the venue's operating hours on every day it touches (`<@`). Periods that touch do not overlap. Inactive venues never appear. An empty result is a 200 with a message restating the filters. `GET /api/v1/venues/search/prefill?eventId=` reads the event through `modules/event/index.ts` under the caller's A3 scope and gives the filters to start from; the screen shows them and leaves every one editable. Only Event Coordinators may search (policy action `search` on `venue`), the three routes are rate-limited before authentication, and no error code is new.
+
+**Not done:** CR-01 also widens the requested window by the venue's own setup and turnaround time (H3). Those columns are not on main, so the search widens by 0 minutes. `repo/venueSearch.ts` holds the two fragments to change to `v.setup_minutes` and `v.turnaround_minutes` once H3 lands; J1-T18 waits for it. No column was added.
+
+**Decisions to check:** The window must lie inside one weekday's opening hours on every day it touches, so a window that spans a closed night fails. The request window may be at most 31 days. Event accessibility needs are free text, so each comma, semicolon or line-separated need is matched to a catalogue feature ignoring case; one that matches none is not used as a filter (it would empty every result) and is reported to the screen instead. The unavailability blocks are compared against the widened window, as holds are.
+
+**Verification:** 24 functional cards written from the story before the code, with the `FX-SEARCH` fixture; all Not Executed (UI walk-through pending at the sprint review). Domain rules are 100% covered by `tests/venue/domain/venueSearch.test.ts` and `searchPrefill.test.ts`. Lint, typecheck, build and the unit suites pass locally. The query and API integration tests passed locally against an in-process PGlite (Postgres 17) loaded with every module's migrations, never the team's shared database; CI's throwaway Postgres has not yet run them.
+
+---
+
 # P2: Verify identity refusal paths under the integration coverage floor
 
 **Timestamp:** 2026-10-08T10:13+08:00

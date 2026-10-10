@@ -164,3 +164,120 @@ export function getVenueAvailability(token: string, id: string, from: string, to
   const query = new URLSearchParams({ from, to });
   return request<VenueAvailability>(`${VENUE}/venues/${id}/availability?${query}`, { token });
 }
+
+/** J1, J2: search the venue catalogue against an event's requirements, by name or building. */
+export interface VenueSearchItem {
+  id: string;
+  name: string;
+  building: string;
+  maxCapacity: number;
+  /** The chosen layout's capacity when a layout filter was set; otherwise null. */
+  layoutCapacity: number | null;
+  facilities: string[];
+  accessibilityFeatures: string[];
+}
+
+export interface VenueSearchFilters {
+  q: string | null;
+  from: string | null;
+  to: string | null;
+  minCapacity: number | null;
+  location: string | null;
+  layout: string | null;
+  facilities: string[];
+  accessibility: string[];
+}
+
+export interface VenueSearchResult {
+  items: VenueSearchItem[];
+  filters: VenueSearchFilters;
+  appliedFilters: string[];
+  /** Set when nothing matched: a sentence restating the filters applied. */
+  message: string | null;
+}
+
+export interface VenueSearchOptions {
+  layouts: string[];
+  facilities: string[];
+  accessibilityFeatures: string[];
+}
+
+export interface VenueSearchPrefill {
+  eventId: string;
+  reference: string | null;
+  filters: Omit<VenueSearchFilters, "q" | "location">;
+  unmatchedAccessibility: string[];
+}
+
+/** What the search form holds. Times are Singapore time as a browser's datetime-local input gives them. */
+export interface VenueSearchForm {
+  q: string;
+  from: string;
+  to: string;
+  minCapacity: string;
+  location: string;
+  layout: string;
+  facilities: string[];
+  accessibility: string[];
+}
+
+export function emptySearchForm(): VenueSearchForm {
+  return { q: "", from: "", to: "", minCapacity: "", location: "", layout: "", facilities: [], accessibility: [] };
+}
+
+/** The venues are in Singapore (UTC+8, no daylight saving), as in the availability calendar (I1). */
+const SINGAPORE_OFFSET = "+08:00";
+const SINGAPORE_OFFSET_MS = 8 * 60 * 60 * 1000;
+
+/** "2026-12-14T12:00" as typed, to the instant the server reads. */
+export function toInstant(local: string): string {
+  return `${local}:00${SINGAPORE_OFFSET}`;
+}
+
+/** An instant from the server, to the "2026-12-14T12:00" a datetime-local input shows. */
+export function toLocalInput(instant: string | null): string {
+  return instant ? new Date(Date.parse(instant) + SINGAPORE_OFFSET_MS).toISOString().slice(0, 16) : "";
+}
+
+/** The query string for a form: only what was filled in, and a repeated parameter per facility. */
+export function toSearchQuery(form: VenueSearchForm): URLSearchParams {
+  const query = new URLSearchParams();
+  const add = (key: string, value: string) => {
+    if (value.trim() !== "") query.append(key, value.trim());
+  };
+  add("q", form.q);
+  if (form.from) query.append("from", toInstant(form.from));
+  if (form.to) query.append("to", toInstant(form.to));
+  add("minCapacity", form.minCapacity);
+  add("location", form.location);
+  add("layout", form.layout);
+  form.facilities.forEach((name) => query.append("facilities", name));
+  form.accessibility.forEach((name) => query.append("accessibility", name));
+  return query;
+}
+
+/** The form a prefill gives: the event's requirements in the fields, the rest left as they were. */
+export function formFromPrefill(prefill: VenueSearchPrefill): VenueSearchForm {
+  const { filters } = prefill;
+  return {
+    ...emptySearchForm(),
+    from: toLocalInput(filters.from),
+    to: toLocalInput(filters.to),
+    minCapacity: filters.minCapacity === null ? "" : String(filters.minCapacity),
+    layout: filters.layout ?? "",
+    facilities: filters.facilities,
+    accessibility: filters.accessibility,
+  };
+}
+
+export function searchVenues(token: string, form: VenueSearchForm) {
+  return request<VenueSearchResult>(`${VENUE}/venues/search?${toSearchQuery(form)}`, { token });
+}
+
+export function getSearchOptions(token: string) {
+  return request<VenueSearchOptions>(`${VENUE}/venues/search/options`, { token });
+}
+
+export function getSearchPrefill(token: string, eventId: string) {
+  return request<VenueSearchPrefill>(`${VENUE}/venues/search/prefill?${new URLSearchParams({ eventId })}`, { token });
+}
