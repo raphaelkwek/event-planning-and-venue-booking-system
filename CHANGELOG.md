@@ -4,6 +4,26 @@
 
 ---
 
+# F2: View an event's current status and history
+
+**Timestamp:** 2026-10-12T10:30+08:00
+**Author:** Joash
+**Scope:** event module (`GET /api/v1/events/:id/status`, `GET /api/v1/events/:id/status-history`), the `StatusHistory` component on the request and review screens, `tests/F2/`, OpenAPI and traceability. No migration.
+
+**Reason:** F2 asks that every user who may see an event sees its current status, that the internal roles see how it got there, and that an attendee never does. The history already lives in `event.event_history` (F1), so this reads it and adds nothing to the schema.
+
+- **Status:** `/status` returns `{ eventId, status }` and nothing else, so a rejection reason, a review comment or a coordinator cannot reach an attendee through it. It reads through the A3 access scope: an event outside the caller's scope answers 404 with no data.
+- **History:** `/status-history` is for the Event Organiser (their own events, by scope) and Event Coordinators (all events except other people's drafts). Every other role, attendees included, gets 403 before the event is looked up. It lists STATUS_CHANGE rows only, oldest first (`occurred_at`, then `created_at`, then `id`), each with previous status, new status, acting role, acting user, triggering action and time. Field amendments in the same table are left out.
+- **Read only:** no write route exists on either path, so history cannot be edited or deleted over HTTP, and the new code only ever selects from the table.
+- **Rate limit:** both routes sit behind a 120/minute per-IP limiter placed ahead of authentication, in the style of `modules/equipment/api/limiter.ts` and injected as a router parameter. Refusal is `RATE_LIMITED`.
+- **UI:** a read-only table (From, To, By, When) added to `RequestDetail` and `ReviewDetail` with one line each, so the screens barely change for G1.
+
+**Not done:** attendees cannot yet read a status. Their A3 scope (`PUBLISHED_OPEN_REGISTRATION`) matches no events until a published, open-registration rule exists, so the attendee test asserts the refusals only. **ADR-0007:** when the event aggregate is event-sourced (EN-03), `listStatusHistory` becomes a projection over the stream (status-change events in version order); the routes and response shape stay.
+
+**Verification:** lint, typecheck, build and all unit tests pass locally, including the domain tests (100% mutation score on `domain/statusHistory.ts`), the rate-limit regression, the OpenAPI route check and the frontend component tests. The API tests in `tests/event/api/f2StatusAndHistory.test.ts` need a database and run in CI only. Cards F2-T1 to F2-T9 are not executed; the UI walk-through is pending at the sprint review.
+
+---
+
 # P2: Verify identity refusal paths under the integration coverage floor
 
 **Timestamp:** 2026-10-08T10:13+08:00
