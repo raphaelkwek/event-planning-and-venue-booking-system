@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | UI walk-through in Chrome pending at the sprint review |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | As an attendee on a rejected event with a recorded reason, the history request answered 403 ROLE_NOT_AUTHORISED and the status request answered 404 EVENT_NOT_FOUND; neither body contained the rejection reason or the status. |
+| Status | Pass (automated, API level) |
+| Remarks | Commit: 00ae997 · Evidence: backend/services/planning-core/tests/event/api/f2StatusAndHistory.test.ts › never gives an attendee the history, and gives no event data at all outside their scope (AC3), CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/38196125896 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-10-12 |

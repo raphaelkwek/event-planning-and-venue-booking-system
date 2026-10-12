@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | UI walk-through in Chrome pending at the sprint review |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | As a second organiser, the status and status-history requests for the first organiser's event both answered 404 EVENT_NOT_FOUND with no status in the body. |
+| Status | Pass (automated, API level) |
+| Remarks | Commit: 00ae997 · Evidence: backend/services/planning-core/tests/event/api/f2StatusAndHistory.test.ts › answers 404 and no data for another organiser's event (A3), CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/38196125896 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-10-12 |
