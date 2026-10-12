@@ -55,6 +55,6 @@ describe("equipment migration 0003 and contracts", () => {
   });
 
   it("never deletes (implementation.md section 4.3)", () => {
-    expect(lineMigration.toLowerCase()).not.toMatch(/delete\s+from/);
+    expect(lineMigration.toLowerCase()).not.toMatch(/delete\s+from/);
   });
 });
