@@ -20,6 +20,8 @@ import { VenueAvailability } from "./screens/VenueAvailability.js";
 import type { Role } from "./api/types.js";
 import { EquipmentList } from "./screens/EquipmentList.js";
 import { EquipmentEditor } from "./screens/EquipmentEditor.js";
+import { EquipmentRequest } from "./screens/EquipmentRequest.js";
+import { EquipmentRequests } from "./screens/EquipmentRequests.js";
 
 const ROLE_LABELS: Record<Role, string> = {
   EVENT_ORGANISER: "Event Organiser",
@@ -76,6 +78,8 @@ const ROUTES: {
     nav: { label: "All events", to: "/events" },
   },
   { path: "/review/:id", element: <ReviewDetail />, roles: ["EVENT_COORDINATOR"] },
+  // O1: the coordinator records the equipment an event requires; the server allows only the assigned one to write.
+  { path: "/events/:eventId/equipment", element: <EquipmentRequest />, roles: ["EVENT_COORDINATOR"] },
   // H1, H2: every internal role reads the catalogue; only Venue Staff maintain it.
   {
     path: "/venues",
@@ -109,6 +113,13 @@ const ROUTES: {
     element: <EquipmentAvailability />,
     roles: ["TECH_SUPPORT_STAFF"],
     nav: { label: "Equipment availability", to: "/equipment/availability" },
+  },
+  // O2: Technical Support see every equipment line and update its status.
+  {
+    path: "/equipment/requests",
+    element: <EquipmentRequests />,
+    roles: ["TECH_SUPPORT_STAFF"],
+    nav: { label: "Equipment requests", to: "/equipment/requests" },
   },
   // T2: every role reads its own notifications.
   {

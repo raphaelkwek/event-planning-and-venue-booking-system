@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import Button from "@atlaskit/button/new";
 import Lozenge from "@atlaskit/lozenge";
 import TextArea from "@atlaskit/textarea";
@@ -108,7 +108,9 @@ export function ReviewDetail() {
     <div style={{ display: "flex", gap: 32, alignItems: "flex-start" }}>
       <div style={{ flex: 2 }}>
         <h2 style={{ marginBottom: 4 }}>{event.name}</h2>
-        <p style={{ marginTop: 0, color: "#626F86" }}>{event.reference}</p>
+        <p style={{ marginTop: 0, color: "#626F86" }}>
+          {event.reference} · <Link to={`/events/${event.id}/equipment`}>Equipment request</Link>
+        </p>
 
         {reviewedBySomeoneElse && (
           <div style={{ marginBottom: 16 }}>
