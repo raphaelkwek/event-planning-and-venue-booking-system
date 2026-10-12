@@ -7,8 +7,6 @@ import SectionMessage from "@atlaskit/section-message";
 import Modal, { ModalBody, ModalFooter, ModalHeader, ModalTitle, ModalTransition } from "@atlaskit/modal-dialog";
 import { useSignedIn } from "../auth/SessionContext.js";
 import { useUserNames } from "../shared/useUserNames.js";
-import { openEvent } from "../api/events.js";
-import type { EventRecord } from "../api/types.js";
 import { listEquipmentTypes } from "../api/equipmentAvailability.js";
 import {
   EDITABLE_LINE_STATUSES,
@@ -16,6 +14,7 @@ import {
   removeRequestLine,
   saveRequestLines,
   updateRequestLine,
+  type RequestEvent,
   type RequestLine,
 } from "../api/equipmentRequests.js";
 import { formatInstant, LINE_STATUS_APPEARANCE, LINE_STATUS_LABELS } from "../shared/status.js";
@@ -31,7 +30,7 @@ import {
 let draftCounter = 0;
 
 /** A blank line whose times are the event's, which the coordinator may then change (O1). */
-function newDraft(event: EventRecord | null): LineDraft {
+function newDraft(event: RequestEvent | null): LineDraft {
   draftCounter += 1;
   return {
     key: `draft-${draftCounter}`,
@@ -62,7 +61,7 @@ function draftOf(line: RequestLine): LineDraft {
 export function EquipmentRequest() {
   const session = useSignedIn();
   const { eventId } = useParams<{ eventId: string }>();
-  const [event, setEvent] = useState<EventRecord | null>(null);
+  const [event, setEvent] = useState<RequestEvent | null>(null);
   const [lines, setLines] = useState<RequestLine[]>([]);
   const [types, setTypes] = useState<TypeOption[]>([]);
   const [drafts, setDrafts] = useState<LineDraft[]>([]);
@@ -83,11 +82,9 @@ export function EquipmentRequest() {
     if (!eventId) return;
     setLoadError(null);
     try {
-      const [opened, page, catalogue] = await Promise.all([
-        openEvent(session.token, eventId),
-        listRequestLines(session.token, { eventId }),
-        listEquipmentTypes(session.token),
-      ]);
+      // The event comes with the lines, from a read that changes nothing; opening it for review would claim it (D1).
+      const [page, catalogue] = await Promise.all([listRequestLines(session.token, { eventId }), listEquipmentTypes(session.token)]);
+      const opened = page.event ?? null;
       setEvent(opened);
       setLines(page.items);
       setTypes(catalogue.items.map((item) => ({ id: item.id, name: item.name })));

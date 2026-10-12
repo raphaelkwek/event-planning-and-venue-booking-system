@@ -57,11 +57,10 @@ const fetchMock = vi.fn(async (path: string, init?: RequestInit) => {
   const url = new URL(path, "http://app.test");
   const method = init?.method ?? "GET";
   const body = init?.body ? JSON.parse(init.body as string) : undefined;
-  if (url.pathname === `/event/api/v1/events/${EVENT_ID}`) return reply(event(assigned));
   if (url.pathname === "/equipment/api/v1/equipment/types") {
     return reply({ items: [{ id: CHAIRS, name: "Folding Chairs", description: "", kind: "BULK", totalQuantity: 50 }, { id: PROJECTORS, name: "Projectors", description: "", kind: "BULK", totalQuantity: 5 }], nextCursor: null });
   }
-  if (url.pathname === "/equipment/api/v1/equipment/request-lines" && method === "GET") return reply({ items: lines, nextCursor: null });
+  if (url.pathname === "/equipment/api/v1/equipment/request-lines" && method === "GET") return reply({ items: lines, nextCursor: null, event: event(assigned) });
   if (url.pathname === "/equipment/api/v1/equipment/request-lines" && method === "POST") return onSave(body);
   const removal = url.pathname.match(/request-lines\/([^/]+)\/removal$/);
   if (removal && method === "POST") return onRemove(removal[1]!);
@@ -103,6 +102,14 @@ afterEach(() => {
 });
 
 describe("O1 equipment request screen", () => {
+  it("reads the event with the lines and never opens it for review, which would claim a Submitted event (D1)", async () => {
+    render(<App />);
+    await screen.findByText("Add equipment");
+    const paths = fetchMock.mock.calls.map(([path]) => String(path));
+    expect(paths.some((path) => path.startsWith("/event/api/v1/events/"))).toBe(false);
+    expect(paths.some((path) => path.includes(`request-lines?eventId=${EVENT_ID}`))).toBe(true);
+  });
+
   it("starts a line with the event's start and end, which the coordinator can still change", async () => {
     render(<App />);
     await screen.findByText("Add equipment");

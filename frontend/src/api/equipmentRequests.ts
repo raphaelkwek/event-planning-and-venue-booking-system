@@ -58,12 +58,23 @@ export interface StatusChangeInput {
   substituteQuantity?: number | null;
 }
 
+/** The event a request belongs to, read without the side effect of opening it for review (D1). */
+export interface RequestEvent {
+  id: string;
+  reference: string;
+  name: string;
+  status: string;
+  proposedStartAt: string | null;
+  proposedEndAt: string | null;
+  assignedCoordinatorId: string | null;
+}
+
 export function listRequestLines(token: string, filter: { eventId?: string; status?: LineStatus } = {}) {
   const query = new URLSearchParams();
   if (filter.eventId) query.set("eventId", filter.eventId);
   if (filter.status) query.set("status", filter.status);
   query.set("limit", "100");
-  return request<{ items: RequestLine[]; nextCursor: string | null }>(`${LINES}?${query}`, { token });
+  return request<{ items: RequestLine[]; nextCursor: string | null; event?: RequestEvent }>(`${LINES}?${query}`, { token });
 }
 
 export function saveRequestLines(token: string, eventId: string, lines: LineInput[]) {

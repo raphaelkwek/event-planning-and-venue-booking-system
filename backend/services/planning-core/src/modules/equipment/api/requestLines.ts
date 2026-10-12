@@ -163,6 +163,13 @@ export function requestLinesRouter(sql: Sql, limiter: RequestHandler = equipment
         ]);
         return;
       }
+      // The event the lines belong to, read through the event module's side-effect-free planning view.
+      let event: EventPlanningView | null = null;
+      if (query.data.eventId) {
+        const scope = req.actor!.role === TECH_SUPPORT ? ALL_EVENTS : resolveAccessScope(req.actor!.role, req.actor!.userId, "events");
+        event = await findEventForPlanning(sql, query.data.eventId, scope, req.actor!.userId);
+        if (!event || !event.reference) return eventNotFound(res);
+      }
       const rows = await listLines(sql, {
         eventId: query.data.eventId,
         status: query.data.status,
@@ -171,7 +178,23 @@ export function requestLinesRouter(sql: Sql, limiter: RequestHandler = equipment
       });
       const page = rows.slice(0, query.data.limit);
       const nextCursor = rows.length > query.data.limit ? String(page[page.length - 1]!.seq) : null;
-      res.json({ items: page.map(present), nextCursor });
+      res.json({
+        items: page.map(present),
+        nextCursor,
+        ...(event
+          ? {
+              event: {
+                id: event.id,
+                reference: event.reference,
+                name: event.name,
+                status: event.status,
+                proposedStartAt: event.proposedStartAt,
+                proposedEndAt: event.proposedEndAt,
+                assignedCoordinatorId: event.assignedCoordinatorId,
+              },
+            }
+          : {}),
+      });
     } catch (error) {
       next(error);
     }

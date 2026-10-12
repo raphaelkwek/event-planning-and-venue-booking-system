@@ -54,6 +54,44 @@ const body = (changes: Record<string, unknown> = {}) => ({ equipmentTypeId: chai
 const save = (lines: unknown[], eventId = event.id) => request(app).post(BASE).set(bearer).send({ eventId, lines });
 const fields = (response: { body: { error: { fields: { field: string }[] } } }) => response.body.error.fields.map((entry) => entry.field);
 
+describe("reading the event with the lines", () => {
+  it("returns the event summary for a Submitted event without claiming it for review", async () => {
+    await sql`update event.events set status = 'SUBMITTED' where id = ${event.id}`;
+    const eventRows = () => sql`select status, reviewing_coordinator_id, review_started_at from event.events where id = ${event.id}`;
+    const historyRows = async () => (await sql`select count(*)::int as n from event.event_history where event_id = ${event.id}`)[0]!.n;
+    const before = await eventRows();
+    const historyBefore = await historyRows();
+
+    const response = await request(app).get(`${BASE}?eventId=${event.id}`).set(bearer);
+    expect(response.status).toBe(200);
+    expect(response.body.event).toEqual({
+      id: event.id,
+      reference: event.reference,
+      name: event.name,
+      status: "SUBMITTED",
+      proposedStartAt: expect.any(String),
+      proposedEndAt: expect.any(String),
+      assignedCoordinatorId: A.c1,
+    });
+
+    expect(await eventRows()).toEqual(before);
+    expect((await eventRows())[0]!.status).toBe("SUBMITTED");
+    expect((await eventRows())[0]!.reviewing_coordinator_id).toBeNull();
+    expect(await historyRows()).toBe(historyBefore);
+  });
+
+  it("answers 404 for an event that does not exist or is outside the caller's scope, and omits the summary without an event id", async () => {
+    const missing = await request(app).get(`${BASE}?eventId=${MISSING}`).set(bearer);
+    expect(missing.status).toBe(404);
+    expect(missing.body.error.code).toBe("EVENT_NOT_FOUND");
+    asTs();
+    const all = await request(app).get(BASE).set(bearer);
+    expect(all.body).not.toHaveProperty("event");
+    const forTs = await request(app).get(`${BASE}?eventId=${event.id}`).set(bearer);
+    expect(forTs.body.event.id).toBe(event.id);
+  });
+});
+
 describe("recording lines: bad input", () => {
   it("refuses a body without an event id, naming it", async () => {
     const response = await request(app).post(BASE).set(bearer).send({ lines: [body()] });

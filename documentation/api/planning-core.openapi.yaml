@@ -949,7 +949,10 @@ paths:
       description: |
         Event Coordinators and Technical Support Staff. A coordinator must give `eventId`; Technical
         Support may list the lines of every event, and filter by `status`. Removed lines are left out
-        unless `status=REMOVED` is asked for. Lines are listed oldest first.
+        unless `status=REMOVED` is asked for. Lines are listed oldest first. When `eventId` is given the
+        response also carries an `event` summary (reference, name, status, proposed times, assigned
+        coordinator) read through the event module's planning view; reading it changes nothing, unlike
+        opening the event for review (D1). An unknown or out-of-scope event is `EVENT_NOT_FOUND`.
       operationId: listEquipmentRequestLines
       parameters:
         - name: eventId
@@ -981,9 +984,22 @@ paths:
                     type: array
                     items: { $ref: "#/components/schemas/EquipmentRequestLine" }
                   nextCursor: { type: [string, "null"] }
+                  event:
+                    type: object
+                    description: Present when eventId was given.
+                    required: [id, reference, name, status, proposedStartAt, proposedEndAt, assignedCoordinatorId]
+                    properties:
+                      id: { type: string, format: uuid }
+                      reference: { type: string }
+                      name: { type: string }
+                      status: { type: string }
+                      proposedStartAt: { type: [string, "null"], format: date-time }
+                      proposedEndAt: { type: [string, "null"], format: date-time }
+                      assignedCoordinatorId: { type: [string, "null"], format: uuid }
         "400": { $ref: "#/components/responses/ValidationFailed" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
         "429": { $ref: "#/components/responses/RateLimitExceeded" }
         "503": { $ref: "#/components/responses/IdentityUnavailable" }
     post:
