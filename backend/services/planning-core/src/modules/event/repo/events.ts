@@ -1,6 +1,7 @@
 import type { Sql, TransactionSql } from "postgres";
 import type { Fragment } from "./sqlFragment.js";
 import type { AccessScope, EventStatus } from "@connectsphere/contracts";
+import { isEventId } from "../domain/ids.js";
 
 /**
  * B1, C1–C3, D1, D4, D5 — the event aggregate, which a request belongs to from
@@ -130,6 +131,7 @@ export async function findEventInScope(
   scope: AccessScope,
   callerId: string
 ): Promise<EventRow | null> {
+  if (!isEventId(eventId)) return null;
   const rows = await sql<RawEvent[]>`
     select e.*, a.coordinator_id as assigned_coordinator_id
     from event.events e
