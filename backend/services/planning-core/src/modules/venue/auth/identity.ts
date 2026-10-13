@@ -45,7 +45,7 @@ export async function resolveCurrentUser(supabaseUserId: string): Promise<Curren
   return lookup.user;
 }
 
-/** The scope rule for events (A3), from the identity module, so K1 reads an event only as its caller may. */
+/** The scope rule for events (A3), from the identity module, so K1 and the J1 pre-fill read an event only as its caller may. */
 export function resolveEventsScope(role: Role, userId: string): AccessScope {
   return resolveAccessScope(role, userId, "events");
 }
