@@ -89,3 +89,16 @@ export const CALENDAR_BAR_COLOURS: Record<CalendarState, string> = {
   OUTSIDE_HOURS: "#C1C7D0",
   FREE: "#57D9A3",
 };
+
+/** K1: the three suitability results, each with its own colour and words. */
+export const SUITABILITY_LABELS = {
+  SUITABLE: "Suitable",
+  SUITABLE_WITH_WARNINGS: "Suitable with warnings",
+  NOT_SUITABLE: "Not suitable",
+} as const;
+
+export const SUITABILITY_APPEARANCE: Record<keyof typeof SUITABILITY_LABELS, LozengeAppearance> = {
+  SUITABLE: "success",
+  SUITABLE_WITH_WARNINGS: "moved",
+  NOT_SUITABLE: "removed",
+};

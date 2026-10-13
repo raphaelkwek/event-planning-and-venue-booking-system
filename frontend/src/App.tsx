@@ -17,6 +17,7 @@ import { useUnreadCount } from "./shared/useUnreadCount.js";
 import { VenueDetail } from "./screens/VenueDetail.js";
 import { EquipmentAvailability } from "./screens/EquipmentAvailability.js";
 import { VenueAvailability } from "./screens/VenueAvailability.js";
+import { VenueSuitability } from "./screens/VenueSuitability.js";
 import type { Role } from "./api/types.js";
 import { EquipmentList } from "./screens/EquipmentList.js";
 import { EquipmentEditor } from "./screens/EquipmentEditor.js";
@@ -94,6 +95,8 @@ const ROUTES: {
     element: <VenueAvailability />,
     roles: ["EVENT_ORGANISER", "EVENT_COORDINATOR", "VENUE_STAFF", "TECH_SUPPORT_STAFF"],
   },
+  // K1: only Event Coordinators assess a venue against an event.
+  { path: "/venues/:id/suitability", element: <VenueSuitability />, roles: ["EVENT_COORDINATOR"] },
   { path: "/venues/new", element: <VenueEditor />, roles: ["VENUE_STAFF"] },
   { path: "/venues/:id/edit", element: <VenueEditor />, roles: ["VENUE_STAFF"] },
   {
