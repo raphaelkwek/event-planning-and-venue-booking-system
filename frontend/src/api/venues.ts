@@ -281,3 +281,30 @@ export function getSearchOptions(token: string) {
 export function getSearchPrefill(token: string, eventId: string) {
   return request<VenueSearchPrefill>(`${VENUE}/venues/search/prefill?${new URLSearchParams({ eventId })}`, { token });
 }
+
+/** K1: whether a venue suits an event. Advisory: nothing is created or blocked. */
+export type SuitabilityStatus = "SUITABLE" | "SUITABLE_WITH_WARNINGS" | "NOT_SUITABLE";
+
+export interface SuitabilityCondition {
+  condition: "LAYOUT_CAPACITY" | "FACILITIES" | "ACCESSIBILITY" | "OPERATING_HOURS";
+  outcome: "MET" | "FAILED" | "NOT_ASSESSED";
+  required: number | string | string[] | null;
+  available: number | string | string[] | null;
+  missing?: string[];
+  message: string;
+}
+
+export interface VenueSuitability {
+  venueId: string;
+  venueName: string;
+  eventId: string;
+  eventReference: string | null;
+  status: SuitabilityStatus;
+  reasons: SuitabilityCondition[];
+  warnings: SuitabilityCondition[];
+}
+
+export function getVenueSuitability(token: string, id: string, eventId: string) {
+  const query = new URLSearchParams({ eventId });
+  return request<VenueSuitability>(`${VENUE}/venues/${id}/suitability?${query}`, { token });
+}

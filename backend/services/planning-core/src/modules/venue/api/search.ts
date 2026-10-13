@@ -3,7 +3,7 @@ import { rateLimit } from "express-rate-limit";
 import type { Sql } from "postgres";
 import { findEventForPlanning } from "../../event/index.js";
 import { authenticate, requireRole, type ActorRequest } from "../auth/actor.js";
-import { eventsScopeFor } from "../auth/identity.js";
+import { resolveEventsScope } from "../auth/identity.js";
 import { prefillFromEvent } from "../domain/searchPrefill.js";
 import { describeFilters, emptyResultMessage, readSearchFilters } from "../domain/venueSearch.js";
 import { listCatalogueOptions, searchVenues } from "../repo/venueSearch.js";
@@ -93,7 +93,7 @@ export function searchRouter(sql: Sql, limiter: RequestHandler = searchRateLimit
         ]);
         return;
       }
-      const event = UUID.test(eventId) ? await findEventForPlanning(sql, eventId, eventsScopeFor(req.actor!), req.actor!.userId) : null;
+      const event = UUID.test(eventId) ? await findEventForPlanning(sql, eventId, resolveEventsScope(req.actor!.role, req.actor!.userId), req.actor!.userId) : null;
       if (!event) {
         refuse(res, 404, "EVENT_NOT_FOUND", "No event with that id exists.");
         return;

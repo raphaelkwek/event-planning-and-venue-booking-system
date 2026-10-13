@@ -45,7 +45,7 @@ export async function resolveCurrentUser(supabaseUserId: string): Promise<Curren
   return lookup.user;
 }
 
-/** A3: which events this caller may see, so opening a search from an event follows the event module's scope. */
-export function eventsScopeFor(actor: { userId: string; role: Role }): AccessScope {
-  return resolveAccessScope(actor.role, actor.userId, "events");
+/** The scope rule for events (A3), from the identity module, so K1 and the J1 pre-fill read an event only as its caller may. */
+export function resolveEventsScope(role: Role, userId: string): AccessScope {
+  return resolveAccessScope(role, userId, "events");
 }
