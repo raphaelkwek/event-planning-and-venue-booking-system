@@ -213,6 +213,10 @@ export function ReviewDetail() {
         <h3 style={{ marginTop: 0 }}>Status</h3>
         <Lozenge appearance={STATUS_APPEARANCE[event.status]}>{STATUS_LABELS[event.status]}</Lozenge>
 
+        <p style={{ marginBottom: 0 }}>
+          <Link to={`/venues/search?eventId=${event.id}`}>Find a venue</Link>
+        </p>
+
         <dl style={{ fontSize: 13 }}>
           <Meta label="Organiser" value={nameOf(event.ownerId)!} />
           <Meta label="Submitted" value={formatInstant(event.submittedAt)} />
