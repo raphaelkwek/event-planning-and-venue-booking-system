@@ -108,7 +108,9 @@ export function ReviewDetail() {
     <div style={{ display: "flex", gap: 32, alignItems: "flex-start" }}>
       <div style={{ flex: 2 }}>
         <h2 style={{ marginBottom: 4 }}>{event.name}</h2>
-        <p style={{ marginTop: 0, color: "#626F86" }}>{event.reference}</p>
+        <p style={{ marginTop: 0, color: "#626F86" }}>
+          {event.reference} · <Link to={`/events/${event.id}/equipment`}>Equipment request</Link>
+        </p>
 
         {reviewedBySomeoneElse && (
           <div style={{ marginBottom: 16 }}>

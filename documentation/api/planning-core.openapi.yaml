@@ -1110,6 +1110,224 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
         "503": { $ref: "#/components/responses/IdentityUnavailable" }
 
+  /api/v1/equipment/request-lines:
+    get:
+      tags: [Equipment]
+      summary: List equipment request lines (O1, O2)
+      description: |
+        Event Coordinators and Technical Support Staff. A coordinator must give `eventId`; Technical
+        Support may list the lines of every event, and filter by `status`. Removed lines are left out
+        unless `status=REMOVED` is asked for. Lines are listed oldest first. When `eventId` is given the
+        response also carries an `event` summary (reference, name, status, proposed times, assigned
+        coordinator) read through the event module's planning view; reading it changes nothing, unlike
+        opening the event for review (D1). An unknown or out-of-scope event is `EVENT_NOT_FOUND`.
+      operationId: listEquipmentRequestLines
+      parameters:
+        - name: eventId
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+        - name: status
+          in: query
+          required: false
+          schema: { $ref: "#/components/schemas/EquipmentRequestLineStatus" }
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 100, default: 25 }
+        - name: cursor
+          in: query
+          required: false
+          schema: { type: string }
+      responses:
+        "200":
+          description: A page of lines.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, nextCursor]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/EquipmentRequestLine" }
+                  nextCursor: { type: [string, "null"] }
+                  event:
+                    type: object
+                    description: Present when eventId was given.
+                    required: [id, reference, name, status, proposedStartAt, proposedEndAt, assignedCoordinatorId]
+                    properties:
+                      id: { type: string, format: uuid }
+                      reference: { type: string }
+                      name: { type: string }
+                      status: { type: string }
+                      proposedStartAt: { type: [string, "null"], format: date-time }
+                      proposedEndAt: { type: [string, "null"], format: date-time }
+                      assignedCoordinatorId: { type: [string, "null"], format: uuid }
+        "400": { $ref: "#/components/responses/ValidationFailed" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "429": { $ref: "#/components/responses/RateLimitExceeded" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+    post:
+      tags: [Equipment]
+      summary: Record the equipment an event requires (O1)
+      description: |
+        The event's assigned Event Coordinator only. Saves a request of one or more lines whole or not
+        at all: any invalid line refuses the request and stores nothing. A line's required-from and
+        required-to default to the event's start and end when omitted; required-to must be later than
+        required-from and quantity a whole number above zero. Each saved line is Submitted, visible to
+        Technical Support Staff, and records the coordinator and time.
+      operationId: createEquipmentRequestLines
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EquipmentRequestLinesInput" }
+      responses:
+        "201":
+          description: The lines, in the order sent.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/EquipmentRequestLine" }
+        "400": { $ref: "#/components/responses/ValidationFailed" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "429": { $ref: "#/components/responses/RateLimitExceeded" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
+  /api/v1/equipment/request-lines/{id}:
+    parameters:
+      - $ref: "#/components/parameters/RecordId"
+    get:
+      tags: [Equipment]
+      summary: Open an equipment request line with its history (O1, O2)
+      description: Event Coordinators and Technical Support Staff. The history is oldest first.
+      operationId: getEquipmentRequestLine
+      responses:
+        "200":
+          description: The line and every save, edit, removal and status change made to it.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/EquipmentRequestLine"
+                  - type: object
+                    required: [history]
+                    properties:
+                      history:
+                        type: array
+                        items: { $ref: "#/components/schemas/EquipmentRequestLineHistoryEntry" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "429": { $ref: "#/components/responses/RateLimitExceeded" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+    put:
+      tags: [Equipment]
+      summary: Edit an equipment request line (O1)
+      description: |
+        The event's assigned Event Coordinator only, and only while the line is Submitted or Under
+        Review. A Reserved (or Confirmed, Unavailable, Substituted or Removed) line is refused with
+        `EQUIPMENT_LINE_NOT_EDITABLE`. A rejected edit changes nothing.
+      operationId: updateEquipmentRequestLine
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EquipmentRequestLineInput" }
+      responses:
+        "200":
+          description: The edited line. Its status and requester are unchanged.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EquipmentRequestLine" }
+        "400": { $ref: "#/components/responses/ValidationFailed" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: "`EQUIPMENT_LINE_NOT_EDITABLE`: the message names the line's current status."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "429": { $ref: "#/components/responses/RateLimitExceeded" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
+  /api/v1/equipment/request-lines/{id}/removal:
+    parameters:
+      - $ref: "#/components/parameters/RecordId"
+    post:
+      tags: [Equipment]
+      summary: Remove an equipment request line (O1)
+      description: |
+        The event's assigned Event Coordinator only, and only while the line is Submitted or Under
+        Review. Removal sets the status Removed and records the acting user, the time, and the
+        equipment type and quantity removed in the line's history. Nothing is deleted.
+      operationId: removeEquipmentRequestLine
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: false }
+      responses:
+        "200":
+          description: The line with status Removed.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EquipmentRequestLine" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: "`EQUIPMENT_LINE_NOT_EDITABLE`: the message names the line's current status."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "429": { $ref: "#/components/responses/RateLimitExceeded" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
+  /api/v1/equipment/request-lines/{id}/status:
+    parameters:
+      - $ref: "#/components/parameters/RecordId"
+    post:
+      tags: [Equipment]
+      summary: Update an equipment request line's status (O2)
+      description: |
+        Technical Support Staff only. Sets Under Review, Confirmed, Unavailable or Substituted and
+        records the acting staff member and time. Unavailable needs a reason. Substituted records the
+        substitute type and quantity beside the original, which is never overwritten. The change and
+        an `equipment-request.line-status-changed` message for the event's assigned coordinator are
+        written in one transaction; a refused change writes neither. A Reserved or Removed line is
+        refused. Reserving equipment is Q1, not this route.
+      operationId: changeEquipmentRequestLineStatus
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EquipmentRequestLineStatusChange" }
+      responses:
+        "200":
+          description: The line with its new status.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EquipmentRequestLine" }
+        "400": { $ref: "#/components/responses/ValidationFailed" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "429": { $ref: "#/components/responses/RateLimitExceeded" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
 components:
   securitySchemes:
     bearerAuth:
@@ -1154,7 +1372,7 @@ components:
         application/json:
           schema: { $ref: "#/components/schemas/ErrorEnvelope" }
     NotFound:
-      description: "`EVENT_NOT_FOUND`, `DRAFT_NOT_FOUND`, `REASSIGNMENT_PROPOSAL_NOT_FOUND` or `VENUE_NOT_FOUND` or `EQUIPMENT_TYPE_NOT_FOUND`. Also returned when the record exists but is outside the caller's scope (A3)."
+      description: "`EVENT_NOT_FOUND`, `DRAFT_NOT_FOUND`, `REASSIGNMENT_PROPOSAL_NOT_FOUND` or `VENUE_NOT_FOUND`, `EQUIPMENT_TYPE_NOT_FOUND` or `EQUIPMENT_LINE_NOT_FOUND`. Also returned when the record exists but is outside the caller's scope (A3)."
       content:
         application/json:
           schema: { $ref: "#/components/schemas/ErrorEnvelope" }
@@ -1767,3 +1985,108 @@ components:
         shortfallQuantity: { type: integer, minimum: 0 }
         startsAt: { type: string, format: date-time }
         endsAt: { type: string, format: date-time }
+
+    EquipmentRequestLineStatus:
+      type: string
+      enum: [SUBMITTED, UNDER_REVIEW, CONFIRMED, UNAVAILABLE, SUBSTITUTED, RESERVED, REMOVED]
+      description: |
+        Submitted when the coordinator saves a line (O1); Under Review, Confirmed, Unavailable and
+        Substituted are set by Technical Support (O2); Reserved is set by Q1 (Sprint 3); Removed is
+        what the coordinator's removal sets (O1).
+
+    EquipmentRequestLineInput:
+      type: object
+      required: [equipmentTypeId, quantity]
+      properties:
+        equipmentTypeId: { type: string, format: uuid }
+        quantity: { type: integer, minimum: 1, description: A whole number greater than zero. }
+        notes: { type: string, maxLength: 2000, description: Technical requirements/notes. }
+        requiredFrom:
+          type: [string, "null"]
+          format: date-time
+          description: Defaults to the event's proposed start when omitted.
+        requiredTo:
+          type: [string, "null"]
+          format: date-time
+          description: Defaults to the event's proposed end when omitted. Must be later than requiredFrom.
+
+    EquipmentRequestLinesInput:
+      type: object
+      required: [eventId, lines]
+      properties:
+        eventId: { type: string, format: uuid }
+        lines:
+          type: array
+          minItems: 1
+          maxItems: 50
+          items: { $ref: "#/components/schemas/EquipmentRequestLineInput" }
+
+    EquipmentRequestLineStatusChange:
+      type: object
+      required: [status]
+      properties:
+        status: { type: string, enum: [UNDER_REVIEW, CONFIRMED, UNAVAILABLE, SUBSTITUTED] }
+        reason: { type: string, maxLength: 1000, description: Required when status is UNAVAILABLE. }
+        substituteEquipmentTypeId: { type: string, format: uuid, description: Required when status is SUBSTITUTED. }
+        substituteQuantity: { type: integer, minimum: 1, description: Required when status is SUBSTITUTED. }
+
+    EquipmentRequestLine:
+      type: object
+      required:
+        - id
+        - eventId
+        - eventReference
+        - equipmentTypeId
+        - equipmentTypeName
+        - quantity
+        - notes
+        - requiredFrom
+        - requiredTo
+        - status
+        - requestedBy
+        - requestedAt
+        - statusChangedBy
+        - statusChangedAt
+        - unavailableReason
+        - substituteEquipmentTypeId
+        - substituteEquipmentTypeName
+        - substituteQuantity
+        - updatedAt
+      properties:
+        id: { type: string, format: uuid }
+        eventId: { type: string, format: uuid }
+        eventReference: { type: string }
+        equipmentTypeId: { type: string, format: uuid, description: The originally requested type; never overwritten by a substitution. }
+        equipmentTypeName: { type: string }
+        quantity: { type: integer, minimum: 1, description: The originally requested quantity. }
+        notes: { type: string }
+        requiredFrom: { type: string, format: date-time }
+        requiredTo: { type: string, format: date-time }
+        status: { $ref: "#/components/schemas/EquipmentRequestLineStatus" }
+        requestedBy: { type: string, format: uuid, description: The coordinator who saved the line. }
+        requestedAt: { type: string, format: date-time }
+        statusChangedBy: { type: [string, "null"], format: uuid }
+        statusChangedAt: { type: [string, "null"], format: date-time }
+        unavailableReason: { type: [string, "null"] }
+        substituteEquipmentTypeId: { type: [string, "null"], format: uuid }
+        substituteEquipmentTypeName: { type: [string, "null"] }
+        substituteQuantity: { type: [integer, "null"], minimum: 1 }
+        updatedAt: { type: string, format: date-time }
+
+    EquipmentRequestLineHistoryEntry:
+      type: object
+      required: [id, action, previousStatus, newStatus, equipmentTypeName, quantity, details, actorUserId, actorRole, occurredAt]
+      properties:
+        id: { type: string, format: uuid }
+        action: { type: string, enum: [CREATED, EDITED, REMOVED, STATUS_CHANGED] }
+        previousStatus:
+          oneOf:
+            - { $ref: "#/components/schemas/EquipmentRequestLineStatus" }
+            - { type: "null" }
+        newStatus: { $ref: "#/components/schemas/EquipmentRequestLineStatus" }
+        equipmentTypeName: { type: string, description: "The line's type when this happened, so a removal still shows what was removed." }
+        quantity: { type: integer, minimum: 1 }
+        details: { type: object, additionalProperties: true, description: "New values of an edit, or the reason or substitute of a status change." }
+        actorUserId: { type: string, format: uuid }
+        actorRole: { type: string }
+        occurredAt: { type: string, format: date-time }
