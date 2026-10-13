@@ -1,6 +1,6 @@
 import { ZodError } from "zod";
-import type { CurrentUser } from "@connectsphere/contracts";
-import { lookUpCaller } from "../../identity/index.js";
+import type { AccessScope, CurrentUser, Role } from "@connectsphere/contracts";
+import { lookUpCaller, resolveAccessScope } from "../../identity/index.js";
 import { sql } from "../../../shared/db.js";
 
 /**
@@ -43,4 +43,9 @@ export async function resolveCurrentUser(supabaseUserId: string): Promise<Curren
     throw new IdentityRefusedError(403, "NO_ROLE_ASSIGNED", "This user has no assigned role.");
   }
   return lookup.user;
+}
+
+/** The scope rule for events (A3), from the identity module, so K1 reads an event only as its caller may. */
+export function resolveEventsScope(role: Role, userId: string): AccessScope {
+  return resolveAccessScope(role, userId, "events");
 }
