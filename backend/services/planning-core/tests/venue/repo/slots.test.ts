@@ -18,7 +18,17 @@ const ACTOR = "a3333333-0000-0000-0000-000000000001";
 /** Postgres data_exception: "range lower bound must be less than or equal to range upper bound". */
 const RANGE_BOUNDS_REVERSED = "22000";
 
+/**
+ * Every venue here is created by ACTOR, so remove them with their slots and
+ * blocks afterwards. On CI the database is thrown away anyway, but run against
+ * the shared one they stayed behind: 270 "EN-02.1 Test Room" venues, cleared
+ * by hand on 10 Oct.
+ */
 afterAll(async () => {
+  const ours = sql`select id from venue.venues where created_by = ${ACTOR}`;
+  await sql`delete from venue.venue_slots where venue_id in (${ours})`;
+  await sql`delete from venue.unavailability_blocks where venue_id in (${ours})`;
+  await sql`delete from venue.venues where created_by = ${ACTOR}`;
   await sql.end();
 });
 
