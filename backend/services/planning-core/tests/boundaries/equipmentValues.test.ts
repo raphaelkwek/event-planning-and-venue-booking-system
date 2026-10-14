@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   EQUIPMENT_KINDS,
+  EQUIPMENT_LINE_HISTORY_ACTIONS,
+  EQUIPMENT_REQUEST_LINE_STATUSES,
   EQUIPMENT_RESERVATION_STATUSES,
   EQUIPMENT_UNAVAILABILITY_STATUSES,
 } from "@connectsphere/contracts";
@@ -33,5 +35,26 @@ describe("equipment migration 0001 and contracts", () => {
 
   it("creates the exclusion constraint the domain code recognises by name", () => {
     expect(migration).toContain(`constraint ${UNIT_OVERLAP_CONSTRAINT}`);
+  });
+});
+
+/** O1/O2: the request line migration lists exactly the statuses and history actions contracts lists. */
+const lineMigration = readMigration("migrations/equipment/0003_equipment_request_lines.sql");
+
+describe("equipment migration 0003 and contracts", () => {
+  it("allows exactly the request line statuses contracts lists", () => {
+    expect(checkedValues(lineMigration, "status", "create table equipment.equipment_request_lines")).toEqual([
+      ...EQUIPMENT_REQUEST_LINE_STATUSES,
+    ]);
+  });
+
+  it("allows exactly the history actions contracts lists", () => {
+    expect(checkedValues(lineMigration, "action", "create table equipment.request_line_history")).toEqual([
+      ...EQUIPMENT_LINE_HISTORY_ACTIONS,
+    ]);
+  });
+
+  it("never deletes (implementation.md section 4.3)", () => {
+    expect(lineMigration.toLowerCase()).not.toMatch(/delete\s+from/);
   });
 });

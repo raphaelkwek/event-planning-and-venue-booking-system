@@ -39,6 +39,7 @@ export function eventRouter(sql: Sql): Router {
 export interface EventPlanningView {
   id: string;
   reference: string | null;
+  name: string;
   status: EventStatus;
   ownerId: string;
   assignedCoordinatorId: string | null;
@@ -67,6 +68,7 @@ export async function findEventForPlanning(
   return {
     id: event.id,
     reference: event.reference,
+    name: event.name,
     status: event.status,
     ownerId: event.ownerId,
     assignedCoordinatorId: event.assignedCoordinatorId,

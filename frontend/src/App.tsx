@@ -18,9 +18,13 @@ import { VenueDetail } from "./screens/VenueDetail.js";
 import { EventDetailsEditor } from "./screens/EventDetailsEditor.js";
 import { EquipmentAvailability } from "./screens/EquipmentAvailability.js";
 import { VenueAvailability } from "./screens/VenueAvailability.js";
+import { VenueSearch } from "./screens/VenueSearch.js";
+import { VenueSuitability } from "./screens/VenueSuitability.js";
 import type { Role } from "./api/types.js";
 import { EquipmentList } from "./screens/EquipmentList.js";
 import { EquipmentEditor } from "./screens/EquipmentEditor.js";
+import { EquipmentRequest } from "./screens/EquipmentRequest.js";
+import { EquipmentRequests } from "./screens/EquipmentRequests.js";
 
 const ROLE_LABELS: Record<Role, string> = {
   EVENT_ORGANISER: "Event Organiser",
@@ -77,6 +81,8 @@ const ROUTES: {
     nav: { label: "All events", to: "/events" },
   },
   { path: "/review/:id", element: <ReviewDetail />, roles: ["EVENT_COORDINATOR"] },
+  // O1: the coordinator records the equipment an event requires; the server allows only the assigned one to write.
+  { path: "/events/:eventId/equipment", element: <EquipmentRequest />, roles: ["EVENT_COORDINATOR"] },
   // G1: the owning organiser or the assigned coordinator edits descriptive details.
   { path: "/events/:id/details", element: <EventDetailsEditor />, roles: ["EVENT_ORGANISER", "EVENT_COORDINATOR"] },
   // H1, H2: every internal role reads the catalogue; only Venue Staff maintain it.
@@ -85,6 +91,14 @@ const ROUTES: {
     element: <VenueList />,
     roles: ["EVENT_ORGANISER", "EVENT_COORDINATOR", "VENUE_STAFF", "TECH_SUPPORT_STAFF"],
     nav: { label: "Venues", to: "/venues" },
+  },
+  // J1, J2: Event Coordinators find a venue by name, building and an event's requirements.
+  // "/venues/search" is a different path from "/venues/:id"; the router ranks the static one first.
+  {
+    path: "/venues/search",
+    element: <VenueSearch />,
+    roles: ["EVENT_COORDINATOR"],
+    nav: { label: "Find a venue", to: "/venues/search" },
   },
   {
     path: "/venues/:id",
@@ -97,6 +111,8 @@ const ROUTES: {
     element: <VenueAvailability />,
     roles: ["EVENT_ORGANISER", "EVENT_COORDINATOR", "VENUE_STAFF", "TECH_SUPPORT_STAFF"],
   },
+  // K1: only Event Coordinators assess a venue against an event.
+  { path: "/venues/:id/suitability", element: <VenueSuitability />, roles: ["EVENT_COORDINATOR"] },
   { path: "/venues/new", element: <VenueEditor />, roles: ["VENUE_STAFF"] },
   { path: "/venues/:id/edit", element: <VenueEditor />, roles: ["VENUE_STAFF"] },
   {
@@ -112,6 +128,13 @@ const ROUTES: {
     element: <EquipmentAvailability />,
     roles: ["TECH_SUPPORT_STAFF"],
     nav: { label: "Equipment availability", to: "/equipment/availability" },
+  },
+  // O2: Technical Support see every equipment line and update its status.
+  {
+    path: "/equipment/requests",
+    element: <EquipmentRequests />,
+    roles: ["TECH_SUPPORT_STAFF"],
+    nav: { label: "Equipment requests", to: "/equipment/requests" },
   },
   // T2: every role reads its own notifications.
   {

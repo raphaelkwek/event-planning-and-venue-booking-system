@@ -1,4 +1,5 @@
 import type { EventStatus } from "../api/types.js";
+import type { LineStatus } from "../api/equipmentRequests.js";
 
 /**
  * implementation.md §7.1: the status colour map is defined once, here, and a
@@ -88,4 +89,38 @@ export const CALENDAR_BAR_COLOURS: Record<CalendarState, string> = {
   UNAVAILABLE: "#6554C0",
   OUTSIDE_HOURS: "#C1C7D0",
   FREE: "#57D9A3",
+};
+
+/** O1, O2: how an equipment request line's status reads, and its one colour. */
+export const LINE_STATUS_LABELS: Record<LineStatus, string> = {
+  SUBMITTED: "Submitted",
+  UNDER_REVIEW: "Under Review",
+  CONFIRMED: "Confirmed",
+  UNAVAILABLE: "Unavailable",
+  SUBSTITUTED: "Substituted",
+  RESERVED: "Reserved",
+  REMOVED: "Removed",
+};
+
+export const LINE_STATUS_APPEARANCE: Record<LineStatus, LozengeAppearance> = {
+  SUBMITTED: "new",
+  UNDER_REVIEW: "inprogress",
+  CONFIRMED: "success",
+  UNAVAILABLE: "removed",
+  SUBSTITUTED: "moved",
+  RESERVED: "success",
+  REMOVED: "default",
+};
+
+/** K1: the three suitability results, each with its own colour and words. */
+export const SUITABILITY_LABELS = {
+  SUITABLE: "Suitable",
+  SUITABLE_WITH_WARNINGS: "Suitable with warnings",
+  NOT_SUITABLE: "Not suitable",
+} as const;
+
+export const SUITABILITY_APPEARANCE: Record<keyof typeof SUITABILITY_LABELS, LozengeAppearance> = {
+  SUITABLE: "success",
+  SUITABLE_WITH_WARNINGS: "moved",
+  NOT_SUITABLE: "removed",
 };

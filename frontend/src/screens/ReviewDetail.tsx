@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import Button from "@atlaskit/button/new";
 import Lozenge from "@atlaskit/lozenge";
 import TextArea from "@atlaskit/textarea";
@@ -117,7 +117,9 @@ export function ReviewDetail() {
             <Button onClick={() => navigate(`/events/${event.id}/details`)}>Edit details</Button>
           )}
         </div>
-        <p style={{ marginTop: 0, color: "#626F86" }}>{event.reference}</p>
+        <p style={{ marginTop: 0, color: "#626F86" }}>
+          {event.reference} · <Link to={`/events/${event.id}/equipment`}>Equipment request</Link>
+        </p>
 
         {savedNotice && (
           <div style={{ marginBottom: 16 }}>
@@ -228,6 +230,10 @@ export function ReviewDetail() {
       <aside style={{ flex: 1, borderLeft: "1px solid #DFE1E6", paddingLeft: 24 }}>
         <h3 style={{ marginTop: 0 }}>Status</h3>
         <Lozenge appearance={STATUS_APPEARANCE[event.status]}>{STATUS_LABELS[event.status]}</Lozenge>
+
+        <p style={{ marginBottom: 0 }}>
+          <Link to={`/venues/search?eventId=${event.id}`}>Find a venue</Link>
+        </p>
 
         <dl style={{ fontSize: 13 }}>
           <Meta label="Organiser" value={nameOf(event.ownerId)!} />
