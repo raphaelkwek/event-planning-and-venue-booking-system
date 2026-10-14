@@ -31,15 +31,18 @@ const ACTOR = "a4444444-0000-0000-0000-000000000001";
  * stay behind.
  */
 afterAll(async () => {
-  const ours = sql`select id from equipment.equipment_types where created_by = ${ACTOR}`;
-  const units = sql`select id from equipment.equipment_units where equipment_type_id in (${ours})`;
-  await sql`delete from equipment.inventory_history where equipment_type_id in (${ours})`;
-  await sql`delete from equipment.unavailability where equipment_type_id in (${ours})`;
-  await sql`delete from equipment.unit_reservations where unit_id in (${units})`;
-  await sql`delete from equipment.bulk_reservations where equipment_type_id in (${ours})`;
-  await sql`delete from equipment.equipment_units where equipment_type_id in (${ours})`;
-  await sql`delete from equipment.equipment_types where created_by = ${ACTOR}`;
-  await sql.end();
+  try {
+    const ours = sql`select id from equipment.equipment_types where created_by = ${ACTOR}`;
+    const units = sql`select id from equipment.equipment_units where equipment_type_id in (${ours})`;
+    await sql`delete from equipment.inventory_history where equipment_type_id in (${ours})`;
+    await sql`delete from equipment.unavailability where equipment_type_id in (${ours})`;
+    await sql`delete from equipment.unit_reservations where unit_id in (${units})`;
+    await sql`delete from equipment.bulk_reservations where equipment_type_id in (${ours})`;
+    await sql`delete from equipment.equipment_units where equipment_type_id in (${ours})`;
+    await sql`delete from equipment.equipment_types where created_by = ${ACTOR}`;
+  } finally {
+    await sql.end();
+  }
 });
 
 /** A time on Monday 2 Nov 2026, Singapore time. */

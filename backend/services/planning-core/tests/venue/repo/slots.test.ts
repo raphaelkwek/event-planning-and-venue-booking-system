@@ -25,11 +25,16 @@ const RANGE_BOUNDS_REVERSED = "22000";
  * by hand on 10 Oct.
  */
 afterAll(async () => {
-  const ours = sql`select id from venue.venues where created_by = ${ACTOR}`;
-  await sql`delete from venue.venue_slots where venue_id in (${ours})`;
-  await sql`delete from venue.unavailability_blocks where venue_id in (${ours})`;
-  await sql`delete from venue.venues where created_by = ${ACTOR}`;
-  await sql.end();
+  try {
+    const ours = sql`select id from venue.venues where created_by = ${ACTOR}`;
+    await sql`delete from venue.venue_slots where venue_id in (${ours})`;
+    await sql`delete from venue.unavailability_blocks where venue_id in (${ours})`;
+    await sql`delete from venue.venue_history where venue_id in (${ours})`;
+    await sql`delete from venue.venue_staff where venue_id in (${ours})`;
+    await sql`delete from venue.venues where created_by = ${ACTOR}`;
+  } finally {
+    await sql.end();
+  }
 });
 
 async function newVenue(): Promise<string> {
