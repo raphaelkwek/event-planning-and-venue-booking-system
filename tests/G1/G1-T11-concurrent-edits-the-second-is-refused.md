@@ -19,6 +19,6 @@
 |---|---|
 | Actual Result | Window A saved. Window B's save got 412 EVENT_VERSION_MISMATCH and showed "This event changed after you opened it": "This event was changed after you opened it, so nothing was saved. Load the latest version, then make your edit again." After Reload, window B showed "Edited by the organiser". The history held one description change, by the organiser. |
 | Status | Pass |
-| Remarks | Commit: c1aa0cb · Evidence: tests/G1/evidence/G1-T11.png · Defect: — |
+| Remarks | Commit: 21956ca · Evidence: tests/G1/evidence/G1-T11.png · Defect: — |
 | Executed By | Yichen, via automated testing |
-| Date of Execution | 2026-10-10 |
+| Date of Execution | 2026-10-14 |

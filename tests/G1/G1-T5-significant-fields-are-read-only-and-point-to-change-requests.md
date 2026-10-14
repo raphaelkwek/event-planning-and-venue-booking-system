@@ -19,6 +19,6 @@
 |---|---|
 | Actual Result | The screen had 4 fields to type into: Purpose, Description, Accessibility notes and Contact details. The section "Changed only through a change request" showed, as text only: "Changed only through a change requestThese can be changed only through a change request, because the arrangements already made depend on them.Date and time12/2/2026, 2:00:00 PM to 12/2/2026, 6:00:00 PMExpected attendance150Venue requirements—Equipment requirementsNone required" |
 | Status | Pass |
-| Remarks | Commit: c1aa0cb · Evidence: tests/G1/evidence/G1-T5.png · Defect: — |
+| Remarks | Commit: 21956ca · Evidence: tests/G1/evidence/G1-T5.png · Defect: — |
 | Executed By | Yichen, via automated testing |
-| Date of Execution | 2026-10-10 |
+| Date of Execution | 2026-10-14 |

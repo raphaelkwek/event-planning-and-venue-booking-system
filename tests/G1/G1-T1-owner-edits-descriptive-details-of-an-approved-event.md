@@ -19,6 +19,6 @@
 |---|---|
 | Actual Result | "Details saved." was shown. The request's page showed Purpose "Share faculty research with industry partners", Description "A one-day symposium for the school of computing, with an industry panel.", Accessibility needs "Step-free access to the stage, and a hearing loop" and Contact details "Dr Mei Lin Tan, meilin.tan@smu.edu.sg, 6828 0123". The status stayed Approved and the expected attendance 150. |
 | Status | Pass |
-| Remarks | Commit: c1aa0cb · Evidence: tests/G1/evidence/G1-T1.png · Defect: — |
+| Remarks | Commit: 21956ca · Evidence: tests/G1/evidence/G1-T1.png · Defect: — |
 | Executed By | Yichen, via automated testing |
-| Date of Execution | 2026-10-10 |
+| Date of Execution | 2026-10-14 |
