@@ -15,6 +15,7 @@ import {
 } from "../api/events.js";
 import type { Clarification, EventRecord, ReassignmentProposal } from "../api/types.js";
 import { formatInstant, STATUS_APPEARANCE, STATUS_LABELS } from "../shared/status.js";
+import { StatusHistory } from "../components/StatusHistory.js";
 import { Refusal } from "../components/Refusal.js";
 import { canEditDetails } from "../shared/eventDetails.js";
 import { EquipmentRequirementsView, VenueRequirementsView } from "../components/Requirements.js";
@@ -153,6 +154,7 @@ export function RequestDetail() {
           value={event.registrationRequired ? "Yes" : "No"}
         />
 
+        <StatusHistory eventId={event.id} refreshKey={event.status} />
         <h3 style={{ marginTop: 32 }}>Clarifications</h3>
         {clarifications.length === 0 && <p>None requested.</p>}
         {clarifications.map((entry) => (
