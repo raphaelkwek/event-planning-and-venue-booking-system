@@ -62,7 +62,7 @@
 
 ## Verified
 
-- **The 12 G1 cards pass in Chrome** through the automated runner, against `c1aa0cb`.
+- **The 12 G1 cards pass in Chrome** through the automated runner, against `21956ca` (G1 merged with main, K1, J1, J2, O1 and O2 included).
 - **planning-core:**
   - unit tests: 382/382, with the new rules at 100% line, branch and mutation coverage;
   - integration tests: the new suite passes 13/13, and every event and venue suite passes against the shared database.
