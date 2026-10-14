@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
+| Actual Result |  |
 | Status | Not Executed |
-| Remarks | UI walk-through in Chrome pending at the sprint review |
-| Executed By | |
-| Date of Execution | |
+| Remarks | Not recorded: the repo test (J2-T3) returns no venue for 'old gym', but no test asserts the empty-result message naming the search. UI walk-through in Chrome pending at the sprint review |
+| Executed By |  |
+| Date of Execution |  |

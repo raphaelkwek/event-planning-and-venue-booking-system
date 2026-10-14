@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | UI walk-through in Chrome pending at the sprint review |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | Search 'lecture' returned Lecture Hall with name 'J1T Lecture Hall', building 'J1T Arts Building', maximum capacity 200 and facilities Projector, Wireless microphones, Stage lighting. The column headings were not exercised. |
+| Status | Pass (automated, API level) |
+| Remarks | Commit: cb3b9d8 · Evidence: backend/services/planning-core/tests/venue/repo/venueSearch.test.ts › returns the fields a result row shows (J2 AC3) , CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/38427990873 · Defect: — · The screen itself was not exercised; UI walk-through in Chrome pending at the sprint review |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-10-13 |
