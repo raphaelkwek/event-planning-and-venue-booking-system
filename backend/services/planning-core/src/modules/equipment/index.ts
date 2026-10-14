@@ -3,6 +3,10 @@ import type { Sql } from "postgres";
 import { availabilityRouter } from "./api/availability.js";
 import { inventoryRouter } from "./api/inventory.js";
 import { equipmentRateLimiter } from "./api/limiter.js";
+import { requestLinesRouter } from "./api/requestLines.js";
+
+/** The module's outbox table, for the outbox relay (implementation.md §3.4). */
+export { EQUIPMENT_OUTBOX_TABLE } from "./events/outbox.js";
 
 /**
  * The equipment module's public interface (ADR-0004). Other modules import
@@ -20,5 +24,6 @@ export function equipmentRouter(sql: Sql): Router {
   const limiter = equipmentRateLimiter();
   router.use(inventoryRouter(sql, limiter));
   router.use(availabilityRouter(sql, limiter));
+  router.use(requestLinesRouter(sql, limiter));
   return router;
 }
