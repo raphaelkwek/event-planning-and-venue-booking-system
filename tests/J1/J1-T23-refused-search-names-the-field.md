@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
+| Actual Result |  |
 | Status | Not Executed |
-| Remarks | UI walk-through in Chrome pending at the sprint review |
-| Executed By | |
-| Date of Execution | |
+| Remarks | Not recorded: the API test (J1-T23) refuses a missing To (together with an invalid minimum capacity) and a To before From, naming To, but does not cover a To equal to From, and the message under the form is on screen. UI walk-through in Chrome pending at the sprint review |
+| Executed By |  |
+| Date of Execution |  |

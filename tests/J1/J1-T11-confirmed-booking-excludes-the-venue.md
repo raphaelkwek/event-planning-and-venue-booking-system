@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | UI walk-through in Chrome pending at the sprint review |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | Building 'J1T Science', window 14 Dec 10:30-11:30 returned Seminar Room only; Auditorium (confirmed booking 10:00-12:00) was excluded. Asserted at both the query and the API route. |
+| Status | Pass (automated, API level) |
+| Remarks | Commit: cb3b9d8 · Evidence: backend/services/planning-core/tests/venue/api/venueSearch.test.ts › excludes a venue whose booking overlaps the window, and keeps one that only touches it (J1-T11, J1-T14) ; backend/services/planning-core/tests/venue/repo/venueSearch.test.ts › excludes a venue with a confirmed booking inside the window (J1-T11) , CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/38427990873 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-10-13 |

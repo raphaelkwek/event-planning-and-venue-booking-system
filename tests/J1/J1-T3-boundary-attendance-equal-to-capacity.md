@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | UI walk-through in Chrome pending at the sprint review |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | Minimum capacity 200 returned Auditorium and Lecture Hall; 201 returned Auditorium only; 300 returned Auditorium only; 301 returned no venue. The empty-result message for this input was not asserted in that test; the message is asserted generically by the J1-T20 test. |
+| Status | Pass (automated, API level) |
+| Remarks | Commit: cb3b9d8 · Evidence: backend/services/planning-core/tests/venue/repo/venueSearch.test.ts › keeps a venue whose capacity equals the minimum, and drops it for one more (J1-T3) ; backend/services/planning-core/tests/venue/api/venueSearch.test.ts › answers a search that matches nothing with 200, an empty list and a message restating the filters (J1-T20) , CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/38427990873 · Defect: — · The screen itself was not exercised; UI walk-through in Chrome pending at the sprint review |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-10-13 |

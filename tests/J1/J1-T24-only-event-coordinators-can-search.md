@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | UI walk-through in Chrome pending at the sprint review |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | For EVENT_ORGANISER, VENUE_STAFF, TECH_SUPPORT_STAFF and ATTENDEE, GET /api/v1/venues/search (and /search/options and /search/prefill) returned 403 ROLE_NOT_AUTHORISED with no items. A signed-in EVENT_COORDINATOR received 200 with an items list in the empty-search test. The absence of the 'Find a venue' navigation link was not exercised. |
+| Status | Pass (automated, API level) |
+| Remarks | Commit: cb3b9d8 · Evidence: backend/services/planning-core/tests/venue/api/venueSearch.test.ts › refuses %s and returns no venues (policy action search on venue; J1-T24) ; backend/services/planning-core/tests/venue/api/venueSearch.test.ts › lists every active venue for an empty search, with the row fields J2 shows , CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/38427990873 · Defect: — · The screen itself was not exercised; UI walk-through in Chrome pending at the sprint review |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-10-13 |

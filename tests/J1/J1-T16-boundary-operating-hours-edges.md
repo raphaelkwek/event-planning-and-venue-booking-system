@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | UI walk-through in Chrome pending at the sprint review |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | 14 Dec 08:00-08:30 returned Auditorium, Lecture Hall and Seminar Room; 07:59-08:30 returned no venue; 20:00-22:00 returned Auditorium, Lecture Hall and Seminar Room (Late Studio closes at 20:00); 21:30-22:01 returned no venue. The empty-result message for this input was not asserted in that test; the message is asserted generically by the J1-T20 test. |
+| Status | Pass (automated, API level) |
+| Remarks | Commit: cb3b9d8 · Evidence: backend/services/planning-core/tests/venue/repo/venueSearch.test.ts › keeps a window that starts exactly at opening and ends exactly at closing, and drops one a minute outside (J1-T16) ; backend/services/planning-core/tests/venue/api/venueSearch.test.ts › answers a search that matches nothing with 200, an empty list and a message restating the filters (J1-T20) , CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/38427990873 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-10-13 |

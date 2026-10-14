@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
+| Actual Result |  |
 | Status | Not Executed |
-| Remarks | UI walk-through in Chrome pending at the sprint review |
-| Executed By | |
-| Date of Execution | |
+| Remarks | Screen only: editing pre-filled fields in the form is not covered by any integration test. UI walk-through in Chrome pending at the sprint review |
+| Executed By |  |
+| Date of Execution |  |
