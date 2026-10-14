@@ -41,10 +41,25 @@ delete from venue.venue_staff   where venue_id in (select id from test_owned_ven
 delete from venue.venues        where id in (select id from test_owned_venues);
 
 -- Equipment the seeded Technical Support account created (P2), including all
--- audit, reservation, unavailability and unit rows that refer to those types.
+-- audit, reservation, unavailability, unit and request line rows that refer to those types.
 create temporary table test_owned_equipment on commit drop as
   select id from equipment.equipment_types
   where created_by = '00000000-0000-0000-0000-000000000004'; -- techsupport@connectsphere.test
+
+-- Equipment request lines (O1, O2) for those events or those types, with their history and the
+-- notification messages their status changes wrote. Lines carry no foreign key to an event.
+create temporary table test_owned_lines on commit drop as
+  select id from equipment.equipment_request_lines
+  where event_id in (select id from test_owned_events)
+     or equipment_type_id in (select id from test_owned_equipment)
+     or substitute_equipment_type_id in (select id from test_owned_equipment);
+
+delete from equipment.outbox
+  where message_key in (select id::text from test_owned_lines);
+delete from equipment.request_line_history
+  where line_id in (select id from test_owned_lines);
+delete from equipment.equipment_request_lines
+  where id in (select id from test_owned_lines);
 
 delete from equipment.inventory_history
   where equipment_type_id in (select id from test_owned_equipment);

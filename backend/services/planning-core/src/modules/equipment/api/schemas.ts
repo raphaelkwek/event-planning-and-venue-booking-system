@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { EQUIPMENT_KINDS } from "@connectsphere/contracts";
+import { EQUIPMENT_KINDS, EQUIPMENT_REQUEST_LINE_STATUSES } from "@connectsphere/contracts";
 
 export const equipmentTypeBodySchema = z.object({
   name: z.string(),
@@ -18,4 +18,22 @@ export const unavailabilityBodySchema = z.object({
   startsAt: dateString,
   endsAt: dateString,
   reason: z.string(),
+});
+
+/** O1: the request is checked line by line by the domain, so the body only has to be an object with a list of objects. */
+export const createLinesBodySchema = z.object({
+  eventId: z.string().uuid(),
+  lines: z.array(z.record(z.unknown())),
+});
+
+/** A single line, for an edit: the domain checks each field. */
+export const lineBodySchema = z.record(z.unknown());
+
+const lineStatuses = z.enum(EQUIPMENT_REQUEST_LINE_STATUSES);
+
+export const listLinesQuerySchema = z.object({
+  eventId: z.string().uuid().optional(),
+  status: lineStatuses.optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(25),
+  cursor: z.string().regex(/^\d{1,15}$/, "Invalid cursor.").optional(),
 });

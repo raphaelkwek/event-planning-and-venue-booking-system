@@ -48,6 +48,7 @@ describe("findEventForPlanning", () => {
     expect(view).toEqual({
       id: draft.id,
       reference: null,
+      name: "Planning view fixture",
       status: "DRAFT",
       ownerId: OWNER,
       assignedCoordinatorId: null,
