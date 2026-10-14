@@ -1,4 +1,5 @@
-import { Router, type Response } from "express";
+import { Router, type RequestHandler, type Response } from "express";
+import { rateLimit } from "express-rate-limit";
 import type { Sql } from "postgres";
 import { authenticate, requireRole, type ActorRequest } from "../auth/actor.js";
 import { changedFields, validateVenue, type VenueInput } from "../domain/venueRecord.js";
@@ -25,6 +26,22 @@ import { fieldsFromZod, refuse } from "./errors.js";
 const READERS = ["EVENT_ORGANISER", "EVENT_COORDINATOR", "VENUE_STAFF", "TECH_SUPPORT_STAFF"] as const;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+/**
+ * At most 120 catalogue requests a minute from one address, reads and writes
+ * together, refused before any identity lookup or query (CodeQL
+ * js/missing-rate-limiting). A stopgap like the calendar's and K1's: ADR-0011
+ * moves this to the gateway (EN-12), so remove it once that limits requests.
+ */
+export function venuesRateLimit(): RequestHandler {
+  return rateLimit({
+    windowMs: 60_000,
+    limit: 120,
+    standardHeaders: "draft-8",
+    legacyHeaders: false,
+    handler: (_req, res) => refuse(res, 429, "RATE_LIMITED", "Too many venue requests. Wait a minute and try again."),
+  });
+}
+
 function notFound(res: Response) {
   refuse(res, 404, "VENUE_NOT_FOUND", "No venue with that id exists.");
 }
@@ -44,20 +61,20 @@ function readVenue(req: ActorRequest, res: Response, isActive: boolean): VenueIn
   return result.venue;
 }
 
-export function venuesRouter(sql: Sql) {
+export function venuesRouter(sql: Sql, limiter: RequestHandler = venuesRateLimit()) {
   const router = Router();
 
-  router.get("/api/v1/venues", authenticate, requireRole(...READERS), async (_req: ActorRequest, res: Response) => {
+  router.get("/api/v1/venues", limiter, authenticate, requireRole(...READERS), async (_req: ActorRequest, res: Response) => {
     res.json({ items: await listVenues(sql) });
   });
 
-  router.get("/api/v1/venues/:id", authenticate, requireRole(...READERS), async (req: ActorRequest, res: Response) => {
+  router.get("/api/v1/venues/:id", limiter, authenticate, requireRole(...READERS), async (req: ActorRequest, res: Response) => {
     const venue = UUID.test(req.params.id!) ? await findVenue(sql, req.params.id!) : null;
     if (!venue) return notFound(res);
     res.json(venue);
   });
 
-  router.post("/api/v1/venues", authenticate, requireRole("VENUE_STAFF"), async (req: ActorRequest, res: Response) => {
+  router.post("/api/v1/venues", limiter, authenticate, requireRole("VENUE_STAFF"), async (req: ActorRequest, res: Response) => {
     const venue = readVenue(req, res, true);
     if (!venue) return;
     const actor = req.actor!;
@@ -74,7 +91,7 @@ export function venuesRouter(sql: Sql) {
     res.status(201).json(created);
   });
 
-  router.put("/api/v1/venues/:id", authenticate, requireRole("VENUE_STAFF"), async (req: ActorRequest, res: Response) => {
+  router.put("/api/v1/venues/:id", limiter, authenticate, requireRole("VENUE_STAFF"), async (req: ActorRequest, res: Response) => {
     if (!UUID.test(req.params.id!)) return notFound(res);
     const current = await findVenue(sql, req.params.id!);
     if (!current) return notFound(res);

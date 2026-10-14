@@ -1,4 +1,5 @@
 import type { ISql, Sql } from "postgres";
+import { isEventId } from "../domain/ids.js";
 import { toEvent, type EventRow, type RawEvent } from "./events.js";
 
 /**
@@ -56,6 +57,7 @@ export async function insertDraft(sql: ISql, ownerId: string, fields: DraftField
  */
 /** Whether the request exists and belongs to the owner, whatever its status. */
 export async function isOwnedBy(sql: ISql, id: string, ownerId: string): Promise<boolean> {
+  if (!isEventId(id)) return false;
   const rows = await sql`select 1 from event.events where id = ${id} and owner_id = ${ownerId}`;
   return rows.length > 0;
 }
@@ -65,6 +67,7 @@ export async function findDraftForOwner(
   draftId: string,
   ownerId: string
 ): Promise<EventRow | null> {
+  if (!isEventId(draftId)) return null;
   const rows = await sql<RawEvent[]>`
     select *, null::uuid as assigned_coordinator_id
     from event.events
@@ -79,6 +82,7 @@ export async function updateDraft(
   ownerId: string,
   fields: DraftFields
 ): Promise<EventRow | null> {
+  if (!isEventId(draftId)) return null;
   const rows = await sql<RawEvent[]>`
     update event.events set
       name = ${fields.name},
@@ -112,6 +116,7 @@ export async function findOwnedRequest(
   requestId: string,
   ownerId: string
 ): Promise<EventRow | null> {
+  if (!isEventId(requestId)) return null;
   const rows = await sql<RawEvent[]>`
     select *, null::uuid as assigned_coordinator_id
     from event.events
