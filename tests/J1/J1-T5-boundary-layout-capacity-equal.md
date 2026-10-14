@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | UI walk-through in Chrome pending at the sprint review |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | Classroom layout with minimum capacity 80 returned Auditorium and Lecture Hall; 81 returned Auditorium only. |
+| Status | Pass (automated, API level) |
+| Remarks | Commit: cb3b9d8 · Evidence: backend/services/planning-core/tests/venue/repo/venueSearch.test.ts › keeps a venue whose layout capacity equals the minimum, and drops it for one more (J1-T5) , CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/38427990873 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-10-13 |

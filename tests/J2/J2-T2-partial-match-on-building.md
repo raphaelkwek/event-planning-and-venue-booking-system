@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | UI walk-through in Chrome pending at the sprint review |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | 'SCIENCE block' returned Auditorium and Seminar Room; 'arts' returned Lecture Hall only (the inactive Old Gym was not returned). |
+| Status | Pass (automated, API level) |
+| Remarks | Commit: cb3b9d8 · Evidence: backend/services/planning-core/tests/venue/repo/venueSearch.test.ts › matches part of the building, ignoring case (J2-T2) , CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/38427990873 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-10-13 |

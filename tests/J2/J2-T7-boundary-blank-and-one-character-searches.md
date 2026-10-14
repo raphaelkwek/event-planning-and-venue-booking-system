@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
+| Actual Result |  |
 | Status | Not Executed |
-| Remarks | UI walk-through in Chrome pending at the sprint review |
-| Executed By | |
-| Date of Execution | |
+| Remarks | Not recorded: the repo test (J2-T7) takes % and _ literally, but no test covers the three-space search or the search for 'x'. UI walk-through in Chrome pending at the sprint review |
+| Executed By |  |
+| Date of Execution |  |

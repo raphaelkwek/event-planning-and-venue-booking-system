@@ -19,6 +19,6 @@
 |---|---|
 | Actual Result | |
 | Status | Not Executed |
-| Remarks | UI walk-through in Chrome pending at the sprint review |
+| Remarks | Commit: cb3b9d8 · Evidence: partial only. At API level, for an event on 14 Dec 12:00-14:00, attendance 150, layout theatre, facilities projector and Wireless microphones, needs 'Step-free access, hearing LOOP, Reserved seating', the pre-fill route returned from 12:00 to 14:00 SGT, minimum capacity 150, layout Theatre, facilities Projector and Wireless microphones, accessibility Step-free access and Hearing loop, with Reserved seating listed as unmatched. Searching with those returned filters returned Auditorium only (backend/services/planning-core/tests/venue/api/venueSearch.test.ts › gives the event's window, attendance, layout, facilities and matched accessibility needs, in the catalogue's spelling (J1-T21) ; backend/services/planning-core/tests/venue/api/venueSearch.test.ts › gives filters the search accepts back unchanged, so the pre-filled search runs (J1-T21) , CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/38427990873). Not covered by any automated test: the pre-filled form itself and the note naming the unmatched need. UI walk-through in Chrome pending at the sprint review · Defect: — |
 | Executed By | |
 | Date of Execution | |

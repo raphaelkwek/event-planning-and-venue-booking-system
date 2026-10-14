@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
+| Actual Result |  |
 | Status | Not Executed |
-| Remarks | UI walk-through in Chrome pending at the sprint review |
-| Executed By | |
-| Date of Execution | |
+| Remarks | Not recorded: the repo test (J1-T9) asserts Hearing loop, Accessible toilet, and Step-free access with Hearing loop, but not the card's last step (Accessible toilet, Step-free access and Hearing loop together). UI walk-through in Chrome pending at the sprint review |
+| Executed By |  |
+| Date of Execution |  |

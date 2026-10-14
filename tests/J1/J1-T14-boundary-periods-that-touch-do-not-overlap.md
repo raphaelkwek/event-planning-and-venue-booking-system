@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | UI walk-through in Chrome pending at the sprint review |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | Window 14 Dec 12:00-14:00 returned Auditorium, Late Studio and Seminar Room; Lecture Hall (block to 13:00) was excluded. Periods that only touch (booking ends 12:00, hold starts 14:00) did not exclude. Asserted at both the query and the API route. |
+| Status | Pass (automated, API level) |
+| Remarks | Commit: cb3b9d8 · Evidence: backend/services/planning-core/tests/venue/repo/venueSearch.test.ts › does not treat periods that merely touch as overlapping, on either side (J1-T14) ; backend/services/planning-core/tests/venue/api/venueSearch.test.ts › excludes a venue whose booking overlaps the window, and keeps one that only touches it (J1-T11, J1-T14) , CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/38427990873 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-10-13 |

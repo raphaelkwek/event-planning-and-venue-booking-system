@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | UI walk-through in Chrome pending at the sprint review |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | Building 'J1T Science', 15 Dec: 13:00-13:45 returned Seminar Room only; 16:00-18:00 returned Seminar Room only (booking 14:00-16:00 with 30 minutes either side occupies 13:30-16:30); 13:00-13:30 returned Auditorium and Seminar Room; 16:30-18:30 returned Auditorium and Seminar Room. |
+| Status | Pass (automated, API level) |
+| Remarks | Commit: cb3b9d8 · Evidence: backend/services/planning-core/tests/venue/repo/venueSearch.test.ts › compares a booking's occupied period, with its own setup and turnaround time (J1-T17) ; backend/services/planning-core/tests/venue/repo/venueSearch.test.ts › does not overlap an occupied period it merely touches (J1-T17) , CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/38427990873 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-10-13 |

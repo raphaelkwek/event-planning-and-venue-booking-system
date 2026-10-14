@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
+| Actual Result |  |
 | Status | Not Executed |
-| Remarks | Waits for H3 (Sprint 3): the venue record has no setup or turnaround time yet, so the search widens by zero minutes until it lands. See the J1 README |
-| Executed By | |
-| Date of Execution | |
+| Remarks | Waits for H3, which is not merged: the search widens the requested window by 0 minutes until the venue's own setup and turnaround times exist. UI walk-through in Chrome pending at the sprint review |
+| Executed By |  |
+| Date of Execution |  |

@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
+| Actual Result |  |
 | Status | Not Executed |
-| Remarks | UI walk-through in Chrome pending at the sprint review |
-| Executed By | |
-| Date of Execution | |
+| Remarks | Not recorded: the form fields (From, To, Minimum capacity, Building, Layout, Facilities, Accessibility) are on screen, and no integration test checks them; the API tests check the venue list only. UI walk-through in Chrome pending at the sprint review |
+| Executed By |  |
+| Date of Execution |  |
