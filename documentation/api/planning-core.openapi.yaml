@@ -408,6 +408,68 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
         "503": { $ref: "#/components/responses/IdentityUnavailable" }
 
+  /api/v1/events/{id}/status:
+    parameters:
+      - $ref: "#/components/parameters/RecordId"
+    get:
+      tags: [Events]
+      summary: An event's current status (F2)
+      description: |
+        Every role that may see the event under its access scope (A3). Only the status is
+        returned: no rejection reason, review comment or coordinator, so the answer is safe
+        for an attendee. An event outside the caller's scope answers 404 with no data.
+        Rate limited before authentication.
+      operationId: getEventStatus
+      responses:
+        "200":
+          description: The current status.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [eventId, status]
+                additionalProperties: false
+                properties:
+                  eventId: { type: string, format: uuid }
+                  status: { type: string }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "429": { $ref: "#/components/responses/RateLimitExceeded" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
+  /api/v1/events/{id}/status-history:
+    parameters:
+      - $ref: "#/components/parameters/RecordId"
+    get:
+      tags: [Events]
+      summary: An event's status history (F2)
+      description: |
+        Event Organiser (own events, by access scope) and Event Coordinator only. Every other
+        role, attendees included, is refused with 403 before the event is looked up. Entries
+        are status changes, oldest first. The history is append-only and read-only: no route
+        edits or deletes an entry. Rate limited before authentication.
+      operationId: getEventStatusHistory
+      responses:
+        "200":
+          description: The current status and every status change.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [eventId, status, items, nextCursor]
+                properties:
+                  eventId: { type: string, format: uuid }
+                  status: { type: string }
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/StatusHistoryEntry" }
+                  nextCursor: { type: "null" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "429": { $ref: "#/components/responses/RateLimitExceeded" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
   /api/v1/events/{id}/approve:
     parameters:
       - $ref: "#/components/parameters/RecordId"
@@ -1631,6 +1693,18 @@ components:
         responseMessage: { type: [string, "null"] }
         respondedBy: { type: [string, "null"], format: uuid }
         respondedAt: { type: [string, "null"], format: date-time }
+
+    StatusHistoryEntry:
+      type: object
+      required: [id, previousStatus, newStatus, actorUserId, actorRole, triggeringAction, occurredAt]
+      properties:
+        id: { type: string, format: uuid }
+        previousStatus: { type: [string, "null"] }
+        newStatus: { type: string }
+        actorUserId: { type: [string, "null"], format: uuid }
+        actorRole: { type: string }
+        triggeringAction: { type: string }
+        occurredAt: { type: string, format: date-time }
 
     ReassignmentProposal:
       type: object
