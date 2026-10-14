@@ -15,6 +15,7 @@ import { VenueEditor } from "./screens/VenueEditor.js";
 import { Notifications } from "./screens/Notifications.js";
 import { useUnreadCount } from "./shared/useUnreadCount.js";
 import { VenueDetail } from "./screens/VenueDetail.js";
+import { EventDetailsEditor } from "./screens/EventDetailsEditor.js";
 import { EquipmentAvailability } from "./screens/EquipmentAvailability.js";
 import { VenueAvailability } from "./screens/VenueAvailability.js";
 import { VenueSearch } from "./screens/VenueSearch.js";
@@ -82,6 +83,8 @@ const ROUTES: {
   { path: "/review/:id", element: <ReviewDetail />, roles: ["EVENT_COORDINATOR"] },
   // O1: the coordinator records the equipment an event requires; the server allows only the assigned one to write.
   { path: "/events/:eventId/equipment", element: <EquipmentRequest />, roles: ["EVENT_COORDINATOR"] },
+  // G1: the owning organiser or the assigned coordinator edits descriptive details.
+  { path: "/events/:id/details", element: <EventDetailsEditor />, roles: ["EVENT_ORGANISER", "EVENT_COORDINATOR"] },
   // H1, H2: every internal role reads the catalogue; only Venue Staff maintain it.
   {
     path: "/venues",

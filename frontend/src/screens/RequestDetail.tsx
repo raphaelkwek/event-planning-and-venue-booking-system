@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import Button from "@atlaskit/button/new";
 import Lozenge from "@atlaskit/lozenge";
 import TextArea from "@atlaskit/textarea";
@@ -17,6 +17,7 @@ import type { Clarification, EventRecord, ReassignmentProposal } from "../api/ty
 import { formatInstant, STATUS_APPEARANCE, STATUS_LABELS } from "../shared/status.js";
 import { StatusHistory } from "../components/StatusHistory.js";
 import { Refusal } from "../components/Refusal.js";
+import { canEditDetails } from "../shared/eventDetails.js";
 import { EquipmentRequirementsView, VenueRequirementsView } from "../components/Requirements.js";
 
 /**
@@ -26,6 +27,9 @@ import { EquipmentRequirementsView, VenueRequirementsView } from "../components/
  */
 export function RequestDetail() {
   const session = useSignedIn();
+  const navigate = useNavigate();
+  // G1: the edit screen comes back here with "Details saved."
+  const savedNotice = (useLocation().state as { notice?: string } | null)?.notice ?? null;
   const { id } = useParams<{ id: string }>();
   const [event, setEvent] = useState<EventRecord | null>(null);
   const [clarifications, setClarifications] = useState<Clarification[]>([]);
@@ -97,8 +101,21 @@ export function RequestDetail() {
   return (
     <div style={{ display: "flex", gap: 32, alignItems: "flex-start" }}>
       <div style={{ flex: 2 }}>
-        <h2 style={{ marginBottom: 4 }}>{event.name}</h2>
+        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+          <h2 style={{ marginBottom: 4, flex: 1 }}>{event.name}</h2>
+          {canEditDetails(event, session) && (
+            <Button onClick={() => navigate(`/events/${event.id}/details`)}>Edit details</Button>
+          )}
+        </div>
         <p style={{ marginTop: 0, color: "#626F86" }}>{event.reference ?? "No reference yet"}</p>
+
+        {savedNotice && (
+          <div style={{ marginBottom: 16 }}>
+            <SectionMessage appearance="success">
+              <p style={{ margin: 0 }}>{savedNotice}</p>
+            </SectionMessage>
+          </div>
+        )}
 
         {event.status === "REJECTED" && event.rejectionReason && (
           <div style={{ marginBottom: 16 }}>
@@ -129,6 +146,7 @@ export function RequestDetail() {
           value={event.expectedAttendance === null ? null : String(event.expectedAttendance)}
         />
         <Detail label="Accessibility needs" value={event.accessibilityNeeds} />
+        <Detail label="Contact details" value={event.contactDetails} />
         <VenueRequirementsView value={event.venueRequirements} />
         <EquipmentRequirementsView required={event.equipmentRequired} lines={event.equipmentRequirements} />
         <Detail
