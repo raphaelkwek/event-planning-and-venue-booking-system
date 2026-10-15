@@ -129,7 +129,7 @@ describe("Q1 cards: reserving a line's equipment", () => {
       select u.label, r.reservation_id
       from equipment.unit_reservations r
       join equipment.equipment_units u on u.id = r.unit_id
-      where r.reservation_id = ${response.body.reservation.id}
+      where u.equipment_type_id = ${projectors.id}
       order by u.label
     `;
     expect(units.map((unit) => unit.label)).toEqual(["P-01", "P-02"]);
@@ -296,5 +296,28 @@ describe("Q1 cards: reserving a line's equipment", () => {
 
     expect(response.status).toBe(201);
     expect(response.body.reservation.reservedQuantity).toBe(10);
+  });
+});
+
+describe("reservation route", () => {
+  it("reserves for an event with no assigned coordinator and writes no outbox message", async () => {
+    const unassigned = await createEvent(sql, { ownerId: A.org, coordinatorId: null, name: "Q1 unassigned event" });
+    const id = await insertLineDirect(sql, {
+      event: unassigned,
+      equipmentTypeId: chairs.id,
+      requestedBy: A.c1,
+      status: "CONFIRMED",
+      quantity: 2,
+    });
+    const response = await reserve(id);
+
+    expect(response.status).toBe(201);
+    expect(await outboxRows(id)).toHaveLength(0);
+  });
+
+  it("answers 404 EQUIPMENT_LINE_NOT_FOUND for an id that is not a UUID", async () => {
+    const response = await reserve("not-a-uuid");
+    expect(response.status).toBe(404);
+    expect(response.body.error.code).toBe("EQUIPMENT_LINE_NOT_FOUND");
   });
 });

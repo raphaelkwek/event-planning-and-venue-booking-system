@@ -8,16 +8,16 @@ import { validateReservationBody } from "../domain/reservations.js";
 import { lineStatusChangedMessage } from "../events/lineStatusMessage.js";
 import { writeOutbox } from "../events/outbox.js";
 import { reserveLine } from "../repo/reservations.js";
-import { findLine, type RequestLine } from "../repo/requestLines.js";
+import { findLine } from "../repo/requestLines.js";
 import { refuse } from "./errors.js";
 import { equipmentRateLimiter } from "./limiter.js";
+import { present } from "./presentLine.js";
 
 /** Q1 — Technical Support reserve a Confirmed or Substituted line's equipment. */
 const TECH_SUPPORT = "TECH_SUPPORT_STAFF";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const ALL_EVENTS = { scopeType: "ALL" } as const;
 
-const present = (line: RequestLine) => Object.fromEntries(Object.entries(line).filter(([key]) => key !== "seq"));
 const lineNotFound = (res: Response) => refuse(res, 404, "EQUIPMENT_LINE_NOT_FOUND", "No equipment request line with that id exists.");
 
 export function reservationsRouter(sql: Sql, limiter: RequestHandler = equipmentRateLimiter()) {
@@ -87,6 +87,10 @@ export function reservationsRouter(sql: Sql, limiter: RequestHandler = equipment
               undefined,
               { status: outcome.status },
             );
+          default: {
+            const unreachable: never = outcome;
+            throw new Error(`Unhandled reservation outcome: ${JSON.stringify(unreachable)}`);
+          }
         }
       } catch (error) {
         next(error);

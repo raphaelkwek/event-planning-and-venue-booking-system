@@ -27,10 +27,10 @@ import {
   lockLine,
   markRemoved,
   updateLine,
-  type RequestLine,
 } from "../repo/requestLines.js";
 import { fieldsFromZod, refuse } from "./errors.js";
 import { equipmentRateLimiter } from "./limiter.js";
+import { present } from "./presentLine.js";
 import { createLinesBodySchema, lineBodySchema, listLinesQuerySchema } from "./schemas.js";
 
 /**
@@ -100,10 +100,6 @@ function isAssignedCoordinator(event: EventPlanningView, req: ActorRequest): boo
 }
 
 /** The line as the API shows it: `seq` only orders and pages lists, so it is not part of the line. */
-function present(line: RequestLine) {
-  return Object.fromEntries(Object.entries(line).filter(([key]) => key !== "seq"));
-}
-
 export function requestLinesRouter(sql: Sql, limiter: RequestHandler = equipmentRateLimiter()) {
   const router = Router();
 
