@@ -5,6 +5,7 @@ import { isThrowawayDatabase, losers, race, winners } from "../support/race.js";
 import { insertVenueSlot, type NewVenueSlot } from "../../src/modules/venue/repo/slots.js";
 import { VenueSlotConflictError } from "../../src/modules/venue/domain/slotConflict.js";
 import { reserveBulk, reserveUnit } from "../../src/modules/equipment/repo/inventory.js";
+import { reserveLine } from "../../src/modules/equipment/repo/reservations.js";
 import { InsufficientEquipmentError, UnitAlreadyReservedError } from "../../src/modules/equipment/domain/availability.js";
 
 /**
@@ -135,6 +136,60 @@ describe.runIf(isThrowawayDatabase())(`${ATTEMPTS} attempts at the same moment (
     for (const reason of losers(results)) {
       expect(reason).toBeInstanceOf(InsufficientEquipmentError);
       expect(reason).toMatchObject({ requested: 1, available: 0, shortfall: 1 });
+    }
+  });
+
+  it("Q1-T13 exactly one of 50 lines reserves the last unit, for bulk and serialized stock", async () => {
+    for (const kind of ["BULK", "SERIALIZED"] as const) {
+      for (let round = 0; round < ROUNDS; round += 1) {
+        const [type] = await sql<{ id: string }[]>`
+          insert into equipment.equipment_types (name, kind, total_quantity, created_by, updated_by)
+          values (${`Q1-T13 ${kind} ${randomUUID().slice(0, 8)}`}, ${kind}, ${kind === "BULK" ? 1 : null}, ${ACTOR}, ${ACTOR})
+          returning id
+        `;
+        if (kind === "SERIALIZED") {
+          await sql`
+            insert into equipment.equipment_units (equipment_type_id, label, created_by, updated_by)
+            values (${type!.id}, 'LAST', ${ACTOR}, ${ACTOR})
+          `;
+        }
+        // Fifty Confirmed lines for the same window, in one insert rather than fifty round-trips.
+        const rows = Array.from({ length: ATTEMPTS }, (_, i) => ({
+          event_id: randomUUID(),
+          event_reference: `EVT-Q1-${String(i).padStart(2, "0")}`,
+          equipment_type_id: type!.id,
+          quantity: 1,
+          required_from: at("09:00"),
+          required_to: at("12:00"),
+          status: "CONFIRMED",
+          requested_by: ACTOR,
+          created_by: ACTOR,
+          updated_by: ACTOR,
+        }));
+        const inserted = await sql<{ id: string }[]>`
+          insert into equipment.equipment_request_lines ${sql(rows)} returning id
+        `;
+        const lineIds = inserted.map((row) => row.id);
+
+        const results = await race(ATTEMPTS, (tx, i) =>
+          reserveLine(tx, lineIds[i]!, { quantity: null, partial: false }, { userId: ACTOR, role: "TECH_SUPPORT_STAFF" }),
+        );
+
+        expect(winners(results)).toHaveLength(1);
+        expect(winners(results)[0]).toMatchObject({ ok: true });
+        for (const reason of losers(results)) {
+          expect(reason).toBeInstanceOf(InsufficientEquipmentError);
+          expect(reason).toMatchObject({ requested: 1, available: 0, shortfall: 1 });
+        }
+        const [stored] = await sql<{ n: number }[]>`
+          select count(*)::int as n from equipment.reservations where equipment_type_id = ${type!.id} and status = 'RESERVED'
+        `;
+        expect(stored!.n).toBe(1);
+        const [stillConfirmed] = await sql<{ n: number }[]>`
+          select count(*)::int as n from equipment.equipment_request_lines where id in ${sql(lineIds)} and status = 'CONFIRMED'
+        `;
+        expect(stillConfirmed!.n).toBe(ATTEMPTS - 1);
+      }
     }
   });
 });
