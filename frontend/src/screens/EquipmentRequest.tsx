@@ -75,7 +75,7 @@ export function EquipmentRequest() {
   const [removing, setRemoving] = useState<RequestLine | null>(null);
   const [removeError, setRemoveError] = useState<unknown>(null);
 
-  const nameOf = useUserNames(session.token, [event?.assignedCoordinatorId, ...lines.map((line) => line.requestedBy)]);
+  const nameOf = useUserNames(session.token, [event?.assignedCoordinatorId, ...lines.map((line) => line.requestedBy), ...lines.map((line) => line.reservation?.reservedBy)]);
   const isAssigned = event?.assignedCoordinatorId === session.userId;
 
   const load = useCallback(async () => {
@@ -176,6 +176,9 @@ export function EquipmentRequest() {
             {line.reservation && (
               <div style={{ fontSize: 12 }}>
                 Reserved {line.reservation.reservedQuantity} of {line.reservation.requestedQuantity}
+                <div style={{ color: "#626F86" }}>
+                  {nameOf(line.reservation.reservedBy)} · {formatInstant(line.reservation.reservedAt)}
+                </div>
               </div>
             )}
           </div>

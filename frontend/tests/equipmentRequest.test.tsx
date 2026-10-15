@@ -67,7 +67,7 @@ const fetchMock = vi.fn(async (path: string, init?: RequestInit) => {
   if (removal && method === "POST") return onRemove(removal[1]!);
   const edit = url.pathname.match(/request-lines\/([^/]+)$/);
   if (edit && method === "PUT") return onUpdate(edit[1]!, body);
-  if (url.pathname.startsWith("/identity/api/v1/users")) return reply({ items: [{ id: COORDINATOR, displayName: "Coordinator One", email: "c1@example.test" }] });
+  if (url.pathname.startsWith("/identity/api/v1/users")) return reply({ items: [{ id: COORDINATOR, displayName: "Coordinator One", email: "c1@example.test" }, { id: "74000000-0000-4000-8000-000000000004", displayName: "Tech Support One", email: "ts@example.test" }] });
   if (url.pathname.includes("/notifications")) return reply({ items: [], unreadCount: 0, nextCursor: null });
   throw new Error(`Unexpected request ${method} ${path}`);
 });
@@ -227,9 +227,10 @@ describe("O1 equipment request screen", () => {
   });
 
   it("shows a Reserved line as Reserved n of m", async () => {
-    lines = [line({ id: "l1", status: "RESERVED", reservation: { id: "r1", equipmentTypeId: CHAIRS, requestedQuantity: 40, reservedQuantity: 30, reservedBy: COORDINATOR, reservedAt: "2026-10-15T02:00:00.000Z" } })];
+    lines = [line({ id: "l1", status: "RESERVED", reservation: { id: "r1", equipmentTypeId: CHAIRS, requestedQuantity: 40, reservedQuantity: 30, reservedBy: "74000000-0000-4000-8000-000000000004", reservedAt: "2026-10-15T02:00:00.000Z" } })];
     render(<App />);
-    expect(await screen.findByText("Reserved 30 of 40")).toBeTruthy();
+    expect(await screen.findByText(/Reserved 30 of 40/)).toBeTruthy();
+    await waitFor(() => expect(screen.getByText(/Tech Support One/)).toBeTruthy());
   });
 
   it("edits a Submitted line and sends the whole line", async () => {
