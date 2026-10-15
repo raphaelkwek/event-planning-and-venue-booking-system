@@ -23,6 +23,15 @@ export interface Actor {
   role: Role;
 }
 
+export interface LineReservation {
+  id: string;
+  equipmentTypeId: string;
+  requestedQuantity: number;
+  reservedQuantity: number;
+  reservedBy: string;
+  reservedAt: string;
+}
+
 export interface RequestLine {
   id: string;
   seq: number;
@@ -44,6 +53,8 @@ export interface RequestLine {
   substituteEquipmentTypeName: string | null;
   substituteQuantity: number | null;
   updatedAt: string;
+  /** Q1: the line's active reservation, or null. */
+  reservation: LineReservation | null;
 }
 
 export interface LineHistoryEntry {
@@ -80,6 +91,12 @@ interface LineRow {
   substitute_equipment_type_name: string | null;
   substitute_quantity: number | null;
   updated_at: Date;
+  reservation_id: string | null;
+  reservation_type_id: string | null;
+  requested_quantity: number | null;
+  reserved_quantity: number | null;
+  reserved_by: string | null;
+  reserved_at: Date | null;
 }
 
 function toLine(row: LineRow): RequestLine {
@@ -104,6 +121,16 @@ function toLine(row: LineRow): RequestLine {
     substituteEquipmentTypeName: row.substitute_equipment_type_name,
     substituteQuantity: row.substitute_quantity,
     updatedAt: row.updated_at.toISOString(),
+    reservation: row.reservation_id
+      ? {
+          id: row.reservation_id,
+          equipmentTypeId: row.reservation_type_id!,
+          requestedQuantity: row.requested_quantity!,
+          reservedQuantity: row.reserved_quantity!,
+          reservedBy: row.reserved_by!,
+          reservedAt: row.reserved_at!.toISOString(),
+        }
+      : null,
   };
 }
 
@@ -113,10 +140,13 @@ function selectLines(db: Db) {
     select l.id, l.seq, l.event_id, l.event_reference, l.equipment_type_id, t.name as equipment_type_name,
            l.quantity, l.notes, l.required_from, l.required_to, l.status, l.requested_by, l.requested_at,
            l.status_changed_by, l.status_changed_at, l.unavailable_reason, l.substitute_equipment_type_id,
-           s.name as substitute_equipment_type_name, l.substitute_quantity, l.updated_at
+           s.name as substitute_equipment_type_name, l.substitute_quantity, l.updated_at,
+           r.id as reservation_id, r.equipment_type_id as reservation_type_id, r.requested_quantity,
+           r.reserved_quantity, r.reserved_by, r.reserved_at
     from equipment.equipment_request_lines l
     join equipment.equipment_types t on t.id = l.equipment_type_id
     left join equipment.equipment_types s on s.id = l.substitute_equipment_type_id
+    left join equipment.reservations r on r.request_line_id = l.id and r.status = 'RESERVED'
   `;
 }
 
@@ -343,6 +373,37 @@ export async function applyStatusChange(
       substituteEquipmentTypeId: change.substituteEquipmentTypeId,
       substituteEquipmentTypeName: substituteName,
       substituteQuantity: change.substituteQuantity,
+    },
+    actor,
+  });
+  return (await findLine(tx, current.id))!;
+}
+
+/** Q1: a locked Confirmed or Substituted line becomes Reserved, with its history entry. */
+export async function markReserved(
+  tx: TransactionSql,
+  current: RequestLine,
+  reservation: { id: string; requestedQuantity: number; reservedQuantity: number },
+  actor: Actor,
+): Promise<RequestLine> {
+  await tx`
+    update equipment.equipment_request_lines
+    set status = 'RESERVED',
+        status_changed_by = ${actor.userId}, status_changed_at = clock_timestamp(),
+        updated_at = now(), updated_by = ${actor.userId}
+    where id = ${current.id}
+  `;
+  await writeHistory(tx, {
+    lineId: current.id,
+    action: "STATUS_CHANGED",
+    previousStatus: current.status,
+    newStatus: "RESERVED",
+    equipmentTypeId: current.equipmentTypeId,
+    quantity: current.quantity,
+    details: {
+      reservationId: reservation.id,
+      requestedQuantity: reservation.requestedQuantity,
+      reservedQuantity: reservation.reservedQuantity,
     },
     actor,
   });
