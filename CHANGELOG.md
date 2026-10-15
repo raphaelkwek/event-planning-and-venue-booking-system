@@ -4,6 +4,48 @@
 
 ---
 
+# Q1: Technical Support reserve the equipment on a request line
+
+**Timestamp:** 2026-10-16T02:18+08:00 (SGT)
+**Author:** Raphael, via Claude
+**Scope:** Q1 (SPM-50). The equipment module's `domain/`, `repo/`, `api/` and `events/`, migrations
+equipment/0005–0006, contracts' error codes, the OpenAPI contract, the "Equipment requests" and
+equipment request screens, `tests/Q1/`, `tests/fixtures/reset-test-data.sql` and `sprint-3.csv`.
+**Reason:** EN-02.2 built reservations that the availability check cannot race, but nothing let
+Technical Support make one. Q1 reserves a Confirmed or Substituted request line's equipment.
+
+## Added
+
+- **`POST /api/v1/equipment/request-lines/{id}/reservation`**, Technical Support only. It reserves
+  the line's type and quantity, or its substitute's when the line is Substituted, for the line's own
+  window. A lower quantity needs `"partial": true`; a higher one is refused. Refusals:
+  `INSUFFICIENT_EQUIPMENT` (with the shortfall), `PARTIAL_NOT_CONFIRMED`, `LINE_NOT_RESERVABLE`.
+- **`equipment.reservations`** (migration 0005): one row per reservation, with the requested and
+  reserved quantities and who reserved it. The unit and bulk rows it groups carry `reservation_id`;
+  their foreign keys are validated in 0006. One active reservation per line.
+- **`reserveLine`**: locks the line, then the type, so two reservations racing for the last unit
+  queue and exactly one wins (Q1-T13, on CI's throwaway Postgres).
+- A **Reserve** action on "Equipment requests". Reserved lines show "Reserved n of m", with who and
+  when, to Technical Support and to the coordinator.
+- Cards Q1-T1 to Q1-T14, with a named automated test for T1–T13.
+
+## Changed
+
+- Request lines in API responses carry `reservation` (null until reserved).
+- Reserving notifies the assigned coordinator through O2's existing line-status-changed message,
+  now built in one place (`events/lineStatusMessage.ts`) for both.
+- Reserving writes a history entry naming the reserved type and both quantities.
+- `npm run test-cases:reset` removes test lines' reservations before the lines. It skips that step
+  on a database without migration 0005.
+
+## Before using it on the shared database
+
+Migrations 0005–0006 are not applied to the shared Supabase database. After merge, run
+`npm run migrate -- equipment`. Until then, request lines can't be listed there: they now join
+their reservation, so the equipment request screens fail when run locally.
+
+---
+
 # Event ids that aren't UUIDs get 404; H1's venue routes are rate-limited; EN-02 tests clean up
 
 **Timestamp:** 2026-10-14T00:05+08:00 (SGT)
