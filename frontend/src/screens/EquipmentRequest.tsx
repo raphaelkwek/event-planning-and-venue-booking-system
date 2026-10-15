@@ -173,6 +173,11 @@ export function EquipmentRequest() {
                 Instead: {line.substituteEquipmentTypeName} × {line.substituteQuantity}
               </div>
             )}
+            {line.reservation && (
+              <div style={{ fontSize: 12 }}>
+                Reserved {line.reservation.reservedQuantity} of {line.reservation.requestedQuantity}
+              </div>
+            )}
           </div>
         ),
       },

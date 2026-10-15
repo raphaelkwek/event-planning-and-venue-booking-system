@@ -39,6 +39,7 @@ const line = (changes: Record<string, unknown> = {}) => ({
   substituteEquipmentTypeId: null,
   substituteEquipmentTypeName: null,
   substituteQuantity: null,
+  reservation: null as null | Record<string, unknown>,
   updatedAt: "2026-10-10T01:00:00.000Z",
   ...changes,
 });
@@ -223,6 +224,12 @@ describe("O1 equipment request screen", () => {
     expect(screen.getByText("Instead: Headsets × 3")).toBeTruthy();
     expect(screen.getAllByText("Submitted").length).toBeGreaterThan(0);
     await waitFor(() => expect(screen.getAllByText(/Coordinator One/).length).toBeGreaterThan(0));
+  });
+
+  it("shows a Reserved line as Reserved n of m", async () => {
+    lines = [line({ id: "l1", status: "RESERVED", reservation: { id: "r1", equipmentTypeId: CHAIRS, requestedQuantity: 40, reservedQuantity: 30, reservedBy: COORDINATOR, reservedAt: "2026-10-15T02:00:00.000Z" } })];
+    render(<App />);
+    expect(await screen.findByText("Reserved 30 of 40")).toBeTruthy();
   });
 
   it("edits a Submitted line and sends the whole line", async () => {

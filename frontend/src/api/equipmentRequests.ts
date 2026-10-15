@@ -39,6 +39,15 @@ export interface RequestLine {
   substituteEquipmentTypeId: string | null;
   substituteEquipmentTypeName: string | null;
   substituteQuantity: number | null;
+  /** Q1: the active reservation, or null. */
+  reservation: {
+    id: string;
+    equipmentTypeId: string;
+    requestedQuantity: number;
+    reservedQuantity: number;
+    reservedBy: string;
+    reservedAt: string;
+  } | null;
   updatedAt: string;
 }
 
@@ -91,4 +100,17 @@ export function removeRequestLine(token: string, id: string) {
 
 export function changeLineStatus(token: string, id: string, change: StatusChangeInput) {
   return request<RequestLine>(`${LINES}/${encodeURIComponent(id)}/status`, { method: "POST", token, body: change });
+}
+
+/** Q1: quantity and partial pass through as entered, so the server can refuse them. */
+export interface ReservationInput {
+  quantity?: number | null;
+  partial?: boolean;
+}
+
+export function reserveLine(token: string, id: string, input: ReservationInput) {
+  return request<{ reservation: { id: string; reservedQuantity: number; requestedQuantity: number }; line: RequestLine }>(
+    `${LINES}/${encodeURIComponent(id)}/reservation`,
+    { method: "POST", token, body: input },
+  );
 }

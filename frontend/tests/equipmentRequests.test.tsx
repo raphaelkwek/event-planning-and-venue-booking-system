@@ -26,6 +26,7 @@ const line = (changes: Record<string, unknown> = {}) => ({
   substituteEquipmentTypeId: null,
   substituteEquipmentTypeName: null,
   substituteQuantity: null,
+  reservation: null as null | Record<string, unknown>,
   updatedAt: "2026-10-10T01:00:00.000Z",
   ...changes,
 });
@@ -34,11 +35,14 @@ const reply = (body: unknown, status = 200) => new Response(JSON.stringify(body)
 
 let lines: ReturnType<typeof line>[];
 let onChange: (id: string, body: Record<string, unknown>) => Response;
+let onReserve: (id: string, body: Record<string, unknown>) => Response;
 let listCalls: URL[];
 
 const fetchMock = vi.fn(async (path: string, init?: RequestInit) => {
   const url = new URL(path, "http://app.test");
   const method = init?.method ?? "GET";
+  const reserveRoute = url.pathname.match(/request-lines\/([^/]+)\/reservation$/);
+  if (reserveRoute && method === "POST") return onReserve(reserveRoute[1]!, JSON.parse(init!.body as string));
   const statusRoute = url.pathname.match(/request-lines\/([^/]+)\/status$/);
   if (statusRoute && method === "POST") return onChange(statusRoute[1]!, JSON.parse(init!.body as string));
   if (url.pathname === "/equipment/api/v1/equipment/request-lines" && method === "GET") {
@@ -68,6 +72,10 @@ beforeEach(() => {
   lines = [line({ id: "l1" }), line({ id: "l2", equipmentTypeName: "Projectors", quantity: 2, eventReference: "EVT-000124", status: "UNDER_REVIEW" })];
   listCalls = [];
   onChange = (id, body) => reply(line({ id, ...body, status: body.status }));
+  onReserve = (id, body) => {
+    const reservation = { id: "r1", equipmentTypeId: CHAIRS, requestedQuantity: 40, reservedQuantity: body.quantity ?? 40, reservedBy: TECH, reservedAt: "2026-10-15T02:00:00.000Z" };
+    return reply({ reservation, line: line({ id, status: "RESERVED", reservation }) }, 201);
+  };
   fetchMock.mockClear();
   vi.stubGlobal("fetch", fetchMock);
   signIn();
@@ -214,5 +222,44 @@ describe("O2 equipment requests screen", () => {
     fetchMock.mockImplementationOnce(async () => reply({ error: { code: "IDENTITY_UNAVAILABLE", message: "Your permissions could not be verified.", correlationId: null } }, 503));
     render(<App />);
     expect(await screen.findByText("Your permissions could not be verified.")).toBeTruthy();
+  });
+});
+
+describe("Q1: reserving from the equipment requests screen", () => {
+  it("offers Reserve only on Confirmed and Substituted lines", async () => {
+    lines = [line({ id: "c", status: "CONFIRMED" }), line({ id: "s", status: "SUBSTITUTED", substituteEquipmentTypeName: "Projectors", substituteQuantity: 2 }), line({ id: "u", status: "UNDER_REVIEW" })];
+    render(<App />);
+    await screen.findAllByText("EVT-000123");
+    expect(screen.getAllByRole("button", { name: "Reserve" })).toHaveLength(2);
+  });
+
+  it("asks for confirmation before a partial reservation, then shows Reserved n of m", async () => {
+    lines = [line({ id: "c", status: "CONFIRMED" })];
+    const reserved = { id: "r1", equipmentTypeId: CHAIRS, requestedQuantity: 40, reservedQuantity: 30, reservedBy: TECH, reservedAt: "2026-10-15T02:00:00.000Z" };
+    onReserve = (id, body) =>
+      body.partial
+        ? reply({ reservation: { id: "r1", reservedQuantity: 30, requestedQuantity: 40 }, line: line({ id, status: "RESERVED", reservation: reserved }) }, 201)
+        : reply({ error: { code: "PARTIAL_NOT_CONFIRMED", message: "40 were requested. Confirm a partial reservation to reserve 30.", correlationId: null } }, 409);
+    render(<App />);
+    fireEvent.click(await screen.findByRole("button", { name: "Reserve" }));
+    fireEvent.change(screen.getByLabelText("Quantity to reserve"), { target: { value: "30" } });
+    fireEvent.click(screen.getByRole("button", { name: "Reserve equipment" }));
+    expect(await screen.findByText(/Confirm a partial reservation to reserve 30/)).toBeTruthy();
+
+    lines = [line({ id: "c", status: "RESERVED", statusChangedBy: TECH, statusChangedAt: "2026-10-15T02:00:00.000Z", reservation: reserved })];
+    fireEvent.click(screen.getByLabelText("Reserve fewer than requested"));
+    fireEvent.click(screen.getByRole("button", { name: "Reserve equipment" }));
+    expect(await screen.findByText("Reserved 30 of 40")).toBeTruthy();
+    await waitFor(() => expect(screen.getByText(/Tech Support One/)).toBeTruthy());
+  });
+
+  it("shows the shortfall when there is not enough stock, and the line stays Confirmed", async () => {
+    lines = [line({ id: "c", status: "CONFIRMED" })];
+    onReserve = () => reply({ error: { code: "INSUFFICIENT_EQUIPMENT", message: "Not enough available for this period: 40 requested, 35 available, 5 short.", details: { available: 35, shortfall: 5 }, correlationId: null } }, 409);
+    render(<App />);
+    fireEvent.click(await screen.findByRole("button", { name: "Reserve" }));
+    fireEvent.click(screen.getByRole("button", { name: "Reserve equipment" }));
+    expect(await screen.findByText(/5 short/)).toBeTruthy();
+    expect(screen.getAllByText("Confirmed").length).toBeGreaterThan(0);
   });
 });
