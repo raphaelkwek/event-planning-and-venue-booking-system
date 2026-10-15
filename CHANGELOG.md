@@ -4,6 +4,27 @@
 
 ---
 
+# The OpenAPI ErrorCode list matches contracts again, and a test keeps it that way
+
+**Timestamp:** 2026-10-16T02:05+08:00 (SGT)
+**Author:** Raphael
+**Scope:**
+- `documentation/api/planning-core.openapi.yaml`: the `ErrorCode` enum.
+- Tests: `backend/services/planning-core/tests/boundaries/errorCodes.test.ts` (new).
+- No code change, no migration, no new error codes.
+
+**Reason:** The spec's `ErrorCode` enum said it was the shared list in `backend/packages/contracts/src/errorCodes.ts`, but it had stopped at `VENUE_NOT_FOUND`. Nothing checked the two lists against each other.
+
+## What changed
+
+1. **The enum lists every code in `ERROR_CODES`, in the same order.** The 11 missing codes are added: `VENUE_SLOT_CONFLICT`, `NOTIFICATION_NOT_FOUND`, `INSUFFICIENT_EQUIPMENT`, `EQUIPMENT_TYPE_NOT_FOUND`, `EQUIPMENT_LINE_NOT_FOUND`, `EQUIPMENT_LINE_NOT_EDITABLE`, `RATE_LIMITED`, `EVENT_NOT_EDITABLE`, `CHANGE_REQUEST_REQUIRED`, `EVENT_VERSION_MISMATCH` and `EVENT_VERSION_REQUIRED`.
+2. **A unit test compares the two lists.** It parses the spec with `yaml`, which planning-core already uses, and fails if the enum differs from `ERROR_CODES` in any way, including order. A code added to contracts without its spec entry now fails CI.
+
+## Verified
+
+- Before the spec fix, the new test failed and named the 11 missing codes. After the fix it passes.
+- `npm run lint:api` and `npm run typecheck` pass. The planning-core unit suite passes (617 tests) with CI's placeholder environment.
+
 # Event ids that aren't UUIDs get 404; H1's venue routes are rate-limited; EN-02 tests clean up
 
 **Timestamp:** 2026-10-14T00:05+08:00 (SGT)
