@@ -383,7 +383,7 @@ export async function applyStatusChange(
 export async function markReserved(
   tx: TransactionSql,
   current: RequestLine,
-  reservation: { id: string; requestedQuantity: number; reservedQuantity: number },
+  reservation: { id: string; equipmentTypeId: string; requestedQuantity: number; reservedQuantity: number },
   actor: Actor,
 ): Promise<RequestLine> {
   await tx`
@@ -402,6 +402,8 @@ export async function markReserved(
     quantity: current.quantity,
     details: {
       reservationId: reservation.id,
+      equipmentTypeId: reservation.equipmentTypeId,
+      equipmentTypeName: await typeName(tx, reservation.equipmentTypeId),
       requestedQuantity: reservation.requestedQuantity,
       reservedQuantity: reservation.reservedQuantity,
     },

@@ -46,6 +46,59 @@ describe("reserveLine (Q1)", () => {
     const [bulk] = await sql`select quantity, reservation_id from equipment.bulk_reservations where equipment_type_id = ${chairs.id}`;
     expect(bulk).toMatchObject({ quantity: 4, reservation_id: outcome.ok ? outcome.reservation.id : "" });
     expect((await sql`select status from equipment.equipment_request_lines where id = ${id}`)[0]!.status).toBe("RESERVED");
+
+    const reservationId = outcome.ok ? outcome.reservation.id : "";
+    expect(outcome.ok && outcome.line).toMatchObject({
+      status: "RESERVED",
+      statusChangedBy: A.ts,
+      reservation: { id: reservationId, equipmentTypeId: chairs.id, requestedQuantity: 4, reservedQuantity: 4, reservedBy: A.ts },
+    });
+    const [entry] = await sql`
+      select previous_status, new_status, actor_user_id, details from equipment.request_line_history
+      where line_id = ${id} and action = 'STATUS_CHANGED' order by occurred_at desc, id desc limit 1
+    `;
+    expect(entry).toMatchObject({
+      previous_status: "CONFIRMED",
+      new_status: "RESERVED",
+      actor_user_id: A.ts,
+      details: { reservationId, equipmentTypeId: chairs.id, equipmentTypeName: "Q1R Chairs", requestedQuantity: 4, reservedQuantity: 4 },
+    });
+  });
+
+  it("reserves the substitute type and quantity on a Substituted line", async () => {
+    const id = await insertLineDirect(sql, {
+      event,
+      equipmentTypeId: projectors.id,
+      requestedBy: A.c1,
+      status: "SUBSTITUTED",
+      quantity: 2,
+      substitute: { typeId: chairs.id, quantity: 5 },
+    });
+    const outcome = await reserve(id);
+
+    expect(outcome).toMatchObject({
+      ok: true,
+      reservation: { equipmentTypeId: chairs.id, kind: "BULK", requestedQuantity: 5, reservedQuantity: 5 },
+    });
+    const reservationId = outcome.ok ? outcome.reservation.id : "";
+    const bulk = await sql`select quantity, reservation_id from equipment.bulk_reservations where equipment_type_id = ${chairs.id}`;
+    expect(bulk).toHaveLength(1);
+    expect(bulk[0]).toMatchObject({ quantity: 5, reservation_id: reservationId });
+    expect((await sql`
+      select count(*)::int as n from equipment.unit_reservations
+      where unit_id in (select id from equipment.equipment_units where equipment_type_id = ${projectors.id})
+    `)[0]!.n).toBe(0);
+    const [entry] = await sql`
+      select details from equipment.request_line_history
+      where line_id = ${id} and action = 'STATUS_CHANGED' order by occurred_at desc, id desc limit 1
+    `;
+    expect(entry!.details).toMatchObject({ reservationId, equipmentTypeId: chairs.id });
+  });
+
+  it("refuses a line that is already Reserved", async () => {
+    const id = await confirmed(chairs.id, 2);
+    expect(await reserve(id)).toMatchObject({ ok: true });
+    expect(await reserve(id)).toEqual({ ok: false, code: "LINE_NOT_RESERVABLE", status: "RESERVED" });
   });
 
   it("reserves serialized units in label order under one reservation", async () => {
@@ -68,6 +121,10 @@ describe("reserveLine (Q1)", () => {
     await reserveBulkDirect(sql, { equipmentTypeId: chairs.id, quantity: 7, startsAt: EVENT_START, endsAt: EVENT_END, actorUserId: A.ts });
     const id = await confirmed(chairs.id, 4);
     await expect(reserve(id)).rejects.toBeInstanceOf(InsufficientEquipmentError);
+    await expect(reserve(id)).rejects.toMatchObject({ requested: 4, available: 3, shortfall: 1 });
+    expect((await sql`select count(*)::int as n from equipment.reservations where request_line_id = ${id}`)[0]!.n).toBe(0);
+    const bulk = await sql`select quantity from equipment.bulk_reservations where equipment_type_id = ${chairs.id}`;
+    expect(bulk.map((r) => r.quantity)).toEqual([7]);
     expect((await sql`select status from equipment.equipment_request_lines where id = ${id}`)[0]!.status).toBe("CONFIRMED");
   });
 

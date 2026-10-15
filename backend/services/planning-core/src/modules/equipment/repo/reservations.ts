@@ -8,13 +8,17 @@ import { lockLine, markReserved, type Actor, type RequestLine } from "./requestL
 /**
  * Q1 — reserves a request line's equipment in the caller's transaction.
  *
- * Lock order: the line, then its equipment type. O2 locks only lines and P2
- * only types, so nothing takes them the other way round. The type lock queues
- * reservations of one type, so when two race for the last unit the second sees
- * the first's rows and is refused with the shortfall (AC2).
+ * Lock order: the line, then its equipment type. O1/O2 writes take FOR KEY SHARE
+ * on the type row through their foreign keys; that waits behind a reservation's
+ * FOR UPDATE but cannot deadlock, as they hold at most their own line. Nothing
+ * may lock a type and then a line. The type lock queues reservations of one
+ * type, so when two race for the last unit the second sees the first's rows and
+ * is refused with the shortfall (AC2).
  *
  * Throws InsufficientEquipmentError when the stock is short, before anything is
  * written; the caller's transaction rolls back. Other refusals are returned.
+ * The caller writes the coordinator's outbox message (the route does), so any
+ * second caller must too.
  */
 
 export interface ReservationRecord {

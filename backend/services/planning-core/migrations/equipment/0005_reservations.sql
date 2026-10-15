@@ -33,6 +33,7 @@ create table equipment.reservations (
 -- even if both passed the status check.
 create unique index reservations_one_active_per_line
   on equipment.reservations (request_line_id) where (status = 'RESERVED');
+create index reservations_request_line_idx on equipment.reservations (request_line_id);
 create index reservations_event_idx on equipment.reservations (event_id);
 
 alter table equipment.unit_reservations add column reservation_id uuid;
