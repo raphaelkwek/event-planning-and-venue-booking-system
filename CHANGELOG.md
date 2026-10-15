@@ -33,16 +33,22 @@ Technical Support make one. Q1 reserves a Confirmed or Substituted request line'
 
 - Request lines in API responses carry `reservation` (null until reserved).
 - Reserving notifies the assigned coordinator through O2's existing line-status-changed message,
-  now built in one place (`events/lineStatusMessage.ts`) for both.
+  now built in one place (`events/lineStatusMessage.ts`) for both. For a Reserved line the message
+  also carries `reservedQuantity`, and the notification reads "(3 of 5 reserved)" when fewer than
+  requested were reserved. O2's messages are unchanged.
+- Request lines' `reservation` also names the reserved type (`equipmentTypeName`), so a Reserved
+  line that was Substituted shows the substitute.
 - Reserving writes a history entry naming the reserved type and both quantities.
 - `npm run test-cases:reset` removes test lines' reservations before the lines. It skips that step
   on a database without migration 0005.
 
 ## Before using it on the shared database
 
-Migrations 0005–0006 are not applied to the shared Supabase database. After merge, run
-`npm run migrate -- equipment`. Until then, request lines can't be listed there: they now join
-their reservation, so the equipment request screens fail when run locally.
+Migrations 0005–0006 are not applied to the shared Supabase database. Run
+`npm run migrate -- equipment` **before planning-core is deployed against it**. Until then, every
+O1 and O2 request-line endpoint fails there (create, edit, remove, list, open and status change),
+not only the screens: each reads the line together with its reservation, and the join needs
+`equipment.reservations`.
 
 ---
 
