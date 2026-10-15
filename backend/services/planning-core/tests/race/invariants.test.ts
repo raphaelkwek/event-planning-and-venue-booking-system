@@ -139,6 +139,17 @@ describe.runIf(isThrowawayDatabase())(`${ATTEMPTS} attempts at the same moment (
     }
   });
 
+  /** Q1-T13 leaves nothing behind: ~1,000 lines would fill the first page of every unfiltered list the other suites read. */
+  async function removeQ1T13Rows(typeId: string, lineIds: string[]): Promise<void> {
+    await sql`delete from equipment.unit_reservations where unit_id in (select id from equipment.equipment_units where equipment_type_id = ${typeId})`;
+    await sql`delete from equipment.bulk_reservations where equipment_type_id = ${typeId}`;
+    await sql`delete from equipment.reservations where equipment_type_id = ${typeId}`;
+    await sql`delete from equipment.equipment_units where equipment_type_id = ${typeId}`;
+    await sql`delete from equipment.request_line_history where line_id in ${sql(lineIds)}`;
+    await sql`delete from equipment.equipment_request_lines where equipment_type_id = ${typeId}`;
+    await sql`delete from equipment.equipment_types where id = ${typeId}`;
+  }
+
   it("Q1-T13 exactly one of 50 lines reserves the last unit, for bulk and serialized stock", async () => {
     for (const kind of ["BULK", "SERIALIZED"] as const) {
       for (let round = 0; round < ROUNDS; round += 1) {
@@ -171,24 +182,28 @@ describe.runIf(isThrowawayDatabase())(`${ATTEMPTS} attempts at the same moment (
         `;
         const lineIds = inserted.map((row) => row.id);
 
-        const results = await race(ATTEMPTS, (tx, i) =>
-          reserveLine(tx, lineIds[i]!, { quantity: null, partial: false }, { userId: ACTOR, role: "TECH_SUPPORT_STAFF" }),
-        );
+        try {
+          const results = await race(ATTEMPTS, (tx, i) =>
+            reserveLine(tx, lineIds[i]!, { quantity: null, partial: false }, { userId: ACTOR, role: "TECH_SUPPORT_STAFF" }),
+          );
 
-        expect(winners(results)).toHaveLength(1);
-        expect(winners(results)[0]).toMatchObject({ ok: true });
-        for (const reason of losers(results)) {
-          expect(reason).toBeInstanceOf(InsufficientEquipmentError);
-          expect(reason).toMatchObject({ requested: 1, available: 0, shortfall: 1 });
+          expect(winners(results)).toHaveLength(1);
+          expect(winners(results)[0]).toMatchObject({ ok: true });
+          for (const reason of losers(results)) {
+            expect(reason).toBeInstanceOf(InsufficientEquipmentError);
+            expect(reason).toMatchObject({ requested: 1, available: 0, shortfall: 1 });
+          }
+          const [stored] = await sql<{ n: number }[]>`
+            select count(*)::int as n from equipment.reservations where equipment_type_id = ${type!.id} and status = 'RESERVED'
+          `;
+          expect(stored!.n).toBe(1);
+          const [stillConfirmed] = await sql<{ n: number }[]>`
+            select count(*)::int as n from equipment.equipment_request_lines where id in ${sql(lineIds)} and status = 'CONFIRMED'
+          `;
+          expect(stillConfirmed!.n).toBe(ATTEMPTS - 1);
+        } finally {
+          await removeQ1T13Rows(type!.id, lineIds);
         }
-        const [stored] = await sql<{ n: number }[]>`
-          select count(*)::int as n from equipment.reservations where equipment_type_id = ${type!.id} and status = 'RESERVED'
-        `;
-        expect(stored!.n).toBe(1);
-        const [stillConfirmed] = await sql<{ n: number }[]>`
-          select count(*)::int as n from equipment.equipment_request_lines where id in ${sql(lineIds)} and status = 'CONFIRMED'
-        `;
-        expect(stillConfirmed!.n).toBe(ATTEMPTS - 1);
       }
     }
   });
