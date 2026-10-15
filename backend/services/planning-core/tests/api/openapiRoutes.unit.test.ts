@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { parse } from "yaml";
+import { ERROR_CODES } from "@connectsphere/contracts";
 import { app } from "../../src/app.js";
 
 /**
@@ -55,5 +56,11 @@ describe("documentation/api/planning-core.openapi.yaml", () => {
     expect(servedRoutes((app as unknown as { _router: { stack: Layer[] } })._router.stack)).toContain(
       "POST /api/v1/events/{id}/approve"
     );
+  });
+
+  it("lists exactly the shared error codes, in the same order", () => {
+    const spec = parse(readFileSync(SPEC_PATH, "utf8")) as { components: { schemas: { ErrorCode: { enum: string[] } } } };
+
+    expect(spec.components.schemas.ErrorCode.enum).toEqual([...ERROR_CODES]);
   });
 });
