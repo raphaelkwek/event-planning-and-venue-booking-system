@@ -1,0 +1,40 @@
+import { KAFKA_TOPICS } from "@connectsphere/contracts";
+import type { RequestLine } from "../repo/requestLines.js";
+import type { OutboxMessage } from "./outbox.js";
+
+/**
+ * O2 and Q1: every change to a line's status tells the event's assigned
+ * coordinator, through one message shape the notification service already reads.
+ */
+export function lineStatusChangedMessage(input: {
+  event: { id: string; name: string; assignedCoordinatorId: string };
+  previous: RequestLine;
+  updated: RequestLine;
+  actor: OutboxMessage["actor"];
+  correlationId: string | null;
+}): OutboxMessage {
+  const { event, previous, updated, actor } = input;
+  return {
+    topic: KAFKA_TOPICS.equipmentRequest,
+    messageType: "equipment-request.line-status-changed",
+    aggregateId: updated.id,
+    actor,
+    correlationId: input.correlationId,
+    payload: {
+      eventId: event.id,
+      eventReference: updated.eventReference,
+      eventName: event.name,
+      lineId: updated.id,
+      coordinatorId: event.assignedCoordinatorId,
+      equipmentTypeName: updated.equipmentTypeName,
+      quantity: updated.quantity,
+      previousStatus: previous.status,
+      newStatus: updated.status,
+      reason: updated.unavailableReason,
+      substituteEquipmentTypeName: updated.substituteEquipmentTypeName,
+      substituteQuantity: updated.substituteQuantity,
+      changedBy: actor.userId,
+      changedAt: updated.statusChangedAt,
+    },
+  };
+}
