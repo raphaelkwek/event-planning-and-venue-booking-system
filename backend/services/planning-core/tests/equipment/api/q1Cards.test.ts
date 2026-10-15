@@ -192,6 +192,12 @@ describe("Q1 cards: reserving a line's equipment", () => {
     const opened = await request(app).get(`${BASE}/${id}`).set(bearer);
     const entry = opened.body.history.find((item: { action: string }) => item.action === "STATUS_CHANGED");
     expect(entry.details).toMatchObject({ requestedQuantity: 5, reservedQuantity: 3 });
+
+    const messages = await outboxRows(id);
+    expect(messages).toHaveLength(1);
+    const stored = parseCloudEvent(messages[0]!.envelope);
+    expect(stored.data).toMatchObject({ quantity: 5, reservedQuantity: 3 });
+    expect(notificationsFor(stored)[0]!.message).toContain("3 of 5");
   });
 
   it("Q1-T7 refuses a lower quantity when partial is not chosen", async () => {
@@ -258,7 +264,7 @@ describe("Q1 cards: reserving a line's equipment", () => {
     expect(messages[0]).toMatchObject({ topic: "connectsphere.equipment-request.v1", message_key: id, published_at: null });
     const stored = parseCloudEvent(messages[0]!.envelope);
     expect(stored.type).toBe("equipment-request.line-status-changed");
-    expect(stored.data).toMatchObject({ lineId: id, coordinatorId: A.c1, newStatus: "RESERVED" });
+    expect(stored.data).toMatchObject({ lineId: id, coordinatorId: A.c1, newStatus: "RESERVED", reservedQuantity: 4 });
 
     const notifications = notificationsFor(stored);
     expect(notifications).toHaveLength(1);

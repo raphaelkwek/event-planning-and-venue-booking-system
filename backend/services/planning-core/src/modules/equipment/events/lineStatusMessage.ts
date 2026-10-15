@@ -14,6 +14,8 @@ export function lineStatusChangedMessage(input: {
   correlationId: string | null;
 }): OutboxMessage {
   const { event, previous, updated, actor } = input;
+  // Q1 only: a Reserved line says how many were reserved, which can be fewer than requested. O2's messages stay as they were.
+  const reservedQuantity = updated.status === "RESERVED" ? updated.reservation?.reservedQuantity : undefined;
   return {
     topic: KAFKA_TOPICS.equipmentRequest,
     messageType: "equipment-request.line-status-changed",
@@ -28,6 +30,7 @@ export function lineStatusChangedMessage(input: {
       coordinatorId: event.assignedCoordinatorId,
       equipmentTypeName: updated.equipmentTypeName,
       quantity: updated.quantity,
+      ...(reservedQuantity === undefined ? {} : { reservedQuantity }),
       previousStatus: previous.status,
       newStatus: updated.status,
       reason: updated.unavailableReason,
