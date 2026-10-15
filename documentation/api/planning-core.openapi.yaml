@@ -2335,10 +2335,11 @@ components:
     LineReservation:
       type: object
       description: The line's active reservation.
-      required: [id, equipmentTypeId, requestedQuantity, reservedQuantity, reservedBy, reservedAt]
+      required: [id, equipmentTypeId, equipmentTypeName, requestedQuantity, reservedQuantity, reservedBy, reservedAt]
       properties:
         id: { type: string, format: uuid }
         equipmentTypeId: { type: string, format: uuid }
+        equipmentTypeName: { type: string, description: "The type reserved: the substitute's, for a Substituted line." }
         requestedQuantity: { type: integer, minimum: 1 }
         reservedQuantity: { type: integer, minimum: 1 }
         reservedBy: { type: string, format: uuid }

@@ -227,7 +227,7 @@ describe("O1 equipment request screen", () => {
   });
 
   it("shows a Reserved line as Reserved n of m", async () => {
-    lines = [line({ id: "l1", status: "RESERVED", reservation: { id: "r1", equipmentTypeId: CHAIRS, requestedQuantity: 40, reservedQuantity: 30, reservedBy: "74000000-0000-4000-8000-000000000004", reservedAt: "2026-10-15T02:00:00.000Z" } })];
+    lines = [line({ id: "l1", status: "RESERVED", reservation: { id: "r1", equipmentTypeId: CHAIRS, equipmentTypeName: "Folding Chairs", requestedQuantity: 40, reservedQuantity: 30, reservedBy: "74000000-0000-4000-8000-000000000004", reservedAt: "2026-10-15T02:00:00.000Z" } })];
     render(<App />);
     expect(await screen.findByText(/Reserved 30 of 40/)).toBeTruthy();
     await waitFor(() => expect(screen.getByText(/Tech Support One/)).toBeTruthy());

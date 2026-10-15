@@ -43,6 +43,8 @@ export interface RequestLine {
   reservation: {
     id: string;
     equipmentTypeId: string;
+    /** The type reserved: the substitute's, for a Substituted line. */
+    equipmentTypeName: string;
     requestedQuantity: number;
     reservedQuantity: number;
     reservedBy: string;
@@ -102,9 +104,9 @@ export function changeLineStatus(token: string, id: string, change: StatusChange
   return request<RequestLine>(`${LINES}/${encodeURIComponent(id)}/status`, { method: "POST", token, body: change });
 }
 
-/** Q1: quantity and partial pass through as entered, so the server can refuse them. */
+/** Q1: leave `quantity` out to reserve the requested quantity; a quantity is passed through as entered, so the server can refuse it. */
 export interface ReservationInput {
-  quantity?: number | null;
+  quantity?: number;
   partial?: boolean;
 }
 

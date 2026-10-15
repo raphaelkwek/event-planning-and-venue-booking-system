@@ -32,7 +32,7 @@ export function reservationTarget(line: LineForReservation): ReservationTarget |
 }
 
 export interface ReservationBody {
-  /** Null means "the requested quantity". */
+  /** Absent from the request body (null here) means "the requested quantity". */
   quantity: number | null;
   partial: boolean;
 }

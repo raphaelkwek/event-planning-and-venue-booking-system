@@ -26,6 +26,8 @@ export interface Actor {
 export interface LineReservation {
   id: string;
   equipmentTypeId: string;
+  /** The type actually reserved: the substitute's, for a Substituted line. */
+  equipmentTypeName: string;
   requestedQuantity: number;
   reservedQuantity: number;
   reservedBy: string;
@@ -93,6 +95,7 @@ interface LineRow {
   updated_at: Date;
   reservation_id: string | null;
   reservation_type_id: string | null;
+  reservation_type_name: string | null;
   requested_quantity: number | null;
   reserved_quantity: number | null;
   reserved_by: string | null;
@@ -125,6 +128,7 @@ function toLine(row: LineRow): RequestLine {
       ? {
           id: row.reservation_id,
           equipmentTypeId: row.reservation_type_id!,
+          equipmentTypeName: row.reservation_type_name!,
           requestedQuantity: row.requested_quantity!,
           reservedQuantity: row.reserved_quantity!,
           reservedBy: row.reserved_by!,
@@ -141,12 +145,13 @@ function selectLines(db: Db) {
            l.quantity, l.notes, l.required_from, l.required_to, l.status, l.requested_by, l.requested_at,
            l.status_changed_by, l.status_changed_at, l.unavailable_reason, l.substitute_equipment_type_id,
            s.name as substitute_equipment_type_name, l.substitute_quantity, l.updated_at,
-           r.id as reservation_id, r.equipment_type_id as reservation_type_id, r.requested_quantity,
-           r.reserved_quantity, r.reserved_by, r.reserved_at
+           r.id as reservation_id, r.equipment_type_id as reservation_type_id, rt.name as reservation_type_name,
+           r.requested_quantity, r.reserved_quantity, r.reserved_by, r.reserved_at
     from equipment.equipment_request_lines l
     join equipment.equipment_types t on t.id = l.equipment_type_id
     left join equipment.equipment_types s on s.id = l.substitute_equipment_type_id
     left join equipment.reservations r on r.request_line_id = l.id and r.status = 'RESERVED'
+    left join equipment.equipment_types rt on rt.id = r.equipment_type_id
   `;
 }
 

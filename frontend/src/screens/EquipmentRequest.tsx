@@ -176,6 +176,7 @@ export function EquipmentRequest() {
             {line.reservation && (
               <div style={{ fontSize: 12 }}>
                 Reserved {line.reservation.reservedQuantity} of {line.reservation.requestedQuantity}
+                {line.reservation.equipmentTypeId !== line.equipmentTypeId && ` ${line.reservation.equipmentTypeName}`}
                 <div style={{ color: "#626F86" }}>
                   {nameOf(line.reservation.reservedBy)} · {formatInstant(line.reservation.reservedAt)}
                 </div>

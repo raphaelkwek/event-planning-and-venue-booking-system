@@ -143,6 +143,7 @@ describe("Q1 cards: reserving a line's equipment", () => {
 
     expect(response.status).toBe(201);
     expect(response.body.reservation).toMatchObject({ equipmentTypeId: chairs.id, requestedQuantity: 5, reservedQuantity: 5 });
+    expect(response.body.line.reservation).toMatchObject({ equipmentTypeId: chairs.id, equipmentTypeName: chairs.name });
     const projectorRows = await sql`
       select r.* from equipment.unit_reservations r
       join equipment.equipment_units u on u.id = r.unit_id

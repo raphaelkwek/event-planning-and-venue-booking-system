@@ -17,7 +17,7 @@ const sql = testDb();
 const A = actorsWithPrefix("0b500000");
 const TS = { userId: A.ts, role: "TECH_SUPPORT_STAFF" as const };
 let event: { id: string; reference: string; name: string };
-let chairs: { id: string };
+let chairs: { id: string; name: string };
 let projectors: { id: string };
 
 const clean = () => cleanLineFixtures(sql, [A.org], [A.ts]);
@@ -81,6 +81,7 @@ describe("reserveLine (Q1)", () => {
       reservation: { equipmentTypeId: chairs.id, kind: "BULK", requestedQuantity: 5, reservedQuantity: 5 },
     });
     const reservationId = outcome.ok ? outcome.reservation.id : "";
+    expect(outcome.ok && outcome.line.reservation).toMatchObject({ equipmentTypeId: chairs.id, equipmentTypeName: chairs.name });
     const bulk = await sql`select quantity, reservation_id from equipment.bulk_reservations where equipment_type_id = ${chairs.id}`;
     expect(bulk).toHaveLength(1);
     expect(bulk[0]).toMatchObject({ quantity: 5, reservation_id: reservationId });
