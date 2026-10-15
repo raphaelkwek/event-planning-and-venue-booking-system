@@ -1558,6 +1558,8 @@ components:
         - REASSIGNMENT_ALREADY_PENDING
         - REASSIGNMENT_PROPOSAL_NOT_FOUND
         - VENUE_NOT_FOUND
+        - LINE_NOT_RESERVABLE
+        - PARTIAL_NOT_CONFIRMED
 
     ErrorEnvelope:
       type: object
