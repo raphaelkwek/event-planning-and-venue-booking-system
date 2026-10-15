@@ -62,6 +62,46 @@ export async function createTypes(sql: Sql, createdBy: string, prefix: string) {
   return { chairs: await make(`${prefix} Folding Chairs`, 50), projectors: await make(`${prefix} Projectors`, 5) };
 }
 
+/** A serialized type with the given unit labels, created by `createdBy` (FX-Q1's PROJECTORS). */
+export async function createSerializedType(sql: Sql, createdBy: string, name: string, labels: string[]) {
+  const [type] = await sql<{ id: string }[]>`
+    insert into equipment.equipment_types (name, description, kind, created_by, updated_by)
+    values (${name}, 'Line fixture', 'SERIALIZED', ${createdBy}, ${createdBy})
+    returning id
+  `;
+  for (const label of labels) {
+    await sql`
+      insert into equipment.equipment_units (equipment_type_id, label, created_by, updated_by)
+      values (${type!.id}, ${label}, ${createdBy}, ${createdBy})
+    `;
+  }
+  return { id: type!.id, name };
+}
+
+/** A bulk type with the given total (FX-Q1's CHAIRS has 10). */
+export async function createBulkType(sql: Sql, createdBy: string, name: string, total: number) {
+  const [row] = await sql<{ id: string }[]>`
+    insert into equipment.equipment_types (name, description, kind, total_quantity, created_by, updated_by)
+    values (${name}, 'Line fixture', 'BULK', ${total}, ${createdBy}, ${createdBy})
+    returning id
+  `;
+  return { id: row!.id, name };
+}
+
+/** Another event's reservation of bulk stock, written directly, to use up availability. */
+export async function reserveBulkDirect(
+  sql: Sql,
+  options: { equipmentTypeId: string; quantity: number; startsAt: string; endsAt: string; actorUserId: string },
+): Promise<void> {
+  await sql`
+    insert into equipment.bulk_reservations
+      (equipment_type_id, event_id, event_reference, quantity, starts_at, ends_at, created_by, updated_by)
+    values
+      (${options.equipmentTypeId}, ${randomUUID()}, 'EVT-OTHER', ${options.quantity}, ${options.startsAt}, ${options.endsAt},
+       ${options.actorUserId}, ${options.actorUserId})
+  `;
+}
+
 /** Inserts a line directly, in any status, for statuses no user action can reach yet (Reserved, Removed). */
 export async function insertLineDirect(
   sql: Sql,
@@ -105,8 +145,11 @@ export async function cleanLineFixtures(sql: Sql, owners: string[], typeCreators
   `;
   await sql`delete from equipment.outbox where message_key in (select id::text from (${lines}) l)`;
   await sql`delete from equipment.request_line_history where line_id in (${lines})`;
-  await sql`delete from equipment.equipment_request_lines where event_id in (${events}) or equipment_type_id in (${types})`;
+  await sql`delete from equipment.unit_reservations where unit_id in (select id from equipment.equipment_units where equipment_type_id in (${types}))`;
   await sql`delete from equipment.bulk_reservations where equipment_type_id in (${types})`;
+  await sql`delete from equipment.reservations where equipment_type_id in (${types}) or request_line_id in (${lines})`;
+  await sql`delete from equipment.equipment_units where equipment_type_id in (${types})`;
+  await sql`delete from equipment.equipment_request_lines where event_id in (${events}) or equipment_type_id in (${types})`;
   await sql`delete from equipment.inventory_history where equipment_type_id in (${types})`;
   await sql`delete from equipment.equipment_types where id in (${types})`;
   await deleteSeededEvents(sql, owners);
