@@ -188,16 +188,19 @@ export function EquipmentRequest() {
       { key: "by", content: `${nameOf(line.requestedBy)} · ${formatInstant(line.requestedAt)}` },
       {
         key: "actions",
-        content: !isAssigned ? null : EDITABLE_LINE_STATUSES.includes(line.status) ? (
+        content: !isAssigned ? null : EDITABLE_LINE_STATUSES.includes(line.status) || line.status === "RESERVED" ? (
           <div style={{ display: "flex", gap: 8 }}>
-            <Button
-              onClick={() => {
-                setEditError(null);
-                setEditing(draftOf(line));
-              }}
-            >
-              Edit
-            </Button>
+            {/* Q2: a Reserved line cannot be edited, but the coordinator may remove it, which releases it. */}
+            {line.status !== "RESERVED" && (
+              <Button
+                onClick={() => {
+                  setEditError(null);
+                  setEditing(draftOf(line));
+                }}
+              >
+                Edit
+              </Button>
+            )}
             <Button
               onClick={() => {
                 setRemoveError(null);
@@ -333,6 +336,7 @@ export function EquipmentRequest() {
               <p>
                 {removing.equipmentTypeName} × {removing.quantity} will be marked Removed and no longer listed. Who removed it and when
                 is recorded.
+                {removing.status === "RESERVED" && " Its reserved equipment will be released."}
               </p>
               <Refusal error={removeError} />
             </ModalBody>
