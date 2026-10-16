@@ -21,6 +21,6 @@
 |---|---|
 | Actual Result | |
 | Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: — |
+| Remarks | Waits for migration equipment/0005 on the shared database, applied after PR #42 merges (`npm run migrate -- equipment`). Commit: · Evidence: · Defect: — |
 | Executed By | |
 | Date of Execution | |
