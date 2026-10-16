@@ -325,8 +325,16 @@ export async function updateLine(tx: TransactionSql, current: RequestLine, line:
   return (await findLine(tx, current.id))!;
 }
 
-/** O1: removal is a status. The history row keeps the type and quantity removed. */
-export async function markRemoved(tx: TransactionSql, current: RequestLine, actor: Actor): Promise<RequestLine> {
+/**
+ * O1: removal is a status. The history row keeps the type and quantity removed.
+ * Q2: `details` records the release when the removed line was Reserved.
+ */
+export async function markRemoved(
+  tx: TransactionSql,
+  current: RequestLine,
+  actor: Actor,
+  details: Record<string, unknown> = {},
+): Promise<RequestLine> {
   await tx`
     update equipment.equipment_request_lines
     set status = 'REMOVED', updated_at = now(), updated_by = ${actor.userId}
@@ -339,7 +347,7 @@ export async function markRemoved(tx: TransactionSql, current: RequestLine, acto
     newStatus: "REMOVED",
     equipmentTypeId: current.equipmentTypeId,
     quantity: current.quantity,
-    details: {},
+    details,
     actor,
   });
   return (await findLine(tx, current.id))!;
@@ -412,6 +420,33 @@ export async function markReserved(
       requestedQuantity: reservation.requestedQuantity,
       reservedQuantity: reservation.reservedQuantity,
     },
+    actor,
+  });
+  return (await findLine(tx, current.id))!;
+}
+
+/** Q2: a Reserved line whose reservation was released goes back to Confirmed or Substituted. */
+export async function markReleased(
+  tx: TransactionSql,
+  current: RequestLine,
+  release: { reservationId: string; reason: string; status: "CONFIRMED" | "SUBSTITUTED" },
+  actor: Actor,
+): Promise<RequestLine> {
+  await tx`
+    update equipment.equipment_request_lines
+    set status = ${release.status},
+        status_changed_by = ${actor.userId}, status_changed_at = clock_timestamp(),
+        updated_at = now(), updated_by = ${actor.userId}
+    where id = ${current.id}
+  `;
+  await writeHistory(tx, {
+    lineId: current.id,
+    action: "STATUS_CHANGED",
+    previousStatus: current.status,
+    newStatus: release.status,
+    equipmentTypeId: current.equipmentTypeId,
+    quantity: current.quantity,
+    details: { reservationId: release.reservationId, released: true, reason: release.reason },
     actor,
   });
   return (await findLine(tx, current.id))!;
