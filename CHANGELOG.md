@@ -4,6 +4,51 @@
 
 ---
 
+# S1: an organiser can request a change after submission
+
+**Timestamp:** 2026-10-17T05:31+08:00 (SGT)
+**Author:** Raphael, via Claude
+**Scope:** S1 (SPM-57). The change module's first code (`domain/`, `auth/`, `repo/`, `api/`, `events/`),
+migration change/0001, the event module's `checkProposedChange` and `findEventForChange`, contracts'
+error codes and `change-request.submitted`, the notification service's rule, the outbox relay, the
+OpenAPI contract, the organiser's and coordinator's request pages, `tests/S1/` and `sprint-3.csv`.
+**Reason:** After submission, G1 refuses changes to an event's significant fields with
+`CHANGE_REQUEST_REQUIRED`, but there was no change request to make. S1 adds one; S2 decides it.
+
+## Added
+
+- **`POST /api/v1/events/{id}/change-requests`**, for the event's organiser. It records the proposed
+  values of any of the six significant fields (start, end, expected attendance, venue requirements,
+  whether equipment is required, equipment requirements), a reason, and a snapshot of each field's
+  current value. The event itself is not changed. Proposed values are checked with B2's rules on the
+  event as it would be. Refusals: `VALIDATION_FAILED`, `EVENT_NOT_CHANGEABLE` (Draft, Completed,
+  Cancelled, Rejected), `CHANGE_REQUEST_ALREADY_PENDING` (one pending request per event, enforced by
+  the database). The event is read and locked inside the request's transaction.
+- **`GET /api/v1/events/{id}/change-requests`** for anyone whose scope covers the event.
+- **Migration change/0001:** the `change` schema, `change_requests`, `change_request_fields` and
+  `change.outbox`.
+- The assigned coordinator is notified through `change-request.submitted` on the event topic: "A
+  change has been requested for EVT-… “name”: start, expected attendance."
+- "Request a change" on the organiser's request page (start, end, attendance, whether equipment is
+  required, reason); a pending notice there and on the coordinator's review page. The two
+  requirements fields are API-only for now: their editors are built into the draft form.
+- Cards S1-T1 to S1-T13: automated tests for T1–T12 and a race (two requests at once, one recorded),
+  T13 a browser walkthrough.
+
+## Changed
+
+- The outbox relay skips a table that doesn't exist yet (Postgres 42P01), with one warning, instead
+  of failing every pass. A missing `change.outbox` no longer delays event and equipment notices.
+
+## Before using it on the shared database
+
+1. `npm run migrate -- change` creates the change schema.
+2. Deploy the notification service before, or with, planning-core: an older notification service
+   dead-letters `change-request.submitted` as an unknown type, so the coordinator's notice would wait
+   for a replay.
+
+---
+
 # Event ids that aren't UUIDs get 404; H1's venue routes are rate-limited; EN-02 tests clean up
 
 **Timestamp:** 2026-10-14T00:05+08:00 (SGT)
