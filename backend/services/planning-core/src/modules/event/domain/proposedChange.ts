@@ -4,13 +4,15 @@ import {
   venueRequirementsSchema,
   type SignificantEventField,
 } from "@connectsphere/contracts";
-import { validateSubmission, type FieldError, type SubmissionCandidate } from "./validation.js";
+import { REGISTRATION_AFTER_START_MESSAGE, validateSubmission, type FieldError, type SubmissionCandidate } from "./validation.js";
 
 /**
  * S1 — checks proposed values for an event's significant fields against B2's
  * rules, on the event as it would be after the change. Only errors the change
- * is responsible for are reported: those on a proposed field, and on the start
- * or end when either of them moves (an end left before a moved start).
+ * is responsible for are reported: those on a proposed field; those on the end
+ * when the start moves (an end left before it), and the registration window
+ * left closing after a moved start (reported on the start). A start already in
+ * the past is the change's doing only when the start itself is proposed.
  */
 export interface ChangeableEvent extends SubmissionCandidate {
   venueRequirements: unknown;
@@ -33,10 +35,7 @@ export function checkProposedChange(
   const errors: FieldError[] = [];
   const proposed = Object.keys(changes).filter(isSignificantEventField);
   const touched = new Set<string>(proposed);
-  if (touched.has("proposedStartAt") || touched.has("proposedEndAt")) {
-    touched.add("proposedStartAt");
-    touched.add("proposedEndAt");
-  }
+  if (touched.has("proposedStartAt")) touched.add("proposedEndAt");
 
   const merged: Record<string, unknown> = { ...current };
   for (const field of proposed) merged[field] = changes[field];
@@ -44,7 +43,18 @@ export function checkProposedChange(
   if (touched.has("proposedEndAt")) merged.proposedEndAt = asInstant(merged.proposedEndAt);
 
   for (const error of validateSubmission(merged as SubmissionCandidate, now)) {
-    if (touched.has(error.field)) errors.push(error);
+    if (touched.has(error.field)) {
+      errors.push(error);
+    } else if (
+      touched.has("proposedStartAt") &&
+      error.field === "registrationClosesAt" &&
+      error.message === REGISTRATION_AFTER_START_MESSAGE
+    ) {
+      errors.push({
+        field: "proposedStartAt",
+        message: "Registration closes after this start; move registration first.",
+      });
+    }
   }
 
   // B2 only checks that equipmentRequired is stated; a change must also state a boolean.

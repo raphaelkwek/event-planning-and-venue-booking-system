@@ -56,6 +56,39 @@ describe("checkProposedChange (S1)", () => {
     expect(fields(CURRENT, { expectedAttendance: 1 })).toEqual([]);
   });
 
+  it("does not blame a change to the end for a current start that is already past", () => {
+    const started = { ...CURRENT, proposedStartAt: "2026-10-30T14:00:00.000Z", proposedEndAt: "2026-11-02T18:00:00.000Z" };
+    expect(fields(started, { proposedEndAt: "2026-11-03T18:00:00.000Z" })).toEqual([]);
+  });
+
+  it("still refuses an end before the current start when only the end moves", () => {
+    const started = { ...CURRENT, proposedStartAt: "2026-10-30T14:00:00.000Z" };
+    expect(fields(started, { proposedEndAt: "2026-10-30T13:00:00.000Z" })).toEqual(["proposedEndAt"]);
+  });
+
+  describe("the registration window", () => {
+    const registering: ChangeableEvent = {
+      ...CURRENT,
+      registrationRequired: true,
+      registrationOpensAt: "2026-12-01T08:00:00.000Z",
+      registrationClosesAt: "2026-12-02T12:00:00.000Z",
+    };
+
+    it("reports on the start when it moves to before registration closes", () => {
+      expect(checkProposedChange(registering, { proposedStartAt: "2026-12-02T11:00:00.000Z" }, NOW)).toEqual([
+        { field: "proposedStartAt", message: "Registration closes after this start; move registration first." },
+      ]);
+    });
+
+    it("accepts a start at or after the closing time", () => {
+      expect(fields(registering, { proposedStartAt: "2026-12-02T12:00:00.000Z" })).toEqual([]);
+    });
+
+    it("says nothing about registration when the start is not proposed", () => {
+      expect(fields({ ...registering, registrationClosesAt: "2026-12-03T00:00:00.000Z" }, { expectedAttendance: 10 })).toEqual([]);
+    });
+  });
+
   it("names every failing field", () => {
     expect(fields(CURRENT, { proposedStartAt: "2026-10-31T00:00:00Z", expectedAttendance: 0 }).sort()).toEqual([
       "expectedAttendance",
@@ -97,6 +130,9 @@ describe("checkProposedChange (S1)", () => {
     });
     it.each(["yes", 1, {}])("refuses %s as not a boolean", (value) => {
       expect(fields(CURRENT, { equipmentRequired: value })).toEqual(["equipmentRequired"]);
+    });
+    it("accepts true while the equipment requirements are still empty", () => {
+      expect(checkProposedChange({ ...CURRENT, equipmentRequirements: null }, { equipmentRequired: true }, NOW)).toEqual([]);
     });
     it("refuses null as not stated, once", () => {
       expect(fields(CURRENT, { equipmentRequired: null })).toEqual(["equipmentRequired"]);
