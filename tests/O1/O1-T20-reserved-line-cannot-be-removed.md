@@ -22,6 +22,6 @@
 |---|---|
 | Actual Result | The automated test performed this card's steps against the real Express app and a migrated Postgres (authentication stubbed) and its assertions passed; they check the expected result above. |
 | Status | Pass (automated, API level) |
-| Remarks | Commit: 5d74b7676943cb4a0fb7dc49c76dcae4f614f172 · Evidence: backend/services/planning-core/tests/equipment/api/o1Cards.test.ts › O1-T20, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/38195345070 · Defect: — · Behaviour revised by Q2; rerun after #44. |
+| Remarks | Commit: 5d74b7676943cb4a0fb7dc49c76dcae4f614f172 · Evidence: backend/services/planning-core/tests/equipment/api/o1Cards.test.ts › O1-T20, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/38195345070 · Defect: — · Behaviour revised by Q2; the revised test passed in CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/38932644480 against cc43643. |
 | Executed By | Joash, via automated testing (CI) |
 | Date of Execution | 2026-10-12 |
