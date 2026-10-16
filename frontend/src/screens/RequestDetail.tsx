@@ -18,6 +18,10 @@ import { formatInstant, STATUS_APPEARANCE, STATUS_LABELS } from "../shared/statu
 import { StatusHistory } from "../components/StatusHistory.js";
 import { Refusal } from "../components/Refusal.js";
 import { canEditDetails } from "../shared/eventDetails.js";
+import { listChangeRequests, type ChangeRequest } from "../api/changeRequests.js";
+import { ChangeRequestForm } from "../components/ChangeRequestForm.js";
+import { PendingChangeNotice } from "../components/PendingChangeNotice.js";
+import { isChangeable } from "../shared/changeRequests.js";
 import { EquipmentRequirementsView, VenueRequirementsView } from "../components/Requirements.js";
 
 /**
@@ -34,6 +38,8 @@ export function RequestDetail() {
   const [event, setEvent] = useState<EventRecord | null>(null);
   const [clarifications, setClarifications] = useState<Clarification[]>([]);
   const [proposals, setProposals] = useState<ReassignmentProposal[]>([]);
+  const [changeRequests, setChangeRequests] = useState<ChangeRequest[]>([]);
+  const [requestingChange, setRequestingChange] = useState(false);
   const [error, setError] = useState<unknown>(null);
   const [loading, setLoading] = useState(true);
 
@@ -58,6 +64,8 @@ export function RequestDetail() {
       setEvent(await openEvent(session.token, id));
       setClarifications((await listClarifications(session.token, id)).items);
       setProposals((await listReassignmentProposals(session.token, id)).items);
+      // The notice is secondary: if the list cannot be read the page still shows.
+      setChangeRequests(await listChangeRequests(session.token, id).then((list) => list.items, () => []));
     } catch (caught) {
       setError(caught);
     } finally {
@@ -96,6 +104,8 @@ export function RequestDetail() {
   if (error) return <Refusal error={error} />;
   if (!event) return null;
 
+  const pendingChange = changeRequests.find((entry) => entry.status === "PENDING") ?? null;
+  const canRequestChange = isChangeable(event.status) && event.ownerId === session.userId && !pendingChange;
   const openClarification = clarifications.find((entry) => entry.status === "OPEN");
 
   return (
@@ -105,6 +115,9 @@ export function RequestDetail() {
           <h2 style={{ marginBottom: 4, flex: 1 }}>{event.name}</h2>
           {canEditDetails(event, session) && (
             <Button onClick={() => navigate(`/events/${event.id}/details`)}>Edit details</Button>
+          )}
+          {canRequestChange && !requestingChange && (
+            <Button onClick={() => setRequestingChange(true)}>Request a change</Button>
           )}
         </div>
         <p style={{ marginTop: 0, color: "#626F86" }}>{event.reference ?? "No reference yet"}</p>
@@ -135,6 +148,19 @@ export function RequestDetail() {
               <p style={{ margin: 0 }}>Approved {formatInstant(event.decidedAt)}.</p>
             </SectionMessage>
           </div>
+        )}
+
+        {pendingChange && <PendingChangeNotice request={pendingChange} />}
+        {canRequestChange && requestingChange && (
+          <ChangeRequestForm
+            event={event}
+            token={session.token}
+            onCancel={() => setRequestingChange(false)}
+            onSent={() => {
+              setRequestingChange(false);
+              void load();
+            }}
+          />
         )}
 
         <Detail label="Purpose" value={event.purpose} />

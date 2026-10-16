@@ -25,6 +25,8 @@ import { formatInstant, STATUS_APPEARANCE, STATUS_LABELS } from "../shared/statu
 import { StatusHistory } from "../components/StatusHistory.js";
 import { Refusal } from "../components/Refusal.js";
 import { canEditDetails } from "../shared/eventDetails.js";
+import { listChangeRequests, type ChangeRequest } from "../api/changeRequests.js";
+import { PendingChangeNotice } from "../components/PendingChangeNotice.js";
 import { EquipmentRequirementsView, VenueRequirementsView } from "../components/Requirements.js";
 
 /**
@@ -42,6 +44,7 @@ export function ReviewDetail() {
   const [event, setEvent] = useState<EventRecord | null>(null);
   const [clarifications, setClarifications] = useState<Clarification[]>([]);
   const [proposals, setProposals] = useState<ReassignmentProposal[]>([]);
+  const [changeRequests, setChangeRequests] = useState<ChangeRequest[]>([]);
   const [loadError, setLoadError] = useState<unknown>(null);
   const [actionError, setActionError] = useState<unknown>(null);
   const [loading, setLoading] = useState(true);
@@ -75,6 +78,8 @@ export function ReviewDetail() {
       setEvent(await openEvent(session.token, id));
       setClarifications((await listClarifications(session.token, id)).items);
       setProposals((await listReassignmentProposals(session.token, id)).items);
+      // The notice is secondary: if the list cannot be read the page still shows.
+      setChangeRequests(await listChangeRequests(session.token, id).then((list) => list.items, () => []));
     } catch (caught) {
       setLoadError(caught);
     } finally {
@@ -105,6 +110,7 @@ export function ReviewDetail() {
   if (loadError) return <Refusal error={loadError} />;
   if (!event) return null;
 
+  const pendingChange = changeRequests.find((entry) => entry.status === "PENDING") ?? null;
   const decided = event.decidedAt !== null;
   const reviewedBySomeoneElse =
     event.reviewingCoordinatorId !== null && event.reviewingCoordinatorId !== session.userId;
@@ -157,6 +163,8 @@ export function ReviewDetail() {
             </SectionMessage>
           </div>
         )}
+
+        {pendingChange && <PendingChangeNotice request={pendingChange} />}
 
         <Detail label="Purpose" value={event.purpose} />
         <Detail label="Description" value={event.description} />
