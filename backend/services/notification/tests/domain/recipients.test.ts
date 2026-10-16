@@ -191,6 +191,22 @@ describe("notificationsFor", () => {
       }
     });
 
+    it("words a release as a release, with the reason, whatever the line became", () => {
+      const [back] = notificationsFor(
+        message("equipment-request.line-status-changed", { ...line, newStatus: "CONFIRMED", released: true, reason: "Event moved" }),
+      );
+      expect(back!.recipientUserId).toBe(coordinator);
+      expect(back!.message).toBe(
+        "The reservation of Folding Chairs × 40 for EVT-2026-0042 “Freshmen Orientation” was released. The line is now Confirmed. Reason: Event moved",
+      );
+      const [removed] = notificationsFor(
+        message("equipment-request.line-status-changed", { ...line, newStatus: "REMOVED", released: true, reason: "Request line removed" }),
+      );
+      expect(removed!.message).toBe(
+        "The reservation of Folding Chairs × 40 for EVT-2026-0042 “Freshmen Orientation” was released. The line is now Removed. Reason: Request line removed",
+      );
+    });
+
     it("notifies only the coordinator the message names", () => {
       const notes = notificationsFor(message("equipment-request.line-status-changed", { ...line, newStatus: "UNDER_REVIEW" }));
       expect(notes.map((note) => note.recipientUserId)).toEqual([coordinator]);

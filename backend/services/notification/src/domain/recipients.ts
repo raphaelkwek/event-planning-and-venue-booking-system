@@ -35,6 +35,9 @@ type Rule = (data: Record<string, string>, event: string) => Array<[recipient: s
 function equipmentLineMessage(d: Record<string, unknown>, event: string): string {
   const status = EQUIPMENT_LINE_STATUS_LABELS[d.newStatus as EquipmentRequestLineStatus];
   const line = `${d.equipmentTypeName} × ${d.quantity}`;
+  if (d.released === true) {
+    return `The reservation of ${line} for ${event} was released. The line is now ${status}. Reason: ${d.reason}`;
+  }
   const reserved = typeof d.reservedQuantity === "number" && typeof d.quantity === "number" && d.reservedQuantity < d.quantity;
   const partial = reserved ? ` (${d.reservedQuantity} of ${d.quantity} reserved)` : "";
   let text = `Technical Support updated equipment for ${event}: ${line} is now ${status}${partial}.`;
