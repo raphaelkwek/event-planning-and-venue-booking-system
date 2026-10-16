@@ -30,6 +30,8 @@ export async function releaseReservation(
   actor: Actor,
   reason: string,
 ): Promise<ReleaseReservationOutcome> {
+  // validateReleaseBody's job; a caller that skipped it would otherwise meet the table's check (23514).
+  if (reason.trim() === "") throw new Error("A release needs a reason");
   const [locked] = await tx<{ status: string }[]>`
     select status from equipment.reservations where id = ${reservationId} for update
   `;

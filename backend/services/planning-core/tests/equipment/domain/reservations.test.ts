@@ -101,6 +101,7 @@ describe("validateReleaseBody (Q2)", () => {
   it("refuses a reason longer than O2's limit", () => {
     const result = validateReleaseBody({ reason: "x".repeat(1001) });
     expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.fields.map((f) => f.field)).toEqual(["reason"]);
   });
   it("accepts a reason exactly at the limit", () => {
     expect(validateReleaseBody({ reason: "x".repeat(1000) }).ok).toBe(true);

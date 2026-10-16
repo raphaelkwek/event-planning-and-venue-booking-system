@@ -56,7 +56,7 @@ The check is validated in `0008_validate_reservation_release.sql`, in its own tr
 
 ## 4. Operations (equipment module)
 
-- **`releaseReservation(tx, reservationId, actor, reason)`** (repo, private): locks the reservation
+- **`releaseReservation(tx, reservationId, actor, reason)`** (repo, exported: O1's removal uses it): locks the reservation
   row; if already RELEASED returns `ALREADY_RELEASED` and writes nothing (AC4); otherwise sets
   RELEASED with `released_by`, `released_at = clock_timestamp()`, `release_reason`, and sets the
   `unit_reservations` / `bulk_reservations` rows with that `reservation_id` to `RELEASED`, so
@@ -69,7 +69,7 @@ The check is validated in `0008_validate_reservation_release.sql`, in its own tr
 - **O1 removal of a Reserved line**: in the existing removal transaction, after locking the line,
   if it is RESERVED call `releaseReservation(…, "Request line removed")` before `markRemoved`.
 - **`releaseEventReservations(tx, eventId, actor, reason)`**: for each RESERVED line of the event,
-  in `seq` order, `releaseLine`. Returns the released reservation ids.
+  in `seq` order, `releaseLine`. Returns the released outcomes (reservation, line, previous) so F4 can write the notices.
 - **Pure rules** (`domain/reservations.ts`): `validateReleaseBody` (reason required, trimmed, at most
   O2's `MAX_REASON_LENGTH`) and `statusAfterRelease(line)` (decision 1).
 
@@ -133,3 +133,9 @@ lines; `sprint-3.csv` rows.
 ## 8. Out of scope
 
 F4 itself, partial releases, a line-history view, and notifying Technical Support.
+
+**F4 hand-off.** `releaseEventReservations` reads the event's RESERVED lines without locking the
+event, so a Q1 reservation committed during F4's cancellation can be missed. F4 must close that gap,
+for example by having Q1 refuse for a cancelled event under a lock that conflicts with F4's event
+lock (`FOR SHARE` on the event row, through the event module's `index.ts`), or by re-running the
+release until none remain.

@@ -8,6 +8,8 @@ import {
   createSerializedType,
   insertLineDirect,
 } from "../../support/lineFixtures.js";
+import { peakUse } from "../../../src/modules/equipment/repo/inventory.js";
+import { EVENT_END, EVENT_START } from "../../support/eventDates.js";
 import { reserveLine } from "../../../src/modules/equipment/repo/reservations.js";
 import { releaseEventReservations, releaseLine, releaseReservation } from "../../../src/modules/equipment/repo/releases.js";
 
@@ -65,12 +67,32 @@ describe("releaseLine (Q2)", () => {
 
   it("puts a Substituted line back to Substituted", async () => {
     const { lineId } = await reserved(projectors.id, 2, { status: "SUBSTITUTED", substitute: { typeId: chairs.id, quantity: 5 } });
+    const reservationId = (await sql<{ id: string }[]>`select id from equipment.reservations where request_line_id = ${lineId}`)[0]!.id;
     expect(await release(lineId)).toMatchObject({ ok: true, line: { status: "SUBSTITUTED", substituteQuantity: 5 } });
+    const bulk = await sql`select status from equipment.bulk_reservations where reservation_id = ${reservationId}`;
+    expect(bulk.map((r) => r.status)).toEqual(["RELEASED"]);
+  });
+
+  it("gives the stock back: peak use over the line's window is 0 after the release", async () => {
+    const { lineId } = await reserved(chairs.id, 4);
+    const window = { startsAt: new Date(EVENT_START), endsAt: new Date(EVENT_END) };
+    expect(await sql.begin((tx) => peakUse(tx, chairs.id, window))).toBe(4);
+    await release(lineId);
+    expect(await sql.begin((tx) => peakUse(tx, chairs.id, window))).toBe(0);
   });
 
   it("refuses a line that is not Reserved and changes nothing", async () => {
     const id = await insertLineDirect(sql, { event, equipmentTypeId: chairs.id, requestedBy: A.c1, status: "CONFIRMED" });
+    const count = async () => (await sql`select 1 from equipment.request_line_history where line_id = ${id}`).length;
+    const before = await count();
     expect(await release(id)).toEqual({ ok: false, code: "LINE_NOT_RELEASABLE", status: "CONFIRMED" });
+    expect(await count()).toBe(before);
+    expect((await sql`select status from equipment.equipment_request_lines where id = ${id}`)[0]!.status).toBe("CONFIRMED");
+  });
+
+  it("refuses a Reserved line that has no reservation row", async () => {
+    const id = await insertLineDirect(sql, { event, equipmentTypeId: chairs.id, requestedBy: A.c1, status: "RESERVED" });
+    expect(await release(id)).toEqual({ ok: false, code: "LINE_NOT_RELEASABLE", status: "RESERVED" });
   });
 
   it("reports a line that does not exist", async () => {
@@ -100,16 +122,29 @@ describe("releaseReservation (Q2)", () => {
 });
 
 describe("releaseEventReservations (Q2, for F4)", () => {
-  it("releases every active reservation of the event and leaves other lines alone", async () => {
+  it("releases every active reservation of the event and leaves other lines and events alone", async () => {
     const a = await reserved(chairs.id, 4);
-    const b = await reserved(projectors.id, 1);
+    const b = await reserved(projectors.id, 1, { status: "SUBSTITUTED", substitute: { typeId: chairs.id, quantity: 2 } });
     const confirmed = await insertLineDirect(sql, { event, equipmentTypeId: chairs.id, requestedBy: A.c1, status: "CONFIRMED" });
+    const other = await createEvent(sql, { ownerId: A.org, coordinatorId: A.c1, name: "Q2 repo other event" });
+    const otherLine = await insertLineDirect(sql, { event: other, equipmentTypeId: chairs.id, requestedBy: A.c1, status: "CONFIRMED", quantity: 2 });
+    const otherReserved = await sql.begin((tx) => reserveLine(tx, otherLine, { quantity: null, partial: false }, TS));
+    if (!otherReserved.ok) throw new Error("fixture reserve failed");
 
     const released = await sql.begin((tx) => releaseEventReservations(tx, event.id, TS, "Event cancelled"));
 
     expect(released.map((r) => r.reservation.id).sort()).toEqual([a.reservationId, b.reservationId].sort());
+    expect(released.map((r) => r.line.status).sort()).toEqual(["CONFIRMED", "SUBSTITUTED"]);
     const rows = await sql`select status, release_reason from equipment.reservations where id in ${sql([a.reservationId, b.reservationId])}`;
-    expect(rows.every((r) => r.status === "RELEASED" && r.release_reason === "Event cancelled")).toBe(true);
+    expect(rows).toHaveLength(2);
+    for (const row of rows) expect(row).toMatchObject({ status: "RELEASED", release_reason: "Event cancelled" });
     expect((await sql`select status from equipment.equipment_request_lines where id = ${confirmed}`)[0]!.status).toBe("CONFIRMED");
+    expect((await sql`select status from equipment.equipment_request_lines where id = ${otherLine}`)[0]!.status).toBe("RESERVED");
+    expect((await sql`select status from equipment.reservations where id = ${otherReserved.reservation.id}`)[0]!.status).toBe("RESERVED");
+  });
+
+  it("returns [] for an event with no reservations", async () => {
+    await insertLineDirect(sql, { event, equipmentTypeId: chairs.id, requestedBy: A.c1, status: "CONFIRMED" });
+    expect(await sql.begin((tx) => releaseEventReservations(tx, event.id, TS, "Event cancelled"))).toEqual([]);
   });
 });
