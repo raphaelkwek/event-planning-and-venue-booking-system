@@ -4,6 +4,45 @@
 
 ---
 
+# Q2: Technical Support release equipment reservations
+
+**Timestamp:** 2026-10-17T00:24+08:00 (SGT)
+**Author:** Raphael, via Claude
+**Scope:** Q2 (SPM-51). The equipment module's `domain/`, `repo/`, `api/`, `events/` and `index.ts`,
+migrations equipment/0007–0008, contracts' error codes and line-status message, the notification
+service's equipment wording, the OpenAPI contract, both equipment request screens, `tests/Q2/` and
+`sprint-3.csv`. Stacked on Q1 (PR #42).
+**Reason:** Q1 lets Technical Support reserve equipment; nothing gave it back. Q2 releases a
+reservation when it is no longer needed, so the equipment can go to another event.
+
+## Added
+
+- **`POST /api/v1/equipment/request-lines/{id}/release`**, Technical Support only, with a required
+  reason. The reservation is kept as Released, with who, when and why (0007–0008), and its unit
+  and bulk rows are released, so availability gets the stock back at once. The line returns to
+  Confirmed, or Substituted if it was, and can be reserved again. Refusals: `LINE_NOT_RELEASABLE`
+  (naming the status), `RESERVATION_ALREADY_RELEASED`.
+- **`releaseEventReservations`**, exported from `equipment/index.ts` for F4's cancellation run.
+  The spec's F4 hand-off note explains a race F4 must close.
+- A **Release** action on "Equipment requests", and **Remove** on the coordinator's Reserved lines.
+- Cards Q2-T1 to Q2-T13: automated tests for T1–T11 (T6 is a race on CI's throwaway Postgres),
+  T12 Not Executed until F4, T13 a browser walkthrough.
+
+## Changed
+
+- O1's removal also accepts a **Reserved** line: it releases the reservation ("Request line
+  removed") and removes the line in one transaction. Edits of Reserved lines are still refused.
+- The line-status-changed message gains an optional `released` flag; the notification reads "The
+  reservation of Chairs × 4 for EVT-… was released. The line is now Confirmed. Reason: …".
+- `Reservation` in API responses carries `releasedBy`, `releasedAt` and `releaseReason`.
+
+## Before using it on the shared database
+
+`npm run migrate -- equipment` applies 0007–0008 (after Q1's 0005–0006). Run it before
+planning-core is deployed against the shared database.
+
+---
+
 # Q1: Technical Support reserve the equipment on a request line
 
 **Timestamp:** 2026-10-16T02:18+08:00 (SGT)
