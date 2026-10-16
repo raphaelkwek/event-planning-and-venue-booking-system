@@ -1558,6 +1558,8 @@ components:
         - REASSIGNMENT_ALREADY_PENDING
         - REASSIGNMENT_PROPOSAL_NOT_FOUND
         - VENUE_NOT_FOUND
+        - EVENT_NOT_CHANGEABLE
+        - CHANGE_REQUEST_ALREADY_PENDING
 
     ErrorEnvelope:
       type: object

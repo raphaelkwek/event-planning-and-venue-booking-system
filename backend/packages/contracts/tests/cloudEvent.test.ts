@@ -233,3 +233,26 @@ describe("actor: who caused the message, as one string", () => {
     expect(() => formatActor({ role: "EVENT_ORGANISER", userId: null })).toThrow();
   });
 });
+
+describe("parseCloudEvent: change request messages (S1)", () => {
+  const submittedChange = {
+    ...ref,
+    coordinatorId: coordinator,
+    changeRequestId: "44444444-4444-4444-8444-444444444444",
+    fields: ["proposedStartAt", "expectedAttendance"],
+    requestedBy: organiser,
+    requestedAt: at,
+  };
+
+  it("accepts a change-request.submitted message and returns its data", () => {
+    const message = parseCloudEvent(exampleMessage("change-request.submitted", submittedChange));
+    expect(message.type).toBe("change-request.submitted");
+    expect(message.data).toEqual(submittedChange);
+  });
+
+  it("refuses one that names no fields", () => {
+    expect(() => parseCloudEvent(exampleMessage("change-request.submitted", { ...submittedChange, fields: [] }))).toThrow(
+      /fields/,
+    );
+  });
+});

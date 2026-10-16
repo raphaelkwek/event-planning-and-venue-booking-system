@@ -35,6 +35,8 @@ export const ERROR_CODES = [
   "CHANGE_REQUEST_REQUIRED",
   "EVENT_VERSION_MISMATCH",
   "EVENT_VERSION_REQUIRED",
+  "EVENT_NOT_CHANGEABLE",
+  "CHANGE_REQUEST_ALREADY_PENDING",
 ] as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[number];
