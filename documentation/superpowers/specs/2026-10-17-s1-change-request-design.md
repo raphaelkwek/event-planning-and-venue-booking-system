@@ -27,8 +27,10 @@ circumstances without me starting again.
    proposed values over the current ones), plus the event API's own shapes for the two requirements
    fields. The event module owns these rules; the change module asks through `event/index.ts`.
 3. **Topic:** `change-request.*` messages go on the existing event topic (`KAFKA_TOPICS.event`),
-   keyed by the event id: no new topic on the shared cluster, the notification service already
-   consumes it, and every message about one event stays in order for S2.
+   keyed by the event id: no new topic on the shared cluster, and the notification service already
+   consumes it. Order is kept per outbox table, not per topic: `change.outbox` and `event.outbox`
+   are relayed independently, so a change-request message and an event message for one event are
+   not ordered against each other. S2 must not rely on that order.
 4. **Screens:** "Request a change" on the organiser's request page; a pending notice there and on the
    coordinator's review page.
 
@@ -47,20 +49,32 @@ circumstances without me starting again.
 ## 4. Operations
 
 - **Event module (`event/index.ts`):**
-  - `findEventForChange(sql, eventId, scope, callerId)` → `{ id, reference, name, status, ownerId,
-    assignedCoordinatorId, values: { the six fields } } | null` (null outside A3 scope).
-  - `checkProposedChange(event, changes, now?)` → `FieldError[]`: `validateSubmission` over the
+  - `findEventForChange(sql, eventId, scope, callerId, { lock })` → `{ id, reference, name, status,
+    ownerId, assignedCoordinatorId, current: { every field B2 checks, plus the venue and equipment
+    requirements } } | null` (null outside A3 scope). The route calls it inside the request's
+    transaction with `lock: true` (`for share of e` on the event row), so a status change, which
+    locks the row `for update`, waits for the request to finish, and the values checked and
+    snapshotted are the ones stored against.
+  - `checkProposedChange(current, changes, now?)` → `FieldError[]`: `validateSubmission` over the
     merged event, keeping only errors on the proposed fields and on fields they affect (an end before
-    the current start reports on `proposedEndAt`), plus the requirements shapes.
-- **Change module:** `requestChange(tx, event, body, actor)`:
-  1. Status allowed (AC1): Submitted, Under Review, Awaiting Clarification, Approved, Planning,
+    the current start reports on `proposedEndAt`; a start that falls after registration closes
+    reports on `proposedStartAt`, "Registration closes after this start; move registration first."),
+    plus the requirements shapes. When only the end is proposed, a current start already in the past
+    is not reported: the change did not cause it.
+- **Change module:** `requestChange`, in one transaction that first reads and locks the event:
+  1. Cheap checks before it: a UUID id, the Event Organiser role.
+  2. Event not found or outside scope → 404; not the owner → 403.
+  3. Body: reason required (trimmed, ≤ 1000), `changes` a non-empty object whose keys are all among
+     the six, checked **before** the status. When the body is refused, the proposed values present
+     are still checked and their errors (`changes.<field>`) reported together with the body's.
+  4. Status allowed (AC1): Submitted, Under Review, Awaiting Clarification, Approved, Planning,
      Safety Review, Confirmed. Otherwise `EVENT_NOT_CHANGEABLE` with the status.
-  2. Body: reason required (trimmed, ≤ 1000), `changes` a non-empty object whose keys are all among
-     the six; then `checkProposedChange`. Any error → `VALIDATION_FAILED`, nothing stored (AC7).
-  3. Insert the request and one field row per change, `current_value` from the event (AC3). A unique
-     violation on the pending index → `CHANGE_REQUEST_ALREADY_PENDING` with the existing request
-     (AC5); the savepoint keeps the transaction usable to read it.
-  4. Outbox `change-request.submitted` on the event topic: event id, reference, name, coordinator id,
+  5. `checkProposedChange` on the locked values. Any error → `VALIDATION_FAILED`, nothing stored (AC7).
+  6. Insert the request and one field row per change, `current_value` from the event (AC3); proposed
+     start and end are stored as UTC instants. A unique violation on the pending index →
+     `CHANGE_REQUEST_ALREADY_PENDING` with the existing request (AC5); the savepoint keeps the
+     transaction usable to read it, and the route answers after the transaction has rolled back.
+  7. Outbox `change-request.submitted` on the event topic: event id, reference, name, coordinator id,
      request id, field names (AC6). Skipped when the event has no assigned coordinator.
   The event's own row is never written (AC4).
 
@@ -114,3 +128,10 @@ notification-service tests for the new rule; web tests; `sprint-3.csv` rows.
 
 Deciding a request (S2), withdrawing one, changing descriptive fields, and S3's flagging of affected
 arrangements.
+
+## 9. Deploying
+
+Migrate `change/0001` before deploying planning-core (the outbox relay skips a table that does not
+exist yet, with a warning, but the routes need the tables). Deploy the notification service before,
+or together with, planning-core: it dead-letters a message type it has no rule for, so a
+`change-request.submitted` arriving first would be lost to the coordinator.
