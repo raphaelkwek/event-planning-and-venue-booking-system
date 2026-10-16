@@ -29,7 +29,9 @@ needed, so that the equipment can be used by other events.
    `equipment/index.ts` for F4's cancellation transaction; its card stays Not Executed until F4.
 4. **Notification:** every release — including the coordinator's own removal — sends O2's existing
    `equipment-request.line-status-changed` message to the assigned coordinator, with the release
-   reason in `reason`. The notification service does not change.
+   reason in `reason` and a new optional `released: true` flag. The notification service words a
+   released message as a release ("The reservation of Chairs × 4 for EVT-… was released. The line
+   is now Confirmed. Reason: …"); every other message reads as before.
 5. **Screens:** a Release action on "Equipment requests"; Remove on the coordinator's Reserved lines.
    No line-history view is added (history stays readable through `GET /request-lines/{id}`).
 
