@@ -52,6 +52,8 @@ tags:
 
   - name: Equipment
     description: P1 equipment availability checks, P2 maintain equipment types, individually tracked units and out-of-service periods (equipment module)
+  - name: Change requests
+    description: S1 request a change to a submitted event's significant fields (change module)
 
 security:
   - bearerAuth: []
@@ -774,6 +776,68 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
         "503": { $ref: "#/components/responses/IdentityUnavailable" }
 
+  /api/v1/events/{id}/change-requests:
+    parameters:
+      - $ref: "#/components/parameters/RecordId"
+    get:
+      tags: [Change requests]
+      summary: The change requests made for an event, newest first (S1)
+      description: Anyone whose access scope (A3) covers the event. An organiser sees only their own events.
+      operationId: listChangeRequests
+      responses:
+        "200":
+          description: Every request for the event, with the snapshot and proposed value of each field.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/ChangeRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "429": { $ref: "#/components/responses/RateLimitExceeded" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+    post:
+      tags: [Change requests]
+      summary: Request a change to a submitted event (S1)
+      description: |
+        The Event Organiser who owns the event. Allowed from Submitted until the event is Completed,
+        Cancelled or Rejected. Only the six significant fields can be proposed; each proposed value
+        is checked as the event would be after the change, and every problem is reported, named
+        `changes.<field>`. The request is stored Pending with a snapshot of each current value and
+        the event itself is not changed. One request can be pending per event. The assigned
+        coordinator is notified. A refused request stores nothing.
+      operationId: requestEventChange
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ChangeRequestInput" }
+      responses:
+        "201":
+          description: The request, Pending.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ChangeRequest" }
+        "400": { $ref: "#/components/responses/ValidationFailed" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: |
+            `EVENT_NOT_CHANGEABLE` (`details.status` is the event's status), or
+            `CHANGE_REQUEST_ALREADY_PENDING` (`details` has the pending request's `id`, `requestedAt`
+            and `fields`).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "429": { $ref: "#/components/responses/RateLimitExceeded" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
   /api/v1/venues:
     get:
       tags: [Venues]
@@ -1491,7 +1555,7 @@ components:
 
   responses:
     RateLimitExceeded:
-      description: "`RATE_LIMITED`: 120 equipment requests per minute per client IP and process, shared across this router's endpoints. Enforced before authentication. Counters reset on process restart."
+      description: "`RATE_LIMITED`: 120 requests per minute per client IP and process, shared across the equipment router's endpoints and, separately, the change router's. Enforced before authentication. Counters reset on process restart."
       headers:
         Retry-After:
           description: Seconds until this client's request window resets.
@@ -2262,3 +2326,50 @@ components:
         actorUserId: { type: string, format: uuid }
         actorRole: { type: string }
         occurredAt: { type: string, format: date-time }
+
+    ChangeRequestField:
+      type: object
+      required: [fieldName, currentValue, proposedValue]
+      properties:
+        fieldName:
+          type: string
+          enum: [proposedStartAt, proposedEndAt, expectedAttendance, venueRequirements, equipmentRequired, equipmentRequirements]
+        currentValue: { description: The event's value when the request was made. null when the field was empty. }
+        proposedValue: { description: The value proposed. }
+
+    ChangeRequestInput:
+      type: object
+      required: [reason, changes]
+      properties:
+        reason: { type: string, minLength: 1, maxLength: 1000, description: Required; blank is refused. }
+        changes:
+          type: object
+          minProperties: 1
+          description: Only these six fields; anything else is refused on `changes.<field>`.
+          properties:
+            proposedStartAt: { type: string, format: date-time }
+            proposedEndAt: { type: string, format: date-time }
+            expectedAttendance: { type: integer, minimum: 1 }
+            venueRequirements:
+              oneOf:
+                - { $ref: "#/components/schemas/VenueRequirements" }
+                - { type: "null" }
+            equipmentRequired: { type: boolean }
+            equipmentRequirements:
+              type: [array, "null"]
+              items: { $ref: "#/components/schemas/EquipmentRequirementLine" }
+
+    ChangeRequest:
+      type: object
+      required: [id, eventId, eventReference, status, reason, requestedBy, requestedAt, fields]
+      properties:
+        id: { type: string, format: uuid }
+        eventId: { type: string, format: uuid }
+        eventReference: { type: string }
+        status: { type: string, enum: [PENDING, APPROVED, REJECTED] }
+        reason: { type: string }
+        requestedBy: { type: string, format: uuid }
+        requestedAt: { type: string, format: date-time }
+        fields:
+          type: array
+          items: { $ref: "#/components/schemas/ChangeRequestField" }
