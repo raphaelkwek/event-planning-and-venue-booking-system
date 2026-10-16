@@ -387,7 +387,7 @@ describe("O1 cards: editing and removing lines", () => {
     expect(history[history.length - 1]).toMatchObject({ action: "REMOVED", actorUserId: A.c1, equipmentTypeName: chairs.name, quantity: 40 });
   });
 
-  it("O1-T20 refuses to remove a Reserved line and changes nothing", async () => {
+  it("O1-T20 refuses to remove a Reserved line that holds no active reservation, and changes nothing", async () => {
     const id = await insertLineDirect(sql, { event, equipmentTypeId: chairs.id, requestedBy: A.c1, status: "RESERVED" });
     const before = await row(id);
     const historyBefore = await historyCount();

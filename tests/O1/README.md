@@ -10,7 +10,7 @@ automated test can perform exactly their steps. T26 is the signed-in browser wal
 | Times default from the event and stay editable; required-to must be later than required-from | O1-T1, O1-T3, O1-T4, O1-T5, O1-T6, O1-T26 |
 | Quantity is a whole number greater than zero | O1-T7, O1-T8, O1-T9 |
 | On save each line is Submitted, visible to Technical Support, and records the coordinator and timestamp | O1-T1, O1-T2, O1-T11, O1-T12 |
-| The assigned coordinator may edit or remove a line while Submitted or Under Review; a Reserved line cannot be edited or removed | O1-T13, O1-T14, O1-T15, O1-T16, O1-T18, O1-T19, O1-T20, O1-T21, O1-T22 |
+| The assigned coordinator may edit or remove a line while Submitted or Under Review; a Reserved line cannot be edited or removed | O1-T13, O1-T14, O1-T15, O1-T16, O1-T18, O1-T19, O1-T20, O1-T21, O1-T22 (removal of a Reserved line amended by Q2: it is removed and its reservation released — Q2-T8) |
 | Removing a line records the acting user, timestamp, equipment type and quantity | O1-T18, O1-T19 |
 | A rejected save creates or changes no line item | O1-T4, O1-T5, O1-T7, O1-T9, O1-T10, O1-T17, O1-T23, O1-T24, O1-T25 |
 
