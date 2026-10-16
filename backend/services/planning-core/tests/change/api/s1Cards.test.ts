@@ -202,6 +202,10 @@ describe("S1 cards: requesting a change to an event", () => {
       expect(response.body.error.code).toBe("VALIDATION_FAILED");
       expect(fieldNames(response)).toEqual(["reason"]);
     }
+    // A blank reason does not hide a bad proposed value: both are reported together.
+    const both = await post(e1.id, { reason: " ", changes: { expectedAttendance: 0 } });
+    expect(both.status).toBe(400);
+    expect(fieldNames(both)).toEqual(["changes.expectedAttendance", "reason"]);
     expect(await storedCount(e1.id)).toBe(0);
   });
 
@@ -369,5 +373,11 @@ describe("S1 cards: requesting a change to an event", () => {
     expect(malformed.body.error.code).toBe("VALIDATION_FAILED");
     expect(fieldNames(malformed)).toEqual(["changes.venueRequirements"]);
     expect(await storedCount(fresh.id)).toBe(0);
+  });
+
+  it("stores a start written with an offset as a UTC instant", async () => {
+    const response = await post(e1.id, { reason: "x", changes: { proposedStartAt: `${D}T23:00:00+08:00` } });
+    expect(response.status).toBe(201);
+    expect(fieldOf(response, "proposedStartAt")).toMatchObject({ currentValue: at("14:00"), proposedValue: at("15:00") });
   });
 });

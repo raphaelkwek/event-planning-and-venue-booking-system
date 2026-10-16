@@ -42,10 +42,15 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-/** Every problem is reported, never just the first. */
+/**
+ * Every problem is reported, never just the first. A refusal also carries the significant fields
+ * that were proposed, so their values can be checked and reported together with these problems.
+ */
 export function validateChangeBody(
   raw: unknown
-): { ok: true; reason: string; changes: ProposedChanges } | { ok: false; fields: ErrorField[] } {
+):
+  | { ok: true; reason: string; changes: ProposedChanges }
+  | { ok: false; fields: ErrorField[]; proposed: ProposedChanges } {
   const body = isPlainObject(raw) ? raw : {};
   const fields: ErrorField[] = [];
 
@@ -58,11 +63,15 @@ export function validateChangeBody(
   }
 
   const changes = body.changes;
+  const proposed: ProposedChanges = {};
   if (!isPlainObject(changes) || Object.keys(changes).length === 0) {
     fields.push({ field: "changes", message: NO_CHANGES_MESSAGE });
   } else {
     for (const key of Object.keys(changes)) {
-      if (isSignificantEventField(key)) continue;
+      if (isSignificantEventField(key)) {
+        proposed[key] = changes[key];
+        continue;
+      }
       fields.push({
         field: `changes.${key}`,
         message: DETAIL_FIELDS.includes(key) ? "Change this through Edit details." : "This field can't be changed.",
@@ -70,6 +79,17 @@ export function validateChangeBody(
     }
   }
 
-  if (fields.length > 0) return { ok: false, fields };
+  if (fields.length > 0) return { ok: false, fields, proposed };
   return { ok: true, reason, changes: changes as ProposedChanges };
+}
+
+/** A proposed start or end is stored as an instant in UTC, whatever offset it was written with. */
+export function normaliseInstants(changes: ProposedChanges): ProposedChanges {
+  const normalised: ProposedChanges = { ...changes };
+  for (const field of ["proposedStartAt", "proposedEndAt"] as const) {
+    const value = normalised[field];
+    const instant = typeof value === "string" ? new Date(value) : null;
+    if (instant && !Number.isNaN(instant.getTime())) normalised[field] = instant.toISOString();
+  }
+  return normalised;
 }

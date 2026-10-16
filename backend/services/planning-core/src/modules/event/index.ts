@@ -1,5 +1,5 @@
 import { Router } from "express";
-import type { Sql } from "postgres";
+import type { Sql, TransactionSql } from "postgres";
 import type { AccessScope, EventStatus } from "@connectsphere/contracts";
 import { draftsRouter } from "./api/drafts.js";
 import { eventsRouter } from "./api/events.js";
@@ -98,14 +98,19 @@ export interface EventForChange {
   current: ChangeableEvent;
 }
 
-/** The event under the A3 scope rule, with its current values; null when absent or out of scope (404). */
+/**
+ * The event under the A3 scope rule, with its current values; null when absent or out of scope (404).
+ * With `lock`, called inside a transaction, the event row is share-locked until it ends, so the
+ * values checked and snapshotted are the ones the request is stored against.
+ */
 export async function findEventForChange(
-  sql: Sql,
+  sql: Sql | TransactionSql,
   eventId: string,
   scope: AccessScope,
-  callerId: string
+  callerId: string,
+  options: { lock?: boolean } = {}
 ): Promise<EventForChange | null> {
-  const event = await findEventInScope(sql, eventId, scope, callerId);
+  const event = await findEventInScope(sql, eventId, scope, callerId, options);
   if (!event) return null;
 
   return {

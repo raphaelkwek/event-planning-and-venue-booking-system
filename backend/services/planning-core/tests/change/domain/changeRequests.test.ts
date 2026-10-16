@@ -4,6 +4,7 @@ import {
   CHANGEABLE_STATUSES,
   MAX_REASON_LENGTH,
   isChangeable,
+  normaliseInstants,
   notChangeableMessage,
   validateChangeBody,
 } from "../../../src/modules/change/domain/changeRequests.js";
@@ -49,6 +50,7 @@ describe("validateChangeBody", () => {
     expect(validateChangeBody({ reason: "x".repeat(MAX_REASON_LENGTH + 1), changes: { expectedAttendance: 1 } })).toEqual({
       ok: false,
       fields: [{ field: "reason", message: `The reason can be at most ${MAX_REASON_LENGTH} characters.` }],
+      proposed: { expectedAttendance: 1 },
     });
   });
 
@@ -56,6 +58,7 @@ describe("validateChangeBody", () => {
     expect(validateChangeBody({ reason, changes: { expectedAttendance: 1 } })).toEqual({
       ok: false,
       fields: [{ field: "reason", message: "Give a reason for the change." }],
+      proposed: { expectedAttendance: 1 },
     });
   });
 
@@ -63,6 +66,7 @@ describe("validateChangeBody", () => {
     expect(validateChangeBody({ reason: "x", changes })).toEqual({
       ok: false,
       fields: [{ field: "changes", message: "Propose at least one change." }],
+      proposed: {},
     });
   });
 
@@ -77,6 +81,7 @@ describe("validateChangeBody", () => {
         field: `changes.${field}`,
         message: "Change this through Edit details.",
       })),
+      proposed: {},
     });
   });
 
@@ -84,6 +89,7 @@ describe("validateChangeBody", () => {
     expect(validateChangeBody({ reason: "x", changes: { name: "New", expectedAttendance: 5 } })).toEqual({
       ok: false,
       fields: [{ field: "changes.name", message: "This field can't be changed." }],
+      proposed: { expectedAttendance: 5 },
     });
   });
 
@@ -95,6 +101,7 @@ describe("validateChangeBody", () => {
         { field: "changes.purpose", message: "Change this through Edit details." },
         { field: "changes.colour", message: "This field can't be changed." },
       ],
+      proposed: {},
     });
   });
 
@@ -106,7 +113,22 @@ describe("validateChangeBody", () => {
           { field: "reason", message: "Give a reason for the change." },
           { field: "changes", message: "Propose at least one change." },
         ],
+        proposed: {},
       });
     }
+  });
+});
+
+describe("normaliseInstants", () => {
+  it("stores a start and end written with an offset as UTC", () => {
+    expect(normaliseInstants({ proposedStartAt: "2026-12-02T15:00:00+08:00", proposedEndAt: "2026-12-02T18:00:00.000Z" })).toEqual({
+      proposedStartAt: "2026-12-02T07:00:00.000Z",
+      proposedEndAt: "2026-12-02T18:00:00.000Z",
+    });
+  });
+
+  it("leaves other fields, nulls and unparseable values as they are", () => {
+    const changes = { expectedAttendance: 5, proposedStartAt: "soon", proposedEndAt: null };
+    expect(normaliseInstants(changes)).toEqual(changes);
   });
 });
