@@ -45,6 +45,7 @@ export function ReviewDetail() {
   const [clarifications, setClarifications] = useState<Clarification[]>([]);
   const [proposals, setProposals] = useState<ReassignmentProposal[]>([]);
   const [changeRequests, setChangeRequests] = useState<ChangeRequest[]>([]);
+  const [changesFailed, setChangesFailed] = useState(false);
   const [loadError, setLoadError] = useState<unknown>(null);
   const [actionError, setActionError] = useState<unknown>(null);
   const [loading, setLoading] = useState(true);
@@ -78,8 +79,14 @@ export function ReviewDetail() {
       setEvent(await openEvent(session.token, id));
       setClarifications((await listClarifications(session.token, id)).items);
       setProposals((await listReassignmentProposals(session.token, id)).items);
-      // The notice is secondary: if the list cannot be read the page still shows.
-      setChangeRequests(await listChangeRequests(session.token, id).then((list) => list.items, () => []));
+      // A failure here is shown beside the notice's place; it does not hide the page.
+      try {
+        setChangeRequests((await listChangeRequests(session.token, id)).items);
+        setChangesFailed(false);
+      } catch {
+        setChangeRequests([]);
+        setChangesFailed(true);
+      }
     } catch (caught) {
       setLoadError(caught);
     } finally {
@@ -164,6 +171,7 @@ export function ReviewDetail() {
           </div>
         )}
 
+        {changesFailed && <p role="status" style={{ color: "#626F86", fontSize: 13 }}>Change requests couldn't be loaded.</p>}
         {pendingChange && <PendingChangeNotice request={pendingChange} />}
 
         <Detail label="Purpose" value={event.purpose} />

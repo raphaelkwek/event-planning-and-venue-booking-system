@@ -39,6 +39,7 @@ export function RequestDetail() {
   const [clarifications, setClarifications] = useState<Clarification[]>([]);
   const [proposals, setProposals] = useState<ReassignmentProposal[]>([]);
   const [changeRequests, setChangeRequests] = useState<ChangeRequest[]>([]);
+  const [changesFailed, setChangesFailed] = useState(false);
   const [requestingChange, setRequestingChange] = useState(false);
   const [error, setError] = useState<unknown>(null);
   const [loading, setLoading] = useState(true);
@@ -64,8 +65,14 @@ export function RequestDetail() {
       setEvent(await openEvent(session.token, id));
       setClarifications((await listClarifications(session.token, id)).items);
       setProposals((await listReassignmentProposals(session.token, id)).items);
-      // The notice is secondary: if the list cannot be read the page still shows.
-      setChangeRequests(await listChangeRequests(session.token, id).then((list) => list.items, () => []));
+      // A failure here is shown beside the notice's place; it does not hide the page.
+      try {
+        setChangeRequests((await listChangeRequests(session.token, id)).items);
+        setChangesFailed(false);
+      } catch {
+        setChangeRequests([]);
+        setChangesFailed(true);
+      }
     } catch (caught) {
       setError(caught);
     } finally {
@@ -105,7 +112,7 @@ export function RequestDetail() {
   if (!event) return null;
 
   const pendingChange = changeRequests.find((entry) => entry.status === "PENDING") ?? null;
-  const canRequestChange = isChangeable(event.status) && event.ownerId === session.userId && !pendingChange;
+  const canRequestChange = !changesFailed && isChangeable(event.status) && event.ownerId === session.userId && !pendingChange;
   const openClarification = clarifications.find((entry) => entry.status === "OPEN");
 
   return (
@@ -150,6 +157,7 @@ export function RequestDetail() {
           </div>
         )}
 
+        {changesFailed && <p role="status" style={{ color: "#626F86", fontSize: 13 }}>Change requests couldn't be loaded.</p>}
         {pendingChange && <PendingChangeNotice request={pendingChange} />}
         {canRequestChange && requestingChange && (
           <ChangeRequestForm

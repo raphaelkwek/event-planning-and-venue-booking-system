@@ -42,11 +42,13 @@ const { App } = await import("../src/App.js");
 
 const reply = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status });
 let stored: unknown[];
+let listFails = false;
 let onPost: (body: Record<string, unknown>) => Response;
 const fetchMock = vi.fn(async (path: string, init?: RequestInit) => {
   const url = new URL(path, "http://app.test");
   if (url.pathname === `/event/api/v1/events/${EVENT_ID}/change-requests`) {
     if (init?.method === "POST") return onPost(JSON.parse(init.body as string));
+    if (listFails) return reply({ error: { code: "INTERNAL", message: "boom", correlationId: null } }, 500);
     return reply({ items: stored });
   }
   if (url.pathname.includes("/notifications")) return reply({ items: [], unreadCount: 0, nextCursor: null });
@@ -65,6 +67,7 @@ const requestButton = () => screen.queryByRole("button", { name: "Request a chan
 beforeEach(() => {
   current = event();
   stored = [];
+  listFails = false;
   onPost = () => reply(pending, 201);
   vi.stubGlobal("fetch", fetchMock);
 });
@@ -101,6 +104,21 @@ describe("the Request a change button", () => {
     asOrganiser();
     expect(await screen.findByText(/Change requested on .*: expected attendance \(Pending\)/)).toBeTruthy();
     expect(requestButton()).toBeNull();
+  });
+});
+
+describe("when the change requests cannot be loaded", () => {
+  it("says so and does not offer the button on the organiser's page", async () => {
+    listFails = true;
+    asOrganiser();
+    expect(await screen.findByText("Change requests couldn't be loaded.")).toBeTruthy();
+    expect(requestButton()).toBeNull();
+  });
+
+  it("says so on the coordinator's page", async () => {
+    listFails = true;
+    open(COORDINATOR, "EVENT_COORDINATOR", `/review/${EVENT_ID}`);
+    expect(await screen.findByText("Change requests couldn't be loaded.")).toBeTruthy();
   });
 });
 
