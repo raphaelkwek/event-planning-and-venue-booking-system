@@ -1,0 +1,26 @@
+# Q2-T3 — A released Substituted line goes back to Substituted
+
+## Specification
+
+| Item | Content |
+|---|---|
+| Test Case ID | Q2-T3 |
+| Test Scenario | A line reserved through its substitute returns to Substituted, with its substitute unchanged, when the reservation is released |
+| Pre-conditions | 1. Clean throwaway Postgres with every migration applied, using the isolated setup in `tests/Q2/README.md`. Authentication is stubbed: the signed-in user is whichever actor a step names. Real sign-in is outside this procedure.<br>2. Fixture FX-Q2 from `tests/Q2/README.md` is loaded: event E1 (Approved, owned by ORG, assigned coordinator C1, proposed `D 14:00`–`D 18:00` UTC), equipment types CHAIRS (bulk, total 10) and PROJECTORS (serialized, units `P-01`, `P-02`, `P-03`), the actors TS, C1, ORG, VS and ATT, and line L1 (CHAIRS × 4 for E1, Confirmed, then reserved by TS through `POST /api/v1/equipment/request-lines/<L1>/reservation`, leaving 6 CHAIRS).<br>3. A PROJECTORS line (quantity 2) for E1 that is Substituted with CHAIRS × 5, then reserved by TS (5 CHAIRS reserved, in addition to L1's 4). |
+| Test Steps | 1. As TS, send `POST /api/v1/equipment/request-lines/<id>/release` for that line with the body in Test Data.<br>2. As TS, send `GET /api/v1/equipment/request-lines/<id>`.<br>3. As TS, send `GET /api/v1/equipment/types/<CHAIRS>/availability` for E1's window with requestedQuantity 1.<br>4. Run `npm test -w @connectsphere/planning-core -- tests/equipment/api/q2Cards.test.ts -t 'Q2-T3 '` (or the whole suite) and read the named `Q2-T3 ` result. |
+| Test Data | `{"reason":"Not needed"}` |
+| Expected Result | HTTP 200. The line status is `SUBSTITUTED` and its substitute (CHAIRS × 5) is unchanged. The availability of CHAIRS for E1's window shows availableQuantity 6 (10 minus L1's 4). |
+| Created By | Raphael, via Claude |
+| Date of Creation | 2026-10-16 |
+
+> **Expected results are checked by the PR reviewer** against Q2's acceptance criteria.
+
+## Execution record
+
+| Item | Content |
+|---|---|
+| Actual Result | |
+| Status | Not Executed |
+| Remarks |  |
+| Executed By | |
+| Date of Execution | |
