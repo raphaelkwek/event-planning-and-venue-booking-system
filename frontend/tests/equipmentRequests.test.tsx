@@ -385,6 +385,17 @@ describe("Q2: releasing from the equipment requests screen", () => {
     expect(screen.queryByRole("button", { name: "Release Folding Chairs for EVT-000123" })).toBeNull();
   });
 
+  it("does not add a second full stop when the reason already ends with one", async () => {
+    lines = [reserved()];
+    render(<App />);
+    fireEvent.click(await screen.findByRole("button", { name: "Release Folding Chairs for EVT-000123" }));
+    fireEvent.change(screen.getByLabelText("Reason"), { target: { value: "  Event moved.  " } });
+    lines = [line({ id: "r", status: "CONFIRMED" })];
+    fireEvent.click(screen.getByRole("button", { name: "Release reservation" }));
+
+    expect(await screen.findByText("Released Folding Chairs for EVT-000123: Event moved.")).toBeTruthy();
+  });
+
   it("shows a refusal from the server, such as an already released reservation", async () => {
     lines = [reserved()];
     onRelease = () => reply({ error: { code: "RESERVATION_ALREADY_RELEASED", message: "This reservation has already been released.", correlationId: null } }, 409);

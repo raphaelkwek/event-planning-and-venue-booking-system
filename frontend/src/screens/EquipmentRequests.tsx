@@ -171,7 +171,9 @@ export function EquipmentRequests() {
     setReleaseError(null);
     try {
       const done = await releaseLine(session.token, releasing.id, releaseReason);
-      setNotice({ title: "Equipment released", text: `Released ${reservedTypeOf(releasing)} for ${done.line.eventReference}: ${releaseReason}.` });
+      const reason = releaseReason.trim();
+      const stop = /[.!?]$/.test(reason) ? "" : ".";
+      setNotice({ title: "Equipment released", text: `Released ${reservedTypeOf(releasing)} for ${done.line.eventReference}: ${reason}${stop}` });
       setReleasing(null);
       await load();
     } catch (caught) {

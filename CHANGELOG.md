@@ -41,6 +41,9 @@ reservation when it is no longer needed, so the equipment can go to another even
 `npm run migrate -- equipment` applies 0007–0008 (after Q1's 0005–0006). Run it before
 planning-core is deployed against the shared database.
 
+Deploy the notification service with this change before or with planning-core; an older notification
+service drops the `released` flag and words a release as an ordinary status change.
+
 ---
 
 # Q1: Technical Support reserve the equipment on a request line
