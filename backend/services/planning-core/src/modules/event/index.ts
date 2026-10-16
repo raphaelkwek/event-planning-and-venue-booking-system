@@ -9,6 +9,9 @@ import { reassignmentsRouter } from "./api/reassignments.js";
 import { eventDetailsRouter } from "./api/eventDetails.js";
 import { statusHistoryRouter } from "./api/statusHistory.js";
 import { findEventInScope, findReferences } from "./repo/events.js";
+import type { ChangeableEvent } from "./domain/proposedChange.js";
+
+export { checkProposedChange, type ChangeableEvent, type ProposedChanges } from "./domain/proposedChange.js";
 
 /** The module's outbox table, for the outbox relay (implementation.md §3.4). */
 export { EVENT_OUTBOX_TABLE } from "./events/outbox.js";
@@ -81,6 +84,51 @@ export async function findEventForPlanning(
     accessibilityNeeds: event.accessibilityNeeds,
     equipmentRequired: event.equipmentRequired,
     equipmentRequirements: event.equipmentRequirements,
+  };
+}
+
+/** S1 — what the change module needs to check and snapshot a change request. */
+export interface EventForChange {
+  id: string;
+  reference: string | null;
+  name: string;
+  status: EventStatus;
+  ownerId: string;
+  assignedCoordinatorId: string | null;
+  current: ChangeableEvent;
+}
+
+/** The event under the A3 scope rule, with its current values; null when absent or out of scope (404). */
+export async function findEventForChange(
+  sql: Sql,
+  eventId: string,
+  scope: AccessScope,
+  callerId: string
+): Promise<EventForChange | null> {
+  const event = await findEventInScope(sql, eventId, scope, callerId);
+  if (!event) return null;
+
+  return {
+    id: event.id,
+    reference: event.reference,
+    name: event.name,
+    status: event.status,
+    ownerId: event.ownerId,
+    assignedCoordinatorId: event.assignedCoordinatorId,
+    current: {
+      name: event.name,
+      purpose: event.purpose,
+      description: event.description,
+      proposedStartAt: event.proposedStartAt,
+      proposedEndAt: event.proposedEndAt,
+      expectedAttendance: event.expectedAttendance,
+      registrationRequired: event.registrationRequired,
+      registrationOpensAt: event.registrationOpensAt,
+      registrationClosesAt: event.registrationClosesAt,
+      equipmentRequired: event.equipmentRequired,
+      venueRequirements: event.venueRequirements,
+      equipmentRequirements: event.equipmentRequirements,
+    },
   };
 }
 
