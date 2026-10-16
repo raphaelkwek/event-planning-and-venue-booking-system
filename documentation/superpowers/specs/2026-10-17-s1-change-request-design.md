@@ -68,7 +68,7 @@ circumstances without me starting again.
 
 | Route | Who | Responses |
 |---|---|---|
-| `POST /api/v1/events/{id}/change-requests` | Event Organiser who owns the event | 201 the request (id, status, reason, requestedBy/At, fields with current and proposed values) · 400 `VALIDATION_FAILED` · 409 `EVENT_NOT_CHANGEABLE` · 409 `CHANGE_REQUEST_ALREADY_PENDING` (details: id, requestedAt, fields) · 403 not the owner / not an organiser · 404 outside scope |
+| `POST /api/v1/events/{id}/change-requests` | Event Organiser who owns the event | 201 the request (id, status, reason, requestedBy/At, fields with current and proposed values) · 400 `VALIDATION_FAILED` · 409 `EVENT_NOT_CHANGEABLE` · 409 `CHANGE_REQUEST_ALREADY_PENDING` (details: id, requestedAt, fields) · 403 not an organiser · 404 outside scope — which includes another organiser's event, since A3 shows organisers only their own (S1-T10) |
 | `GET /api/v1/events/{id}/change-requests` | Anyone whose A3 scope covers the event | 200 `{ items }`, newest first · 404 outside scope |
 
 Contracts gains `EVENT_NOT_CHANGEABLE`, `CHANGE_REQUEST_ALREADY_PENDING` (also in the OpenAPI enum,
