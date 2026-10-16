@@ -1,5 +1,7 @@
 import { Router } from "express";
 
+export { CHANGE_OUTBOX_TABLE } from "./events/outbox.js";
+
 /**
  * The change and readiness module's public interface (ADR-0004). Other modules import
  * this file and nothing else under modules/change; `npm run lint:boundaries`
