@@ -242,6 +242,10 @@ describe("Q2 cards: releasing a reservation", () => {
       release_reason: "Request line removed",
     });
     expect((await availability(chairs.id)).availableQuantity).toBe(10);
+    const entries = await history(l1);
+    const last = entries[entries.length - 1]!;
+    expect(last).toMatchObject({ action: "REMOVED", actor_user_id: A.c1 });
+    expect(last.details).toEqual({ reservationId: l1Reservation.id, released: true, reason: "Request line removed" });
   });
 
   it("Q2-T9 notifies the coordinator of Technical Support's release, worded as a release with the reason", async () => {

@@ -220,6 +220,7 @@ describe("O2 cards: updating a line's status", () => {
       newStatus: "CONFIRMED",
       changedBy: A.ts,
     });
+    expect(stored.data).not.toHaveProperty("released");
 
     const notifications = notificationsFor(stored);
     expect(notifications).toHaveLength(1);

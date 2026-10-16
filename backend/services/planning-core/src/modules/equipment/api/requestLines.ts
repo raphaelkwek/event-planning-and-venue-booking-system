@@ -85,6 +85,17 @@ function notEditable(res: Response, status: EquipmentRequestLineStatus) {
   );
 }
 
+function notRemovable(res: Response, status: EquipmentRequestLineStatus) {
+  refuse(
+    res,
+    409,
+    "EQUIPMENT_LINE_NOT_EDITABLE",
+    `This line is ${EQUIPMENT_LINE_STATUS_LABELS[status]}. Only Submitted, Under Review or Reserved lines can be removed.`,
+    undefined,
+    { status },
+  );
+}
+
 const instant = (value: string | null) => (value ? new Date(value) : null);
 const eventTimes = (event: EventPlanningView): EventTimes => ({
   startsAt: instant(event.proposedStartAt),
@@ -277,7 +288,7 @@ export function requestLinesRouter(sql: Sql, limiter: RequestHandler = equipment
         return { code: "OK", line: await markRemoved(tx, current, req.actor!) } as const;
       });
       if (outcome.code === "GONE") return lineNotFound(res);
-      if (outcome.code === "NOT_EDITABLE") return notEditable(res, outcome.status);
+      if (outcome.code === "NOT_EDITABLE") return notRemovable(res, outcome.status);
       res.json(present(outcome.line));
     } catch (error) {
       next(error);
