@@ -250,6 +250,12 @@ describe("parseCloudEvent: change request messages (S1)", () => {
     expect(message.data).toEqual(submittedChange);
   });
 
+  it("refuses one that names a field outside the significant six", () => {
+    expect(() =>
+      parseCloudEvent(exampleMessage("change-request.submitted", { ...submittedChange, fields: ["purpose"] })),
+    ).toThrow(/fields/);
+  });
+
   it("refuses one that names no fields", () => {
     expect(() => parseCloudEvent(exampleMessage("change-request.submitted", { ...submittedChange, fields: [] }))).toThrow(
       /fields/,

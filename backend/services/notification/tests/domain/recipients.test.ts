@@ -191,8 +191,7 @@ describe("notificationsFor", () => {
     );
     expect(notes).toHaveLength(1);
     expect(notes[0]).toMatchObject({ recipientUserId: coordinator, notificationType: "change-request.submitted" });
-    expect(notes[0]!.message).toContain("EVT-2026-0042");
-    expect(notes[0]!.message).toContain("start, expected attendance");
+    expect(notes[0]!.message).toBe("A change has been requested for EVT-2026-0042 “Freshmen Orientation”: start, expected attendance.");
   });
 
   it("notifies nobody for a message type it has no rule for", () => {
