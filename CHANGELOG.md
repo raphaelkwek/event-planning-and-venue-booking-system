@@ -4,6 +4,40 @@
 
 ---
 
+# N1: A venue is never double-booked
+
+**Timestamp:** 2026-10-18T01:46+08:00 (SGT)
+**Author:** Seann, via Claude
+**Scope:**
+- planning-core: five integration tests in `tests/venue/api/bookingDecisions.test.ts`. No production code.
+- Test cards `tests/N1/` (8), with statements for another event's booking, a release, and a second event wanting the same venue. Traceability in `sprint-3.csv`.
+
+**Reason:** N1 (Sprint 3). M1's approval enforces the double-booking rule, so N1 checks the rule through it.
+
+## What it does
+
+1. **The rule is the database's** (ADR-0006). Approving a request inserts the confirmed booking under the venue's row lock, and the exclusion constraint on `venue.venue_slots` refuses any booking whose occupied period overlaps another's. Setup and turnaround are included (CR-01), and periods are `[)`, so bookings that only touch are both allowed.
+2. **The new tests check, through the approval route:**
+   - a refused approval leaves the existing booking exactly as it was;
+   - touching bookings are both confirmed;
+   - exactly one of six overlapping approvals sent at once confirms, every refusal names the winner, and the losers stay Pending;
+   - released bookings, and withdrawn or rejected requests, never block a new booking;
+   - search leaves out a venue booked for one minute of the window, and lists one whose booking only touches it.
+
+## Notes for the team
+
+3. **N1-T7's precondition is fixed.** It made two confirmed bookings for the same period before releasing either, which the constraint refuses. Each booking is now released before the next is made.
+4. **Unavailability blocks (I2)** aren't built yet. Search and M1's approval already treat an active block with the same `&&` rule.
+5. **Execution dates:** the local runner's reporter wrote the UTC date, so tonight's runs after midnight said 17 Oct. Those records (N1, M1, M2, and the L1/L2 re-run) are corrected to 18 Oct. The reporter, which is gitignored, now uses Singapore time; anyone with their own copy should make the same change.
+
+## Verified
+
+- **The 8 N1 cards pass in Chrome** through the automated runner, against `7c418d5`.
+- **The six-way approval race passed five runs in a row.**
+- **planning-core integration tests:** all 1,288 pass. Coverage is 96.7% of lines, 92.0% of branches and 96.7% of functions.
+
+---
+
 # M1, M2: Venue Staff approve or reject a booking request
 
 **Timestamp:** 2026-10-18T01:32+08:00 (SGT)
