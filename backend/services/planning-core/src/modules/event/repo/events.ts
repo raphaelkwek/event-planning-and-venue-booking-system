@@ -133,11 +133,17 @@ function scopeCondition(sql: Sql | TransactionSql, scope: AccessScope, callerId:
   }
 }
 
+/**
+ * `lock: true` takes a share lock on the event row (inside a transaction), so a status change,
+ * which locks the row `for update` (updateStatusIf), waits until the reader's transaction ends,
+ * and a reader waits for a change in progress and then sees its result.
+ */
 export async function findEventInScope(
-  sql: Sql,
+  sql: Sql | TransactionSql,
   eventId: string,
   scope: AccessScope,
-  callerId: string
+  callerId: string,
+  options: { lock?: boolean } = {}
 ): Promise<EventRow | null> {
   if (!isEventId(eventId)) return null;
   const rows = await sql<RawEvent[]>`
@@ -145,6 +151,7 @@ export async function findEventInScope(
     from event.events e
     left join event.assignments a on a.event_id = e.id and a.is_active
     where e.id = ${eventId} and ${scopeCondition(sql, scope, callerId)}
+    ${options.lock ? sql`for share of e` : sql``}
   `;
   return rows[0] ? toEvent(rows[0]) : null;
 }

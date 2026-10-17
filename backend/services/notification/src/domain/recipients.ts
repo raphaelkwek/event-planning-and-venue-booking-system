@@ -1,4 +1,9 @@
-import { EQUIPMENT_LINE_STATUS_LABELS, type EquipmentRequestLineStatus } from "@connectsphere/contracts";
+import {
+  EQUIPMENT_LINE_STATUS_LABELS,
+  SIGNIFICANT_FIELD_LABELS,
+  type EquipmentRequestLineStatus,
+  type SignificantEventField,
+} from "@connectsphere/contracts";
 
 /**
  * T2's recipient rules (EN-04.3): who is told what, from the facts the message
@@ -46,6 +51,11 @@ function equipmentLineMessage(d: Record<string, unknown>, event: string): string
   return text;
 }
 
+/** S1: names each changed field the way the organiser's form does. */
+function joinLabels(fields: unknown): string {
+  return (fields as SignificantEventField[]).map((field) => SIGNIFICANT_FIELD_LABELS[field] ?? field).join(", ");
+}
+
 const RULES: Record<string, Rule> = {
   // B1 asks for the coordinator assigned on submission to hear that a request
   // awaits review. event.submitted does not name that coordinator; this
@@ -73,6 +83,10 @@ const RULES: Record<string, Rule> = {
   ],
   // O2: the event's assigned coordinator learns what Technical Support decided about a line.
   "equipment-request.line-status-changed": (d, event) => [[d.coordinatorId!, equipmentLineMessage(d, event)]],
+  // S1: the assigned coordinator hears that the organiser asked to change the event.
+  "change-request.submitted": (d, event) => [
+    [d.coordinatorId!, `A change has been requested for ${event}: ${joinLabels(d.fields)}.`],
+  ],
 };
 
 /** The notifications a message raises; none for a type no story asks to notify about. */
