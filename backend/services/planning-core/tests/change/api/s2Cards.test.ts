@@ -408,4 +408,26 @@ describe("S2 cards: deciding a change request", () => {
     expect(reread.body.expectedAttendance).toBe(180);
     expect(new Date(reread.body.proposedStartAt).toISOString()).toBe(at("15:00"));
   });
+
+  it("S2-T13 refuses to approve a request whose event changed since it was made", async () => {
+    await sql`update event.events set proposed_start_at = ${at("14:30")} where id = ${e1.id}`;
+    const before = await eventState(e1.id);
+    expect(before.start).toBe(at("14:30"));
+
+    const approval = await decide(cr1, { decision: "APPROVE" });
+
+    expect(approval.status).toBe(409);
+    expect(approval.body.error.code).toBe("CHANGE_REQUEST_NO_LONGER_VALID");
+    expect((approval.body.error.details.fields as { field: string }[]).map((entry) => entry.field)).toEqual([
+      "changes.proposedStartAt",
+    ]);
+    await stillPending(cr1);
+    expect(await eventState(e1.id)).toEqual(before);
+
+    const rejection = await decide(cr1, { decision: "REJECT", reason: "The event changed" });
+
+    expect(rejection.status).toBe(200);
+    expect(rejection.body.changeRequest).toMatchObject({ status: "REJECTED", rejectionReason: "The event changed" });
+    expect((await eventState(e1.id)).start).toBe(at("14:30"));
+  });
 });

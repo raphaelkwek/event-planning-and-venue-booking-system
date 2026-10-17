@@ -137,9 +137,10 @@ function scopeCondition(sql: Sql | TransactionSql, scope: AccessScope, callerId:
 }
 
 /**
- * `lock: true` takes a share lock on the event row (inside a transaction), so a status change,
+ * `lock: "share"` takes a share lock on the event row (inside a transaction), so a status change,
  * which locks the row `for update` (updateStatusIf), waits until the reader's transaction ends,
- * and a reader waits for a change in progress and then sees its result.
+ * and a reader waits for a change in progress and then sees its result. `lock: "update"` locks it
+ * `for update`, for a caller that writes the event.
  */
 export async function findEventInScope(
   sql: Sql | TransactionSql,
@@ -167,7 +168,8 @@ export async function applyApprovedChange(
   tx: TransactionSql,
   event: { id: string; current: ChangeableEvent },
   changes: ProposedChanges,
-  actor: { userId: string; role: string }
+  actor: { userId: string; role: string },
+  occurredAt?: Date
 ): Promise<void> {
   const fields = Object.keys(changes).filter(isSignificantEventField);
   if (fields.length === 0) return;
@@ -197,7 +199,8 @@ export async function applyApprovedChange(
       newValue: historyText(field, changes[field]),
     })),
     actor,
-    "CHANGE_REQUEST_APPROVED"
+    "CHANGE_REQUEST_APPROVED",
+    occurredAt
   );
 }
 

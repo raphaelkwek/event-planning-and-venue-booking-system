@@ -187,11 +187,11 @@ export async function lockRequest(tx: TransactionSql, id: string): Promise<Chang
 export async function recordDecision(
   tx: TransactionSql,
   id: string,
-  decision: { status: "APPROVED" | "REJECTED"; actorId: string; reason: string | null }
+  decision: { status: "APPROVED" | "REJECTED"; actorId: string; reason: string | null; at?: Date }
 ): Promise<ChangeRequestRecord> {
   const rows = await tx<RequestRow[]>`
     update change.change_requests
-    set status = ${decision.status}, decided_by = ${decision.actorId}, decided_at = clock_timestamp(),
+    set status = ${decision.status}, decided_by = ${decision.actorId}, decided_at = ${decision.at ?? tx`clock_timestamp()`},
         rejection_reason = ${decision.reason}, updated_at = now(), updated_by = ${decision.actorId}
     where id = ${id}
     returning id, event_id, event_reference, status, reason, requested_by, requested_at,

@@ -103,6 +103,60 @@ describe("decideChangeRequest", () => {
     expect(await outboxTypes(eventId)).toEqual(["change-request.rejected"]);
   });
 
+  it("records the history rows of an approval with the coordinator and the decision's own time", async () => {
+    const { eventId, request, start, later } = await fixture();
+
+    const outcome = await decide(request.id, { decision: "APPROVE" });
+    const decidedAt = outcome.ok ? outcome.request.decidedAt : null;
+
+    const rows = await sql<{ field_name: string; previous_value: string; new_value: string; actor_user_id: string; actor_role: string; at: Date }[]>`
+      select field_name, previous_value, new_value, actor_user_id, actor_role, occurred_at as at
+      from event.event_history where event_id = ${eventId} and entry_type = 'FIELD_CHANGE' order by field_name`;
+    expect(rows.map((r) => ({ ...r, at: r.at.toISOString() }))).toEqual([
+      { field_name: "expectedAttendance", previous_value: "150", new_value: "180", actor_user_id: C1, actor_role: "EVENT_COORDINATOR", at: decidedAt },
+      { field_name: "proposedStartAt", previous_value: start, new_value: later, actor_user_id: C1, actor_role: "EVENT_COORDINATOR", at: decidedAt },
+    ]);
+  });
+
+  it("refuses a second decision after an approval, naming it, and writes nothing more", async () => {
+    const { eventId, request } = await fixture();
+    const first = await decide(request.id, { decision: "APPROVE" });
+    const version = (await eventRow(eventId)).version;
+
+    const again = await decide(request.id, { decision: "REJECT", reason: "Too late" });
+
+    expect(again).toEqual({ ok: false, code: "ALREADY_DECIDED", status: "APPROVED", decidedAt: first.ok ? first.request.decidedAt : null });
+    expect((await eventRow(eventId)).version).toBe(version);
+    expect(await historyCount(eventId)).toBe(2);
+    expect(await outboxTypes(eventId)).toEqual(["change-request.approved"]);
+  });
+
+  it("tells the requester, and a rejection carries its reason", async () => {
+    const { eventId, request } = await fixture();
+    await sql`update event.events set owner_id = ${C2} where id = ${eventId}`;
+
+    const outcome = await decide(request.id, { decision: "REJECT", reason: "No larger hall" });
+
+    const [row] = await sql<{ data: Record<string, unknown> }[]>`select envelope->'data' as data from change.outbox where message_key = ${eventId}`;
+    expect(row!.data).toEqual({
+      eventId,
+      eventReference: request.eventReference,
+      eventName: "S2 repo event",
+      ownerId: OWNER,
+      changeRequestId: request.id,
+      fields: ["proposedStartAt", "expectedAttendance"],
+      decidedBy: C1,
+      decidedAt: outcome.ok ? outcome.request.decidedAt : null,
+      reason: "No larger hall",
+    });
+    await sql`update event.events set owner_id = ${OWNER} where id = ${eventId}`;
+  });
+
+  it("refuses a coordinator who is not assigned, to approve or to reject, and an unknown request", async () => {
+    const { request: other } = await fixture();
+    expect(await decide(other.id, { decision: "REJECT", reason: "x" }, { userId: C2, role: "EVENT_COORDINATOR" })).toEqual({ ok: false, code: "NOT_ASSIGNED" });
+  });
+
   it("refuses a coordinator who is not assigned, and an unknown request", async () => {
     const { eventId, request } = await fixture();
 
@@ -136,6 +190,23 @@ describe("decideChangeRequest", () => {
     expect((await sql`select status from change.change_requests where id = ${request.id}`)[0]!.status).toBe("PENDING");
 
     expect(await decide(request.id, { decision: "REJECT", reason: "The new time has passed" })).toMatchObject({ ok: true });
+  });
+
+  it("refuses an approval when the event changed after the request was made, but still allows a rejection", async () => {
+    const { eventId, request, start } = await fixture();
+    const amended = new Date(Date.parse(start) + 30 * 60_000).toISOString();
+    await sql`update event.events set proposed_start_at = ${amended} where id = ${eventId}`;
+    const before = await eventRow(eventId);
+
+    const refused = await decide(request.id, { decision: "APPROVE" });
+
+    expect(refused).toMatchObject({ ok: false, code: "NO_LONGER_VALID" });
+    expect(refused.ok === false && refused.code === "NO_LONGER_VALID" && refused.fields.map((f) => f.field)).toEqual(["changes.proposedStartAt"]);
+    expect(await eventRow(eventId)).toEqual(before);
+    expect(await historyCount(eventId)).toBe(0);
+    expect(await outboxTypes(eventId)).toEqual([]);
+
+    expect(await decide(request.id, { decision: "REJECT", reason: "The event changed" })).toMatchObject({ ok: true });
   });
 
   it("refuses an approval once the event is no longer changeable", async () => {

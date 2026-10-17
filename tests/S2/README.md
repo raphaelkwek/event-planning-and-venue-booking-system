@@ -1,6 +1,6 @@
 # S2 — Review and decide a change request
 
-Twelve cases, written from the story (SPM-58) on 18 Oct 2026, before the code. T1 to T10 are API-level procedures (HTTP
+Thirteen cases, written from the story (SPM-58) on 18 Oct 2026, before the code. T1 to T10 and T13 are API-level procedures (HTTP
 requests with authentication stubbed, against a migrated throwaway Postgres), automated one test per card in
 `tests/change/api/s2Cards.test.ts`. T11 is the race case (approve and reject at once, exactly one decision recorded), in
 `tests/race/invariants.test.ts`, which runs on CI's throwaway Postgres only. T12 is the signed-in browser walk-through, done by
@@ -15,8 +15,8 @@ hand.
 | AC5: the requesting organiser receives a notification of either outcome, including the rejection reason where applicable | S2-T8, S2-T12 |
 | AC6: a request that already carries a decision offers no further approve or reject action | S2-T4, S2-T12 |
 
-Three cases are not tied to one criterion. S2-T6 and S2-T7 check that approval re-checks the proposed values and the event's
-status under lock and refuses (`CHANGE_REQUEST_NO_LONGER_VALID`) when they no longer hold, while rejection still works. S2-T10
+Four cases are not tied to one criterion. S2-T6, S2-T7 and S2-T13 check that approval re-checks the proposed values, the event's
+status and the event's values against the request's snapshot, under lock, and refuses (`CHANGE_REQUEST_NO_LONGER_VALID`) when they no longer hold (T13: the event was amended after the request), while rejection still works. S2-T10
 checks that approval bumps the event's version, so a G1 edit based on the old version is refused (412).
 
 ## What S2 does not do

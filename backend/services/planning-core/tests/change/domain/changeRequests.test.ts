@@ -9,6 +9,8 @@ import {
   validateChangeBody,
   validateDecisionBody,
   alreadyDecidedMessage,
+  staleFields,
+  cannotApproveMessage,
   DECISION_LABELS,
 } from "../../../src/modules/change/domain/changeRequests.js";
 
@@ -180,5 +182,57 @@ describe("alreadyDecidedMessage (S2)", () => {
       "This change request was already Approved on 2026-12-01T10:00:00.000Z."
     );
     expect(alreadyDecidedMessage("REJECTED", "2026-12-01T10:00:00.000Z")).toContain(DECISION_LABELS.REJECTED);
+  });
+});
+
+describe("staleFields (S2)", () => {
+  const field = (fieldName: never, currentValue: unknown) => ({ fieldName, currentValue });
+
+  it("reports nothing when every live value is the snapshot", () => {
+    expect(
+      staleFields(
+        { proposedStartAt: "2026-12-16T14:00:00.000Z", expectedAttendance: 150, venueRequirements: null, equipmentRequirements: { a: 1, b: [{ y: 1, x: 2 }] } },
+        [
+          field("proposedStartAt" as never, "2026-12-16T14:00:00.000Z"),
+          field("expectedAttendance" as never, 150),
+          field("venueRequirements" as never, null),
+          field("equipmentRequirements" as never, { b: [{ x: 2, y: 1 }], a: 1 }),
+        ]
+      )
+    ).toEqual([]);
+  });
+
+  it("treats the same instant written with another offset as equal, and an unparseable one by its text", () => {
+    expect(staleFields({ proposedStartAt: "2026-12-16T22:00:00+08:00" }, [field("proposedStartAt" as never, "2026-12-16T14:00:00.000Z")])).toEqual([]);
+    expect(staleFields({ proposedEndAt: "soon" }, [field("proposedEndAt" as never, "soon")])).toEqual([]);
+    expect(staleFields({ proposedEndAt: "later" }, [field("proposedEndAt" as never, "soon")])).toHaveLength(1);
+  });
+
+  it("treats a missing live value and a null snapshot as equal", () => {
+    expect(staleFields({}, [field("venueRequirements" as never, null)])).toEqual([]);
+    expect(staleFields({ venueRequirements: null }, [field("venueRequirements" as never, undefined)])).toEqual([]);
+  });
+
+  it("compares an empty instant with an instant as different", () => {
+    expect(staleFields({ proposedEndAt: null }, [field("proposedEndAt" as never, "2026-12-16T14:00:00.000Z")])).toHaveLength(1);
+  });
+
+  it("names each changed field with its label", () => {
+    expect(
+      staleFields({ proposedStartAt: "2026-12-16T13:00:00.000Z", expectedAttendance: 150, equipmentRequired: true }, [
+        field("proposedStartAt" as never, "2026-12-16T14:00:00.000Z"),
+        field("expectedAttendance" as never, 150),
+        field("equipmentRequired" as never, false),
+      ])
+    ).toEqual([
+      { field: "changes.proposedStartAt", message: "The event's start changed after this request was made. Reject it; the organiser can request again." },
+      { field: "changes.equipmentRequired", message: "The event's whether equipment is required changed after this request was made. Reject it; the organiser can request again." },
+    ]);
+  });
+});
+
+describe("cannotApproveMessage (S2)", () => {
+  it("names the status by its label and says rejection is still possible", () => {
+    expect(cannotApproveMessage("CANCELLED")).toBe("The event is Cancelled, so the change can't be approved. You can still reject it.");
   });
 });

@@ -2,7 +2,7 @@ import type { TransactionSql } from "postgres";
 import { KAFKA_TOPICS, SIGNIFICANT_EVENT_FIELDS, type ErrorField, type Role, type SignificantEventField } from "@connectsphere/contracts";
 import { applyApprovedChange, checkProposedChange, findEventForChange, type ProposedChanges } from "../../event/index.js";
 import { resolveAccessScope } from "../../identity/index.js";
-import { isChangeable, notChangeableMessage } from "../domain/changeRequests.js";
+import { cannotApproveMessage, isChangeable, staleFields } from "../domain/changeRequests.js";
 import { writeOutbox } from "../events/outbox.js";
 import { lockRequest, recordDecision, type ChangeRequestRecord } from "./changeRequests.js";
 
@@ -42,21 +42,32 @@ export async function decideChangeRequest(
   }
 
   const scope = resolveAccessScope(actor.role, actor.userId, "events");
-  const event = await findEventForChange(tx, request.eventId, scope, actor.userId, { lock: "update" });
+  const event = await findEventForChange(tx, request.eventId, scope, actor.userId, { lock: decision.decision === "APPROVE" ? "update" : "share" });
   if (!event) return { ok: false, code: "NOT_FOUND" };
   if (event.assignedCoordinatorId !== actor.userId) return { ok: false, code: "NOT_ASSIGNED" };
 
   const changes: ProposedChanges = {};
   for (const field of request.fields) changes[field.fieldName] = field.proposedValue;
 
+  // One instant for the decision and the history rows it writes.
+  const at = new Date();
   let decided: ChangeRequestRecord;
   let applied: DecidedEvent | undefined;
   if (decision.decision === "REJECT") {
-    decided = await recordDecision(tx, request.id, { status: "REJECTED", actorId: actor.userId, reason: decision.reason });
+    decided = await recordDecision(tx, request.id, { status: "REJECTED", actorId: actor.userId, reason: decision.reason, at });
   } else {
     if (!isChangeable(event.status)) {
-      const message = notChangeableMessage(event.status);
-      return { ok: false, code: "NO_LONGER_VALID", message, fields: [], status: event.status };
+      return { ok: false, code: "NO_LONGER_VALID", message: cannotApproveMessage(event.status), fields: [], status: event.status };
+    }
+    // D3 lets the organiser amend these fields while Awaiting Clarification, so the snapshot may be stale.
+    const stale = staleFields(event.current, request.fields);
+    if (stale.length > 0) {
+      return {
+        ok: false,
+        code: "NO_LONGER_VALID",
+        message: "The event changed after this request was made, so the change can't be approved. You can still reject it.",
+        fields: stale,
+      };
     }
     const problems = checkProposedChange(event.current, changes);
     if (problems.length > 0) {
@@ -67,8 +78,8 @@ export async function decideChangeRequest(
         fields: renamed(problems),
       };
     }
-    await applyApprovedChange(tx, event, changes, actor);
-    decided = await recordDecision(tx, request.id, { status: "APPROVED", actorId: actor.userId, reason: null });
+    await applyApprovedChange(tx, event, changes, actor, at);
+    decided = await recordDecision(tx, request.id, { status: "APPROVED", actorId: actor.userId, reason: null, at });
     const values: DecidedEvent = { id: event.id };
     for (const field of SIGNIFICANT_EVENT_FIELDS) values[field] = field in changes ? changes[field] : event.current[field];
     applied = values;
@@ -78,7 +89,8 @@ export async function decideChangeRequest(
     eventId: event.id,
     eventReference: request.eventReference,
     eventName: event.name,
-    ownerId: event.ownerId,
+    // The organiser who asked, which is the event's owner unless ownership has moved since.
+    ownerId: request.requestedBy,
     changeRequestId: request.id,
     fields: request.fields.map((field) => field.fieldName),
     decidedBy: actor.userId,

@@ -21,11 +21,15 @@ ConnectSphere can support are applied.
 ## 2. Decisions (confirmed with Raphael, 2026-10-18)
 
 1. **Approval re-checks everything under lock:** the request is still Pending, the caller is the
-   event's assigned coordinator, the event is still in a changeable status (S1's list), and the
-   proposed values still pass `checkProposedChange`. A failure refuses approval
+   event's assigned coordinator, the event is still in a changeable status (S1's list), the event's
+   values still equal the snapshot (decision 2), and the proposed values still pass `checkProposedChange`. A failure refuses approval
    (`CHANGE_REQUEST_NO_LONGER_VALID`) and changes nothing; the coordinator can still reject.
-2. **The history's "before" value** is the event's value at approval, read under the event lock. It
-   equals the snapshot, since only S2 changes these fields and S1 allows one pending request.
+2. **The history's "before" value** is the event's value at approval, read under the event lock. D3
+   lets the organiser amend these fields while the event is Awaiting Clarification, so the event can
+   differ from the request's snapshot. Approval therefore compares the snapshot with the live value
+   of each requested field and refuses (`CHANGE_REQUEST_NO_LONGER_VALID`, naming `changes.<field>`)
+   if they differ; the coordinator can reject, and the organiser can request again (Raphael's
+   choice, 2026-10-18).
 3. **Approval bumps the event's `version`**, so a G1 edit based on the old version is refused (412).
 4. **Messages** `change-request.approved` and `change-request.rejected` go on the event topic, as S1's.
 5. **Screens:** Approve / Reject on the coordinator's review page while Pending; the outcome on the
@@ -114,6 +118,7 @@ Named tests in `tests/change/api/s2Cards.test.ts`.
 | S2-T10 | — | A G1 edit with E1's pre-approval version → 412 |
 | S2-T11 | 1 | Race: approve and reject at once; exactly one decision (CI only) |
 | S2-T12 | all | Browser walkthrough (manual) |
+| S2-T13 | — | E1's start amended after CR1 was made: approve → 409 `CHANGE_REQUEST_NO_LONGER_VALID` naming `changes.proposedStartAt`; CR1 Pending, E1 keeps the amendment; reject still works |
 
 Also: domain unit tests at 100%; repo tests for `applyApprovedChange` and `decideChangeRequest`;
 notification tests for both rules; web tests; `sprint-3.csv` rows.

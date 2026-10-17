@@ -1,7 +1,9 @@
 import {
   EVENT_STATUS_LABELS,
+  SIGNIFICANT_FIELD_LABELS,
   isSignificantEventField,
   type ErrorField,
+  type SignificantEventField,
   type EventStatus,
 } from "@connectsphere/contracts";
 import type { ProposedChanges } from "../../event/index.js";
@@ -121,4 +123,39 @@ export function validateDecisionBody(
     return { ok: false, fields: [{ field: "reason", message: `The reason can be at most ${MAX_REASON_LENGTH} characters.` }] };
   }
   return { ok: true, decision: "REJECT", reason };
+}
+
+/** A value in a form that compares equal when it means the same: an instant as UTC ISO, objects with sorted keys. */
+function comparable(field: SignificantEventField, value: unknown): string {
+  if ((field === "proposedStartAt" || field === "proposedEndAt") && typeof value === "string") {
+    const instant = new Date(value);
+    if (!Number.isNaN(instant.getTime())) return instant.toISOString();
+  }
+  const sorted = (v: unknown): unknown =>
+    Array.isArray(v)
+      ? v.map(sorted)
+      : v !== null && typeof v === "object"
+        ? Object.fromEntries(Object.entries(v).sort(([a], [b]) => (a < b ? -1 : 1)).map(([k, x]) => [k, sorted(x)]))
+        : v;
+  return JSON.stringify(sorted(value ?? null));
+}
+
+/**
+ * S2 — the requested fields whose live value is no longer the one snapshotted when the request
+ * was made (D3 lets the organiser amend them while Awaiting Clarification), as `changes.<field>` errors.
+ */
+export function staleFields(
+  live: Partial<Record<SignificantEventField, unknown>>,
+  fields: { fieldName: SignificantEventField; currentValue: unknown }[]
+): ErrorField[] {
+  return fields
+    .filter((field) => comparable(field.fieldName, live[field.fieldName]) !== comparable(field.fieldName, field.currentValue))
+    .map((field) => ({
+      field: `changes.${field.fieldName}`,
+      message: `The event's ${SIGNIFICANT_FIELD_LABELS[field.fieldName]} changed after this request was made. Reject it; the organiser can request again.`,
+    }));
+}
+
+export function cannotApproveMessage(status: EventStatus): string {
+  return `The event is ${EVENT_STATUS_LABELS[status]}, so the change can't be approved. You can still reject it.`;
 }
