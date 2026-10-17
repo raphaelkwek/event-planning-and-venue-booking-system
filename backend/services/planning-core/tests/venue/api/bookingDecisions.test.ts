@@ -558,3 +558,112 @@ describe("POST /api/v1/booking-requests/:id/reject (M2)", () => {
     expect(res.headers["ratelimit-policy"]).toMatch(/q=120; w=60/);
   });
 });
+
+describe("N1: approval never double-books a venue", () => {
+  it("leaves the existing booking exactly as it was when a competing approval is refused (N1-T3)", async () => {
+    const venueId = await newVenue("M1 Auditorium");
+    const other = await otherBooking(venueId, "13:00", "15:00");
+    const read = () => sql`select status, starts_at, ends_at, event_id, reference, updated_at, updated_by from venue.venue_slots where id = ${other.id}`;
+    const [before] = await read();
+    const made = await requested(venueId, await newEvent());
+    signedInAs("VENUE_STAFF", STAFF);
+
+    expect((await approve(made.id)).status).toBe(409);
+
+    const [after] = await read();
+    expect(after).toEqual(before);
+    const [{ n }] = await sql<{ n: number }[]>`
+      select count(*)::int as n from venue.venue_slots where venue_id = ${venueId} and status = 'CONFIRMED'
+    `;
+    expect(n).toBe(1);
+  });
+
+  it("confirms a booking that only touches another, ending exactly when it begins (N1-T4)", async () => {
+    const venueId = await newVenue("M1 Auditorium");
+    await otherBooking(venueId, "10:00", "14:00");
+    const made = await requested(venueId, await newEvent());
+    signedInAs("VENUE_STAFF", STAFF);
+
+    expect((await approve(made.id)).status).toBe(200);
+    const periods = await sql<{ starts_at: Date; ends_at: Date }[]>`
+      select starts_at, ends_at from venue.venue_slots where venue_id = ${venueId} and status = 'CONFIRMED' order by starts_at
+    `;
+    expect(periods.map((p) => [p.starts_at.toISOString(), p.ends_at.toISOString()])).toEqual([
+      [utc("10:00"), utc("14:00")],
+      [utc("14:00"), utc("18:00")],
+    ]);
+  });
+
+  it("confirms exactly one of six overlapping approvals sent at once; each refusal names the winner and stays Pending (N1-T6)", async () => {
+    const venueId = await newVenue("M1 Auditorium");
+    const events = await Promise.all(Array.from({ length: 6 }, (_, i) => newEvent(`N1 race event ${i}`)));
+    const made = [];
+    for (const [i, event] of events.entries()) {
+      made.push(await requested(venueId, event, { startsAt: at(`${String(12 + (i % 3)).padStart(2, "0")}:00`), endsAt: at("18:00") }));
+    }
+    signedInAs("VENUE_STAFF", STAFF);
+
+    const results = await Promise.all(made.map((m) => approve(m.id)));
+
+    const won = results.filter((r) => r.status === 200);
+    expect(won).toHaveLength(1);
+    const winner = events.find((e) => e.id === won[0]!.body.eventId)!;
+    for (const lost of results.filter((r) => r.status !== 200)) {
+      expect(lost.status).toBe(409);
+      expect(lost.body.error.code).toBe("VENUE_SLOT_CONFLICT");
+      expect(lost.body.error.message).toContain(`already booked for ${winner.reference} (`);
+    }
+    const statuses = await sql<{ status: string; n: number }[]>`
+      select status, count(*)::int as n from venue.booking_requests where venue_id = ${venueId} group by status order by status
+    `;
+    expect(statuses).toEqual([
+      { status: "APPROVED", n: 1 },
+      { status: "PENDING", n: 5 },
+    ]);
+    const [{ n }] = await sql<{ n: number }[]>`
+      select count(*)::int as n from venue.venue_slots where venue_id = ${venueId} and status = 'CONFIRMED'
+    `;
+    expect(n).toBe(1);
+  });
+
+  it("is never blocked by released bookings, or by withdrawn or rejected requests, for the same period (N1-T7)", async () => {
+    const venueId = await newVenue("M1 Auditorium");
+    for (const reason of [null, "replaced"]) {
+      const { id } = await otherBooking(venueId, "14:00", "18:00");
+      await sql`update venue.venue_slots set status = 'RELEASED', release_reason = ${reason} where id = ${id}`;
+    }
+    const second = await newEvent("Faculty Awards Night");
+    const withdrawn = await requested(venueId, second);
+    signedInAs("EVENT_COORDINATOR", COORDINATOR);
+    expect((await request(app).post(`/api/v1/booking-requests/${withdrawn.id}/withdraw`).set(bearer)).status).toBe(200);
+    const rejected = await requested(venueId, second);
+    signedInAs("VENUE_STAFF", STAFF);
+    expect((await reject(rejected.id, { reason: "Not available" })).status).toBe(200);
+    const event = await newEvent();
+    const made = await requested(venueId, event);
+    signedInAs("VENUE_STAFF", STAFF);
+
+    expect((await approve(made.id)).status).toBe(200);
+    const confirmed = await sql<{ event_id: string }[]>`
+      select event_id from venue.venue_slots where venue_id = ${venueId} and status = 'CONFIRMED'
+    `;
+    expect(confirmed).toEqual([{ event_id: event.id }]);
+  });
+
+  it("takes the venue out of search for any window overlapping the booking by even a minute, and not one that only touches it (N1-T8)", async () => {
+    const venueId = await newVenue("M1 Auditorium");
+    const made = await requested(venueId, await newEvent());
+    signedInAs("VENUE_STAFF", STAFF);
+    await approve(made.id);
+
+    signedInAs("EVENT_COORDINATOR", COORDINATOR);
+    const listed = async (from: string, to: string) =>
+      (await request(app).get("/api/v1/venues/search").query({ location: BUILDING, from: at(from), to: at(to) }).set(bearer)).body.items.map(
+        (v: { name: string }) => v.name,
+      );
+    expect(await listed("15:00", "17:00")).not.toContain("M1 Auditorium");
+    expect(await listed("17:59", "20:00")).not.toContain("M1 Auditorium");
+    expect(await listed("18:00", "20:00")).toContain("M1 Auditorium");
+    expect(await listed("12:00", "14:00")).toContain("M1 Auditorium");
+  });
+});
