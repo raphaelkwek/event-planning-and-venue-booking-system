@@ -1410,9 +1410,11 @@ paths:
       tags: [Equipment]
       summary: Remove an equipment request line (O1)
       description: |
-        The event's assigned Event Coordinator only, and only while the line is Submitted or Under
-        Review. Removal sets the status Removed and records the acting user, the time, and the
-        equipment type and quantity removed in the line's history. Nothing is deleted.
+        The event's assigned Event Coordinator only, and only while the line is Submitted, Under
+        Review or Reserved. Removal sets the status Removed and records the acting user, the time, and the
+        equipment type and quantity removed in the line's history. Nothing is deleted. A Reserved line
+        can be removed: its reservation is released first, with the reason "Request line removed",
+        and the coordinator is sent a released notice (Q2).
       operationId: removeEquipmentRequestLine
       requestBody:
         required: false
@@ -1509,6 +1511,51 @@ paths:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
         "409":
           description: "`LINE_NOT_RESERVABLE` (the message names the status), `PARTIAL_NOT_CONFIRMED`, or `INSUFFICIENT_EQUIPMENT` with `details.available` and `details.shortfall`."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "429": { $ref: "#/components/responses/RateLimitExceeded" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
+  /api/v1/equipment/request-lines/{id}/release:
+    parameters:
+      - $ref: "#/components/parameters/RecordId"
+    post:
+      tags: [Equipment]
+      summary: Release a Reserved line's reservation (Q2)
+      description: |
+        Technical Support Staff only. Releases the line's reservation with a reason; the equipment is
+        available again and the line goes back to Confirmed, or to Substituted if it carries a
+        substitute. The release, the line's new status and an `equipment-request.line-status-changed`
+        message (marked `released`, with the reason) for the event's assigned coordinator are written
+        in one transaction; a refused release writes none of them.
+      operationId: releaseEquipmentRequestLineReservation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ReleaseRequest" }
+      responses:
+        "200":
+          description: The released reservation and the line, no longer Reserved.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [reservation, line]
+                properties:
+                  reservation: { $ref: "#/components/schemas/Reservation" }
+                  line: { $ref: "#/components/schemas/EquipmentRequestLine" }
+        "400": { $ref: "#/components/responses/ValidationFailed" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404":
+          description: "`EQUIPMENT_LINE_NOT_FOUND` (or `EVENT_NOT_FOUND`)."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "409":
+          description: "`LINE_NOT_RELEASABLE` with `details.status` (only a Reserved line can be released), or `RESERVATION_ALREADY_RELEASED`."
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
@@ -1612,6 +1659,8 @@ components:
         - EQUIPMENT_LINE_NOT_EDITABLE
         - LINE_NOT_RESERVABLE
         - PARTIAL_NOT_CONFIRMED
+        - LINE_NOT_RELEASABLE
+        - RESERVATION_ALREADY_RELEASED
         - RATE_LIMITED
         - EVENT_NOT_EDITABLE
         - CHANGE_REQUEST_REQUIRED
@@ -2314,9 +2363,16 @@ components:
         quantity: { type: integer, minimum: 1, description: Defaults to the requested quantity. }
         partial: { type: boolean, description: Must be true to reserve fewer than requested. }
 
+    ReleaseRequest:
+      type: object
+      required: [reason]
+      additionalProperties: false
+      properties:
+        reason: { type: string, minLength: 1, maxLength: 1000, description: Why the reservation is released. }
+
     Reservation:
       type: object
-      required: [id, requestLineId, eventId, eventReference, equipmentTypeId, kind, requestedQuantity, reservedQuantity, startsAt, endsAt, status, reservedBy, reservedAt]
+      required: [id, requestLineId, eventId, eventReference, equipmentTypeId, kind, requestedQuantity, reservedQuantity, startsAt, endsAt, status, reservedBy, reservedAt, releasedBy, releasedAt, releaseReason]
       properties:
         id: { type: string, format: uuid }
         requestLineId: { type: string, format: uuid }
@@ -2331,6 +2387,9 @@ components:
         status: { type: string, enum: [RESERVED, RELEASED] }
         reservedBy: { type: string, format: uuid }
         reservedAt: { type: string, format: date-time }
+        releasedBy: { type: [string, "null"], format: uuid }
+        releasedAt: { type: [string, "null"], format: date-time }
+        releaseReason: { type: [string, "null"] }
 
     LineReservation:
       type: object

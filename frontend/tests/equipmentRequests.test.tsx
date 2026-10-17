@@ -36,11 +36,14 @@ const reply = (body: unknown, status = 200) => new Response(JSON.stringify(body)
 let lines: ReturnType<typeof line>[];
 let onChange: (id: string, body: Record<string, unknown>) => Response;
 let onReserve: (id: string, body: Record<string, unknown>) => Response;
+let onRelease: (id: string, body: Record<string, unknown>) => Response;
 let listCalls: URL[];
 
 const fetchMock = vi.fn(async (path: string, init?: RequestInit) => {
   const url = new URL(path, "http://app.test");
   const method = init?.method ?? "GET";
+  const releaseRoute = url.pathname.match(/request-lines\/([^/]+)\/release$/);
+  if (releaseRoute && method === "POST") return onRelease(releaseRoute[1]!, JSON.parse(init!.body as string));
   const reserveRoute = url.pathname.match(/request-lines\/([^/]+)\/reservation$/);
   if (reserveRoute && method === "POST") return onReserve(reserveRoute[1]!, JSON.parse(init!.body as string));
   const statusRoute = url.pathname.match(/request-lines\/([^/]+)\/status$/);
@@ -76,6 +79,7 @@ beforeEach(() => {
     const reservation = { id: "r1", equipmentTypeId: CHAIRS, equipmentTypeName: "Folding Chairs", requestedQuantity: 40, reservedQuantity: body.quantity ?? 40, reservedBy: TECH, reservedAt: "2026-10-15T02:00:00.000Z" };
     return reply({ reservation, line: line({ id, status: "RESERVED", reservation }) }, 201);
   };
+  onRelease = (id) => reply({ reservation: { id: "r1", status: "RELEASED" }, line: line({ id, status: "CONFIRMED" }) });
   fetchMock.mockClear();
   vi.stubGlobal("fetch", fetchMock);
   signIn();
@@ -327,5 +331,113 @@ describe("Q1: reserving from the equipment requests screen", () => {
     ];
     render(<App />);
     expect(await screen.findByText("Reserved 2 of 3 Projectors")).toBeTruthy();
+  });
+});
+
+describe("Q2: releasing from the equipment requests screen", () => {
+  const reservation = { id: "r1", equipmentTypeId: CHAIRS, equipmentTypeName: "Folding Chairs", requestedQuantity: 40, reservedQuantity: 40, reservedBy: TECH, reservedAt: "2026-10-15T02:00:00.000Z" };
+  const reserved = (id = "r") => line({ id, status: "RESERVED", reservation });
+  const releasePosts = () => fetchMock.mock.calls.filter(([path, init]) => init?.method === "POST" && String(path).endsWith("/release"));
+
+  it("offers Release on Reserved rows only, named for the reserved type", async () => {
+    lines = [reserved("r"), line({ id: "c", status: "CONFIRMED" })];
+    render(<App />);
+    await screen.findAllByText("EVT-000123");
+    expect(screen.getAllByRole("button", { name: /^Release .+ for EVT-\d+$/ })).toHaveLength(1);
+    expect(screen.getByRole("button", { name: "Release Folding Chairs for EVT-000123" })).toBeTruthy();
+  });
+
+  it("names the substitute type on a Reserved row that was Substituted", async () => {
+    lines = [line({ id: "s", status: "RESERVED", reservation: { ...reservation, equipmentTypeId: PROJECTORS, equipmentTypeName: "Projectors" } })];
+    render(<App />);
+    expect(await screen.findByRole("button", { name: "Release Projectors for EVT-000123" })).toBeTruthy();
+  });
+
+  it("shows the server's reason message inline and keeps the row Reserved", async () => {
+    lines = [reserved()];
+    onRelease = () =>
+      reply({ error: { code: "VALIDATION_FAILED", message: "The reservation could not be released.", fields: [{ field: "reason", message: "Give a reason for releasing the reservation." }], correlationId: null } }, 400);
+    render(<App />);
+    fireEvent.click(await screen.findByRole("button", { name: "Release Folding Chairs for EVT-000123" }));
+    expect(screen.getByRole("heading", { name: /Release Folding Chairs × 40 for EVT-000123/ })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Release reservation" }));
+    const message = await screen.findByText("Give a reason for releasing the reservation.");
+    expect(document.getElementById("release-reason")!.getAttribute("aria-describedby")).toBe(message.id);
+    expect(screen.getByRole("button", { name: "Release Folding Chairs for EVT-000123" })).toBeTruthy();
+    expect(screen.queryByText("Equipment released")).toBeNull();
+  });
+
+  it("posts the reason, shows the banner, and the reloaded row is Confirmed with Reserve", async () => {
+    lines = [reserved()];
+    render(<App />);
+    fireEvent.click(await screen.findByRole("button", { name: "Release Folding Chairs for EVT-000123" }));
+    fireEvent.change(screen.getByLabelText("Reason"), { target: { value: "Event moved" } });
+    lines = [line({ id: "r", status: "CONFIRMED" })];
+    fireEvent.click(screen.getByRole("button", { name: "Release reservation" }));
+
+    expect(await screen.findByText("Equipment released")).toBeTruthy();
+    expect(screen.getByText("Released Folding Chairs for EVT-000123: Event moved.")).toBeTruthy();
+    const [path, init] = releasePosts()[0]!;
+    expect(path).toBe("/equipment/api/v1/equipment/request-lines/r/release");
+    expect(JSON.parse(init!.body as string)).toEqual({ reason: "Event moved" });
+    expect(await screen.findByRole("button", { name: "Reserve Folding Chairs for EVT-000123" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Release reservation" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Release Folding Chairs for EVT-000123" })).toBeNull();
+  });
+
+  it("does not add a second full stop when the reason already ends with one", async () => {
+    lines = [reserved()];
+    render(<App />);
+    fireEvent.click(await screen.findByRole("button", { name: "Release Folding Chairs for EVT-000123" }));
+    fireEvent.change(screen.getByLabelText("Reason"), { target: { value: "  Event moved.  " } });
+    lines = [line({ id: "r", status: "CONFIRMED" })];
+    fireEvent.click(screen.getByRole("button", { name: "Release reservation" }));
+
+    expect(await screen.findByText("Released Folding Chairs for EVT-000123: Event moved.")).toBeTruthy();
+  });
+
+  it("shows a refusal from the server, such as an already released reservation", async () => {
+    lines = [reserved()];
+    onRelease = () => reply({ error: { code: "RESERVATION_ALREADY_RELEASED", message: "This reservation has already been released.", correlationId: null } }, 409);
+    render(<App />);
+    fireEvent.click(await screen.findByRole("button", { name: "Release Folding Chairs for EVT-000123" }));
+    fireEvent.change(screen.getByLabelText("Reason"), { target: { value: "Event moved" } });
+    fireEvent.click(screen.getByRole("button", { name: "Release reservation" }));
+    expect(await screen.findByText("This reservation has already been released.")).toBeTruthy();
+  });
+
+  it("can cancel without sending anything", async () => {
+    lines = [reserved()];
+    render(<App />);
+    fireEvent.click(await screen.findByRole("button", { name: "Release Folding Chairs for EVT-000123" }));
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByRole("button", { name: "Release reservation" })).toBeNull();
+    expect(releasePosts()).toHaveLength(0);
+  });
+
+  it("opens Update, Reserve and Release one at a time", async () => {
+    lines = [line({ id: "c", status: "CONFIRMED" }), reserved("r")];
+    render(<App />);
+    const update = await screen.findByRole("button", { name: "Update Folding Chairs for EVT-000123" });
+    const open = {
+      update: () => fireEvent.click(update),
+      reserve: () => fireEvent.click(screen.getByRole("button", { name: "Reserve Folding Chairs for EVT-000123" })),
+      release: () => fireEvent.click(screen.getByRole("button", { name: "Release Folding Chairs for EVT-000123" })),
+    };
+    const shown = () => ({
+      update: screen.queryByRole("button", { name: "Save status" }) !== null,
+      reserve: screen.queryByRole("button", { name: "Reserve equipment" }) !== null,
+      release: screen.queryByRole("button", { name: "Release reservation" }) !== null,
+    });
+    open.release();
+    expect(shown()).toEqual({ update: false, reserve: false, release: true });
+    open.reserve();
+    expect(shown()).toEqual({ update: false, reserve: true, release: false });
+    open.release();
+    expect(shown()).toEqual({ update: false, reserve: false, release: true });
+    open.update();
+    expect(shown()).toEqual({ update: true, reserve: false, release: false });
+    open.release();
+    expect(shown()).toEqual({ update: false, reserve: false, release: true });
   });
 });

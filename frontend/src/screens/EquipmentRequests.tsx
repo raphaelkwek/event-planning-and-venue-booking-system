@@ -9,6 +9,7 @@ import { listEquipmentTypes } from "../api/equipmentAvailability.js";
 import {
   changeLineStatus,
   listRequestLines,
+  releaseLine,
   reserveLine,
   type LineStatus,
   type RequestLine,
@@ -65,6 +66,9 @@ export function EquipmentRequests() {
   const [reserveQuantity, setReserveQuantity] = useState("");
   const [partial, setPartial] = useState(false);
   const [reserveError, setReserveError] = useState<unknown>(null);
+  const [releasing, setReleasing] = useState<RequestLine | null>(null);
+  const [releaseReason, setReleaseReason] = useState("");
+  const [releaseError, setReleaseError] = useState<unknown>(null);
   const [busy, setBusy] = useState(false);
   const nameOf = useUserNames(session.token, lines.map((line) => line.statusChangedBy));
 
@@ -92,6 +96,7 @@ export function EquipmentRequests() {
     setNotice(null);
     setUpdateError(null);
     setReserving(null);
+    setReleasing(null);
     setUpdating(line);
     setUpdate(blankUpdate);
   }
@@ -119,6 +124,7 @@ export function EquipmentRequests() {
   function openReserve(line: RequestLine) {
     setNotice(null);
     setUpdating(null);
+    setReleasing(null);
     setReserveError(null);
     setPartial(false);
     setReserveQuantity(String(requestedFor(line)));
@@ -142,6 +148,37 @@ export function EquipmentRequests() {
     } catch (caught) {
       // Nothing was reserved; the refusal says why.
       setReserveError(caught);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  /** Q2: the reservation a Reserved line holds, named by the type actually reserved. */
+  const reservedTypeOf = (line: RequestLine) => line.reservation?.equipmentTypeName ?? line.equipmentTypeName;
+
+  function openRelease(line: RequestLine) {
+    setNotice(null);
+    setUpdating(null);
+    setReserving(null);
+    setReleaseError(null);
+    setReleaseReason("");
+    setReleasing(line);
+  }
+
+  async function release() {
+    if (!releasing) return;
+    setBusy(true);
+    setReleaseError(null);
+    try {
+      const done = await releaseLine(session.token, releasing.id, releaseReason);
+      const reason = releaseReason.trim();
+      const stop = /[.!?]$/.test(reason) ? "" : ".";
+      setNotice({ title: "Equipment released", text: `Released ${reservedTypeOf(releasing)} for ${done.line.eventReference}: ${reason}${stop}` });
+      setReleasing(null);
+      await load();
+    } catch (caught) {
+      // The line stays Reserved; the refusal says why.
+      setReleaseError(caught);
     } finally {
       setBusy(false);
     }
@@ -228,7 +265,12 @@ export function EquipmentRequests() {
               key: "actions",
               content:
                 line.status === "RESERVED" ? (
-                  <span style={{ fontSize: 12, color: "#626F86" }}>Reserved</span>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    <span style={{ fontSize: 12, color: "#626F86" }}>Reserved</span>
+                    <Button aria-label={`Release ${reservedTypeOf(line)} for ${line.eventReference}`} onClick={() => openRelease(line)}>
+                      Release
+                    </Button>
+                  </div>
                 ) : (
                   <div style={{ display: "flex", gap: 8 }}>
                     <Button aria-label={`Update ${line.equipmentTypeName} for ${line.eventReference}`} onClick={() => open(line)}>
@@ -370,6 +412,39 @@ export function EquipmentRequests() {
               Reserve equipment
             </Button>
             <Button appearance="subtle" onClick={() => setReserving(null)}>
+              Cancel
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {releasing && (
+        <div style={{ marginTop: 24, maxWidth: 640 }}>
+          <h3>
+            Release {reservedTypeOf(releasing)} × {releasing.reservation?.reservedQuantity ?? releasing.quantity} for {releasing.eventReference}
+          </h3>
+          <Refusal error={releaseError} />
+          <div style={{ marginBottom: 12 }}>
+            <label htmlFor="release-reason">Reason</label>
+            <Textfield
+              id="release-reason"
+              value={releaseReason}
+              isRequired
+              isInvalid={Boolean(fieldMessage(releaseError, "reason"))}
+              aria-describedby={fieldMessage(releaseError, "reason") ? "release-reason-error" : undefined}
+              onChange={(event) => setReleaseReason(event.currentTarget.value)}
+            />
+            {fieldMessage(releaseError, "reason") && (
+              <p id="release-reason-error" style={{ color: "#AE2A19", margin: "4px 0 0" }}>
+                {fieldMessage(releaseError, "reason")}
+              </p>
+            )}
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <Button appearance="primary" isDisabled={busy} onClick={() => void release()}>
+              Release reservation
+            </Button>
+            <Button appearance="subtle" onClick={() => setReleasing(null)}>
               Cancel
             </Button>
           </div>

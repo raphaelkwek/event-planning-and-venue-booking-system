@@ -116,3 +116,11 @@ export function reserveLine(token: string, id: string, input: ReservationInput) 
     { method: "POST", token, body: input },
   );
 }
+
+/** Q2: Technical Support release a Reserved line's reservation, with a reason (`reservation` is the released record). */
+export function releaseLine(token: string, id: string, reason: string) {
+  return request<{ reservation: { id: string }; line: RequestLine }>(
+    `${LINES}/${encodeURIComponent(id)}/release`,
+    { method: "POST", token, body: { reason } },
+  );
+}

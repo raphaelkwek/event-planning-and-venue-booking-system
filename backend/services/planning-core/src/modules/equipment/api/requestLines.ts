@@ -28,6 +28,7 @@ import {
   markRemoved,
   updateLine,
 } from "../repo/requestLines.js";
+import { releaseReservation } from "../repo/releases.js";
 import { fieldsFromZod, refuse } from "./errors.js";
 import { equipmentRateLimiter } from "./limiter.js";
 import { present } from "./presentLine.js";
@@ -44,6 +45,8 @@ const COORDINATOR = "EVENT_COORDINATOR";
 const TECH_SUPPORT = "TECH_SUPPORT_STAFF";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const BASE = "/api/v1/equipment/request-lines";
+/** Q2: the reason recorded when removing a Reserved line releases its reservation. */
+const REMOVAL_REASON = "Request line removed";
 
 /** A3: Technical Support see equipment requests and the event timing they depend on, for every event. */
 const ALL_EVENTS = { scopeType: "ALL" } as const;
@@ -77,6 +80,17 @@ function notEditable(res: Response, status: EquipmentRequestLineStatus) {
     409,
     "EQUIPMENT_LINE_NOT_EDITABLE",
     `This line is ${EQUIPMENT_LINE_STATUS_LABELS[status]}. Only Submitted or Under Review lines can be edited or removed.`,
+    undefined,
+    { status },
+  );
+}
+
+function notRemovable(res: Response, status: EquipmentRequestLineStatus) {
+  refuse(
+    res,
+    409,
+    "EQUIPMENT_LINE_NOT_EDITABLE",
+    `This line is ${EQUIPMENT_LINE_STATUS_LABELS[status]}. Only Submitted, Under Review or Reserved lines can be removed.`,
     undefined,
     { status },
   );
@@ -240,6 +254,7 @@ export function requestLinesRouter(sql: Sql, limiter: RequestHandler = equipment
   });
 
   // O1: removal sets the REMOVED status and records who, when, the type and the quantity. Nothing is deleted.
+  // Q2: a Reserved line can be removed too; its reservation is released first and the coordinator's notice says so.
   router.post(`${BASE}/:id/removal`, limiter, authenticate, requireRole(COORDINATOR), async (req: ActorRequest, res: Response, next: NextFunction) => {
     try {
       const loaded = await loadForCoordinator(req, res);
@@ -247,11 +262,33 @@ export function requestLinesRouter(sql: Sql, limiter: RequestHandler = equipment
       const outcome = await sql.begin(async (tx) => {
         const current = await lockLine(tx, loaded.line.id);
         if (!current) return { code: "GONE" } as const;
+        if (current.status === "RESERVED" && current.reservation) {
+          const released = await releaseReservation(tx, current.reservation.id, req.actor!, REMOVAL_REASON);
+          const line = await markRemoved(tx, current, req.actor!, {
+            reservationId: current.reservation.id,
+            released: released.ok,
+            reason: REMOVAL_REASON,
+          });
+          if (released.ok && loaded.event.assignedCoordinatorId) {
+            await writeOutbox(
+              tx,
+              lineStatusChangedMessage({
+                event: { id: loaded.event.id, name: loaded.event.name, assignedCoordinatorId: loaded.event.assignedCoordinatorId },
+                previous: current,
+                updated: line,
+                actor: req.actor!,
+                correlationId: req.header("x-correlation-id") ?? null,
+                release: { reason: REMOVAL_REASON },
+              }),
+            );
+          }
+          return { code: "OK", line } as const;
+        }
         if (!isEditableByCoordinator(current.status)) return { code: "NOT_EDITABLE", status: current.status } as const;
         return { code: "OK", line: await markRemoved(tx, current, req.actor!) } as const;
       });
       if (outcome.code === "GONE") return lineNotFound(res);
-      if (outcome.code === "NOT_EDITABLE") return notEditable(res, outcome.status);
+      if (outcome.code === "NOT_EDITABLE") return notRemovable(res, outcome.status);
       res.json(present(outcome.line));
     } catch (error) {
       next(error);

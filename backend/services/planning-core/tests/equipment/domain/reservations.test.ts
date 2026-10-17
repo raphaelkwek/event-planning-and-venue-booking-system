@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { decideQuantity, reservationTarget, validateReservationBody } from "../../../src/modules/equipment/domain/reservations.js";
+import { decideQuantity, reservationTarget, statusAfterRelease, validateReleaseBody, validateReservationBody } from "../../../src/modules/equipment/domain/reservations.js";
 
 const line = (changes: Record<string, unknown> = {}) => ({
   status: "CONFIRMED" as const,
@@ -86,5 +86,39 @@ describe("decideQuantity (Q1)", () => {
       code: "VALIDATION_FAILED",
       fields: [{ field: "quantity", message: "You can reserve at most 5, the quantity requested." }],
     });
+  });
+});
+
+describe("validateReleaseBody (Q2)", () => {
+  it("accepts a reason and trims it", () => {
+    expect(validateReleaseBody({ reason: "  Event moved  " })).toEqual({ ok: true, reason: "Event moved" });
+  });
+  it.each([{}, { reason: "" }, { reason: "   " }, { reason: 5 }, undefined, null])("refuses %p on reason", (body) => {
+    const result = validateReleaseBody(body);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.fields.map((f) => f.field)).toEqual(["reason"]);
+  });
+  it("refuses a reason longer than O2's limit", () => {
+    const result = validateReleaseBody({ reason: "x".repeat(1001) });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.fields.map((f) => f.field)).toEqual(["reason"]);
+  });
+  it("accepts a reason exactly at the limit", () => {
+    expect(validateReleaseBody({ reason: "x".repeat(1000) }).ok).toBe(true);
+  });
+});
+
+describe("statusAfterRelease (Q2)", () => {
+  it("a line with a substitute goes back to Substituted", () => {
+    expect(statusAfterRelease({ substituteEquipmentTypeId: "t", substituteQuantity: 5 })).toBe("SUBSTITUTED");
+  });
+  it("a line without one goes back to Confirmed", () => {
+    expect(statusAfterRelease({ substituteEquipmentTypeId: null, substituteQuantity: null })).toBe("CONFIRMED");
+  });
+  it("a type without a quantity goes back to Confirmed", () => {
+    expect(statusAfterRelease({ substituteEquipmentTypeId: "t", substituteQuantity: null })).toBe("CONFIRMED");
+  });
+  it("a quantity without a type goes back to Confirmed", () => {
+    expect(statusAfterRelease({ substituteEquipmentTypeId: null, substituteQuantity: 5 })).toBe("CONFIRMED");
   });
 });

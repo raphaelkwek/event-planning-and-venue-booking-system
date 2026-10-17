@@ -35,6 +35,9 @@ export interface ReservationRecord {
   status: "RESERVED" | "RELEASED";
   reservedBy: string;
   reservedAt: string;
+  releasedBy: string | null;
+  releasedAt: string | null;
+  releaseReason: string | null;
 }
 
 export type ReserveOutcome =
@@ -44,7 +47,7 @@ export type ReserveOutcome =
   | { ok: false; code: "PARTIAL_NOT_CONFIRMED"; message: string }
   | { ok: false; code: "VALIDATION_FAILED"; fields: ErrorField[] };
 
-interface ReservationRow {
+export interface ReservationRow {
   id: string;
   request_line_id: string;
   event_id: string;
@@ -58,9 +61,12 @@ interface ReservationRow {
   status: "RESERVED" | "RELEASED";
   reserved_by: string;
   reserved_at: Date;
+  released_by: string | null;
+  released_at: Date | null;
+  release_reason: string | null;
 }
 
-const toReservation = (row: ReservationRow): ReservationRecord => ({
+export const toReservation = (row: ReservationRow): ReservationRecord => ({
   id: row.id,
   requestLineId: row.request_line_id,
   eventId: row.event_id,
@@ -74,6 +80,9 @@ const toReservation = (row: ReservationRow): ReservationRecord => ({
   status: row.status,
   reservedBy: row.reserved_by,
   reservedAt: row.reserved_at.toISOString(),
+  releasedBy: row.released_by,
+  releasedAt: row.released_at?.toISOString() ?? null,
+  releaseReason: row.release_reason,
 });
 
 export async function reserveLine(

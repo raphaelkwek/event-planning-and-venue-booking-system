@@ -266,6 +266,7 @@ describe("Q1 cards: reserving a line's equipment", () => {
     const stored = parseCloudEvent(messages[0]!.envelope);
     expect(stored.type).toBe("equipment-request.line-status-changed");
     expect(stored.data).toMatchObject({ lineId: id, coordinatorId: A.c1, newStatus: "RESERVED", reservedQuantity: 4 });
+    expect(stored.data).not.toHaveProperty("released");
 
     const notifications = notificationsFor(stored);
     expect(notifications).toHaveLength(1);

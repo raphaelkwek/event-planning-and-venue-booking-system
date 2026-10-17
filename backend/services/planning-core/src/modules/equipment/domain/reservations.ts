@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { EquipmentRequestLineStatus, ErrorField } from "@connectsphere/contracts";
+import { MAX_REASON_LENGTH } from "./requestLines.js";
 
 /**
  * Q1 — the pure rules for reserving a request line (spec decisions 1 and 3).
@@ -76,4 +77,32 @@ export function decideQuantity(requested: number, body: ReservationBody): Quanti
     };
   }
   return { ok: true, quantity };
+}
+
+/**
+ * Q2 — Technical Support give a reason for every release, as O2 does for
+ * Unavailable. Missing, blank or non-text reasons are refused on `reason`.
+ */
+export function validateReleaseBody(raw: unknown): { ok: true; reason: string } | { ok: false; fields: ErrorField[] } {
+  const given =
+    typeof raw === "object" && raw !== null && typeof (raw as { reason?: unknown }).reason === "string"
+      ? (raw as { reason: string }).reason.trim()
+      : "";
+  if (given === "") return { ok: false, fields: [{ field: "reason", message: "Give a reason for releasing the reservation." }] };
+  if (given.length > MAX_REASON_LENGTH) {
+    return { ok: false, fields: [{ field: "reason", message: `The reason can be at most ${MAX_REASON_LENGTH} characters.` }] };
+  }
+  return { ok: true, reason: given };
+}
+
+/**
+ * Q2 — a released line goes back to the status it was reserved from. O2 keeps
+ * the substitute columns only while a line is Substituted, so their presence
+ * says which.
+ */
+export function statusAfterRelease(line: {
+  substituteEquipmentTypeId: string | null;
+  substituteQuantity: number | null;
+}): "CONFIRMED" | "SUBSTITUTED" {
+  return line.substituteEquipmentTypeId && line.substituteQuantity ? "SUBSTITUTED" : "CONFIRMED";
 }

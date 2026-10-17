@@ -12,6 +12,8 @@ export function lineStatusChangedMessage(input: {
   updated: RequestLine;
   actor: OutboxMessage["actor"];
   correlationId: string | null;
+  /** Q2: the line's reservation was released; the notice says so and carries the release reason. */
+  release?: { reason: string };
 }): OutboxMessage {
   const { event, previous, updated, actor } = input;
   // Q1 only: a Reserved line says how many were reserved, which can be fewer than requested. O2's messages stay as they were.
@@ -33,7 +35,8 @@ export function lineStatusChangedMessage(input: {
       ...(reservedQuantity === undefined ? {} : { reservedQuantity }),
       previousStatus: previous.status,
       newStatus: updated.status,
-      reason: updated.unavailableReason,
+      ...(input.release ? { released: true } : {}),
+      reason: input.release ? input.release.reason : updated.unavailableReason,
       substituteEquipmentTypeName: updated.substituteEquipmentTypeName,
       substituteQuantity: updated.substituteQuantity,
       changedBy: actor.userId,
