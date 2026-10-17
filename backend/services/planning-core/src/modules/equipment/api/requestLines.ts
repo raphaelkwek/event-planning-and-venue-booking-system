@@ -2,7 +2,6 @@ import { Router, type NextFunction, type RequestHandler, type Response } from "e
 import type { Sql } from "postgres";
 import {
   EQUIPMENT_LINE_STATUS_LABELS,
-  KAFKA_TOPICS,
   type EquipmentRequestLineStatus,
 } from "@connectsphere/contracts";
 import { findEventForPlanning, type EventPlanningView } from "../../event/index.js";
@@ -16,6 +15,7 @@ import {
   validateStatusChange,
   type EventTimes,
 } from "../domain/requestLines.js";
+import { lineStatusChangedMessage } from "../events/lineStatusMessage.js";
 import { writeOutbox } from "../events/outbox.js";
 import {
   applyStatusChange,
@@ -27,10 +27,10 @@ import {
   lockLine,
   markRemoved,
   updateLine,
-  type RequestLine,
 } from "../repo/requestLines.js";
 import { fieldsFromZod, refuse } from "./errors.js";
 import { equipmentRateLimiter } from "./limiter.js";
+import { present } from "./presentLine.js";
 import { createLinesBodySchema, lineBodySchema, listLinesQuerySchema } from "./schemas.js";
 
 /**
@@ -100,10 +100,6 @@ function isAssignedCoordinator(event: EventPlanningView, req: ActorRequest): boo
 }
 
 /** The line as the API shows it: `seq` only orders and pages lists, so it is not part of the line. */
-function present(line: RequestLine) {
-  return Object.fromEntries(Object.entries(line).filter(([key]) => key !== "seq"));
-}
-
 export function requestLinesRouter(sql: Sql, limiter: RequestHandler = equipmentRateLimiter()) {
   const router = Router();
 
@@ -287,29 +283,16 @@ export function requestLinesRouter(sql: Sql, limiter: RequestHandler = equipment
         }
         const updated = await applyStatusChange(tx, current, checked.change, req.actor!);
         if (event.assignedCoordinatorId) {
-          await writeOutbox(tx, {
-            topic: KAFKA_TOPICS.equipmentRequest,
-            messageType: "equipment-request.line-status-changed",
-            aggregateId: updated.id,
-            actor: req.actor!,
-            correlationId: req.header("x-correlation-id") ?? null,
-            payload: {
-              eventId: event.id,
-              eventReference: updated.eventReference,
-              eventName: event.name,
-              lineId: updated.id,
-              coordinatorId: event.assignedCoordinatorId,
-              equipmentTypeName: updated.equipmentTypeName,
-              quantity: updated.quantity,
-              previousStatus: current.status,
-              newStatus: updated.status,
-              reason: updated.unavailableReason,
-              substituteEquipmentTypeName: updated.substituteEquipmentTypeName,
-              substituteQuantity: updated.substituteQuantity,
-              changedBy: req.actor!.userId,
-              changedAt: updated.statusChangedAt,
-            },
-          });
+          await writeOutbox(
+            tx,
+            lineStatusChangedMessage({
+              event: { id: event.id, name: event.name, assignedCoordinatorId: event.assignedCoordinatorId },
+              previous: current,
+              updated,
+              actor: req.actor!,
+              correlationId: req.header("x-correlation-id") ?? null,
+            }),
+          );
         }
         return { code: "OK", line: updated } as const;
       });
