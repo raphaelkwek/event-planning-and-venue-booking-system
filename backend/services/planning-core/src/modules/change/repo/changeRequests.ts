@@ -24,6 +24,9 @@ export interface ChangeRequestRecord {
   reason: string;
   requestedBy: string;
   requestedAt: string;
+  decidedBy: string | null;
+  decidedAt: string | null;
+  rejectionReason: string | null;
   fields: ChangeRequestFieldRecord[];
 }
 
@@ -50,6 +53,9 @@ interface RequestRow {
   reason: string;
   requested_by: string;
   requested_at: Date;
+  decided_by: string | null;
+  decided_at: Date | null;
+  rejection_reason: string | null;
 }
 
 interface FieldRow {
@@ -84,6 +90,9 @@ async function withFields(db: Db, rows: RequestRow[]): Promise<ChangeRequestReco
     reason: row.reason,
     requestedBy: row.requested_by,
     requestedAt: row.requested_at.toISOString(),
+    decidedBy: row.decided_by,
+    decidedAt: row.decided_at ? row.decided_at.toISOString() : null,
+    rejectionReason: row.rejection_reason,
     fields: fieldRows
       .filter((field) => field.request_id === row.id && isSignificantEventField(field.field_name))
       .sort(
@@ -117,7 +126,8 @@ export async function insertChangeRequest(
       (sp) => sp<RequestRow[]>`
         insert into change.change_requests (event_id, event_reference, requested_by, reason, created_by, updated_by)
         values (${input.event.id}, ${input.event.reference}, ${input.actorId}, ${input.reason}, ${input.actorId}, ${input.actorId})
-        returning id, event_id, event_reference, status, reason, requested_by, requested_at
+        returning id, event_id, event_reference, status, reason, requested_by, requested_at,
+      decided_by, decided_at, rejection_reason
       `
     );
     row = inserted[0]!;
@@ -141,7 +151,8 @@ export async function insertChangeRequest(
 
 export async function findPendingForEvent(db: Db, eventId: string): Promise<ChangeRequestRecord | null> {
   const rows = await db<RequestRow[]>`
-    select id, event_id, event_reference, status, reason, requested_by, requested_at
+    select id, event_id, event_reference, status, reason, requested_by, requested_at,
+      decided_by, decided_at, rejection_reason
     from change.change_requests
     where event_id = ${eventId} and status = 'PENDING'
   `;
@@ -151,10 +162,40 @@ export async function findPendingForEvent(db: Db, eventId: string): Promise<Chan
 /** Newest first. */
 export async function listForEvent(db: Db, eventId: string): Promise<ChangeRequestRecord[]> {
   const rows = await db<RequestRow[]>`
-    select id, event_id, event_reference, status, reason, requested_by, requested_at
+    select id, event_id, event_reference, status, reason, requested_by, requested_at,
+      decided_by, decided_at, rejection_reason
     from change.change_requests
     where event_id = ${eventId}
     order by requested_at desc, id
   `;
   return withFields(db, rows);
+}
+
+/** S2 — the request, locked `for update` until the transaction ends; null when there is none. */
+export async function lockRequest(tx: TransactionSql, id: string): Promise<ChangeRequestRecord | null> {
+  const rows = await tx<RequestRow[]>`
+    select id, event_id, event_reference, status, reason, requested_by, requested_at,
+      decided_by, decided_at, rejection_reason
+    from change.change_requests
+    where id = ${id}
+    for update
+  `;
+  return (await withFields(tx, rows))[0] ?? null;
+}
+
+/** S2 — records the decision on a request the caller holds locked; the check constraint ties the columns to the status. */
+export async function recordDecision(
+  tx: TransactionSql,
+  id: string,
+  decision: { status: "APPROVED" | "REJECTED"; actorId: string; reason: string | null }
+): Promise<ChangeRequestRecord> {
+  const rows = await tx<RequestRow[]>`
+    update change.change_requests
+    set status = ${decision.status}, decided_by = ${decision.actorId}, decided_at = clock_timestamp(),
+        rejection_reason = ${decision.reason}, updated_at = now(), updated_by = ${decision.actorId}
+    where id = ${id}
+    returning id, event_id, event_reference, status, reason, requested_by, requested_at,
+      decided_by, decided_at, rejection_reason
+  `;
+  return (await withFields(tx, rows))[0]!;
 }

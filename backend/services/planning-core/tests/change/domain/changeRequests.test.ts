@@ -7,6 +7,9 @@ import {
   normaliseInstants,
   notChangeableMessage,
   validateChangeBody,
+  validateDecisionBody,
+  alreadyDecidedMessage,
+  DECISION_LABELS,
 } from "../../../src/modules/change/domain/changeRequests.js";
 
 describe("isChangeable (AC1)", () => {
@@ -130,5 +133,52 @@ describe("normaliseInstants", () => {
   it("leaves other fields, nulls and unparseable values as they are", () => {
     const changes = { expectedAttendance: 5, proposedStartAt: "soon", proposedEndAt: null };
     expect(normaliseInstants(changes)).toEqual(changes);
+  });
+});
+
+describe("validateDecisionBody (S2)", () => {
+  it("accepts Approve, ignoring any reason sent with it", () => {
+    expect(validateDecisionBody({ decision: "APPROVE" })).toEqual({ ok: true, decision: "APPROVE" });
+    expect(validateDecisionBody({ decision: "APPROVE", reason: "x" })).toEqual({ ok: true, decision: "APPROVE" });
+  });
+
+  it("accepts Reject with a reason, trimmed, up to the longest length", () => {
+    expect(validateDecisionBody({ decision: "REJECT", reason: "  No larger hall  " })).toEqual({
+      ok: true,
+      decision: "REJECT",
+      reason: "No larger hall",
+    });
+    expect(validateDecisionBody({ decision: "REJECT", reason: "x".repeat(MAX_REASON_LENGTH) }).ok).toBe(true);
+  });
+
+  it("refuses a Reject without a usable reason, naming the reason", () => {
+    for (const reason of [undefined, "", "   ", 42, null]) {
+      expect(validateDecisionBody({ decision: "REJECT", reason })).toEqual({
+        ok: false,
+        fields: [{ field: "reason", message: "Give a reason for rejecting the change." }],
+      });
+    }
+  });
+
+  it("refuses a reason longer than the longest length", () => {
+    expect(validateDecisionBody({ decision: "REJECT", reason: "x".repeat(MAX_REASON_LENGTH + 1) })).toEqual({
+      ok: false,
+      fields: [{ field: "reason", message: `The reason can be at most ${MAX_REASON_LENGTH} characters.` }],
+    });
+  });
+
+  it("refuses any other decision, and a body that is not an object, naming the decision", () => {
+    for (const raw of [{ decision: "approve" }, { decision: "MAYBE" }, { reason: "x" }, undefined, null, "x", [], 3]) {
+      expect(validateDecisionBody(raw)).toEqual({ ok: false, fields: [{ field: "decision", message: "Choose Approve or Reject." }] });
+    }
+  });
+});
+
+describe("alreadyDecidedMessage (S2)", () => {
+  it("names the decision and when it was made", () => {
+    expect(alreadyDecidedMessage("APPROVED", "2026-12-01T10:00:00.000Z")).toBe(
+      "This change request was already Approved on 2026-12-01T10:00:00.000Z."
+    );
+    expect(alreadyDecidedMessage("REJECTED", "2026-12-01T10:00:00.000Z")).toContain(DECISION_LABELS.REJECTED);
   });
 });

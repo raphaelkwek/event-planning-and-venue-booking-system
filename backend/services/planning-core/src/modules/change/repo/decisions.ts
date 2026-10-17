@@ -1,0 +1,96 @@
+import type { TransactionSql } from "postgres";
+import { KAFKA_TOPICS, SIGNIFICANT_EVENT_FIELDS, type ErrorField, type Role, type SignificantEventField } from "@connectsphere/contracts";
+import { applyApprovedChange, checkProposedChange, findEventForChange, type ProposedChanges } from "../../event/index.js";
+import { resolveAccessScope } from "../../identity/index.js";
+import { isChangeable, notChangeableMessage } from "../domain/changeRequests.js";
+import { writeOutbox } from "../events/outbox.js";
+import { lockRequest, recordDecision, type ChangeRequestRecord } from "./changeRequests.js";
+
+/**
+ * S2 — the assigned coordinator's decision. The request is locked first, then the event, and
+ * nothing is written until every check has passed; a refusal returns without having written
+ * anything, so the caller's transaction commits an empty change.
+ */
+
+export type Decision = { decision: "APPROVE" } | { decision: "REJECT"; reason: string };
+
+/** The event's significant values after an approval. */
+export type DecidedEvent = { id: string } & Partial<Record<SignificantEventField, unknown>>;
+
+export type DecisionOutcome =
+  | { ok: true; request: ChangeRequestRecord; event?: DecidedEvent }
+  | { ok: false; code: "NOT_FOUND" }
+  | { ok: false; code: "NOT_ASSIGNED" }
+  | { ok: false; code: "ALREADY_DECIDED"; status: "APPROVED" | "REJECTED"; decidedAt: string }
+  | { ok: false; code: "NO_LONGER_VALID"; message: string; fields: ErrorField[]; status?: string };
+
+/** The event module reports a proposed value on its own field name; the request names it under `changes`. */
+const renamed = (problems: ErrorField[]): ErrorField[] =>
+  problems.map((problem) => ({ field: `changes.${problem.field}`, message: problem.message }));
+
+export async function decideChangeRequest(
+  tx: TransactionSql,
+  requestId: string,
+  decision: Decision,
+  actor: { userId: string; role: Role; correlationId?: string | null }
+): Promise<DecisionOutcome> {
+  const request = await lockRequest(tx, requestId);
+  if (!request) return { ok: false, code: "NOT_FOUND" };
+  if (request.status !== "PENDING") {
+    // The check constraint gives every decided request a decision time.
+    return { ok: false, code: "ALREADY_DECIDED", status: request.status, decidedAt: request.decidedAt! };
+  }
+
+  const scope = resolveAccessScope(actor.role, actor.userId, "events");
+  const event = await findEventForChange(tx, request.eventId, scope, actor.userId, { lock: "update" });
+  if (!event) return { ok: false, code: "NOT_FOUND" };
+  if (event.assignedCoordinatorId !== actor.userId) return { ok: false, code: "NOT_ASSIGNED" };
+
+  const changes: ProposedChanges = {};
+  for (const field of request.fields) changes[field.fieldName] = field.proposedValue;
+
+  let decided: ChangeRequestRecord;
+  let applied: DecidedEvent | undefined;
+  if (decision.decision === "REJECT") {
+    decided = await recordDecision(tx, request.id, { status: "REJECTED", actorId: actor.userId, reason: decision.reason });
+  } else {
+    if (!isChangeable(event.status)) {
+      const message = notChangeableMessage(event.status);
+      return { ok: false, code: "NO_LONGER_VALID", message, fields: [], status: event.status };
+    }
+    const problems = checkProposedChange(event.current, changes);
+    if (problems.length > 0) {
+      return {
+        ok: false,
+        code: "NO_LONGER_VALID",
+        message: "The proposed values no longer pass the checks, so the change can't be approved. You can still reject it.",
+        fields: renamed(problems),
+      };
+    }
+    await applyApprovedChange(tx, event, changes, actor);
+    decided = await recordDecision(tx, request.id, { status: "APPROVED", actorId: actor.userId, reason: null });
+    const values: DecidedEvent = { id: event.id };
+    for (const field of SIGNIFICANT_EVENT_FIELDS) values[field] = field in changes ? changes[field] : event.current[field];
+    applied = values;
+  }
+
+  const common = {
+    eventId: event.id,
+    eventReference: request.eventReference,
+    eventName: event.name,
+    ownerId: event.ownerId,
+    changeRequestId: request.id,
+    fields: request.fields.map((field) => field.fieldName),
+    decidedBy: actor.userId,
+    decidedAt: decided.decidedAt!,
+  };
+  await writeOutbox(tx, {
+    topic: KAFKA_TOPICS.event,
+    messageType: decision.decision === "APPROVE" ? "change-request.approved" : "change-request.rejected",
+    aggregateId: event.id,
+    actor,
+    correlationId: actor.correlationId ?? null,
+    payload: decision.decision === "APPROVE" ? common : { ...common, reason: decision.reason },
+  });
+  return applied ? { ok: true, request: decided, event: applied } : { ok: true, request: decided };
+}

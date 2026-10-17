@@ -93,3 +93,32 @@ export function normaliseInstants(changes: ProposedChanges): ProposedChanges {
   }
   return normalised;
 }
+
+const DECISION_MESSAGE = "Choose Approve or Reject.";
+const REJECT_REASON_MESSAGE = "Give a reason for rejecting the change.";
+
+/** S2 — the decision label a person reads, and the one the 409 names. */
+export const DECISION_LABELS = { APPROVED: "Approved", REJECTED: "Rejected" } as const;
+
+export function alreadyDecidedMessage(status: "APPROVED" | "REJECTED", decidedAt: string): string {
+  return `This change request was already ${DECISION_LABELS[status]} on ${decidedAt}.`;
+}
+
+/**
+ * S2 — the body of a decision: Approve, or Reject with a reason (AC2). Every problem is
+ * reported. An approval ignores any reason sent with it.
+ */
+export function validateDecisionBody(
+  raw: unknown
+): { ok: true; decision: "APPROVE" } | { ok: true; decision: "REJECT"; reason: string } | { ok: false; fields: ErrorField[] } {
+  const body = isPlainObject(raw) ? raw : {};
+  if (body.decision === "APPROVE") return { ok: true, decision: "APPROVE" };
+  if (body.decision !== "REJECT") return { ok: false, fields: [{ field: "decision", message: DECISION_MESSAGE }] };
+
+  const reason = typeof body.reason === "string" ? body.reason.trim() : "";
+  if (reason.length === 0) return { ok: false, fields: [{ field: "reason", message: REJECT_REASON_MESSAGE }] };
+  if (reason.length > MAX_REASON_LENGTH) {
+    return { ok: false, fields: [{ field: "reason", message: `The reason can be at most ${MAX_REASON_LENGTH} characters.` }] };
+  }
+  return { ok: true, decision: "REJECT", reason };
+}
