@@ -58,8 +58,8 @@ export function ChangeDecisionActions({ request, token, onDecided }: { request: 
   return (
     <>
       <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-        <Button appearance="primary" onClick={() => setMode("approve")}>Approve</Button>
-        <Button appearance="warning" onClick={() => setMode("reject")}>Reject</Button>
+        <Button appearance="primary" onClick={() => setMode("approve")}>Approve change</Button>
+        <Button appearance="warning" onClick={() => setMode("reject")}>Reject change</Button>
       </div>
       <ModalTransition>
         {mode === "approve" && (
@@ -111,7 +111,7 @@ export function ChangeDecisionActions({ request, token, onDecided }: { request: 
             </ModalBody>
             <ModalFooter>
               <Button appearance="subtle" onClick={close}>Cancel</Button>
-              <Button appearance="warning" isDisabled={busy} onClick={reject}>Reject change</Button>
+              <Button appearance="warning" isDisabled={busy} onClick={reject}>Confirm rejection</Button>
             </ModalFooter>
           </Modal>
         )}
@@ -131,7 +131,7 @@ export function DecidedChangeNotice({ request }: { request: ChangeRequest }) {
         <p style={{ margin: 0 }}>
           {approved ? `Change approved on ${when}` : `Change rejected on ${when}: ${request.rejectionReason ?? ""}`}
         </p>
-        <p style={{ marginBottom: 0, fontSize: 12 }}>Changed: {fields}</p>
+        <p style={{ marginBottom: 0, fontSize: 12 }}>{approved ? "Changed" : "Requested"}: {fields}</p>
       </SectionMessage>
     </div>
   );

@@ -76,39 +76,49 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe("who sees Approve and Reject", () => {
+describe("who sees Approve change and Reject change", () => {
   it("the assigned coordinator, on a pending request", async () => {
     asCoordinator();
-    expect(await screen.findByRole("button", { name: "Approve" })).toBeTruthy();
-    expect(button("Reject")).toBeTruthy();
+    expect(await screen.findByRole("button", { name: "Approve change" })).toBeTruthy();
+    expect(button("Reject change")).toBeTruthy();
+  });
+
+  it("keeps the event's own Approve and Reject distinct from the change's on an undecided event", async () => {
+    current = event({ status: "UNDER_REVIEW", decidedBy: null, decidedAt: null });
+    asCoordinator();
+    await screen.findByRole("button", { name: "Approve change" });
+    expect(screen.getAllByRole("button", { name: "Approve" })).toHaveLength(1);
+    expect(screen.getAllByRole("button", { name: "Reject" })).toHaveLength(1);
+    expect(screen.getAllByRole("button", { name: "Approve change" })).toHaveLength(1);
+    expect(screen.getAllByRole("button", { name: "Reject change" })).toHaveLength(1);
   });
 
   it("not a coordinator who is not assigned", async () => {
     asCoordinator("other-coordinator");
     await screen.findByText(/Change requested on/);
-    expect(button("Approve")).toBeNull();
-    expect(button("Reject")).toBeNull();
+    expect(button("Approve change")).toBeNull();
+    expect(button("Reject change")).toBeNull();
   });
 
   it("not the organiser", async () => {
     asOrganiser();
     await screen.findByText(/Change requested on/);
-    expect(button("Approve")).toBeNull();
+    expect(button("Approve change")).toBeNull();
   });
 
   it("not once the request is decided", async () => {
     stored = [approved];
     asCoordinator();
     await screen.findByText(/Change approved on/);
-    expect(button("Approve")).toBeNull();
-    expect(button("Reject")).toBeNull();
+    expect(button("Approve change")).toBeNull();
+    expect(button("Reject change")).toBeNull();
   });
 });
 
 describe("approving", () => {
   it("lists each field before and after, then posts APPROVE", async () => {
     asCoordinator();
-    fireEvent.click(await screen.findByRole("button", { name: "Approve" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Approve change" }));
     const dialog = await screen.findByRole("dialog");
     expect(within(dialog).getByText(/expected attendance: 150 → 180/)).toBeTruthy();
     expect(posts()).toHaveLength(0);
@@ -117,13 +127,13 @@ describe("approving", () => {
     await waitFor(() => expect(posts()).toHaveLength(1));
     expect(JSON.parse(posts()[0]![1]!.body as string)).toEqual({ decision: "APPROVE" });
     expect(await screen.findByText(/Change approved on /)).toBeTruthy();
-    expect(button("Approve")).toBeNull();
+    expect(button("Approve change")).toBeNull();
   });
 
   it("shows the field messages when the change is no longer valid", async () => {
     onDecision = () => reply({ error: { code: "CHANGE_REQUEST_NO_LONGER_VALID", message: "The proposed values no longer pass the checks, so the change can't be approved. You can still reject it.", details: { fields: [{ field: "changes.expectedAttendance", message: "The venue now holds 100." }] }, correlationId: null } }, 409);
     asCoordinator();
-    fireEvent.click(await screen.findByRole("button", { name: "Approve" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Approve change" }));
     fireEvent.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Confirm approval" }));
     expect(await screen.findByText("The venue now holds 100.")).toBeTruthy();
     expect(await screen.findByText(/no longer pass the checks/)).toBeTruthy();
@@ -133,13 +143,13 @@ describe("approving", () => {
 describe("rejecting", () => {
   async function openReject() {
     asCoordinator();
-    fireEvent.click(await screen.findByRole("button", { name: "Reject" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Reject change" }));
     return await screen.findByRole("dialog");
   }
 
   it("refuses an empty reason inline and sends nothing", async () => {
     const dialog = await openReject();
-    fireEvent.click(within(dialog).getByRole("button", { name: "Reject change" }));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Confirm rejection" }));
     expect(await screen.findByText("Give a reason for rejecting the change.")).toBeTruthy();
     expect(posts()).toHaveLength(0);
   });
@@ -148,7 +158,7 @@ describe("rejecting", () => {
     onDecision = () => reply({ error: { code: "VALIDATION_FAILED", message: "x", fields: [{ field: "reason", message: "The reason can be at most 1000 characters." }], correlationId: null } }, 400);
     const dialog = await openReject();
     fireEvent.change(within(dialog).getByLabelText("Reason"), { target: { value: "no" } });
-    fireEvent.click(within(dialog).getByRole("button", { name: "Reject change" }));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Confirm rejection" }));
     expect(await screen.findByText("The reason can be at most 1000 characters.")).toBeTruthy();
   });
 
@@ -156,7 +166,7 @@ describe("rejecting", () => {
     const dialog = await openReject();
     fireEvent.change(within(dialog).getByLabelText("Reason"), { target: { value: "No larger hall" } });
     stored = [rejected];
-    fireEvent.click(within(dialog).getByRole("button", { name: "Reject change" }));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Confirm rejection" }));
     await waitFor(() => expect(posts()).toHaveLength(1));
     expect(JSON.parse(posts()[0]![1]!.body as string)).toEqual({ decision: "REJECT", reason: "No larger hall" });
     expect(await screen.findByText(/Change rejected on .*: No larger hall/)).toBeTruthy();
@@ -166,7 +176,7 @@ describe("rejecting", () => {
     onDecision = () => reply({ error: { code: "CHANGE_REQUEST_ALREADY_DECIDED", message: "This change request was already approved on 2026-10-18.", correlationId: null } }, 409);
     const dialog = await openReject();
     fireEvent.change(within(dialog).getByLabelText("Reason"), { target: { value: "No larger hall" } });
-    fireEvent.click(within(dialog).getByRole("button", { name: "Reject change" }));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Confirm rejection" }));
     expect(await screen.findByText(/already approved on/)).toBeTruthy();
   });
 });

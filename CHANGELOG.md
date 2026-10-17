@@ -32,13 +32,15 @@ coordinator approve it, applying the change, or reject it with a reason.
 
 ## Changed
 
-- On the coordinator's review page the event's own Approve and Reject (D4, D5) are hidden, not
-  disabled, once the event is decided, so they can't be confused with the change request's.
+- On the coordinator's review page the change request's buttons are "Approve change" and "Reject
+  change", so they can't be confused with the event's own Approve and Reject.
 
 ## Before using it on the shared database
 
-1. `npm run migrate -- change` applies 0002–0003 (after S1's 0001).
-2. Deploy the notification service with planning-core: it dead-letters message types it doesn't know.
+1. `npm run migrate -- change` applies 0002–0003 (after S1's 0001). Run it before deploying
+   planning-core: S1's list and insert paths read the new columns.
+2. Deploy the notification service before, or with, planning-core: it dead-letters message types it
+   doesn't know.
 
 ---
 

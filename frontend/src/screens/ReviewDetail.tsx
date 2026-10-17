@@ -276,23 +276,23 @@ export function ReviewDetail() {
         </dl>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 24 }}>
-          {!decided && (
-            <>
-              <Button appearance="primary" isDisabled={busy} onClick={() => run(() => approveEvent(session.token, event.id))}>
-                Approve
-              </Button>
-              <Button
-                appearance="warning"
-                isDisabled={busy}
-                onClick={() => {
-                  setRejectError(null);
-                  setRejecting(true);
-                }}
-              >
-                Reject
-              </Button>
-            </>
-          )}
+          <Button
+            appearance="primary"
+            isDisabled={busy || decided}
+            onClick={() => run(() => approveEvent(session.token, event.id))}
+          >
+            Approve
+          </Button>
+          <Button
+            appearance="warning"
+            isDisabled={busy || decided}
+            onClick={() => {
+              setRejectError(null);
+              setRejecting(true);
+            }}
+          >
+            Reject
+          </Button>
           {/* E2 — a peer action to Approve/Reject: the active coordinator can
               hand the event off, as long as no proposal is already pending. */}
           {/* Not offered at all once a decision is recorded: reassignment is

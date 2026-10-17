@@ -133,23 +133,26 @@ describe("decideChangeRequest", () => {
 
   it("tells the requester, and a rejection carries its reason", async () => {
     const { eventId, request } = await fixture();
-    await sql`update event.events set owner_id = ${C2} where id = ${eventId}`;
+    try {
+      await sql`update event.events set owner_id = ${C2} where id = ${eventId}`;
 
-    const outcome = await decide(request.id, { decision: "REJECT", reason: "No larger hall" });
+      const outcome = await decide(request.id, { decision: "REJECT", reason: "No larger hall" });
 
-    const [row] = await sql<{ data: Record<string, unknown> }[]>`select envelope->'data' as data from change.outbox where message_key = ${eventId}`;
-    expect(row!.data).toEqual({
-      eventId,
-      eventReference: request.eventReference,
-      eventName: "S2 repo event",
-      ownerId: OWNER,
-      changeRequestId: request.id,
-      fields: ["proposedStartAt", "expectedAttendance"],
-      decidedBy: C1,
-      decidedAt: outcome.ok ? outcome.request.decidedAt : null,
-      reason: "No larger hall",
-    });
-    await sql`update event.events set owner_id = ${OWNER} where id = ${eventId}`;
+      const [row] = await sql<{ data: Record<string, unknown> }[]>`select envelope->'data' as data from change.outbox where message_key = ${eventId}`;
+      expect(row!.data).toEqual({
+        eventId,
+        eventReference: request.eventReference,
+        eventName: "S2 repo event",
+        ownerId: OWNER,
+        changeRequestId: request.id,
+        fields: ["proposedStartAt", "expectedAttendance"],
+        decidedBy: C1,
+        decidedAt: outcome.ok ? outcome.request.decidedAt : null,
+        reason: "No larger hall",
+      });
+    } finally {
+      await sql`update event.events set owner_id = ${OWNER} where id = ${eventId}`;
+    }
   });
 
   it("refuses a coordinator who is not assigned, to approve or to reject, and an unknown request", async () => {

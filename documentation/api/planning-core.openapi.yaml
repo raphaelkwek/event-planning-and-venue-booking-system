@@ -850,7 +850,8 @@ paths:
         values still pass the same checks as a new request; it then writes the values to the event,
         records a history entry per field (before, after, coordinator, time) and bumps the event's
         version. Rejecting needs a reason and leaves the event untouched. The requesting organiser is
-        notified of either outcome. A refused decision stores nothing.
+        notified of either outcome. Approval is refused when the event changed since the request was
+        made (each such field is named `changes.<field>`). A refused decision stores nothing.
       operationId: decideChangeRequest
       requestBody:
         required: true
@@ -892,6 +893,9 @@ paths:
             `CHANGE_REQUEST_ALREADY_DECIDED` (`details` has the decision's `status` and `decidedAt`), or,
             on approval, `CHANGE_REQUEST_NO_LONGER_VALID` (`details.fields` lists `{field, message}` named
             `changes.<field>`; `details.status` is the event's status when it can no longer change).
+            Approval is also refused when the event changed since the request was made: each field whose
+            current value no longer matches the request's is listed in `details.fields`, named
+            `changes.<field>`.
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }

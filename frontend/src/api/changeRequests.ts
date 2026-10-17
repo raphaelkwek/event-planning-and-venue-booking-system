@@ -28,9 +28,9 @@ export interface ChangeRequest {
   requestedAt: string;
   fields: ChangeRequestField[];
   /** S2 — null while the request is pending. */
-  decidedBy?: string | null;
-  decidedAt?: string | null;
-  rejectionReason?: string | null;
+  decidedBy: string | null;
+  decidedAt: string | null;
+  rejectionReason: string | null;
 }
 
 /** Only the fields being changed are present. */
@@ -53,5 +53,5 @@ export type ChangeDecision = { decision: "APPROVE" } | { decision: "REJECT"; rea
 
 /** S2 — only the event's assigned coordinator may decide; an approval also returns the changed event. */
 export function decideChangeRequest(token: string, id: string, body: ChangeDecision) {
-  return request<{ changeRequest: ChangeRequest }>(`${EVENT}/change-requests/${id}/decision`, { method: "POST", token, body });
+  return request<{ changeRequest: ChangeRequest; event?: unknown }>(`${EVENT}/change-requests/${id}/decision`, { method: "POST", token, body });
 }
