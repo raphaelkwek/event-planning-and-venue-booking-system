@@ -6,7 +6,7 @@
 
 # M1, M2: Venue Staff approve or reject a booking request
 
-**Timestamp:** 2026-10-18T01:55+08:00 (SGT)
+**Timestamp:** 2026-10-18T01:32+08:00 (SGT)
 **Author:** Seann, via Claude
 **Scope:**
 - `contracts`: the `venue-booking.request-approved` and `venue-booking.request-rejected` messages, the `VENUE_UNAVAILABLE` error code, and `UNAVAILABILITY_REASON_LABELS`. **Needs a second owner's review.**
