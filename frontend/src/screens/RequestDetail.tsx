@@ -20,6 +20,7 @@ import { Refusal } from "../components/Refusal.js";
 import { canEditDetails } from "../shared/eventDetails.js";
 import { listChangeRequests, type ChangeRequest } from "../api/changeRequests.js";
 import { ChangeRequestForm } from "../components/ChangeRequestForm.js";
+import { DecidedChangeNotice } from "../components/ChangeDecision.js";
 import { PendingChangeNotice } from "../components/PendingChangeNotice.js";
 import { isChangeable } from "../shared/changeRequests.js";
 import { EquipmentRequirementsView, VenueRequirementsView } from "../components/Requirements.js";
@@ -112,6 +113,10 @@ export function RequestDetail() {
   if (!event) return null;
 
   const pendingChange = changeRequests.find((entry) => entry.status === "PENDING") ?? null;
+  const latestDecided =
+    changeRequests
+      .filter((entry) => entry.status !== "PENDING" && entry.decidedAt)
+      .sort((a, b) => (b.decidedAt ?? "").localeCompare(a.decidedAt ?? ""))[0] ?? null;
   const canRequestChange = !changesFailed && isChangeable(event.status) && event.ownerId === session.userId && !pendingChange;
   const openClarification = clarifications.find((entry) => entry.status === "OPEN");
 
@@ -159,6 +164,7 @@ export function RequestDetail() {
 
         {changesFailed && <p role="status" style={{ color: "#626F86", fontSize: 13 }}>Change requests couldn't be loaded.</p>}
         {pendingChange && <PendingChangeNotice request={pendingChange} />}
+        {!pendingChange && latestDecided && <DecidedChangeNotice request={latestDecided} />}
         {canRequestChange && requestingChange && (
           <ChangeRequestForm
             event={event}
