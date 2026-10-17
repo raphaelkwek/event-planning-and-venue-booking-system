@@ -23,6 +23,17 @@ export interface Actor {
   role: Role;
 }
 
+export interface LineReservation {
+  id: string;
+  equipmentTypeId: string;
+  /** The type actually reserved: the substitute's, for a Substituted line. */
+  equipmentTypeName: string;
+  requestedQuantity: number;
+  reservedQuantity: number;
+  reservedBy: string;
+  reservedAt: string;
+}
+
 export interface RequestLine {
   id: string;
   seq: number;
@@ -44,6 +55,8 @@ export interface RequestLine {
   substituteEquipmentTypeName: string | null;
   substituteQuantity: number | null;
   updatedAt: string;
+  /** Q1: the line's active reservation, or null. */
+  reservation: LineReservation | null;
 }
 
 export interface LineHistoryEntry {
@@ -80,6 +93,13 @@ interface LineRow {
   substitute_equipment_type_name: string | null;
   substitute_quantity: number | null;
   updated_at: Date;
+  reservation_id: string | null;
+  reservation_type_id: string | null;
+  reservation_type_name: string | null;
+  requested_quantity: number | null;
+  reserved_quantity: number | null;
+  reserved_by: string | null;
+  reserved_at: Date | null;
 }
 
 function toLine(row: LineRow): RequestLine {
@@ -104,6 +124,17 @@ function toLine(row: LineRow): RequestLine {
     substituteEquipmentTypeName: row.substitute_equipment_type_name,
     substituteQuantity: row.substitute_quantity,
     updatedAt: row.updated_at.toISOString(),
+    reservation: row.reservation_id
+      ? {
+          id: row.reservation_id,
+          equipmentTypeId: row.reservation_type_id!,
+          equipmentTypeName: row.reservation_type_name!,
+          requestedQuantity: row.requested_quantity!,
+          reservedQuantity: row.reserved_quantity!,
+          reservedBy: row.reserved_by!,
+          reservedAt: row.reserved_at!.toISOString(),
+        }
+      : null,
   };
 }
 
@@ -113,10 +144,14 @@ function selectLines(db: Db) {
     select l.id, l.seq, l.event_id, l.event_reference, l.equipment_type_id, t.name as equipment_type_name,
            l.quantity, l.notes, l.required_from, l.required_to, l.status, l.requested_by, l.requested_at,
            l.status_changed_by, l.status_changed_at, l.unavailable_reason, l.substitute_equipment_type_id,
-           s.name as substitute_equipment_type_name, l.substitute_quantity, l.updated_at
+           s.name as substitute_equipment_type_name, l.substitute_quantity, l.updated_at,
+           r.id as reservation_id, r.equipment_type_id as reservation_type_id, rt.name as reservation_type_name,
+           r.requested_quantity, r.reserved_quantity, r.reserved_by, r.reserved_at
     from equipment.equipment_request_lines l
     join equipment.equipment_types t on t.id = l.equipment_type_id
     left join equipment.equipment_types s on s.id = l.substitute_equipment_type_id
+    left join equipment.reservations r on r.request_line_id = l.id and r.status = 'RESERVED'
+    left join equipment.equipment_types rt on rt.id = r.equipment_type_id
   `;
 }
 
@@ -290,8 +325,16 @@ export async function updateLine(tx: TransactionSql, current: RequestLine, line:
   return (await findLine(tx, current.id))!;
 }
 
-/** O1: removal is a status. The history row keeps the type and quantity removed. */
-export async function markRemoved(tx: TransactionSql, current: RequestLine, actor: Actor): Promise<RequestLine> {
+/**
+ * O1: removal is a status. The history row keeps the type and quantity removed.
+ * Q2: `details` records the release when the removed line was Reserved.
+ */
+export async function markRemoved(
+  tx: TransactionSql,
+  current: RequestLine,
+  actor: Actor,
+  details: Record<string, unknown> = {},
+): Promise<RequestLine> {
   await tx`
     update equipment.equipment_request_lines
     set status = 'REMOVED', updated_at = now(), updated_by = ${actor.userId}
@@ -304,7 +347,7 @@ export async function markRemoved(tx: TransactionSql, current: RequestLine, acto
     newStatus: "REMOVED",
     equipmentTypeId: current.equipmentTypeId,
     quantity: current.quantity,
-    details: {},
+    details,
     actor,
   });
   return (await findLine(tx, current.id))!;
@@ -344,6 +387,66 @@ export async function applyStatusChange(
       substituteEquipmentTypeName: substituteName,
       substituteQuantity: change.substituteQuantity,
     },
+    actor,
+  });
+  return (await findLine(tx, current.id))!;
+}
+
+/** Q1: a locked Confirmed or Substituted line becomes Reserved, with its history entry. */
+export async function markReserved(
+  tx: TransactionSql,
+  current: RequestLine,
+  reservation: { id: string; equipmentTypeId: string; requestedQuantity: number; reservedQuantity: number },
+  actor: Actor,
+): Promise<RequestLine> {
+  await tx`
+    update equipment.equipment_request_lines
+    set status = 'RESERVED',
+        status_changed_by = ${actor.userId}, status_changed_at = clock_timestamp(),
+        updated_at = now(), updated_by = ${actor.userId}
+    where id = ${current.id}
+  `;
+  await writeHistory(tx, {
+    lineId: current.id,
+    action: "STATUS_CHANGED",
+    previousStatus: current.status,
+    newStatus: "RESERVED",
+    equipmentTypeId: current.equipmentTypeId,
+    quantity: current.quantity,
+    details: {
+      reservationId: reservation.id,
+      equipmentTypeId: reservation.equipmentTypeId,
+      equipmentTypeName: await typeName(tx, reservation.equipmentTypeId),
+      requestedQuantity: reservation.requestedQuantity,
+      reservedQuantity: reservation.reservedQuantity,
+    },
+    actor,
+  });
+  return (await findLine(tx, current.id))!;
+}
+
+/** Q2: a Reserved line whose reservation was released goes back to Confirmed or Substituted. */
+export async function markReleased(
+  tx: TransactionSql,
+  current: RequestLine,
+  release: { reservationId: string; reason: string; status: "CONFIRMED" | "SUBSTITUTED" },
+  actor: Actor,
+): Promise<RequestLine> {
+  await tx`
+    update equipment.equipment_request_lines
+    set status = ${release.status},
+        status_changed_by = ${actor.userId}, status_changed_at = clock_timestamp(),
+        updated_at = now(), updated_by = ${actor.userId}
+    where id = ${current.id}
+  `;
+  await writeHistory(tx, {
+    lineId: current.id,
+    action: "STATUS_CHANGED",
+    previousStatus: current.status,
+    newStatus: release.status,
+    equipmentTypeId: current.equipmentTypeId,
+    quantity: current.quantity,
+    details: { reservationId: release.reservationId, released: true, reason: release.reason },
     actor,
   });
   return (await findLine(tx, current.id))!;

@@ -4,9 +4,14 @@ import { availabilityRouter } from "./api/availability.js";
 import { inventoryRouter } from "./api/inventory.js";
 import { equipmentRateLimiter } from "./api/limiter.js";
 import { requestLinesRouter } from "./api/requestLines.js";
+import { releasesRouter } from "./api/releases.js";
+import { reservationsRouter } from "./api/reservations.js";
 
 /** The module's outbox table, for the outbox relay (implementation.md §3.4). */
 export { EQUIPMENT_OUTBOX_TABLE } from "./events/outbox.js";
+
+/** Q2 — F4's release run calls this inside its cancellation transaction (AC1). */
+export { releaseEventReservations } from "./repo/releases.js";
 
 /**
  * The equipment module's public interface (ADR-0004). Other modules import
@@ -25,5 +30,7 @@ export function equipmentRouter(sql: Sql): Router {
   router.use(inventoryRouter(sql, limiter));
   router.use(availabilityRouter(sql, limiter));
   router.use(requestLinesRouter(sql, limiter));
+  router.use(reservationsRouter(sql, limiter));
+  router.use(releasesRouter(sql, limiter));
   return router;
 }

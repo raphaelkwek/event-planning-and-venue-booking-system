@@ -76,7 +76,7 @@ O1,Lines may be edited by the assigned coordinator while their status is Submitt
 O1,Lines may be edited by the assigned coordinator while their status is Submitted or Under Review,backend/services/planning-core/tests/equipment/api/o1Cards.test.ts,O1-T14 lets the coordinator edit an Under Review line
 O1,Lines may be removed by the assigned coordinator while their status is Submitted or Under Review,backend/services/planning-core/tests/equipment/api/o1Cards.test.ts,O1-T19 removes an Under Review line
 O1,A line with status Reserved cannot be edited or removed here,backend/services/planning-core/tests/equipment/api/o1Cards.test.ts,O1-T15 refuses to edit a Reserved line and changes nothing
-O1,A line with status Reserved cannot be edited or removed here,backend/services/planning-core/tests/equipment/api/o1Cards.test.ts,O1-T20 refuses to remove a Reserved line and changes nothing
+O1,A line with status Reserved cannot be edited or removed here,backend/services/planning-core/tests/equipment/api/o1Cards.test.ts,O1-T20 refuses to remove a Reserved line that holds no active reservation, and changes nothing
 O1,"Only the assigned coordinator may record, edit or remove lines",backend/services/planning-core/tests/equipment/api/o1Cards.test.ts,O1-T21 refuses a coordinator who is not assigned to the event
 O1,"Removing a line records the acting user, the timestamp, and the equipment type and quantity removed",backend/services/planning-core/tests/equipment/api/o1Cards.test.ts,O1-T18 removes a Submitted line by status and records the removal
 O1,A rejected save creates or changes no line item,backend/services/planning-core/tests/equipment/api/o1Cards.test.ts,O1-T10 creates none of a request's lines when one is invalid

@@ -49,6 +49,116 @@ OpenAPI contract, the organiser's and coordinator's request pages, `tests/S1/` a
 
 ---
 
+# Q2: Technical Support release equipment reservations
+
+**Timestamp:** 2026-10-17T00:24+08:00 (SGT)
+**Author:** Raphael, via Claude
+**Scope:** Q2 (SPM-51). The equipment module's `domain/`, `repo/`, `api/`, `events/` and `index.ts`,
+migrations equipment/0007–0008, contracts' error codes and line-status message, the notification
+service's equipment wording, the OpenAPI contract, both equipment request screens, `tests/Q2/` and
+`sprint-3.csv`. Stacked on Q1 (PR #42).
+**Reason:** Q1 lets Technical Support reserve equipment; nothing gave it back. Q2 releases a
+reservation when it is no longer needed, so the equipment can go to another event.
+
+## Added
+
+- **`POST /api/v1/equipment/request-lines/{id}/release`**, Technical Support only, with a required
+  reason. The reservation is kept as Released, with who, when and why (0007–0008), and its unit
+  and bulk rows are released, so availability gets the stock back at once. The line returns to
+  Confirmed, or Substituted if it was, and can be reserved again. Refusals: `LINE_NOT_RELEASABLE`
+  (naming the status), `RESERVATION_ALREADY_RELEASED`.
+- **`releaseEventReservations`**, exported from `equipment/index.ts` for F4's cancellation run.
+  The spec's F4 hand-off note explains a race F4 must close.
+- A **Release** action on "Equipment requests", and **Remove** on the coordinator's Reserved lines.
+- Cards Q2-T1 to Q2-T13: automated tests for T1–T11 (T6 is a race on CI's throwaway Postgres),
+  T12 Not Executed until F4, T13 a browser walkthrough.
+
+## Changed
+
+- O1's removal also accepts a **Reserved** line: it releases the reservation ("Request line
+  removed") and removes the line in one transaction. Edits of Reserved lines are still refused.
+- The line-status-changed message gains an optional `released` flag; the notification reads "The
+  reservation of Chairs × 4 for EVT-… was released. The line is now Confirmed. Reason: …".
+- `Reservation` in API responses carries `releasedBy`, `releasedAt` and `releaseReason`.
+
+## Before using it on the shared database
+
+`npm run migrate -- equipment` applies 0007–0008 (after Q1's 0005–0006). Run it before
+planning-core is deployed against the shared database.
+
+Deploy the notification service with this change before or with planning-core; an older notification
+service drops the `released` flag and words a release as an ordinary status change.
+
+---
+
+# The OpenAPI ErrorCode list matches contracts again, and a test keeps it that way
+
+**Timestamp:** 2026-10-16T02:05+08:00 (SGT)
+**Author:** Raphael
+**Scope:**
+- `documentation/api/planning-core.openapi.yaml`: the `ErrorCode` enum.
+- Tests: `backend/services/planning-core/tests/boundaries/errorCodes.test.ts` (new).
+- No code change, no migration, no new error codes.
+
+**Reason:** The spec's `ErrorCode` enum said it was the shared list in `backend/packages/contracts/src/errorCodes.ts`, but it had stopped at `VENUE_NOT_FOUND`. Nothing checked the two lists against each other.
+
+## What changed
+
+1. **The enum lists every code in `ERROR_CODES`, in the same order.** The 11 missing codes are added: `VENUE_SLOT_CONFLICT`, `NOTIFICATION_NOT_FOUND`, `INSUFFICIENT_EQUIPMENT`, `EQUIPMENT_TYPE_NOT_FOUND`, `EQUIPMENT_LINE_NOT_FOUND`, `EQUIPMENT_LINE_NOT_EDITABLE`, `RATE_LIMITED`, `EVENT_NOT_EDITABLE`, `CHANGE_REQUEST_REQUIRED`, `EVENT_VERSION_MISMATCH` and `EVENT_VERSION_REQUIRED`.
+2. **A unit test compares the two lists.** It parses the spec with `yaml`, which planning-core already uses, and fails if the enum differs from `ERROR_CODES` in any way, including order. A code added to contracts without its spec entry now fails CI.
+
+## Verified
+
+- Before the spec fix, the new test failed and named the 11 missing codes. After the fix it passes.
+- `npm run lint:api` and `npm run typecheck` pass. The planning-core unit suite passes (617 tests) with CI's placeholder environment.
+# Q1: Technical Support reserve the equipment on a request line
+
+**Timestamp:** 2026-10-16T02:18+08:00 (SGT)
+**Author:** Raphael, via Claude
+**Scope:** Q1 (SPM-50). The equipment module's `domain/`, `repo/`, `api/` and `events/`, migrations
+equipment/0005–0006, contracts' error codes, the OpenAPI contract, the "Equipment requests" and
+equipment request screens, `tests/Q1/`, `tests/fixtures/reset-test-data.sql` and `sprint-3.csv`.
+**Reason:** EN-02.2 built reservations that the availability check cannot race, but nothing let
+Technical Support make one. Q1 reserves a Confirmed or Substituted request line's equipment.
+
+## Added
+
+- **`POST /api/v1/equipment/request-lines/{id}/reservation`**, Technical Support only. It reserves
+  the line's type and quantity, or its substitute's when the line is Substituted, for the line's own
+  window. A lower quantity needs `"partial": true`; a higher one is refused. Refusals:
+  `INSUFFICIENT_EQUIPMENT` (with the shortfall), `PARTIAL_NOT_CONFIRMED`, `LINE_NOT_RESERVABLE`.
+- **`equipment.reservations`** (migration 0005): one row per reservation, with the requested and
+  reserved quantities and who reserved it. The unit and bulk rows it groups carry `reservation_id`;
+  their foreign keys are validated in 0006. One active reservation per line.
+- **`reserveLine`**: locks the line, then the type, so two reservations racing for the last unit
+  queue and exactly one wins (Q1-T13, on CI's throwaway Postgres).
+- A **Reserve** action on "Equipment requests". Reserved lines show "Reserved n of m", with who and
+  when, to Technical Support and to the coordinator.
+- Cards Q1-T1 to Q1-T14, with a named automated test for T1–T13.
+
+## Changed
+
+- Request lines in API responses carry `reservation` (null until reserved).
+- Reserving notifies the assigned coordinator through O2's existing line-status-changed message,
+  now built in one place (`events/lineStatusMessage.ts`) for both. For a Reserved line the message
+  also carries `reservedQuantity`, and the notification reads "(3 of 5 reserved)" when fewer than
+  requested were reserved. O2's messages are unchanged.
+- Request lines' `reservation` also names the reserved type (`equipmentTypeName`), so a Reserved
+  line that was Substituted shows the substitute.
+- Reserving writes a history entry naming the reserved type and both quantities.
+- `npm run test-cases:reset` removes test lines' reservations before the lines. It skips that step
+  on a database without migration 0005.
+
+## Before using it on the shared database
+
+Migrations 0005–0006 are not applied to the shared Supabase database. Run
+`npm run migrate -- equipment` **before planning-core is deployed against it**. Until then, every
+O1 and O2 request-line endpoint fails there (create, edit, remove, list, open and status change),
+not only the screens: each reads the line together with its reservation, and the join needs
+`equipment.reservations`.
+
+---
+
 # Event ids that aren't UUIDs get 404; H1's venue routes are rate-limited; EN-02 tests clean up
 
 **Timestamp:** 2026-10-14T00:05+08:00 (SGT)

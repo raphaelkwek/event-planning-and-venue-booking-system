@@ -1474,9 +1474,11 @@ paths:
       tags: [Equipment]
       summary: Remove an equipment request line (O1)
       description: |
-        The event's assigned Event Coordinator only, and only while the line is Submitted or Under
-        Review. Removal sets the status Removed and records the acting user, the time, and the
-        equipment type and quantity removed in the line's history. Nothing is deleted.
+        The event's assigned Event Coordinator only, and only while the line is Submitted, Under
+        Review or Reserved. Removal sets the status Removed and records the acting user, the time, and the
+        equipment type and quantity removed in the line's history. Nothing is deleted. A Reserved line
+        can be removed: its reservation is released first, with the reason "Request line removed",
+        and the coordinator is sent a released notice (Q2).
       operationId: removeEquipmentRequestLine
       requestBody:
         required: false
@@ -1530,6 +1532,97 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
+        "429": { $ref: "#/components/responses/RateLimitExceeded" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
+  /api/v1/equipment/request-lines/{id}/reservation:
+    parameters:
+      - $ref: "#/components/parameters/RecordId"
+    post:
+      tags: [Equipment]
+      summary: Reserve a Confirmed or Substituted line's equipment (Q1)
+      description: |
+        Technical Support Staff only. Reserves the line's equipment for the event's period and sets the
+        line to Reserved. A Substituted line reserves the substitute type and quantity. `quantity`
+        defaults to the requested quantity; a lower one needs `partial: true`, a higher one is refused.
+        The reservation, the line's new status and an `equipment-request.line-status-changed` message
+        for the event's assigned coordinator are written in one transaction; a refused reservation
+        writes none of them.
+      operationId: reserveEquipmentRequestLine
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ReservationRequest" }
+      responses:
+        "201":
+          description: The reservation and the line, now Reserved.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [reservation, line]
+                properties:
+                  reservation: { $ref: "#/components/schemas/Reservation" }
+                  line: { $ref: "#/components/schemas/EquipmentRequestLine" }
+        "400": { $ref: "#/components/responses/ValidationFailed" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404":
+          description: "`EQUIPMENT_LINE_NOT_FOUND` (or `EVENT_NOT_FOUND`)."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "409":
+          description: "`LINE_NOT_RESERVABLE` (the message names the status), `PARTIAL_NOT_CONFIRMED`, or `INSUFFICIENT_EQUIPMENT` with `details.available` and `details.shortfall`."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "429": { $ref: "#/components/responses/RateLimitExceeded" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
+  /api/v1/equipment/request-lines/{id}/release:
+    parameters:
+      - $ref: "#/components/parameters/RecordId"
+    post:
+      tags: [Equipment]
+      summary: Release a Reserved line's reservation (Q2)
+      description: |
+        Technical Support Staff only. Releases the line's reservation with a reason; the equipment is
+        available again and the line goes back to Confirmed, or to Substituted if it carries a
+        substitute. The release, the line's new status and an `equipment-request.line-status-changed`
+        message (marked `released`, with the reason) for the event's assigned coordinator are written
+        in one transaction; a refused release writes none of them.
+      operationId: releaseEquipmentRequestLineReservation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ReleaseRequest" }
+      responses:
+        "200":
+          description: The released reservation and the line, no longer Reserved.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [reservation, line]
+                properties:
+                  reservation: { $ref: "#/components/schemas/Reservation" }
+                  line: { $ref: "#/components/schemas/EquipmentRequestLine" }
+        "400": { $ref: "#/components/responses/ValidationFailed" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404":
+          description: "`EQUIPMENT_LINE_NOT_FOUND` (or `EVENT_NOT_FOUND`)."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "409":
+          description: "`LINE_NOT_RELEASABLE` with `details.status` (only a Reserved line can be released), or `RESERVATION_ALREADY_RELEASED`."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
         "429": { $ref: "#/components/responses/RateLimitExceeded" }
         "503": { $ref: "#/components/responses/IdentityUnavailable" }
 
@@ -1622,6 +1715,21 @@ components:
         - REASSIGNMENT_ALREADY_PENDING
         - REASSIGNMENT_PROPOSAL_NOT_FOUND
         - VENUE_NOT_FOUND
+        - VENUE_SLOT_CONFLICT
+        - NOTIFICATION_NOT_FOUND
+        - INSUFFICIENT_EQUIPMENT
+        - EQUIPMENT_TYPE_NOT_FOUND
+        - EQUIPMENT_LINE_NOT_FOUND
+        - EQUIPMENT_LINE_NOT_EDITABLE
+        - LINE_NOT_RESERVABLE
+        - PARTIAL_NOT_CONFIRMED
+        - LINE_NOT_RELEASABLE
+        - RESERVATION_ALREADY_RELEASED
+        - RATE_LIMITED
+        - EVENT_NOT_EDITABLE
+        - CHANGE_REQUEST_REQUIRED
+        - EVENT_VERSION_MISMATCH
+        - EVENT_VERSION_REQUIRED
         - EVENT_NOT_CHANGEABLE
         - CHANGE_REQUEST_ALREADY_PENDING
 
@@ -2288,6 +2396,7 @@ components:
         - substituteEquipmentTypeName
         - substituteQuantity
         - updatedAt
+        - reservation
       properties:
         id: { type: string, format: uuid }
         eventId: { type: string, format: uuid }
@@ -2308,6 +2417,58 @@ components:
         substituteEquipmentTypeName: { type: [string, "null"] }
         substituteQuantity: { type: [integer, "null"], minimum: 1 }
         updatedAt: { type: string, format: date-time }
+        reservation:
+          oneOf:
+            - { $ref: "#/components/schemas/LineReservation" }
+            - { type: "null" }
+          description: The line's active reservation, or null.
+
+    ReservationRequest:
+      type: object
+      properties:
+        quantity: { type: integer, minimum: 1, description: Defaults to the requested quantity. }
+        partial: { type: boolean, description: Must be true to reserve fewer than requested. }
+
+    ReleaseRequest:
+      type: object
+      required: [reason]
+      additionalProperties: false
+      properties:
+        reason: { type: string, minLength: 1, maxLength: 1000, description: Why the reservation is released. }
+
+    Reservation:
+      type: object
+      required: [id, requestLineId, eventId, eventReference, equipmentTypeId, kind, requestedQuantity, reservedQuantity, startsAt, endsAt, status, reservedBy, reservedAt, releasedBy, releasedAt, releaseReason]
+      properties:
+        id: { type: string, format: uuid }
+        requestLineId: { type: string, format: uuid }
+        eventId: { type: string, format: uuid }
+        eventReference: { type: string }
+        equipmentTypeId: { type: string, format: uuid, description: The reserved type; the substitute's for a Substituted line. }
+        kind: { type: string, enum: [SERIALIZED, BULK] }
+        requestedQuantity: { type: integer, minimum: 1 }
+        reservedQuantity: { type: integer, minimum: 1 }
+        startsAt: { type: string, format: date-time }
+        endsAt: { type: string, format: date-time }
+        status: { type: string, enum: [RESERVED, RELEASED] }
+        reservedBy: { type: string, format: uuid }
+        reservedAt: { type: string, format: date-time }
+        releasedBy: { type: [string, "null"], format: uuid }
+        releasedAt: { type: [string, "null"], format: date-time }
+        releaseReason: { type: [string, "null"] }
+
+    LineReservation:
+      type: object
+      description: The line's active reservation.
+      required: [id, equipmentTypeId, equipmentTypeName, requestedQuantity, reservedQuantity, reservedBy, reservedAt]
+      properties:
+        id: { type: string, format: uuid }
+        equipmentTypeId: { type: string, format: uuid }
+        equipmentTypeName: { type: string, description: "The type reserved: the substitute's, for a Substituted line." }
+        requestedQuantity: { type: integer, minimum: 1 }
+        reservedQuantity: { type: integer, minimum: 1 }
+        reservedBy: { type: string, format: uuid }
+        reservedAt: { type: string, format: date-time }
 
     EquipmentRequestLineHistoryEntry:
       type: object

@@ -20,6 +20,10 @@ export const equipmentLineStatusChangedPayloadSchema = z.object({
   coordinatorId: z.string().uuid(),
   equipmentTypeName: z.string().min(1),
   quantity: z.number().int().positive(),
+  /** Q1: how many were reserved, when that is fewer than `quantity`'s worth the coordinator should hear about. Absent for O2's changes. */
+  reservedQuantity: z.number().int().positive().nullable().optional(),
+  /** Q2: the change released the line's reservation; `reason` is the release reason. */
+  released: z.boolean().optional(),
   previousStatus: lineStatus,
   newStatus: lineStatus,
   /** O2's reason for Unavailable. */

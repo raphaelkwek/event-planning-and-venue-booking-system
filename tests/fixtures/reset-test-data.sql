@@ -42,6 +42,7 @@ delete from venue.venues        where id in (select id from test_owned_venues);
 
 -- Equipment the seeded Technical Support account created (P2), including all
 -- audit, reservation, unavailability, unit and request line rows that refer to those types.
+-- Request lines and their reservations go first: reservations reference lines (Q1).
 create temporary table test_owned_equipment on commit drop as
   select id from equipment.equipment_types
   where created_by = '00000000-0000-0000-0000-000000000004'; -- techsupport@connectsphere.test
@@ -58,6 +59,24 @@ delete from equipment.outbox
   where message_key in (select id::text from test_owned_lines);
 delete from equipment.request_line_history
   where line_id in (select id from test_owned_lines);
+
+-- Q1: the reservations of those lines, and the unit and bulk rows each one groups. A
+-- reservation's type is its line's type or substitute, so every reservation of a test-owned
+-- type belongs to a test-owned line. Skipped where migration equipment/0005 isn't applied yet.
+do $$
+begin
+  if to_regclass('equipment.reservations') is not null then
+    delete from equipment.unit_reservations
+      where reservation_id in (select id from equipment.reservations
+                               where request_line_id in (select id from test_owned_lines));
+    delete from equipment.bulk_reservations
+      where reservation_id in (select id from equipment.reservations
+                               where request_line_id in (select id from test_owned_lines));
+    delete from equipment.reservations
+      where request_line_id in (select id from test_owned_lines);
+  end if;
+end $$;
+
 delete from equipment.equipment_request_lines
   where id in (select id from test_owned_lines);
 

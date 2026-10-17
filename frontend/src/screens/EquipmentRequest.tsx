@@ -75,7 +75,7 @@ export function EquipmentRequest() {
   const [removing, setRemoving] = useState<RequestLine | null>(null);
   const [removeError, setRemoveError] = useState<unknown>(null);
 
-  const nameOf = useUserNames(session.token, [event?.assignedCoordinatorId, ...lines.map((line) => line.requestedBy)]);
+  const nameOf = useUserNames(session.token, [event?.assignedCoordinatorId, ...lines.map((line) => line.requestedBy), ...lines.map((line) => line.reservation?.reservedBy)]);
   const isAssigned = event?.assignedCoordinatorId === session.userId;
 
   const load = useCallback(async () => {
@@ -173,22 +173,34 @@ export function EquipmentRequest() {
                 Instead: {line.substituteEquipmentTypeName} × {line.substituteQuantity}
               </div>
             )}
+            {line.reservation && (
+              <div style={{ fontSize: 12 }}>
+                Reserved {line.reservation.reservedQuantity} of {line.reservation.requestedQuantity}
+                {line.reservation.equipmentTypeId !== line.equipmentTypeId && ` ${line.reservation.equipmentTypeName}`}
+                <div style={{ color: "#626F86" }}>
+                  {nameOf(line.reservation.reservedBy)} · {formatInstant(line.reservation.reservedAt)}
+                </div>
+              </div>
+            )}
           </div>
         ),
       },
       { key: "by", content: `${nameOf(line.requestedBy)} · ${formatInstant(line.requestedAt)}` },
       {
         key: "actions",
-        content: !isAssigned ? null : EDITABLE_LINE_STATUSES.includes(line.status) ? (
+        content: !isAssigned ? null : EDITABLE_LINE_STATUSES.includes(line.status) || line.status === "RESERVED" ? (
           <div style={{ display: "flex", gap: 8 }}>
-            <Button
-              onClick={() => {
-                setEditError(null);
-                setEditing(draftOf(line));
-              }}
-            >
-              Edit
-            </Button>
+            {/* Q2: a Reserved line cannot be edited, but the coordinator may remove it, which releases it. */}
+            {line.status !== "RESERVED" && (
+              <Button
+                onClick={() => {
+                  setEditError(null);
+                  setEditing(draftOf(line));
+                }}
+              >
+                Edit
+              </Button>
+            )}
             <Button
               onClick={() => {
                 setRemoveError(null);
@@ -324,6 +336,7 @@ export function EquipmentRequest() {
               <p>
                 {removing.equipmentTypeName} × {removing.quantity} will be marked Removed and no longer listed. Who removed it and when
                 is recorded.
+                {removing.status === "RESERVED" && " Its reserved equipment will be released."}
               </p>
               <Refusal error={removeError} />
             </ModalBody>
