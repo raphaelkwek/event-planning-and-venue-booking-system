@@ -19,8 +19,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Waits for the S2 implementation; runs on CI's throwaway Postgres only (`tests/race/invariants.test.ts`). Commit: · Evidence: · Defect: — |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | The automated race ran on CI's throwaway Postgres, fifty simultaneous approve and reject decisions per round for ten rounds, and its assertions passed; they check the expected result above. |
+| Status | Pass (automated, database level) |
+| Remarks | Commit: 209b06f5d2dda18e13545ba942220ad38ba9553b · Evidence: backend/services/planning-core/tests/race/invariants.test.ts › S2-T11, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/39054495539 · Defect: — |
+| Executed By | Raphael, via automated testing (CI) |
+| Date of Execution | 2026-10-18 |
