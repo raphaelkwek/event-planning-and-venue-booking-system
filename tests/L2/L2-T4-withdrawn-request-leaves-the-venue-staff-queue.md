@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | Before the withdrawal the queue listed BKR-000177; afterwards it didn't. |
+| Status | Pass |
+| Remarks | Commit: 0616c96 · Evidence: tests/L2/evidence/L2-T4.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-17 |

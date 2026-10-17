@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | The queue listed BKR-000161 for Lee Kong Chian Auditorium with the event's reference EVT-007618, and did not list BKR-000162 for Mochtar Riady Hall. |
+| Status | Pass |
+| Remarks | Commit: 0616c96 · Evidence: tests/L1/evidence/L1-T5.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-17 |

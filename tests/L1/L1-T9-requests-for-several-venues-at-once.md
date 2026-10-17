@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | Both were accepted, BKR-000168 (Lee Kong Chian Auditorium) and BKR-000169 (Seminar Room 2-1), each Pending. After withdrawing BKR-000169: "BKR-000169Seminar Room 2-1Wednesday 2 December 2026, 14:00–18:00Classroom150Withdrawn"; BKR-000168 was still Pending. |
+| Status | Pass |
+| Remarks | Commit: 0616c96 · Evidence: tests/L1/evidence/L1-T9.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-17 |

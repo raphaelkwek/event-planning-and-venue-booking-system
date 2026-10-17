@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | Step 1 returned 201, Pending, with replacesBookingId 1a4c7f23-fc32-4f43-b26b-6d835ea99b27; the flagged booking stayed Confirmed and flagged. Step 2 returned 422 REPLACEMENT_NOT_VALID: "The booking to replace must be one of this event's confirmed bookings flagged Requires Reconfirmation." Nothing was stored for it. |
+| Status | Pass |
+| Remarks | Commit: 0616c96 · Evidence: tests/L1/evidence/L1-T10.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-17 |

@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | After withdrawing BKR-000178, Wednesday 2 December 2026 had no Pending row (Committed: 00:00–08:00 Outside operating hours; 22:00–24:00 Outside operating hours) and was free 08:00–22:00. |
+| Status | Pass |
+| Remarks | Commit: 0616c96 · Evidence: tests/L2/evidence/L2-T5.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-17 |

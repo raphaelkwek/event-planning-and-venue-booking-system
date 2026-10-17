@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | Under Review: 409 EVENT_NOT_BOOKABLE, "A venue can be requested once the event is approved: while it is Approved, Planning, Safety Review or Confirmed. It is Under Review.", nothing stored. Once approved: 201, BKR-000171 Pending. |
+| Status | Pass |
+| Remarks | Commit: 0616c96 · Evidence: tests/L1/evidence/L1-T13.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-17 |

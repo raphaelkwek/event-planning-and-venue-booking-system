@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | "Booking request BKR-000157 submitted." was shown, and the list showed "BKR-000157Lee Kong Chian AuditoriumWednesday 2 December 2026, 14:00–18:00Theatre150PendingWithdraw". The database names coordinator@connectsphere.test as requester at 2026-10-17T12:11:46.665Z. |
+| Status | Pass |
+| Remarks | Commit: 0616c96 · Evidence: tests/L1/evidence/L1-T1.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-17 |
