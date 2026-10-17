@@ -54,6 +54,8 @@ export function EventVenueRequests() {
     setWithdrawError(null);
     try {
       await withdrawBookingRequest(session.token, withdrawing.id);
+      // Replace any earlier message, such as "… submitted.", with what just happened.
+      navigate(`/events/${id}/venue-requests`, { replace: true, state: { notice: `${withdrawing.reference} withdrawn.` } });
       setWithdrawing(null);
       await load();
     } catch (caught) {
