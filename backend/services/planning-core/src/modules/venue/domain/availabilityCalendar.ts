@@ -83,7 +83,8 @@ export interface CalendarRow {
   kind: CommittedKind | "FREE";
   startsAt: Date;
   endsAt: Date;
-  slotStatus: "HELD" | "CONFIRMED" | null;
+  /** A slot's status, or PENDING for a pending booking request (L1), which reserves nothing. */
+  slotStatus: "HELD" | "CONFIRMED" | "PENDING" | null;
   eventId: string | null;
   reasonType: UnavailabilityReasonType | null;
   description: string | null;
@@ -122,7 +123,7 @@ function committedPeriod(row: CalendarRow, references: ReadonlyMap<string, strin
   if (row.slotStatus) {
     return {
       ...period,
-      bookingStatus: row.slotStatus === "HELD" ? "PENDING" : "CONFIRMED",
+      bookingStatus: row.slotStatus === "CONFIRMED" ? "CONFIRMED" : "PENDING",
       eventReference: references.get(row.eventId!) ?? null,
     };
   }

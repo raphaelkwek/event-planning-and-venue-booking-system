@@ -6,6 +6,7 @@ import { kafka, kafkaPublisher } from "./shared/kafka/client.js";
 import { OutboxRelay } from "./shared/outbox-relay.js";
 import { EVENT_OUTBOX_TABLE } from "./modules/event/index.js";
 import { EQUIPMENT_OUTBOX_TABLE } from "./modules/equipment/index.js";
+import { VENUE_OUTBOX_TABLE } from "./modules/venue/index.js";
 
 const server = app.listen(config.port, () => {
   logger.info(`${config.serviceName} listening on :${config.port}`);
@@ -17,10 +18,10 @@ const server = app.listen(config.port, () => {
  * Without Kafka settings the API still works; messages wait in the outbox.
  */
 const publisher = kafka ? kafkaPublisher(kafka) : null;
-const relay = publisher ? new OutboxRelay({ sql, tables: [EVENT_OUTBOX_TABLE, EQUIPMENT_OUTBOX_TABLE], publisher }) : null;
+const relay = publisher ? new OutboxRelay({ sql, tables: [EVENT_OUTBOX_TABLE, EQUIPMENT_OUTBOX_TABLE, VENUE_OUTBOX_TABLE], publisher }) : null;
 if (relay) {
   relay.start();
-  logger.info("outbox relay started", { tables: [EVENT_OUTBOX_TABLE, EQUIPMENT_OUTBOX_TABLE] });
+  logger.info("outbox relay started", { tables: [EVENT_OUTBOX_TABLE, EQUIPMENT_OUTBOX_TABLE, VENUE_OUTBOX_TABLE] });
 } else {
   logger.warn("outbox relay not started: this process has no Kafka settings, so messages wait in the outbox");
 }

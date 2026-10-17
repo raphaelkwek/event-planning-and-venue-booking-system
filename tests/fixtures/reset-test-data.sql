@@ -34,6 +34,13 @@ create temporary table test_owned_venues on commit drop as
   select id from venue.venues
   where created_by = '00000000-0000-0000-0000-000000000003'; -- venuestaff@connectsphere.test
 
+-- Booking requests (L1, L2) at those venues or for the seeded organisers' events, with their
+-- outbox messages. Before the slots, which a replacement request may point at (CR-02).
+delete from venue.outbox where message_key in (
+  select id::text from venue.booking_requests
+  where venue_id in (select id from test_owned_venues) or event_id in (select id from test_owned_events));
+delete from venue.booking_requests
+  where venue_id in (select id from test_owned_venues) or event_id in (select id from test_owned_events);
 delete from venue.venue_slots           where venue_id in (select id from test_owned_venues);
 delete from venue.unavailability_blocks where venue_id in (select id from test_owned_venues);
 delete from venue.venue_history where venue_id in (select id from test_owned_venues);

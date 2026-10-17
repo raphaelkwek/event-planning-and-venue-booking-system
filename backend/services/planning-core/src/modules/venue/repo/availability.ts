@@ -53,6 +53,13 @@ export async function readAvailability(sql: Sql, venueId: string, days: readonly
       union all
       select date, 'TURNAROUND', status, event_id, null, null, tstzrange(ends_at, upper(blocked_period)) * span from slot
       union all
+      -- L1: a pending booking request. It reserves nothing, so several may overlap,
+      -- but it is shown, so a coordinator sees the period is already asked for.
+      select day.date, 'BOOKING', 'PENDING', r.event_id, null, null, r.period * day.span
+      from day
+      join venue.booking_requests r
+        on r.venue_id = ${venueId} and r.status = 'PENDING' and r.period && day.span
+      union all
       select day.date, 'UNAVAILABLE', null, null, b.reason_type, b.description, b.period * day.span
       from day
       join venue.unavailability_blocks b

@@ -170,6 +170,11 @@ describe("assembleCalendar", () => {
     expect(day!.committed[0]).toMatchObject({ kind: "BOOKING", bookingStatus: "PENDING", eventReference: "EVT-000102" });
   });
 
+  it("shows a pending booking request as pending, labelled with its event reference (L1-T6)", () => {
+    const [day] = assembleCalendar([MON], [row("BOOKING", "14:00", "18:00", { slotStatus: "PENDING", eventId: symposium })], references);
+    expect(day!.committed[0]).toMatchObject({ kind: "BOOKING", bookingStatus: "PENDING", eventReference: "EVT-000101" });
+  });
+
   it("leaves the reference empty when the event can no longer be found", () => {
     const [day] = assembleCalendar(
       [MON],
