@@ -1,0 +1,249 @@
+import { useEffect, useState, type FormEvent, type ReactNode } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import Button from "@atlaskit/button/new";
+import { useSignedIn } from "../auth/SessionContext.js";
+import { ApiError } from "../api/client.js";
+import { createBookingRequest, listEventBookingRequests, type BookingEvent } from "../api/bookingRequests.js";
+import { getVenue, listVenues, type Venue, type VenueListItem } from "../api/venues.js";
+import { Refusal } from "../components/Refusal.js";
+import { fromInputs, toInputs } from "../shared/singaporeTime.js";
+
+/**
+ * L1 — the assigned coordinator asks for a venue. The date, times and
+ * attendance start from the event; changing any of them flags the request as
+ * differing from the event, which Venue Staff then see. The layout, facilities
+ * and accessibility features are the chosen venue's, with the ones the event
+ * asks for already chosen.
+ */
+
+interface Form {
+  venueId: string;
+  date: string;
+  start: string;
+  end: string;
+  layout: string;
+  attendance: string;
+  facilities: string[];
+  accessibility: string[];
+}
+
+const lower = (values: readonly string[]) => values.map((value) => value.toLowerCase());
+
+function startFrom(event: BookingEvent): Form {
+  const start = event.proposedStartAt ? toInputs(event.proposedStartAt) : { date: "", time: "" };
+  const end = event.proposedEndAt ? toInputs(event.proposedEndAt) : { date: "", time: "" };
+  return {
+    venueId: "",
+    date: start.date,
+    start: start.time,
+    end: end.time,
+    layout: "",
+    attendance: event.expectedAttendance === null ? "" : String(event.expectedAttendance),
+    facilities: [],
+    accessibility: [],
+  };
+}
+
+export function BookingRequestForm() {
+  const session = useSignedIn();
+  const navigate = useNavigate();
+  const { id } = useParams<{ id: string }>();
+  const [event, setEvent] = useState<BookingEvent | null>(null);
+  const [venues, setVenues] = useState<VenueListItem[]>([]);
+  const [venue, setVenue] = useState<Venue | null>(null);
+  const [form, setForm] = useState<Form | null>(null);
+  const [loadError, setLoadError] = useState<unknown>(null);
+  const [saveError, setSaveError] = useState<unknown>(null);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    Promise.all([listEventBookingRequests(session.token, id!), listVenues(session.token)])
+      .then(([loaded, catalogue]) => {
+        setEvent(loaded.event);
+        setForm(startFrom(loaded.event));
+        setVenues(catalogue.items.filter((item) => item.isActive));
+      })
+      .catch(setLoadError);
+  }, [session.token, id]);
+
+  async function chooseVenue(venueId: string) {
+    setForm((current) => ({ ...current!, venueId, layout: "", facilities: [], accessibility: [] }));
+    setVenue(null);
+    if (!venueId) return;
+    const chosen = await getVenue(session.token, venueId);
+    const wanted = event?.venueRequirements;
+    const needs = (event?.accessibilityNeeds ?? "").toLowerCase();
+    const layout = chosen.layouts.find((l) => l.name.toLowerCase() === (wanted?.layout ?? "").toLowerCase())?.name ?? "";
+    setVenue(chosen);
+    setForm((current) => ({
+      ...current!,
+      layout,
+      facilities: chosen.facilities.filter((f) => lower(wanted?.facilities ?? []).includes(f.toLowerCase())),
+      accessibility: chosen.accessibilityFeatures.filter((a) => needs.includes(a.toLowerCase())),
+    }));
+  }
+
+  function toggle(key: "facilities" | "accessibility", name: string, checked: boolean) {
+    setForm((current) => ({
+      ...current!,
+      [key]: checked ? [...current![key], name] : current![key].filter((item) => item !== name),
+    }));
+  }
+
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    if (!event || !form) return;
+    setSaveError(null);
+    setSaving(true);
+    const attendance = Number(form.attendance);
+    try {
+      const created = await createBookingRequest(session.token, {
+        eventId: event.id,
+        venueId: form.venueId,
+        startsAt: fromInputs(form.date, form.start),
+        endsAt: fromInputs(form.date, form.end),
+        layout: form.layout,
+        expectedAttendance: form.attendance.trim() === "" || !Number.isFinite(attendance) ? null : attendance,
+        // In the venue's own order, as the catalogue lists them.
+        facilities: venue ? venue.facilities.filter((f) => form.facilities.includes(f)) : form.facilities,
+        accessibilityFeatures: venue ? venue.accessibilityFeatures.filter((a) => form.accessibility.includes(a)) : form.accessibility,
+      });
+      navigate(`/events/${event.id}/venue-requests`, { state: { notice: `Booking request ${created.reference} submitted.` } });
+    } catch (caught) {
+      setSaveError(caught);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (loadError) return <Refusal error={loadError} />;
+  if (!event || !form) return <p>Loading…</p>;
+
+  const fieldError = (field: string) => (saveError instanceof ApiError ? saveError.fieldMessage(field) : undefined);
+  const hasFieldErrors = saveError instanceof ApiError && (saveError.envelope.fields?.length ?? 0) > 0;
+  const set = (key: keyof Form) => (value: string) => setForm((current) => ({ ...current!, [key]: value }));
+
+  return (
+    <form onSubmit={submit} style={{ maxWidth: 640 }}>
+      <h2 style={{ marginBottom: 4 }}>Request a venue</h2>
+      <p style={{ marginTop: 0, color: "#626F86" }}>
+        {event.name} · {event.reference}. Times are Singapore time.
+      </p>
+
+      {saveError && !hasFieldErrors ? <Refusal error={saveError} /> : null}
+
+      <Field id="booking-venue" label="Venue" error={fieldError("venueId")}>
+        <select
+          id="booking-venue"
+          value={form.venueId}
+          onChange={(e) => {
+            const value = e.currentTarget.value;
+            void chooseVenue(value);
+          }}
+          style={input}
+        >
+          <option value="">Choose a venue</option>
+          {venues.map((item) => (
+            <option key={item.id} value={item.id}>
+              {item.name}
+            </option>
+          ))}
+        </select>
+      </Field>
+
+      <div style={{ display: "flex", gap: 12 }}>
+        <Field id="booking-date" label="Date" error={fieldError("startsAt")}>
+          <input id="booking-date" type="date" value={form.date} onChange={(e) => set("date")(e.currentTarget.value)} style={input} />
+        </Field>
+        <Field id="booking-start" label="Start time">
+          <input id="booking-start" type="time" value={form.start} onChange={(e) => set("start")(e.currentTarget.value)} style={input} />
+        </Field>
+        <Field id="booking-end" label="End time" error={fieldError("endsAt")}>
+          <input id="booking-end" type="time" value={form.end} onChange={(e) => set("end")(e.currentTarget.value)} style={input} />
+        </Field>
+      </div>
+
+      <Field id="booking-layout" label="Room layout" error={fieldError("layout")}>
+        <select id="booking-layout" value={form.layout} onChange={(e) => set("layout")(e.currentTarget.value)} style={input}>
+          <option value="">{venue ? "Choose a layout" : "Choose a venue first"}</option>
+          {venue?.layouts.map((layout) => (
+            <option key={layout.name} value={layout.name}>
+              {layout.name}
+            </option>
+          ))}
+        </select>
+      </Field>
+
+      <Field id="booking-attendance" label="Expected attendance" error={fieldError("expectedAttendance")}>
+        <input
+          id="booking-attendance"
+          inputMode="numeric"
+          value={form.attendance}
+          onChange={(e) => set("attendance")(e.currentTarget.value)}
+          style={input}
+        />
+      </Field>
+
+      {venue && (
+        <>
+          <Checkboxes legend="Facilities" names={venue.facilities} chosen={form.facilities} onToggle={(n, c) => toggle("facilities", n, c)} />
+          <Checkboxes
+            legend="Accessibility features"
+            names={venue.accessibilityFeatures}
+            chosen={form.accessibility}
+            onToggle={(n, c) => toggle("accessibility", n, c)}
+          />
+        </>
+      )}
+
+      <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+        <Button appearance="primary" type="submit" isDisabled={saving}>
+          Submit request
+        </Button>
+        <Button appearance="subtle" onClick={() => navigate(`/events/${event.id}/venue-requests`)}>
+          Cancel
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+const input = { padding: "6px 8px", border: "2px solid #DFE1E6", borderRadius: 3, font: "inherit", minWidth: 160 };
+
+function Field({ id, label, error, children }: { id: string; label: string; error?: string; children: ReactNode }) {
+  return (
+    <div style={{ marginBottom: 12 }}>
+      <label htmlFor={id} style={{ display: "block", fontWeight: 600, fontSize: 12, marginBottom: 4 }}>
+        {label}
+      </label>
+      {children}
+      {error && (
+        <div role="alert" style={{ color: "#AE2E24", fontSize: 12, marginTop: 4 }}>
+          {error}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Checkboxes(props: { legend: string; names: string[]; chosen: string[]; onToggle: (name: string, checked: boolean) => void }) {
+  return (
+    <fieldset style={{ border: "none", padding: 0, margin: "0 0 12px" }}>
+      <legend style={{ fontWeight: 600, fontSize: 12, marginBottom: 4 }}>{props.legend}</legend>
+      {props.names.length === 0 && <p style={{ margin: 0 }}>The venue records none.</p>}
+      {props.names.map((name) => (
+        <label key={name} style={{ display: "block" }}>
+          <input
+            type="checkbox"
+            checked={props.chosen.includes(name)}
+            onChange={(e) => {
+              const checked = e.currentTarget.checked;
+              props.onToggle(name, checked);
+            }}
+          />{" "}
+          {name}
+        </label>
+      ))}
+    </fieldset>
+  );
+}
