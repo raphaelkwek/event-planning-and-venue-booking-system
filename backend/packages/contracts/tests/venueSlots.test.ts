@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   BLOCKING_SLOT_STATUSES,
   UNAVAILABILITY_BLOCK_STATUSES,
+  UNAVAILABILITY_REASON_LABELS,
   UNAVAILABILITY_REASON_TYPES,
   VENUE_SLOT_STATUSES,
 } from "../src/venueSlots.js";
@@ -44,5 +45,17 @@ describe("UNAVAILABILITY_BLOCK_STATUSES", () => {
 describe("ERROR_CODES", () => {
   it("has the refusal for a hold or booking that overlaps another", () => {
     expect(ERROR_CODES).toContain("VENUE_SLOT_CONFLICT");
+  });
+});
+
+describe("UNAVAILABILITY_REASON_LABELS", () => {
+  it("labels every reason type, for the refusal that names a block (M1)", () => {
+    expect(UNAVAILABILITY_REASON_LABELS).toEqual({
+      MAINTENANCE: "Maintenance",
+      EQUIPMENT_FAILURE: "Equipment failure",
+      RENOVATION: "Renovation",
+      SAFETY: "Safety",
+      OTHER: "Other",
+    });
   });
 });
