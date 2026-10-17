@@ -4,6 +4,44 @@
 
 ---
 
+# S2: the coordinator approves or rejects a change request
+
+**Timestamp:** 2026-10-18T01:28+08:00 (SGT)
+**Author:** Raphael, via Claude
+**Scope:** S2 (SPM-58). The change module's decision (`domain/`, `repo/decisions.ts`,
+`api/decisions.ts`), migrations change/0002–0003, the event module's `applyApprovedChange`,
+contracts' error codes and `change-request.approved|rejected`, the notification service's two
+rules, the OpenAPI contract, both request pages, `tests/S2/` and `sprint-3.csv`. Stacked on S1 (#45).
+**Reason:** S1 lets an organiser request a change; nothing could decide it. S2 lets the assigned
+coordinator approve it, applying the change, or reject it with a reason.
+
+## Added
+
+- **`POST /api/v1/change-requests/{id}/decision`**, for the event's assigned coordinator, while
+  the request is Pending. Approve writes the proposed values to the event, records one history
+  entry per field (before, after, coordinator, time) and raises the event's version, so an older
+  G1 edit is refused. Reject needs a reason and changes nothing. Refusals:
+  `CHANGE_REQUEST_ALREADY_DECIDED`, `CHANGE_REQUEST_NO_LONGER_VALID` (the event is no longer
+  changeable, a proposed value no longer passes B2's rules, or the event changed after the request
+  was made — D3 can amend these fields while awaiting clarification), `CHANGE_REQUEST_NOT_FOUND`.
+- **Migrations change/0002–0003:** who decided, when, and the rejection reason, with a check.
+- The requesting organiser is notified of either outcome, with the reason on a rejection.
+- Approve and Reject on the coordinator's review page while the request is Pending; the outcome on
+  both pages afterwards.
+- Cards S2-T1 to S2-T13: automated tests for T1–T11 and T13 (T11 a race), T12 a browser walkthrough.
+
+## Changed
+
+- On the coordinator's review page the event's own Approve and Reject (D4, D5) are hidden, not
+  disabled, once the event is decided, so they can't be confused with the change request's.
+
+## Before using it on the shared database
+
+1. `npm run migrate -- change` applies 0002–0003 (after S1's 0001).
+2. Deploy the notification service with planning-core: it dead-letters message types it doesn't know.
+
+---
+
 # S1: an organiser can request a change after submission
 
 **Timestamp:** 2026-10-17T05:31+08:00 (SGT)

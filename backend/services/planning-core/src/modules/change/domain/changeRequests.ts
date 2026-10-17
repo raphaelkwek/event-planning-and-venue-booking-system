@@ -144,6 +144,8 @@ function comparable(field: SignificantEventField, value: unknown): string {
  * S2 — the requested fields whose live value is no longer the one snapshotted when the request
  * was made (D3 lets the organiser amend them while Awaiting Clarification), as `changes.<field>` errors.
  */
+const capitalise = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
+
 export function staleFields(
   live: Partial<Record<SignificantEventField, unknown>>,
   fields: { fieldName: SignificantEventField; currentValue: unknown }[]
@@ -152,7 +154,7 @@ export function staleFields(
     .filter((field) => comparable(field.fieldName, live[field.fieldName]) !== comparable(field.fieldName, field.currentValue))
     .map((field) => ({
       field: `changes.${field.fieldName}`,
-      message: `The event's ${SIGNIFICANT_FIELD_LABELS[field.fieldName]} changed after this request was made. Reject it; the organiser can request again.`,
+      message: `${capitalise(SIGNIFICANT_FIELD_LABELS[field.fieldName])} changed on the event after this request was made. Reject it; the organiser can request again.`,
     }));
 }
 

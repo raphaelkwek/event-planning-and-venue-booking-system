@@ -225,8 +225,8 @@ describe("staleFields (S2)", () => {
         field("equipmentRequired" as never, false),
       ])
     ).toEqual([
-      { field: "changes.proposedStartAt", message: "The event's start changed after this request was made. Reject it; the organiser can request again." },
-      { field: "changes.equipmentRequired", message: "The event's whether equipment is required changed after this request was made. Reject it; the organiser can request again." },
+      { field: "changes.proposedStartAt", message: "Start changed on the event after this request was made. Reject it; the organiser can request again." },
+      { field: "changes.equipmentRequired", message: "Whether equipment is required changed on the event after this request was made. Reject it; the organiser can request again." },
     ]);
   });
 });
