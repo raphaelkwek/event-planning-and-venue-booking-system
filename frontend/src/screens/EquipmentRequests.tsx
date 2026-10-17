@@ -9,6 +9,7 @@ import { listEquipmentTypes } from "../api/equipmentAvailability.js";
 import {
   changeLineStatus,
   listRequestLines,
+  reserveLine,
   type LineStatus,
   type RequestLine,
   type StaffLineStatus,
@@ -59,7 +60,11 @@ export function EquipmentRequests() {
   const [updating, setUpdating] = useState<RequestLine | null>(null);
   const [update, setUpdate] = useState<Update>(blankUpdate);
   const [updateError, setUpdateError] = useState<unknown>(null);
-  const [updated, setUpdated] = useState<string | null>(null);
+  const [notice, setNotice] = useState<{ title: string; text: string } | null>(null);
+  const [reserving, setReserving] = useState<RequestLine | null>(null);
+  const [reserveQuantity, setReserveQuantity] = useState("");
+  const [partial, setPartial] = useState(false);
+  const [reserveError, setReserveError] = useState<unknown>(null);
   const [busy, setBusy] = useState(false);
   const nameOf = useUserNames(session.token, lines.map((line) => line.statusChangedBy));
 
@@ -84,8 +89,9 @@ export function EquipmentRequests() {
   }, [load]);
 
   function open(line: RequestLine) {
-    setUpdated(null);
+    setNotice(null);
     setUpdateError(null);
+    setReserving(null);
     setUpdating(line);
     setUpdate(blankUpdate);
   }
@@ -96,12 +102,46 @@ export function EquipmentRequests() {
     setUpdateError(null);
     try {
       const changed = await changeLineStatus(session.token, updating.id, toChange(update));
-      setUpdated(`${changed.equipmentTypeName} for ${changed.eventReference} is now ${LINE_STATUS_LABELS[changed.status]}.`);
+      setNotice({ title: "Status updated", text: `${changed.equipmentTypeName} for ${changed.eventReference} is now ${LINE_STATUS_LABELS[changed.status]}.` });
       setUpdating(null);
       await load();
     } catch (caught) {
       // The line keeps its status; the refusal says why.
       setUpdateError(caught);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  /** Q1: a Substituted line reserves the substitute, so its quantity is what is asked for. */
+  const requestedFor = (line: RequestLine) => (line.status === "SUBSTITUTED" ? line.substituteQuantity ?? line.quantity : line.quantity);
+
+  function openReserve(line: RequestLine) {
+    setNotice(null);
+    setUpdating(null);
+    setReserveError(null);
+    setPartial(false);
+    setReserveQuantity(String(requestedFor(line)));
+    setReserving(line);
+  }
+
+  async function reserve() {
+    if (!reserving) return;
+    setBusy(true);
+    setReserveError(null);
+    try {
+      // An empty box asks for the requested quantity, which the server fills in.
+      const quantity = finiteNumber(reserveQuantity);
+      const done = await reserveLine(session.token, reserving.id, quantity === null ? { partial } : { quantity, partial });
+      setNotice({
+        title: "Equipment reserved",
+        text: `Reserved ${done.reservation.reservedQuantity} of ${done.reservation.requestedQuantity} for ${done.line.eventReference}.`,
+      });
+      setReserving(null);
+      await load();
+    } catch (caught) {
+      // Nothing was reserved; the refusal says why.
+      setReserveError(caught);
     } finally {
       setBusy(false);
     }
@@ -129,10 +169,10 @@ export function EquipmentRequests() {
       </div>
 
       <Refusal error={loadError} />
-      {updated && (
+      {notice && (
         <div style={{ marginBottom: 16 }}>
-          <SectionMessage appearance="success" title="Status updated">
-            <p style={{ margin: 0 }}>{updated}</p>
+          <SectionMessage appearance="success" title={notice.title}>
+            <p style={{ margin: 0 }}>{notice.text}</p>
           </SectionMessage>
         </div>
       )}
@@ -170,6 +210,12 @@ export function EquipmentRequests() {
                       Instead: {line.substituteEquipmentTypeName} × {line.substituteQuantity}
                     </div>
                   )}
+                  {line.reservation && (
+                    <div style={{ fontSize: 12 }}>
+                      Reserved {line.reservation.reservedQuantity} of {line.reservation.requestedQuantity}
+                      {line.reservation.equipmentTypeId !== line.equipmentTypeId && ` ${line.reservation.equipmentTypeName}`}
+                    </div>
+                  )}
                   {line.statusChangedBy && (
                     <div style={{ fontSize: 12, color: "#626F86" }}>
                       {nameOf(line.statusChangedBy)} · {formatInstant(line.statusChangedAt)}
@@ -184,7 +230,19 @@ export function EquipmentRequests() {
                 line.status === "RESERVED" ? (
                   <span style={{ fontSize: 12, color: "#626F86" }}>Reserved</span>
                 ) : (
-                  <Button onClick={() => open(line)}>Update</Button>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <Button aria-label={`Update ${line.equipmentTypeName} for ${line.eventReference}`} onClick={() => open(line)}>
+                      Update
+                    </Button>
+                    {(line.status === "CONFIRMED" || line.status === "SUBSTITUTED") && (
+                      <Button
+                        aria-label={`Reserve ${line.status === "SUBSTITUTED" ? line.substituteEquipmentTypeName : line.equipmentTypeName} for ${line.eventReference}`}
+                        onClick={() => openReserve(line)}
+                      >
+                        Reserve
+                      </Button>
+                    )}
+                  </div>
                 ),
             },
           ],
@@ -268,6 +326,50 @@ export function EquipmentRequests() {
               Save status
             </Button>
             <Button appearance="subtle" onClick={() => setUpdating(null)}>
+              Cancel
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {reserving && (
+        <div style={{ marginTop: 24, maxWidth: 640 }}>
+          <h3>
+            Reserve {reserving.status === "SUBSTITUTED" ? reserving.substituteEquipmentTypeName : reserving.equipmentTypeName} ×{" "}
+            {requestedFor(reserving)} for {reserving.eventReference}
+          </h3>
+          <Refusal error={reserveError} />
+          <div style={{ marginBottom: 12, maxWidth: 200 }}>
+            <label htmlFor="reserve-quantity">Quantity to reserve</label>
+            <Textfield
+              id="reserve-quantity"
+              type="number"
+              min={1}
+              step={1}
+              value={reserveQuantity}
+              isInvalid={Boolean(fieldMessage(reserveError, "quantity"))}
+              aria-describedby={fieldMessage(reserveError, "quantity") ? "reserve-quantity-error" : undefined}
+              onChange={(event) => setReserveQuantity(event.currentTarget.value)}
+            />
+            {fieldMessage(reserveError, "quantity") && (
+              <p id="reserve-quantity-error" style={{ color: "#AE2A19", margin: "4px 0 0" }}>
+                {fieldMessage(reserveError, "quantity")}
+              </p>
+            )}
+          </div>
+          {reserveQuantity.trim() !== "" && Number(reserveQuantity) >= 1 && Number(reserveQuantity) < requestedFor(reserving) && (
+            <div style={{ marginBottom: 12 }}>
+              <label>
+                <input type="checkbox" checked={partial} onChange={(event) => setPartial(event.currentTarget.checked)} />{" "}
+                Reserve fewer than requested
+              </label>
+            </div>
+          )}
+          <div style={{ display: "flex", gap: 8 }}>
+            <Button appearance="primary" isDisabled={busy} onClick={() => void reserve()}>
+              Reserve equipment
+            </Button>
+            <Button appearance="subtle" onClick={() => setReserving(null)}>
               Cancel
             </Button>
           </div>

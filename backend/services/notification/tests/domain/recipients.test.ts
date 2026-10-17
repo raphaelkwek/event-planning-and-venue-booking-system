@@ -173,6 +173,24 @@ describe("notificationsFor", () => {
       );
     });
 
+    it("says how many were reserved when Q1 reserved fewer than requested", () => {
+      const [note] = notificationsFor(
+        message("equipment-request.line-status-changed", { ...line, quantity: 5, newStatus: "RESERVED", reservedQuantity: 3 }),
+      );
+      expect(note!.message).toBe(
+        "Technical Support updated equipment for EVT-2026-0042 “Freshmen Orientation”: Folding Chairs × 5 is now Reserved (3 of 5 reserved).",
+      );
+    });
+
+    it("says nothing extra when everything was reserved, or the message carries no reserved quantity", () => {
+      for (const extra of [{ reservedQuantity: 40 }, { reservedQuantity: null }, {}]) {
+        const [note] = notificationsFor(message("equipment-request.line-status-changed", { ...line, newStatus: "RESERVED", ...extra }));
+        expect(note!.message).toBe(
+          "Technical Support updated equipment for EVT-2026-0042 “Freshmen Orientation”: Folding Chairs × 40 is now Reserved.",
+        );
+      }
+    });
+
     it("notifies only the coordinator the message names", () => {
       const notes = notificationsFor(message("equipment-request.line-status-changed", { ...line, newStatus: "UNDER_REVIEW" }));
       expect(notes.map((note) => note.recipientUserId)).toEqual([coordinator]);
