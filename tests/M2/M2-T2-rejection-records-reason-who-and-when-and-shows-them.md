@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | "BKR-000398 rejected." was shown and the request left the queue. It is REJECTED, reason "The auditorium is closed for exams that week", decided by 00000000-0000-0000-0000-000000000003 at 2026-10-17T17:29:51.253Z. The coordinator's row read "BKR-000398Lee Kong Chian AuditoriumWednesday 2 December 2026, 14:00–18:00Theatre150RejectedReason: The auditorium is closed for exams that week". |
+| Status | Pass |
+| Remarks | Commit: 9adf0ff · Evidence: tests/M2/evidence/M2-T2.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-17 |

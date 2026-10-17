@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | The approval went through. The disrupted booking b76c6201-d730-4671-95e1-3db8209b611f still exists, status RELEASED, release reason "replaced", and Seminar Room 2-1's calendar for Wednesday 2 December 2026 shows no booking. |
+| Status | Pass |
+| Remarks | Commit: 9adf0ff · Evidence: tests/M1/evidence/M1-T10.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-17 |

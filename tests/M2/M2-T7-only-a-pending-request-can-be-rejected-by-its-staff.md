@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | Rejecting BKR-000406 (Mochtar Riady Hall) as venuestaff@: 403 ROLE_NOT_AUTHORISED. Rejecting the approved BKR-000407: 409 "BKR-000407 is Approved, so it can't be rejected. Only a pending request can be.". Rejecting BKR-000405 as the coordinator: 403 ROLE_NOT_AUTHORISED. The statuses are unchanged: Pending, Pending, Approved. |
+| Status | Pass |
+| Remarks | Commit: 9adf0ff · Evidence: tests/M2/evidence/M2-T7.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-17 |

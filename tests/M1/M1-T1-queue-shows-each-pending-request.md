@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | The queue's row read "BKR-000384EVT-007939Lee Kong Chian AuditoriumWednesday 2 December 2026, 14:00–18:00Theatre150 attending——Coordinator One10/18/2026, 1:29:08 AMApprove Reject", with "Approve" and "Reject". The BKR-000385 request for Mochtar Riady Hall wasn't listed. |
+| Status | Pass |
+| Remarks | Commit: 9adf0ff · Evidence: tests/M1/evidence/M1-T1.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-17 |

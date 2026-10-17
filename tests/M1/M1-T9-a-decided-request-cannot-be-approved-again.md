@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | BKR-000392: 409 "BKR-000392 is Approved, so it can't be approved. Only a pending request can be."; BKR-000393: 409 "BKR-000393 is Rejected, so it can't be approved. Only a pending request can be.". The approved request's decided_at is still 2026-10-17T17:29:36.250Z, the rejected one is still REJECTED, and the event has one confirmed booking. |
+| Status | Pass |
+| Remarks | Commit: 9adf0ff · Evidence: tests/M1/evidence/M1-T9.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-17 |

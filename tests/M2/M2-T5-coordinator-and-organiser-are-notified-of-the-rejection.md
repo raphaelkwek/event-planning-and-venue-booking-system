@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | Each had one unread notification. coordinator@connectsphere.test: "Booking request BKR-000401 for Lee Kong Chian Auditorium was rejected: EVT-007955 “Annual Research Symposium”, Wednesday 2 December 2026, 14:00–18:00. Reason: Already promised to another faculty. Suggested alternative: Thursday 3 December at the same time, or Seminar Room 2-110/18/2026, 1:30:03 AMUnreadOpenMark as read"; organiser@connectsphere.test: "Booking request BKR-000401 for Lee Kong Chian Auditorium was rejected: EVT-007955 “Annual Research Symposium”, Wednesday 2 December 2026, 14:00–18:00. Reason: Already promised to another faculty. Suggested alternative: Thursday 3 December at the same time, or Seminar Room 2-110/18/2026, 1:30:03 AMUnreadOpenMark as read". |
+| Status | Pass |
+| Remarks | Commit: 9adf0ff · Evidence: tests/M2/evidence/M2-T5.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-17 |

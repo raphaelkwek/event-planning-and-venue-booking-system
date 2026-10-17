@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | The dialog showed "BKR-000388 wasn't approved: Lee Kong Chian Auditorium is unavailable for Maintenance, “Stage rigging inspection” (Wednesday 2 December 2026, 16:00–19:00). Nothing was approved, and the request is still Pending." The request stayed in the queue, PENDING, with no booking. |
+| Status | Pass |
+| Remarks | Commit: 9adf0ff · Evidence: tests/M1/evidence/M1-T5.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-17 |

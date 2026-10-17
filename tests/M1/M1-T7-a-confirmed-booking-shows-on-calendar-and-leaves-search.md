@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | The calendar's committed rows for Wednesday 2 December 2026: 00:00–08:00 Outside operating hours; 14:00–18:00 Confirmed EVT-007946; 22:00–24:00 Outside operating hours; free: 08:00–14:00, 18:00–22:00. Searching 15:00–17:00 listed Mochtar Riady Hall, Availability, Seminar Room 2-1, Availability, without Lee Kong Chian Auditorium; 18:00–20:00 listed it again. |
+| Status | Pass |
+| Remarks | Commit: 9adf0ff · Evidence: tests/M1/evidence/M1-T7.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-17 |

@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | The dialog read "Approve BKR-000386?The booking for Lee Kong Chian Auditorium, Wednesday 2 December 2026, 14:00–18:00, will be confirmed, and the coordinator and the event's organiser will be told. It is refused if the period now overlaps another booking or recorded unavailability.CancelApprove request". Afterwards "BKR-000386 approved. The booking is confirmed." was shown and the request left the queue. It is APPROVED, decided by 00000000-0000-0000-0000-000000000003 at 2026-10-17T17:29:14.050Z, and its booking e8ddcef7-1284-4238-8b4b-8cc1d59b6768 is CONFIRMED at Lee Kong Chian Auditorium, 2026-12-02T06:00:00.000Z to 2026-12-02T10:00:00.000Z. |
+| Status | Pass |
+| Remarks | Commit: 9adf0ff · Evidence: tests/M1/evidence/M1-T3.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-17 |
