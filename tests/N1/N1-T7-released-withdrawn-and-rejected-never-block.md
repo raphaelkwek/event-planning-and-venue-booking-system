@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | With two released bookings, a withdrawn request (BKR-000523) and a rejected one (BKR-000524) for 14:00–18:00, the approval of BKR-000525 went through. The venue has exactly one confirmed booking that day, the new one. |
+| Status | Pass |
+| Remarks | Commit: 7c418d5 · Evidence: tests/N1/evidence/N1-T7.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-18 |

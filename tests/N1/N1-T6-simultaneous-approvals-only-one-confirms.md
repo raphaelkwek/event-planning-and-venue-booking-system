@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | Both "Approve request" buttons were clicked at once. BKR-000521: "BKR-000521 approved. The booking is confirmed."; BKR-000522: "BKR-000522 wasn't approved: Lee Kong Chian Auditorium is already booked for EVT-008070 (Wednesday 2 December 2026, 14:00–18:00), counting setup and turnaround time. Nothing was approved, and the request is still Pending.". The venue has one confirmed booking that day; the requests are APPROVED and PENDING. |
+| Status | Pass |
+| Remarks | Commit: 7c418d5 · Evidence: tests/N1/evidence/N1-T6.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-18 |

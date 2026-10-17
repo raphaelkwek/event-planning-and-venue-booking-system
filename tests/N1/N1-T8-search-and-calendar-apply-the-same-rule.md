@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | 15:00–17:00 listed Mochtar Riady Hall, Availability, Seminar Room 2-1, Availability, without Lee Kong Chian Auditorium. 18:00–20:00 listed Lee Kong Chian Auditorium. 17:59–20:00 didn't list it. |
+| Status | Pass |
+| Remarks | Commit: 7c418d5 · Evidence: tests/N1/evidence/N1-T8.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-18 |

@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | "BKR-000515 approved. The booking is confirmed." was shown and the request left the queue. The calendar's committed rows for Wednesday 2 December 2026: 00:00–08:00 Outside operating hours; 14:00–18:00 Confirmed EVT-008061; 22:00–24:00 Outside operating hours. The coordinator's row read "BKR-000515Lee Kong Chian AuditoriumWednesday 2 December 2026, 14:00–18:00Theatre150Approved". |
+| Status | Pass |
+| Remarks | Commit: 7c418d5 · Evidence: tests/N1/evidence/N1-T1.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-18 |
