@@ -1732,6 +1732,9 @@ components:
         - EVENT_VERSION_REQUIRED
         - EVENT_NOT_CHANGEABLE
         - CHANGE_REQUEST_ALREADY_PENDING
+        - CHANGE_REQUEST_NOT_FOUND
+        - CHANGE_REQUEST_ALREADY_DECIDED
+        - CHANGE_REQUEST_NO_LONGER_VALID
 
     ErrorEnvelope:
       type: object

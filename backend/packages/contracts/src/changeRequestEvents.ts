@@ -17,8 +17,24 @@ export const changeRequestSubmittedPayloadSchema = z.object({
   requestedAt: z.string().datetime(),
 });
 
+/** S2 — what a coordinator's decision tells the organiser; a rejection also carries the reason. */
+const decided = {
+  eventId: z.string().uuid(),
+  eventReference: z.string(),
+  eventName: z.string(),
+  ownerId: z.string().uuid(),
+  changeRequestId: z.string().uuid(),
+  fields: z.array(z.enum(SIGNIFICANT_EVENT_FIELDS)).min(1),
+  decidedBy: z.string().uuid(),
+  decidedAt: z.string().datetime(),
+};
+export const changeRequestApprovedPayloadSchema = z.object(decided);
+export const changeRequestRejectedPayloadSchema = z.object({ ...decided, reason: z.string().min(1) });
+
 export const CHANGE_REQUEST_PAYLOAD_SCHEMAS = {
   "change-request.submitted": changeRequestSubmittedPayloadSchema,
+  "change-request.approved": changeRequestApprovedPayloadSchema,
+  "change-request.rejected": changeRequestRejectedPayloadSchema,
 } as const;
 
 export type ChangeRequestMessageType = keyof typeof CHANGE_REQUEST_PAYLOAD_SCHEMAS;

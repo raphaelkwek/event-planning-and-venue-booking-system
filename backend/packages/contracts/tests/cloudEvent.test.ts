@@ -261,4 +261,29 @@ describe("parseCloudEvent: change request messages (S1)", () => {
       /fields/,
     );
   });
+
+  const decidedChange = {
+    ...ref,
+    ownerId: organiser,
+    changeRequestId: "44444444-4444-4444-8444-444444444444",
+    fields: ["proposedStartAt", "expectedAttendance"],
+    decidedBy: coordinator,
+    decidedAt: at,
+  };
+
+  it("accepts a change-request.approved message and returns its data (S2)", () => {
+    const message = parseCloudEvent(exampleMessage("change-request.approved", decidedChange));
+    expect(message.type).toBe("change-request.approved");
+    expect(message.data).toEqual(decidedChange);
+  });
+
+  it("accepts a change-request.rejected message with its reason (S2)", () => {
+    const data = { ...decidedChange, reason: "The hall is booked." };
+    expect(parseCloudEvent(exampleMessage("change-request.rejected", data)).data).toEqual(data);
+  });
+
+  it("refuses a change-request.rejected message without a reason (S2)", () => {
+    expect(() => parseCloudEvent(exampleMessage("change-request.rejected", decidedChange))).toThrow(/reason/);
+    expect(() => parseCloudEvent(exampleMessage("change-request.rejected", { ...decidedChange, reason: "" }))).toThrow(/reason/);
+  });
 });
