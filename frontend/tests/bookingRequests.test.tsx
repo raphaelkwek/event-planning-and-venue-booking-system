@@ -190,6 +190,7 @@ describe("the event's venue requests (L1, L2)", () => {
 
     await vi.waitFor(() => expect(withdrawBookingRequest).toHaveBeenCalledWith("token", "request-1"));
     await vi.waitFor(() => expect(rowText(screen.getByRole("row", { name: /BKR-000001/ }))).toMatch(/withdrawn/i));
+    expect(screen.getByText("BKR-000001 withdrawn.")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Withdraw" })).toBeNull();
   });
 });
