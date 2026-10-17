@@ -39,6 +39,7 @@ const line = (changes: Record<string, unknown> = {}) => ({
   substituteEquipmentTypeId: null,
   substituteEquipmentTypeName: null,
   substituteQuantity: null,
+  reservation: null as null | Record<string, unknown>,
   updatedAt: "2026-10-10T01:00:00.000Z",
   ...changes,
 });
@@ -66,7 +67,7 @@ const fetchMock = vi.fn(async (path: string, init?: RequestInit) => {
   if (removal && method === "POST") return onRemove(removal[1]!);
   const edit = url.pathname.match(/request-lines\/([^/]+)$/);
   if (edit && method === "PUT") return onUpdate(edit[1]!, body);
-  if (url.pathname.startsWith("/identity/api/v1/users")) return reply({ items: [{ id: COORDINATOR, displayName: "Coordinator One", email: "c1@example.test" }] });
+  if (url.pathname.startsWith("/identity/api/v1/users")) return reply({ items: [{ id: COORDINATOR, displayName: "Coordinator One", email: "c1@example.test" }, { id: "74000000-0000-4000-8000-000000000004", displayName: "Tech Support One", email: "ts@example.test" }] });
   if (url.pathname.includes("/notifications")) return reply({ items: [], unreadCount: 0, nextCursor: null });
   throw new Error(`Unexpected request ${method} ${path}`);
 });
@@ -225,6 +226,13 @@ describe("O1 equipment request screen", () => {
     await waitFor(() => expect(screen.getAllByText(/Coordinator One/).length).toBeGreaterThan(0));
   });
 
+  it("shows a Reserved line as Reserved n of m", async () => {
+    lines = [line({ id: "l1", status: "RESERVED", reservation: { id: "r1", equipmentTypeId: CHAIRS, equipmentTypeName: "Folding Chairs", requestedQuantity: 40, reservedQuantity: 30, reservedBy: "74000000-0000-4000-8000-000000000004", reservedAt: "2026-10-15T02:00:00.000Z" } })];
+    render(<App />);
+    expect(await screen.findByText(/Reserved 30 of 40/)).toBeTruthy();
+    await waitFor(() => expect(screen.getByText(/Tech Support One/)).toBeTruthy());
+  });
+
   it("edits a Submitted line and sends the whole line", async () => {
     lines = [line({ id: "l1" })];
     render(<App />);
@@ -287,13 +295,35 @@ describe("O1 equipment request screen", () => {
     expect(await within(dialog).findByText("This line is Reserved.")).toBeTruthy();
   });
 
-  it("offers no edit or removal for lines that are past Under Review", async () => {
-    lines = [line({ id: "l1", status: "RESERVED" }), line({ id: "l2", status: "CONFIRMED" })];
+  it("offers no edit or removal for lines that are past Under Review, except Remove on a Reserved line", async () => {
+    lines = [line({ id: "l2", status: "CONFIRMED" })];
     render(<App />);
-    await screen.findAllByText("Cannot be changed here");
-    expect(screen.getAllByText("Cannot be changed here")).toHaveLength(2);
+    await screen.findByText("Cannot be changed here");
     expect(screen.queryByRole("button", { name: "Edit" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Remove" })).toBeNull();
+  });
+
+  it("offers only Remove on a Reserved line, and the dialog says its equipment will be released", async () => {
+    lines = [line({ id: "l1", status: "RESERVED", reservation: { id: "r1", equipmentTypeId: CHAIRS, equipmentTypeName: "Folding Chairs", requestedQuantity: 40, reservedQuantity: 40, reservedBy: "74000000-0000-4000-8000-000000000004", reservedAt: "2026-10-15T02:00:00.000Z" } })];
+    render(<App />);
+    fireEvent.click(await screen.findByRole("button", { name: "Remove" }));
+    expect(screen.queryByRole("button", { name: "Edit" })).toBeNull();
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText(/Its reserved equipment will be released\./)).toBeTruthy();
+    expect(writeCalls()).toHaveLength(0);
+
+    lines = [];
+    fireEvent.click(within(dialog).getByRole("button", { name: "Remove line" }));
+    await waitFor(() => expect(writeCalls()).toHaveLength(1));
+    expect(writeCalls()[0]![0]).toBe("/equipment/api/v1/equipment/request-lines/l1/removal");
+  });
+
+  it("does not mention a release when the removed line is not Reserved", async () => {
+    lines = [line({ id: "l1" })];
+    render(<App />);
+    fireEvent.click(await screen.findByRole("button", { name: "Remove" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).queryByText(/released/)).toBeNull();
   });
 
   it("shows a coordinator who is not assigned the request but offers no way to change it", async () => {
