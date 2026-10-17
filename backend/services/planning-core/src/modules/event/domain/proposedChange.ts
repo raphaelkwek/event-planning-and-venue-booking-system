@@ -82,3 +82,18 @@ export function checkProposedChange(
   }
   return errors;
 }
+
+/**
+ * S2 — a significant field's value as event history keeps it (text, like G1's):
+ * an instant as UTC ISO, a number or boolean as `String`, a requirements object
+ * as JSON, and no value as null.
+ */
+export function historyText(field: SignificantEventField, value: unknown): string | null {
+  if (value === null || value === undefined) return null;
+  if (field === "proposedStartAt" || field === "proposedEndAt") {
+    const instant = new Date(value as string);
+    return Number.isNaN(instant.getTime()) ? String(value) : instant.toISOString();
+  }
+  if (field === "venueRequirements" || field === "equipmentRequirements") return JSON.stringify(value);
+  return String(value);
+}
