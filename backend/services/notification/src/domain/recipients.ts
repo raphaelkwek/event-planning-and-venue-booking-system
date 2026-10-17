@@ -87,6 +87,13 @@ const RULES: Record<string, Rule> = {
   "change-request.submitted": (d, event) => [
     [d.coordinatorId!, `A change has been requested for ${event}: ${joinLabels(d.fields)}.`],
   ],
+  // S2: the organiser hears what the coordinator decided about their request.
+  "change-request.approved": (d, event) => [
+    [d.ownerId!, `Your change request for ${event} was approved: ${joinLabels(d.fields)}.`],
+  ],
+  "change-request.rejected": (d, event) => [
+    [d.ownerId!, `Your change request for ${event} was rejected. Reason: ${d.reason}`],
+  ],
 };
 
 /** The notifications a message raises; none for a type no story asks to notify about. */

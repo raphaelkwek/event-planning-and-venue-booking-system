@@ -241,6 +241,36 @@ describe("notificationsFor", () => {
     expect(note!.message).toBe("A change has been requested for EVT-2026-0042 “Freshmen Orientation”: expected attendance, somethingNew.");
   });
 
+  it("S2: tells the organiser which fields of their change request were approved", () => {
+    const notes = notificationsFor(
+      message("change-request.approved", {
+        ownerId: organiser,
+        changeRequestId: "0b5f7a3e-1c2d-4e5f-8a9b-0c1d2e3f4a5b",
+        fields: ["proposedStartAt", "expectedAttendance"],
+        decidedBy: coordinator,
+        decidedAt: at,
+      }),
+    );
+    expect(notes).toHaveLength(1);
+    expect(notes[0]).toMatchObject({ recipientUserId: organiser, notificationType: "change-request.approved" });
+    expect(notes[0]!.message).toBe("Your change request for EVT-2026-0042 “Freshmen Orientation” was approved: start, expected attendance.");
+  });
+
+  it("S2: tells the organiser their change request was rejected, with the reason", () => {
+    const [note] = notificationsFor(
+      message("change-request.rejected", {
+        ownerId: organiser,
+        changeRequestId: "0b5f7a3e-1c2d-4e5f-8a9b-0c1d2e3f4a5b",
+        fields: ["proposedStartAt"],
+        decidedBy: coordinator,
+        decidedAt: at,
+        reason: "The hall is booked.",
+      }),
+    );
+    expect(note).toMatchObject({ recipientUserId: organiser, notificationType: "change-request.rejected" });
+    expect(note!.message).toBe("Your change request for EVT-2026-0042 “Freshmen Orientation” was rejected. Reason: The hall is booked.");
+  });
+
   it("notifies nobody for a message type it has no rule for", () => {
     expect(notificationsFor(message("event.something-new", {}))).toEqual([]);
   });

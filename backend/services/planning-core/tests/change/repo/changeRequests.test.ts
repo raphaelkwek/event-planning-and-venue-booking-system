@@ -87,7 +87,11 @@ describe("insertChangeRequest", () => {
   it("accepts a new request once the earlier one is no longer pending", async () => {
     const eventId = randomUUID();
     const first = await insert(eventId, { expectedAttendance: 160 });
-    await sql`update change.change_requests set status = 'REJECTED' where id = ${first.id}`;
+    await sql`
+      update change.change_requests
+      set status = 'REJECTED', decided_by = ${ACTOR}, decided_at = now(), rejection_reason = 'Fixture'
+      where id = ${first.id}
+    `;
 
     const second = await insert(eventId, { expectedAttendance: 170 });
 
@@ -105,7 +109,11 @@ describe("findPendingForEvent and listForEvent", () => {
   it("list newest first", async () => {
     const eventId = randomUUID();
     const first = await insert(eventId, { expectedAttendance: 160 });
-    await sql`update change.change_requests set status = 'REJECTED' where id = ${first.id}`;
+    await sql`
+      update change.change_requests
+      set status = 'REJECTED', decided_by = ${ACTOR}, decided_at = now(), rejection_reason = 'Fixture'
+      where id = ${first.id}
+    `;
     const second = await insert(eventId, { expectedAttendance: 170 });
 
     expect((await listForEvent(sql, eventId)).map((request) => request.id)).toEqual([second.id, first.id]);

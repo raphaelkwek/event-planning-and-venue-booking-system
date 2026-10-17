@@ -76,7 +76,7 @@ export function changeRequestsRouter(sql: Sql, limiter: RequestHandler = changeR
         // The event is read and share-locked inside the transaction that stores the request, so a
         // status change (which locks the row for update) cannot slip in between the checks and the insert.
         outcome = await sql.begin(async (tx): Promise<Outcome> => {
-          const event = await findEventForChange(tx, eventId, scope, actor.userId, { lock: true });
+          const event = await findEventForChange(tx, eventId, scope, actor.userId, { lock: "share" });
           if (!event) return { code: "NOT_FOUND" };
           if (event.ownerId !== actor.userId) return { code: "NOT_OWNER" };
 

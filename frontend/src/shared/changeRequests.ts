@@ -23,3 +23,12 @@ const CHANGEABLE: readonly EventStatus[] = [
 ];
 
 export const isChangeable = (status: EventStatus) => CHANGEABLE.includes(status);
+
+/** S2: how a field's value reads in the approval confirmation. */
+export function formatChangeValue(field: SignificantField, value: unknown): string {
+  if (value === null || value === undefined || value === "") return "none";
+  if (field === "proposedStartAt" || field === "proposedEndAt") return new Date(String(value)).toLocaleString();
+  if (field === "equipmentRequired") return value ? "Yes" : "No";
+  if (typeof value === "object") return JSON.stringify(value);
+  return String(value);
+}

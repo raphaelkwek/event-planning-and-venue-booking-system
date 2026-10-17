@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   checkProposedChange,
+  historyText,
   type ChangeableEvent,
 } from "../../../src/modules/event/domain/proposedChange.js";
 
@@ -159,5 +160,33 @@ describe("checkProposedChange (S1)", () => {
       expect(fields(CURRENT, { equipmentRequirements: [{ equipmentType: "mic", quantity: 2 }] })).toEqual([]);
       expect(fields(CURRENT, { equipmentRequirements: null })).toEqual([]);
     });
+  });
+});
+
+describe("historyText (S2)", () => {
+  it("writes an instant as UTC ISO, whatever offset it came with", () => {
+    expect(historyText("proposedStartAt", "2026-12-02T16:00:00+02:00")).toBe("2026-12-02T14:00:00.000Z");
+    expect(historyText("proposedEndAt", "2026-12-02T18:00:00.000Z")).toBe("2026-12-02T18:00:00.000Z");
+  });
+
+  it("keeps an unparseable instant as it was given", () => {
+    expect(historyText("proposedStartAt", "soon")).toBe("soon");
+  });
+
+  it("writes numbers and booleans with String", () => {
+    expect(historyText("expectedAttendance", 150)).toBe("150");
+    expect(historyText("equipmentRequired", false)).toBe("false");
+  });
+
+  it("writes requirements as JSON", () => {
+    expect(historyText("venueRequirements", { minCapacity: 200 })).toBe('{"minCapacity":200}');
+    expect(historyText("equipmentRequirements", [{ type: "Projector", quantity: 2 }])).toBe(
+      '[{"type":"Projector","quantity":2}]',
+    );
+  });
+
+  it("writes no value as null", () => {
+    expect(historyText("venueRequirements", null)).toBeNull();
+    expect(historyText("expectedAttendance", undefined)).toBeNull();
   });
 });
