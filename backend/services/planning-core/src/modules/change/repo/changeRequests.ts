@@ -63,6 +63,10 @@ interface FieldRow {
  * A JSON null is a real value (the field was empty), so it is sent as JSON text and cast, not as
  * `tx.json(null)`, which postgres.js sends as SQL NULL.
  */
+// Sent as text and cast to jsonb in SQL, so a JSON null is stored as a value
+// (a null snapshot), not as SQL NULL. Casting the parameter straight to jsonb
+// would make the driver JSON-encode the already encoded text a second time,
+// storing 150 as the string "150".
 const jsonText = (value: unknown) => JSON.stringify(value ?? null);
 
 async function withFields(db: Db, rows: RequestRow[]): Promise<ChangeRequestRecord[]> {
@@ -128,7 +132,7 @@ export async function insertChangeRequest(
   for (const name of names) {
     await tx`
       insert into change.change_request_fields (request_id, field_name, current_value, proposed_value)
-      values (${row.id}, ${name}, ${jsonText(input.current[name])}::jsonb, ${jsonText(input.changes[name])}::jsonb)
+      values (${row.id}, ${name}, ${jsonText(input.current[name])}::text::jsonb, ${jsonText(input.changes[name])}::text::jsonb)
     `;
   }
   const [record] = await withFields(tx, [row]);

@@ -98,8 +98,9 @@ const storedCount = async (...eventIds: string[]) =>
   Number((await sql`select count(*) from change.change_requests where event_id in ${sql(eventIds)}`)[0]!.count);
 const fieldNames = (response: request.Response) =>
   (response.body.error.fields as { field: string }[]).map((entry) => entry.field).sort();
-const fieldOf = (response: request.Response, name: string) =>
-  (response.body.fields as { fieldName: string; currentValue: unknown; proposedValue: unknown }[]).find(
+/** One field of a change request: from a response (`response.body`) or from a listed item. */
+const fieldOf = (source: request.Response | { fields: unknown }, name: string) =>
+  (("body" in source ? source.body.fields : source.fields) as { fieldName: string; currentValue: unknown; proposedValue: unknown }[]).find(
     (entry) => entry.fieldName === name,
   );
 
