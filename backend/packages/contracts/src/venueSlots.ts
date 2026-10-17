@@ -16,6 +16,14 @@ export type BlockingSlotStatus = (typeof BLOCKING_SLOT_STATUSES)[number];
 export const UNAVAILABILITY_REASON_TYPES = ["MAINTENANCE", "EQUIPMENT_FAILURE", "RENOVATION", "SAFETY", "OTHER"] as const;
 export type UnavailabilityReasonType = (typeof UNAVAILABILITY_REASON_TYPES)[number];
 
+export const UNAVAILABILITY_REASON_LABELS: Record<UnavailabilityReasonType, string> = {
+  MAINTENANCE: "Maintenance",
+  EQUIPMENT_FAILURE: "Equipment failure",
+  RENOVATION: "Renovation",
+  SAFETY: "Safety",
+  OTHER: "Other",
+};
+
 /** I2 removes a block by status, never by deleting it (§4.3). */
 export const UNAVAILABILITY_BLOCK_STATUSES = ["ACTIVE", "REMOVED"] as const;
 export type UnavailabilityBlockStatus = (typeof UNAVAILABILITY_BLOCK_STATUSES)[number];

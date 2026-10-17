@@ -67,6 +67,20 @@ function period(startsAt: string, endsAt: string): string {
   return start.day === end.day ? `${start.day}, ${start.time}–${end.time}` : `${start.day} ${start.time} to ${end.day} ${end.time}`;
 }
 
+/** M1, M2: the coordinator who requested the venue and the event's owner, once each. */
+function requesterAndOwner(d: Record<string, string>, text: string): Array<[string, string]> {
+  return [...new Set([d.coordinatorId!, d.ownerId!])].map((recipient) => [recipient, text]);
+}
+
+/** M2: the reason as a sentence, then any suggested alternative. */
+function rejectionMessage(d: Record<string, unknown>, event: string): string {
+  const reason = String(d.reason);
+  let text = `Booking request ${d.reference} for ${d.venueName} was rejected: ${event}, ${period(d.startsAt as string, d.endsAt as string)}.`;
+  text += /[.!?]$/.test(reason) ? ` Reason: ${reason}` : ` Reason: ${reason}.`;
+  if (d.suggestion) text += ` Suggested alternative: ${d.suggestion}`;
+  return text;
+}
+
 const RULES: Record<string, Rule> = {
   // B1 asks for the coordinator assigned on submission to hear that a request
   // awaits review. event.submitted does not name that coordinator; this
@@ -100,6 +114,14 @@ const RULES: Record<string, Rule> = {
       staffId,
       `Booking request ${d.reference} was submitted for ${d.venueName}: ${event}, ${period(d.startsAt!, d.endsAt!)}. It is waiting in your Booking requests queue.`,
     ]),
+  // M1: the requesting coordinator and the owner learn the booking is confirmed.
+  "venue-booking.request-approved": (d, event) =>
+    requesterAndOwner(
+      d,
+      `Booking request ${d.reference} was approved, and the booking is confirmed: ${d.venueName} for ${event}, ${period(d.startsAt!, d.endsAt!)}.`,
+    ),
+  // M2: they learn it was rejected, why, and any alternative suggested.
+  "venue-booking.request-rejected": (d, event) => requesterAndOwner(d, rejectionMessage(d, event)),
 };
 
 /** The notifications a message raises; none for a type no story asks to notify about. */

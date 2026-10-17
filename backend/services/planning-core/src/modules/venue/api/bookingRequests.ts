@@ -40,8 +40,8 @@ import { refuse } from "./errors.js";
  * for the same venue, and the exclusion constraint decides that (ADR-0006).
  */
 
-const BASE = "/api/v1/booking-requests";
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+export const BASE = "/api/v1/booking-requests";
+export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const NOT_ASSIGNED_REQUEST = "Only the event's assigned coordinator can request a venue for it.";
 const NOT_ASSIGNED_WITHDRAW = "Only the event's assigned coordinator can withdraw its requests.";
 const INVALID = "The request could not be submitted. Check the highlighted fields.";
@@ -64,7 +64,7 @@ export function bookingRequestRateLimit(): RequestHandler {
 }
 
 /** The request as the API shows it: with its event's reference, and each value that differs from the event's. */
-function present(request: BookingRequest, eventReference: string | null) {
+export function present(request: BookingRequest, eventReference: string | null) {
   return {
     ...request,
     eventReference,
@@ -83,7 +83,7 @@ function findEvent(sql: Sql, eventId: string, req: ActorRequest): Promise<EventP
 
 const eventNotFound = (res: Response) =>
   refuse(res, 404, "EVENT_NOT_FOUND", "No event with that id exists, or you can't see it.");
-const requestNotFound = (res: Response) =>
+export const requestNotFound = (res: Response) =>
   refuse(res, 404, "BOOKING_REQUEST_NOT_FOUND", "No booking request with that id exists, or you can't see it.");
 
 export function bookingRequestsRouter(sql: Sql) {
@@ -220,7 +220,7 @@ export function bookingRequestsRouter(sql: Sql) {
       });
 
       if (outcome.code === "NOT_PENDING") {
-        return refuse(res, 409, "BOOKING_REQUEST_NOT_PENDING", notPendingMessage(outcome.locked.reference, outcome.locked.status));
+        return refuse(res, 409, "BOOKING_REQUEST_NOT_PENDING", notPendingMessage(outcome.locked.reference, outcome.locked.status, "withdrawn"));
       }
       res.json(present(outcome.withdrawn, event.reference));
     } catch (error) {
