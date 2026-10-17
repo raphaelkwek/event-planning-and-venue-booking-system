@@ -17,10 +17,11 @@ import { BOOKING_REQUEST_APPEARANCE, BOOKING_REQUEST_LABELS } from "../shared/st
 import { formatPeriod } from "../shared/singaporeTime.js";
 
 /**
- * L1, L2, L4 — every venue request an event has made, each with its venue,
- * period, layout, attendance and status. Its assigned coordinator requests
- * another venue from here, and withdraws one that is still Pending. Anyone else
- * who may see the event sees the list only; the server applies the same rule.
+ * L1, L2, L4, M2 — every venue request an event has made, each with its venue,
+ * period, layout, attendance and status, and a rejected one with its reason and
+ * any suggested alternative. Its assigned coordinator requests another venue
+ * from here, and withdraws one that is still Pending. Anyone else who may see
+ * the event sees the list only; the server applies the same rule.
  */
 export function EventVenueRequests() {
   const session = useSignedIn();
@@ -121,6 +122,12 @@ export function EventVenueRequests() {
                       {" "}
                       <Lozenge appearance="inprogress">Differs from the event</Lozenge>
                     </>
+                  )}
+                  {item.status === "REJECTED" && item.rejectionReason && (
+                    <div style={{ fontSize: 12, marginTop: 4 }}>
+                      <div>Reason: {item.rejectionReason}</div>
+                      {item.suggestedAlternative && <div>Suggested alternative: {item.suggestedAlternative}</div>}
+                    </div>
                   )}
                 </td>
                 <td style={cell}>
