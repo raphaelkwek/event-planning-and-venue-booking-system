@@ -213,6 +213,34 @@ describe("notificationsFor", () => {
     });
   });
 
+  it("S1: tells the assigned coordinator which fields the organiser asked to change", () => {
+    const notes = notificationsFor(
+      message("change-request.submitted", {
+        coordinatorId: coordinator,
+        changeRequestId: "0b5f7a3e-1c2d-4e5f-8a9b-0c1d2e3f4a5b",
+        fields: ["proposedStartAt", "expectedAttendance"],
+        requestedBy: organiser,
+        requestedAt: at,
+      }),
+    );
+    expect(notes).toHaveLength(1);
+    expect(notes[0]).toMatchObject({ recipientUserId: coordinator, notificationType: "change-request.submitted" });
+    expect(notes[0]!.message).toBe("A change has been requested for EVT-2026-0042 “Freshmen Orientation”: start, expected attendance.");
+  });
+
+  it("S1: names a field it has no label for by its own name", () => {
+    const [note] = notificationsFor(
+      message("change-request.submitted", {
+        coordinatorId: coordinator,
+        changeRequestId: "0b5f7a3e-1c2d-4e5f-8a9b-0c1d2e3f4a5b",
+        fields: ["expectedAttendance", "somethingNew"],
+        requestedBy: organiser,
+        requestedAt: at,
+      }),
+    );
+    expect(note!.message).toBe("A change has been requested for EVT-2026-0042 “Freshmen Orientation”: expected attendance, somethingNew.");
+  });
+
   it("notifies nobody for a message type it has no rule for", () => {
     expect(notificationsFor(message("event.something-new", {}))).toEqual([]);
   });

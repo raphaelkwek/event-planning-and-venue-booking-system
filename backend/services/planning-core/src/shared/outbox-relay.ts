@@ -65,6 +65,9 @@ export class OutboxRelay {
   private readonly batchSize: number;
   private readonly idleMs: number;
 
+  /** Tables already reported missing, so the warning is logged once, not every pass. */
+  private readonly missing = new Set<string>();
+
   private running = false;
   private loop: Promise<void> | null = null;
   private wake: (() => void) | null = null;
@@ -81,13 +84,30 @@ export class OutboxRelay {
   async runOnce(): Promise<PassResult> {
     const total: PassResult = { published: 0, failed: 0, parked: 0, busy: 0 };
     for (const table of this.tables) {
-      const result = await this.relayTable(table);
+      const result = await this.relayTableIfPresent(table);
       total.published += result.published;
       total.failed += result.failed;
       total.parked += result.parked;
       total.busy += result.busy;
     }
     return total;
+  }
+
+  /**
+   * A table whose migration has not run yet (Postgres 42P01) is skipped this pass, so the other
+   * modules' messages still go out; it is picked up as soon as the migration is applied.
+   */
+  private async relayTableIfPresent(table: string): Promise<PassResult> {
+    try {
+      return await this.relayTable(table);
+    } catch (error) {
+      if ((error as { code?: string }).code !== "42P01") throw error;
+      if (!this.missing.has(table)) {
+        this.missing.add(table);
+        logger.warn("outbox table does not exist yet; skipped until it is migrated", { table });
+      }
+      return { published: 0, failed: 0, parked: 0, busy: 0 };
+    }
   }
 
   private relayTable(table: string): Promise<PassResult> {
