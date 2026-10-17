@@ -1562,6 +1562,165 @@ paths:
         "429": { $ref: "#/components/responses/RateLimitExceeded" }
         "503": { $ref: "#/components/responses/IdentityUnavailable" }
 
+  /api/v1/booking-requests:
+    post:
+      tags: [Venue bookings]
+      summary: Request a venue for an event (L1)
+      description: |
+        The event's assigned coordinator, while the event is Approved, Planning, Safety Review or
+        Confirmed. The request is stored Pending with a `BKR-` reference; it reserves nothing, and
+        only an approval (M1) creates a confirmed booking. The event's date, times and attendance are
+        recorded with it, and `differsFromEvent` and `differences` say which the request changes.
+        The venue's Venue Staff are notified through `connectsphere.venue-booking.v1`.
+
+        A second pending request of the same event for the same venue and an overlapping period is
+        refused (409), naming the first; periods include their start but not their end. CR-02 (L5):
+        `replacesBookingId` links the request to one of the event's confirmed bookings flagged
+        Requires Reconfirmation. A refused request stores nothing. Limited to 120 requests a minute per
+        address until the gateway applies limits (ADR-0011, EN-12).
+      operationId: createBookingRequest
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BookingRequestInput" }
+      responses:
+        "201":
+          description: Stored, Pending.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BookingRequest" }
+        "400": { $ref: "#/components/responses/ValidationFailed" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403":
+          description: "`ROLE_NOT_AUTHORISED`: not the event's assigned coordinator, or not an Event Coordinator."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "404":
+          description: "`EVENT_NOT_FOUND` or `VENUE_NOT_FOUND`."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "409":
+          description: "`EVENT_NOT_BOOKABLE` (the event isn't approved, or is over; the message names its status), or `BOOKING_REQUEST_DUPLICATE` (the message names the overlapping pending request)."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "422":
+          description: "`VENUE_INACTIVE`, or `REPLACEMENT_NOT_VALID`."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "429":
+          description: "`RATE_LIMITED`: more than 120 requests in a minute from one address."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+    get:
+      tags: [Venue bookings]
+      summary: An event's booking requests (L1, L4)
+      description: |
+        Event Coordinators, and the owning organiser (A3). The event's values the request form starts
+        from, and every request of the event, oldest first, whatever its status.
+      operationId: listEventBookingRequests
+      parameters:
+        - { name: eventId, in: query, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: The event and its requests.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [event, items]
+                properties:
+                  event: { $ref: "#/components/schemas/BookingEvent" }
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/BookingRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404":
+          description: "`EVENT_NOT_FOUND`: no such event, or not one the caller may see."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "429":
+          description: "`RATE_LIMITED`."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
+  /api/v1/booking-requests/queue:
+    get:
+      tags: [Venue bookings]
+      summary: The Venue Staff queue (L1, M1)
+      description: Venue Staff only. The pending requests for the venues they look after, soonest first.
+      operationId: listBookingRequestQueue
+      responses:
+        "200":
+          description: Pending requests.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/BookingRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "429":
+          description: "`RATE_LIMITED`."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
+  /api/v1/booking-requests/{id}/withdraw:
+    parameters:
+      - $ref: "#/components/parameters/RecordId"
+    post:
+      tags: [Venue bookings]
+      summary: Withdraw a pending booking request (L2)
+      description: |
+        The event's assigned coordinator, while the request is Pending. The request becomes Withdrawn,
+        with who withdrew it and when; the record is kept. It leaves the Venue Staff queue and the
+        calendar. The event's status doesn't change.
+      operationId: withdrawBookingRequest
+      responses:
+        "200":
+          description: Withdrawn.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BookingRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403":
+          description: "`ROLE_NOT_AUTHORISED`: not the event's assigned coordinator, or not an Event Coordinator."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "404":
+          description: "`BOOKING_REQUEST_NOT_FOUND`."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "409":
+          description: "`BOOKING_REQUEST_NOT_PENDING`: the message names the request's status."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "429":
+          description: "`RATE_LIMITED`."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
 components:
   securitySchemes:
     bearerAuth:
@@ -1666,6 +1825,12 @@ components:
         - CHANGE_REQUEST_REQUIRED
         - EVENT_VERSION_MISMATCH
         - EVENT_VERSION_REQUIRED
+        - EVENT_NOT_BOOKABLE
+        - VENUE_INACTIVE
+        - BOOKING_REQUEST_DUPLICATE
+        - BOOKING_REQUEST_NOT_FOUND
+        - BOOKING_REQUEST_NOT_PENDING
+        - REPLACEMENT_NOT_VALID
 
     ErrorEnvelope:
       type: object
@@ -2421,3 +2586,66 @@ components:
         actorUserId: { type: string, format: uuid }
         actorRole: { type: string }
         occurredAt: { type: string, format: date-time }
+    BookingRequestInput:
+      type: object
+      required: [eventId, venueId, startsAt, endsAt, layout, expectedAttendance]
+      properties:
+        eventId: { type: string, format: uuid }
+        venueId: { type: string, format: uuid }
+        startsAt: { type: string, format: date-time, description: "With its offset." }
+        endsAt: { type: string, format: date-time }
+        layout: { type: string, description: "One of the venue's layouts, ignoring case." }
+        expectedAttendance: { type: integer, minimum: 1 }
+        facilities: { type: array, items: { type: string } }
+        accessibilityFeatures: { type: array, items: { type: string } }
+        replacesBookingId: { type: [string, "null"], format: uuid, description: "CR-02 (L5): the disrupted booking this request replaces." }
+    BookingRequest:
+      type: object
+      required: [id, reference, eventId, eventReference, venueId, venueName, startsAt, endsAt, layout, expectedAttendance, facilities, accessibilityFeatures, eventStartsAt, eventEndsAt, eventAttendance, differsFromEvent, differences, replacesBookingId, status, requestedBy, requestedAt, withdrawnBy, withdrawnAt]
+      properties:
+        id: { type: string, format: uuid }
+        reference: { type: string, pattern: "^BKR-\\d{6}$" }
+        eventId: { type: string, format: uuid }
+        eventReference: { type: [string, "null"] }
+        venueId: { type: string, format: uuid }
+        venueName: { type: string }
+        startsAt: { type: string, format: date-time }
+        endsAt: { type: string, format: date-time }
+        layout: { type: string }
+        expectedAttendance: { type: integer }
+        facilities: { type: array, items: { type: string } }
+        accessibilityFeatures: { type: array, items: { type: string } }
+        eventStartsAt: { type: string, format: date-time, description: "The event's start when the request was made." }
+        eventEndsAt: { type: string, format: date-time }
+        eventAttendance: { type: integer }
+        differsFromEvent: { type: boolean }
+        differences:
+          type: array
+          items: { $ref: "#/components/schemas/BookingRequestDifference" }
+        replacesBookingId: { type: [string, "null"], format: uuid }
+        status: { type: string, enum: [PENDING, APPROVED, REJECTED, WITHDRAWN] }
+        requestedBy: { type: string, format: uuid }
+        requestedAt: { type: string, format: date-time }
+        withdrawnBy: { type: [string, "null"], format: uuid }
+        withdrawnAt: { type: [string, "null"], format: date-time }
+    BookingRequestDifference:
+      type: object
+      required: [field, event, requested]
+      properties:
+        field: { type: string, enum: [startsAt, endsAt, expectedAttendance] }
+        event: { type: [string, integer] }
+        requested: { type: [string, integer] }
+    BookingEvent:
+      type: object
+      required: [id, reference, name, status, assignedCoordinatorId, proposedStartAt, proposedEndAt, expectedAttendance, venueRequirements, accessibilityNeeds]
+      properties:
+        id: { type: string, format: uuid }
+        reference: { type: [string, "null"] }
+        name: { type: string }
+        status: { $ref: "#/components/schemas/EventStatus" }
+        assignedCoordinatorId: { type: [string, "null"], format: uuid }
+        proposedStartAt: { type: [string, "null"], format: date-time }
+        proposedEndAt: { type: [string, "null"], format: date-time }
+        expectedAttendance: { type: [integer, "null"] }
+        venueRequirements: { type: [object, "null"] }
+        accessibilityNeeds: { type: [string, "null"] }

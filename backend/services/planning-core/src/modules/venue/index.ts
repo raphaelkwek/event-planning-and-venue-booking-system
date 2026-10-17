@@ -1,6 +1,7 @@
 import { Router } from "express";
 import type { Sql } from "postgres";
 import { availabilityRouter } from "./api/availability.js";
+import { bookingRequestsRouter } from "./api/bookingRequests.js";
 import { searchRouter } from "./api/search.js";
 import { suitabilityRouter } from "./api/suitability.js";
 import { venuesRouter } from "./api/venues.js";
@@ -16,6 +17,9 @@ import { venuesRouter } from "./api/venues.js";
  * Routers go in api/, pure rules in domain/, SQL against the `venue` schema
  * only in repo/, and outbox writers and consumers in events/.
  */
+/** The module's outbox, for the outbox relay (implementation.md §3.4). */
+export { VENUE_OUTBOX_TABLE } from "./events/outbox.js";
+
 export function venueRouter(sql: Sql): Router {
   const router = Router();
   // Before venuesRouter: "/venues/search" must not be read as "/venues/:id".
@@ -23,5 +27,6 @@ export function venueRouter(sql: Sql): Router {
   router.use(venuesRouter(sql));
   router.use(availabilityRouter(sql));
   router.use(suitabilityRouter(sql));
+  router.use(bookingRequestsRouter(sql));
   return router;
 }
