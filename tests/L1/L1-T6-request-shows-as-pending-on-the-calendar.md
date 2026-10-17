@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | Wednesday 2 December 2026's Committed list read: 00:00–08:00 Outside operating hours; 14:00–18:00 Pending EVT-007619; 22:00–24:00 Outside operating hours. |
+| Actual Result | Wednesday 2 December 2026's Committed list read: 00:00–08:00 Outside operating hours; 14:00–18:00 Pending EVT-007963; 22:00–24:00 Outside operating hours. |
 | Status | Pass |
-| Remarks | Commit: 0616c96 · Evidence: tests/L1/evidence/L1-T6.png · Defect: — |
+| Remarks | Commit: ff9e786 · Evidence: tests/L1/evidence/L1-T6.png · Defect: — |
 | Executed By | Yichen, via automated testing |
 | Date of Execution | 2026-10-17 |

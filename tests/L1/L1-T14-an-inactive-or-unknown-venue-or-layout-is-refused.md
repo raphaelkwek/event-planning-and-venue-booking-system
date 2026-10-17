@@ -19,6 +19,6 @@
 |---|---|
 | Actual Result | Old Lecture Theatre: 422 VENUE_INACTIVE, "Old Lecture Theatre is inactive, so it can't be requested.". Unknown venue: 404 VENUE_NOT_FOUND. Boardroom: 400, naming layout: "Lee Kong Chian Auditorium has no Boardroom layout.". The event had no booking requests. |
 | Status | Pass |
-| Remarks | Commit: 0616c96 · Evidence: tests/L1/evidence/L1-T14.png · Defect: — |
+| Remarks | Commit: ff9e786 · Evidence: tests/L1/evidence/L1-T14.png · Defect: — |
 | Executed By | Yichen, via automated testing |
 | Date of Execution | 2026-10-17 |

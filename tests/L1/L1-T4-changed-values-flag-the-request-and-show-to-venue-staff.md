@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | The coordinator's list marked BKR-000160 "Differs from the event". The Venue Staff queue marked it too and listed "End 19:00 (event 18:00)" and "Attendance 180 (event 150)", and no start time. |
+| Actual Result | The coordinator's list marked BKR-000411 "Differs from the event". The Venue Staff queue marked it too and listed "End 19:00 (event 18:00)" and "Attendance 180 (event 150)", and no start time. |
 | Status | Pass |
-| Remarks | Commit: 0616c96 · Evidence: tests/L1/evidence/L1-T4.png · Defect: — |
+| Remarks | Commit: ff9e786 · Evidence: tests/L1/evidence/L1-T4.png · Defect: — |
 | Executed By | Yichen, via automated testing |
 | Date of Execution | 2026-10-17 |
