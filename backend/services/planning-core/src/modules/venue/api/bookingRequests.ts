@@ -17,6 +17,7 @@ import {
 import { requestBlockedMessage } from "../domain/unavailability.js";
 import { writeVenueOutbox } from "../events/outbox.js";
 import { activeBlocksOverlapping } from "../repo/bookingDecisions.js";
+import { listBookingsForEvent } from "../repo/eventBookings.js";
 import { lockVenue } from "../repo/slots.js";
 import {
   DuplicateBookingRequestError,
@@ -173,7 +174,7 @@ export function bookingRequestsRouter(sql: Sql) {
     }
   });
 
-  // L1, L4: one event's requests, with the event's values the request form starts from.
+  // L1, L4, L5: one event's requests and bookings, with the event's values the request form starts from.
   router.get(BASE, limiter, authenticate, requireRole("EVENT_COORDINATOR", "EVENT_ORGANISER"), async (req: ActorRequest, res: Response, next: NextFunction) => {
     try {
       const eventId = typeof req.query.eventId === "string" ? req.query.eventId : "";
@@ -194,6 +195,8 @@ export function bookingRequestsRouter(sql: Sql) {
           accessibilityNeeds: event.accessibilityNeeds,
         },
         items: items.map((item) => present(item, event.reference)),
+        // L5: the event's bookings, with what disrupts them and the replacements asked for.
+        bookings: await listBookingsForEvent(sql, event.id),
       });
     } catch (error) {
       next(error);
