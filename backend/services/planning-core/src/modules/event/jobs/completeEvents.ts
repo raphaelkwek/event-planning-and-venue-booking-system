@@ -2,8 +2,37 @@ import { randomUUID } from "node:crypto";
 import type { Sql } from "postgres";
 import type { EventStatus } from "@connectsphere/contracts";
 import { logger } from "../../../shared/logger.js";
-import { listDueForCompletion } from "../repo/eventStatus.js";
+import { listDueForCompletion, readCompletionState } from "../repo/eventStatus.js";
 import { SYSTEM_ACTOR, transitionEvent } from "../api/transitionEvent.js";
+
+/** What one attempt to complete one event found (EN-11). */
+export type CompletionAttempt =
+  | { outcome: "completed" }
+  /** Still Confirmed, and its end, as the event has it now, hasn't passed. Null if it has no end. */
+  | { outcome: "not-due"; endsAt: string | null }
+  /** No longer Confirmed (cancelled, completed already, sent back): nothing to wait for. */
+  | { outcome: "not-confirmed"; status: EventStatus }
+  | { outcome: "not-found" };
+
+/**
+ * EN-11 — the completion workflow's step (ADR-0009): complete this one event
+ * if its end has passed. The rule is the sweep's, applied by the same
+ * transition, so it is idempotent: a second attempt finds the event Completed
+ * and answers not-confirmed. When the event isn't due, the answer carries the
+ * end it has now, so a workflow whose timer fired early, or whose event was
+ * moved later, waits for the new end. `now` is for tests; production uses the
+ * database clock.
+ */
+export function completeEventIfDue(sql: Sql, eventId: string, now?: Date): Promise<CompletionAttempt> {
+  return sql.begin(async (tx): Promise<CompletionAttempt> => {
+    if (!(await readCompletionState(tx, eventId))) return { outcome: "not-found" };
+    const outcome = await transitionEvent(tx, eventId, "COMPLETE", SYSTEM_ACTOR, { now });
+    if (outcome.ok) return { outcome: "completed" };
+    if (outcome.currentStatus !== "CONFIRMED") return { outcome: "not-confirmed", status: outcome.currentStatus };
+    const state = await readCompletionState(tx, eventId);
+    return { outcome: "not-due", endsAt: state?.proposedEndAt ?? null };
+  });
+}
 
 /** What one sweep did, per event. */
 export interface CompletionRun {
