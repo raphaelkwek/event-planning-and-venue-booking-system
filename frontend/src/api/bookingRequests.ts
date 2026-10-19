@@ -1,7 +1,7 @@
 import { request } from "./client.js";
 import type { EventStatus, VenueRequirements } from "./types.js";
 
-/** L1, L2: venue booking requests, served by planning-core's venue module. */
+/** L1, L2, M1, M2: venue booking requests, served by planning-core's venue module. */
 
 const VENUE = "/venue/api/v1";
 
@@ -35,6 +35,12 @@ export interface BookingRequest {
   requestedAt: string;
   withdrawnBy: string | null;
   withdrawnAt: string | null;
+  /** M1, M2: the Venue Staff member who decided, and when. */
+  decidedBy: string | null;
+  decidedAt: string | null;
+  bookingId: string | null;
+  rejectionReason: string | null;
+  suggestedAlternative: string | null;
 }
 
 /** The event's values the request form starts from. */
@@ -82,4 +88,14 @@ export function withdrawBookingRequest(token: string, id: string) {
 
 export function listBookingQueue(token: string) {
   return request<{ items: BookingRequest[] }>(`${VENUE}/booking-requests/queue`, { token });
+}
+
+/** M1: confirms the booking, unless the period now overlaps a booking or recorded unavailability. */
+export function approveBookingRequest(token: string, id: string) {
+  return request<BookingRequest>(`${VENUE}/booking-requests/${id}/approve`, { method: "POST", token });
+}
+
+/** M2: rejects with a reason and any suggested alternative dates or venues. */
+export function rejectBookingRequest(token: string, id: string, body: { reason: string; suggestion: string | null }) {
+  return request<BookingRequest>(`${VENUE}/booking-requests/${id}/reject`, { method: "POST", token, body });
 }

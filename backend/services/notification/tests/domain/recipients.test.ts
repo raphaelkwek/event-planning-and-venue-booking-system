@@ -320,3 +320,58 @@ describe("L1: tells the venue's Venue Staff about a new booking request", () => 
     expect(note!.message).toContain("Wednesday 2 December 2026 22:00 to Thursday 3 December 2026 10:00.");
   });
 });
+
+describe("M1, M2: tell the requesting coordinator and the event's owner what Venue Staff decided", () => {
+  const decided = {
+    bookingRequestId: "44444444-4444-4444-8444-444444444444",
+    reference: "BKR-000001",
+    venueId: "55555555-5555-4555-8555-555555555555",
+    venueName: "Lee Kong Chian Auditorium",
+    startsAt: "2026-12-02T06:00:00.000Z",
+    endsAt: "2026-12-02T10:00:00.000Z",
+    coordinatorId: coordinator,
+    ownerId: organiser,
+    decidedBy: "00000000-0000-0000-0000-000000000003",
+    decidedAt: at,
+  };
+  const approved = { ...decided, bookingId: "66666666-6666-4666-8666-666666666666", replacedBookingId: null };
+  const rejected = { ...decided, reason: "Already promised to another faculty", suggestion: "Seminar Room 2-1" };
+  const each = (type: string, text: string) =>
+    [coordinator, organiser].map((recipientUserId) => ({
+      ...common,
+      notificationType: type,
+      recipientUserId,
+      relatedReference: "BKR-000001",
+      message: text,
+    }));
+
+  it("tells both that the request was approved and the booking confirmed, naming the venue, event and period (M1-T8)", () => {
+    expect(notificationsFor(message("venue-booking.request-approved", approved))).toEqual(
+      each(
+        "venue-booking.request-approved",
+        "Booking request BKR-000001 was approved, and the booking is confirmed: Lee Kong Chian Auditorium for " +
+          "EVT-2026-0042 “Freshmen Orientation”, Wednesday 2 December 2026, 14:00–18:00.",
+      ),
+    );
+  });
+
+  it("tells both that the request was rejected, with the reason and the suggested alternative (M2-T5)", () => {
+    expect(notificationsFor(message("venue-booking.request-rejected", rejected))).toEqual(
+      each(
+        "venue-booking.request-rejected",
+        "Booking request BKR-000001 for Lee Kong Chian Auditorium was rejected: EVT-2026-0042 “Freshmen Orientation”, " +
+          "Wednesday 2 December 2026, 14:00–18:00. Reason: Already promised to another faculty. Suggested alternative: Seminar Room 2-1",
+      ),
+    );
+  });
+
+  it("gives the reason alone when nothing was suggested, without doubling its full stop", () => {
+    const [note] = notificationsFor(message("venue-booking.request-rejected", { ...rejected, reason: "Closed for exams.", suggestion: null }));
+    expect(note!.message).toMatch(/Reason: Closed for exams\.$/);
+  });
+
+  it("tells a coordinator who also owns the event once", () => {
+    const notes = notificationsFor(message("venue-booking.request-approved", { ...approved, ownerId: coordinator }));
+    expect(notes.map((n) => n.recipientUserId)).toEqual([coordinator]);
+  });
+});

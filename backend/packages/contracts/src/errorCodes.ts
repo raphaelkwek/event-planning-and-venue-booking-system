@@ -50,6 +50,7 @@ export const ERROR_CODES = [
   "BOOKING_REQUEST_NOT_FOUND",
   "BOOKING_REQUEST_NOT_PENDING",
   "REPLACEMENT_NOT_VALID",
+  "VENUE_UNAVAILABLE",
 ] as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[number];

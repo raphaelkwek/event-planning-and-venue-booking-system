@@ -1849,6 +1849,110 @@ paths:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
         "503": { $ref: "#/components/responses/IdentityUnavailable" }
 
+  /api/v1/booking-requests/{id}/approve:
+    parameters:
+      - $ref: "#/components/parameters/RecordId"
+    post:
+      tags: [Venue bookings]
+      summary: Approve a pending booking request, confirming the booking (M1)
+      description: |
+        One of the venue's own Venue Staff, while the request is Pending. A confirmed booking is
+        created for the venue and the requested period, and the request becomes Approved, with who
+        approved it, when, and its `bookingId`. The coordinator who requested it and the event's
+        owner are notified through `venue-booking.request-approved`.
+
+        It is refused, and nothing changes, when the period now overlaps a hold, a confirmed booking
+        or recorded unavailability at the venue. Periods are compared as occupied periods, setup and
+        turnaround included (CR-01), and the exclusion constraint on venue slots decides (N1,
+        ADR-0006), so of two overlapping approvals at the same moment exactly one succeeds.
+
+        CR-02: when the request replaces a disrupted booking, that booking is released with the
+        reason `replaced`, and kept.
+      operationId: approveBookingRequest
+      responses:
+        "200":
+          description: Approved; the booking is confirmed.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BookingRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403":
+          description: "`ROLE_NOT_AUTHORISED`: not one of the venue's Venue Staff."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "404":
+          description: "`BOOKING_REQUEST_NOT_FOUND`."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "409":
+          description: |
+            `BOOKING_REQUEST_NOT_PENDING`, naming the request's status; `VENUE_SLOT_CONFLICT`, naming
+            each overlapping event and its occupied period; or `VENUE_UNAVAILABLE`, naming each period
+            of recorded unavailability with its type and reason.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "429":
+          description: "`RATE_LIMITED`."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
+  /api/v1/booking-requests/{id}/reject:
+    parameters:
+      - $ref: "#/components/parameters/RecordId"
+    post:
+      tags: [Venue bookings]
+      summary: Reject a pending booking request (M2)
+      description: |
+        One of the venue's own Venue Staff, while the request is Pending. The request becomes
+        Rejected, with the reason, any suggested alternative, who rejected it and when. The venue
+        stays free and the event's status doesn't change. The coordinator who requested it and the
+        event's owner are notified, with the reason and the suggestion, through
+        `venue-booking.request-rejected`.
+      operationId: rejectBookingRequest
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BookingRejectionInput" }
+      responses:
+        "200":
+          description: Rejected.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BookingRequest" }
+        "400":
+          description: "`VALIDATION_FAILED`: no reason, or a reason or suggestion over 1000 characters."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403":
+          description: "`ROLE_NOT_AUTHORISED`: not one of the venue's Venue Staff."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "404":
+          description: "`BOOKING_REQUEST_NOT_FOUND`."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "409":
+          description: "`BOOKING_REQUEST_NOT_PENDING`: the message names the request's status."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "429":
+          description: "`RATE_LIMITED`."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
 components:
   securitySchemes:
     bearerAuth:
@@ -1964,6 +2068,7 @@ components:
         - BOOKING_REQUEST_NOT_FOUND
         - BOOKING_REQUEST_NOT_PENDING
         - REPLACEMENT_NOT_VALID
+        - VENUE_UNAVAILABLE
 
     ErrorEnvelope:
       type: object
@@ -2792,7 +2897,7 @@ components:
         replacesBookingId: { type: [string, "null"], format: uuid, description: "CR-02 (L5): the disrupted booking this request replaces." }
     BookingRequest:
       type: object
-      required: [id, reference, eventId, eventReference, venueId, venueName, startsAt, endsAt, layout, expectedAttendance, facilities, accessibilityFeatures, eventStartsAt, eventEndsAt, eventAttendance, differsFromEvent, differences, replacesBookingId, status, requestedBy, requestedAt, withdrawnBy, withdrawnAt]
+      required: [id, reference, eventId, eventReference, venueId, venueName, startsAt, endsAt, layout, expectedAttendance, facilities, accessibilityFeatures, eventStartsAt, eventEndsAt, eventAttendance, differsFromEvent, differences, replacesBookingId, status, requestedBy, requestedAt, withdrawnBy, withdrawnAt, decidedBy, decidedAt, bookingId, rejectionReason, suggestedAlternative]
       properties:
         id: { type: string, format: uuid }
         reference: { type: string, pattern: "^BKR-\\d{6}$" }
@@ -2819,6 +2924,17 @@ components:
         requestedAt: { type: string, format: date-time }
         withdrawnBy: { type: [string, "null"], format: uuid }
         withdrawnAt: { type: [string, "null"], format: date-time }
+        decidedBy: { type: [string, "null"], format: uuid, description: "M1, M2: the Venue Staff member who approved or rejected it." }
+        decidedAt: { type: [string, "null"], format: date-time }
+        bookingId: { type: [string, "null"], format: uuid, description: "M1: the confirmed booking the approval created." }
+        rejectionReason: { type: [string, "null"], description: "M2: why it was rejected." }
+        suggestedAlternative: { type: [string, "null"], description: "M2: alternative dates or venues, if any were suggested." }
+    BookingRejectionInput:
+      type: object
+      required: [reason]
+      properties:
+        reason: { type: string, minLength: 1, maxLength: 1000, description: "At least one character that isn't whitespace." }
+        suggestion: { type: [string, "null"], maxLength: 1000, description: "Suggested alternative dates or venues, as free text." }
     BookingRequestDifference:
       type: object
       required: [field, event, requested]

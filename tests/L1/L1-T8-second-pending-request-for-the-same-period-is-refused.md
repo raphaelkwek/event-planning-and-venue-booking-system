@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | 17:00–20:00 was refused: "This event already has a pending request for this venue that overlaps this period: BKR-000165. Withdraw it, or choose a period that doesn't overlap it.", and only one request was stored. 18:00–20:00 was accepted as BKR-000167; the event then had two pending requests for the venue. |
+| Actual Result | 17:00–20:00 was refused: "This event already has a pending request for this venue that overlaps this period: BKR-000416. Withdraw it, or choose a period that doesn't overlap it.", and only one request was stored. 18:00–20:00 was accepted as BKR-000418; the event then had two pending requests for the venue. |
 | Status | Pass |
-| Remarks | Commit: 0616c96 · Evidence: tests/L1/evidence/L1-T8.png · Defect: — |
+| Remarks | Commit: ff9e786 · Evidence: tests/L1/evidence/L1-T8.png · Defect: — |
 | Executed By | Yichen, via automated testing |
-| Date of Execution | 2026-10-17 |
+| Date of Execution | 2026-10-18 |
