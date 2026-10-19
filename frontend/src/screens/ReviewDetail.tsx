@@ -29,6 +29,7 @@ import { listChangeRequests, type ChangeRequest } from "../api/changeRequests.js
 import { ChangeDecisionActions, DecidedChangeNotice } from "../components/ChangeDecision.js";
 import { PendingChangeNotice } from "../components/PendingChangeNotice.js";
 import { EquipmentRequirementsView, VenueRequirementsView } from "../components/Requirements.js";
+import { ConfirmArrangementsAction } from "../components/ConfirmArrangements.js";
 
 /**
  * D1, D2, D4, D5 — the coordinator's review screen.
@@ -269,6 +270,13 @@ export function ReviewDetail() {
       <aside style={{ flex: 1, borderLeft: "1px solid #DFE1E6", paddingLeft: 24 }}>
         <h3 style={{ marginTop: 0 }}>Status</h3>
         <Lozenge appearance={STATUS_APPEARANCE[event.status]}>{STATUS_LABELS[event.status]}</Lozenge>
+
+        {/* F5 — only the assigned coordinator, and only while the event is Approved or Planning. */}
+        {event.assignedCoordinatorId === session.userId && (event.status === "APPROVED" || event.status === "PLANNING") && (
+          <div style={{ marginTop: 12 }}>
+            <ConfirmArrangementsAction eventId={event.id} token={session.token} onConfirmed={() => void load()} />
+          </div>
+        )}
 
         <p style={{ marginBottom: 0 }}>
           <Link to={`/venues/search?eventId=${event.id}`}>Find a venue</Link>
