@@ -53,6 +53,8 @@ export const ERROR_CODES = [
   "VENUE_UNAVAILABLE",
   "BLOCK_NOT_FOUND",
   "BLOCK_ALREADY_REMOVED",
+  "ARRANGEMENTS_NOT_READY",
+  "ARRANGEMENTS_UNAVAILABLE",
 ] as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[number];
