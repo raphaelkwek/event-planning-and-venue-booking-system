@@ -37,6 +37,27 @@ describe("refuse", () => {
   });
 });
 
+describe("refuse with details (K2)", () => {
+  it("sends the structured details beside the message and the fields", async () => {
+    const app = express();
+    app.get("/", (_req, res) => {
+      refuse(res, 422, "JUSTIFICATION_REQUIRED", "Not suitable.", [{ field: "justification", message: "Give one." }], {
+        status: "NOT_SUITABLE",
+      });
+    });
+    const res = await request(app).get("/");
+    expect(res.body).toEqual({
+      error: {
+        code: "JUSTIFICATION_REQUIRED",
+        message: "Not suitable.",
+        details: { status: "NOT_SUITABLE" },
+        fields: [{ field: "justification", message: "Give one." }],
+        correlationId: null,
+      },
+    });
+  });
+});
+
 describe("fieldsFromZod", () => {
   it("names each failing field by its path, and the body itself as `body`", () => {
     const nested = z.object({ layouts: z.array(z.object({ capacity: z.number() })) }).safeParse({ layouts: [{ capacity: "x" }] });

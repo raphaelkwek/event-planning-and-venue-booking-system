@@ -1,6 +1,7 @@
 import type { Sql, TransactionSql } from "postgres";
-import type { BookingRequestStatus } from "@connectsphere/contracts";
+import type { BookingRequestStatus, SuitabilityStatus } from "@connectsphere/contracts";
 import { isDuplicatePending } from "../domain/bookingRequest.js";
+import type { ConditionResult } from "../domain/suitability.js";
 
 /**
  * L1, L2 — venue booking requests. SQL against the venue schema only. Whether a
@@ -33,6 +34,12 @@ export interface BookingRequest {
   requestedAt: string;
   withdrawnBy: string | null;
   withdrawnAt: string | null;
+  /** K2: assessed when submitted; null on requests made before K2 (not assessed). */
+  suitabilityStatus: SuitabilityStatus | null;
+  /** K2: the failing conditions as evaluated then. */
+  suitabilityReasons: ConditionResult[] | null;
+  /** K2: why a venue that isn't suitable was requested anyway. */
+  justification: string | null;
 }
 
 export interface NewBookingRequest {
@@ -50,6 +57,9 @@ export interface NewBookingRequest {
   differsFromEvent: boolean;
   replacesBookingId: string | null;
   requestedBy: string;
+  suitabilityStatus: SuitabilityStatus;
+  suitabilityReasons: ConditionResult[];
+  justification: string | null;
 }
 
 /** A second pending request for the same event, venue and overlapping period (L1). */
@@ -82,6 +92,9 @@ interface Row {
   requested_at: Date;
   withdrawn_by: string | null;
   withdrawn_at: Date | null;
+  suitability_status: SuitabilityStatus | null;
+  suitability_reasons: ConditionResult[] | null;
+  unsuitable_justification: string | null;
 }
 
 function toRequest(row: Row): BookingRequest {
@@ -107,6 +120,9 @@ function toRequest(row: Row): BookingRequest {
     requestedAt: row.requested_at.toISOString(),
     withdrawnBy: row.withdrawn_by,
     withdrawnAt: row.withdrawn_at?.toISOString() ?? null,
+    suitabilityStatus: row.suitability_status,
+    suitabilityReasons: row.suitability_reasons,
+    justification: row.unsuitable_justification,
   };
 }
 
@@ -114,7 +130,7 @@ const COLUMNS = (db: Db) => db`
   r.id, r.reference, r.event_id, r.venue_id, v.name as venue_name, r.starts_at, r.ends_at, r.layout,
   r.expected_attendance, r.facilities, r.accessibility_features, r.event_starts_at, r.event_ends_at,
   r.event_attendance, r.differs_from_event, r.replaces_booking_id, r.status, r.requested_by, r.requested_at,
-  r.withdrawn_by, r.withdrawn_at
+  r.withdrawn_by, r.withdrawn_at, r.suitability_status, r.suitability_reasons, r.unsuitable_justification
 `;
 
 /**
@@ -130,12 +146,14 @@ export async function insertBookingRequest(tx: TransactionSql, request: NewBooki
         insert into venue.booking_requests (
           event_id, venue_id, starts_at, ends_at, layout, expected_attendance, facilities, accessibility_features,
           event_starts_at, event_ends_at, event_attendance, differs_from_event, replaces_booking_id,
+          suitability_status, suitability_reasons, unsuitable_justification,
           requested_by, created_by, updated_by
         ) values (
           ${request.eventId}, ${request.venueId}, ${request.startsAt}, ${request.endsAt}, ${request.layout},
           ${request.expectedAttendance}, ${request.facilities}, ${request.accessibilityFeatures},
           ${request.eventStartsAt}, ${request.eventEndsAt}, ${request.eventAttendance}, ${request.differsFromEvent},
-          ${request.replacesBookingId}, ${request.requestedBy}, ${request.requestedBy}, ${request.requestedBy}
+          ${request.replacesBookingId}, ${request.suitabilityStatus}, ${sp.json(request.suitabilityReasons as never)},
+          ${request.justification}, ${request.requestedBy}, ${request.requestedBy}, ${request.requestedBy}
         )
         returning id
       `,
