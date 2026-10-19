@@ -20,8 +20,8 @@ export const UNAVAILABILITY_REASON_LABELS: Record<UnavailabilityReasonType, stri
   MAINTENANCE: "Maintenance",
   EQUIPMENT_FAILURE: "Equipment failure",
   RENOVATION: "Renovation",
-  SAFETY: "Safety",
-  OTHER: "Other",
+  SAFETY: "Safety concern",
+  OTHER: "Other operational reason",
 };
 
 /** I2 removes a block by status, never by deleting it (§4.3). */

@@ -41,6 +41,8 @@ export interface BookingRequest {
   /** M2: why it was rejected, and any alternative suggested. */
   rejectionReason: string | null;
   suggestedAlternative: string | null;
+  /** I2: a block overlaps this pending request. */
+  requiresReconfirmation: boolean;
 }
 
 export interface NewBookingRequest {
@@ -95,6 +97,7 @@ interface Row {
   booking_id: string | null;
   rejection_reason: string | null;
   suggested_alternative: string | null;
+  requires_reconfirmation: boolean;
 }
 
 function toRequest(row: Row): BookingRequest {
@@ -125,6 +128,7 @@ function toRequest(row: Row): BookingRequest {
     bookingId: row.booking_id,
     rejectionReason: row.rejection_reason,
     suggestedAlternative: row.suggested_alternative,
+    requiresReconfirmation: row.requires_reconfirmation,
   };
 }
 
@@ -132,7 +136,8 @@ const COLUMNS = (db: Db) => db`
   r.id, r.reference, r.event_id, r.venue_id, v.name as venue_name, r.starts_at, r.ends_at, r.layout,
   r.expected_attendance, r.facilities, r.accessibility_features, r.event_starts_at, r.event_ends_at,
   r.event_attendance, r.differs_from_event, r.replaces_booking_id, r.status, r.requested_by, r.requested_at,
-  r.withdrawn_by, r.withdrawn_at, r.decided_by, r.decided_at, r.booking_id, r.rejection_reason, r.suggested_alternative
+  r.withdrawn_by, r.withdrawn_at, r.decided_by, r.decided_at, r.booking_id, r.rejection_reason, r.suggested_alternative,
+  r.requires_reconfirmation
 `;
 
 /**

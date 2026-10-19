@@ -1,8 +1,10 @@
 import {
   EQUIPMENT_LINE_STATUS_LABELS,
   SIGNIFICANT_FIELD_LABELS,
+  UNAVAILABILITY_REASON_LABELS,
   type EquipmentRequestLineStatus,
   type SignificantEventField,
+  type UnavailabilityReasonType,
 } from "@connectsphere/contracts";
 
 /**
@@ -91,6 +93,26 @@ function joinLabels(fields: unknown): string {
   return (fields as SignificantEventField[]).map((field) => SIGNIFICANT_FIELD_LABELS[field] ?? field).join(", ");
 }
 
+/** I2: what a block disrupted, as the coordinator calls it. */
+function disruptedThing(kind: string): string {
+  return kind === "REQUEST" ? "booking request" : kind === "HOLD" ? "hold" : "booking";
+}
+
+function capitalised(text: string): string {
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+/** I2: the block's period in Singapore time, with its reason type and description. */
+function blockPeriodAndReason(d: Record<string, string>): string {
+  // The message was validated against its contract, which allows only CR-02's five reason types.
+  const reason = UNAVAILABILITY_REASON_LABELS[d.reasonType as UnavailabilityReasonType];
+  return `${period(d.blockStartsAt!, d.blockEndsAt!)} (${reason}: ${d.description})`;
+}
+
+function blockedPeriod(d: Record<string, string>): string {
+  return `${d.venueName} is unavailable on ${blockPeriodAndReason(d)}`;
+}
+
 const RULES: Record<string, Rule> = {
   // B1 asks for the coordinator assigned on submission to hear that a request
   // awaits review. event.submitted does not name that coordinator; this
@@ -132,6 +154,22 @@ const RULES: Record<string, Rule> = {
     ),
   // M2: they learn it was rejected, why, and any alternative suggested.
   "venue-booking.request-rejected": (d, event) => requesterAndOwner(d, rejectionMessage(d, event)),
+  // I2, CR-02: a block disrupts the coordinator's booking, hold or request; alternative arrangements are required.
+  "venue-booking.booking-disrupted": (d, event) => [
+    [
+      d.coordinatorId!,
+      `${blockedPeriod(d)}, which disrupts ${disruptedThing(d.kind!)} ${d.reference} for ${event}. ` +
+        `The ${d.kind === "REQUEST" ? "request" : d.kind === "HOLD" ? "hold" : "booking"} requires reconfirmation, and alternative arrangements are required.`,
+    ],
+  ],
+  // I2: the block was removed; the flag clears unless other unavailability still overlaps it.
+  "venue-booking.disruption-cleared": (d, event) => {
+    const thing = `${capitalised(disruptedThing(d.kind!))} ${d.reference} for ${event}`;
+    const outcome = (d.stillDisrupted as unknown as boolean)
+      ? `${thing} still requires reconfirmation: other unavailability still overlaps it.`
+      : `${thing} no longer requires reconfirmation.`;
+    return [[d.coordinatorId!, `The unavailability of ${d.venueName} on ${blockPeriodAndReason(d)} was removed. ${outcome}`]];
+  },
   // S1: the assigned coordinator hears that the organiser asked to change the event.
   "change-request.submitted": (d, event) => [
     [d.coordinatorId!, `A change has been requested for ${event}: ${joinLabels(d.fields)}.`],

@@ -4,6 +4,7 @@ import { availabilityRouter } from "./api/availability.js";
 import { bookingDecisionsRouter } from "./api/bookingDecisions.js";
 import { bookingRequestsRouter } from "./api/bookingRequests.js";
 import { searchRouter } from "./api/search.js";
+import { unavailabilityRouter } from "./api/unavailability.js";
 import { suitabilityRouter } from "./api/suitability.js";
 import { venuesRouter } from "./api/venues.js";
 
@@ -31,5 +32,6 @@ export function venueRouter(sql: Sql): Router {
   router.use(suitabilityRouter(sql));
   router.use(bookingRequestsRouter(sql));
   router.use(bookingDecisionsRouter(sql));
+  router.use(unavailabilityRouter(sql));
   return router;
 }

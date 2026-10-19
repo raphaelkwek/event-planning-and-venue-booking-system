@@ -37,7 +37,8 @@ export interface BookingRequestInput {
   replacesBookingId: string | null;
 }
 
-function instant(value: unknown): string | null {
+/** A date and time with its offset, as a UTC instant; null when it isn't one. I2 reads a block's times the same way. */
+export function instant(value: unknown): string | null {
   if (typeof value !== "string" || !INSTANT.test(value)) return null;
   const time = Date.parse(value);
   return Number.isNaN(time) ? null : new Date(time).toISOString();

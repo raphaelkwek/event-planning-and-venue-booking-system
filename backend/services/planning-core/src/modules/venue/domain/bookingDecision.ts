@@ -65,7 +65,8 @@ export function singaporePeriod(from: string, until: string): string {
   return start.day === end.day ? `${start.day}, ${start.time}–${end.time}` : `${start.day} ${start.time} to ${end.day} ${end.time}`;
 }
 
-function listed(items: readonly string[]): string {
+/** "A", "A and B", "A, B and C". I2 names blocks the same way. */
+export function listed(items: readonly string[]): string {
   if (items.length === 1) return items[0]!;
   return `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`;
 }
