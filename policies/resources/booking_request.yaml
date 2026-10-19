@@ -6,9 +6,16 @@ resourcePolicy:
   importDerivedRoles: [connectsphere]
   rules:
     - name: L1-L2-L3-only-the-assigned-coordinator-books
-      actions: [create, withdraw, place_hold]
+      actions: [create, withdraw, request_hold, convert_hold]
       effect: EFFECT_ALLOW
       derivedRoles: [assigned_coordinator]
+
+    # L3, Week 9 answer (CQ-06): the coordinator requests a hold, and Venue Staff
+    # of the venue place it, setting its expiry.
+    - name: L3-venue-staff-place-holds-on-their-venues
+      actions: [place_hold]
+      effect: EFFECT_ALLOW
+      derivedRoles: [venue_manager]
 
     - name: L3-the-holding-coordinator-releases-the-hold
       actions: [release_hold]
