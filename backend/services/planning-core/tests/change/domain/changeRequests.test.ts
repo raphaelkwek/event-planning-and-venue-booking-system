@@ -7,6 +7,11 @@ import {
   normaliseInstants,
   notChangeableMessage,
   validateChangeBody,
+  validateDecisionBody,
+  alreadyDecidedMessage,
+  staleFields,
+  cannotApproveMessage,
+  DECISION_LABELS,
 } from "../../../src/modules/change/domain/changeRequests.js";
 
 describe("isChangeable (AC1)", () => {
@@ -130,5 +135,104 @@ describe("normaliseInstants", () => {
   it("leaves other fields, nulls and unparseable values as they are", () => {
     const changes = { expectedAttendance: 5, proposedStartAt: "soon", proposedEndAt: null };
     expect(normaliseInstants(changes)).toEqual(changes);
+  });
+});
+
+describe("validateDecisionBody (S2)", () => {
+  it("accepts Approve, ignoring any reason sent with it", () => {
+    expect(validateDecisionBody({ decision: "APPROVE" })).toEqual({ ok: true, decision: "APPROVE" });
+    expect(validateDecisionBody({ decision: "APPROVE", reason: "x" })).toEqual({ ok: true, decision: "APPROVE" });
+  });
+
+  it("accepts Reject with a reason, trimmed, up to the longest length", () => {
+    expect(validateDecisionBody({ decision: "REJECT", reason: "  No larger hall  " })).toEqual({
+      ok: true,
+      decision: "REJECT",
+      reason: "No larger hall",
+    });
+    expect(validateDecisionBody({ decision: "REJECT", reason: "x".repeat(MAX_REASON_LENGTH) }).ok).toBe(true);
+  });
+
+  it("refuses a Reject without a usable reason, naming the reason", () => {
+    for (const reason of [undefined, "", "   ", 42, null]) {
+      expect(validateDecisionBody({ decision: "REJECT", reason })).toEqual({
+        ok: false,
+        fields: [{ field: "reason", message: "Give a reason for rejecting the change." }],
+      });
+    }
+  });
+
+  it("refuses a reason longer than the longest length", () => {
+    expect(validateDecisionBody({ decision: "REJECT", reason: "x".repeat(MAX_REASON_LENGTH + 1) })).toEqual({
+      ok: false,
+      fields: [{ field: "reason", message: `The reason can be at most ${MAX_REASON_LENGTH} characters.` }],
+    });
+  });
+
+  it("refuses any other decision, and a body that is not an object, naming the decision", () => {
+    for (const raw of [{ decision: "approve" }, { decision: "MAYBE" }, { reason: "x" }, undefined, null, "x", [], 3]) {
+      expect(validateDecisionBody(raw)).toEqual({ ok: false, fields: [{ field: "decision", message: "Choose Approve or Reject." }] });
+    }
+  });
+});
+
+describe("alreadyDecidedMessage (S2)", () => {
+  it("names the decision and when it was made", () => {
+    expect(alreadyDecidedMessage("APPROVED", "2026-12-01T10:00:00.000Z")).toBe(
+      "This change request was already Approved on 2026-12-01T10:00:00.000Z."
+    );
+    expect(alreadyDecidedMessage("REJECTED", "2026-12-01T10:00:00.000Z")).toContain(DECISION_LABELS.REJECTED);
+  });
+});
+
+describe("staleFields (S2)", () => {
+  const field = (fieldName: never, currentValue: unknown) => ({ fieldName, currentValue });
+
+  it("reports nothing when every live value is the snapshot", () => {
+    expect(
+      staleFields(
+        { proposedStartAt: "2026-12-16T14:00:00.000Z", expectedAttendance: 150, venueRequirements: null, equipmentRequirements: { a: 1, b: [{ y: 1, x: 2 }] } },
+        [
+          field("proposedStartAt" as never, "2026-12-16T14:00:00.000Z"),
+          field("expectedAttendance" as never, 150),
+          field("venueRequirements" as never, null),
+          field("equipmentRequirements" as never, { b: [{ x: 2, y: 1 }], a: 1 }),
+        ]
+      )
+    ).toEqual([]);
+  });
+
+  it("treats the same instant written with another offset as equal, and an unparseable one by its text", () => {
+    expect(staleFields({ proposedStartAt: "2026-12-16T22:00:00+08:00" }, [field("proposedStartAt" as never, "2026-12-16T14:00:00.000Z")])).toEqual([]);
+    expect(staleFields({ proposedEndAt: "soon" }, [field("proposedEndAt" as never, "soon")])).toEqual([]);
+    expect(staleFields({ proposedEndAt: "later" }, [field("proposedEndAt" as never, "soon")])).toHaveLength(1);
+  });
+
+  it("treats a missing live value and a null snapshot as equal", () => {
+    expect(staleFields({}, [field("venueRequirements" as never, null)])).toEqual([]);
+    expect(staleFields({ venueRequirements: null }, [field("venueRequirements" as never, undefined)])).toEqual([]);
+  });
+
+  it("compares an empty instant with an instant as different", () => {
+    expect(staleFields({ proposedEndAt: null }, [field("proposedEndAt" as never, "2026-12-16T14:00:00.000Z")])).toHaveLength(1);
+  });
+
+  it("names each changed field with its label", () => {
+    expect(
+      staleFields({ proposedStartAt: "2026-12-16T13:00:00.000Z", expectedAttendance: 150, equipmentRequired: true }, [
+        field("proposedStartAt" as never, "2026-12-16T14:00:00.000Z"),
+        field("expectedAttendance" as never, 150),
+        field("equipmentRequired" as never, false),
+      ])
+    ).toEqual([
+      { field: "changes.proposedStartAt", message: "Start changed on the event after this request was made. Reject it; the organiser can request again." },
+      { field: "changes.equipmentRequired", message: "Whether equipment is required changed on the event after this request was made. Reject it; the organiser can request again." },
+    ]);
+  });
+});
+
+describe("cannotApproveMessage (S2)", () => {
+  it("names the status by its label and says rejection is still possible", () => {
+    expect(cannotApproveMessage("CANCELLED")).toBe("The event is Cancelled, so the change can't be approved. You can still reject it.");
   });
 });

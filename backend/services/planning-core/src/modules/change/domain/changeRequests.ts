@@ -1,7 +1,9 @@
 import {
   EVENT_STATUS_LABELS,
+  SIGNIFICANT_FIELD_LABELS,
   isSignificantEventField,
   type ErrorField,
+  type SignificantEventField,
   type EventStatus,
 } from "@connectsphere/contracts";
 import type { ProposedChanges } from "../../event/index.js";
@@ -92,4 +94,70 @@ export function normaliseInstants(changes: ProposedChanges): ProposedChanges {
     if (instant && !Number.isNaN(instant.getTime())) normalised[field] = instant.toISOString();
   }
   return normalised;
+}
+
+const DECISION_MESSAGE = "Choose Approve or Reject.";
+const REJECT_REASON_MESSAGE = "Give a reason for rejecting the change.";
+
+/** S2 — the decision label a person reads, and the one the 409 names. */
+export const DECISION_LABELS = { APPROVED: "Approved", REJECTED: "Rejected" } as const;
+
+export function alreadyDecidedMessage(status: "APPROVED" | "REJECTED", decidedAt: string): string {
+  return `This change request was already ${DECISION_LABELS[status]} on ${decidedAt}.`;
+}
+
+/**
+ * S2 — the body of a decision: Approve, or Reject with a reason (AC2). Every problem is
+ * reported. An approval ignores any reason sent with it.
+ */
+export function validateDecisionBody(
+  raw: unknown
+): { ok: true; decision: "APPROVE" } | { ok: true; decision: "REJECT"; reason: string } | { ok: false; fields: ErrorField[] } {
+  const body = isPlainObject(raw) ? raw : {};
+  if (body.decision === "APPROVE") return { ok: true, decision: "APPROVE" };
+  if (body.decision !== "REJECT") return { ok: false, fields: [{ field: "decision", message: DECISION_MESSAGE }] };
+
+  const reason = typeof body.reason === "string" ? body.reason.trim() : "";
+  if (reason.length === 0) return { ok: false, fields: [{ field: "reason", message: REJECT_REASON_MESSAGE }] };
+  if (reason.length > MAX_REASON_LENGTH) {
+    return { ok: false, fields: [{ field: "reason", message: `The reason can be at most ${MAX_REASON_LENGTH} characters.` }] };
+  }
+  return { ok: true, decision: "REJECT", reason };
+}
+
+/** A value in a form that compares equal when it means the same: an instant as UTC ISO, objects with sorted keys. */
+function comparable(field: SignificantEventField, value: unknown): string {
+  if ((field === "proposedStartAt" || field === "proposedEndAt") && typeof value === "string") {
+    const instant = new Date(value);
+    if (!Number.isNaN(instant.getTime())) return instant.toISOString();
+  }
+  const sorted = (v: unknown): unknown =>
+    Array.isArray(v)
+      ? v.map(sorted)
+      : v !== null && typeof v === "object"
+        ? Object.fromEntries(Object.entries(v).sort(([a], [b]) => (a < b ? -1 : 1)).map(([k, x]) => [k, sorted(x)]))
+        : v;
+  return JSON.stringify(sorted(value ?? null));
+}
+
+/**
+ * S2 — the requested fields whose live value is no longer the one snapshotted when the request
+ * was made (D3 lets the organiser amend them while Awaiting Clarification), as `changes.<field>` errors.
+ */
+const capitalise = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
+
+export function staleFields(
+  live: Partial<Record<SignificantEventField, unknown>>,
+  fields: { fieldName: SignificantEventField; currentValue: unknown }[]
+): ErrorField[] {
+  return fields
+    .filter((field) => comparable(field.fieldName, live[field.fieldName]) !== comparable(field.fieldName, field.currentValue))
+    .map((field) => ({
+      field: `changes.${field.fieldName}`,
+      message: `${capitalise(SIGNIFICANT_FIELD_LABELS[field.fieldName])} changed on the event after this request was made. Reject it; the organiser can request again.`,
+    }));
+}
+
+export function cannotApproveMessage(status: EventStatus): string {
+  return `The event is ${EVENT_STATUS_LABELS[status]}, so the change can't be approved. You can still reject it.`;
 }

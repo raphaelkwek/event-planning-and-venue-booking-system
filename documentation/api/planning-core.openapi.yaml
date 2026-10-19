@@ -838,6 +838,70 @@ paths:
         "429": { $ref: "#/components/responses/RateLimitExceeded" }
         "503": { $ref: "#/components/responses/IdentityUnavailable" }
 
+  /api/v1/change-requests/{id}/decision:
+    parameters:
+      - $ref: "#/components/parameters/RecordId"
+    post:
+      tags: [Change requests]
+      summary: Approve or reject a pending change request (S2)
+      description: |
+        The Event Coordinator assigned to the request's event, while the request is Pending. Approving
+        re-checks, under lock, that the event is still in a changeable status and that the proposed
+        values still pass the same checks as a new request; it then writes the values to the event,
+        records a history entry per field (before, after, coordinator, time) and bumps the event's
+        version. Rejecting needs a reason and leaves the event untouched. The requesting organiser is
+        notified of either outcome. Approval is refused when the event changed since the request was
+        made (each such field is named `changes.<field>`). A refused decision stores nothing.
+      operationId: decideChangeRequest
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ChangeRequestDecision" }
+      responses:
+        "200":
+          description: The decided request, and on approval the event's significant values after the change.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [changeRequest]
+                properties:
+                  changeRequest: { $ref: "#/components/schemas/ChangeRequest" }
+                  event:
+                    type: object
+                    description: Present on approval only.
+                    required: [id]
+                    properties:
+                      id: { type: string, format: uuid }
+                      proposedStartAt: { type: [string, "null"], format: date-time }
+                      proposedEndAt: { type: [string, "null"], format: date-time }
+                      expectedAttendance: { type: [integer, "null"] }
+                      venueRequirements: { description: "The venue requirements after the change, or null." }
+                      equipmentRequired: { type: [boolean, "null"] }
+                      equipmentRequirements: { description: "The equipment requirements after the change, or null." }
+        "400": { $ref: "#/components/responses/ValidationFailed" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404":
+          description: No change request with that id exists (`CHANGE_REQUEST_NOT_FOUND`), or its event is outside the caller's scope.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "409":
+          description: |
+            `CHANGE_REQUEST_ALREADY_DECIDED` (`details` has the decision's `status` and `decidedAt`), or,
+            on approval, `CHANGE_REQUEST_NO_LONGER_VALID` (`details.fields` lists `{field, message}` named
+            `changes.<field>`; `details.status` is the event's status when it can no longer change).
+            Approval is also refused when the event changed since the request was made: each field whose
+            current value no longer matches the request's is listed in `details.fields`, named
+            `changes.<field>`.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "429": { $ref: "#/components/responses/RateLimitExceeded" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
   /api/v1/venues:
     get:
       tags: [Venues]
@@ -1732,6 +1796,9 @@ components:
         - EVENT_VERSION_REQUIRED
         - EVENT_NOT_CHANGEABLE
         - CHANGE_REQUEST_ALREADY_PENDING
+        - CHANGE_REQUEST_NOT_FOUND
+        - CHANGE_REQUEST_ALREADY_DECIDED
+        - CHANGE_REQUEST_NO_LONGER_VALID
 
     ErrorEnvelope:
       type: object
@@ -2520,9 +2587,16 @@ components:
               type: [array, "null"]
               items: { $ref: "#/components/schemas/EquipmentRequirementLine" }
 
+    ChangeRequestDecision:
+      type: object
+      required: [decision]
+      properties:
+        decision: { type: string, enum: [APPROVE, REJECT] }
+        reason: { type: string, maxLength: 1000, description: "Required, and not blank, when rejecting; ignored when approving." }
+
     ChangeRequest:
       type: object
-      required: [id, eventId, eventReference, status, reason, requestedBy, requestedAt, fields]
+      required: [id, eventId, eventReference, status, reason, requestedBy, requestedAt, decidedBy, decidedAt, rejectionReason, fields]
       properties:
         id: { type: string, format: uuid }
         eventId: { type: string, format: uuid }
@@ -2531,6 +2605,9 @@ components:
         reason: { type: string }
         requestedBy: { type: string, format: uuid }
         requestedAt: { type: string, format: date-time }
+        decidedBy: { type: [string, "null"], format: uuid, description: The deciding coordinator; null while Pending. }
+        decidedAt: { type: [string, "null"], format: date-time, description: null while Pending. }
+        rejectionReason: { type: [string, "null"], description: The coordinator's reason when Rejected; otherwise null. }
         fields:
           type: array
           items: { $ref: "#/components/schemas/ChangeRequestField" }

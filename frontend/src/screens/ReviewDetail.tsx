@@ -26,6 +26,7 @@ import { StatusHistory } from "../components/StatusHistory.js";
 import { Refusal } from "../components/Refusal.js";
 import { canEditDetails } from "../shared/eventDetails.js";
 import { listChangeRequests, type ChangeRequest } from "../api/changeRequests.js";
+import { ChangeDecisionActions, DecidedChangeNotice } from "../components/ChangeDecision.js";
 import { PendingChangeNotice } from "../components/PendingChangeNotice.js";
 import { EquipmentRequirementsView, VenueRequirementsView } from "../components/Requirements.js";
 
@@ -118,6 +119,10 @@ export function ReviewDetail() {
   if (!event) return null;
 
   const pendingChange = changeRequests.find((entry) => entry.status === "PENDING") ?? null;
+  const latestDecided =
+    changeRequests
+      .filter((entry) => entry.status !== "PENDING" && entry.decidedAt)
+      .sort((a, b) => (b.decidedAt ?? "").localeCompare(a.decidedAt ?? ""))[0] ?? null;
   const decided = event.decidedAt !== null;
   const reviewedBySomeoneElse =
     event.reviewingCoordinatorId !== null && event.reviewingCoordinatorId !== session.userId;
@@ -172,7 +177,17 @@ export function ReviewDetail() {
         )}
 
         {changesFailed && <p role="status" style={{ color: "#626F86", fontSize: 13 }}>Change requests couldn't be loaded.</p>}
-        {pendingChange && <PendingChangeNotice request={pendingChange} />}
+        {pendingChange && (
+          <section role="region" aria-label="Pending change">
+            <PendingChangeNotice request={pendingChange} />
+            {event.assignedCoordinatorId === session.userId && (
+              <div style={{ marginBottom: 16, marginTop: -8 }}>
+                <ChangeDecisionActions request={pendingChange} token={session.token} onDecided={() => void load()} />
+              </div>
+            )}
+          </section>
+        )}
+        {!pendingChange && latestDecided && <DecidedChangeNotice request={latestDecided} />}
 
         <Detail label="Purpose" value={event.purpose} />
         <Detail label="Description" value={event.description} />

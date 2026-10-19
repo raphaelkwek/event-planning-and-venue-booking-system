@@ -100,15 +100,15 @@ export interface EventForChange {
 
 /**
  * The event under the A3 scope rule, with its current values; null when absent or out of scope (404).
- * With `lock`, called inside a transaction, the event row is share-locked until it ends, so the
- * values checked and snapshotted are the ones the request is stored against.
+ * With `lock`, called inside a transaction, the event row is locked ("share" or "update") until it
+ * ends, so the values checked and snapshotted are the ones the request is stored against.
  */
 export async function findEventForChange(
   sql: Sql | TransactionSql,
   eventId: string,
   scope: AccessScope,
   callerId: string,
-  options: { lock?: boolean } = {}
+  options: { lock?: "share" | "update" } = {}
 ): Promise<EventForChange | null> {
   const event = await findEventInScope(sql, eventId, scope, callerId, options);
   if (!event) return null;
@@ -146,3 +146,6 @@ export async function findEventForChange(
 export function findEventReferences(sql: Sql, eventIds: readonly string[]): Promise<Map<string, string | null>> {
   return findReferences(sql, eventIds);
 }
+
+/** S2 — writes an approved change's values and field history inside the caller's transaction. */
+export { applyApprovedChange } from "./repo/events.js";
