@@ -11,9 +11,11 @@ import {
   withdrawBookingRequest,
   type BookingEvent,
   type BookingRequest,
+  type EventBooking,
 } from "../api/bookingRequests.js";
+import { toLocalInput } from "../api/venues.js";
 import { Refusal } from "../components/Refusal.js";
-import { BOOKING_REQUEST_APPEARANCE, BOOKING_REQUEST_LABELS } from "../shared/status.js";
+import { BOOKING_REQUEST_APPEARANCE, BOOKING_REQUEST_LABELS, UNAVAILABILITY_LABELS } from "../shared/status.js";
 import { formatPeriod } from "../shared/singaporeTime.js";
 
 /**
@@ -22,7 +24,27 @@ import { formatPeriod } from "../shared/singaporeTime.js";
  * any suggested alternative. Its assigned coordinator requests another venue
  * from here, and withdraws one that is still Pending. Anyone else who may see
  * the event sees the list only; the server applies the same rule.
+ *
+ * L5 (CR-02) — the event's bookings too, each with any unavailability that
+ * disrupts it (I2) and the replacements asked for. A confirmed booking a block
+ * disrupts offers the assigned coordinator "Find a replacement", which opens the
+ * venue search for the booking's period.
  */
+
+const SLOT_LABELS: Record<EventBooking["status"], string> = { HELD: "Held", CONFIRMED: "Confirmed", RELEASED: "Released" };
+
+/** "/venues/search?…": J1's search from the event, for the disrupted booking's period, replacing it (L5). */
+function replacementSearch(eventId: string, booking: EventBooking): string {
+  const params = new URLSearchParams({
+    eventId,
+    replaces: booking.id,
+    booking: booking.reference,
+    venue: booking.venueName,
+    from: toLocalInput(booking.startsAt),
+    to: toLocalInput(booking.endsAt),
+  });
+  return `/venues/search?${params}`;
+}
 export function EventVenueRequests() {
   const session = useSignedIn();
   const navigate = useNavigate();
@@ -30,6 +52,7 @@ export function EventVenueRequests() {
   const notice = (useLocation().state as { notice?: string } | null)?.notice ?? null;
   const [event, setEvent] = useState<BookingEvent | null>(null);
   const [items, setItems] = useState<BookingRequest[]>([]);
+  const [bookings, setBookings] = useState<EventBooking[]>([]);
   const [loadError, setLoadError] = useState<unknown>(null);
   const [withdrawing, setWithdrawing] = useState<BookingRequest | null>(null);
   const [withdrawError, setWithdrawError] = useState<unknown>(null);
@@ -40,6 +63,7 @@ export function EventVenueRequests() {
       const loaded = await listEventBookingRequests(session.token, id!);
       setEvent(loaded.event);
       setItems(loaded.items);
+      setBookings(loaded.bookings ?? []);
     } catch (caught) {
       setLoadError(caught);
     }
@@ -135,6 +159,11 @@ export function EventVenueRequests() {
                       {item.suggestedAlternative && <div>Suggested alternative: {item.suggestedAlternative}</div>}
                     </div>
                   )}
+                  {item.replacesBookingId && (
+                    <div style={{ fontSize: 12, marginTop: 4 }}>
+                      Replaces {bookings.find((b) => b.id === item.replacesBookingId)?.reference ?? "a disrupted booking"}
+                    </div>
+                  )}
                 </td>
                 <td style={cell}>
                   {assigned && item.status === "PENDING" && (
@@ -147,6 +176,65 @@ export function EventVenueRequests() {
             ))}
           </tbody>
         </table>
+      )}
+
+      {bookings.length > 0 && (
+        <>
+          <h3 style={{ marginTop: 24 }}>Bookings</h3>
+          <table aria-label="Bookings" style={{ borderCollapse: "collapse", width: "100%" }}>
+            <thead>
+              <tr>
+                {["Reference", "Venue", "Date and time", "Status", ""].map((heading, i) => (
+                  <th key={i} style={cell}>
+                    {heading}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {bookings.map((b) => {
+                const live = b.status !== "RELEASED";
+                const replaceable = assigned && canRequest && b.status === "CONFIRMED" && b.requiresReconfirmation && b.disruptions.length > 0;
+                return (
+                  <tr key={b.id} aria-label={b.reference}>
+                    <td style={cell}>{b.reference}</td>
+                    <td style={cell}>{b.venueName}</td>
+                    <td style={cell}>{formatPeriod(b.startsAt, b.endsAt)}</td>
+                    <td style={cell}>
+                      <Lozenge appearance={live ? "success" : "default"}>
+                        {b.status === "RELEASED" && b.releaseReason ? `Released (${b.releaseReason})` : SLOT_LABELS[b.status]}
+                      </Lozenge>
+                      {live && b.requiresReconfirmation && (
+                        <>
+                          {" "}
+                          <Lozenge appearance="removed">Requires reconfirmation</Lozenge>
+                        </>
+                      )}
+                      {live &&
+                        b.disruptions.map((d) => (
+                          <div key={d.blockId} style={{ fontSize: 12, marginTop: 4 }}>
+                            Unavailable: {UNAVAILABILITY_LABELS[d.reasonType] ?? d.reasonType}, “{d.description}”, {formatPeriod(d.startsAt, d.endsAt)}
+                          </div>
+                        ))}
+                      {b.replacements.map((r) => (
+                        <div key={r.id} style={{ fontSize: 12, marginTop: 4 }}>
+                          Replacement {r.reference} at {r.venueName}: {BOOKING_REQUEST_LABELS[r.status]}
+                        </div>
+                      ))}
+                    </td>
+                    <td style={cell}>
+                      {replaceable && (
+                        <Button appearance="primary" onClick={() => navigate(replacementSearch(event.id, b))}>
+                          Find a replacement
+                        </Button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </>
       )}
 
       <ModalTransition>

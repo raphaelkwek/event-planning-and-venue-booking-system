@@ -68,13 +68,30 @@ export interface BookingRequestInput {
   expectedAttendance: number | null;
   facilities: string[];
   accessibilityFeatures: string[];
+  /** L5 (CR-02): the disrupted booking this request replaces. */
+  replacesBookingId?: string | null;
+}
+
+/** L5: one of the event's bookings, with the blocks that disrupt it and the replacements asked for. */
+export interface EventBooking {
+  id: string;
+  reference: string;
+  venueId: string;
+  venueName: string;
+  startsAt: string;
+  endsAt: string;
+  status: "HELD" | "CONFIRMED" | "RELEASED";
+  requiresReconfirmation: boolean;
+  releaseReason: string | null;
+  disruptions: { blockId: string; reasonType: string; description: string; startsAt: string; endsAt: string }[];
+  replacements: { id: string; reference: string; status: BookingRequestStatus; venueName: string }[];
 }
 
 /** An event can request venues once approved, and until it is over (L1). */
 export const BOOKABLE_STATUSES: readonly EventStatus[] = ["APPROVED", "PLANNING", "SAFETY_REVIEW", "CONFIRMED"];
 
 export function listEventBookingRequests(token: string, eventId: string) {
-  return request<{ event: BookingEvent; items: BookingRequest[] }>(
+  return request<{ event: BookingEvent; items: BookingRequest[]; bookings: EventBooking[] }>(
     `${VENUE}/booking-requests?${new URLSearchParams({ eventId })}`,
     { token },
   );
