@@ -4,6 +4,71 @@
 
 ---
 
+# F5: Confirm an event only when its venue and equipment are ready
+
+**Timestamp:** 2026-10-20T03:00+08:00 (SGT)
+**Author:** Shawmya, via Claude
+**Scope:**
+- `contracts`:
+  - the `event.arrangements-confirmed` message, with its example in the contract test;
+  - `ARRANGEMENTS_NOT_READY` and `ARRANGEMENTS_UNAVAILABLE`.
+  - **Needs a second owner's review.**
+- planning-core:
+  - change module: `domain/readiness.ts`, `repo/confirmArrangements.ts` and `api/confirmations.ts` (new);
+  - event module: `api/confirmArrangements.ts` (new) and `latestStatusChangeAt` in `repo/eventHistory.ts`;
+  - venue module: `repo/eventArrangements.ts` (new);
+  - equipment module: `repo/eventArrangements.ts` (new).
+  - Each module's `index.ts` exports its new piece. **The event, venue and equipment owners should review their module's export.**
+  - No migration.
+- notification: the rule for the new message.
+- `planning-core.openapi.yaml`: `POST /api/v1/events/{id}/confirmation`, the `ConfirmedArrangements` schema and the two codes.
+- The web app: "Confirm arrangements" on the coordinator's event page (`ConfirmArrangements.tsx`, `api/confirmations.ts`).
+- Tests:
+  - contracts, planning-core (unit, mutation and integration), notification and web;
+  - test cards `tests/F5/` (21), with fixture FX-F5;
+  - traceability in `sprint-4.csv` (new).
+- Design: `documentation/superpowers/specs/2026-10-20-f5-confirm-arrangements-design.md`.
+
+**Reason:** F5 (SPM-109, Sprint 4), revised by CR-03 (several venues) and CR-06 (Safety Review). It is the only way into Safety Review, so an event the Safety Officer sees, and later a Confirmed one, has its venue and equipment actually arranged.
+
+## What it does
+
+1. **The assigned coordinator clicks "Confirm arrangements"** while the event is Approved or Planning, and the dialog says what will happen. Nobody else sees the button, and the server refuses everyone else (403) and every other status (409, F1's message).
+2. **The arrangements are read live, in one core transaction** (implementation.md §4.7):
+   - the event row is locked first;
+   - then the venue and equipment modules read the event's slots, pending requests, lines and reservations, `for share`, through their `index.ts`.
+   - Nothing about readiness is stored.
+3. **Venue:** at least one confirmed booking, and no tentative hold or pending request left (CQ-05, as AC2 reads).
+4. **Equipment:** every line not Removed must be Reserved, with its reservation holding the full requested quantity. An event marked "no equipment" counts as complete. One that needs equipment but has no line does not.
+5. **Flags:** any booking, hold or request flagged Requires Reconfirmation (I2) refuses confirmation.
+6. **A refusal names everything outstanding**, in one message and in `details`. For example: "This event can't be confirmed yet. Venue: hold … is only a tentative hold. Equipment: Chairs × 5 has 4 of 5 reserved." The dialog lists each item. A refusal writes nothing.
+7. **On success** the event moves to **Safety Review**, not Confirmed (CR-06). The history entry is F1's `CONFIRM_ARRANGEMENTS`, with the coordinator, the role and the time, and `event.arrangements-confirmed` goes in the same transaction. It notifies:
+   - the owner;
+   - the Venue Staff of each booked venue;
+   - each Technical Support member who reserved equipment, listing what they reserved.
+8. **If the venue or equipment read fails**, the transaction rolls back and the coordinator gets `503 ARRANGEMENTS_UNAVAILABLE`: "Nothing was changed."
+
+## Notes for the team
+
+9. **CQ-05 is still unanswered.** If the customer says one confirmed booking is enough, change `venueOutstanding` in `change/domain/readiness.ts` (one condition) and F5-T8's expected result.
+10. **S3's flags aren't stored yet,** so F5 checks only I2's Requires Reconfirmation.
+    - `ArrangementFlag` already names `UNSUITABLE` and `FLAGGED_FOR_REVIEW`, and the refusal wording for both is tested.
+    - **When S3 lands**, the venue and equipment reads add those flags to each arrangement's `flags`. Nothing in the change module changes.
+    - F5-T16 is `Blocked` until then.
+11. **Lock order is event → venue rows → equipment rows.** No other path locks those rows and then the event: S2 locks request → event, and M1, Q1 and Q2 don't lock the event. A Q2 release or an I2 flag on a row F5 has read waits for the confirmation to commit. An arrangement changed after that is S3's to flag.
+12. **The Safety Officer's queue is U1's.** F5 only puts the event in Safety Review. U1's queue is the events in that status.
+13. **F1-T7** (confirming writes history) can now be executed. Its automated equivalent is F5-T1.
+
+## Verified
+
+- **F5 cards:** 19 of 20 automated cards pass (`tests/change/api/f5Cards.test.ts`), twice in a row, against a local throwaway Postgres 17. This was never the shared database. F5-T16 is `Blocked` on S3, and F5-T21 (the browser walk-through) is Not Executed.
+- **Domain:** `readiness.ts` is at 100% coverage, with a mutation score of 95.9%. The remaining survivors are equivalent mutants on null combinations that can't occur.
+- **Other tests:** contracts 113/113, the notification recipient rules and web 269/269 pass.
+- **Checks:** typecheck, ESLint, `lint:boundaries` and `lint:api` (no new warnings) pass.
+- **The full planning-core suite on that local Postgres** fails 62 tests on unmodified `main` (9274084). They are in the race, venue, equipment-inventory, outbox-relay and S1 files. F5's branch fails in the same files and adds no new failing test. CI's throwaway Postgres is the reference; check its run on the pull request.
+
+---
+
 # L5: Request a replacement venue for a disrupted booking
 
 **Timestamp:** 2026-10-19T17:04+08:00 (SGT)
