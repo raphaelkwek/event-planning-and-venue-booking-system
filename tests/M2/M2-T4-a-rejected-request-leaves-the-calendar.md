@@ -19,6 +19,6 @@
 |---|---|
 | Actual Result | Before the rejection Wednesday 2 December 2026 showed 14:00–18:00 Pending; afterwards it had no Pending or Confirmed row and was free 08:00–22:00. |
 | Status | Pass |
-| Remarks | Commit: 9adf0ff · Evidence: tests/M2/evidence/M2-T4.png · Defect: — |
+| Remarks | Commit: ba2d786 · Evidence: tests/M2/evidence/M2-T4.png · Defect: — |
 | Executed By | Yichen, via automated testing |
-| Date of Execution | 2026-10-18 |
+| Date of Execution | 2026-10-19 |

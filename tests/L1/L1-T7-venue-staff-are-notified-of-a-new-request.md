@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | An unread notification read: "Booking request BKR-000415 was submitted for Lee Kong Chian Auditorium: EVT-007964 “Annual Research Symposium”, Wednesday 2 December 2026, 14:00–18:00. It is waiting in your Booking requests queue.10/18/2026, 1:31:21 AMUnreadOpenMark as read". |
+| Actual Result | An unread notification read: "Booking request BKR-001129 was submitted for Lee Kong Chian Auditorium: EVT-009118 “Annual Research Symposium”, Wednesday 2 December 2026, 14:00–18:00. It is waiting in your Booking requests queue.10/19/2026, 4:20:53 PMUnreadOpenMark as read". |
 | Status | Pass |
-| Remarks | Commit: ff9e786 · Evidence: tests/L1/evidence/L1-T7.png · Defect: — |
+| Remarks | Commit: ba2d786 · Evidence: tests/L1/evidence/L1-T7.png · Defect: — |
 | Executed By | Yichen, via automated testing |
-| Date of Execution | 2026-10-18 |
+| Date of Execution | 2026-10-19 |

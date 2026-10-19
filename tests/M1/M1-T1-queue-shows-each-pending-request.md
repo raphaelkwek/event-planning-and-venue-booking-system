@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | The queue's row read "BKR-000384EVT-007939Lee Kong Chian AuditoriumWednesday 2 December 2026, 14:00–18:00Theatre150 attending——Coordinator One10/18/2026, 1:29:08 AMApprove Reject", with "Approve" and "Reject". The BKR-000385 request for Mochtar Riady Hall wasn't listed. |
+| Actual Result | The queue's row read "BKR-001146EVT-009133Lee Kong Chian AuditoriumWednesday 2 December 2026, 14:00–18:00Theatre150 attending——Coordinator One10/19/2026, 4:22:04 PMApprove Reject", with "Approve" and "Reject". The BKR-001147 request for Mochtar Riady Hall wasn't listed. |
 | Status | Pass |
-| Remarks | Commit: 9adf0ff · Evidence: tests/M1/evidence/M1-T1.png · Defect: — |
+| Remarks | Commit: ba2d786 · Evidence: tests/M1/evidence/M1-T1.png · Defect: — |
 | Executed By | Yichen, via automated testing |
-| Date of Execution | 2026-10-18 |
+| Date of Execution | 2026-10-19 |

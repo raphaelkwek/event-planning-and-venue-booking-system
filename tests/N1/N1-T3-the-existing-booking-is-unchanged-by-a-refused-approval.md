@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | The booking's row was identical before and after: CONFIRMED, 2026-12-02T05:00:00.000Z to 2026-12-02T07:00:00.000Z, reference N1-FX-EVT-008065, updated_at 2026-10-17T17:38:33.640Z. The calendar's only Confirmed row was "13:00–15:00 Confirmed EVT-008065". |
+| Actual Result | The booking's row was identical before and after: CONFIRMED, 2026-12-02T05:00:00.000Z to 2026-12-02T07:00:00.000Z, reference N1-FX-EVT-009156, updated_at 2026-10-19T08:23:43.709Z. The calendar's only Confirmed row was "13:00–15:00 Confirmed EVT-009156". |
 | Status | Pass |
-| Remarks | Commit: 7c418d5 · Evidence: tests/N1/evidence/N1-T3.png · Defect: — |
+| Remarks | Commit: ba2d786 · Evidence: tests/N1/evidence/N1-T3.png · Defect: — |
 | Executed By | Yichen, via automated testing |
-| Date of Execution | 2026-10-18 |
+| Date of Execution | 2026-10-19 |

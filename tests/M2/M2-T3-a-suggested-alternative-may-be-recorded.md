@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | The coordinator's row read "BKR-000399Lee Kong Chian AuditoriumWednesday 2 December 2026, 14:00–18:00Theatre150RejectedReason: Already promised to another facultySuggested alternative: Thursday 3 December at the same time, or Seminar Room 2-1". |
+| Actual Result | The coordinator's row read "BKR-001161Lee Kong Chian AuditoriumWednesday 2 December 2026, 14:00–18:00Theatre150RejectedReason: Already promised to another facultySuggested alternative: Thursday 3 December at the same time, or Seminar Room 2-1". |
 | Status | Pass |
-| Remarks | Commit: 9adf0ff · Evidence: tests/M2/evidence/M2-T3.png · Defect: — |
+| Remarks | Commit: ba2d786 · Evidence: tests/M2/evidence/M2-T3.png · Defect: — |
 | Executed By | Yichen, via automated testing |
-| Date of Execution | 2026-10-18 |
+| Date of Execution | 2026-10-19 |

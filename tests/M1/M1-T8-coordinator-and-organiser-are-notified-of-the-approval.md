@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | Each had one unread notification. coordinator@connectsphere.test: "Booking request BKR-000391 was approved, and the booking is confirmed: Lee Kong Chian Auditorium for EVT-007947 “Annual Research Symposium”, Wednesday 2 December 2026, 14:00–18:00.10/18/2026, 1:29:31 AMUnreadOpenMark as read"; organiser@connectsphere.test: "Booking request BKR-000391 was approved, and the booking is confirmed: Lee Kong Chian Auditorium for EVT-007947 “Annual Research Symposium”, Wednesday 2 December 2026, 14:00–18:00.10/18/2026, 1:29:31 AMUnreadOpenMark as read". |
+| Actual Result | Each had one unread notification. coordinator@connectsphere.test: "Booking request BKR-001153 was approved, and the booking is confirmed: Lee Kong Chian Auditorium for EVT-009141 “Annual Research Symposium”, Wednesday 2 December 2026, 14:00–18:00.10/19/2026, 4:22:30 PMUnreadOpenMark as read"; organiser@connectsphere.test: "Booking request BKR-001153 was approved, and the booking is confirmed: Lee Kong Chian Auditorium for EVT-009141 “Annual Research Symposium”, Wednesday 2 December 2026, 14:00–18:00.10/19/2026, 4:22:30 PMUnreadOpenMark as read". |
 | Status | Pass |
-| Remarks | Commit: 9adf0ff · Evidence: tests/M1/evidence/M1-T8.png · Defect: — |
+| Remarks | Commit: ba2d786 · Evidence: tests/M1/evidence/M1-T8.png · Defect: — |
 | Executed By | Yichen, via automated testing |
-| Date of Execution | 2026-10-18 |
+| Date of Execution | 2026-10-19 |

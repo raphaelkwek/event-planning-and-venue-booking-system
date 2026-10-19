@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | The approval was refused: "BKR-000516 wasn't approved: Lee Kong Chian Auditorium is already booked for EVT-008063 (Wednesday 2 December 2026, 13:00–15:00), counting setup and turnaround time. Nothing was approved, and the request is still Pending." The request is still in the queue and PENDING; its event has no confirmed booking. |
+| Actual Result | The approval was refused: "BKR-001171 wasn't approved: Lee Kong Chian Auditorium is already booked for EVT-009154 (Wednesday 2 December 2026, 13:00–15:00), counting setup and turnaround time. Nothing was approved, and the request is still Pending." The request is still in the queue and PENDING; its event has no confirmed booking. |
 | Status | Pass |
-| Remarks | Commit: 7c418d5 · Evidence: tests/N1/evidence/N1-T2.png · Defect: — |
+| Remarks | Commit: ba2d786 · Evidence: tests/N1/evidence/N1-T2.png · Defect: — |
 | Executed By | Yichen, via automated testing |
-| Date of Execution | 2026-10-18 |
+| Date of Execution | 2026-10-19 |

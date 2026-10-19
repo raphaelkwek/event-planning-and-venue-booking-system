@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | After the rejection the event still showed Approved, with no new status history entry. Both further requests were accepted: BKR-000403 PENDING, BKR-000404 PENDING. |
+| Actual Result | After the rejection the event still showed Approved, with no new status history entry. Both further requests were accepted: BKR-001165 PENDING, BKR-001166 PENDING. |
 | Status | Pass |
-| Remarks | Commit: 9adf0ff · Evidence: tests/M2/evidence/M2-T6.png · Defect: — |
+| Remarks | Commit: ba2d786 · Evidence: tests/M2/evidence/M2-T6.png · Defect: — |
 | Executed By | Yichen, via automated testing |
-| Date of Execution | 2026-10-18 |
+| Date of Execution | 2026-10-19 |
