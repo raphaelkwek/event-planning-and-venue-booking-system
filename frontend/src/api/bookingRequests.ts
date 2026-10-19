@@ -41,6 +41,8 @@ export interface BookingRequest {
   bookingId: string | null;
   rejectionReason: string | null;
   suggestedAlternative: string | null;
+  /** I2: an active block overlaps this pending request. */
+  requiresReconfirmation: boolean;
 }
 
 /** The event's values the request form starts from. */

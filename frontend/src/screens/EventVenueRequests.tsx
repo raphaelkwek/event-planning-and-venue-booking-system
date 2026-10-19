@@ -123,6 +123,12 @@ export function EventVenueRequests() {
                       <Lozenge appearance="inprogress">Differs from the event</Lozenge>
                     </>
                   )}
+                  {item.status === "PENDING" && item.requiresReconfirmation && (
+                    <>
+                      {" "}
+                      <Lozenge appearance="removed">Requires reconfirmation</Lozenge>
+                    </>
+                  )}
                   {item.status === "REJECTED" && item.rejectionReason && (
                     <div style={{ fontSize: 12, marginTop: 4 }}>
                       <div>Reason: {item.rejectionReason}</div>
