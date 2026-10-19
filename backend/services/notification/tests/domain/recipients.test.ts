@@ -428,3 +428,75 @@ describe("I2: tell the coordinator when a block disrupts, or stops disrupting, t
     );
   });
 });
+
+describe("F5: tells the owner, each booked venue's staff and each reserver that the arrangements are confirmed", () => {
+  const venueStaff = "00000000-0000-0000-0000-000000000003";
+  const otherVenueStaff = "00000000-0000-0000-0000-000000000013";
+  const techSupport = "00000000-0000-0000-0000-000000000004";
+  const otherTechSupport = "00000000-0000-0000-0000-000000000014";
+  const confirmed = {
+    ownerId: organiser,
+    confirmedBy: coordinator,
+    confirmedAt: at,
+    bookings: [
+      {
+        bookingId: "44444444-4444-4444-8444-444444444444",
+        reference: "BKR-000001",
+        venueName: "Lee Kong Chian Auditorium",
+        startsAt: "2026-12-02T06:00:00.000Z",
+        endsAt: "2026-12-02T10:00:00.000Z",
+        staffIds: [venueStaff, otherVenueStaff],
+      },
+      {
+        bookingId: "66666666-6666-4666-8666-666666666666",
+        reference: "BKR-000002",
+        venueName: "Seminar Room 2-1",
+        startsAt: "2026-12-02T06:00:00.000Z",
+        endsAt: "2026-12-02T10:00:00.000Z",
+        staffIds: [],
+      },
+    ],
+    reservations: [
+      { reservationId: "55555555-5555-4555-8555-555555555555", equipmentTypeName: "Folding Chairs", reservedQuantity: 40, reservedBy: techSupport },
+      { reservationId: "77777777-7777-4777-8777-777777777777", equipmentTypeName: "Projectors", reservedQuantity: 2, reservedBy: techSupport },
+      { reservationId: "88888888-8888-4888-8888-888888888888", equipmentTypeName: "Microphones", reservedQuantity: 4, reservedBy: otherTechSupport },
+    ],
+  };
+  const notes = () => notificationsFor(message("event.arrangements-confirmed", confirmed));
+  const textFor = (recipient: string) => notes().filter((note) => note.recipientUserId === recipient).map((note) => note.message);
+
+  it("notifies exactly the owner, each venue's staff and each reserver, once each", () => {
+    expect(notes().map((note) => note.recipientUserId)).toEqual([organiser, venueStaff, otherVenueStaff, techSupport, otherTechSupport]);
+    expect(notes().every((note) => note.notificationType === "event.arrangements-confirmed" && note.eventId === eventId)).toBe(true);
+  });
+
+  it("tells the owner the event is in Safety Review, not Confirmed", () => {
+    expect(textFor(organiser)).toEqual([
+      "Your event EVT-2026-0042 “Freshmen Orientation” has its venue and equipment arrangements confirmed. It is now in Safety Review, awaiting the Safety Officer.",
+    ]);
+  });
+
+  it("tells each Venue Staff member which booking at their venue, and when", () => {
+    const text =
+      "EVT-2026-0042 “Freshmen Orientation” has confirmed its arrangements, including booking BKR-000001 at Lee Kong Chian Auditorium, " +
+      "Wednesday 2 December 2026, 14:00–18:00. It is now in Safety Review.";
+    expect(textFor(venueStaff)).toEqual([text]);
+    expect(textFor(otherVenueStaff)).toEqual([text]);
+  });
+
+  it("tells each reserver the equipment they reserved, and only theirs", () => {
+    expect(textFor(techSupport)).toEqual([
+      "EVT-2026-0042 “Freshmen Orientation” has confirmed its arrangements, including the equipment you reserved: Folding Chairs × 40, Projectors × 2. It is now in Safety Review.",
+    ]);
+    expect(textFor(otherTechSupport)).toEqual([
+      "EVT-2026-0042 “Freshmen Orientation” has confirmed its arrangements, including the equipment you reserved: Microphones × 4. It is now in Safety Review.",
+    ]);
+  });
+
+  it("notifies only the owner and the venue's staff when no equipment was reserved", () => {
+    const recipients = notificationsFor(message("event.arrangements-confirmed", { ...confirmed, reservations: [] })).map(
+      (note) => note.recipientUserId,
+    );
+    expect(recipients).toEqual([organiser, venueStaff, otherVenueStaff]);
+  });
+});
