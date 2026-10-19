@@ -4,7 +4,7 @@ import { useSignedIn } from "../auth/SessionContext.js";
 import { listBookingQueue, type BookingDifference, type BookingRequest } from "../api/bookingRequests.js";
 import { Refusal } from "../components/Refusal.js";
 import { useUserNames } from "../shared/useUserNames.js";
-import { formatInstant } from "../shared/status.js";
+import { formatInstant, SUITABILITY_APPEARANCE, SUITABILITY_LABELS } from "../shared/status.js";
 import { formatPeriod, formatTime } from "../shared/singaporeTime.js";
 
 /**
@@ -12,6 +12,9 @@ import { formatPeriod, formatTime } from "../shared/singaporeTime.js";
  * venues this Venue Staff member looks after, soonest first, with everything the
  * request records. A request that differs from its event shows each differing
  * value beside the event's.
+ *
+ * K2: each request shows how well its venue suited it when it was made; a Not
+ * suitable one shows its failing conditions and the coordinator's justification.
  */
 
 function difference(d: BookingDifference): string {
@@ -23,6 +26,25 @@ function difference(d: BookingDifference): string {
     case "expectedAttendance":
       return `Attendance ${d.requested} (event ${d.event})`;
   }
+}
+
+function Suitability({ item }: { item: BookingRequest }) {
+  if (item.suitabilityStatus === null) return <Lozenge>Not assessed</Lozenge>;
+  return (
+    <>
+      <Lozenge appearance={SUITABILITY_APPEARANCE[item.suitabilityStatus]}>{SUITABILITY_LABELS[item.suitabilityStatus]}</Lozenge>
+      {item.suitabilityStatus === "NOT_SUITABLE" && (
+        <>
+          <ul style={{ margin: "4px 0 0", paddingLeft: 16, fontSize: 12 }}>
+            {(item.suitabilityReasons ?? []).map((reason) => (
+              <li key={reason.condition}>{reason.message}</li>
+            ))}
+          </ul>
+          <div style={{ fontSize: 12, marginTop: 4 }}>Justification: {item.justification}</div>
+        </>
+      )}
+    </>
+  );
 }
 
 export function BookingRequestQueue() {
@@ -50,7 +72,7 @@ export function BookingRequestQueue() {
         <table style={{ borderCollapse: "collapse", width: "100%" }}>
           <thead>
             <tr>
-              {["Reference", "Event", "Venue", "Date and time", "Layout", "Attendance", "Facilities", "Accessibility", "Requested", ""].map(
+              {["Reference", "Event", "Venue", "Date and time", "Layout", "Attendance", "Facilities", "Accessibility", "Suitability", "Requested", ""].map(
                 (heading, i) => (
                   <th key={i} style={cell}>
                     {heading}
@@ -70,6 +92,9 @@ export function BookingRequestQueue() {
                 <td style={cell}>{item.expectedAttendance} attending</td>
                 <td style={cell}>{item.facilities.length > 0 ? item.facilities.join(", ") : "—"}</td>
                 <td style={cell}>{item.accessibilityFeatures.length > 0 ? item.accessibilityFeatures.join(", ") : "—"}</td>
+                <td style={cell}>
+                  <Suitability item={item} />
+                </td>
                 <td style={cell}>
                   {nameOf(item.requestedBy) ?? item.requestedBy}
                   <div style={{ fontSize: 12, color: "#626F86" }}>{formatInstant(item.requestedAt)}</div>

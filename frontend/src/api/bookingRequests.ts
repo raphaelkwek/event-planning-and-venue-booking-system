@@ -1,5 +1,6 @@
 import { request } from "./client.js";
 import type { EventStatus, VenueRequirements } from "./types.js";
+import type { SuitabilityCondition, SuitabilityStatus } from "./venues.js";
 
 /** L1, L2: venue booking requests, served by planning-core's venue module. */
 
@@ -35,6 +36,11 @@ export interface BookingRequest {
   requestedAt: string;
   withdrawnBy: string | null;
   withdrawnAt: string | null;
+  /** K2: assessed when the request was submitted; null on requests made before K2. */
+  suitabilityStatus: SuitabilityStatus | null;
+  /** K2: the failing conditions as they were then. */
+  suitabilityReasons: SuitabilityCondition[] | null;
+  justification: string | null;
 }
 
 /** The event's values the request form starts from. */
@@ -60,6 +66,8 @@ export interface BookingRequestInput {
   expectedAttendance: number | null;
   facilities: string[];
   accessibilityFeatures: string[];
+  /** K2: sent once the server has found the venue not suitable. */
+  justification?: string;
 }
 
 /** An event can request venues once approved, and until it is over (L1). */
