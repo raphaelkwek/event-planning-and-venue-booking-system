@@ -1,3 +1,10 @@
+import {
+  EQUIPMENT_LINE_STATUS_LABELS,
+  SIGNIFICANT_FIELD_LABELS,
+  type EquipmentRequestLineStatus,
+  type SignificantEventField,
+} from "@connectsphere/contracts";
+
 /**
  * T2's recipient rules (EN-04.3): who is told what, from the facts the message
  * itself carries. Each trigger is an acceptance criterion on the story that
@@ -29,6 +36,47 @@ export interface NewNotification {
 
 type Rule = (data: Record<string, string>, event: string) => Array<[recipient: string, message: string]>;
 
+/** O2: names the equipment line and its new status, with the reason or the substitute where there is one. */
+function equipmentLineMessage(d: Record<string, unknown>, event: string): string {
+  const status = EQUIPMENT_LINE_STATUS_LABELS[d.newStatus as EquipmentRequestLineStatus];
+  const line = `${d.equipmentTypeName} × ${d.quantity}`;
+  if (d.released === true) {
+    return `The reservation of ${line} for ${event} was released. The line is now ${status}. Reason: ${d.reason}`;
+  }
+  const reserved = typeof d.reservedQuantity === "number" && typeof d.quantity === "number" && d.reservedQuantity < d.quantity;
+  const partial = reserved ? ` (${d.reservedQuantity} of ${d.quantity} reserved)` : "";
+  let text = `Technical Support updated equipment for ${event}: ${line} is now ${status}${partial}.`;
+  if (d.reason) text += ` Reason: ${d.reason}`;
+  if (d.substituteEquipmentTypeName) text += ` Substitute: ${d.substituteEquipmentTypeName} × ${d.substituteQuantity}.`;
+  return text;
+}
+
+/** A period in Singapore time, where the venues are: one day, or both ends when it crosses midnight. */
+function period(startsAt: string, endsAt: string): string {
+  const parts = (iso: string) => {
+    const p = new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Asia/Singapore",
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    }).formatToParts(new Date(iso));
+    const part = (type: string) => p.find((x) => x.type === type)!.value;
+    return { day: `${part("weekday")} ${part("day")} ${part("month")} ${part("year")}`, time: `${part("hour")}:${part("minute")}` };
+  };
+  const start = parts(startsAt);
+  const end = parts(endsAt);
+  return start.day === end.day ? `${start.day}, ${start.time}–${end.time}` : `${start.day} ${start.time} to ${end.day} ${end.time}`;
+}
+
+/** S1: names each changed field the way the organiser's form does. */
+function joinLabels(fields: unknown): string {
+  return (fields as SignificantEventField[]).map((field) => SIGNIFICANT_FIELD_LABELS[field] ?? field).join(", ");
+}
+
 const RULES: Record<string, Rule> = {
   // B1 asks for the coordinator assigned on submission to hear that a request
   // awaits review. event.submitted does not name that coordinator; this
@@ -54,6 +102,25 @@ const RULES: Record<string, Rule> = {
   "event.reassignment-declined": (d, event) => [
     [d.outgoingCoordinatorId!, `Your proposal to reassign ${event} was declined. You remain its coordinator.`],
   ],
+  // O2: the event's assigned coordinator learns what Technical Support decided about a line.
+  "equipment-request.line-status-changed": (d, event) => [[d.coordinatorId!, equipmentLineMessage(d, event)]],
+  // L1: the venue's Venue Staff learn a request is waiting for them. The message names them.
+  "venue-booking.request-submitted": (d, event) =>
+    (d.staffIds as unknown as string[]).map((staffId) => [
+      staffId,
+      `Booking request ${d.reference} was submitted for ${d.venueName}: ${event}, ${period(d.startsAt!, d.endsAt!)}. It is waiting in your Booking requests queue.`,
+    ]),
+  // S1: the assigned coordinator hears that the organiser asked to change the event.
+  "change-request.submitted": (d, event) => [
+    [d.coordinatorId!, `A change has been requested for ${event}: ${joinLabels(d.fields)}.`],
+  ],
+  // S2: the organiser hears what the coordinator decided about their request.
+  "change-request.approved": (d, event) => [
+    [d.ownerId!, `Your change request for ${event} was approved: ${joinLabels(d.fields)}.`],
+  ],
+  "change-request.rejected": (d, event) => [
+    [d.ownerId!, `Your change request for ${event} was rejected. Reason: ${d.reason}`],
+  ],
 };
 
 /** The notifications a message raises; none for a type no story asks to notify about. */
@@ -67,7 +134,8 @@ export function notificationsFor(message: NotifiableEvent): NewNotification[] {
     notificationType: message.type,
     eventId: data.eventId!,
     eventReference: data.eventReference!,
-    relatedReference: null,
+    // A booking request's own reference, for the venue-booking messages (L1).
+    relatedReference: message.type.startsWith("venue-booking.") ? data.reference! : null,
     message: text,
   }));
 }

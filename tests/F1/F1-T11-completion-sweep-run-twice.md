@@ -20,8 +20,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | Both runs exited 0. Run 1 logged "event completed" with the noted id (completed 1); run 2 had no line carrying it (completed 0). The query returned `1`. |
+| Status | Pass |
+| Remarks | Commit: 3d313c1 · Evidence: tests/F1/evidence/F1-T11-2026-10-07.txt · Defect: — |
+| Executed By | Raphael, via automated testing |
+| Date of Execution | 2026-10-07 |

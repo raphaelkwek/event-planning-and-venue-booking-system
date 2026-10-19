@@ -7,8 +7,8 @@ import { EVENT_STATUS_LABELS, type EventStatus } from "@connectsphere/contracts"
  *
  * `transitionEvent` (api/transitionEvent.ts) is the only code that applies a
  * row of this table, and the only code that writes an event's status. Later
- * stories (F3 cancellation, S2) add rows here rather than writing status
- * themselves.
+ * stories (F3 cancellation, S2, U1's reject once CQ-08 is answered) add rows
+ * here rather than writing status themselves.
  */
 export type EventAction =
   | "SUBMIT"
@@ -17,7 +17,9 @@ export type EventAction =
   | "RESPOND_TO_CLARIFICATION"
   | "APPROVE"
   | "REJECT"
-  | "CONFIRM"
+  | "CONFIRM_ARRANGEMENTS"
+  | "APPROVE_SAFETY"
+  | "REQUEST_SAFETY_CHANGES"
   | "COMPLETE";
 
 export interface TransitionRule {
@@ -32,9 +34,17 @@ const TRANSITIONS: Record<EventAction, TransitionRule> = {
   RESPOND_TO_CLARIFICATION: { from: ["AWAITING_CLARIFICATION"], to: "UNDER_REVIEW" },
   APPROVE: { from: ["UNDER_REVIEW", "AWAITING_CLARIFICATION"], to: "APPROVED" },
   REJECT: { from: ["UNDER_REVIEW", "AWAITING_CLARIFICATION"], to: "REJECTED" },
-  // F1 defines that Confirmed is reached by this transition; F5 performs it
-  // and adds the readiness conditions that must hold first.
-  CONFIRM: { from: ["APPROVED", "PLANNING"], to: "CONFIRMED" },
+  // F5 confirms the arrangements (a confirmed booking, equipment reserved).
+  // Since CR-06 that leads to Safety Review, not straight to Confirmed.
+  CONFIRM_ARRANGEMENTS: { from: ["APPROVED", "PLANNING"], to: "SAFETY_REVIEW" },
+  // U1 — only the Safety Officer's approval makes an event Confirmed (CR-06).
+  APPROVE_SAFETY: { from: ["SAFETY_REVIEW"], to: "CONFIRMED" },
+  // U1 — a request for changes sends the event back to Planning, from where it
+  // passes F5 and the safety check again. Rejecting the safety arrangement has
+  // no row: its outcome waits on the customer's answer to CQ-08.
+  // CR-06 proposes Planning; CQ-08 also asks which stage this returns to, so
+  // the target may change with the customer's answer.
+  REQUEST_SAFETY_CHANGES: { from: ["SAFETY_REVIEW"], to: "PLANNING" },
   // F1 — only a confirmed event took place, so only a confirmed event
   // completes, and only once its end has passed (checked where the transition
   // is applied, in transitionEvent).

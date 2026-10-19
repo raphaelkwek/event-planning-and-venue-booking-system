@@ -164,6 +164,8 @@ Refusals are features (implementation.md §11.5). Each is tested and each writes
 | Responding with neither message nor amendment (D3) | 400 | `VALIDATION_FAILED` |
 | Identity unreachable | 503 | `IDENTITY_UNAVAILABLE` |
 
+> **Superseded 2026-10-07 by F1** (`2026-09-30-f1-status-lifecycle-design.md`): a second decision is now refused with `STATUS_TRANSITION_NOT_PERMITTED`, naming both statuses; `EVENT_ALREADY_DECIDED` is no longer emitted.
+
 Every error uses the envelope in implementation.md §5, carries the `correlationId`, and is logged
 with its code.
 

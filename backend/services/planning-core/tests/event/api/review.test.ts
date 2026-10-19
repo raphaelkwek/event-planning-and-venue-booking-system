@@ -23,7 +23,18 @@ vi.mock("../../../src/modules/event/auth/identity.js", async () => {
   return { ...actual, resolveCurrentUser: vi.fn(), resolveEventsScope: vi.fn() };
 });
 
+vi.mock("../../../src/modules/event/repo/events.js", async () => {
+  const actual = await vi.importActual<typeof import("../../../src/modules/event/repo/events.js")>(
+    "../../../src/modules/event/repo/events.js"
+  );
+  return { ...actual, findEventInScope: vi.fn(actual.findEventInScope) };
+});
+
 const { resolveCurrentUser, resolveEventsScope } = await import("../../../src/modules/event/auth/identity.js");
+const { findEventInScope } = await import("../../../src/modules/event/repo/events.js");
+const realRepo = await vi.importActual<typeof import("../../../src/modules/event/repo/events.js")>(
+  "../../../src/modules/event/repo/events.js"
+);
 const { app } = await import("../../../src/app.js");
 
 const sql = testDb();
@@ -81,6 +92,8 @@ async function givenSubmittedEvent(overrides: Record<string, unknown> = {}) {
 beforeEach(async () => {
   vi.mocked(resolveCurrentUser).mockReset();
   vi.mocked(resolveEventsScope).mockReset();
+  vi.mocked(findEventInScope).mockReset();
+  vi.mocked(findEventInScope).mockImplementation(realRepo.findEventInScope);
   await cleanUp();
 });
 
@@ -251,6 +264,32 @@ describe("GET /api/v1/events/:id (D1)", () => {
 
     expect(res.status).toBe(200);
     expect(res.body.reviewingCoordinatorId).toBe(COORDINATOR);
+  });
+
+  it("a coordinator who loses the race to open a request sees the first reviewer", async () => {
+    const event = await givenSubmittedEvent();
+    const staleSubmittedRow = await realRepo.findEventInScope(sql, event.id, { scopeType: "ALL" }, COORDINATOR);
+    expect(staleSubmittedRow?.status).toBe("SUBMITTED");
+
+    signedInAs(COORDINATOR, "EVENT_COORDINATOR");
+    await request(app).get(`/api/v1/events/${event.id}`).set(bearer);
+    const [claimed] = await sql`
+      select reviewing_coordinator_id, review_started_at from event.events where id = ${event.id}`;
+
+    signedInAs(OTHER_COORDINATOR, "EVENT_COORDINATOR");
+    vi.mocked(findEventInScope).mockResolvedValueOnce(staleSubmittedRow);
+    const res = await request(app).get(`/api/v1/events/${event.id}`).set(bearer);
+
+    expect(res.status).toBe(200);
+    expect(res.body.reviewingCoordinatorId).toBe(COORDINATOR);
+    const [after] = await sql`
+      select reviewing_coordinator_id, review_started_at from event.events where id = ${event.id}`;
+    expect(after.reviewing_coordinator_id).toBe(COORDINATOR);
+    expect(after.review_started_at).toEqual(claimed.review_started_at);
+    const opens = await sql`
+      select 1 from event.event_history
+      where event_id = ${event.id} and triggering_action = 'OPEN_FOR_REVIEW'`;
+    expect(opens).toHaveLength(1);
   });
 
   it("does not move the event to Under Review when the organiser opens it", async () => {

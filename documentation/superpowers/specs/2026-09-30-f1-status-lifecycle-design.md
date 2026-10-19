@@ -202,3 +202,34 @@ already removes every request owned by the seeded organisers, so it cleans up to
 - **Merge risk.** The refactor touches `decisions.ts`, `clarifications.ts`, `submitEvent.ts` and
   `events.ts` in the event service. Check with the team for open work in those files before
   starting.
+
+## 6. What changed between this design and the build (2026-10-07)
+
+- **CR-06 (Week 7) added Safety Review.** F5's confirmation now leads to Safety Review
+  (`CONFIRM_ARRANGEMENTS`, renamed from `CONFIRM`); the Safety Officer's approval leads to Confirmed
+  (`APPROVE_SAFETY`) and a request for changes back to Planning (`REQUEST_SAFETY_CHANGES`). There is
+  no transition for rejecting the safety arrangement until the customer answers CQ-08. See
+  `documentation/superpowers/plans/2026-10-07-f1-completion-in-planning-core.md`.
+- **The code moved into `planning-core`** (EN-01) before Tasks 3–12 were built; the delta plan above
+  re-targeted them.
+- **The completion time guard is enforced by the transition itself**, not only by the sweep's
+  selection, so nothing can complete an event early whoever calls it. The rule is written once
+  (`endHasPassed()` in `repo/eventStatus.ts`); the pure `isDueForCompletion()` of §3.1 was not
+  needed.
+- **The database clock decides completion in production.** The runner passes no time, so both the
+  listing and the guard compare with the database's `now()` — the same clock the history
+  timestamps use. Tests pass a fixed time.
+- **Placement:** the one conditional `UPDATE` is `updateStatusIf()` in `repo/eventStatus.ts`;
+  `transitionEvent()` is in `api/transitionEvent.ts`; the fragment type is in
+  `repo/sqlFragment.ts`.
+- **Response codes:** resubmission keeps `409 DRAFT_ALREADY_SUBMITTED` (card D5-T5 reads it) with a
+  message naming both statuses. A second or concurrent decision is now
+  `STATUS_TRANSITION_NOT_PERMITTED`; `EVENT_ALREADY_DECIDED` is no longer emitted but stays in
+  contracts.
+- **The sweep reports `skipped` with the status that refused each event**, separately from
+  `completed` and `failed`.
+- **Concurrency is proven with the EN-02.3 race harness** (50 attempts × 10 rounds on CI's
+  throwaway Postgres) for the status write, approval and completion, not with two-transaction
+  `Promise.all` tests, which can pass without contention.
+- **§4's before-code card confirmation was waived for F1** by the team (decision recorded in §4);
+  `main` is now branch-protected (SPM-115), so every F1 change merges through a reviewed PR.

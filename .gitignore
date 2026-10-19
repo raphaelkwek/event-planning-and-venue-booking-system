@@ -11,6 +11,9 @@ node_modules/
 # Node / ConnectSphere services
 node_modules/
 coverage/
+# Stryker mutation testing (EN-06.2): its reports and its sandbox copies
+**/reports/mutation/
+.stryker-tmp/
 *.tsbuildinfo
 
 # Byte-compiled / optimized / DLL files
@@ -277,3 +280,6 @@ submission/
 
 #topic-research
 topic_research.md
+
+# Leftover EN-02.1 test venues exported from the shared database before deletion (10 Oct 2026)
+/Old Venues/

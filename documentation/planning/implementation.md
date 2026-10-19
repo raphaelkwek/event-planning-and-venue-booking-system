@@ -58,6 +58,7 @@ Staff-facing code is **one deployable, `planning-core`**, made of modules (ADR-0
       .dependency-cruiser.mjs  the import boundary check
     /registration           EN-13, not built yet
     /notification           EN-04.3: Kafka consumer, inbox, retry and DLQ, T2's recipient rules;
+                            T2: the read and mark-as-read API (who is calling: identity's /users/me);
                             its own schema, migrations/ and /healthz, /readyz on NOTIFICATION_PORT
   /packages
     /contracts              event schemas, shared TS types, error codes  ← changing this needs review
@@ -373,11 +374,18 @@ Model holds and confirmed bookings as rows in one table (`venue_slots`) so a sin
 
 `blocked_period` is the **occupied period**, `[start − setup, end + turnaround)`, using the venue's setup and turnaround minutes. They were zero until the Week 7 change CR-01 (H3) made them per-venue settings; the column was designed for that, so it's a data change rather than a redesign. When a venue's buffers change, don't rewrite stored periods, because the constraint would reject new overlaps. Compute the would-be periods and flag the bookings that now conflict as Requires Reconfirmation (H3). Holds that pass their expiry become `EXPIRED` (L6, CR-04), which the constraint's `HELD`/`CONFIRMED` filter already ignores.
 
-**Three rules the constraint alone doesn't give you:**
+**As built (EN-02.1, `migrations/venue/0003_venue_slots_and_unavailability.sql`).** Stories that take or check a slot call these, in the venue module:
+- `insertVenueSlot(tx, slot)` in `repo/slots.ts` inserts a HELD or CONFIRMED slot. Pass the venue's current setup and turnaround minutes; the slot keeps its own copy. An overlap comes back as `VenueSlotConflictError` (`VENUE_SLOT_CONFLICT`), naming every overlapped reference.
+- `lockVenue(tx, venueId)` takes the venue row lock (rule 1 below). `insertVenueSlot` takes it too, before inserting (rule 4).
+- `venue.unavailability_blocks` holds I2's blocks. A block is removed by setting its status to `REMOVED`.
+- The status and reason values are in contracts (`VENUE_SLOT_STATUSES`, `UNAVAILABILITY_REASON_TYPES`).
+
+**Four rules the constraint alone doesn't give you:**
 
 1. **Approval and blocking take the venue row lock first (M1, I2).** M1 approving a booking and I2 recording a period of unavailability both start with `select … from venue.venues where id = $venue for update`. Without it, a block created during an approval can leave an unflagged confirmed booking overlapping the block. With it, the two serialise per venue: whichever runs second sees the other's result, and I2 flags the overlapping booking.
 2. **Requires Reconfirmation is a flag, never a status.** Store it as `requires_reconfirmation boolean not null default false` on the slot. Keep the status CONFIRMED, so the flagged booking **keeps blocking its slot**. A status value outside `('HELD','CONFIRMED')` would silently free the slot for someone else.
 3. **A converted hold stays HELD until decided (L3 → L1).** When L1 turns a hold into a booking request, the slot row keeps status HELD until M1 approves (→ CONFIRMED) or M2 rejects (→ RELEASED). Never release and then re-insert it, because that opens a window in which another hold can take the slot.
+4. **Conflicting inserts queue on a row lock (EN-02.3).** Every slot insert takes the venue row lock first, and every equipment reservation takes its type's row lock. The exclusion constraints still decide. The lock is there because two conflicting inserts in flight at once can each wait for the other on the constraint, and Postgres then aborts one as a **deadlock (`40P01`)** instead of an overlap (`23P01`). The user would get a server error instead of the refusal. EN-02.3's race (ten rounds of fifty attempts) found this; with the locks, every loser meets an already committed winner and is refused cleanly.
 
 **Equipment availability** (P1, P2, Q1): never over-reserve, **over a period**. The old design kept one `total`/`reserved` counter per equipment type with no time dimension, so it couldn't tell Friday 2–5 pm from Saturday. It's replaced by two mechanisms.
 
@@ -403,7 +411,13 @@ select total_quantity from equipment.equipment_types where id = $type for update
 
 Steps 1 to 3 run in one transaction at `READ COMMITTED`. The row lock is what makes the check safe. Never check availability without taking that lock first.
 
-**P1 is waiting on a customer answer (CQ-02, SPM-157).** P1's literal text subtracts every overlapping reservation added up, which counts back-to-back bookings as simultaneous. The design computes **peak concurrent use**, and it can switch to summed overlaps if the customer says so. Don't change P1's acceptance criteria until the answer is recorded in `documentation/clarifications.md`.
+**As built (EN-02.2, `migrations/equipment/0001_equipment_inventory.sql`).** P1, P2, Q1 and Q2 call these, in the equipment module's `repo/inventory.ts`:
+- `reserveUnit(tx, …)` takes the type's row lock (rule 4 above), then claims one serialized unit. An overlap comes back as `UnitAlreadyReservedError`; Q1 then tries the next unit from `availableUnits(tx, typeId, period)`, or refuses with the shortfall.
+- `reserveBulk(tx, …)` runs steps 1 to 3 above. A refusal is `InsufficientEquipmentError` (`INSUFFICIENT_EQUIPMENT`), carrying the requested, available and shortfall quantities.
+- `peakUse(tx, typeId, period)` counts quantities recorded unavailable as in use. `lockEquipmentType(tx, typeId)` is the lock P2 takes before reducing a total.
+- The formula itself is `peakConcurrentUse` in `domain/availability.ts`.
+
+**P1's implementation decision (CQ-02, SPM-157).** On 8 October 2026 the user selected **peak concurrent use** and authorized implementation. The decision and its provenance are recorded in `documentation/clarifications.md`, and P1's acceptance criteria cite it. Bulk availability subtracts the peak of combined reservations and unavailability inside the requested window. Individually tracked units must be free for the whole window and are excluded once if both reserved and unavailable. An original customer statement/source has not been supplied.
 
 **Registration capacity** (R2, R7) — the ceiling is read **synchronously from the Venue Service at the moment of registration**, never from a cached figure:
 
@@ -439,7 +453,7 @@ Zero rows returned means full; offer the waitlist (R6).
 
 ### 4.8 Migrations
 
-Forward-only, numbered, one concern per file: `0007_add_venue_slots_exclusion.sql`. Never edit a merged migration. Seed data (internal staff accounts, venues, equipment types) lives in `/backend/services/<svc>/migrations/seed/` and is idempotent.
+Forward-only, numbered, one concern per file: `0007_add_venue_slots_exclusion.sql`. Never edit a merged migration. `migrate.ts` applies each file in its own transaction with a 5-second lock timeout and a 60-second statement timeout, so a migration that can't get its lock fails instead of stalling every query behind it. squawk checks new files in CI (§8.1). Seed data (internal staff accounts, venues, equipment types) lives in `/backend/services/<svc>/migrations/seed/` and is idempotent.
 
 ## 5. HTTP API conventions
 
@@ -520,7 +534,25 @@ The attendee shell (§7.2) is separate. It is built in Sprint 3 as part of EN-13
 
 **Target: 100% coverage of `/domain`,** and where it isn't reachable, a comment in the test file saying why. The rubric asks for exactly this.
 
-**What CI runs (SPM-114).** `.github/workflows/ci.yml` runs `npm run lint` (ESLint and the module boundary checks), `typecheck`, `build` and `test:unit` on every pull request and every push to `main`. A test counts as a unit test when it sits under a `domain/` or `boundaries/` folder, or is named `*.unit.test.ts`. It must not touch a database, because CI gives it only placeholder credentials. Integration tests still run only locally, with `npm test` against Supabase, until EN-06.1 gives CI a throwaway Postgres; CI never uses the shared database.
+**What CI runs (SPM-114).** `.github/workflows/ci.yml` runs `npm run lint` (ESLint and the module boundary checks), `typecheck`, `build` and `test:unit` on every pull request and every push to `main`. A test counts as a unit test when it sits under a `domain/` or `boundaries/` folder, or is named `*.unit.test.ts`. It must not touch a database, because that job gives it only placeholder credentials.
+
+**Integration tests in CI (EN-06.1).** A second job, `Integration tests (throwaway Postgres)`, runs every test that needs a database:
+- It starts a `postgres:17` service container that lives only as long as the job, and refuses to run if `DATABASE_URL` points anywhere but the runner itself. CI never uses the shared database.
+- `npm run migrate:all` builds every schema from nothing, in the order set in `backend/scripts/migrate.ts`, with the identity seeds. **A new module or service must be added to that list**, or CI won't create its tables.
+- It then runs `npm test` for planning-core and notification. Supabase and Kafka are placeholders that reach nothing: the tests stub token checks, and the relay tests use a fake publisher.
+
+A test that only passes against data already sitting in the shared database fails here, which is the point. Create what a test needs inside the test, or in a seed file.
+
+**Mutation testing (EN-06.2).** Coverage says a line ran; mutation testing says a test would notice if it were wrong. Stryker plants small bugs in `src/**/domain/**`, such as `>` becoming `>=` or a message becoming empty, and reruns the domain unit tests. A planted bug that no test catches "survives". The mutation score is the share caught.
+- **On a pull request,** the `mutation` job mutates only the domain files the PR changes. It writes the score to the job summary and uploads the HTML report as `mutation-reports`. **Below 80% the build fails.**
+- **Every night,** `mutation.yml` mutates all the domain code, so the score can't drift down unnoticed.
+- **Locally:** `npm run test:mutation` (about a minute for planning-core). The report is `reports/mutation/index.html` in each workspace.
+- A mutant that can't change the result (an "equivalent" mutant) may be switched off with `// Stryker disable next-line <mutator>: <reason>` directly above the line. Explain why in the comment, as the rubric asks for unreachable coverage.
+
+**Security and migration checks (EN-06.3).**
+- **squawk** lints the migration files a pull request adds or changes, and fails the build on a risky schema change such as dropping a column or table, changing a column's type, or adding a constraint that scans a full table. `.squawk.toml` lists the rules turned off and why. Run it yourself with `npx squawk-cli@2.67.0 <file>`. A change squawk flags that you really mean can be allowed with a `-- squawk-ignore <rule>` comment above the statement, plus a reason, so a reviewer sees it.
+- **gitleaks** scans the whole git history on every push and pull request, so a secret committed and later deleted still fails the build. **If it fires, deleting the file is not enough: rotate the secret.**
+- **CodeQL** (`.github/workflows/codeql.yml`) scans the JavaScript and TypeScript on every pull request, on `main`, and weekly. Findings appear in the repository's Security tab.
 
 **Coverage (SPM-116).** `test:unit` measures coverage with Vitest's v8 provider, and each workspace's Vitest config sets thresholds that fail the build:
 - **`src/**/domain/**` must stay at 100%** of lines, branches, functions and statements, in line with the target above. If a line genuinely can't be covered, say why in a comment in the test file; never lower the threshold.
@@ -674,7 +706,7 @@ Log every refusal with its `code` — refusals are correct behaviour under CP an
 
 ## 10. Configuration and deployment
 
-All config from environment variables, documented in `.env.example`. No secrets in the repo, no `localhost` in code. Required per service: `PORT`, `DATABASE_URL`, `DATABASE_SCHEMA`, `KAFKA_BROKERS`, `KAFKA_SASL_MECHANISM`, `KAFKA_SASL_USERNAME`, `KAFKA_SASL_PASSWORD`, `KAFKA_SSL_CA_PATH` (Aiven only), `KAFKA_GROUP_SUFFIX` (laptops only), `NOTIFICATION_PORT` (notification only), `SUPABASE_URL`, `SUPABASE_JWKS_URL`, `SERVICE_NAME`, `LOG_LEVEL`, `INTERNAL_TOKEN_SECRET`.
+All config from environment variables, documented in `.env.example`. No secrets in the repo, no `localhost` in code. Required per service: `PORT`, `DATABASE_URL`, `DATABASE_SCHEMA`, `KAFKA_BROKERS`, `KAFKA_SASL_MECHANISM`, `KAFKA_SASL_USERNAME`, `KAFKA_SASL_PASSWORD`, `KAFKA_SSL_CA_PATH` (Aiven only), `KAFKA_GROUP_SUFFIX` (laptops only), `NOTIFICATION_PORT` and, if planning-core runs elsewhere, `PLANNING_CORE_URL` (notification only), `SUPABASE_URL`, `SUPABASE_JWKS_URL`, `SERVICE_NAME`, `LOG_LEVEL`, `INTERNAL_TOKEN_SECRET`.
 
 Cloud-readiness rules to follow now so the move is boring later: services are stateless (no in-process cache, no local disk writes, sessions in the token); health endpoints `/healthz` (liveness) and `/readyz` (readiness: it requires the database and reports whether the Kafka broker is reachable, without requiring it, because the outbox holds messages while Kafka is down; §3.4); graceful shutdown drains in-flight requests, lets the outbox relay finish its batch, and commits Kafka offsets; every service can run from its build (`npm run build`, then `npm run start -w <service>`), and `npm run dev` is for local work only. There is no Docker (ADR-0003): a deployment platform builds each service from its `package.json`.
 

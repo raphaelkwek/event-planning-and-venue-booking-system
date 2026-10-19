@@ -1,6 +1,9 @@
 import { z } from "zod";
 import { ROLES } from "./accessScope.js";
 import { ACTOR_ROLES } from "./envelope.js";
+import { CHANGE_REQUEST_PAYLOAD_SCHEMAS } from "./changeRequestEvents.js";
+import { EQUIPMENT_REQUEST_PAYLOAD_SCHEMAS } from "./equipmentRequestEvents.js";
+import { VENUE_BOOKING_PAYLOAD_SCHEMAS } from "./venueBooking.js";
 import { EVENT_PAYLOAD_SCHEMAS } from "./eventEvents.js";
 
 /**
@@ -86,7 +89,12 @@ export const cloudEventSchema = z
 export type CloudEvent = z.infer<typeof cloudEventSchema>;
 
 /** The data schema for every message type that may be published. */
-export const MESSAGE_DATA_SCHEMAS = { ...EVENT_PAYLOAD_SCHEMAS } as const;
+export const MESSAGE_DATA_SCHEMAS = {
+  ...EVENT_PAYLOAD_SCHEMAS,
+  ...EQUIPMENT_REQUEST_PAYLOAD_SCHEMAS,
+  ...CHANGE_REQUEST_PAYLOAD_SCHEMAS,
+  ...VENUE_BOOKING_PAYLOAD_SCHEMAS,
+} as const;
 export type MessageType = keyof typeof MESSAGE_DATA_SCHEMAS;
 
 /** Validates a whole message: the envelope, then the data for its type. */

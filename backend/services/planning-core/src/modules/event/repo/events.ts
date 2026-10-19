@@ -1,5 +1,10 @@
 import type { Sql, TransactionSql } from "postgres";
+import type { Fragment } from "./sqlFragment.js";
 import type { AccessScope, EventStatus } from "@connectsphere/contracts";
+import { isEventId } from "../domain/ids.js";
+import { historyText, type ChangeableEvent, type ProposedChanges } from "../domain/proposedChange.js";
+import { isSignificantEventField, type SignificantEventField } from "@connectsphere/contracts";
+import { recordFieldChanges } from "./eventHistory.js";
 
 /**
  * B1, C1–C3, D1, D4, D5 — the event aggregate, which a request belongs to from
@@ -39,6 +44,10 @@ export interface EventRow extends EventFields {
   decidedAt: string | null;
   rejectionReason: string | null;
   assignedCoordinatorId: string | null;
+  /** G1: free text, such as a name, email and phone number. */
+  contactDetails: string | null;
+  /** G1: raised by every change to the event; edits carry it in If-Match (ADR-0015). */
+  version: number;
 }
 
 export interface RawEvent {
@@ -67,6 +76,8 @@ export interface RawEvent {
   decided_at: Date | null;
   rejection_reason: string | null;
   assigned_coordinator_id: string | null;
+  contact_details: string | null;
+  version: number;
 }
 
 export function toEvent(row: RawEvent): EventRow {
@@ -96,6 +107,8 @@ export function toEvent(row: RawEvent): EventRow {
     decidedAt: row.decided_at?.toISOString() ?? null,
     rejectionReason: row.rejection_reason,
     assignedCoordinatorId: row.assigned_coordinator_id ?? null,
+    contactDetails: row.contact_details ?? null,
+    version: row.version,
   };
 }
 
@@ -123,94 +136,81 @@ function scopeCondition(sql: Sql | TransactionSql, scope: AccessScope, callerId:
   }
 }
 
-/** B1 — a request submitted directly, without having been saved as a draft. */
-export async function insertSubmittedEvent(
-  tx: TransactionSql,
-  ownerId: string,
-  fields: EventFields
-): Promise<EventRow> {
-  const rows = await tx<RawEvent[]>`
-    insert into event.events (
-      reference, owner_id, name, purpose, description, proposed_start_at, proposed_end_at,
-      expected_attendance, venue_requirements, accessibility_needs, equipment_required,
-      equipment_requirements, registration_required, registration_opens_at,
-      registration_closes_at, status, submitted_at, last_saved_at, created_by, updated_by
-    ) values (
-      'EVT-' || lpad(nextval('event.event_reference_seq')::text, 6, '0'),
-      ${ownerId}, ${fields.name}, ${fields.purpose}, ${fields.description},
-      ${fields.proposedStartAt}, ${fields.proposedEndAt}, ${fields.expectedAttendance},
-      ${jsonOrNull(tx, fields.venueRequirements)}, ${fields.accessibilityNeeds},
-      ${fields.equipmentRequired}, ${jsonOrNull(tx, fields.equipmentRequirements)},
-      ${fields.registrationRequired}, ${fields.registrationOpensAt},
-      ${fields.registrationClosesAt}, 'SUBMITTED', now(), now(),
-      ${ownerId}, ${ownerId}
-    )
-    returning *, null::uuid as assigned_coordinator_id
-  `;
-  return toEvent(rows[0]!);
-}
-
 /**
- * C2 — submitting a draft. The draft is the record, so it keeps its id and its
- * history and simply gains a reference and a submission time. The status in
- * the condition makes it idempotent: a request already submitted updates no
- * row, so it cannot be submitted twice or gain a second reference.
+ * `lock: "share"` takes a share lock on the event row (inside a transaction), so a status change,
+ * which locks the row `for update` (updateStatusIf), waits until the reader's transaction ends,
+ * and a reader waits for a change in progress and then sees its result. `lock: "update"` locks it
+ * `for update`, for a caller that writes the event.
  */
-export async function submitDraft(
-  tx: TransactionSql,
-  draftId: string,
-  ownerId: string,
-  fields?: EventFields
-): Promise<EventRow | null> {
-  // The values on screen, when sent, are written by the same statement that
-  // submits them — so a submission either stores and submits them together, or
-  // (having already been refused by validation) never reaches here at all.
-  const values = fields
-    ? tx`
-        name = ${fields.name},
-        purpose = ${fields.purpose},
-        description = ${fields.description},
-        proposed_start_at = ${fields.proposedStartAt},
-        proposed_end_at = ${fields.proposedEndAt},
-        expected_attendance = ${fields.expectedAttendance},
-        venue_requirements = ${jsonOrNull(tx, fields.venueRequirements)},
-        accessibility_needs = ${fields.accessibilityNeeds},
-        equipment_required = ${fields.equipmentRequired},
-        equipment_requirements = ${jsonOrNull(tx, fields.equipmentRequirements)},
-        registration_required = ${fields.registrationRequired},
-        registration_opens_at = ${fields.registrationOpensAt},
-        registration_closes_at = ${fields.registrationClosesAt},
-        last_saved_at = now(),
-      `
-    : tx``;
-
-  const rows = await tx<RawEvent[]>`
-    update event.events set
-      ${values}
-      reference = 'EVT-' || lpad(nextval('event.event_reference_seq')::text, 6, '0'),
-      status = 'SUBMITTED',
-      submitted_at = now(),
-      updated_at = now(),
-      updated_by = ${ownerId}
-    where id = ${draftId} and owner_id = ${ownerId} and status = 'DRAFT'
-    returning *, null::uuid as assigned_coordinator_id
-  `;
-  return rows[0] ? toEvent(rows[0]) : null;
-}
-
 export async function findEventInScope(
-  sql: Sql,
+  sql: Sql | TransactionSql,
   eventId: string,
   scope: AccessScope,
-  callerId: string
+  callerId: string,
+  options: { lock?: "share" | "update" } = {}
 ): Promise<EventRow | null> {
+  if (!isEventId(eventId)) return null;
   const rows = await sql<RawEvent[]>`
     select e.*, a.coordinator_id as assigned_coordinator_id
     from event.events e
     left join event.assignments a on a.event_id = e.id and a.is_active
     where e.id = ${eventId} and ${scopeCondition(sql, scope, callerId)}
+    ${options.lock === "update" ? sql`for update of e` : options.lock === "share" ? sql`for share of e` : sql``}
   `;
   return rows[0] ? toEvent(rows[0]) : null;
+}
+
+/**
+ * S2 — writes an approved change's values and one FIELD_CHANGE entry per field (AC3).
+ * The version trigger bumps `version`. Only the fields in `changes` are touched.
+ */
+export async function applyApprovedChange(
+  tx: TransactionSql,
+  event: { id: string; current: ChangeableEvent },
+  changes: ProposedChanges,
+  actor: { userId: string; role: string },
+  occurredAt?: Date
+): Promise<void> {
+  const fields = Object.keys(changes).filter(isSignificantEventField);
+  if (fields.length === 0) return;
+
+  const json = (value: unknown) => (value === null || value === undefined ? null : JSON.stringify(value));
+  const assignments: Record<SignificantEventField, Fragment> = {
+    proposedStartAt: tx`proposed_start_at = ${(changes.proposedStartAt as string | null) ?? null}`,
+    proposedEndAt: tx`proposed_end_at = ${(changes.proposedEndAt as string | null) ?? null}`,
+    expectedAttendance: tx`expected_attendance = ${(changes.expectedAttendance as number | null) ?? null}`,
+    venueRequirements: tx`venue_requirements = ${json(changes.venueRequirements)}::text::jsonb`,
+    equipmentRequired: tx`equipment_required = ${(changes.equipmentRequired as boolean | null) ?? null}`,
+    equipmentRequirements: tx`equipment_requirements = ${json(changes.equipmentRequirements)}::text::jsonb`,
+  };
+  const set = fields.map((field) => assignments[field]).reduce((all, one) => tx`${all}, ${one}`);
+
+  await tx`
+    update event.events
+    set ${set}, updated_at = now(), updated_by = ${actor.userId}
+    where id = ${event.id}
+  `;
+  await recordFieldChanges(
+    tx,
+    event.id,
+    fields.map((field) => ({
+      fieldName: field,
+      previousValue: historyText(field, event.current[field]),
+      newValue: historyText(field, changes[field]),
+    })),
+    actor,
+    "CHANGE_REQUEST_APPROVED",
+    occurredAt
+  );
+}
+
+/** I1 — each event's reference, for those of `eventIds` that exist. */
+export async function findReferences(sql: Sql, eventIds: readonly string[]): Promise<Map<string, string | null>> {
+  if (eventIds.length === 0) return new Map();
+  const rows = await sql<{ id: string; reference: string | null }[]>`
+    select id, reference from event.events where id in ${sql(eventIds as string[])}
+  `;
+  return new Map(rows.map((row) => [row.id, row.reference]));
 }
 
 /** C3 — the caller's own requests, filtered by the scope rule (A3). */
@@ -247,60 +247,6 @@ export async function listReviewQueue(
   return rows.map(toEvent);
 }
 
-/**
- * D1 — opening a Submitted request claims it for review. The condition makes
- * the claim atomic: a second coordinator opening it concurrently updates no
- * row, so the reviewer on the record is never overwritten.
- */
-export async function claimForReview(
-  tx: TransactionSql,
-  eventId: string,
-  coordinatorId: string
-): Promise<EventRow | null> {
-  const rows = await tx<RawEvent[]>`
-    update event.events e set
-      status = 'UNDER_REVIEW',
-      reviewing_coordinator_id = ${coordinatorId},
-      review_started_at = now(),
-      updated_at = now(),
-      updated_by = ${coordinatorId}
-    where e.id = ${eventId} and e.status = 'SUBMITTED' and e.reviewing_coordinator_id is null
-    returning e.*, (
-      select a.coordinator_id from event.assignments a where a.event_id = e.id and a.is_active
-    ) as assigned_coordinator_id
-  `;
-  return rows[0] ? toEvent(rows[0]) : null;
-}
-
-/** Re-reads an event under a row lock, for a decision that must not race. */
-export async function lockEventInScope(
-  tx: TransactionSql,
-  eventId: string,
-  scope: AccessScope,
-  callerId: string
-): Promise<EventRow | null> {
-  const rows = await tx<RawEvent[]>`
-    select e.*, null::uuid as assigned_coordinator_id
-    from event.events e
-    where e.id = ${eventId} and ${scopeCondition(tx, scope, callerId)}
-    for update
-  `;
-  return rows[0] ? toEvent(rows[0]) : null;
-}
-
-export async function setStatus(
-  tx: TransactionSql,
-  eventId: string,
-  status: EventStatus,
-  actorId: string
-): Promise<void> {
-  await tx`
-    update event.events
-    set status = ${status}, updated_at = now(), updated_by = ${actorId}
-    where id = ${eventId}
-  `;
-}
-
 /** D3 — the organiser's amendments, applied once the before values are captured. */
 export async function applyAmendments(
   tx: TransactionSql,
@@ -320,27 +266,53 @@ export async function applyAmendments(
 }
 
 /**
- * D4/D5 — record the decision. `decided_at is null` in the condition is what
- * stops a second approval or rejection: an event that already carries a
- * decision updates no row, so no second decision timestamp can be written.
+ * The columns each action sets in the same statement as its status change
+ * (F1). They are fragments, not statements: `updateStatusIf` splices them into
+ * its conditional UPDATE, so the decision, the review claim or the submission
+ * can never be stored without the status change, or the other way round.
  */
-export async function recordDecision(
+
+/** D4/D5 — the decision, its maker and its time; the reason for a rejection. */
+export function decisionColumns(
   tx: TransactionSql,
-  eventId: string,
-  status: "APPROVED" | "REJECTED",
-  actorId: string,
+  deciderId: string,
   rejectionReason: string | null
-): Promise<EventRow | null> {
-  const rows = await tx<RawEvent[]>`
-    update event.events set
-      status = ${status},
-      decided_by = ${actorId},
-      decided_at = now(),
-      rejection_reason = ${rejectionReason},
-      updated_at = now(),
-      updated_by = ${actorId}
-    where id = ${eventId} and decided_at is null
-    returning *, null::uuid as assigned_coordinator_id
+): Fragment {
+  return tx`decided_by = ${deciderId}, decided_at = now(), rejection_reason = ${rejectionReason},`;
+}
+
+/** D1 — the coordinator who opened the request, and when. */
+export function reviewColumns(tx: TransactionSql, coordinatorId: string): Fragment {
+  return tx`reviewing_coordinator_id = ${coordinatorId}, review_started_at = now(),`;
+}
+
+/**
+ * B1/C2 — the reference and submission time, plus the values on screen when
+ * they are sent with a draft's submission, so they are stored only if the
+ * submission succeeds.
+ */
+export function submissionColumns(tx: TransactionSql, fields?: EventFields): Fragment {
+  const values = fields
+    ? tx`
+        name = ${fields.name},
+        purpose = ${fields.purpose},
+        description = ${fields.description},
+        proposed_start_at = ${fields.proposedStartAt},
+        proposed_end_at = ${fields.proposedEndAt},
+        expected_attendance = ${fields.expectedAttendance},
+        venue_requirements = ${jsonOrNull(tx, fields.venueRequirements)},
+        accessibility_needs = ${fields.accessibilityNeeds},
+        equipment_required = ${fields.equipmentRequired},
+        equipment_requirements = ${jsonOrNull(tx, fields.equipmentRequirements)},
+        registration_required = ${fields.registrationRequired},
+        registration_opens_at = ${fields.registrationOpensAt},
+        registration_closes_at = ${fields.registrationClosesAt},
+        last_saved_at = now(),
+      `
+    : tx``;
+  return tx`
+    ${values}
+    reference = 'EVT-' || lpad(nextval('event.event_reference_seq')::text, 6, '0'),
+    submitted_at = now(),
   `;
-  return rows[0] ? toEvent(rows[0]) : null;
 }

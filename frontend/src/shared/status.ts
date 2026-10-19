@@ -1,4 +1,5 @@
 import type { EventStatus } from "../api/types.js";
+import type { LineStatus } from "../api/equipmentRequests.js";
 
 /**
  * implementation.md §7.1: the status colour map is defined once, here, and a
@@ -13,6 +14,7 @@ export const STATUS_LABELS: Record<EventStatus, string> = {
   AWAITING_CLARIFICATION: "Awaiting Clarification",
   APPROVED: "Approved",
   PLANNING: "Planning",
+  SAFETY_REVIEW: "Safety Review",
   CONFIRMED: "Confirmed",
   COMPLETED: "Completed",
   CANCELLED: "Cancelled",
@@ -26,6 +28,7 @@ export const STATUS_APPEARANCE: Record<EventStatus, LozengeAppearance> = {
   AWAITING_CLARIFICATION: "moved",
   APPROVED: "success",
   PLANNING: "inprogress",
+  SAFETY_REVIEW: "inprogress",
   CONFIRMED: "success",
   COMPLETED: "success",
   CANCELLED: "removed",
@@ -36,3 +39,103 @@ export function formatInstant(value: string | null): string {
   if (!value) return "—";
   return new Date(value).toLocaleString();
 }
+
+/**
+ * I1: the availability calendar's states. Pending is a different colour from
+ * Confirmed (AC3), and setup and turnaround from the event they surround (AC5).
+ */
+export type CalendarState =
+  | "CONFIRMED"
+  | "PENDING"
+  | "SETUP"
+  | "TURNAROUND"
+  | "UNAVAILABLE"
+  | "OUTSIDE_HOURS"
+  | "FREE";
+
+export const CALENDAR_LABELS: Record<Exclude<CalendarState, "UNAVAILABLE">, string> = {
+  CONFIRMED: "Confirmed",
+  PENDING: "Pending",
+  SETUP: "Setup",
+  TURNAROUND: "Turnaround",
+  OUTSIDE_HOURS: "Outside operating hours",
+  FREE: "Free",
+};
+
+export const UNAVAILABILITY_LABELS: Record<string, string> = {
+  MAINTENANCE: "Maintenance",
+  EQUIPMENT_FAILURE: "Equipment failure",
+  RENOVATION: "Renovation",
+  SAFETY: "Safety",
+  OTHER: "Other",
+};
+
+export const CALENDAR_APPEARANCE: Record<CalendarState, LozengeAppearance> = {
+  CONFIRMED: "removed",
+  PENDING: "moved",
+  SETUP: "inprogress",
+  TURNAROUND: "inprogress",
+  UNAVAILABLE: "new",
+  OUTSIDE_HOURS: "default",
+  FREE: "success",
+};
+
+/** The day bar's fill for each state, matching its lozenge's colour. */
+export const CALENDAR_BAR_COLOURS: Record<CalendarState, string> = {
+  CONFIRMED: "#DE350B",
+  PENDING: "#FF991F",
+  SETUP: "#4C9AFF",
+  TURNAROUND: "#4C9AFF",
+  UNAVAILABLE: "#6554C0",
+  OUTSIDE_HOURS: "#C1C7D0",
+  FREE: "#57D9A3",
+};
+
+/** O1, O2: how an equipment request line's status reads, and its one colour. */
+export const LINE_STATUS_LABELS: Record<LineStatus, string> = {
+  SUBMITTED: "Submitted",
+  UNDER_REVIEW: "Under Review",
+  CONFIRMED: "Confirmed",
+  UNAVAILABLE: "Unavailable",
+  SUBSTITUTED: "Substituted",
+  RESERVED: "Reserved",
+  REMOVED: "Removed",
+};
+
+export const LINE_STATUS_APPEARANCE: Record<LineStatus, LozengeAppearance> = {
+  SUBMITTED: "new",
+  UNDER_REVIEW: "inprogress",
+  CONFIRMED: "success",
+  UNAVAILABLE: "removed",
+  SUBSTITUTED: "moved",
+  RESERVED: "success",
+  REMOVED: "default",
+};
+
+/** K1: the three suitability results, each with its own colour and words. */
+export const SUITABILITY_LABELS = {
+  SUITABLE: "Suitable",
+  SUITABLE_WITH_WARNINGS: "Suitable with warnings",
+  NOT_SUITABLE: "Not suitable",
+} as const;
+
+export const SUITABILITY_APPEARANCE: Record<keyof typeof SUITABILITY_LABELS, LozengeAppearance> = {
+  SUITABLE: "success",
+  SUITABLE_WITH_WARNINGS: "moved",
+  NOT_SUITABLE: "removed",
+};
+
+/** L1, L2: a venue booking request's status, each with its own colour. */
+export const BOOKING_REQUEST_LABELS = {
+  PENDING: "Pending",
+  APPROVED: "Approved",
+  REJECTED: "Rejected",
+  WITHDRAWN: "Withdrawn",
+} as const;
+
+export const BOOKING_REQUEST_APPEARANCE: Record<keyof typeof BOOKING_REQUEST_LABELS, LozengeAppearance> = {
+  PENDING: "moved",
+  APPROVED: "success",
+  REJECTED: "removed",
+  WITHDRAWN: "default",
+};

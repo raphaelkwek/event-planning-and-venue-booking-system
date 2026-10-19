@@ -1,8 +1,9 @@
 import { z } from "zod";
 
 /**
- * The permitted event statuses (F1). This list is exhaustive and shared:
- * a service inventing a status outside it is a failed review.
+ * The permitted event statuses (F1; CR-06 adds Safety Review). This list is
+ * exhaustive and shared: a service inventing a status outside it is a failed
+ * review.
  */
 export const EVENT_STATUSES = [
   "DRAFT",
@@ -11,6 +12,7 @@ export const EVENT_STATUSES = [
   "AWAITING_CLARIFICATION",
   "APPROVED",
   "PLANNING",
+  "SAFETY_REVIEW",
   "CONFIRMED",
   "COMPLETED",
   "CANCELLED",
@@ -25,6 +27,7 @@ export const eventStatusSchema = z.enum(EVENT_STATUSES);
 export const DECIDED_STATUSES: readonly EventStatus[] = [
   "APPROVED",
   "PLANNING",
+  "SAFETY_REVIEW",
   "CONFIRMED",
   "COMPLETED",
   "CANCELLED",
@@ -39,6 +42,7 @@ export const EVENT_STATUS_LABELS: Record<EventStatus, string> = {
   AWAITING_CLARIFICATION: "Awaiting Clarification",
   APPROVED: "Approved",
   PLANNING: "Planning",
+  SAFETY_REVIEW: "Safety Review",
   CONFIRMED: "Confirmed",
   COMPLETED: "Completed",
   CANCELLED: "Cancelled",

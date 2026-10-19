@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import Button from "@atlaskit/button/new";
 import Lozenge from "@atlaskit/lozenge";
 import TextArea from "@atlaskit/textarea";
@@ -15,7 +15,14 @@ import {
 } from "../api/events.js";
 import type { Clarification, EventRecord, ReassignmentProposal } from "../api/types.js";
 import { formatInstant, STATUS_APPEARANCE, STATUS_LABELS } from "../shared/status.js";
+import { StatusHistory } from "../components/StatusHistory.js";
 import { Refusal } from "../components/Refusal.js";
+import { canEditDetails } from "../shared/eventDetails.js";
+import { listChangeRequests, type ChangeRequest } from "../api/changeRequests.js";
+import { ChangeRequestForm } from "../components/ChangeRequestForm.js";
+import { DecidedChangeNotice } from "../components/ChangeDecision.js";
+import { PendingChangeNotice } from "../components/PendingChangeNotice.js";
+import { isChangeable } from "../shared/changeRequests.js";
 import { EquipmentRequirementsView, VenueRequirementsView } from "../components/Requirements.js";
 
 /**
@@ -25,10 +32,16 @@ import { EquipmentRequirementsView, VenueRequirementsView } from "../components/
  */
 export function RequestDetail() {
   const session = useSignedIn();
+  const navigate = useNavigate();
+  // G1: the edit screen comes back here with "Details saved."
+  const savedNotice = (useLocation().state as { notice?: string } | null)?.notice ?? null;
   const { id } = useParams<{ id: string }>();
   const [event, setEvent] = useState<EventRecord | null>(null);
   const [clarifications, setClarifications] = useState<Clarification[]>([]);
   const [proposals, setProposals] = useState<ReassignmentProposal[]>([]);
+  const [changeRequests, setChangeRequests] = useState<ChangeRequest[]>([]);
+  const [changesFailed, setChangesFailed] = useState(false);
+  const [requestingChange, setRequestingChange] = useState(false);
   const [error, setError] = useState<unknown>(null);
   const [loading, setLoading] = useState(true);
 
@@ -53,6 +66,14 @@ export function RequestDetail() {
       setEvent(await openEvent(session.token, id));
       setClarifications((await listClarifications(session.token, id)).items);
       setProposals((await listReassignmentProposals(session.token, id)).items);
+      // A failure here is shown beside the notice's place; it does not hide the page.
+      try {
+        setChangeRequests((await listChangeRequests(session.token, id)).items);
+        setChangesFailed(false);
+      } catch {
+        setChangeRequests([]);
+        setChangesFailed(true);
+      }
     } catch (caught) {
       setError(caught);
     } finally {
@@ -91,13 +112,35 @@ export function RequestDetail() {
   if (error) return <Refusal error={error} />;
   if (!event) return null;
 
+  const pendingChange = changeRequests.find((entry) => entry.status === "PENDING") ?? null;
+  const latestDecided =
+    changeRequests
+      .filter((entry) => entry.status !== "PENDING" && entry.decidedAt)
+      .sort((a, b) => (b.decidedAt ?? "").localeCompare(a.decidedAt ?? ""))[0] ?? null;
+  const canRequestChange = !changesFailed && isChangeable(event.status) && event.ownerId === session.userId && !pendingChange;
   const openClarification = clarifications.find((entry) => entry.status === "OPEN");
 
   return (
     <div style={{ display: "flex", gap: 32, alignItems: "flex-start" }}>
       <div style={{ flex: 2 }}>
-        <h2 style={{ marginBottom: 4 }}>{event.name}</h2>
+        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+          <h2 style={{ marginBottom: 4, flex: 1 }}>{event.name}</h2>
+          {canEditDetails(event, session) && (
+            <Button onClick={() => navigate(`/events/${event.id}/details`)}>Edit details</Button>
+          )}
+          {canRequestChange && !requestingChange && (
+            <Button onClick={() => setRequestingChange(true)}>Request a change</Button>
+          )}
+        </div>
         <p style={{ marginTop: 0, color: "#626F86" }}>{event.reference ?? "No reference yet"}</p>
+
+        {savedNotice && (
+          <div style={{ marginBottom: 16 }}>
+            <SectionMessage appearance="success">
+              <p style={{ margin: 0 }}>{savedNotice}</p>
+            </SectionMessage>
+          </div>
+        )}
 
         {event.status === "REJECTED" && event.rejectionReason && (
           <div style={{ marginBottom: 16 }}>
@@ -119,6 +162,21 @@ export function RequestDetail() {
           </div>
         )}
 
+        {changesFailed && <p role="status" style={{ color: "#626F86", fontSize: 13 }}>Change requests couldn't be loaded.</p>}
+        {pendingChange && <PendingChangeNotice request={pendingChange} />}
+        {!pendingChange && latestDecided && <DecidedChangeNotice request={latestDecided} />}
+        {canRequestChange && requestingChange && (
+          <ChangeRequestForm
+            event={event}
+            token={session.token}
+            onCancel={() => setRequestingChange(false)}
+            onSent={() => {
+              setRequestingChange(false);
+              void load();
+            }}
+          />
+        )}
+
         <Detail label="Purpose" value={event.purpose} />
         <Detail label="Description" value={event.description} />
         <Detail label="Proposed start" value={formatInstant(event.proposedStartAt)} />
@@ -128,6 +186,7 @@ export function RequestDetail() {
           value={event.expectedAttendance === null ? null : String(event.expectedAttendance)}
         />
         <Detail label="Accessibility needs" value={event.accessibilityNeeds} />
+        <Detail label="Contact details" value={event.contactDetails} />
         <VenueRequirementsView value={event.venueRequirements} />
         <EquipmentRequirementsView required={event.equipmentRequired} lines={event.equipmentRequirements} />
         <Detail
@@ -135,6 +194,7 @@ export function RequestDetail() {
           value={event.registrationRequired ? "Yes" : "No"}
         />
 
+        <StatusHistory eventId={event.id} refreshKey={event.status} />
         <h3 style={{ marginTop: 32 }}>Clarifications</h3>
         {clarifications.length === 0 && <p>None requested.</p>}
         {clarifications.map((entry) => (

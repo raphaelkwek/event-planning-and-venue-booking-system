@@ -124,6 +124,153 @@ describe("notificationsFor", () => {
     });
   });
 
+  describe("O2: tells the assigned coordinator how Technical Support updated an equipment line", () => {
+    const line = {
+      lineId: "33333333-3333-4333-8333-333333333333",
+      coordinatorId: coordinator,
+      equipmentTypeName: "Folding Chairs",
+      quantity: 40,
+      previousStatus: "SUBMITTED",
+      reason: null,
+      substituteEquipmentTypeName: null,
+      substituteQuantity: null,
+      changedBy: "00000000-0000-0000-0000-000000000004",
+      changedAt: at,
+    };
+
+    it("names the event, the line and the new status", () => {
+      const notes = notificationsFor(message("equipment-request.line-status-changed", { ...line, newStatus: "CONFIRMED" }));
+      expect(notes).toEqual([
+        {
+          ...common,
+          notificationType: "equipment-request.line-status-changed",
+          recipientUserId: coordinator,
+          message: "Technical Support updated equipment for EVT-2026-0042 “Freshmen Orientation”: Folding Chairs × 40 is now Confirmed.",
+        },
+      ]);
+    });
+
+    it("adds the reason when the line is Unavailable", () => {
+      const [note] = notificationsFor(
+        message("equipment-request.line-status-changed", { ...line, newStatus: "UNAVAILABLE", reason: "All chairs are out that week" }),
+      );
+      expect(note!.message).toBe(
+        "Technical Support updated equipment for EVT-2026-0042 “Freshmen Orientation”: Folding Chairs × 40 is now Unavailable. Reason: All chairs are out that week",
+      );
+    });
+
+    it("adds the substitute when the line is Substituted", () => {
+      const [note] = notificationsFor(
+        message("equipment-request.line-status-changed", {
+          ...line,
+          newStatus: "SUBSTITUTED",
+          substituteEquipmentTypeName: "Stacking Stools",
+          substituteQuantity: 30,
+        }),
+      );
+      expect(note!.message).toBe(
+        "Technical Support updated equipment for EVT-2026-0042 “Freshmen Orientation”: Folding Chairs × 40 is now Substituted. Substitute: Stacking Stools × 30.",
+      );
+    });
+
+    it("says how many were reserved when Q1 reserved fewer than requested", () => {
+      const [note] = notificationsFor(
+        message("equipment-request.line-status-changed", { ...line, quantity: 5, newStatus: "RESERVED", reservedQuantity: 3 }),
+      );
+      expect(note!.message).toBe(
+        "Technical Support updated equipment for EVT-2026-0042 “Freshmen Orientation”: Folding Chairs × 5 is now Reserved (3 of 5 reserved).",
+      );
+    });
+
+    it("says nothing extra when everything was reserved, or the message carries no reserved quantity", () => {
+      for (const extra of [{ reservedQuantity: 40 }, { reservedQuantity: null }, {}]) {
+        const [note] = notificationsFor(message("equipment-request.line-status-changed", { ...line, newStatus: "RESERVED", ...extra }));
+        expect(note!.message).toBe(
+          "Technical Support updated equipment for EVT-2026-0042 “Freshmen Orientation”: Folding Chairs × 40 is now Reserved.",
+        );
+      }
+    });
+
+    it("words a release as a release, with the reason, whatever the line became", () => {
+      const [back] = notificationsFor(
+        message("equipment-request.line-status-changed", { ...line, newStatus: "CONFIRMED", released: true, reason: "Event moved" }),
+      );
+      expect(back!.recipientUserId).toBe(coordinator);
+      expect(back!.message).toBe(
+        "The reservation of Folding Chairs × 40 for EVT-2026-0042 “Freshmen Orientation” was released. The line is now Confirmed. Reason: Event moved",
+      );
+      const [removed] = notificationsFor(
+        message("equipment-request.line-status-changed", { ...line, newStatus: "REMOVED", released: true, reason: "Request line removed" }),
+      );
+      expect(removed!.message).toBe(
+        "The reservation of Folding Chairs × 40 for EVT-2026-0042 “Freshmen Orientation” was released. The line is now Removed. Reason: Request line removed",
+      );
+    });
+
+    it("notifies only the coordinator the message names", () => {
+      const notes = notificationsFor(message("equipment-request.line-status-changed", { ...line, newStatus: "UNDER_REVIEW" }));
+      expect(notes.map((note) => note.recipientUserId)).toEqual([coordinator]);
+    });
+  });
+
+  it("S1: tells the assigned coordinator which fields the organiser asked to change", () => {
+    const notes = notificationsFor(
+      message("change-request.submitted", {
+        coordinatorId: coordinator,
+        changeRequestId: "0b5f7a3e-1c2d-4e5f-8a9b-0c1d2e3f4a5b",
+        fields: ["proposedStartAt", "expectedAttendance"],
+        requestedBy: organiser,
+        requestedAt: at,
+      }),
+    );
+    expect(notes).toHaveLength(1);
+    expect(notes[0]).toMatchObject({ recipientUserId: coordinator, notificationType: "change-request.submitted" });
+    expect(notes[0]!.message).toBe("A change has been requested for EVT-2026-0042 “Freshmen Orientation”: start, expected attendance.");
+  });
+
+  it("S1: names a field it has no label for by its own name", () => {
+    const [note] = notificationsFor(
+      message("change-request.submitted", {
+        coordinatorId: coordinator,
+        changeRequestId: "0b5f7a3e-1c2d-4e5f-8a9b-0c1d2e3f4a5b",
+        fields: ["expectedAttendance", "somethingNew"],
+        requestedBy: organiser,
+        requestedAt: at,
+      }),
+    );
+    expect(note!.message).toBe("A change has been requested for EVT-2026-0042 “Freshmen Orientation”: expected attendance, somethingNew.");
+  });
+
+  it("S2: tells the organiser which fields of their change request were approved", () => {
+    const notes = notificationsFor(
+      message("change-request.approved", {
+        ownerId: organiser,
+        changeRequestId: "0b5f7a3e-1c2d-4e5f-8a9b-0c1d2e3f4a5b",
+        fields: ["proposedStartAt", "expectedAttendance"],
+        decidedBy: coordinator,
+        decidedAt: at,
+      }),
+    );
+    expect(notes).toHaveLength(1);
+    expect(notes[0]).toMatchObject({ recipientUserId: organiser, notificationType: "change-request.approved" });
+    expect(notes[0]!.message).toBe("Your change request for EVT-2026-0042 “Freshmen Orientation” was approved: start, expected attendance.");
+  });
+
+  it("S2: tells the organiser their change request was rejected, with the reason", () => {
+    const [note] = notificationsFor(
+      message("change-request.rejected", {
+        ownerId: organiser,
+        changeRequestId: "0b5f7a3e-1c2d-4e5f-8a9b-0c1d2e3f4a5b",
+        fields: ["proposedStartAt"],
+        decidedBy: coordinator,
+        decidedAt: at,
+        reason: "The hall is booked.",
+      }),
+    );
+    expect(note).toMatchObject({ recipientUserId: organiser, notificationType: "change-request.rejected" });
+    expect(note!.message).toBe("Your change request for EVT-2026-0042 “Freshmen Orientation” was rejected. Reason: The hall is booked.");
+  });
+
   it("notifies nobody for a message type it has no rule for", () => {
     expect(notificationsFor(message("event.something-new", {}))).toEqual([]);
   });
@@ -133,5 +280,43 @@ describe("notificationsFor", () => {
       message("event.approved", { ownerId: organiser, approvedBy: coordinator, approvedAt: at }),
     );
     expect(note).toMatchObject({ notificationType: "event.approved", eventId, eventReference: "EVT-2026-0042" });
+  });
+});
+
+describe("L1: tells the venue's Venue Staff about a new booking request", () => {
+  const staff = ["00000000-0000-0000-0000-000000000003", "00000000-0000-0000-0000-000000000013"];
+  const submitted = {
+    bookingRequestId: "44444444-4444-4444-8444-444444444444",
+    reference: "BKR-000001",
+    venueId: "55555555-5555-4555-8555-555555555555",
+    venueName: "Lee Kong Chian Auditorium",
+    startsAt: "2026-12-02T06:00:00.000Z",
+    endsAt: "2026-12-02T10:00:00.000Z",
+    staffIds: staff,
+    requestedBy: coordinator,
+    requestedAt: at,
+  };
+
+  it("notifies each of the venue's staff, naming the booking reference, the event and the period in Singapore time (L1-T7)", () => {
+    const notes = notificationsFor(message("venue-booking.request-submitted", submitted));
+    const text =
+      "Booking request BKR-000001 was submitted for Lee Kong Chian Auditorium: EVT-2026-0042 “Freshmen Orientation”, " +
+      "Wednesday 2 December 2026, 14:00–18:00. It is waiting in your Booking requests queue.";
+    expect(notes).toEqual(
+      staff.map((recipientUserId) => ({
+        ...common,
+        notificationType: "venue-booking.request-submitted",
+        recipientUserId,
+        relatedReference: "BKR-000001",
+        message: text,
+      })),
+    );
+  });
+
+  it("gives both days when the period crosses midnight", () => {
+    const [note] = notificationsFor(
+      message("venue-booking.request-submitted", { ...submitted, startsAt: "2026-12-02T14:00:00.000Z", endsAt: "2026-12-03T02:00:00.000Z" }),
+    );
+    expect(note!.message).toContain("Wednesday 2 December 2026 22:00 to Thursday 3 December 2026 10:00.");
   });
 });

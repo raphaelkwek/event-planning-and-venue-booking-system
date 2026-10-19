@@ -224,3 +224,96 @@ describe("validateSubmission (B2)", () => {
     expect(errors).toEqual([]);
   });
 });
+
+/**
+ * EN-06.2's mutation run showed the tests above check *which* fields fail but
+ * not *what they say*, so a refusal could lose its message unnoticed. These
+ * pin every message B2 shows, and the boundaries the mutants slipped past.
+ */
+describe("validateSubmission says exactly what is wrong (B2)", () => {
+  const EVERY_MANDATORY_FIELD_MISSING = [
+    { field: "name", message: "Event name is required." },
+    { field: "purpose", message: "Purpose is required." },
+    { field: "description", message: "Description is required." },
+    { field: "proposedStartAt", message: "Proposed start date and time is required." },
+    { field: "proposedEndAt", message: "Proposed end date and time is required." },
+    { field: "expectedAttendance", message: "Expected attendance is required." },
+    { field: "registrationRequired", message: "Whether attendee registration is required must be stated." },
+    { field: "equipmentRequired", message: "Whether equipment is required must be stated." },
+  ];
+
+  it("gives each missing field its own message when the fields are absent", () => {
+    expect(validateSubmission({}, NOW)).toEqual(EVERY_MANDATORY_FIELD_MISSING);
+  });
+
+  it("gives the same messages when the fields are present but null", () => {
+    const allNull = {
+      name: null,
+      purpose: null,
+      description: null,
+      proposedStartAt: null,
+      proposedEndAt: null,
+      expectedAttendance: null,
+      registrationRequired: null,
+      equipmentRequired: null,
+    };
+    expect(validateSubmission(allNull, NOW)).toEqual(EVERY_MANDATORY_FIELD_MISSING);
+  });
+
+  it("explains a non-positive attendance differently from a missing one", () => {
+    expect(validateSubmission(completeRequest({ expectedAttendance: 0 }), NOW)).toEqual([
+      { field: "expectedAttendance", message: "Expected attendance must be a whole number greater than zero." },
+    ]);
+  });
+
+  it("accepts a start exactly at the current moment (boundary: not in the past)", () => {
+    const request = completeRequest({
+      proposedStartAt: NOW.toISOString(),
+      proposedEndAt: new Date(NOW.getTime() + 60 * 60_000).toISOString(),
+    });
+    expect(validateSubmission(request, NOW)).toEqual([]);
+  });
+
+  it("does not compare the registration window with a start that is missing", () => {
+    const request = completeRequest({
+      proposedStartAt: null,
+      registrationRequired: true,
+      registrationOpensAt: "2026-09-20T00:00:00.000Z",
+      registrationClosesAt: "2026-10-01T00:00:00.000Z",
+    });
+    expect(validateSubmission(request, NOW)).toEqual([
+      { field: "proposedStartAt", message: "Proposed start date and time is required." },
+    ]);
+  });
+
+  describe("when registration is required", () => {
+    const withRegistration = (opensAt: string | null, closesAt: string | null) =>
+      completeRequest({ registrationRequired: true, registrationOpensAt: opensAt, registrationClosesAt: closesAt });
+
+    it("asks for both ends of the registration window by name", () => {
+      expect(validateSubmission(withRegistration(null, null), NOW)).toEqual([
+        {
+          field: "registrationOpensAt",
+          message: "Registration opening date and time is required when registration is required.",
+        },
+        {
+          field: "registrationClosesAt",
+          message: "Registration closing date and time is required when registration is required.",
+        },
+      ]);
+    });
+
+    it("says closing must come after opening (boundary: equal times)", () => {
+      const sameMoment = "2026-09-20T00:00:00.000Z";
+      expect(validateSubmission(withRegistration(sameMoment, sameMoment), NOW)).toEqual([
+        { field: "registrationClosesAt", message: "Registration closing must be later than registration opening." },
+      ]);
+    });
+
+    it("says closing must be no later than the event start", () => {
+      expect(validateSubmission(withRegistration("2026-09-20T00:00:00.000Z", "2026-10-03T00:00:00.000Z"), NOW)).toEqual([
+        { field: "registrationClosesAt", message: "Registration closing must be no later than the event start." },
+      ]);
+    });
+  });
+});

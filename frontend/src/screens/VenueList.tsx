@@ -50,7 +50,12 @@ export function VenueList() {
       },
       {
         key: "actions",
-        content: canMaintain ? <Link to={`/venues/${venue.id}/edit`}>Edit</Link> : null,
+        content: (
+          <span style={{ display: "flex", gap: 12 }}>
+            <Link to={`/venues/${venue.id}`}>View</Link>
+            {canMaintain && <Link to={`/venues/${venue.id}/edit`}>Edit</Link>}
+          </span>
+        ),
       },
     ],
   }));

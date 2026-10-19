@@ -22,14 +22,10 @@ export default defineConfig({
         // tested. If one genuinely can't be, say why in the test file instead
         // of lowering this.
         "src/**/domain/**": { lines: 100, branches: 100, functions: 100, statements: 100 },
-        // Everything outside domain/ (Vitest leaves the files matched above out
-        // of these): mostly api/ and repo/, which the integration tests cover
-        // against a database. CI can't run those until EN-06.1, so this floor
-        // sits just under today's unit-only figures and should only ever go up.
-        lines: 39,
-        statements: 39,
-        branches: 93,
-        functions: 24,
+        // Everything outside domain/ (mostly api/ and repo/) is held to a floor
+        // on the integration run instead (vitest.config.ts, CI's integration
+        // job), because only a database run executes it. Measured here, that
+        // code counts as uncovered and every new repo file fails the build.
       },
     },
   },

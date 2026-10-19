@@ -8,7 +8,7 @@
 | Test Scenario | Submitting a request emits the event that a coordinator's notification is built from |
 | Pre-conditions | 1. Standard environment running and test data reset (`tests/README.md`).<br>2. FX-SUBMITTED completed; note the request **id** and the **reference**. |
 | Test Steps | 1. In the Supabase SQL editor, run the query from Test Data with the noted id. |
-| Test Data | Query: `select envelope->>'messageType' as message_type, envelope->'payload'->>'eventReference' as reference, envelope->'payload'->>'ownerId' as owner_id, published_at from event.outbox where message_key = '<id>' order by created_at;` |
+| Test Data | Query: `select envelope->>'type' as message_type, envelope->'data'->>'eventReference' as reference, envelope->'data'->>'ownerId' as owner_id, published_at from event.outbox where message_key = '<id>' order by created_at;` |
 | Expected Result | One row has `message_type` = `event.submitted`, `reference` = the noted reference, and `owner_id` = `00000000-0000-0000-0000-000000000001`. `published_at` is null — no relay publishes the outbox yet (T2, Sprint 2), which this case does not assert. |
 | Created By | Seann Khoo |
 | Date of Creation | 2026-09-17 |

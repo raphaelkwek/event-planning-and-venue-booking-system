@@ -1,0 +1,28 @@
+P2 automated self-check — 8 October 2026 (Asia/Singapore)
+Tested commit: 99f607366b94dc8f64741a04b96f0f076136650a
+CI run: https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/37661185600
+Scope: automated UI/domain/API checks; signed-in functional cards remain Not Executed.
+Only test result lines are exported below. No credentials or request logs are included.
+
+Job: https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/37661185600/job/112928824638
+2026-10-07T17:43:20.3460693Z  ✓ tests/equipment/api/inventory.test.ts  (22 tests) 560ms
+2026-10-07T17:43:39.0001888Z  ✓ tests/equipment/domain/inventory.test.ts  (17 tests) 11ms
+2026-10-07T17:43:46.5508430Z  Test Files  42 passed (42)
+2026-10-07T17:43:46.5509480Z       Tests  532 passed (532)
+2026-10-07T17:43:50.1768858Z  Test Files  10 passed (10)
+2026-10-07T17:43:50.1770373Z       Tests  72 passed (72)
+
+Job: https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/37661185600/job/112928824577
+2026-10-07T17:43:44.3441804Z  ✓ tests/equipmentEditor.test.tsx  (5 tests) 1156ms
+2026-10-07T17:43:45.6321553Z  ✓ tests/equipmentCards.test.tsx  (8 tests) 2447ms
+2026-10-07T17:43:53.0718967Z  Test Files  13 passed (13)
+2026-10-07T17:43:53.0720141Z       Tests  56 passed (56)
+2026-10-07T17:43:55.5700591Z  Test Files  8 passed (8)
+2026-10-07T17:43:55.5718274Z       Tests  57 passed (57)
+2026-10-07T17:43:57.1994582Z  ✓ tests/equipment/domain/inventory.test.ts  (17 tests) 12ms
+2026-10-07T17:43:59.4582695Z  Test Files  18 passed (18)
+2026-10-07T17:43:59.4583938Z       Tests  270 passed (270)
+2026-10-07T17:44:01.6299077Z  Test Files  7 passed (7)
+2026-10-07T17:44:01.6300304Z       Tests  77 passed (77)
+2026-10-07T17:44:03.1044958Z  Test Files  4 passed (4)
+2026-10-07T17:44:03.1046026Z       Tests  30 passed (30)

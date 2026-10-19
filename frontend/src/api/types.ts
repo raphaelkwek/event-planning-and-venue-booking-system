@@ -12,6 +12,7 @@ export type EventStatus =
   | "AWAITING_CLARIFICATION"
   | "APPROVED"
   | "PLANNING"
+  | "SAFETY_REVIEW"
   | "CONFIRMED"
   | "COMPLETED"
   | "CANCELLED"
@@ -57,6 +58,10 @@ export interface EventRecord {
   decidedAt: string | null;
   rejectionReason: string | null;
   assignedCoordinatorId: string | null;
+  /** G1: free text, such as a name, email and phone number. */
+  contactDetails: string | null;
+  /** G1: raised by every change; an edit sends it back in If-Match. */
+  version: number;
 }
 
 export interface EventListItem {

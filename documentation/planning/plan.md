@@ -199,7 +199,7 @@ Sprint 2's story points come from the team's estimates entered in Jira on 27 Sep
 | Story | From | To | Reason |
 |---|---|---|---|
 | F3 | Sprint 2 | Sprint 4 | Cancellation is one command with F4. Shipping it alone means rewriting it. |
-| P1 | Sprint 3 | Sprint 2 | Shares its time-based availability model with P2 (waits on CQ-02) |
+| P1 | Sprint 3 | Sprint 2 | Shares its time-based availability model with P2 (CQ-02 implementation decision recorded 8 Oct: peak concurrent use) |
 | F5 | Sprint 4 | Sprint 3 | Readiness becomes an in-core query once M1 and Q1 exist |
 | R1 | Sprint 3 | Sprint 4 | Built on the registration service's seat inventory. The attendee shell moves into EN-13 (Sprint 3). |
 | S1, S2 | Sprint 3 | Sprint 3, behind flag `change-approval` | Approval stays off in production until S3 lands (EN-15) |
@@ -224,6 +224,6 @@ Twenty-three enablers (EN-01 to EN-23) were added to the backlog and placed in t
   - G2 (Sprint 4) completes the change-request picture begun by S1/S2 (Sprint 3).
 
   Raise all three at the Sprint 2 review rather than waiting to be asked.
-- **Customer answers pending:** CQ-01 (R7 VIP pool), CQ-02 (P1 peak or summed) and CQ-03 (T2 visibility). P1 and T2 are in Sprint 2, so CQ-02 and CQ-03 are needed first.
+- **Customer answers pending:** CQ-01 (R7 VIP pool) and CQ-03 (T2 visibility). The user selected peak concurrent use for CQ-02 on 8 Oct; its implementation decision and provenance are recorded in `clarifications.md`. T2 remains in Sprint 2 and needs CQ-03.
 
 Notification ACs land with their triggering story, not in a lump at the end.

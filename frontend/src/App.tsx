@@ -12,7 +12,22 @@ import { ReviewDetail } from "./screens/ReviewDetail.js";
 import { ApiConsole } from "./screens/ApiConsole.js";
 import { VenueList } from "./screens/VenueList.js";
 import { VenueEditor } from "./screens/VenueEditor.js";
+import { Notifications } from "./screens/Notifications.js";
+import { useUnreadCount } from "./shared/useUnreadCount.js";
+import { VenueDetail } from "./screens/VenueDetail.js";
+import { EventDetailsEditor } from "./screens/EventDetailsEditor.js";
+import { EventVenueRequests } from "./screens/EventVenueRequests.js";
+import { BookingRequestForm } from "./screens/BookingRequestForm.js";
+import { BookingRequestQueue } from "./screens/BookingRequestQueue.js";
+import { EquipmentAvailability } from "./screens/EquipmentAvailability.js";
+import { VenueAvailability } from "./screens/VenueAvailability.js";
+import { VenueSearch } from "./screens/VenueSearch.js";
+import { VenueSuitability } from "./screens/VenueSuitability.js";
 import type { Role } from "./api/types.js";
+import { EquipmentList } from "./screens/EquipmentList.js";
+import { EquipmentEditor } from "./screens/EquipmentEditor.js";
+import { EquipmentRequest } from "./screens/EquipmentRequest.js";
+import { EquipmentRequests } from "./screens/EquipmentRequests.js";
 
 const ROLE_LABELS: Record<Role, string> = {
   EVENT_ORGANISER: "Event Organiser",
@@ -69,6 +84,20 @@ const ROUTES: {
     nav: { label: "All events", to: "/events" },
   },
   { path: "/review/:id", element: <ReviewDetail />, roles: ["EVENT_COORDINATOR"] },
+  // O1: the coordinator records the equipment an event requires; the server allows only the assigned one to write.
+  { path: "/events/:eventId/equipment", element: <EquipmentRequest />, roles: ["EVENT_COORDINATOR"] },
+  // G1: the owning organiser or the assigned coordinator edits descriptive details.
+  { path: "/events/:id/details", element: <EventDetailsEditor />, roles: ["EVENT_ORGANISER", "EVENT_COORDINATOR"] },
+  // L1, L2: an event's venue requests; its assigned coordinator requests and withdraws them.
+  { path: "/events/:id/venue-requests", element: <EventVenueRequests />, roles: ["EVENT_ORGANISER", "EVENT_COORDINATOR"] },
+  { path: "/events/:id/venue-requests/new", element: <BookingRequestForm />, roles: ["EVENT_COORDINATOR"] },
+  // L1, M1: the pending requests for the venues a Venue Staff member looks after.
+  {
+    path: "/booking-requests",
+    element: <BookingRequestQueue />,
+    roles: ["VENUE_STAFF"],
+    nav: { label: "Booking requests", to: "/booking-requests" },
+  },
   // H1, H2: every internal role reads the catalogue; only Venue Staff maintain it.
   {
     path: "/venues",
@@ -76,8 +105,57 @@ const ROUTES: {
     roles: ["EVENT_ORGANISER", "EVENT_COORDINATOR", "VENUE_STAFF", "TECH_SUPPORT_STAFF"],
     nav: { label: "Venues", to: "/venues" },
   },
+  // J1, J2: Event Coordinators find a venue by name, building and an event's requirements.
+  // "/venues/search" is a different path from "/venues/:id"; the router ranks the static one first.
+  {
+    path: "/venues/search",
+    element: <VenueSearch />,
+    roles: ["EVENT_COORDINATOR"],
+    nav: { label: "Find a venue", to: "/venues/search" },
+  },
+  {
+    path: "/venues/:id",
+    element: <VenueDetail />,
+    roles: ["EVENT_ORGANISER", "EVENT_COORDINATOR", "VENUE_STAFF", "TECH_SUPPORT_STAFF"],
+  },
+  // I1: every internal role reads a venue's availability; attendees have no route to it.
+  {
+    path: "/venues/:id/availability",
+    element: <VenueAvailability />,
+    roles: ["EVENT_ORGANISER", "EVENT_COORDINATOR", "VENUE_STAFF", "TECH_SUPPORT_STAFF"],
+  },
+  // K1: only Event Coordinators assess a venue against an event.
+  { path: "/venues/:id/suitability", element: <VenueSuitability />, roles: ["EVENT_COORDINATOR"] },
   { path: "/venues/new", element: <VenueEditor />, roles: ["VENUE_STAFF"] },
   { path: "/venues/:id/edit", element: <VenueEditor />, roles: ["VENUE_STAFF"] },
+  {
+    path: "/equipment",
+    element: <EquipmentList />,
+    roles: ["TECH_SUPPORT_STAFF"],
+    nav: { label: "Equipment", to: "/equipment" },
+  },
+  { path: "/equipment/new", element: <EquipmentEditor />, roles: ["TECH_SUPPORT_STAFF"] },
+  { path: "/equipment/:id/edit", element: <EquipmentEditor />, roles: ["TECH_SUPPORT_STAFF"] },
+  {
+    path: "/equipment/availability",
+    element: <EquipmentAvailability />,
+    roles: ["TECH_SUPPORT_STAFF"],
+    nav: { label: "Equipment availability", to: "/equipment/availability" },
+  },
+  // O2: Technical Support see every equipment line and update its status.
+  {
+    path: "/equipment/requests",
+    element: <EquipmentRequests />,
+    roles: ["TECH_SUPPORT_STAFF"],
+    nav: { label: "Equipment requests", to: "/equipment/requests" },
+  },
+  // T2: every role reads its own notifications.
+  {
+    path: "/notifications",
+    element: <Notifications />,
+    roles: EVERY_ROLE,
+    nav: { label: "Notifications", to: "/notifications" },
+  },
   {
     path: "/console",
     element: <ApiConsole />,
@@ -89,6 +167,7 @@ const ROUTES: {
 function landingFor(role: Role): string {
   if (role === "EVENT_ORGANISER") return "/requests";
   if (role === "EVENT_COORDINATOR") return "/queue";
+  if (role === "TECH_SUPPORT_STAFF") return "/equipment";
   return "/console";
 }
 
@@ -96,6 +175,7 @@ function Shell() {
   const { session, signOut } = useSession();
   const location = useLocation();
   const navigate = useNavigate();
+  const unread = useUnreadCount(session?.token ?? null, location.pathname);
 
   if (!session) return <Login />;
 
@@ -134,7 +214,7 @@ function Shell() {
                 color: "#172B4D",
               }}
             >
-              {route.nav!.label}
+              {route.path === "/notifications" && unread ? `${route.nav!.label} (${unread})` : route.nav!.label}
             </Link>
           ))}
         </nav>

@@ -1,4 +1,5 @@
-import { Router } from "express";
+import { Router, type RequestHandler } from "express";
+import { identityRateLimiter } from "./limiter.js";
 import type { Sql } from "postgres";
 import { RESOURCES, type Resource } from "@connectsphere/contracts";
 import { verifyJwt, type AuthenticatedRequest } from "../../../shared/auth/verifyJwt.js";
@@ -9,10 +10,10 @@ function isResource(value: string): value is Resource {
   return (RESOURCES as readonly string[]).includes(value);
 }
 
-export function accessScopeRouter(sql: Sql) {
+export function accessScopeRouter(sql: Sql, limiter: RequestHandler = identityRateLimiter()) {
   const router = Router();
 
-  router.get("/api/v1/access-scope/:resource", verifyJwt, async (req: AuthenticatedRequest, res) => {
+  router.get("/api/v1/access-scope/:resource", limiter, verifyJwt, async (req: AuthenticatedRequest, res) => {
     const correlationId = req.header("x-correlation-id") ?? null;
     const { resource } = req.params;
 

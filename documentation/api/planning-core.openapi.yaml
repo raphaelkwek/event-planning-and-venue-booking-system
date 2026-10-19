@@ -50,6 +50,11 @@ tags:
   - name: Venues
     description: H1 maintain venue records, H2 view them (venue module)
 
+  - name: Equipment
+    description: P1 equipment availability checks, P2 maintain equipment types, individually tracked units and out-of-service periods (equipment module)
+  - name: Change requests
+    description: S1 request a change to a submitted event's significant fields (change module)
+
 security:
   - bearerAuth: []
 
@@ -130,6 +135,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "429": { $ref: "#/components/responses/RateLimitExceeded" }
 
   /api/v1/auth/logout:
     post:
@@ -139,6 +145,7 @@ paths:
       responses:
         "204": { description: Signed out. The token is revoked with Supabase Auth. }
         "401": { $ref: "#/components/responses/Unauthenticated" }
+        "429": { $ref: "#/components/responses/RateLimitExceeded" }
 
   /api/v1/users/me:
     get:
@@ -157,6 +164,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "429": { $ref: "#/components/responses/RateLimitExceeded" }
 
   /api/v1/users:
     get:
@@ -185,6 +193,7 @@ paths:
         "400": { $ref: "#/components/responses/ValidationFailed" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
+        "429": { $ref: "#/components/responses/RateLimitExceeded" }
 
   /api/v1/access-scope/{resource}:
     get:
@@ -213,6 +222,7 @@ paths:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
+        "429": { $ref: "#/components/responses/RateLimitExceeded" }
 
   /api/v1/event-drafts:
     post:
@@ -391,13 +401,150 @@ paths:
       operationId: getEvent
       responses:
         "200":
-          description: The full request.
+          description: "The full request. `ETag` carries its version, for an edit's `If-Match` (G1)."
+          headers:
+            ETag: { $ref: "#/components/headers/EventVersion" }
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Event" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+    patch:
+      tags: [Events]
+      summary: Edit an event's descriptive details (G1)
+      description: |
+        The owning organiser or the assigned coordinator, while the event is Approved, Planning,
+        Safety Review or Confirmed. Send only the fields to change: `purpose`, `description`,
+        `accessibilityNeeds`, `contactDetails`. Purpose and description can't be emptied; an empty
+        optional field is stored as null.
+
+        The significant fields (`SIGNIFICANT_EVENT_FIELDS` in contracts: the date and times,
+        expected attendance, and venue and equipment requirements) change only through a change
+        request; sending any of them refuses the whole edit with `422`.
+
+        `If-Match` must carry the version from the event's `ETag` (ADR-0015). If the event changed
+        since, the edit is refused with `412` and nothing is stored. The changes and one history
+        entry per changed field (before and after, the editor, their role, the time) are written
+        together, or not at all. Saving without changes stores nothing. Limited to 120 requests a
+        minute per address until the gateway applies limits (ADR-0011, EN-12).
+      operationId: editEventDetails
+      parameters:
+        - name: If-Match
+          in: header
+          required: true
+          schema: { type: string }
+          example: '"3"'
+          description: The event's version, as its `ETag` gave it.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EventDetailsEdit" }
+      responses:
+        "200":
+          description: The event as stored, with its new version in `ETag`.
+          headers:
+            ETag: { $ref: "#/components/headers/EventVersion" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Event" }
+        "400": { $ref: "#/components/responses/ValidationFailed" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403":
+          description: "`ROLE_NOT_AUTHORISED`: not the owning organiser or the assigned coordinator, or a role that never edits events."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: "`EVENT_NOT_EDITABLE`: the event isn't Approved, Planning, Safety Review or Confirmed. The message names its status."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "412":
+          description: "`EVENT_VERSION_MISMATCH`: the event changed after the version in `If-Match`. Nothing was stored."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "422":
+          description: "`CHANGE_REQUEST_REQUIRED`: the edit included a significant field; `fields` names each. Nothing was stored."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "428":
+          description: "`EVENT_VERSION_REQUIRED`: no `If-Match`."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "429":
+          description: "`RATE_LIMITED`: more than 120 edits in a minute from one address."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
+  /api/v1/events/{id}/status:
+    parameters:
+      - $ref: "#/components/parameters/RecordId"
+    get:
+      tags: [Events]
+      summary: An event's current status (F2)
+      description: |
+        Every role that may see the event under its access scope (A3). Only the status is
+        returned: no rejection reason, review comment or coordinator, so the answer is safe
+        for an attendee. An event outside the caller's scope answers 404 with no data.
+        Rate limited before authentication.
+      operationId: getEventStatus
+      responses:
+        "200":
+          description: The current status.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [eventId, status]
+                additionalProperties: false
+                properties:
+                  eventId: { type: string, format: uuid }
+                  status: { type: string }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "429": { $ref: "#/components/responses/RateLimitExceeded" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
+  /api/v1/events/{id}/status-history:
+    parameters:
+      - $ref: "#/components/parameters/RecordId"
+    get:
+      tags: [Events]
+      summary: An event's status history (F2)
+      description: |
+        Event Organiser (own events, by access scope) and Event Coordinator only. Every other
+        role, attendees included, is refused with 403 before the event is looked up. Entries
+        are status changes, oldest first. The history is append-only and read-only: no route
+        edits or deletes an entry. Rate limited before authentication.
+      operationId: getEventStatusHistory
+      responses:
+        "200":
+          description: The current status and every status change.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [eventId, status, items, nextCursor]
+                properties:
+                  eventId: { type: string, format: uuid }
+                  status: { type: string }
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/StatusHistoryEntry" }
+                  nextCursor: { type: "null" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "429": { $ref: "#/components/responses/RateLimitExceeded" }
         "503": { $ref: "#/components/responses/IdentityUnavailable" }
 
   /api/v1/events/{id}/approve:
@@ -629,6 +776,132 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
         "503": { $ref: "#/components/responses/IdentityUnavailable" }
 
+  /api/v1/events/{id}/change-requests:
+    parameters:
+      - $ref: "#/components/parameters/RecordId"
+    get:
+      tags: [Change requests]
+      summary: The change requests made for an event, newest first (S1)
+      description: Anyone whose access scope (A3) covers the event. An organiser sees only their own events.
+      operationId: listChangeRequests
+      responses:
+        "200":
+          description: Every request for the event, with the snapshot and proposed value of each field.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/ChangeRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "429": { $ref: "#/components/responses/RateLimitExceeded" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+    post:
+      tags: [Change requests]
+      summary: Request a change to a submitted event (S1)
+      description: |
+        The Event Organiser who owns the event. Allowed from Submitted until the event is Completed,
+        Cancelled or Rejected. Only the six significant fields can be proposed; each proposed value
+        is checked as the event would be after the change, and every problem is reported, named
+        `changes.<field>`. The request is stored Pending with a snapshot of each current value and
+        the event itself is not changed. One request can be pending per event. The assigned
+        coordinator is notified. A refused request stores nothing.
+      operationId: requestEventChange
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ChangeRequestInput" }
+      responses:
+        "201":
+          description: The request, Pending.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ChangeRequest" }
+        "400": { $ref: "#/components/responses/ValidationFailed" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: |
+            `EVENT_NOT_CHANGEABLE` (`details.status` is the event's status), or
+            `CHANGE_REQUEST_ALREADY_PENDING` (`details` has the pending request's `id`, `requestedAt`
+            and `fields`).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "429": { $ref: "#/components/responses/RateLimitExceeded" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
+  /api/v1/change-requests/{id}/decision:
+    parameters:
+      - $ref: "#/components/parameters/RecordId"
+    post:
+      tags: [Change requests]
+      summary: Approve or reject a pending change request (S2)
+      description: |
+        The Event Coordinator assigned to the request's event, while the request is Pending. Approving
+        re-checks, under lock, that the event is still in a changeable status and that the proposed
+        values still pass the same checks as a new request; it then writes the values to the event,
+        records a history entry per field (before, after, coordinator, time) and bumps the event's
+        version. Rejecting needs a reason and leaves the event untouched. The requesting organiser is
+        notified of either outcome. Approval is refused when the event changed since the request was
+        made (each such field is named `changes.<field>`). A refused decision stores nothing.
+      operationId: decideChangeRequest
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ChangeRequestDecision" }
+      responses:
+        "200":
+          description: The decided request, and on approval the event's significant values after the change.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [changeRequest]
+                properties:
+                  changeRequest: { $ref: "#/components/schemas/ChangeRequest" }
+                  event:
+                    type: object
+                    description: Present on approval only.
+                    required: [id]
+                    properties:
+                      id: { type: string, format: uuid }
+                      proposedStartAt: { type: [string, "null"], format: date-time }
+                      proposedEndAt: { type: [string, "null"], format: date-time }
+                      expectedAttendance: { type: [integer, "null"] }
+                      venueRequirements: { description: "The venue requirements after the change, or null." }
+                      equipmentRequired: { type: [boolean, "null"] }
+                      equipmentRequirements: { description: "The equipment requirements after the change, or null." }
+        "400": { $ref: "#/components/responses/ValidationFailed" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404":
+          description: No change request with that id exists (`CHANGE_REQUEST_NOT_FOUND`), or its event is outside the caller's scope.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "409":
+          description: |
+            `CHANGE_REQUEST_ALREADY_DECIDED` (`details` has the decision's `status` and `decidedAt`), or,
+            on approval, `CHANGE_REQUEST_NO_LONGER_VALID` (`details.fields` lists `{field, message}` named
+            `changes.<field>`; `details.status` is the event's status when it can no longer change).
+            Approval is also refused when the event changed since the request was made: each field whose
+            current value no longer matches the request's is listed in `details.fields`, named
+            `changes.<field>`.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "429": { $ref: "#/components/responses/RateLimitExceeded" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
   /api/v1/venues:
     get:
       tags: [Venues]
@@ -649,6 +922,7 @@ paths:
                     items: { $ref: "#/components/schemas/VenueListItem" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
+        "429": { $ref: "#/components/responses/RateLimitExceeded" }
         "503": { $ref: "#/components/responses/IdentityUnavailable" }
     post:
       tags: [Venues]
@@ -671,6 +945,123 @@ paths:
         "400": { $ref: "#/components/responses/ValidationFailed" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
+        "429": { $ref: "#/components/responses/RateLimitExceeded" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
+  /api/v1/venues/search:
+    get:
+      tags: [Venues]
+      summary: Search venues by name or building, and filter them against an event's requirements (J1, J2)
+      description: |
+        Event Coordinators only (policy action `search` on `venue`); every other role is refused.
+        Returns the active venues that satisfy **every** filter given, in name order. With no filter
+        it returns every active venue.
+
+        - `q` matches part of the venue's name or building, ignoring case (J2).
+        - `from` and `to` are the window, both or neither, as RFC 3339 instants with an offset. A
+          venue is excluded when it is closed at any time in the window under its operating hours
+          (Singapore time), or when a held or confirmed slot or an active unavailability block
+          overlaps the window. Overlap is decided in SQL with `&&` on half-open ranges, so periods
+          that touch do not overlap. CR-01: a slot is compared by its occupied period (its own
+          setup and turnaround time included) and the window is widened by the venue's setup and
+          turnaround time. The venue's own times belong to H3 and are 0 minutes until it lands.
+        - `minCapacity` is compared with the chosen layout's capacity when `layout` is given, and
+          with the venue's maximum capacity otherwise.
+        - `location` matches part of the building, ignoring case. `layout` must be one the venue
+          offers. Every `facilities` and `accessibility` value must be present at the venue,
+          ignoring case; repeat the parameter for several.
+
+        When nothing matches the response is still 200, with an empty list and a `message` that
+        restates the filters applied (J1). Inactive venues never appear.
+      operationId: searchVenues
+      parameters:
+        - { name: q, in: query, schema: { type: string, maxLength: 100 }, example: audit }
+        - { name: from, in: query, schema: { type: string, format: date-time }, example: "2026-12-14T12:00:00+08:00" }
+        - { name: to, in: query, schema: { type: string, format: date-time }, example: "2026-12-14T14:00:00+08:00" }
+        - { name: minCapacity, in: query, schema: { type: integer, minimum: 1, maximum: 1000000 }, example: 150 }
+        - { name: location, in: query, schema: { type: string, maxLength: 100 } }
+        - { name: layout, in: query, schema: { type: string, maxLength: 100 }, example: Theatre }
+        - { name: facilities, in: query, style: form, explode: true, schema: { type: array, items: { type: string, maxLength: 100 } } }
+        - { name: accessibility, in: query, style: form, explode: true, schema: { type: array, items: { type: string, maxLength: 100 } } }
+      responses:
+        "200":
+          description: The matching venues, possibly none.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/VenueSearchResult" }
+        "400": { $ref: "#/components/responses/ValidationFailed" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "429":
+          description: |
+            `RATE_LIMITED`: more than 120 venue searches in a minute from one address. A stopgap
+            until the gateway applies limits (ADR-0011, EN-12). `Retry-After` gives the seconds to wait.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
+  /api/v1/venues/search/options:
+    get:
+      tags: [Venues]
+      summary: The layouts, facilities and accessibility features the filters offer (J1)
+      description: |
+        Event Coordinators only. What the active venues record, one spelling each, in name order,
+        so the search screen can offer them as choices.
+      operationId: getVenueSearchOptions
+      responses:
+        "200":
+          description: The choices.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/VenueSearchOptions" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "429":
+          description: |
+            `RATE_LIMITED`: more than 120 venue searches in a minute from one address. A stopgap
+            until the gateway applies limits (ADR-0011, EN-12). `Retry-After` gives the seconds to wait.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
+  /api/v1/venues/search/prefill:
+    get:
+      tags: [Venues]
+      summary: The search filters an event's requirements give (J1)
+      description: |
+        Event Coordinators only. Opened from an event, the search starts from the event's
+        recorded requirements and the coordinator can change every one (J1). The event is read
+        through the event module under the caller's access scope (A3); an event outside it is
+        a 404.
+
+        The window is the event's proposed start and end when it has both, the minimum capacity is
+        its expected attendance, and the layout and facilities are its venue requirements, spelled
+        as the catalogue spells them where a name matches ignoring case. Accessibility needs are
+        free text on the event, so each comma, semicolon or line-separated need is matched to a
+        catalogue feature; a need that matches none is not turned into a filter and is returned in
+        `unmatchedAccessibility` instead.
+      operationId: getVenueSearchPrefill
+      parameters:
+        - { name: eventId, in: query, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: The filters to start from.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/VenueSearchPrefill" }
+        "400": { $ref: "#/components/responses/ValidationFailed" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "429":
+          description: |
+            `RATE_LIMITED`: more than 120 venue searches in a minute from one address. A stopgap
+            until the gateway applies limits (ADR-0011, EN-12). `Retry-After` gives the seconds to wait.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
         "503": { $ref: "#/components/responses/IdentityUnavailable" }
 
   /api/v1/venues/{id}:
@@ -690,6 +1081,7 @@ paths:
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "429": { $ref: "#/components/responses/RateLimitExceeded" }
         "503": { $ref: "#/components/responses/IdentityUnavailable" }
     put:
       tags: [Venues]
@@ -714,6 +1106,747 @@ paths:
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "429": { $ref: "#/components/responses/RateLimitExceeded" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
+  /api/v1/venues/{id}/availability:
+    parameters:
+      - $ref: "#/components/parameters/RecordId"
+    get:
+      tags: [Venues]
+      summary: A venue's availability calendar (I1)
+      description: |
+        Every internal role; attendees are refused. Each day from `from` to `to`, both
+        included and at most 31 days, with its committed and free periods. Days run
+        midnight to midnight in `timeZone` (Asia/Singapore), and each period includes
+        its start but not its end.
+
+        Committed periods are confirmed bookings, held slots (shown as pending
+        requests), each one's setup and turnaround time, active unavailability
+        blocks, and the time outside operating hours. Free periods are the opening
+        hours left over. Released and expired slots and removed blocks commit
+        nothing. Read afresh on every request.
+      operationId: getVenueAvailability
+      parameters:
+        - { name: from, in: query, required: true, schema: { type: string, format: date }, example: "2026-12-07" }
+        - { name: to, in: query, required: true, schema: { type: string, format: date }, example: "2026-12-13" }
+      responses:
+        "200":
+          description: One entry per date in the range, in order.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/VenueAvailability" }
+        "400": { $ref: "#/components/responses/ValidationFailed" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "429":
+          description: |
+            `RATE_LIMITED`: more than 120 calendar requests in a minute from one address. A
+            stopgap until the gateway applies limits (ADR-0011, EN-12). `Retry-After` gives the
+            seconds to wait.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
+
+  /api/v1/venues/{id}/suitability:
+    parameters:
+      - $ref: "#/components/parameters/RecordId"
+    get:
+      tags: [Venues]
+      summary: Whether a venue suits an event, and why not (K1)
+      description: |
+        Event Coordinators only (Cerbos: venue `check_suitability`). Advisory: it reads the
+        event and the venue catalogue and writes nothing, so it creates, changes and blocks no
+        booking.
+
+        The result is `SUITABLE`, `SUITABLE_WITH_WARNINGS` or `NOT_SUITABLE`. It is
+        `NOT_SUITABLE` when expected attendance exceeds the capacity of the event's layout, a
+        required facility or accessibility feature is absent, or the proposed period falls
+        outside the venue's operating hours (Asia/Singapore). `reasons` lists each failing
+        condition separately with the two values compared. A condition the records cannot answer
+        (no layout, attendance or period on the event, or a layout the venue does not offer) is
+        not a failure: it is listed in `warnings`, and a result with warnings and no failure is
+        `SUITABLE_WITH_WARNINGS`. A `SUITABLE` result has no reasons and no warnings.
+
+        The event's accessibility needs are free text, so each line, or each comma- or
+        semicolon-separated entry, is one required feature. Names are compared without regard to
+        case. Until L1 and L4 land (CR-03) the venue is assessed against the event's own
+        requirements.
+      operationId: getVenueSuitability
+      parameters:
+        - { name: eventId, in: query, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: The assessment.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/VenueSuitability" }
+        "400": { $ref: "#/components/responses/ValidationFailed" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "429":
+          description: |
+            `RATE_LIMITED`: more than 120 suitability checks in a minute from one address. A
+            stopgap until the gateway applies limits (ADR-0011, EN-12). `Retry-After` gives the
+            seconds to wait.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
+  /api/v1/equipment/types:
+    get:
+      tags: [Equipment]
+      summary: List equipment inventory (P2)
+      description: Event Coordinators and Technical Support Staff. Total quantity is stored for bulk stock and derived from unit records for serialized equipment. P1's availability check picks its equipment type from this list.
+      operationId: listEquipmentTypes
+      responses:
+        "200":
+          description: Equipment types in name order.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/EquipmentTypeListItem" }
+                  nextCursor: { type: [string, "null"] }
+        "429": { $ref: "#/components/responses/RateLimitExceeded" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+    post:
+      tags: [Equipment]
+      summary: Create an equipment type (P2)
+      description: |
+        Technical Support Staff only. Bulk types carry a non-negative quantity;
+        serialized types carry unique unit labels. The creator, time, and initial
+        quantity are recorded in inventory history in the same transaction.
+      operationId: createEquipmentType
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EquipmentTypeInput" }
+      responses:
+        "201":
+          description: Created, including individually tracked units where applicable.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EquipmentType" }
+        "400": { $ref: "#/components/responses/ValidationFailed" }
+        "429": { $ref: "#/components/responses/RateLimitExceeded" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
+  /api/v1/equipment/types/{id}:
+    parameters:
+      - $ref: "#/components/parameters/RecordId"
+    get:
+      tags: [Equipment]
+      summary: Open an equipment type (P2)
+      operationId: getEquipmentType
+      responses:
+        "200":
+          description: Type details, units and active or removed unavailability records.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EquipmentType" }
+        "429": { $ref: "#/components/responses/RateLimitExceeded" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+    put:
+      tags: [Equipment]
+      summary: Update an equipment type and its held quantity (P2)
+      description: |
+        Technical Support Staff only. A reduction that would remove stock reserved
+        during an overlapping period is refused without changing inventory; the
+        refusal names each affected event reference and reserved quantity. Serialized
+        stock is changed by synchronising its unit labels.
+      operationId: updateEquipmentType
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EquipmentTypeInput" }
+      responses:
+        "200":
+          description: Updated; inventory history records actor, time and previous/new quantity.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EquipmentType" }
+        "400": { $ref: "#/components/responses/ValidationFailed" }
+        "429": { $ref: "#/components/responses/RateLimitExceeded" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: "`INSUFFICIENT_EQUIPMENT`: reducing held stock would invalidate reservations; the message names affected events and quantities."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "422":
+          description: "`VALIDATION_FAILED`: an existing type's tracking method cannot be changed."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
+  /api/v1/equipment/types/{id}/unavailability:
+    parameters:
+      - $ref: "#/components/parameters/RecordId"
+    post:
+      tags: [Equipment]
+      summary: Mark equipment unavailable for a period (P2)
+      description: |
+        Technical Support Staff only. Selects one unit for serialized equipment or a
+        positive quantity for bulk stock. The reason is mandatory and the end must be
+        later than the start. The change and its previous/new available quantity are audited.
+      operationId: createEquipmentUnavailability
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EquipmentUnavailabilityInput" }
+      responses:
+        "201":
+          description: The equipment is out of service for that half-open period.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EquipmentUnavailability" }
+        "400": { $ref: "#/components/responses/ValidationFailed" }
+        "429": { $ref: "#/components/responses/RateLimitExceeded" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422":
+          description: "`VALIDATION_FAILED` for a unit outside the type, or `INSUFFICIENT_EQUIPMENT` when the unavailable bulk quantity exceeds stock held."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
+  /api/v1/equipment/types/{id}/availability:
+    parameters:
+      - $ref: "#/components/parameters/RecordId"
+    get:
+      tags: [Equipment]
+      summary: Check numeric availability and shortfall over a period (P1)
+      description: |
+        Technical Support Staff only. Holds the equipment-type row lock within one
+        transaction and writes no inventory, reservations, history or outbox data.
+        Bulk availability is total minus peak concurrent combined reserved and
+        unavailable quantities inside the half-open period (CQ-02). Individually
+        tracked units must be free for the whole period; a unit both reserved and
+        unavailable is excluded once. Touching periods do not overlap. Availability
+        is clamped to zero. A shortage is a successful check, not a reservation refusal.
+      operationId: checkEquipmentAvailability
+      parameters:
+        - name: startsAt
+          in: query
+          required: true
+          description: RFC 3339 instant with an explicit timezone offset.
+          schema: { type: string, format: date-time }
+        - name: endsAt
+          in: query
+          required: true
+          description: RFC 3339 instant later than startsAt, with an explicit timezone offset.
+          schema: { type: string, format: date-time }
+        - name: requestedQuantity
+          in: query
+          required: true
+          description: Whole quantity to compare against availability, including zero.
+          schema: { type: integer, minimum: 0, maximum: 9007199254740991 }
+      responses:
+        "200":
+          description: Numeric availability, requested quantity and shortfall. No reservation is created.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EquipmentAvailabilityResult" }
+        "400": { $ref: "#/components/responses/ValidationFailed" }
+        "429": { $ref: "#/components/responses/RateLimitExceeded" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
+  /api/v1/equipment/request-lines:
+    get:
+      tags: [Equipment]
+      summary: List equipment request lines (O1, O2)
+      description: |
+        Event Coordinators and Technical Support Staff. A coordinator must give `eventId`; Technical
+        Support may list the lines of every event, and filter by `status`. Removed lines are left out
+        unless `status=REMOVED` is asked for. Lines are listed oldest first. When `eventId` is given the
+        response also carries an `event` summary (reference, name, status, proposed times, assigned
+        coordinator) read through the event module's planning view; reading it changes nothing, unlike
+        opening the event for review (D1). An unknown or out-of-scope event is `EVENT_NOT_FOUND`.
+      operationId: listEquipmentRequestLines
+      parameters:
+        - name: eventId
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+        - name: status
+          in: query
+          required: false
+          schema: { $ref: "#/components/schemas/EquipmentRequestLineStatus" }
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 100, default: 25 }
+        - name: cursor
+          in: query
+          required: false
+          schema: { type: string }
+      responses:
+        "200":
+          description: A page of lines.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, nextCursor]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/EquipmentRequestLine" }
+                  nextCursor: { type: [string, "null"] }
+                  event:
+                    type: object
+                    description: Present when eventId was given.
+                    required: [id, reference, name, status, proposedStartAt, proposedEndAt, assignedCoordinatorId]
+                    properties:
+                      id: { type: string, format: uuid }
+                      reference: { type: string }
+                      name: { type: string }
+                      status: { type: string }
+                      proposedStartAt: { type: [string, "null"], format: date-time }
+                      proposedEndAt: { type: [string, "null"], format: date-time }
+                      assignedCoordinatorId: { type: [string, "null"], format: uuid }
+        "400": { $ref: "#/components/responses/ValidationFailed" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "429": { $ref: "#/components/responses/RateLimitExceeded" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+    post:
+      tags: [Equipment]
+      summary: Record the equipment an event requires (O1)
+      description: |
+        The event's assigned Event Coordinator only. Saves a request of one or more lines whole or not
+        at all: any invalid line refuses the request and stores nothing. A line's required-from and
+        required-to default to the event's start and end when omitted; required-to must be later than
+        required-from and quantity a whole number above zero. Each saved line is Submitted, visible to
+        Technical Support Staff, and records the coordinator and time.
+      operationId: createEquipmentRequestLines
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EquipmentRequestLinesInput" }
+      responses:
+        "201":
+          description: The lines, in the order sent.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/EquipmentRequestLine" }
+        "400": { $ref: "#/components/responses/ValidationFailed" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "429": { $ref: "#/components/responses/RateLimitExceeded" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
+  /api/v1/equipment/request-lines/{id}:
+    parameters:
+      - $ref: "#/components/parameters/RecordId"
+    get:
+      tags: [Equipment]
+      summary: Open an equipment request line with its history (O1, O2)
+      description: Event Coordinators and Technical Support Staff. The history is oldest first.
+      operationId: getEquipmentRequestLine
+      responses:
+        "200":
+          description: The line and every save, edit, removal and status change made to it.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/EquipmentRequestLine"
+                  - type: object
+                    required: [history]
+                    properties:
+                      history:
+                        type: array
+                        items: { $ref: "#/components/schemas/EquipmentRequestLineHistoryEntry" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "429": { $ref: "#/components/responses/RateLimitExceeded" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+    put:
+      tags: [Equipment]
+      summary: Edit an equipment request line (O1)
+      description: |
+        The event's assigned Event Coordinator only, and only while the line is Submitted or Under
+        Review. A Reserved (or Confirmed, Unavailable, Substituted or Removed) line is refused with
+        `EQUIPMENT_LINE_NOT_EDITABLE`. A rejected edit changes nothing.
+      operationId: updateEquipmentRequestLine
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EquipmentRequestLineInput" }
+      responses:
+        "200":
+          description: The edited line. Its status and requester are unchanged.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EquipmentRequestLine" }
+        "400": { $ref: "#/components/responses/ValidationFailed" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: "`EQUIPMENT_LINE_NOT_EDITABLE`: the message names the line's current status."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "429": { $ref: "#/components/responses/RateLimitExceeded" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
+  /api/v1/equipment/request-lines/{id}/removal:
+    parameters:
+      - $ref: "#/components/parameters/RecordId"
+    post:
+      tags: [Equipment]
+      summary: Remove an equipment request line (O1)
+      description: |
+        The event's assigned Event Coordinator only, and only while the line is Submitted, Under
+        Review or Reserved. Removal sets the status Removed and records the acting user, the time, and the
+        equipment type and quantity removed in the line's history. Nothing is deleted. A Reserved line
+        can be removed: its reservation is released first, with the reason "Request line removed",
+        and the coordinator is sent a released notice (Q2).
+      operationId: removeEquipmentRequestLine
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: false }
+      responses:
+        "200":
+          description: The line with status Removed.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EquipmentRequestLine" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: "`EQUIPMENT_LINE_NOT_EDITABLE`: the message names the line's current status."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "429": { $ref: "#/components/responses/RateLimitExceeded" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
+  /api/v1/equipment/request-lines/{id}/status:
+    parameters:
+      - $ref: "#/components/parameters/RecordId"
+    post:
+      tags: [Equipment]
+      summary: Update an equipment request line's status (O2)
+      description: |
+        Technical Support Staff only. Sets Under Review, Confirmed, Unavailable or Substituted and
+        records the acting staff member and time. Unavailable needs a reason. Substituted records the
+        substitute type and quantity beside the original, which is never overwritten. The change and
+        an `equipment-request.line-status-changed` message for the event's assigned coordinator are
+        written in one transaction; a refused change writes neither. A Reserved or Removed line is
+        refused. Reserving equipment is Q1, not this route.
+      operationId: changeEquipmentRequestLineStatus
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EquipmentRequestLineStatusChange" }
+      responses:
+        "200":
+          description: The line with its new status.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EquipmentRequestLine" }
+        "400": { $ref: "#/components/responses/ValidationFailed" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "429": { $ref: "#/components/responses/RateLimitExceeded" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
+  /api/v1/equipment/request-lines/{id}/reservation:
+    parameters:
+      - $ref: "#/components/parameters/RecordId"
+    post:
+      tags: [Equipment]
+      summary: Reserve a Confirmed or Substituted line's equipment (Q1)
+      description: |
+        Technical Support Staff only. Reserves the line's equipment for the event's period and sets the
+        line to Reserved. A Substituted line reserves the substitute type and quantity. `quantity`
+        defaults to the requested quantity; a lower one needs `partial: true`, a higher one is refused.
+        The reservation, the line's new status and an `equipment-request.line-status-changed` message
+        for the event's assigned coordinator are written in one transaction; a refused reservation
+        writes none of them.
+      operationId: reserveEquipmentRequestLine
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ReservationRequest" }
+      responses:
+        "201":
+          description: The reservation and the line, now Reserved.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [reservation, line]
+                properties:
+                  reservation: { $ref: "#/components/schemas/Reservation" }
+                  line: { $ref: "#/components/schemas/EquipmentRequestLine" }
+        "400": { $ref: "#/components/responses/ValidationFailed" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404":
+          description: "`EQUIPMENT_LINE_NOT_FOUND` (or `EVENT_NOT_FOUND`)."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "409":
+          description: "`LINE_NOT_RESERVABLE` (the message names the status), `PARTIAL_NOT_CONFIRMED`, or `INSUFFICIENT_EQUIPMENT` with `details.available` and `details.shortfall`."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "429": { $ref: "#/components/responses/RateLimitExceeded" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
+  /api/v1/equipment/request-lines/{id}/release:
+    parameters:
+      - $ref: "#/components/parameters/RecordId"
+    post:
+      tags: [Equipment]
+      summary: Release a Reserved line's reservation (Q2)
+      description: |
+        Technical Support Staff only. Releases the line's reservation with a reason; the equipment is
+        available again and the line goes back to Confirmed, or to Substituted if it carries a
+        substitute. The release, the line's new status and an `equipment-request.line-status-changed`
+        message (marked `released`, with the reason) for the event's assigned coordinator are written
+        in one transaction; a refused release writes none of them.
+      operationId: releaseEquipmentRequestLineReservation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ReleaseRequest" }
+      responses:
+        "200":
+          description: The released reservation and the line, no longer Reserved.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [reservation, line]
+                properties:
+                  reservation: { $ref: "#/components/schemas/Reservation" }
+                  line: { $ref: "#/components/schemas/EquipmentRequestLine" }
+        "400": { $ref: "#/components/responses/ValidationFailed" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404":
+          description: "`EQUIPMENT_LINE_NOT_FOUND` (or `EVENT_NOT_FOUND`)."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "409":
+          description: "`LINE_NOT_RELEASABLE` with `details.status` (only a Reserved line can be released), or `RESERVATION_ALREADY_RELEASED`."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "429": { $ref: "#/components/responses/RateLimitExceeded" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
+  /api/v1/booking-requests:
+    post:
+      tags: [Venue bookings]
+      summary: Request a venue for an event (L1)
+      description: |
+        The event's assigned coordinator, while the event is Approved, Planning, Safety Review or
+        Confirmed. The request is stored Pending with a `BKR-` reference; it reserves nothing, and
+        only an approval (M1) creates a confirmed booking. The event's date, times and attendance are
+        recorded with it, and `differsFromEvent` and `differences` say which the request changes.
+        The venue's Venue Staff are notified through `connectsphere.venue-booking.v1`.
+
+        A second pending request of the same event for the same venue and an overlapping period is
+        refused (409), naming the first; periods include their start but not their end. CR-02 (L5):
+        `replacesBookingId` links the request to one of the event's confirmed bookings flagged
+        Requires Reconfirmation. A refused request stores nothing. Limited to 120 requests a minute per
+        address until the gateway applies limits (ADR-0011, EN-12).
+      operationId: createBookingRequest
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BookingRequestInput" }
+      responses:
+        "201":
+          description: Stored, Pending.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BookingRequest" }
+        "400": { $ref: "#/components/responses/ValidationFailed" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403":
+          description: "`ROLE_NOT_AUTHORISED`: not the event's assigned coordinator, or not an Event Coordinator."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "404":
+          description: "`EVENT_NOT_FOUND` or `VENUE_NOT_FOUND`."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "409":
+          description: "`EVENT_NOT_BOOKABLE` (the event isn't approved, or is over; the message names its status), or `BOOKING_REQUEST_DUPLICATE` (the message names the overlapping pending request)."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "422":
+          description: "`VENUE_INACTIVE`, or `REPLACEMENT_NOT_VALID`."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "429":
+          description: "`RATE_LIMITED`: more than 120 requests in a minute from one address."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+    get:
+      tags: [Venue bookings]
+      summary: An event's booking requests (L1, L4)
+      description: |
+        Event Coordinators, and the owning organiser (A3). The event's values the request form starts
+        from, and every request of the event, oldest first, whatever its status.
+      operationId: listEventBookingRequests
+      parameters:
+        - { name: eventId, in: query, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: The event and its requests.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [event, items]
+                properties:
+                  event: { $ref: "#/components/schemas/BookingEvent" }
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/BookingRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404":
+          description: "`EVENT_NOT_FOUND`: no such event, or not one the caller may see."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "429":
+          description: "`RATE_LIMITED`."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
+  /api/v1/booking-requests/queue:
+    get:
+      tags: [Venue bookings]
+      summary: The Venue Staff queue (L1, M1)
+      description: Venue Staff only. The pending requests for the venues they look after, soonest first.
+      operationId: listBookingRequestQueue
+      responses:
+        "200":
+          description: Pending requests.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/BookingRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "429":
+          description: "`RATE_LIMITED`."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
+  /api/v1/booking-requests/{id}/withdraw:
+    parameters:
+      - $ref: "#/components/parameters/RecordId"
+    post:
+      tags: [Venue bookings]
+      summary: Withdraw a pending booking request (L2)
+      description: |
+        The event's assigned coordinator, while the request is Pending. The request becomes Withdrawn,
+        with who withdrew it and when; the record is kept. It leaves the Venue Staff queue and the
+        calendar. The event's status doesn't change.
+      operationId: withdrawBookingRequest
+      responses:
+        "200":
+          description: Withdrawn.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BookingRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403":
+          description: "`ROLE_NOT_AUTHORISED`: not the event's assigned coordinator, or not an Event Coordinator."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "404":
+          description: "`BOOKING_REQUEST_NOT_FOUND`."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "409":
+          description: "`BOOKING_REQUEST_NOT_PENDING`: the message names the request's status."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "429":
+          description: "`RATE_LIMITED`."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
         "503": { $ref: "#/components/responses/IdentityUnavailable" }
 
 components:
@@ -731,7 +1864,24 @@ components:
       required: true
       schema: { type: string, format: uuid }
 
+  headers:
+    EventVersion:
+      description: 'The event''s version as a strong entity tag, for example "3".'
+      schema: { type: string }
+
   responses:
+    RateLimitExceeded:
+      description: "`RATE_LIMITED`: 120 requests per minute per client IP and process, shared across the equipment router's endpoints and, separately, the change router's. Enforced before authentication. Counters reset on process restart."
+      headers:
+        Retry-After:
+          description: Seconds until this client's request window resets.
+          schema: { type: integer, minimum: 1 }
+        RateLimit:
+          description: Combined limit, remaining and reset values (draft-7).
+          schema: { type: string }
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
     ValidationFailed:
       description: "`VALIDATION_FAILED`: `fields[]` names every field that failed."
       content:
@@ -748,12 +1898,12 @@ components:
         application/json:
           schema: { $ref: "#/components/schemas/ErrorEnvelope" }
     NotFound:
-      description: "`EVENT_NOT_FOUND`, `DRAFT_NOT_FOUND`, `REASSIGNMENT_PROPOSAL_NOT_FOUND` or `VENUE_NOT_FOUND`. Also returned when the record exists but is outside the caller's scope (A3)."
+      description: "`EVENT_NOT_FOUND`, `DRAFT_NOT_FOUND`, `REASSIGNMENT_PROPOSAL_NOT_FOUND` or `VENUE_NOT_FOUND`, `EQUIPMENT_TYPE_NOT_FOUND` or `EQUIPMENT_LINE_NOT_FOUND`. Also returned when the record exists but is outside the caller's scope (A3)."
       content:
         application/json:
           schema: { $ref: "#/components/schemas/ErrorEnvelope" }
     Conflict:
-      description: "`STATUS_TRANSITION_NOT_PERMITTED`, `EVENT_ALREADY_DECIDED`, `NO_OPEN_CLARIFICATION`, `REASSIGNMENT_NOT_PERMITTED` or `REASSIGNMENT_ALREADY_PENDING`. The message names the current state."
+      description: "`STATUS_TRANSITION_NOT_PERMITTED`, `NO_OPEN_CLARIFICATION`, `REASSIGNMENT_NOT_PERMITTED` or `REASSIGNMENT_ALREADY_PENDING`. The message names the current state."
       content:
         application/json:
           schema: { $ref: "#/components/schemas/ErrorEnvelope" }
@@ -778,7 +1928,7 @@ components:
         - EVENT_NOT_FOUND
         - DRAFT_NOT_FOUND
         - STATUS_TRANSITION_NOT_PERMITTED
-        - EVENT_ALREADY_DECIDED
+        - EVENT_ALREADY_DECIDED # no longer emitted since F1 (decisions refuse with STATUS_TRANSITION_NOT_PERMITTED)
         - DRAFT_ALREADY_SUBMITTED
         - NO_OPEN_CLARIFICATION
         - IDENTITY_UNAVAILABLE
@@ -788,6 +1938,32 @@ components:
         - REASSIGNMENT_ALREADY_PENDING
         - REASSIGNMENT_PROPOSAL_NOT_FOUND
         - VENUE_NOT_FOUND
+        - VENUE_SLOT_CONFLICT
+        - NOTIFICATION_NOT_FOUND
+        - INSUFFICIENT_EQUIPMENT
+        - EQUIPMENT_TYPE_NOT_FOUND
+        - EQUIPMENT_LINE_NOT_FOUND
+        - EQUIPMENT_LINE_NOT_EDITABLE
+        - LINE_NOT_RESERVABLE
+        - PARTIAL_NOT_CONFIRMED
+        - LINE_NOT_RELEASABLE
+        - RESERVATION_ALREADY_RELEASED
+        - RATE_LIMITED
+        - EVENT_NOT_EDITABLE
+        - CHANGE_REQUEST_REQUIRED
+        - EVENT_VERSION_MISMATCH
+        - EVENT_VERSION_REQUIRED
+        - EVENT_NOT_CHANGEABLE
+        - CHANGE_REQUEST_ALREADY_PENDING
+        - CHANGE_REQUEST_NOT_FOUND
+        - CHANGE_REQUEST_ALREADY_DECIDED
+        - CHANGE_REQUEST_NO_LONGER_VALID
+        - EVENT_NOT_BOOKABLE
+        - VENUE_INACTIVE
+        - BOOKING_REQUEST_DUPLICATE
+        - BOOKING_REQUEST_NOT_FOUND
+        - BOOKING_REQUEST_NOT_PENDING
+        - REPLACEMENT_NOT_VALID
 
     ErrorEnvelope:
       type: object
@@ -816,8 +1992,8 @@ components:
 
     EventStatus:
       type: string
-      description: F1's exhaustive list.
-      enum: [DRAFT, SUBMITTED, UNDER_REVIEW, AWAITING_CLARIFICATION, APPROVED, PLANNING, CONFIRMED, COMPLETED, CANCELLED, REJECTED]
+      description: F1's exhaustive list (CR-06 adds SAFETY_REVIEW).
+      enum: [DRAFT, SUBMITTED, UNDER_REVIEW, AWAITING_CLARIFICATION, APPROVED, PLANNING, SAFETY_REVIEW, CONFIRMED, COMPLETED, CANCELLED, REJECTED]
 
     LoginRequest:
       type: object
@@ -959,7 +2135,7 @@ components:
       allOf:
         - $ref: "#/components/schemas/RequestFields"
         - type: object
-          required: [id, reference, ownerId, name, status, submittedAt, lastSavedAt, reviewingCoordinatorId, reviewStartedAt, decidedBy, decidedAt, rejectionReason, assignedCoordinatorId]
+          required: [id, reference, ownerId, name, status, submittedAt, lastSavedAt, reviewingCoordinatorId, reviewStartedAt, decidedBy, decidedAt, rejectionReason, assignedCoordinatorId, contactDetails, version]
           properties:
             id: { type: string, format: uuid }
             reference: { type: [string, "null"], description: Null until submitted (C3). }
@@ -974,6 +2150,18 @@ components:
             decidedAt: { type: [string, "null"], format: date-time }
             rejectionReason: { type: [string, "null"] }
             assignedCoordinatorId: { type: [string, "null"], format: uuid }
+            contactDetails: { type: [string, "null"], description: "Free text, such as a name, email and phone number (G1)." }
+            version: { type: integer, minimum: 1, description: "Raised by every change to the event. Send it back in If-Match to edit (G1)." }
+
+    EventDetailsEdit:
+      description: "G1: only the fields to change. Any significant field refuses the whole edit (422)."
+      type: object
+      additionalProperties: false
+      properties:
+        purpose: { type: string, minLength: 1 }
+        description: { type: string, minLength: 1 }
+        accessibilityNeeds: { type: [string, "null"] }
+        contactDetails: { type: [string, "null"] }
 
     EventListItem:
       description: "C3: one row of my requests. A draft has a last-saved time and no reference."
@@ -1003,6 +2191,18 @@ components:
         responseMessage: { type: [string, "null"] }
         respondedBy: { type: [string, "null"], format: uuid }
         respondedAt: { type: [string, "null"], format: date-time }
+
+    StatusHistoryEntry:
+      type: object
+      required: [id, previousStatus, newStatus, actorUserId, actorRole, triggeringAction, occurredAt]
+      properties:
+        id: { type: string, format: uuid }
+        previousStatus: { type: [string, "null"] }
+        newStatus: { type: string }
+        actorUserId: { type: [string, "null"], format: uuid }
+        actorRole: { type: string }
+        triggeringAction: { type: string }
+        occurredAt: { type: string, format: date-time }
 
     ReassignmentProposal:
       type: object
@@ -1083,3 +2283,562 @@ components:
         building: { type: string }
         maxCapacity: { type: integer }
         isActive: { type: boolean }
+    VenueSearchItem:
+      type: object
+      required: [id, name, building, maxCapacity, layoutCapacity, facilities, accessibilityFeatures]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        building: { type: string }
+        maxCapacity: { type: integer }
+        layoutCapacity:
+          type: [integer, "null"]
+          description: The chosen layout's capacity when a `layout` filter was given; otherwise null.
+        facilities: { type: array, items: { type: string } }
+        accessibilityFeatures: { type: array, items: { type: string } }
+    VenueSearchFilters:
+      type: object
+      description: The filters as the server read them; a filter not given is null or an empty list.
+      required: [q, from, to, minCapacity, location, layout, facilities, accessibility]
+      properties:
+        q: { type: [string, "null"] }
+        from: { type: [string, "null"], format: date-time }
+        to: { type: [string, "null"], format: date-time }
+        minCapacity: { type: [integer, "null"] }
+        location: { type: [string, "null"] }
+        layout: { type: [string, "null"] }
+        facilities: { type: array, items: { type: string } }
+        accessibility: { type: array, items: { type: string } }
+    VenueSearchResult:
+      type: object
+      required: [items, nextCursor, filters, appliedFilters, message]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/VenueSearchItem" }
+        nextCursor:
+          type: [string, "null"]
+          description: Always null; the result is not paginated yet.
+        filters: { $ref: "#/components/schemas/VenueSearchFilters" }
+        appliedFilters:
+          type: array
+          items: { type: string }
+          description: Each filter that was applied, in words.
+        message:
+          type: [string, "null"]
+          description: When `items` is empty, a sentence restating the filters applied; otherwise null.
+    VenueSearchOptions:
+      type: object
+      required: [layouts, facilities, accessibilityFeatures]
+      properties:
+        layouts: { type: array, items: { type: string } }
+        facilities: { type: array, items: { type: string } }
+        accessibilityFeatures: { type: array, items: { type: string } }
+    VenueSearchPrefill:
+      type: object
+      required: [eventId, reference, filters, unmatchedAccessibility]
+      properties:
+        eventId: { type: string, format: uuid }
+        reference: { type: [string, "null"] }
+        filters:
+          type: object
+          required: [from, to, minCapacity, layout, facilities, accessibility]
+          properties:
+            from: { type: [string, "null"], format: date-time }
+            to: { type: [string, "null"], format: date-time }
+            minCapacity: { type: [integer, "null"] }
+            layout: { type: [string, "null"] }
+            facilities: { type: array, items: { type: string } }
+            accessibility: { type: array, items: { type: string } }
+        unmatchedAccessibility:
+          type: array
+          items: { type: string }
+          description: Accessibility needs on the event that match no catalogue feature.
+    VenueSuitability:
+      type: object
+      required: [venueId, venueName, eventId, eventReference, status, reasons, warnings]
+      properties:
+        venueId: { type: string, format: uuid }
+        venueName: { type: string }
+        eventId: { type: string, format: uuid }
+        eventReference: { type: [string, "null"], example: EVT-000123 }
+        status: { type: string, enum: [SUITABLE, SUITABLE_WITH_WARNINGS, NOT_SUITABLE] }
+        reasons:
+          type: array
+          description: The failing conditions, one entry each, in the order layout capacity, facilities, accessibility, operating hours.
+          items: { $ref: "#/components/schemas/SuitabilityCondition" }
+        warnings:
+          type: array
+          description: Conditions that could not be assessed from the records.
+          items: { $ref: "#/components/schemas/SuitabilityCondition" }
+    SuitabilityCondition:
+      type: object
+      required: [condition, outcome, required, available, message]
+      properties:
+        condition: { type: string, enum: [LAYOUT_CAPACITY, FACILITIES, ACCESSIBILITY, OPERATING_HOURS] }
+        outcome: { type: string, enum: [MET, FAILED, NOT_ASSESSED] }
+        required:
+          description: What the event asks for. Attendance (a number), the required entries (a list) or the requested period (text); null when the event records none.
+          oneOf:
+            - { type: "null" }
+            - { type: integer }
+            - { type: string }
+            - { type: array, items: { type: string } }
+        available:
+          description: What the venue offers. The layout's capacity (a number), the venue's entries (a list) or the day's hours (text); null when there is nothing to compare with.
+          oneOf:
+            - { type: "null" }
+            - { type: integer }
+            - { type: string }
+            - { type: array, items: { type: string } }
+        missing:
+          type: array
+          description: Facilities and accessibility only. The required entries the venue lacks.
+          items: { type: string }
+        message: { type: string, example: Expected attendance 150 against layout capacity 120 (Theatre). }
+    VenueAvailability:
+      type: object
+      required: [venueId, timeZone, from, to, days]
+      properties:
+        venueId: { type: string, format: uuid }
+        timeZone: { type: string, example: Asia/Singapore }
+        from: { type: string, format: date }
+        to: { type: string, format: date }
+        days:
+          type: array
+          items: { $ref: "#/components/schemas/AvailabilityDay" }
+    AvailabilityDay:
+      type: object
+      required: [date, committed, free]
+      properties:
+        date: { type: string, format: date }
+        committed:
+          type: array
+          description: In time order. Periods may overlap, for example a block running past closing time.
+          items: { $ref: "#/components/schemas/CommittedPeriod" }
+        free:
+          type: array
+          items: { $ref: "#/components/schemas/FreePeriod" }
+    CommittedPeriod:
+      type: object
+      required: [kind, startsAt, endsAt]
+      properties:
+        kind: { type: string, enum: [OUTSIDE_HOURS, SETUP, BOOKING, TURNAROUND, UNAVAILABLE] }
+        startsAt: { type: string, format: date-time }
+        endsAt: { type: string, format: date-time }
+        bookingStatus:
+          type: string
+          enum: [CONFIRMED, PENDING]
+          description: On BOOKING, SETUP and TURNAROUND. A held slot is a pending request.
+        eventReference:
+          type: [string, "null"]
+          description: On BOOKING, SETUP and TURNAROUND. Null if the event can no longer be found.
+        reasonType:
+          type: string
+          enum: [MAINTENANCE, EQUIPMENT_FAILURE, RENOVATION, SAFETY, OTHER]
+          description: On UNAVAILABLE.
+        description: { type: string, description: "On UNAVAILABLE, the recorded reason." }
+    FreePeriod:
+      type: object
+      required: [startsAt, endsAt]
+      properties:
+        startsAt: { type: string, format: date-time }
+        endsAt: { type: string, format: date-time }
+
+    EquipmentTypeInput:
+      type: object
+      required: [name, description, characteristics, kind, totalQuantity, unitLabels]
+      properties:
+        name: { type: string, minLength: 1 }
+        description: { type: string }
+        characteristics:
+          type: object
+          description: Technical characteristic names and their values.
+          additionalProperties: { type: string }
+        kind: { type: string, enum: [BULK, SERIALIZED] }
+        totalQuantity:
+          type: [integer, "null"]
+          minimum: 0
+          description: Required for BULK and null for SERIALIZED.
+        unitLabels:
+          type: array
+          uniqueItems: true
+          description: Empty for BULK; the unique physical-unit labels for SERIALIZED.
+          items: { type: string, minLength: 1 }
+
+    EquipmentUnit:
+      type: object
+      required: [id, label]
+      properties:
+        id: { type: string, format: uuid }
+        label: { type: string }
+
+    EquipmentUnavailabilityInput:
+      type: object
+      required: [unitId, quantity, startsAt, endsAt, reason]
+      properties:
+        unitId:
+          type: [string, "null"]
+          format: uuid
+          description: Required for SERIALIZED and null for BULK.
+        quantity:
+          type: [integer, "null"]
+          minimum: 1
+          description: Required for BULK and null for SERIALIZED.
+        startsAt: { type: string, format: date-time }
+        endsAt: { type: string, format: date-time, description: Must be later than startsAt. }
+        reason: { type: string, minLength: 1 }
+
+    EquipmentUnavailability:
+      allOf:
+        - $ref: "#/components/schemas/EquipmentUnavailabilityInput"
+        - type: object
+          required: [id, equipmentTypeId, status, createdAt, createdBy, updatedAt, updatedBy]
+          properties:
+            id: { type: string, format: uuid }
+            equipmentTypeId: { type: string, format: uuid }
+            status: { type: string, enum: [ACTIVE, REMOVED] }
+            createdAt: { type: string, format: date-time }
+            createdBy: { type: [string, "null"], format: uuid }
+            updatedAt: { type: string, format: date-time }
+            updatedBy: { type: [string, "null"], format: uuid }
+
+    EquipmentType:
+      allOf:
+        - $ref: "#/components/schemas/EquipmentTypeInput"
+        - type: object
+          required: [id, units, unavailability, history, createdAt, createdBy, updatedAt, updatedBy]
+          properties:
+            id: { type: string, format: uuid }
+            units:
+              type: array
+              items: { $ref: "#/components/schemas/EquipmentUnit" }
+            unavailability:
+              type: array
+              items: { $ref: "#/components/schemas/EquipmentUnavailability" }
+            history:
+              type: array
+              description: Newest-first immutable audit evidence for every inventory and unavailability change.
+              items: { $ref: "#/components/schemas/InventoryHistoryEntry" }
+            createdAt: { type: string, format: date-time }
+            createdBy: { type: [string, "null"], format: uuid }
+            updatedAt: { type: string, format: date-time }
+            updatedBy: { type: [string, "null"], format: uuid }
+
+    EquipmentTypeListItem:
+      type: object
+      required: [id, name, description, kind, totalQuantity]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        description: { type: string }
+        kind: { type: string, enum: [BULK, SERIALIZED] }
+        totalQuantity:
+          type: integer
+          minimum: 0
+          description: Stored bulk quantity or count of serialized unit records.
+
+    InventoryHistoryEntry:
+      type: object
+      required: [id, action, previousQuantity, newQuantity, changes, actorUserId, actorRole, occurredAt]
+      properties:
+        id: { type: string, format: uuid }
+        action: { type: string, enum: [TYPE_CREATED, TYPE_UPDATED, UNAVAILABILITY_RECORDED] }
+        previousQuantity: { type: integer, minimum: 0 }
+        newQuantity: { type: integer, minimum: 0 }
+        changes: { type: object, additionalProperties: true }
+        actorUserId: { type: string, format: uuid }
+        actorRole: { type: string, const: TECH_SUPPORT_STAFF }
+        occurredAt: { type: string, format: date-time }
+
+    EquipmentAvailabilityResult:
+      type: object
+      required: [equipmentTypeId, kind, totalQuantity, availableQuantity, requestedQuantity, shortfallQuantity, startsAt, endsAt]
+      properties:
+        equipmentTypeId: { type: string, format: uuid }
+        kind: { type: string, enum: [BULK, SERIALIZED] }
+        totalQuantity: { type: integer, minimum: 0 }
+        availableQuantity: { type: integer, minimum: 0 }
+        requestedQuantity: { type: integer, minimum: 0 }
+        shortfallQuantity: { type: integer, minimum: 0 }
+        startsAt: { type: string, format: date-time }
+        endsAt: { type: string, format: date-time }
+
+    EquipmentRequestLineStatus:
+      type: string
+      enum: [SUBMITTED, UNDER_REVIEW, CONFIRMED, UNAVAILABLE, SUBSTITUTED, RESERVED, REMOVED]
+      description: |
+        Submitted when the coordinator saves a line (O1); Under Review, Confirmed, Unavailable and
+        Substituted are set by Technical Support (O2); Reserved is set by Q1 (Sprint 3); Removed is
+        what the coordinator's removal sets (O1).
+
+    EquipmentRequestLineInput:
+      type: object
+      required: [equipmentTypeId, quantity]
+      properties:
+        equipmentTypeId: { type: string, format: uuid }
+        quantity: { type: integer, minimum: 1, description: A whole number greater than zero. }
+        notes: { type: string, maxLength: 2000, description: Technical requirements/notes. }
+        requiredFrom:
+          type: [string, "null"]
+          format: date-time
+          description: Defaults to the event's proposed start when omitted.
+        requiredTo:
+          type: [string, "null"]
+          format: date-time
+          description: Defaults to the event's proposed end when omitted. Must be later than requiredFrom.
+
+    EquipmentRequestLinesInput:
+      type: object
+      required: [eventId, lines]
+      properties:
+        eventId: { type: string, format: uuid }
+        lines:
+          type: array
+          minItems: 1
+          maxItems: 50
+          items: { $ref: "#/components/schemas/EquipmentRequestLineInput" }
+
+    EquipmentRequestLineStatusChange:
+      type: object
+      required: [status]
+      properties:
+        status: { type: string, enum: [UNDER_REVIEW, CONFIRMED, UNAVAILABLE, SUBSTITUTED] }
+        reason: { type: string, maxLength: 1000, description: Required when status is UNAVAILABLE. }
+        substituteEquipmentTypeId: { type: string, format: uuid, description: Required when status is SUBSTITUTED. }
+        substituteQuantity: { type: integer, minimum: 1, description: Required when status is SUBSTITUTED. }
+
+    EquipmentRequestLine:
+      type: object
+      required:
+        - id
+        - eventId
+        - eventReference
+        - equipmentTypeId
+        - equipmentTypeName
+        - quantity
+        - notes
+        - requiredFrom
+        - requiredTo
+        - status
+        - requestedBy
+        - requestedAt
+        - statusChangedBy
+        - statusChangedAt
+        - unavailableReason
+        - substituteEquipmentTypeId
+        - substituteEquipmentTypeName
+        - substituteQuantity
+        - updatedAt
+        - reservation
+      properties:
+        id: { type: string, format: uuid }
+        eventId: { type: string, format: uuid }
+        eventReference: { type: string }
+        equipmentTypeId: { type: string, format: uuid, description: The originally requested type; never overwritten by a substitution. }
+        equipmentTypeName: { type: string }
+        quantity: { type: integer, minimum: 1, description: The originally requested quantity. }
+        notes: { type: string }
+        requiredFrom: { type: string, format: date-time }
+        requiredTo: { type: string, format: date-time }
+        status: { $ref: "#/components/schemas/EquipmentRequestLineStatus" }
+        requestedBy: { type: string, format: uuid, description: The coordinator who saved the line. }
+        requestedAt: { type: string, format: date-time }
+        statusChangedBy: { type: [string, "null"], format: uuid }
+        statusChangedAt: { type: [string, "null"], format: date-time }
+        unavailableReason: { type: [string, "null"] }
+        substituteEquipmentTypeId: { type: [string, "null"], format: uuid }
+        substituteEquipmentTypeName: { type: [string, "null"] }
+        substituteQuantity: { type: [integer, "null"], minimum: 1 }
+        updatedAt: { type: string, format: date-time }
+        reservation:
+          oneOf:
+            - { $ref: "#/components/schemas/LineReservation" }
+            - { type: "null" }
+          description: The line's active reservation, or null.
+
+    ReservationRequest:
+      type: object
+      properties:
+        quantity: { type: integer, minimum: 1, description: Defaults to the requested quantity. }
+        partial: { type: boolean, description: Must be true to reserve fewer than requested. }
+
+    ReleaseRequest:
+      type: object
+      required: [reason]
+      additionalProperties: false
+      properties:
+        reason: { type: string, minLength: 1, maxLength: 1000, description: Why the reservation is released. }
+
+    Reservation:
+      type: object
+      required: [id, requestLineId, eventId, eventReference, equipmentTypeId, kind, requestedQuantity, reservedQuantity, startsAt, endsAt, status, reservedBy, reservedAt, releasedBy, releasedAt, releaseReason]
+      properties:
+        id: { type: string, format: uuid }
+        requestLineId: { type: string, format: uuid }
+        eventId: { type: string, format: uuid }
+        eventReference: { type: string }
+        equipmentTypeId: { type: string, format: uuid, description: The reserved type; the substitute's for a Substituted line. }
+        kind: { type: string, enum: [SERIALIZED, BULK] }
+        requestedQuantity: { type: integer, minimum: 1 }
+        reservedQuantity: { type: integer, minimum: 1 }
+        startsAt: { type: string, format: date-time }
+        endsAt: { type: string, format: date-time }
+        status: { type: string, enum: [RESERVED, RELEASED] }
+        reservedBy: { type: string, format: uuid }
+        reservedAt: { type: string, format: date-time }
+        releasedBy: { type: [string, "null"], format: uuid }
+        releasedAt: { type: [string, "null"], format: date-time }
+        releaseReason: { type: [string, "null"] }
+
+    LineReservation:
+      type: object
+      description: The line's active reservation.
+      required: [id, equipmentTypeId, equipmentTypeName, requestedQuantity, reservedQuantity, reservedBy, reservedAt]
+      properties:
+        id: { type: string, format: uuid }
+        equipmentTypeId: { type: string, format: uuid }
+        equipmentTypeName: { type: string, description: "The type reserved: the substitute's, for a Substituted line." }
+        requestedQuantity: { type: integer, minimum: 1 }
+        reservedQuantity: { type: integer, minimum: 1 }
+        reservedBy: { type: string, format: uuid }
+        reservedAt: { type: string, format: date-time }
+
+    EquipmentRequestLineHistoryEntry:
+      type: object
+      required: [id, action, previousStatus, newStatus, equipmentTypeName, quantity, details, actorUserId, actorRole, occurredAt]
+      properties:
+        id: { type: string, format: uuid }
+        action: { type: string, enum: [CREATED, EDITED, REMOVED, STATUS_CHANGED] }
+        previousStatus:
+          oneOf:
+            - { $ref: "#/components/schemas/EquipmentRequestLineStatus" }
+            - { type: "null" }
+        newStatus: { $ref: "#/components/schemas/EquipmentRequestLineStatus" }
+        equipmentTypeName: { type: string, description: "The line's type when this happened, so a removal still shows what was removed." }
+        quantity: { type: integer, minimum: 1 }
+        details: { type: object, additionalProperties: true, description: "New values of an edit, or the reason or substitute of a status change." }
+        actorUserId: { type: string, format: uuid }
+        actorRole: { type: string }
+        occurredAt: { type: string, format: date-time }
+
+    ChangeRequestField:
+      type: object
+      required: [fieldName, currentValue, proposedValue]
+      properties:
+        fieldName:
+          type: string
+          enum: [proposedStartAt, proposedEndAt, expectedAttendance, venueRequirements, equipmentRequired, equipmentRequirements]
+        currentValue: { description: The event's value when the request was made. null when the field was empty. }
+        proposedValue: { description: The value proposed. }
+
+    ChangeRequestInput:
+      type: object
+      required: [reason, changes]
+      properties:
+        reason: { type: string, minLength: 1, maxLength: 1000, description: Required; blank is refused. }
+        changes:
+          type: object
+          minProperties: 1
+          description: Only these six fields; anything else is refused on `changes.<field>`.
+          properties:
+            proposedStartAt: { type: string, format: date-time }
+            proposedEndAt: { type: string, format: date-time }
+            expectedAttendance: { type: integer, minimum: 1 }
+            venueRequirements:
+              oneOf:
+                - { $ref: "#/components/schemas/VenueRequirements" }
+                - { type: "null" }
+            equipmentRequired: { type: boolean }
+            equipmentRequirements:
+              type: [array, "null"]
+              items: { $ref: "#/components/schemas/EquipmentRequirementLine" }
+
+    ChangeRequestDecision:
+      type: object
+      required: [decision]
+      properties:
+        decision: { type: string, enum: [APPROVE, REJECT] }
+        reason: { type: string, maxLength: 1000, description: "Required, and not blank, when rejecting; ignored when approving." }
+
+    ChangeRequest:
+      type: object
+      required: [id, eventId, eventReference, status, reason, requestedBy, requestedAt, decidedBy, decidedAt, rejectionReason, fields]
+      properties:
+        id: { type: string, format: uuid }
+        eventId: { type: string, format: uuid }
+        eventReference: { type: string }
+        status: { type: string, enum: [PENDING, APPROVED, REJECTED] }
+        reason: { type: string }
+        requestedBy: { type: string, format: uuid }
+        requestedAt: { type: string, format: date-time }
+        decidedBy: { type: [string, "null"], format: uuid, description: The deciding coordinator; null while Pending. }
+        decidedAt: { type: [string, "null"], format: date-time, description: null while Pending. }
+        rejectionReason: { type: [string, "null"], description: The coordinator's reason when Rejected; otherwise null. }
+        fields:
+          type: array
+          items: { $ref: "#/components/schemas/ChangeRequestField" }
+
+    BookingRequestInput:
+      type: object
+      required: [eventId, venueId, startsAt, endsAt, layout, expectedAttendance]
+      properties:
+        eventId: { type: string, format: uuid }
+        venueId: { type: string, format: uuid }
+        startsAt: { type: string, format: date-time, description: "With its offset." }
+        endsAt: { type: string, format: date-time }
+        layout: { type: string, description: "One of the venue's layouts, ignoring case." }
+        expectedAttendance: { type: integer, minimum: 1 }
+        facilities: { type: array, items: { type: string } }
+        accessibilityFeatures: { type: array, items: { type: string } }
+        replacesBookingId: { type: [string, "null"], format: uuid, description: "CR-02 (L5): the disrupted booking this request replaces." }
+    BookingRequest:
+      type: object
+      required: [id, reference, eventId, eventReference, venueId, venueName, startsAt, endsAt, layout, expectedAttendance, facilities, accessibilityFeatures, eventStartsAt, eventEndsAt, eventAttendance, differsFromEvent, differences, replacesBookingId, status, requestedBy, requestedAt, withdrawnBy, withdrawnAt]
+      properties:
+        id: { type: string, format: uuid }
+        reference: { type: string, pattern: "^BKR-\\d{6}$" }
+        eventId: { type: string, format: uuid }
+        eventReference: { type: [string, "null"] }
+        venueId: { type: string, format: uuid }
+        venueName: { type: string }
+        startsAt: { type: string, format: date-time }
+        endsAt: { type: string, format: date-time }
+        layout: { type: string }
+        expectedAttendance: { type: integer }
+        facilities: { type: array, items: { type: string } }
+        accessibilityFeatures: { type: array, items: { type: string } }
+        eventStartsAt: { type: string, format: date-time, description: "The event's start when the request was made." }
+        eventEndsAt: { type: string, format: date-time }
+        eventAttendance: { type: integer }
+        differsFromEvent: { type: boolean }
+        differences:
+          type: array
+          items: { $ref: "#/components/schemas/BookingRequestDifference" }
+        replacesBookingId: { type: [string, "null"], format: uuid }
+        status: { type: string, enum: [PENDING, APPROVED, REJECTED, WITHDRAWN] }
+        requestedBy: { type: string, format: uuid }
+        requestedAt: { type: string, format: date-time }
+        withdrawnBy: { type: [string, "null"], format: uuid }
+        withdrawnAt: { type: [string, "null"], format: date-time }
+    BookingRequestDifference:
+      type: object
+      required: [field, event, requested]
+      properties:
+        field: { type: string, enum: [startsAt, endsAt, expectedAttendance] }
+        event: { type: [string, integer] }
+        requested: { type: [string, integer] }
+    BookingEvent:
+      type: object
+      required: [id, reference, name, status, assignedCoordinatorId, proposedStartAt, proposedEndAt, expectedAttendance, venueRequirements, accessibilityNeeds]
+      properties:
+        id: { type: string, format: uuid }
+        reference: { type: [string, "null"] }
+        name: { type: string }
+        status: { $ref: "#/components/schemas/EventStatus" }
+        assignedCoordinatorId: { type: [string, "null"], format: uuid }
+        proposedStartAt: { type: [string, "null"], format: date-time }
+        proposedEndAt: { type: [string, "null"], format: date-time }
+        expectedAttendance: { type: [integer, "null"] }
+        venueRequirements: { type: [object, "null"] }
+        accessibilityNeeds: { type: [string, "null"] }

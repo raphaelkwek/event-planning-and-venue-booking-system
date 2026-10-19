@@ -717,7 +717,7 @@ Sprint allocation is in `plan.md` §10 and `sprint-reallocation.csv`.
 
 **Acceptance Criteria**
 
-* Available quantity is calculated as total units of that type, minus units reserved for events whose reservation period overlaps the requested period, minus units recorded unavailable over an overlapping period.  
+* Available quantity for bulk equipment is the total held minus the peak concurrent use of reserved and unavailable quantities within the requested period. For individually tracked units, count units free for the whole requested period, excluding a unit only once when it is both reserved and unavailable. ⚠ CQ-02: peak concurrent use was selected by the user on 8 October 2026; see `documentation/clarifications.md`.
 * Two periods overlap when one starts before the other ends and ends after the other starts; periods that merely touch do not overlap.  
 * The result states the available quantity as a number, not only a yes/no answer.  
 * When the requested quantity exceeds the available quantity, the shortfall quantity is shown.  

@@ -14,11 +14,10 @@
 3. `cp .env.example .env` and fill it in. There is no Docker, and nothing runs locally besides Node (ADR-0003):
    - **Supabase** — from the team's hosted project: the transaction pooler connection string (port 6543) as `DATABASE_URL`, plus `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` and `SUPABASE_JWKS_URL`.
    - **Kafka** — the shared hosted cluster's bootstrap server and SASL credentials (`KAFKA_*`). No service publishes to Kafka yet, so these can wait until the outbox relay is built.
-4. `npm run migrate:identity` — applies the identity module's schema and seed SQL.
-5. `npm run migrate:event` — applies the event module's schema.
-6. `npm run seed:auth` — creates matching Supabase Auth users (password: see `backend/services/planning-core/migrations/identity/seed/seed-auth-users.ts`).
-7. `npm test` — runs every workspace's test suite (unit and integration) and the script tests. Before you push, also run what CI runs on every pull request: `npm run lint` (ESLint plus the module boundary checks), `npm run typecheck` and `npm run test:unit`, which also checks coverage: domain code must stay at 100%. If the repo sits in OneDrive and Vitest can't clear an old `coverage/` folder (EPERM), delete the folder, or add `-- --coverage.clean=false` when running one workspace.
-8. `npm run dev` — starts planning-core on `:8090` and the web app on <http://localhost:5173> in one terminal, each line prefixed with where it came from. The Vite dev server proxies `/identity/*` and `/event/*` to planning-core, so the browser only ever talks to one origin and planning-core needs no CORS. To run just one: `npm run dev -w @connectsphere/planning-core` (or `web`).
+4. `npm run migrate:all` — applies every module's and service's schema in order (identity, event, venue, equipment, change, notification), plus the identity seed. Already-applied files are skipped, and `npm run migrate -- <module>` still runs one at a time.
+5. `npm run seed:auth` — creates matching Supabase Auth users (password: see `backend/services/planning-core/migrations/identity/seed/seed-auth-users.ts`).
+6. `npm test` — runs every workspace's test suite (unit and integration) and the script tests. Before you push, also run what CI runs on every pull request: `npm run lint` (ESLint plus the module boundary checks), `npm run typecheck` and `npm run test:unit`, which also checks coverage: domain code must stay at 100%. If the repo sits in OneDrive and Vitest can't clear an old `coverage/` folder (EPERM), delete the folder, or add `-- --coverage.clean=false` when running one workspace.
+7. `npm run dev` — starts planning-core on `:8090` and the web app on <http://localhost:5173> in one terminal, each line prefixed with where it came from. The Vite dev server proxies `/identity/*` and `/event/*` to planning-core, so the browser only ever talks to one origin and planning-core needs no CORS. To run just one: `npm run dev -w @connectsphere/planning-core` (or `web`).
 
 ### Trying the stories in the browser
 
@@ -37,7 +36,7 @@ like:
 | D2, D3 | Ask for clarification as the coordinator; answer it as the organiser, with a message, an amendment, or both. |
 | D4, D5 | Approve, or reject with a reason in the confirmation modal. Neither can be done twice. |
 
-Tests run against a real database. The event suite is not parallelised across files because those files share one database, including the single assignment-cursor row.
+Tests run against a real database: yours is the team's Supabase project, and CI's is a throwaway Postgres built from the migrations on every pull request (EN-06.1). The event suite is not parallelised across files because those files share one database, including the single assignment-cursor row.
 
 ### Updating the Confluence sprint log
 

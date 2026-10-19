@@ -4,6 +4,1245 @@
 
 ---
 
+# S2: the coordinator approves or rejects a change request
+
+**Timestamp:** 2026-10-18T01:28+08:00 (SGT)
+**Author:** Raphael, via Claude
+**Scope:** S2 (SPM-58). The change module's decision (`domain/`, `repo/decisions.ts`,
+`api/decisions.ts`), migrations change/0002–0003, the event module's `applyApprovedChange`,
+contracts' error codes and `change-request.approved|rejected`, the notification service's two
+rules, the OpenAPI contract, both request pages, `tests/S2/` and `sprint-3.csv`. Stacked on S1 (#45).
+**Reason:** S1 lets an organiser request a change; nothing could decide it. S2 lets the assigned
+coordinator approve it, applying the change, or reject it with a reason.
+
+## Added
+
+- **`POST /api/v1/change-requests/{id}/decision`**, for the event's assigned coordinator, while
+  the request is Pending. Approve writes the proposed values to the event, records one history
+  entry per field (before, after, coordinator, time) and raises the event's version, so an older
+  G1 edit is refused. Reject needs a reason and changes nothing. Refusals:
+  `CHANGE_REQUEST_ALREADY_DECIDED`, `CHANGE_REQUEST_NO_LONGER_VALID` (the event is no longer
+  changeable, a proposed value no longer passes B2's rules, or the event changed after the request
+  was made — D3 can amend these fields while awaiting clarification), `CHANGE_REQUEST_NOT_FOUND`.
+- **Migrations change/0002–0003:** who decided, when, and the rejection reason, with a check.
+- The requesting organiser is notified of either outcome, with the reason on a rejection.
+- Approve and Reject on the coordinator's review page while the request is Pending; the outcome on
+  both pages afterwards.
+- Cards S2-T1 to S2-T13: automated tests for T1–T11 and T13 (T11 a race), T12 a browser walkthrough.
+
+## Changed
+
+- On the coordinator's review page the change request's buttons are "Approve change" and "Reject
+  change", so they can't be confused with the event's own Approve and Reject.
+
+## Before using it on the shared database
+
+1. `npm run migrate -- change` applies 0002–0003 (after S1's 0001). Run it before deploying
+   planning-core: S1's list and insert paths read the new columns.
+2. Deploy the notification service before, or with, planning-core: it dead-letters message types it
+   doesn't know.
+
+---
+
+# L1, L2: Request a venue for an event, and withdraw the request
+
+**Timestamp:** 2026-10-17T20:14+08:00 (SGT)
+**Author:** Seann, via Claude
+**Scope:**
+- `contracts`: `venueBooking.ts` (new): `BOOKING_REQUEST_STATUSES` and the `venue-booking.request-submitted` message, registered in `MESSAGE_DATA_SCHEMAS`. Six error codes: `EVENT_NOT_BOOKABLE`, `VENUE_INACTIVE`, `BOOKING_REQUEST_DUPLICATE`, `BOOKING_REQUEST_NOT_FOUND`, `BOOKING_REQUEST_NOT_PENDING`, `REPLACEMENT_NOT_VALID`. **Needs a second owner's review.**
+- planning-core, venue module:
+  - migrations `venue/0005_booking_requests.sql` and `venue/0006_venue_outbox.sql`;
+  - `domain/bookingRequest.ts`, `repo/bookingRequests.ts`, `api/bookingRequests.ts` and `events/outbox.ts` (new);
+  - the calendar (I1) now shows pending requests;
+  - the venue outbox added to the relay in `src/index.ts`.
+- notification: subscribes to `connectsphere.venue-booking.v1`, with a recipient rule for Venue Staff.
+- `planning-core.openapi.yaml`: four routes, four schemas and the six codes.
+- The web app:
+  - `EventVenueRequests`, `BookingRequestForm` and `BookingRequestQueue` (new);
+  - a "Venue requests" link on the assigned coordinator's review page;
+  - `api/bookingRequests.ts` and `shared/singaporeTime.ts`.
+- Tests: contracts, planning-core (unit, boundary and integration), notification and web. Test cards `tests/L1/` (14) and `tests/L2/` (6), with FX-BOOKING. The test-data reset removes booking requests. Traceability in `sprint-3.csv`.
+
+**Reason:** L1 and L2 (Sprint 3). Coordinators ask Venue Staff for a venue, and take the request back if it's no longer needed. M1, M2 and N1 decide the requests next.
+
+## What it does
+
+1. **The event's assigned coordinator requests a venue** from the event's "Venue requests" (`#/events/:id/venue-requests`), while the event is Approved, Planning, Safety Review or Confirmed.
+   - The form starts from the event's date, times and attendance, in Singapore time.
+   - It offers the chosen venue's layouts, facilities and accessibility features, with the ones the event asks for already chosen.
+2. **The request is stored Pending** with a `BKR-` reference, the coordinator and the time. It also keeps the event's own values, so a request that changes the times or attendance is marked "Differs from the event", and Venue Staff see each value beside the event's.
+3. **A request reserves nothing.**
+   - Two events may ask for the same venue and period. Only M1's approval will create a confirmed booking, which is where N1 prevents double-booking.
+   - What's refused is a second pending request of the same event for the same venue and an overlapping period, naming the first. An exclusion constraint decides that, so two simultaneous submissions can't both get through (ADR-0006).
+   - Touching periods are allowed.
+4. **The request reaches the venue's Venue Staff.** They're the staff linked to the venue in `venue.venue_staff`.
+   - It appears in their new "Booking requests" queue, which M1 will add Approve to.
+   - It shows as Pending on the venue's calendar.
+   - They're notified through Kafka.
+5. **CR-03 and CR-02:**
+   - an event can have requests for several venues at once, each handled separately;
+   - a request can be linked to one of the event's confirmed bookings flagged Requires Reconfirmation. L5 will add the screen; until then this is API only.
+6. **Refusals store nothing:** anyone but the assigned coordinator, an event not yet approved, an inactive or unknown venue, a layout the venue lacks, or an invalid field.
+7. **L2: the assigned coordinator withdraws a pending request,** after a confirmation naming it.
+   - It becomes Withdrawn, with who withdrew it and when, and the record is kept.
+   - It leaves the queue and the calendar.
+   - The event isn't touched.
+8. **The new routes have the same stopgap rate limit** as the others (ADR-0011, EN-12).
+
+## Notes for the team
+
+9. **Kafka is on Confluent Cloud now.** The `venue-booking` topic didn't exist on Aiven, so the cutover ADR-0008 planned for 13 Oct was done today: a Basic cluster in `ap-southeast-1`, all seven topics with 2 partitions, and Schema Registry (Essentials) turned on with no schemas.
+   - **Everyone needs the new `KAFKA_*` values in `.env`,** shared privately. `KAFKA_SSL_CA_PATH` is now empty, and `npm run kafka:check` should show all seven topics `ok`.
+   - The five-topic cap in contracts (`TOPICS_BEFORE_CUTOVER` and its test) can go in a small follow-up.
+10. **The shared database now has these migrations,** applied with the standard setup steps:
+    - `venue/0005` and `0006`, which are L1's and not merged yet;
+    - Q1 and Q2's merged `equipment/0005` to `0008`. Without them the equipment integration tests failed locally.
+
+## Verified
+
+- **The 20 L1 and L2 cards pass in Chrome** through the automated runner, against `0616c96`. That includes L1-T7, whose notification travelled through Confluent.
+- **planning-core:**
+  - unit tests: 48 files pass, with the request rules at 100% line, branch and mutation coverage;
+  - integration tests: all 1,237 pass. Coverage is 96.6% of lines, 92.1% of branches and 96.5% of functions, above the floors.
+- **contracts:** 94/94. **notification:** its unit tests pass. **web:** 24 files pass.
+- **Lint, typecheck, `lint:api`, `lint:boundaries` and squawk pass.** The policy tests need Linux and run in CI.
+
+---
+
+# S1: an organiser can request a change after submission
+
+**Timestamp:** 2026-10-17T05:31+08:00 (SGT)
+**Author:** Raphael, via Claude
+**Scope:** S1 (SPM-57). The change module's first code (`domain/`, `auth/`, `repo/`, `api/`, `events/`),
+migration change/0001, the event module's `checkProposedChange` and `findEventForChange`, contracts'
+error codes and `change-request.submitted`, the notification service's rule, the outbox relay, the
+OpenAPI contract, the organiser's and coordinator's request pages, `tests/S1/` and `sprint-3.csv`.
+**Reason:** After submission, G1 refuses changes to an event's significant fields with
+`CHANGE_REQUEST_REQUIRED`, but there was no change request to make. S1 adds one; S2 decides it.
+
+## Added
+
+- **`POST /api/v1/events/{id}/change-requests`**, for the event's organiser. It records the proposed
+  values of any of the six significant fields (start, end, expected attendance, venue requirements,
+  whether equipment is required, equipment requirements), a reason, and a snapshot of each field's
+  current value. The event itself is not changed. Proposed values are checked with B2's rules on the
+  event as it would be. Refusals: `VALIDATION_FAILED`, `EVENT_NOT_CHANGEABLE` (Draft, Completed,
+  Cancelled, Rejected), `CHANGE_REQUEST_ALREADY_PENDING` (one pending request per event, enforced by
+  the database). The event is read and locked inside the request's transaction.
+- **`GET /api/v1/events/{id}/change-requests`** for anyone whose scope covers the event.
+- **Migration change/0001:** the `change` schema, `change_requests`, `change_request_fields` and
+  `change.outbox`.
+- The assigned coordinator is notified through `change-request.submitted` on the event topic: "A
+  change has been requested for EVT-… “name”: start, expected attendance."
+- "Request a change" on the organiser's request page (start, end, attendance, whether equipment is
+  required, reason); a pending notice there and on the coordinator's review page. The two
+  requirements fields are API-only for now: their editors are built into the draft form.
+- Cards S1-T1 to S1-T13: automated tests for T1–T12 and a race (two requests at once, one recorded),
+  T13 a browser walkthrough.
+
+## Changed
+
+- The outbox relay skips a table that doesn't exist yet (Postgres 42P01), with one warning, instead
+  of failing every pass. A missing `change.outbox` no longer delays event and equipment notices.
+
+## Before using it on the shared database
+
+1. `npm run migrate -- change` creates the change schema.
+2. Deploy the notification service before, or with, planning-core: an older notification service
+   dead-letters `change-request.submitted` as an unknown type, so the coordinator's notice would wait
+   for a replay.
+
+---
+
+# Q2: Technical Support release equipment reservations
+
+**Timestamp:** 2026-10-17T00:24+08:00 (SGT)
+**Author:** Raphael, via Claude
+**Scope:** Q2 (SPM-51). The equipment module's `domain/`, `repo/`, `api/`, `events/` and `index.ts`,
+migrations equipment/0007–0008, contracts' error codes and line-status message, the notification
+service's equipment wording, the OpenAPI contract, both equipment request screens, `tests/Q2/` and
+`sprint-3.csv`. Stacked on Q1 (PR #42).
+**Reason:** Q1 lets Technical Support reserve equipment; nothing gave it back. Q2 releases a
+reservation when it is no longer needed, so the equipment can go to another event.
+
+## Added
+
+- **`POST /api/v1/equipment/request-lines/{id}/release`**, Technical Support only, with a required
+  reason. The reservation is kept as Released, with who, when and why (0007–0008), and its unit
+  and bulk rows are released, so availability gets the stock back at once. The line returns to
+  Confirmed, or Substituted if it was, and can be reserved again. Refusals: `LINE_NOT_RELEASABLE`
+  (naming the status), `RESERVATION_ALREADY_RELEASED`.
+- **`releaseEventReservations`**, exported from `equipment/index.ts` for F4's cancellation run.
+  The spec's F4 hand-off note explains a race F4 must close.
+- A **Release** action on "Equipment requests", and **Remove** on the coordinator's Reserved lines.
+- Cards Q2-T1 to Q2-T13: automated tests for T1–T11 (T6 is a race on CI's throwaway Postgres),
+  T12 Not Executed until F4, T13 a browser walkthrough.
+
+## Changed
+
+- O1's removal also accepts a **Reserved** line: it releases the reservation ("Request line
+  removed") and removes the line in one transaction. Edits of Reserved lines are still refused.
+- The line-status-changed message gains an optional `released` flag; the notification reads "The
+  reservation of Chairs × 4 for EVT-… was released. The line is now Confirmed. Reason: …".
+- `Reservation` in API responses carries `releasedBy`, `releasedAt` and `releaseReason`.
+
+## Before using it on the shared database
+
+`npm run migrate -- equipment` applies 0007–0008 (after Q1's 0005–0006). Run it before
+planning-core is deployed against the shared database.
+
+Deploy the notification service with this change before or with planning-core; an older notification
+service drops the `released` flag and words a release as an ordinary status change.
+
+---
+
+# The OpenAPI ErrorCode list matches contracts again, and a test keeps it that way
+
+**Timestamp:** 2026-10-16T02:05+08:00 (SGT)
+**Author:** Raphael
+**Scope:**
+- `documentation/api/planning-core.openapi.yaml`: the `ErrorCode` enum.
+- Tests: `backend/services/planning-core/tests/boundaries/errorCodes.test.ts` (new).
+- No code change, no migration, no new error codes.
+
+**Reason:** The spec's `ErrorCode` enum said it was the shared list in `backend/packages/contracts/src/errorCodes.ts`, but it had stopped at `VENUE_NOT_FOUND`. Nothing checked the two lists against each other.
+
+## What changed
+
+1. **The enum lists every code in `ERROR_CODES`, in the same order.** The 11 missing codes are added: `VENUE_SLOT_CONFLICT`, `NOTIFICATION_NOT_FOUND`, `INSUFFICIENT_EQUIPMENT`, `EQUIPMENT_TYPE_NOT_FOUND`, `EQUIPMENT_LINE_NOT_FOUND`, `EQUIPMENT_LINE_NOT_EDITABLE`, `RATE_LIMITED`, `EVENT_NOT_EDITABLE`, `CHANGE_REQUEST_REQUIRED`, `EVENT_VERSION_MISMATCH` and `EVENT_VERSION_REQUIRED`.
+2. **A unit test compares the two lists.** It parses the spec with `yaml`, which planning-core already uses, and fails if the enum differs from `ERROR_CODES` in any way, including order. A code added to contracts without its spec entry now fails CI.
+
+## Verified
+
+- Before the spec fix, the new test failed and named the 11 missing codes. After the fix it passes.
+- `npm run lint:api` and `npm run typecheck` pass. The planning-core unit suite passes (617 tests) with CI's placeholder environment.
+# Q1: Technical Support reserve the equipment on a request line
+
+**Timestamp:** 2026-10-16T02:18+08:00 (SGT)
+**Author:** Raphael, via Claude
+**Scope:** Q1 (SPM-50). The equipment module's `domain/`, `repo/`, `api/` and `events/`, migrations
+equipment/0005–0006, contracts' error codes, the OpenAPI contract, the "Equipment requests" and
+equipment request screens, `tests/Q1/`, `tests/fixtures/reset-test-data.sql` and `sprint-3.csv`.
+**Reason:** EN-02.2 built reservations that the availability check cannot race, but nothing let
+Technical Support make one. Q1 reserves a Confirmed or Substituted request line's equipment.
+
+## Added
+
+- **`POST /api/v1/equipment/request-lines/{id}/reservation`**, Technical Support only. It reserves
+  the line's type and quantity, or its substitute's when the line is Substituted, for the line's own
+  window. A lower quantity needs `"partial": true`; a higher one is refused. Refusals:
+  `INSUFFICIENT_EQUIPMENT` (with the shortfall), `PARTIAL_NOT_CONFIRMED`, `LINE_NOT_RESERVABLE`.
+- **`equipment.reservations`** (migration 0005): one row per reservation, with the requested and
+  reserved quantities and who reserved it. The unit and bulk rows it groups carry `reservation_id`;
+  their foreign keys are validated in 0006. One active reservation per line.
+- **`reserveLine`**: locks the line, then the type, so two reservations racing for the last unit
+  queue and exactly one wins (Q1-T13, on CI's throwaway Postgres).
+- A **Reserve** action on "Equipment requests". Reserved lines show "Reserved n of m", with who and
+  when, to Technical Support and to the coordinator.
+- Cards Q1-T1 to Q1-T14, with a named automated test for T1–T13.
+
+## Changed
+
+- Request lines in API responses carry `reservation` (null until reserved).
+- Reserving notifies the assigned coordinator through O2's existing line-status-changed message,
+  now built in one place (`events/lineStatusMessage.ts`) for both. For a Reserved line the message
+  also carries `reservedQuantity`, and the notification reads "(3 of 5 reserved)" when fewer than
+  requested were reserved. O2's messages are unchanged.
+- Request lines' `reservation` also names the reserved type (`equipmentTypeName`), so a Reserved
+  line that was Substituted shows the substitute.
+- Reserving writes a history entry naming the reserved type and both quantities.
+- `npm run test-cases:reset` removes test lines' reservations before the lines. It skips that step
+  on a database without migration 0005.
+
+## Before using it on the shared database
+
+Migrations 0005–0006 are not applied to the shared Supabase database. Run
+`npm run migrate -- equipment` **before planning-core is deployed against it**. Until then, every
+O1 and O2 request-line endpoint fails there (create, edit, remove, list, open and status change),
+not only the screens: each reads the line together with its reservation, and the join needs
+`equipment.reservations`.
+
+---
+
+# Event ids that aren't UUIDs get 404; H1's venue routes are rate-limited; EN-02 tests clean up
+
+**Timestamp:** 2026-10-14T00:05+08:00 (SGT)
+**Author:** Joash
+**Scope:**
+- planning-core, event module: `domain/ids.ts` (new); the guard in `repo/events.ts` (`findEventInScope`) and `repo/drafts.ts` (`findDraftForOwner`, `updateDraft`, `findOwnedRequest`, `isOwnedBy`).
+- planning-core, venue module: `venuesRateLimit` and the limiter on the four routes in `api/venues.ts`; `429` on those operations in `planning-core.openapi.yaml`.
+- Tests: `tests/event/domain/ids.test.ts`, `tests/event/repo/eventIds.unit.test.ts`, `tests/event/api/eventIds.test.ts`, `tests/venue/api/venuesRateLimit.unit.test.ts` (new); cleanup in `tests/venue/repo/slots.test.ts` and `tests/equipment/repo/inventory.test.ts`.
+- No migration, no new error codes.
+
+**Reason:** Follow-ups from reviewing G1 (#36), plus the last four open CodeQL alerts.
+
+## What changed
+
+1. **An event id that isn't a UUID gets 404.** Before, the event routes passed `:id` straight to Postgres, which refuses to compare a uuid column with anything else (22P02). Express 4 doesn't catch an async handler's rejection, so the request got no response and the rejection went unhandled, which stops a Node 20 process. Any signed-in user could do it with `GET /api/v1/events/x`. The repo lookups now answer "no such event" for these without querying, so every event and draft route gives its usual 404. The venue, equipment and identity routes already checked.
+2. **H1's catalogue routes are rate-limited** before authentication: 120 requests a minute from one address, reads and writes together, refused with `RATE_LIMITED`. This closes the four CodeQL `js/missing-rate-limiting` alerts on `api/venues.ts`. It's a stopgap like the calendar's and K1's, until the gateway does it (ADR-0011, EN-12).
+3. **EN-02.1's and EN-02.2's tests delete what they create.** Every venue and equipment type they make is created by one test actor, and they now remove those rows, with their slots, blocks, units, reservations and unavailability, after the suite. CI's database is thrown away anyway. Run against the shared database, though, they left 270 "EN-02.1 Test Room" venues behind, which Seann cleared by hand on 10 Oct. The race harness (EN-02.3) runs only against a throwaway database, so it needs no change.
+
+## Verified
+
+- New unit tests (19) pass locally: `isEventId`; the five lookups answer without querying for a non-UUID and still query for a real one; the venue limiter allows 120 and refuses the 121st; and the limiter runs before authentication on all four venue routes.
+- `tests/event/api/eventIds.test.ts` (seven routes, 404 each) and the two cleanups run on CI's throwaway Postgres.
+# F2: View an event's current status and history
+
+**Timestamp:** 2026-10-12T10:30+08:00
+**Author:** Joash
+**Scope:** event module (`GET /api/v1/events/:id/status`, `GET /api/v1/events/:id/status-history`), the `StatusHistory` component on the request and review screens, `tests/F2/`, OpenAPI and traceability. No migration.
+
+**Reason:** F2 asks that every user who may see an event sees its current status, that the internal roles see how it got there, and that an attendee never does. The history already lives in `event.event_history` (F1), so this reads it and adds nothing to the schema.
+
+- **Status:** `/status` returns `{ eventId, status }` and nothing else, so a rejection reason, a review comment or a coordinator cannot reach an attendee through it. It reads through the A3 access scope: an event outside the caller's scope answers 404 with no data.
+- **History:** `/status-history` is for the Event Organiser (their own events, by scope) and Event Coordinators (all events except other people's drafts). Every other role, attendees included, gets 403 before the event is looked up. It lists STATUS_CHANGE rows only, oldest first (`occurred_at`, then `created_at`, then `id`), each with previous status, new status, acting role, acting user, triggering action and time. Field amendments in the same table are left out.
+- **Read only:** no write route exists on either path, so history cannot be edited or deleted over HTTP, and the new code only ever selects from the table.
+- **Rate limit:** both routes sit behind a 120/minute per-IP limiter placed ahead of authentication, in the style of `modules/equipment/api/limiter.ts` and injected as a router parameter. Refusal is `RATE_LIMITED`.
+- **UI:** a read-only table (From, To, By, When) added to `RequestDetail` and `ReviewDetail` with one line each, so the screens barely change for G1.
+
+**Not done:** attendees cannot yet read a status. Their A3 scope (`PUBLISHED_OPEN_REGISTRATION`) matches no events until a published, open-registration rule exists, so the attendee test asserts the refusals only. **ADR-0007:** when the event aggregate is event-sourced (EN-03), `listStatusHistory` becomes a projection over the stream (status-change events in version order); the routes and response shape stay.
+
+**Verification:** lint, typecheck, build and all unit tests pass locally, including the domain tests (100% mutation score on `domain/statusHistory.ts`), the rate-limit regression, the OpenAPI route check and the frontend component tests. The API tests in `tests/event/api/f2StatusAndHistory.test.ts` need a database and run in CI only. Cards F2-T1 to F2-T9 are not executed; the UI walk-through is pending at the sprint review.
+
+---
+
+# O1, O2: Record the equipment an event requires, and update it as arrangements are made
+
+**Timestamp:** 2026-10-12T10:15+08:00
+**Author:** Joash
+**Scope:** equipment module (migrations 0003 and 0004, request line routes, outbox), contracts, notification recipient rule, two frontend screens, event module's planning view, test reset script.
+
+**Reason:** O1 lets an event's assigned coordinator record, edit and remove equipment lines; O2 lets Technical Support set each line Under Review, Confirmed, Unavailable (with a reason) or Substituted (original kept beside the substitute) and tells the coordinator. Removal sets the status Removed and keeps who, when, type and quantity in a history table; nothing is deleted. Each status change writes its notification message to a new equipment outbox in the same transaction. Writers lock the line row so an edit and a status change cannot overwrite each other. Decisions a reviewer should check: Removed is a status of mine (the stories only say "removed"); the story allows edits only while Submitted or Under Review, so Confirmed, Unavailable and Substituted lines are also refused; O2 refuses a Reserved or Removed line; the event's planning view gained `name`; the coordinator screen reads the event from `GET /request-lines?eventId=` (an `event` summary read through `findEventForPlanning`) and never calls `openEvent`, so opening it cannot claim a Submitted event for review (D1); the notification service now subscribes to the equipment-request topic, which must exist on the cluster.
+
+**Not done:** reserving equipment and the Reserved status being set (Q1, Sprint 3). Kafka delivery of the notification and the browser walk-throughs (O1-T26, O2-T17) are unverified.
+
+**Verification:** 43 functional test cases written first in tests/O1 and tests/O2. API tests named after each card run against a migrated Postgres; domain rules have unit tests; both screens have frontend tests.
+
+---
+
+# G1: Edit an event's descriptive details during planning
+
+**Timestamp:** 2026-10-11T00:34+08:00 (SGT)
+**Author:** Seann, via Claude
+**Scope:**
+- `contracts`: `SIGNIFICANT_EVENT_FIELDS` (new, `eventFields.ts`), and four error codes: `EVENT_NOT_EDITABLE`, `CHANGE_REQUEST_REQUIRED`, `EVENT_VERSION_MISMATCH`, `EVENT_VERSION_REQUIRED`. **Needs a second owner's review.**
+- planning-core, event module:
+  - migration `event/0009_event_contact_details_and_version.sql`;
+  - `domain/eventDetails.ts`, `repo/eventDetails.ts` and `api/eventDetails.ts` (new);
+  - `ETag` on `GET /api/v1/events/:id`, and the two new fields on every event read.
+- Tests: `tests/event/domain/eventDetails.test.ts`, `tests/event/api/eventDetails.test.ts`, and contracts' `eventFields.test.ts`.
+- `planning-core.openapi.yaml`: `PATCH /api/v1/events/{id}`, `EventDetailsEdit`, the `EventVersion` header, and `contactDetails` and `version` on `Event`.
+- The web app:
+  - `EventDetailsEditor` (new) at `#/events/:id/details`;
+  - "Edit details", contact details and a "Details saved." notice on `RequestDetail` and `ReviewDetail`;
+  - `updateEventDetails`, and a `headers` option on the request helper;
+  - `tests/eventDetailsEditor.test.tsx`.
+- Test cards: `tests/G1/` (12 cases). Traceability. `.gitignore`: `Old Venues/`.
+
+**Reason:** G1 (Sprint 2). Organisers and coordinators keep an event's record accurate during planning without disturbing the arrangements already made.
+
+## What it does
+
+1. **The owning organiser or the assigned coordinator can edit** purpose, description, accessibility notes and contact details. "Edit details" appears on their page while the event is Approved, Planning, Safety Review or Confirmed.
+2. **Safety Review is editable for the time being** (decided 11 Oct 2026). CR-06 added it between Planning and Confirmed after G1 was written, so G1's criteria don't name it.
+3. **The significant fields can't be edited here.** The edit screen shows the date and times, expected attendance, and venue and equipment requirements as text, under a note that they change only through a change request. Sending one to the API refuses the whole edit with `422 CHANGE_REQUEST_REQUIRED`, naming each, and stores nothing. The list is kept once, in contracts, for G2, S1 and S2 to reuse.
+4. **Each change is recorded.** One `event_history` entry per changed field, with its before and after value, the editor, their role and the time. Unchanged fields record nothing, and a save with no changes stores nothing.
+5. **Everyone else is refused,** and nothing is stored: a coordinator who isn't assigned gets `403`, another organiser `404` (out of scope, A3), and an event in any other status `409 EVENT_NOT_EDITABLE`, naming its status.
+6. **A save is all or nothing.** The changes and their history are written in one transaction. An invalid field fails the whole save, naming the field.
+7. **Two people can't overwrite each other.** Every change to an event raises its `version` (a database trigger, so no write path can forget). `GET` sends it as `ETag`, and the edit must send it back in `If-Match`. If the event changed since, the edit is refused with `412 EVENT_VERSION_MISMATCH` (ADR-0015), and the screen offers "Reload". Without `If-Match` it's `428`.
+8. **Contact details are new.** They're free text on the event and empty until someone adds them, since the request form (B1) doesn't ask for them.
+9. **The edit route has the same stopgap rate limit** as I1's calendar, until the gateway applies limits (ADR-0011, EN-12).
+
+## Notes for the team
+
+10. **The shared database now has these migrations,** applied with the standard setup steps:
+    - F1's `event/0007` and `0008` (Safety Review) and G1's `event/0009`;
+    - EN-02.2 and P2's `equipment/0001` and `0002`. Without them `npm run test-cases:reset` failed, so every story's cards were blocked, and the equipment integration tests failed locally.
+11. **Old Venues.** EN-02.1's slot tests (`tests/venue/repo/slots.test.ts`) leave an active "EN-02.1 Test Room" venue behind on every run, and these cluttered venue search.
+    - On 10 and 11 Oct, 270 of them, with their 88 slots and 8 blocks, were exported to a gitignored `Old Venues/` folder and deleted from the shared database.
+    - They'll keep coming back until those tests delete their venues afterwards.
+
+## Verified
+
+- **The 12 G1 cards pass in Chrome** through the automated runner, against `21956ca` (G1 merged with main, K1, J1, J2, O1 and O2 included).
+- **planning-core:**
+  - unit tests: 382/382, with the new rules at 100% line, branch and mutation coverage;
+  - integration tests: the new suite passes 13/13, and every event and venue suite passes against the shared database.
+- **contracts** 80/80 and **web** 95/95, including 10 tests for the edit screen.
+- **Lint, typecheck, build, `lint:api`, `lint:boundaries` and squawk pass.** The policy tests need Linux and run in CI.
+
+---
+
+# J2: Search venues by name or building
+
+**Timestamp:** 2026-10-11T00:01+08:00
+**Author:** Joash
+**Scope:** the venue module's search query, `GET /api/v1/venues/search`, migration `venue/0004_venue_search_trigram.sql`, the "Find a venue" screen's search box, and `tests/J2/` (eight cases).
+
+**Reason:** An Event Coordinator who already has a venue in mind needs to go straight to it. J2 shares J1's query and screen, so the text search is one more condition in the same SQL: a partial, case-insensitive `ILIKE` on name or building, combined with every J1 filter, over active venues only. `%`, `_` and `\` in the term are escaped, so searching for them matches the character rather than everything. An empty search with no filters lists every active venue. A `pg_trgm` GIN index on name and on building keeps the leading-wildcard match fast; it is migration 0004 because 0002 is reserved for H3 and 0003 is EN-02.1's. Each row shows name, building, maximum capacity and facilities.
+
+**Verification:** Eight functional cards written from the story before the code, all Not Executed (the UI walk-through is pending at the sprint review). The query's J2 behaviour is covered by integration tests in `tests/venue/repo/venueSearch.test.ts` and `tests/venue/api/venueSearch.test.ts`, and the screen by `frontend/tests/venueSearch.test.tsx`; the traceability rows are in `sprint-2.csv`. Those integration tests were run locally against an in-process PGlite (Postgres 17 with `pg_trgm` and `btree_gist`) loaded with every module's migrations, never the team's shared database. They then passed on CI's throwaway Postgres (run 38066020931, commit 0804d72).
+
+---
+
+# J1: Filter venues against event requirements
+
+**Timestamp:** 2026-10-11T00:00+08:00
+**Author:** Joash
+**Scope:** the venue module (`domain/venueSearch.ts`, `domain/searchPrefill.ts`, `repo/venueSearch.ts`, `api/search.ts`), three routes under `/api/v1/venues/search` with their OpenAPI entries, the "Find a venue" screen and its link from the review screen, and `tests/J1/` (24 cases).
+
+**Reason:** A coordinator needs to see only venues that could actually host an event. One SQL query applies every filter: the date and time window, minimum capacity (the chosen layout's capacity when a layout is set, the maximum otherwise), building, required layout, and every required facility and accessibility feature. A venue is excluded when a held or confirmed slot overlaps the window (`blocked_period && …`, so an existing booking is compared by its occupied period with its own setup and turnaround, CR-01), when an active unavailability block overlaps it (`period && …`), or when the window is not inside the venue's operating hours on every day it touches (`<@`). Periods that touch do not overlap. Inactive venues never appear. An empty result is a 200 with a message restating the filters. `GET /api/v1/venues/search/prefill?eventId=` reads the event through `modules/event/index.ts` under the caller's A3 scope and gives the filters to start from; the screen shows them and leaves every one editable. Only Event Coordinators may search (policy action `search` on `venue`), the three routes are rate-limited before authentication, and no error code is new.
+
+**Not done:** CR-01 also widens the requested window by the venue's own setup and turnaround time (H3). Those columns are not on main, so the search widens by 0 minutes. `repo/venueSearch.ts` holds the two fragments to change to `v.setup_minutes` and `v.turnaround_minutes` once H3 lands; J1-T18 waits for it. No column was added.
+
+**Decisions to check:** The window must lie inside one weekday's opening hours on every day it touches, so a window that spans a closed night fails. The request window may be at most 31 days. Event accessibility needs are free text, so each comma, semicolon or line-separated need is matched to a catalogue feature ignoring case; one that matches none is not used as a filter (it would empty every result) and is reported to the screen instead. The unavailability blocks are compared against the widened window, as holds are.
+
+**Verification:** 24 functional cards written from the story before the code, with the `FX-SEARCH` fixture; all Not Executed (UI walk-through pending at the sprint review). Domain rules are 100% covered by `tests/venue/domain/venueSearch.test.ts` and `searchPrefill.test.ts`. Lint, typecheck, build and the unit suites pass locally. The query and API integration tests passed locally against an in-process PGlite (Postgres 17) loaded with every module's migrations, never the team's shared database; They then passed on CI's throwaway Postgres (run 38066020931, commit 0804d72), with every other job and CodeQL green.
+
+---
+
+# K1: See whether a venue is suitable for an event, and why not
+
+**Timestamp:** 2026-10-10T23:46+08:00 (SGT)
+**Author:** Joash
+**Scope:**
+- planning-core, venue module: `domain/suitability.ts`, `api/suitability.ts` (new), mounted in `index.ts`; `resolveEventsScope` in `auth/identity.ts`.
+- Tests: `tests/venue/domain/suitability.test.ts`, `tests/venue/api/suitability.test.ts`, `suitability.unit.test.ts` and `suitabilityRateLimit.unit.test.ts` (new).
+- `planning-core.openapi.yaml`: `GET /api/v1/venues/{id}/suitability`, its `429`, and two schemas.
+- The web app: `VenueSuitability` (new), a "Check suitability" button on `VenueDetail` for Event Coordinators, the route in `App.tsx`, `getVenueSuitability` in `api/venues.ts`, the three results' colours in `shared/status.ts`, and `tests/venueSuitability.test.tsx`.
+- Test cards: `tests/K1/` (13 cases) with FX-SUITABILITY in `tests/K1/README.md`. Traceability: seven rows in `sprint-2.csv`.
+- No migration, no new Cerbos action (`check_suitability` on `venue` already names Event Coordinators), no new error codes.
+
+**Reason:** K1 (Sprint 2). A coordinator should find out that a venue can't host an event before asking for it, not after Venue Staff refuse the request. K2 (justify an unsuitable choice) and L1 (the booking request) build on it.
+
+## What it does
+
+1. **"Check suitability" on a venue's page opens a screen for Event Coordinators.** They choose an event and click once. Nothing else is entered: the server reads the event through the event module's `index.ts` and the venue from the catalogue.
+2. **The result is Suitable, Suitable with warnings, or Not suitable.**
+   - Not suitable when expected attendance is more than the capacity of the event's layout, a required facility or accessibility feature is absent from the venue, or the proposed period falls outside the day's operating hours (Singapore time).
+   - Every failing condition is its own line with the values compared, for example "Expected attendance 150 against layout capacity 120 (Theatre)."
+   - Suitable lists no reasons.
+3. **It is advisory.** The route only reads. It creates, changes and blocks no booking, and the screen has no booking action.
+4. **Only Event Coordinators can run it,** enforced on the server (`ROLE_NOT_AUTHORISED` for the other four roles), and rate-limited before authentication.
+
+## Design
+
+- **One pure rule per condition,** each returning the two values it compared: `checkLayoutCapacity`, `checkFacilities`, `checkAccessibility`, `checkOperatingHours`. `assessSuitability` combines them.
+- **The requirements are a parameter.** `assessSuitability(requirements, venue)` doesn't read an event. The route builds the requirements from the event (`requirementsFromEvent`) today; L1 will pass each booking request's own later.
+- **Boundaries:** attendance equal to the capacity passes and one over fails; a period starting exactly at opening and ending exactly at closing passes and a minute either side fails.
+
+## Judgement calls
+
+- **A warning is a condition the records can't answer.** The story names "Suitable with warnings" but lists only failing conditions. So the only warning is a condition that can't be assessed because the event or catalogue holds no value to compare: no layout on the event, no expected attendance, no proposed period, or a layout the venue doesn't offer. It is neither a pass nor a failure. No other warning rule was invented.
+- **Accessibility needs are free text on the event (B1),** so each line, or each comma- or semicolon-separated entry, is one required feature. Facilities, layouts and features match without regard to case or surrounding spaces, and otherwise exactly, so "Wheelchair access needed" doesn't match a feature called "Wheelchair access".
+- **A period that runs past midnight fails the operating-hours check,** because no venue closes after 23:59. Setup and turnaround time aren't part of the requested period.
+
+## Not done
+
+- **CR-03 for several venues (L4) is partly built.** L1 and L4 are Sprint 3, so each booking request's own layout, attendance, facilities and accessibility can't be passed yet. The assessment is against the event's requirements, and K1-T13 is written but can't run.
+
+**Verification:** 47 domain tests at 100% coverage, Stryker 95.5% on `suitability.ts`. Lint, typecheck, build and the unit run pass locally. The integration test and the cards' walk-through need CI and the sprint review.
+# Rate limits on sign-in and the identity routes (CodeQL)
+
+**Timestamp:** 2026-10-10T23:40+08:00 (SGT)
+**Author:** Joash
+**Scope:**
+- planning-core identity module: `api/limiter.ts` (new); `api/auth.ts`, `accessScope.ts`, `users.ts`, `usersMe.ts`; `index.ts`.
+- `tests/identity/api/rateLimit.unit.test.ts` (new).
+- `documentation/api/planning-core.openapi.yaml`: the 429 on the five identity operations.
+- `documentation/scripts/confluence-digest.ts` and its test.
+
+**Reason:** CodeQL had nine open alerts on `main`.
+- Eight are `js/missing-rate-limiting`: every identity route, sign-in included, and H1's venue routes.
+- One is `js/incomplete-sanitization`, in the Confluence digest.
+
+An unthrottled sign-in lets one address hammer Supabase Auth and the login audit.
+
+## What it does
+
+1. **The identity module carries its own limiters,** as equipment and the venue calendar do, until the gateway takes over (EN-12, ADR-0011).
+   - Sign-in and sign-out: **30 a minute** per address. Supabase Auth has its own limit on password grants, so this mainly stops floods, and it leaves room for the functional test runner, which signs in once per case.
+   - `/users/me`, `/users` and `/access-scope`: **120 a minute**, sharing one budget.
+   - Each runs before the token check, the Supabase call and any query, and refuses with `RATE_LIMITED` in the §5 envelope. Each takes its limiter as a parameter, so tests can set a small one.
+2. **The OpenAPI spec documents the 429** on all five identity operations.
+3. **The digest escapes backslashes before pipes,** so a cell holding `\|` can't split the table.
+
+**Left for later:** H1's venue routes (`api/venues.ts`) still need a limiter. The J1/J2 work is changing the same router, so they'll be done after it merges.
+
+## Verified
+
+- New unit tests (4): refusal after the budget, with the envelope and `Retry-After`; 30 sign-ins allowed and the 31st refused; sign-out guarded; reads refused once spent.
+- planning-core unit tests: 371 pass, coverage thresholds held. Script tests: 14 pass.
+- Lint, boundaries, typecheck, build and `lint:api` pass. CI and CodeQL run on the pull request.
+
+---
+
+# P2: Verify identity refusal paths under the integration coverage floor
+
+**Timestamp:** 2026-10-08T10:13+08:00
+**Author:** Yichen, via Codex
+**Scope:** equipment actor and identity unit tests.
+
+**Reason:** All 653 integration tests passed after the security fix, but function coverage was 93.45%, below the current 94% floor. Exercise the identity boundary's previously uncovered error constructors and refusal paths rather than weakening the threshold.
+
+**Verification:** Fourteen additional focused checks pass for inactive/no-role callers, identity outages, malformed records, error propagation and current-role resolution. They use placeholder credentials and no database. Actual CodeQL merge-ref analysis already marked all five inventory alerts fixed, with zero open alerts. CI will verify coverage after this test-only follow-up.
+
+---
+
+# P2: Verify the rate-limit fix against the updated base
+
+**Timestamp:** 2026-10-08T10:09+08:00
+**Author:** Yichen, via Codex
+**Scope:** resolved OpenAPI merge and lockfile formatting.
+
+**Reason:** Keep the equipment API's full schema alongside main's venue availability API, without duplicate document keys. Retain main's equivalent lockfile unchanged.
+
+**Verification:** Clean npm install, full build, lint, typecheck and all 335 backend unit tests pass, including the three rate-limit regressions and domain coverage thresholds. No shared database was used. Pushed CI and actual merge-ref code-scanning results remain to be checked.
+
+---
+
+# P2: Rate-limit equipment routes before authentication
+
+**Timestamp:** 2026-10-08T10:06+08:00
+**Author:** Yichen, via Codex
+**Scope:** equipment router, express-rate-limit dependency, OpenAPI and regression tests; current main merged.
+
+**Reason:** Resolve CodeQL `js/missing-rate-limiting` findings. Each router shares a 120-request/minute/IP budget before JWT verification, identity resolution and SQL; excess requests receive 429 with Retry-After and the standard correlation envelope. Reuse current main's RATE_LIMITED refusal code. Preserve the venue calendar API, frontend route, schema and traceability while merging current main; this also brings P2 onto the integration coverage floor. Default Express proxy trust remains disabled. The in-memory budget is per process and resets on restart; deployments requiring one quota across replicas need a shared store.
+
+**Verification:** Three real-router HTTP regressions pass: every endpoint shares the limit despite changing bearer tokens, blocked traffic reaches no authentication/SQL, the budget recovers after a minute, and distinct client IPs remain independent. Lint and typecheck passed. Full CI and actual branch-alert reanalysis will verify the pushed fix; a green CodeQL workflow alone does not mean no findings.
+
+---
+
+# P2: Record verified checks and complete the boundary cards
+
+**Timestamp:** 2026-10-08T01:46+08:00 (SGT)
+**Author:** Yichen, via Codex
+**Scope:** `tests/P2/`, test setup instructions, and Sprint 2 traceability.
+
+**Reason:** After running the independent P2 checks, compare them against all five acceptance criteria and record the evidence. Add P2-T13 for the stock-reduction boundary just above the reserved quantity, correct the role-refusal expectation to its documented error code, and include the equipment migration in the standard test setup.
+
+**Verification:** All CI jobs and CodeQL passed for `99f6073`, including 22 P2 API tests, 17 P2 domain tests, 13 P2 UI tests, and the configured coverage/mutation thresholds. Test result excerpts and a card-by-card scope comparison are recorded in `tests/P2/`. The thirteen full signed-in functional cards remain Not Executed.
+
+---
+
+# P2: Check the functional card inputs independently
+
+**Timestamp:** 2026-10-08T01:43+08:00 (SGT)
+**Author:** Yichen, via Codex
+**Scope:** P2 inventory API response mapping, API tests, and `frontend/tests/equipmentCards.test.tsx`.
+
+**Reason:** Self-check the acceptance criteria and functional card inputs before presenting the PR for review. Replace the list route's unused destructured variables, which failed CI lint, with explicit response fields. Add real-client UI checks and persisted-state checks for refused inventory/unavailability changes, reservation boundaries 9/10/11, audit timestamps, and forbidden roles.
+
+**Verification:** Dependencies restored. Local lint, typecheck, build, 56 frontend tests with coverage, and 270 planning-core unit tests with coverage pass. Expanded database tests await CI's throwaway Postgres. Signed-in functional card execution remains pending.
+
+---
+
+# P2: Equipment inventory can be maintained safely
+
+**Timestamp:** 2026-10-08T00:32+08:00 (SGT)
+**Author:** Raphael
+**Scope:**
+- `backend/services/planning-core`: equipment type inventory APIs, role checks, reservation-safe quantity reductions, unavailability records, audit history, and migration `0002_p2_inventory_history.sql`.
+- `frontend`: equipment inventory list and maintenance screens for technical support.
+- `documentation/api/planning-core.openapi.yaml`, `documentation/traceability/sprint-2.csv`, and `tests/P2/` functional test cards.
+
+**Reason:** P2 adds the equipment inventory and maintenance workflow required for equipment booking. Inventory changes must be permission-controlled, auditable, and cannot reduce stock below existing reservation demand.
+
+## Verification status
+
+- Focused frontend and backend domain tests passed before dependencies were removed by a failed `npm ci` attempt. Re-running them is currently blocked because registry access is unavailable and the required packages are not cached.
+- Manual functional verification remains pending; the P2 test cards are marked Not Executed.
+
+---
+
+# P1: Verify the rate-limit fix against the updated base
+
+**Timestamp:** 2026-10-08T10:09+08:00
+**Author:** Yichen, via Codex
+**Scope:** resolved OpenAPI merge and lockfile formatting.
+
+**Reason:** Keep the equipment API's full schema alongside main's venue availability API, without duplicate document keys. Retain main's equivalent lockfile unchanged.
+
+**Verification:** Clean npm install, full build, lint, typecheck and all 350 backend unit tests pass, including the three rate-limit regressions and domain coverage thresholds. No shared database was used. Pushed CI and actual merge-ref code-scanning results remain to be checked.
+
+---
+
+# P1: Rate-limit equipment routes before authentication
+
+**Timestamp:** 2026-10-08T10:06+08:00
+**Author:** Yichen, via Codex
+**Scope:** equipment router, express-rate-limit dependency, OpenAPI and regression tests; current main merged.
+
+**Reason:** Resolve CodeQL `js/missing-rate-limiting` findings. Each router shares a 120-request/minute/IP budget before JWT verification, identity resolution and SQL; excess requests receive 429 with Retry-After and the standard correlation envelope. Reuse current main's RATE_LIMITED refusal code. Preserve the venue calendar API, frontend route, schema and traceability while merging current main; this also brings P2 onto the integration coverage floor. Default Express proxy trust remains disabled. The in-memory budget is per process and resets on restart; deployments requiring one quota across replicas need a shared store.
+
+**Verification:** Three real-router HTTP regressions pass: every endpoint shares the limit despite changing bearer tokens, blocked traffic reaches no authentication/SQL, the budget recovers after a minute, and distinct client IPs remain independent. Lint and typecheck passed. Full CI and actual branch-alert reanalysis will verify the pushed fix; a green CodeQL workflow alone does not mean no findings.
+
+---
+
+# P1: Record independently verified API cards and CI evidence
+
+**Timestamp:** 2026-10-08T02:25+08:00 (SGT)
+**Author:** Yichen, via Codex
+**Scope:** P1 card execution records and captured CI evidence.
+
+**Reason:** Record observed results at `a00b6bf3e17ddcd4db343e9e15e5495f61ac6c57` against independently specified acceptance expectations. The fifteen API/database cards pass in disposable Postgres with declared authentication stubs. Actual signed-in browser card T14 and human story-owner review remain pending.
+
+**Verification:** All CI jobs and CodeQL passed. Planning-core integration: 585 tests, 94.77% lines/statements, 90.31% branches, 94.76% functions. Backend unit: 319 tests; frontend: 62 tests, including 19 P1 checks. Changed-domain mutation score: 95.51%. Evidence captures the complete planning-core command output (terminal formatting and trailing whitespace removed) and source CI link.
+
+---
+
+# P1: Verify authentication and database refusal paths on current main
+
+**Timestamp:** 2026-10-08T02:15+08:00 (SGT)
+**Author:** Yichen, via Codex
+**Scope:** equipment identity, actor and route unit tests; integration with current main.
+
+**Reason:** Main advanced during P1 development. Merge its F1/CR-06 changes and integration coverage floors, retaining both changelog histories. Cover P1's identity outcomes, role verification and unexpected database failures independently so these refusal paths are checked alongside the happy path. Implementation behavior is unchanged.
+
+**Verification:** All 319 backend unit tests and domain coverage passed on the updated base. Seventeen new unit checks exercise authentication and error propagation. CI's database run is verifying P1's functional card cases and the inherited integration coverage floors.
+
+---
+
+# P1: Add independent acceptance checks and functional cards
+
+**Timestamp:** 2026-10-08T02:09+08:00 (SGT)
+**Author:** Yichen, via Codex
+**Scope:** independent API acceptance suite, `tests/P1/` cards and scoped browser fixture, standard equipment migration setup, planning decision note, and Sprint 2 traceability.
+
+**Reason:** Verify P1 against its acceptance criteria with independently derived expectations, including peak versus summed use, combined maintenance, overlap boundaries, requested quantities, serialized identities, zero inventory and unchanged state. API cards explicitly declare stubbed authentication; P1-T14 specifies the real signed-in browser workflow separately.
+
+**Verification:** Fifteen independent API cases are prepared for CI's throwaway Postgres; strict test TypeScript checks passed. All sixteen cards currently remain Not Executed pending their actual verification records. Local tests used no shared database. Human story-owner review and full signed-in browser execution remain pending.
+
+---
+
+# P1: Show the equipment availability check to Technical Support
+
+**Timestamp:** 2026-10-08T02:09+08:00 (SGT)
+**Author:** Yichen, via Codex
+**Scope:** frontend equipment availability client, screen, routes, proxy and acceptance tests.
+
+**Reason:** Let Technical Support Staff choose equipment and an event period, then compare requested quantity with numeric availability and shortfall. Changing any input clears the old result; late responses cannot replace a result for the current form. The workflow sends only read requests and preserves field-level refusals.
+
+**Verification:** Tests were written first and observed failing before implementation. All 19 P1 frontend checks and all 62 frontend tests passed under Asia/Singapore time, with coverage thresholds satisfied (75.21% lines, 79.74% branches). Frontend typecheck and the full build passed.
+
+---
+
+# P1: Check equipment availability using peak concurrent use
+
+**Timestamp:** 2026-10-08T02:04+08:00 (SGT)
+**Author:** Yichen, via Codex
+**Scope:** equipment availability API, input validation and tests, shared error contract, API documentation, and CQ-02 decision records.
+
+**Reason:** The user selected peak concurrent use for CQ-02 and authorized P1 (SPM-48). Record that decision and its provenance, then expose a period check that reports numeric availability and requested shortfall without creating a reservation or changing inventory. Bulk checks combine reserved and unavailable quantities on one timeline; serialized units must be free for the whole period and are excluded only once when both reserved and unavailable.
+
+**Verification:** Backend typecheck and module boundaries passed. All 268 planning-core unit tests and coverage thresholds passed; new input validation has 100% coverage and a 96.77% focused mutation score. Database API acceptance verification awaits CI's throwaway Postgres. No shared database was used.
+
+---
+
+# I1: A venue's availability calendar
+
+**Timestamp:** 2026-10-07T23:24+08:00 (SGT)
+**Author:** Seann, via Claude
+**Scope:**
+- planning-core, venue module: `domain/availabilityCalendar.ts`, `repo/availability.ts` and `api/availability.ts` (new), mounted in `index.ts`.
+- planning-core, event module: `findEventReferences` in `index.ts`, backed by `findReferences` in `repo/events.ts`.
+- Tests: `tests/venue/domain/availabilityCalendar.test.ts`, `tests/venue/api/availability.test.ts`, `availabilityRateLimit.unit.test.ts` and `errors.unit.test.ts` (new).
+- A rate limit on the calendar: `express-rate-limit` (planning-core dependency), and `RATE_LIMITED` in contracts' error codes.
+- `planning-core.openapi.yaml`: `GET /api/v1/venues/{id}/availability`, its `429`, and four schemas.
+- The web app:
+  - `VenueAvailability` (new);
+  - an "Availability" button on `VenueDetail`;
+  - the route in `App.tsx`;
+  - `getVenueAvailability` in `api/venues.ts`;
+  - the calendar's colours in `shared/status.ts`;
+  - `tests/venueAvailability.test.tsx`.
+- Test cards: `tests/I1/` (15 cases), and FX-CALENDAR in `tests/I1/README.md` and `tests/README.md`.
+- `tests/fixtures/reset-test-data.sql`: it also removes the seeded Venue Staff account's venues' slots and blocks. Traceability.
+
+**Reason:** I1 (Sprint 2), now that EN-02.1 has added `venue_slots` and `unavailability_blocks`. Coordinators check a venue's calendar before asking for a period, and J1, L1 and L3 build on it.
+
+## What it does
+
+1. **"Availability" on a venue's page opens its calendar** for every internal role. It shows the week from today, and "Show" reads any range of up to 31 days.
+2. **Each day has a bar, a Committed list and a Free list,** in Singapore time.
+   - A confirmed booking is labelled with its event reference.
+   - A held slot shows as **Pending**, in a different colour from Confirmed. A booking request stays HELD until it's decided (§4.6 rule 3), so until L1 exists every hold shows this way.
+   - Setup and turnaround are their own rows, before and after the event, marked occupied and in their own colour.
+   - Unavailability shows its type and reason.
+   - The hours the venue is closed show as unavailable, all day on a closed day.
+3. **Postgres does every comparison** (§4.4):
+   - `&&` finds the slots and blocks touching each day;
+   - `*` clips them to the day;
+   - subtracting multiranges leaves the free time inside opening hours.
+4. **Setup and turnaround come from each slot's own copy** of the times, so I1 doesn't wait for H3.
+5. **Released and expired slots and removed blocks commit nothing.** The calendar is read afresh each time, so an approval, rejection, withdrawal or release shows the next time it's loaded.
+6. **Attendees have no route to the calendar,** and the API refuses them (`403`). An unknown venue is `404`. A range longer than 31 days, reversed, or with a date that doesn't exist is `400`, naming the field.
+7. **The event reference comes through the event module's interface.** The new `findEventReferences` returns only references, because organisers outside an event's scope can see the calendar.
+
+## Testing ahead of L1, L3, M1 and I2
+
+8. **No story creates holds, requests, approvals or blocks yet.** So FX-CALENDAR inserts one week of them directly (7–13 Dec 2026), and two statements in `tests/I1/README.md` approve or release a slot the way M1, M2 and L5 will.
+
+## Notes for the team
+
+9. **The shared database now has EN-02.1's migration** (`venue/0003`), which I applied with `npm run migrate -- venue`.
+   - It still lacks EN-02.2's equipment migration, so `tests/equipment/repo/inventory.test.ts` fails locally against it. CI isn't affected, because it builds its own database from every migration.
+   - H3's `venue/0002` is applied there too, from 4 Oct, though H3 isn't merged.
+10. **Mutation testing found a bug** in the date rules. A date-shaped string that isn't a date (`2026-13-01`) made the endpoint fail with a 500. It's now refused with a 400, and the calendar's rules score 100%.
+11. **The calendar route has its own rate limit, against ADR-0011 for now.**
+    - CodeQL (`js/missing-rate-limiting`) failed the PR because the route had no limiter.
+    - ADR-0011 puts rate limits at the Kong gateway (EN-12), which isn't built, and rejects each service limiting itself. So this is a stopgap on one route, planning-core's heaviest read: 120 requests a minute per address, refused with `429 RATE_LIMITED` before any identity lookup.
+    - Remove it when EN-12 lands. Every other planning-core route is still unlimited, and the next route a story adds will trip the same CodeQL rule.
+
+## Verified
+
+- **The 15 I1 cards pass in Chrome** through the automated runner, against `ac840b7`. H2's 8 cases still pass with the new button.
+- **planning-core:**
+  - unit tests: 274/274, with the calendar's rules at 100% line, branch and mutation coverage;
+  - integration tests: all pass against the shared database, apart from the 16 equipment tests above. The new suite passes 9/9.
+- **web:** 53/53, including 10 tests for the calendar.
+- **Lint, typecheck, build and `lint:api` pass.** The policy tests need Linux and run in CI.
+# Outbox cards: query the CloudEvent envelope's `type` and `data`
+
+**Timestamp:** 2026-10-07T19:09+08:00 (SGT)
+**Author:** Raphael, via Claude
+**Scope:** `tests/` cards B1-T5, D2-T7, D3-T8, D4-T5, D4-T6, D5-T7, E1-T2 (Test Data only).
+**Reason:** Since EN-04 the outbox stores each message as a CloudEvent: the message type is in
+`envelope->>'type'` and the payload in `envelope->'data'`. These seven cards (written 2026-09-20)
+still queried `envelope->>'messageType'` and `envelope->'payload'`. They return nothing from
+those keys, so running any of them would fail even with the code correct. None had been run
+since, which is why it went unnoticed.
+
+## Changed
+
+- In each card's query: `envelope->>'messageType'` → `envelope->>'type'`, and
+  `envelope->'payload'` → `envelope->'data'`. Expected results are unchanged, since the type
+  strings (`event.submitted` and so on) and the payload field names are the same.
+
+## Verified
+
+- The corrected query, run read-only against the shared database, returns real rows' type and
+  reference (e.g. `event.coordinator-assigned`, `EVT-005237`).
+# F1: one guarded way to change an event's status, and the completion sweep
+
+**Timestamp:** 2026-10-07T22:20+08:00 (SGT)
+**Author:** Raphael, via Claude
+**Scope:** F1 (SPM-27). The event module's `repo/`, `api/` and new `jobs/`, the root
+`package.json`, `tests/event/`, `tests/race/`, `tests/support/`, `tests/F1/` and the traceability CSV.
+**Reason:** F1 was marked Done with its write path still spread over six repository functions, no
+completion of past events, and none of its cards run. This finishes it.
+
+## Added
+
+- **`updateStatusIf`** (`repo/eventStatus.ts`): the one SQL statement that writes `status`. It
+  locks the row and changes it only if the status is still one the action may start from.
+- **`transitionEvent(tx, eventId, action, actor)`**: the one way any route changes status. It looks
+  the action up in the transition table, refuses with both statuses named, and for `COMPLETE`
+  checks the end has passed by the database clock. It writes the history row in the same
+  transaction as the change.
+- **`npm run jobs:complete-events`**: completes every Confirmed event whose end has passed, one
+  transaction per event, as `SYSTEM`. Only Confirmed events complete (spec decision 2); an Approved
+  event past its end is left alone.
+- **`tests/event/architecture/statusWrites.unit.test.ts`** fails if any file other than
+  `updateStatusIf` writes `status`.
+- Race tests in `tests/race/statusTransitions.test.ts` (EN-02.3 harness, CI's throwaway Postgres
+  only) prove that two concurrent transitions on one event make exactly one change.
+
+## Changed
+
+- Submission, opening for review, clarification, approval and rejection all go through
+  `transitionEvent`. `insertSubmittedEvent`, `submitDraft`, `claimForReview`, `lockEventInScope`,
+  `setStatus` and `recordDecision` are deleted.
+- D3's clarification history now takes its previous values from the locked row, not a read made
+  before the lock.
+- Tests that share the team database seed with random owners and clean up after themselves
+  (`tests/support/seedEvent.ts`).
+
+## Tested
+
+- F1-T1, F1-T8, F1-T9, F1-T10 and F1-T11 were run on 2026-10-07 against 3d313c1 and pass; evidence is
+  in `tests/F1/evidence/`. F1-T1 used FX-SEEDED for its Submitted request (noted in its record).
+- F1-T2 to F1-T6 need a signed-in user and are still to be run. F1-T7, T12 and T13 stay Not
+  Executed until F5 and U1 exist.
+
+---
+
+# SPM-116 follow-up: the non-domain coverage floor moves to the integration run
+
+**Timestamp:** 2026-10-07T18:50+08:00 (SGT)
+**Author:** Raphael, via Claude
+**Scope:** `backend/services/planning-core/vitest.config.ts`, `vitest.unit.config.ts`, its
+`package.json`, and CI's integration job.
+**Reason:** The unit run enforced a 93% branch floor across all of `src/`. Its own comment says
+that floor was set at "today's unit-only figures" until EN-06.1 gave CI a database. EN-06.1 merged
+on 6 Oct, but the floor stayed in the unit run, where repo and API code never executes and so
+counts as uncovered. Every new repo file therefore failed the build, however well its integration
+tests covered it. F1's first repo file took the figure to 92.04%.
+
+## Changed
+
+- **The unit run keeps the 100% floor on domain code**, exactly as before, and drops the global
+  floor.
+- **The integration run now enforces the global floor.** `npm run test:coverage -w
+  @connectsphere/planning-core`, which CI's integration job runs against its throwaway Postgres,
+  is the one run that executes repo and API code. Floors: lines and statements 94%, branches 89%,
+  functions 94%. That's just under CI's measurement of `main` (lines 94.59%, branches 89.68%,
+  functions 95.03%, all 493 tests passing).
+- In practice it's **stricter, not looser**: lines and functions go from 39% and 24% (unit-only)
+  to 94%, measured where the code actually runs.
+
+## Found on the way (not fixed here)
+
+- **The shared Supabase database is missing EN-02's migrations.** `equipment.equipment_types`
+  and the venue slot tables don't exist there, so 34 venue and equipment tests fail for anyone
+  running the suite locally. CI is unaffected, since it builds its database from the migrations.
+  Someone should run `npm run migrate:all` against the shared project, as a deliberate team step.
+- Because of that, a local run undercounts venue and equipment code (92.02% lines, 88.85%
+  branches), so the floors were set from CI's figures instead.
+
+## Verified
+
+- Unit run: exit 0, domain coverage 100%. `npm run lint` passes. `ci.yml` parses.
+- Full local run of `main` with coverage: lines and statements 92.02%, branches 88.85%, functions
+  90.06% (455 passed, with 34 failing only on the missing EN-02 tables).
+
+---
+
+# F1 / CR-06: the Safety Review status
+
+**Timestamp:** 2026-10-07T18:36+08:00 (SGT)
+**Author:** Raphael, via Claude
+**Scope:** F1 (SPM-27), CR-06. `contracts`, the event module's domain, migrations 0007–0008, the
+OpenAPI contract, the status lozenges, and `tests/F1/`.
+**Reason:** CR-06 (Week 7) adds an Operational Safety Check: confirming an event's arrangements
+(F5) now leads to **Safety Review**, and only the Safety Officer's approval (U1) leads to
+Confirmed. F1 owns the status list and the transition table, so the status and its transitions
+land here, before F5 and U1 build the actions that perform them.
+
+## Added
+
+- **`SAFETY_REVIEW`**, the eleventh status, between Planning and Confirmed: in contracts
+  (`EVENT_STATUSES`, `DECIDED_STATUSES`, labels), the OpenAPI `EventStatus` enum, the frontend type
+  and the lozenge map ("Safety Review", in-progress colour).
+- **Transitions:** `CONFIRM_ARRANGEMENTS` (Approved/Planning → Safety Review; F5 will perform it),
+  `APPROVE_SAFETY` (Safety Review → Confirmed) and `REQUEST_SAFETY_CHANGES` (Safety Review →
+  Planning), both performed by U1.
+- **Migrations 0007–0008:** the status check is re-added with the new value `NOT VALID`, then
+  validated in its own migration. `migrate.ts` runs one file per transaction, so validating in
+  0007 would have scanned the table while holding 0007's exclusive lock.
+- **`tests/boundaries/eventValues.test.ts`** holds the database check to the contracts list, as
+  venue and equipment already have.
+- **Cards F1-T12 and F1-T13** for the Safety Officer's two decisions. Both stay Not Executed until
+  U1 exists.
+
+## Changed
+
+- `CONFIRM` is renamed **`CONFIRM_ARRANGEMENTS`**, since it no longer leads to Confirmed. Nothing
+  ever recorded `CONFIRM` (F5 isn't built), so no history row is left stale.
+- F1-T1 no longer says "ten" statuses; F1-T7 expects Safety Review rather than Confirmed.
+
+## Decided, and raised
+
+- **Rejecting the safety arrangement has no transition yet.** Its outcome is CQ-08, still
+  unanswered by the customer. Raphael agreed to leave it out (2026-10-07), and a test pins its
+  absence.
+- **"Request changes → Planning" is CR-06's proposal.** CQ-08 also asks which stage it returns to,
+  so the target may change with the customer's answer.
+- **F1 itself is not finished.** The guarded write path, the completion sweep and executing the
+  cards follow in the next PR. SPM-27 is back to In Progress.
+
+## Verified
+
+- `npm run lint`, `typecheck`, `build`; `npm run test:unit` 287/287 with domain coverage at 100%.
+- squawk reports no issues on 0007 or 0008. The migrations were **not** run against the shared
+  Supabase database; CI applies them to a throwaway Postgres, and the shared database gets them
+  after merge.
+
+---
+
+# SPM-115: `main` is branch-protected
+
+**Timestamp:** 2026-10-07T18:25+08:00 (SGT)
+**Author:** Raphael, via Claude
+**Scope:** GitHub repository settings (no code). SPM-115, part of EN-06.
+**Reason:** `main` had no protection, so anyone with write access could push to it directly or merge
+without review or green CI. That happened in practice: PR #2 merged unreviewed, and an early F1
+commit went straight to `main`. The Definition of Done (`implementation.md` §8.3) requires both a
+peer review and green CI; until now neither was enforced.
+
+## Changed
+
+- **Branch protection on `main`:**
+  - a pull request with **one approving review** is required before merging;
+  - three CI checks must pass: *Lint, typecheck, build, unit tests*, *Integration tests (throwaway
+    Postgres)* and *Secret scan (gitleaks)*;
+  - force pushes and branch deletion are blocked;
+  - **enforced for administrators too.** Without this the repo owner could still push directly,
+    which the ticket's done-when rules out.
+- **Not required, deliberately:** *Migration lint (squawk)* and *Mutation testing* are skipped
+  unless a change touches migrations or domain code, so requiring them would block unrelated PRs.
+  *CodeQL* and *Diagrams* run in separate workflows and can be added once the team agrees.
+
+## Verified
+
+- Read back through the GitHub API: one approval, the three checks, `enforce_admins` on, force
+  pushes and deletions off.
+- A direct push of an empty commit to `main` was refused: "Changes must be made through a pull
+  request" and "3 of 3 required status checks are expected" (protected branch hook declined).
+  `main` stayed at `ba59293`.
+- This entry is the first change to reach `main` under the rule, through a reviewed PR.
+
+---
+
+# PX-07: The customer clarification log exists
+
+**Timestamp:** 2026-10-06T22:15+08:00 (SGT)
+**Author:** Joash
+**Scope:** `documentation/clarifications.md` (new).
+
+**Reason:** PX-07 (SPM-148). `implementation.md` §4.6, `change-requests.md` and the PX-07 and PX-14 Jira comments all said "record the answer in `documentation/clarifications.md`", and the file didn't exist.
+
+## What it does
+
+1. **It says how to record an answer:** in the customer's words, with dates and where it was asked. Then the story is revised with a ⚠ note citing the entry.
+2. **It lists the ten open questions,** CQ-01 to CQ-10 with their Jira keys and the stories each affects. None has an answer yet. CQ-01 to CQ-03 have been open since 1 Oct, and P1 is blocked on CQ-02.
+3. **It indexes the earlier answers the stories cite** (C-04, C-10, C-11, C-12, C-13) with what each decided. Their original wording isn't in the repo, so the PO is asked to add it. No answer was invented.
+
+---
+
+# EN-06.2: Mutation testing shows the domain tests actually check things
+
+**Timestamp:** 2026-10-06T22:07+08:00 (SGT)
+**Author:** Joash
+**Scope:**
+- Stryker 8.7.1 with its Vitest runner (root devDependencies).
+- planning-core and notification: `stryker.config.mjs` and `vitest.mutation.config.ts` (new), and a `test:mutation` script. Root `npm run test:mutation`.
+- CI:
+  - `.github/workflows/ci.yml`: a `mutation` job on pull requests;
+  - `.github/workflows/mutation.yml` (new): a nightly full run;
+  - `.github/scripts/mutation-summary.mjs` (new).
+- Tests strengthened where mutants survived:
+  - `tests/event/domain/validation.test.ts` (B2);
+  - `tests/venue/domain/slotConflict.test.ts`;
+  - `tests/equipment/domain/availability.test.ts`;
+  - the two boundaries values tests.
+- `availability.ts`: a comment marking two equivalent mutants. `.gitignore`: the reports and sandbox.
+- `implementation.md` §8.1.
+
+**Reason:** EN-06.2 (SPM-167), part of EN-06. The rubric asks for 100% domain coverage, but coverage only shows a line ran, not that a test would notice it was wrong. Mutation testing is that proof.
+
+## What it does
+
+1. **Stryker plants small bugs in the domain code,** then reruns the domain unit tests. Typical bugs are `>` becoming `>=`, a condition becoming `true`, or a message becoming empty. Each bug some test catches is "killed"; the mutation score is the share killed. **Below 80% the run fails.**
+2. **On a pull request, only the domain files it changes are mutated.** The score goes in the job summary and the HTML report is uploaded. **Every night,** `mutation.yml` mutates all of it.
+3. **The runs use the domain tests only** (`vitest.mutation.config.ts`). Stryker runs them in a copy of the workspace, and the domain tests need nothing outside it.
+
+## What the first run found
+
+4. **planning-core started at 91.85%** (496 of 540 mutants killed), **notification at 91.53%**.
+5. **The B2 validation tests checked which fields failed, not what they said** (24 survivors). Any refusal message could have been emptied, and a start exactly at the current moment wasn't tested. A new block pins every message and those boundaries: `validation.ts` is now at **100%**.
+6. **My new EN-02 code** had gaps:
+   - the conflict guards were tested with only one of `null` and `undefined`;
+   - the constraint names were never pinned;
+   - nothing showed the peak calculation doesn't depend on input order.
+   All three are fixed: `slotConflict.ts` is at 100%, and the boundaries tests now check the migrations create the constraints by those names.
+7. **planning-core is now at 97.04%** (524 of 540). Three of the rest are one equivalent mutant in `peakConcurrentUse`: dropping a filter can't change the result. Two are switched off with the reason in a comment, and the third is left visible because disabling it would also hide the sort check.
+8. **For Seann:** notification's `retryPolicy.ts` is at 68.75%, because its tests don't pin the header names (such as `connectsphere-error`). The workspace as a whole is at 91.53%, above the bar, so nothing fails today.
+
+## Verified
+
+- Local full runs: planning-core 97.04% in 54 seconds; notification 91.53% in 10 seconds.
+- **The build fails below the bar:** notification run with the bar temporarily at 95 exits 1 ("Final mutation score 91.53 under breaking threshold 95"). The temporary config was deleted.
+- Unit tests: planning-core 253 pass. CI runs the `mutation` job on this pull request, which changes `availability.ts`.
+
+---
+
+# EN-06.3: CI checks migrations, scans for secrets, and runs CodeQL
+
+**Timestamp:** 2026-10-06T21:53+08:00 (SGT)
+**Author:** Joash
+**Scope:**
+- `.github/workflows/ci.yml`: two new jobs, `migration-lint` (squawk) and `secret-scan` (gitleaks).
+- `.github/workflows/codeql.yml` (new).
+- `.squawk.toml` (new).
+- `backend/scripts/migrate.ts`: a lock timeout and a statement timeout for every migration.
+- `implementation.md` §4.8 and §8.1.
+
+**Reason:** EN-06.3 (SPM-172), the last piece of EN-06's pipeline. The rubric's "code quality and CI" row asks for checks beyond tests, and a team of six with AI agents writing code needs a net for risky schema changes and for passwords committed by accident.
+
+## What it does
+
+1. **squawk lints every migration a pull request adds or changes,** and fails on schema changes that are risky on a table that already holds data:
+   - dropping a column or table;
+   - changing a column's type;
+   - a constraint that scans the whole table;
+   - adding a column that is NOT NULL without a default.
+   Merged migrations are never edited, so only new files are checked; three old event migrations would be flagged today.
+2. **Five squawk rules are off, each with its reason in `.squawk.toml`.**
+   - `int` versus `bigint`: our ints are minutes and quantities.
+   - The two per-file timeout rules: `migrate.ts` now sets a 5-second lock timeout and a 60-second statement timeout for every migration's transaction. A migration that can't get its lock now fails instead of stalling every query behind it.
+   - The two "build or drop indexes concurrently" rules: they can never pass, because Postgres refuses `CONCURRENTLY` inside a transaction, and every migration runs in one.
+3. **gitleaks scans the whole history on every push and pull request,** so a secret committed and then deleted in a later commit still fails the build. It's a pinned release, checked against its published SHA-256 before it runs, like the Cerbos binary.
+4. **CodeQL scans the JavaScript and TypeScript** on pull requests, on `main`, and every Monday. Findings go to the Security tab. It's the workflow form of CodeQL, which needs no admin rights. If a repo admin ever turns on GitHub's "default setup", this file should be deleted, because GitHub refuses both at once.
+
+## Verified
+
+Each check was proved to fail on a bad change, locally with the same commands and config, so no secret or risky migration was ever pushed to the shared repo:
+- **squawk** exits 1 on a migration that drops a column and changes a column's type, and exits 0 on this week's new migrations (venue 0003, equipment 0001).
+- **gitleaks** exits 1 on a throwaway repo where a fake GitHub token was committed and then deleted in a later commit. The repo's own 159 commits are clean.
+- **The changed-migration filter** picks out exactly `venue/0003…` over PR #18's range.
+- In CI, all jobs pass on this pull request, and CodeQL uploads its results.
+
+---
+
+# EN-02.3: Fifty attempts at once: exactly one wins, and the race found a bug
+
+**Timestamp:** 2026-10-06T21:44+08:00 (SGT)
+**Author:** Joash
+**Scope:**
+- planning-core tests: `tests/support/race.ts` (new, the harness) and `tests/race/invariants.test.ts` (new).
+- The fix: `src/modules/venue/repo/slots.ts` (`insertVenueSlot` takes the venue lock) and `src/modules/equipment/repo/inventory.ts` (`reserveUnit` takes the type lock).
+- Docs: `implementation.md` §4.6 rule 4 and the as-built notes; ADR-0006, an "As built" section.
+- Traceability: four rows linking N1's and Q1's "exactly one succeeds" and "touching periods" criteria to the races.
+
+**Reason:** EN-02.3 (SPM-170), the last piece of EN-02. N1, L3 and Q1 promise that when attempts race, exactly one wins. EN-02.1 and EN-02.2 built that guarantee into the database; this proves it under real contention.
+
+## What it does
+
+1. **The harness** (`race.ts`) opens one connection per attempt and starts a transaction on each. A barrier holds every attempt until all fifty transactions are open, then releases them together. It refuses to run against anything but this machine's own Postgres, so it never touches the shared database. In CI that's the throwaway one from EN-06.1.
+2. **Four races, fifty attempts each:**
+   - overlapping holds on one venue: exactly one wins, and the other 49 get the overlap refusal naming the winner;
+   - holds that merely touch: all fifty win;
+   - the last free projector: exactly one wins;
+   - the last chair of bulk stock: exactly one wins, and the rest learn they're 1 short.
+   The three "exactly one" races run ten rounds each, because one clean run doesn't rule out a rare loss.
+
+## The bug it found
+
+3. **With one round, every race passed. With ten, some losers failed with "deadlock detected" (`40P01`)** instead of the overlap refusal, for venue slots and projectors alike.
+   - Two conflicting inserts in flight at once can each wait for the other on the exclusion constraint, and Postgres aborts one.
+   - Exactly one insert still won every time, so the guarantee held. But a user would have seen a server error instead of N1's or Q1's refusal message.
+   - EN-02.1's two-attempt test couldn't have caught it.
+4. **The fix: contenders queue on a row lock.**
+   - `insertVenueSlot` takes the venue row lock first, the lock M1 and I2 already take.
+   - `reserveUnit` takes its equipment type's row lock, as bulk reservations already do.
+   - Each loser now meets an already committed winner and gets the clean refusal. The exclusion constraints still decide.
+   - This is recorded as rule 4 in `implementation.md` §4.6 and in ADR-0006.
+
+## Verified
+
+- **CI, with the fix:** all four races pass, ten rounds of fifty for each "exactly one" race, with no deadlocks. Planning-core's suite is 480 tests on the throwaway Postgres. The job was re-run once more and passed again.
+- **Before the fix:** the same tests failed with `deadlock detected` in the venue and projector races.
+
+---
+
+# EN-02.2: Equipment availability is checked over a period
+
+**Timestamp:** 2026-10-06T21:29+08:00 (SGT)
+**Author:** Joash
+**Scope:**
+- planning-core equipment module:
+  - migration `0001_equipment_inventory.sql` (the module's first);
+  - `repo/inventory.ts` (new): `reserveUnit`, `reserveBulk`, `availableUnits`, `peakUse`, `lockEquipmentType`;
+  - `domain/availability.ts` (new).
+- contracts: `equipment.ts` (new) and the `INSUFFICIENT_EQUIPMENT` error code.
+- Tests: `tests/equipment/repo/inventory.test.ts` (integration), `tests/equipment/domain/availability.test.ts`, `tests/boundaries/equipmentValues.test.ts`, and `contracts/tests/equipment.test.ts`. `tests/support/checkConstraints.ts` (new) is now shared with EN-02.1's values test.
+- `implementation.md` §4.6, an "as built" note.
+
+**Reason:** EN-02.2 (SPM-165), the equipment half of EN-02 (ADR-0006). The old design kept one counter per equipment type with no dates, so it couldn't tell Friday afternoon from Saturday. This unblocks O1, P2, P1 (once CQ-02 is answered) and EN-02.3, and gives Q1 and Q2 the tables they build on.
+
+## What it does
+
+1. **Serialized equipment** (a projector) has one row per unit. A per-unit exclusion constraint refuses a second reservation of the same unit for an overlapping period. `reserveUnit` reports that as `UnitAlreadyReservedError`, naming the unit. Touching periods are allowed.
+2. **Bulk stock** (chairs) has a total on its type.
+   - `reserveBulk` takes the type's row lock, works out the **peak concurrent use** inside the window, and reserves only if the new quantity fits under the total at that busiest moment.
+   - Otherwise it refuses with `INSUFFICIENT_EQUIPMENT`, naming the requested, available and shortfall quantities, and reserves nothing.
+   - The lock makes two simultaneous reservations take turns.
+3. **Unavailability** marks one unit, or a quantity of bulk stock, out of service for a period with a reason. It counts as in use for both kinds.
+4. **Peak use, not summed overlaps.** Back-to-back reservations aren't counted together. P1's wording could be read the other way, and CQ-02 asks the customer. The rule lives only in `peakConcurrentUse`, so the answer is a one-file change.
+5. **The database keeps the kinds apart.** Composite foreign keys on (type, kind) mean a unit can only belong to a serialized type, and a bulk reservation only to bulk stock. A bulk type must have a total, and a serialized type mustn't.
+6. **Nothing is deleted:** reservations are released, and unavailability is removed, by status. The values live in contracts, and a boundaries test keeps the migration's check lists equal to them.
+
+## Verified
+
+- **CI, first run, green.** All 16 equipment integration tests pass on the throwaway Postgres, including **two simultaneous reservations of one unit, and of the last bulk unit, where exactly one wins**.
+- **A property test compares `peakConcurrentUse` with a minute-by-minute count** on 300 seeded random cases, as EN-02.2 recommended.
+- Unit tests: planning-core 240 and contracts 77. Domain coverage stays at 100%.
+
+---
+
+# EN-02.1: The database refuses double-booked venues
+
+**Timestamp:** 2026-10-06T21:20+08:00 (SGT)
+**Author:** Joash
+**Scope:**
+- planning-core venue module:
+  - migration `0003_venue_slots_and_unavailability.sql`;
+  - `repo/slots.ts` (new): `insertVenueSlot`, `lockVenue`;
+  - `domain/slotConflict.ts` (new).
+- contracts: `venueSlots.ts` (new) and the `VENUE_SLOT_CONFLICT` error code.
+- Tests: `tests/venue/repo/slots.test.ts` (integration), `tests/venue/domain/slotConflict.test.ts`, `tests/boundaries/venueValues.test.ts`, and `contracts/tests/venueSlots.test.ts`.
+- `implementation.md` §4.6, an "as built" note.
+
+**Reason:** EN-02.1 (SPM-160), the venue half of EN-02 (ADR-0006). N1, L3 and M1 require that exactly one of two racing holds or bookings succeeds, which a check in application code can't promise. This also unblocks I1, J1 and EN-02.3, and gives Sprint 3's L3, L1, M1, N1 and I2 the table they build on.
+
+## What it does
+
+1. **`venue.venue_slots` holds every hold and confirmed booking.** One exclusion constraint, `venue_slot_no_overlap`, refuses any two HELD or CONFIRMED slots at the same venue whose occupied periods overlap. Periods that merely touch are allowed.
+2. **The occupied period includes setup and turnaround time** (CR-01, H3): `[start − setup, end + turnaround)`.
+   - Each slot copies the venue's two times when it's taken, so changing them later never rewrites a stored period. H3 flags the bookings that would now conflict instead.
+   - A small `venue.occupied_period` function computes it. It's declared immutable, because Postgres treats `timestamptz + interval` as only stable (days and months depend on the time zone; whole minutes don't).
+3. **Requires Reconfirmation is a boolean column,** so a flagged booking stays CONFIRMED and keeps blocking its period. RELEASED and EXPIRED slots block nothing (L6's expiry needs no constraint change).
+4. **`insertVenueSlot` turns the constraint's refusal into one people can act on.** It inserts in a savepoint. On Postgres `23P01` it looks up what the period overlapped and throws `VenueSlotConflictError` (`VENUE_SLOT_CONFLICT`), naming every reference. The look-up only shapes the message; the constraint already decided.
+5. **`lockVenue` takes the venue row `for update`.** M1's approval and I2's block both call it first, so they serialise per venue (§4.6 rule 1).
+6. **`venue.unavailability_blocks` is I2's table:**
+   - CR-02's reason types (maintenance, equipment failure, renovation, safety, other);
+   - a mandatory description;
+   - removal by status (`REMOVED`), never by deleting.
+   A block doesn't refuse an overlapping booking; I2 flags the booking.
+7. **The status and reason values live in contracts.** A boundaries test fails if the migration's check lists drift from them.
+
+The migration is numbered 0003 because H3's branch takes 0002 for the venue's two times. Nothing here depends on that, so the two can merge in either order.
+
+## Verified
+
+- **CI integration job:** all slot tests pass on the throwaway Postgres (EN-06.1), including **two simultaneous bookings where exactly one wins**, the customer's own CR-01 example (10:00–12:00 with 30 and 45 minutes occupies 09:30–12:45), and a second locker waiting on `lockVenue`.
+- **The first CI run caught one wrong expectation in my tests:** an end before the start fails as a range error (`22000`) before the check constraint runs (`23514`). It is refused either way and nothing is stored; the test now says so.
+- Unit tests: planning-core 223 and contracts 73. Domain coverage stays at 100%.
+
+---
+
+# EN-06.1: Integration tests run in CI against a throwaway Postgres
+
+**Timestamp:** 2026-10-06T21:06+08:00 (SGT)
+**Author:** Joash
+**Scope:**
+- `.github/workflows/ci.yml`: a new `integration` job.
+- `backend/scripts/migrate.ts`: an `all` target. Root `package.json`: `npm run migrate:all`.
+- `implementation.md` §8.1 and `README.md` (setup steps 4 to 7).
+
+**Reason:** EN-06.1 (SPM-162), part of EN-06. Integration tests only ran on laptops, against the team's shared Supabase database, so no pull request ever ran them. EN-02.3's race tests also need a database CI owns.
+
+## What it does
+
+1. **A Postgres 17 service container** starts for the job and is thrown away with the runner. CLAUDE.md allows containers in CI only, and this is the only one.
+2. **The job refuses to run** unless `DATABASE_URL` points at the runner itself, so CI can't reach the shared database by mistake.
+3. **`npm run migrate:all` builds every schema from nothing:** identity with its seeds, then event, venue, equipment, change and notification. A new module has to be added to the list in `migrate.ts`. `--seed` now skips modules that have no `seed/` folder instead of failing.
+4. **planning-core's and notification's full suites run against it.** Supabase and Kafka are placeholders that reach nothing: the tests stub token checks, and the relay tests use a fake publisher.
+
+## Verified
+
+- **First CI run, green:** planning-core 33 files and 410 tests, notification 10 files and 72 tests, all on a database built only from the migrations. No test depended on leftover data in the shared database.
+- The unit-test job is unchanged and still green.
+
+---
+
+# H2: A venue's page shows everything recorded about it
+
+**Timestamp:** 2026-10-05T13:01+08:00 (SGT)
+**Author:** Seann, via Claude
+**Scope:**
+- The web app: `VenueDetail` (new), `VenueList` (a "View" link), `App.tsx` (the route), and `tests/venueDetail.test.tsx`.
+- The test cards: `tests/H2/` (8 cases). Traceability.
+
+**Reason:** H2 (SPM-33), Sprint 2. Coordinators judge a venue against an event's requirements from this page, and K1 and J1 build on it.
+
+## What it does
+
+1. **"View" on Venues opens a venue's page** for every internal role. It shows:
+   - the building, maximum capacity and status;
+   - each layout with its own capacity, as a table;
+   - the facilities and accessibility features, one list item each, never a yes/no flag;
+   - the opening hours, day by day.
+2. **Everything is read from the catalogue on opening,** so an update shows at once.
+3. **Venue Staff also get "Edit venue,"** which opens H1's editor.
+4. **Attendees have no route to the page.** They land on their own screen without any venue data being fetched, and the API refuses them (`403`).
+
+No API change: the page reads H1's `GET /api/v1/venues/{id}`.
+
+## Without H3
+
+5. **H2 was first built on top of H3** (CR-01's setup and turnaround times), and its page showed those two times.
+6. **H3 isn't done and isn't merged.** Its three booking cases can't run until bookings exist, so it carries over to Sprint 3 on `feature-seann/h3-setup-turnaround`.
+7. **H2 has been rebuilt from `main` without it.** The page, its test and H2-T1 no longer show the times, and H2-T1 and `tests/H2/README.md` note this. H3 adds them back when it lands.
+8. **H1's CR-01 criterion** (the record also holds the two times) is still open for the same reason.
+
+## Verified
+
+- **The 8 H2 cards pass in Chrome** through the automated runner, against `ca285fa`.
+- **H1's 14 cases still pass on this branch.**
+- **web: 43/43**, including 6 tests for this page.
+- **CI's steps all pass.**
+
+---
+
+# T2: Read and manage my notifications
+
+**Timestamp:** 2026-10-04T16:49+08:00 (SGT)
+**Author:** Seann, via Claude
+**Scope:**
+- The notification service: `src/api` (new: the routes, auth, the identity lookup and errors), `src/repo/notifications.ts`, `app.ts`, `config.ts`; five test files; and the coverage floors.
+- `contracts`: `NOTIFICATION_NOT_FOUND`. The API specs: `notification.openapi.yaml` (new), the API README, and `lint:api` now covering both specs.
+- The web app: `api/notifications.ts`, the `Notifications` screen, `shared/useUnreadCount.ts`, `App.tsx`, the `/notification` proxy, and a test file.
+- The test cards: `tests/T2/` (14 new, 6 re-checked), `tests/README.md`, and the reset script.
+- `.env.example`, `implementation.md` §2 and §10, and traceability.
+
+**Reason:** T2 (SPM-61), Sprint 2. EN-04.3 stores notifications; this lets people read them.
+
+## What it does
+
+1. **The notification service gains T2's API:**
+   - `GET /api/v1/notifications` lists the caller's own notifications, newest first, with the unread count, paged by cursor;
+   - `POST /api/v1/notifications/{id}/read` marks one read, keeping the first read time;
+   - `POST /api/v1/notifications/read-all` marks them all read.
+   
+   Another user's notification is never listed, and marking it read answers `404 NOTIFICATION_NOT_FOUND`.
+2. **Who is calling comes from identity:** planning-core's `GET /api/v1/users/me`, called with the caller's own token, since this service may not read identity's tables.
+   - Identity's 401 and 403 refusals pass through.
+   - An unreachable identity is `503 IDENTITY_UNAVAILABLE` (CP).
+   - `PLANNING_CORE_URL` overrides where identity is.
+3. **Every role gets "Notifications" in the navigation, with the unread count.**
+   - The screen lists notifications newest first, each unread one marked.
+   - It offers **Mark as read**, **Mark all as read** and **Open**.
+   - **Open** marks the notification read and goes to the role's own page for the event. That page shows a message and no event data when the user can no longer see the event (T2-T16).
+4. **Read state is on each recipient's own row,** so it's per user and lasts across sessions.
+
+## Test cards
+
+5. **T2-T7 to T2-T20 were written from T2 before the code:**
+   - the stored record;
+   - only the related user notified;
+   - nothing for a refused action;
+   - ordering and count;
+   - marking one or all read;
+   - per user and across sessions;
+   - opening, and access lost;
+   - other users' notifications never shown;
+   - E2's three notifications, which had no case.
+   
+   T2-T1 to T2-T6 were re-checked against T2's criteria and kept.
+6. **`tests/README.md` gains:**
+   - the notification migration;
+   - a note that the cases need Kafka;
+   - the FX-NOTIFICATION-ELSEWHERE fixture, for the access-lost case.
+   
+   The reset now removes the seeded accounts' notifications.
+
+## Verified
+
+- **All 20 T2 cards pass in Chrome** through the automated runner, against `84fc315`. Each one waits for the real notification to arrive through Kafka.
+- **notification: 61/61 against the database.** That's 57 unit tests, including the refusals made before any query, and 4 against the database. The unit floors were raised to just under the new figures.
+- **web: 30/30.**
+- **CI's steps all pass.**
+- **The cards found a bug in the test runner, not in the app.** The Unread marker is upper-cased by CSS, so an "is nothing unread?" check read the rendered text and could never fail. The checks are now case-insensitive.
+
+## Notes
+
+- **This branch is from `main`, parallel to the H1/H3/H2 stack.** Whichever merges second will conflict at the top of the CHANGELOG, in the reset SQL, and in the traceability file. Each conflict is just two blocks to keep.
+- **Still to do in Jira:** create Test issues T2-T1 to T2-T20.
+
+---
+
 # H3: Setup and turnaround time on each venue (CR-01), and the occupied-period rule
 
 **Timestamp:** 2026-10-04T16:20+08:00 (SGT)

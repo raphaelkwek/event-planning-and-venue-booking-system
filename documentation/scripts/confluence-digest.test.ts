@@ -130,6 +130,14 @@ test("formatTable renders a pasteable markdown table and escapes pipes", () => {
   assert.match(table, /Oldest one \\\| still counts\./);
 });
 
+test("formatTable escapes a backslash before a pipe, so the pipe can't split the cell", () => {
+  const [entry] = parseChangelog(fixture);
+  const table = formatTable([{ ...entry!, title: "a\\|b" }]);
+  // The cell holds a, backslash, pipe, b. Escaped: the backslash doubles, then
+  // the pipe gets its own backslash, giving a\\\|b, which renders as a\|b in one cell.
+  assert.ok(table.includes("| a\\\\\\|b |"), table);
+});
+
 const standupFixture = `# Changelog
 
 ---

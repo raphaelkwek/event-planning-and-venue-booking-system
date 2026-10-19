@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, type RequestHandler } from "express";
 import type { Sql } from "postgres";
 import { z } from "zod";
 import { signInWithPassword, revokeSession } from "../auth/supabaseAuthClient.js";
@@ -6,6 +6,7 @@ import { decideLoginOutcome } from "../domain/loginPolicy.js";
 import { findUserBySupabaseId, findRoleForUser, recordSuccessfulLogin } from "../repo/users.js";
 import { insertLoginAudit } from "../repo/loginAudit.js";
 import { logger } from "../../../shared/logger.js";
+import { loginRateLimiter } from "./limiter.js";
 
 const loginBodySchema = z.object({
   email: z.string().email(),
@@ -16,10 +17,10 @@ function errorEnvelope(code: string, message: string, correlationId: string | nu
   return { error: { code, message, correlationId } };
 }
 
-export function authRouter(sql: Sql) {
+export function authRouter(sql: Sql, limiter: RequestHandler = loginRateLimiter()) {
   const router = Router();
 
-  router.post("/api/v1/auth/login", async (req, res) => {
+  router.post("/api/v1/auth/login", limiter, async (req, res) => {
     const correlationId = req.header("x-correlation-id") ?? null;
     const parsed = loginBodySchema.safeParse(req.body);
 
@@ -78,7 +79,7 @@ export function authRouter(sql: Sql) {
     });
   });
 
-  router.post("/api/v1/auth/logout", async (req, res) => {
+  router.post("/api/v1/auth/logout", limiter, async (req, res) => {
     const correlationId = req.header("x-correlation-id") ?? null;
     const header = req.header("authorization");
 

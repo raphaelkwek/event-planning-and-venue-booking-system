@@ -20,8 +20,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | Command exited 0 and logged "event completed" with the noted id (completed 1, skipped 0, failed 0). Query 1 returned `COMPLETED`. Query 2 returned one row: `CONFIRMED` → `COMPLETED`, actor_user_id null, `SYSTEM`, `COMPLETE`, occurred_at 2026-10-07T14:07:02.355Z. |
+| Status | Pass |
+| Remarks | Commit: 3d313c1 · Evidence: tests/F1/evidence/F1-T8-2026-10-07.txt · Defect: — |
+| Executed By | Raphael, via automated testing |
+| Date of Execution | 2026-10-07 |

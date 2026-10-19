@@ -1,54 +1,69 @@
+import { randomUUID } from "node:crypto";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { testDb } from "../../support/testDb.js";
+import { deleteSeededEvents, seedEvent } from "../../support/seedEvent.js";
+import { EVENT_END } from "../../support/eventDates.js";
 import {
-  claimForReview,
+  decisionColumns,
   findEventInScope,
-  insertSubmittedEvent,
   listReviewQueue,
-  recordDecision,
-  type EventFields,
+  reviewColumns,
 } from "../../../src/modules/event/repo/events.js";
+import { transitionEvent } from "../../../src/modules/event/api/transitionEvent.js";
 import { QUEUE_STATUSES } from "../../../src/modules/event/domain/statusMachine.js";
 
 const sql = testDb();
 
-const OWNER = "a2222222-0000-0000-0000-000000000001";
-const OTHER_ORGANISER = "a2222222-0000-0000-0000-000000000002";
-const COORDINATOR = "a2222222-0000-0000-0000-000000000003";
-const OTHER_COORDINATOR = "a2222222-0000-0000-0000-000000000004";
+const OWNER = randomUUID();
+const OTHER_ORGANISER = randomUUID();
+const COORDINATOR = randomUUID();
+const OTHER_COORDINATOR = randomUUID();
 
 const OWNERS = [OWNER, OTHER_ORGANISER];
 
-const fields: EventFields = {
-  name: "Annual Research Symposium",
-  purpose: "Share faculty research",
-  description: "A one-day symposium.",
-  proposedStartAt: "2026-10-02T14:00:00.000Z",
-  proposedEndAt: "2026-10-02T18:00:00.000Z",
-  expectedAttendance: 150,
-  venueRequirements: { layout: "THEATRE" },
-  accessibilityNeeds: null,
-  equipmentRequired: false,
-  equipmentRequirements: null,
-  registrationRequired: false,
-  registrationOpensAt: null,
-  registrationClosesAt: null,
-};
-
 async function cleanUp() {
-  await sql`delete from event.event_history where event_id in (
-    select id from event.events where owner_id in ${sql(OWNERS)}
-  )`;
-  await sql`delete from event.assignments where event_id in (
-    select id from event.events where owner_id in ${sql(OWNERS)}
-  )`;
-  await sql`delete from event.outbox where envelope->'payload'->>'ownerId' in ${sql(OWNERS)}`;
-  await sql`delete from event.events where owner_id in ${sql(OWNERS)}`;
+  await deleteSeededEvents(sql, OWNERS);
 }
 
 /** Inserts a submitted event outside any wider workflow, for tests that need one. */
-async function givenSubmittedEvent(ownerId = OWNER, overrides: Partial<EventFields> = {}) {
-  return sql.begin((tx) => insertSubmittedEvent(tx, ownerId, { ...fields, ...overrides }));
+async function givenSubmittedEvent(ownerId = OWNER, name = "Annual Research Symposium") {
+  return {
+    id: await seedEvent(sql, {
+      ownerId,
+      status: "SUBMITTED",
+      endsAt: new Date(EVENT_END),
+      name,
+    }),
+  };
+}
+
+function openForReview(eventId: string, coordinatorId: string) {
+  return sql.begin((tx) =>
+    transitionEvent(
+      tx,
+      eventId,
+      "OPEN_FOR_REVIEW",
+      { userId: coordinatorId, role: "EVENT_COORDINATOR" },
+      { set: reviewColumns(tx, coordinatorId) }
+    )
+  );
+}
+
+function decide(
+  eventId: string,
+  action: "APPROVE" | "REJECT",
+  coordinatorId: string,
+  reason: string | null
+) {
+  return sql.begin((tx) =>
+    transitionEvent(
+      tx,
+      eventId,
+      action,
+      { userId: coordinatorId, role: "EVENT_COORDINATOR" },
+      { set: decisionColumns(tx, coordinatorId, reason) }
+    )
+  );
 }
 
 beforeEach(cleanUp);
@@ -56,31 +71,6 @@ beforeEach(cleanUp);
 afterAll(async () => {
   await cleanUp();
   await sql.end();
-});
-
-describe("events repo (B1)", () => {
-  it("stores a submitted request with the submitting organiser as owner", async () => {
-    const event = await givenSubmittedEvent();
-
-    expect(event.ownerId).toBe(OWNER);
-    expect(event.status).toBe("SUBMITTED");
-  });
-
-  it("records a submission timestamp and a unique event reference", async () => {
-    const first = await givenSubmittedEvent();
-    const second = await givenSubmittedEvent();
-
-    expect(Date.parse(first.submittedAt)).not.toBeNaN();
-    expect(first.reference).toMatch(/^EVT-\d{6}$/);
-    expect(second.reference).not.toBe(first.reference);
-  });
-
-  it("starts an event with no recorded decision", async () => {
-    const event = await givenSubmittedEvent();
-
-    expect(event.decidedAt).toBeNull();
-    expect(event.decidedBy).toBeNull();
-  });
 });
 
 describe("events repo — access scope (A3)", () => {
@@ -124,8 +114,8 @@ describe("events repo — access scope (A3)", () => {
 
 describe("events repo — review queue (D1)", () => {
   it("orders the queue by submission timestamp, oldest first", async () => {
-    const first = await givenSubmittedEvent(OWNER, { name: "First in" });
-    const second = await givenSubmittedEvent(OWNER, { name: "Second in" });
+    const first = await givenSubmittedEvent(OWNER, "First in");
+    const second = await givenSubmittedEvent(OWNER, "Second in");
 
     const queue = await listReviewQueue(sql, QUEUE_STATUSES);
     const mine = queue.filter((row) => [first.id, second.id].includes(row.id));
@@ -135,10 +125,8 @@ describe("events repo — review queue (D1)", () => {
 
   it("drops an event from the queue once it carries a decision", async () => {
     const event = await givenSubmittedEvent();
-    await sql.begin(async (tx) => {
-      await claimForReview(tx, event.id, COORDINATOR);
-      await recordDecision(tx, event.id, "APPROVED", COORDINATOR, null);
-    });
+    await openForReview(event.id, COORDINATOR);
+    await decide(event.id, "APPROVE", COORDINATOR, null);
 
     const queue = await listReviewQueue(sql, QUEUE_STATUSES);
 
@@ -148,19 +136,21 @@ describe("events repo — review queue (D1)", () => {
   it("moves a submitted event to under review, recording the reviewer and the time", async () => {
     const event = await givenSubmittedEvent();
 
-    const claimed = await sql.begin((tx) => claimForReview(tx, event.id, COORDINATOR));
+    const opened = await openForReview(event.id, COORDINATOR);
 
-    expect(claimed).toMatchObject({ status: "UNDER_REVIEW", reviewingCoordinatorId: COORDINATOR });
-    expect(Date.parse(claimed!.reviewStartedAt!)).not.toBeNaN();
+    expect(opened.ok).toBe(true);
+    if (!opened.ok) return;
+    expect(opened.event).toMatchObject({ status: "UNDER_REVIEW", reviewingCoordinatorId: COORDINATOR });
+    expect(Date.parse(opened.event.reviewStartedAt!)).not.toBeNaN();
   });
 
   it("does not overwrite the reviewer when a second coordinator opens the same request", async () => {
     const event = await givenSubmittedEvent();
-    await sql.begin((tx) => claimForReview(tx, event.id, COORDINATOR));
+    await openForReview(event.id, COORDINATOR);
 
-    const secondClaim = await sql.begin((tx) => claimForReview(tx, event.id, OTHER_COORDINATOR));
+    const second = await openForReview(event.id, OTHER_COORDINATOR);
 
-    expect(secondClaim).toBeNull();
+    expect(second.ok).toBe(false);
     const current = await findEventInScope(sql, event.id, { scopeType: "ALL" }, OTHER_COORDINATOR);
     expect(current!.reviewingCoordinatorId).toBe(COORDINATOR);
   });
@@ -169,23 +159,25 @@ describe("events repo — review queue (D1)", () => {
 describe("events repo — decisions (D4, D5)", () => {
   it("records an approval with the approving coordinator and the timestamp", async () => {
     const event = await givenSubmittedEvent();
-    await sql.begin((tx) => claimForReview(tx, event.id, COORDINATOR));
+    await openForReview(event.id, COORDINATOR);
 
-    const decided = await sql.begin((tx) => recordDecision(tx, event.id, "APPROVED", COORDINATOR, null));
+    const decided = await decide(event.id, "APPROVE", COORDINATOR, null);
 
-    expect(decided).toMatchObject({ status: "APPROVED", decidedBy: COORDINATOR });
-    expect(Date.parse(decided!.decidedAt!)).not.toBeNaN();
+    expect(decided.ok).toBe(true);
+    if (!decided.ok) return;
+    expect(decided.event).toMatchObject({ status: "APPROVED", decidedBy: COORDINATOR });
+    expect(Date.parse(decided.event.decidedAt!)).not.toBeNaN();
   });
 
   it("records a rejection with its reason", async () => {
     const event = await givenSubmittedEvent();
-    await sql.begin((tx) => claimForReview(tx, event.id, COORDINATOR));
+    await openForReview(event.id, COORDINATOR);
 
-    const decided = await sql.begin((tx) =>
-      recordDecision(tx, event.id, "REJECTED", COORDINATOR, "No venue can host this date.")
-    );
+    const decided = await decide(event.id, "REJECT", COORDINATOR, "No venue can host this date.");
 
-    expect(decided).toMatchObject({
+    expect(decided.ok).toBe(true);
+    if (!decided.ok) return;
+    expect(decided.event).toMatchObject({
       status: "REJECTED",
       rejectionReason: "No venue can host this date.",
     });
@@ -193,17 +185,13 @@ describe("events repo — decisions (D4, D5)", () => {
 
   it("writes no second decision timestamp for an event already decided", async () => {
     const event = await givenSubmittedEvent();
-    await sql.begin(async (tx) => {
-      await claimForReview(tx, event.id, COORDINATOR);
-      await recordDecision(tx, event.id, "APPROVED", COORDINATOR, null);
-    });
+    await openForReview(event.id, COORDINATOR);
+    await decide(event.id, "APPROVE", COORDINATOR, null);
     const afterFirst = await findEventInScope(sql, event.id, { scopeType: "ALL" }, COORDINATOR);
 
-    const secondDecision = await sql.begin((tx) =>
-      recordDecision(tx, event.id, "REJECTED", OTHER_COORDINATOR, "Changed my mind")
-    );
+    const second = await decide(event.id, "REJECT", OTHER_COORDINATOR, "Changed my mind");
 
-    expect(secondDecision).toBeNull();
+    expect(second.ok).toBe(false);
     const unchanged = await findEventInScope(sql, event.id, { scopeType: "ALL" }, COORDINATOR);
     expect(unchanged).toMatchObject({
       status: "APPROVED",

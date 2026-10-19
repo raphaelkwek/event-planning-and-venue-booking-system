@@ -43,6 +43,9 @@ export async function startConsumers(kafka: Kafka, sql: Sql, groupSuffix: string
     await notifier.connect();
     await retryWorker.connect();
     await notifier.subscribe({ topic: KAFKA_TOPICS.event, fromBeginning: false });
+    await notifier.subscribe({ topic: KAFKA_TOPICS.equipmentRequest, fromBeginning: false });
+    // L1: a new booking request notifies the venue's Venue Staff.
+    await notifier.subscribe({ topic: KAFKA_TOPICS.venueBooking, fromBeginning: false });
     await retryWorker.subscribe({ topic: KAFKA_TOPICS.notificationRetry, fromBeginning: false });
   } catch (error) {
     // Close whatever did connect, so the next attempt starts clean.
