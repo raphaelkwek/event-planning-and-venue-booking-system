@@ -299,3 +299,75 @@ describe("completing an event (F1)", () => {
     expect(await statusOf(id)).toBe("APPROVED");
   });
 });
+
+describe("the status-changed message (EN-11)", () => {
+  async function messagesOf(id: string) {
+    return sql<{ topic: string; envelope: Record<string, any> }[]>`
+      select topic, envelope from event.outbox
+      where message_key = ${id} and envelope->>'type' = 'event.status-changed'
+      order by seq
+    `;
+  }
+
+  it("writes one for a transition, in its transaction, naming the action, both statuses and the event's dates", async () => {
+    const id = await seedEvent(sql, { ownerId: OWNER, status: "SAFETY_REVIEW", endsAt: FAR_FUTURE });
+
+    await sql.begin((tx) => transitionEvent(tx, id, "APPROVE_SAFETY", coordinator, { correlationId: "corr-en11" }));
+
+    const [row, ...rest] = await messagesOf(id);
+    expect(rest).toHaveLength(0);
+    expect(row!.topic).toBe("connectsphere.event.v1");
+    expect(row!.envelope).toMatchObject({
+      subject: id,
+      source: "/connectsphere/planning-core/event",
+      actor: `EVENT_COORDINATOR:${COORDINATOR}`,
+      correlationid: "corr-en11",
+    });
+    expect(row!.envelope.data).toEqual({
+      eventId: id,
+      ownerId: OWNER,
+      previousStatus: "SAFETY_REVIEW",
+      newStatus: "CONFIRMED",
+      action: "APPROVE_SAFETY",
+      proposedStartAt: new Date(FAR_FUTURE.getTime() - 4 * 60 * 60 * 1000).toISOString(),
+      proposedEndAt: FAR_FUTURE.toISOString(),
+      changedAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T.*Z$/),
+    });
+  });
+
+  it("writes it as the system, without a correlation id, when an event is completed", async () => {
+    const id = await seedEvent(sql, { ownerId: OWNER, status: "CONFIRMED", endsAt: new Date("2020-01-01T12:00:00.000Z") });
+
+    await sql.begin((tx) => transitionEvent(tx, id, "COMPLETE", SYSTEM_ACTOR));
+
+    const [row] = await messagesOf(id);
+    expect(row!.envelope.actor).toBe("SYSTEM");
+    expect(row!.envelope.correlationid).toBeUndefined();
+    expect(row!.envelope.data).toMatchObject({ previousStatus: "CONFIRMED", newStatus: "COMPLETED", action: "COMPLETE" });
+  });
+
+  it("writes none when the transition is refused", async () => {
+    const id = await seedEvent(sql, { ownerId: OWNER, status: "CONFIRMED", endsAt: FAR_FUTURE });
+
+    const result = await sql.begin((tx) =>
+      transitionEvent(tx, id, "COMPLETE", SYSTEM_ACTOR, { now: new Date("2029-01-01T00:00:00.000Z") })
+    );
+
+    expect(result.ok).toBe(false);
+    expect(await messagesOf(id)).toHaveLength(0);
+  });
+
+  it("writes none when the rest of the action's transaction rolls back", async () => {
+    const id = await seedEvent(sql, { ownerId: OWNER, status: "UNDER_REVIEW", endsAt: FAR_FUTURE });
+
+    await expect(
+      sql.begin(async (tx) => {
+        await transitionEvent(tx, id, "APPROVE", coordinator);
+        throw new Error("a later step of the action failed");
+      })
+    ).rejects.toThrow("a later step");
+
+    expect(await messagesOf(id)).toHaveLength(0);
+    expect(await statusOf(id)).toBe("UNDER_REVIEW");
+  });
+});

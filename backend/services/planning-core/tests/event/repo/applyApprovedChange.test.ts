@@ -90,4 +90,67 @@ describe("applyApprovedChange", () => {
       { field_name: "venueRequirements", previous_value: '{"minCapacity":100}', new_value: null },
     ]);
   });
+
+  describe("the schedule-changed message (EN-11)", () => {
+    const actor = { userId: COORDINATOR, role: "EVENT_COORDINATOR" };
+
+    async function scheduleMessages(id: string) {
+      return sql<{ envelope: Record<string, any> }[]>`
+        select envelope from event.outbox where message_key = ${id} and envelope->>'type' = 'event.schedule-changed'`;
+    }
+
+    it("writes one when the change moves the end, with the previous and new dates and the event's status", async () => {
+      const end = new Date("2027-03-02T18:00:00.000Z");
+      const id = await seedEvent(sql, { ownerId: OWNER, status: "CONFIRMED", endsAt: end });
+      const current = { proposedEndAt: end.toISOString() } as unknown as ChangeableEvent;
+
+      await sql.begin((tx) => applyApprovedChange(tx, { id, current }, { proposedEndAt: "2027-03-02T20:00:00.000Z" }, actor));
+
+      const [row, ...rest] = await scheduleMessages(id);
+      expect(rest).toHaveLength(0);
+      expect(row!.envelope.actor).toBe(`EVENT_COORDINATOR:${COORDINATOR}`);
+      expect(row!.envelope.data).toEqual({
+        eventId: id,
+        ownerId: OWNER,
+        status: "CONFIRMED",
+        previousStartAt: "2027-03-02T14:00:00.000Z",
+        previousEndAt: "2027-03-02T18:00:00.000Z",
+        proposedStartAt: "2027-03-02T14:00:00.000Z",
+        proposedEndAt: "2027-03-02T20:00:00.000Z",
+        changedAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T.*Z$/),
+      });
+    });
+
+    it("writes one when only the start moves", async () => {
+      const id = await seedEvent(sql, { ownerId: OWNER, status: "PLANNING", endsAt: new Date("2027-03-02T18:00:00.000Z") });
+      const current = { proposedStartAt: "2027-03-02T14:00:00.000Z" } as unknown as ChangeableEvent;
+
+      await sql.begin((tx) => applyApprovedChange(tx, { id, current }, { proposedStartAt: "2027-03-02T15:00:00.000Z" }, actor));
+
+      const [row] = await scheduleMessages(id);
+      expect(row!.envelope.data).toMatchObject({ status: "PLANNING", proposedStartAt: "2027-03-02T15:00:00.000Z" });
+    });
+
+    it("writes none when the dates it sets are the ones the event already has", async () => {
+      const end = new Date("2027-03-02T18:00:00.000Z");
+      const id = await seedEvent(sql, { ownerId: OWNER, status: "CONFIRMED", endsAt: end });
+      const current = { proposedEndAt: end.toISOString(), expectedAttendance: 150 } as unknown as ChangeableEvent;
+
+      // The same instant written with another offset.
+      await sql.begin((tx) =>
+        applyApprovedChange(tx, { id, current }, { expectedAttendance: 200, proposedEndAt: "2027-03-03T02:00:00+08:00" }, actor)
+      );
+
+      expect(await scheduleMessages(id)).toHaveLength(0);
+    });
+
+    it("writes none when the change touches no date", async () => {
+      const id = await seedEvent(sql, { ownerId: OWNER, status: "CONFIRMED", endsAt: new Date("2027-03-02T18:00:00.000Z") });
+      const current = { expectedAttendance: 150 } as unknown as ChangeableEvent;
+
+      await sql.begin((tx) => applyApprovedChange(tx, { id, current }, { expectedAttendance: 200 }, actor));
+
+      expect(await scheduleMessages(id)).toHaveLength(0);
+    });
+  });
 });
