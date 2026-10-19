@@ -90,6 +90,8 @@ vi.mock("../src/api/users.js", () => ({
   ]),
 }));
 
+vi.mock("../src/api/changeRequests.js", () => ({ listChangeRequests: vi.fn(async () => ({ items: [] })) }));
+
 const { App } = await import("../src/App.js");
 
 function signedInAs(role: "EVENT_COORDINATOR" | "EVENT_ORGANISER", userId: string, hash: string) {

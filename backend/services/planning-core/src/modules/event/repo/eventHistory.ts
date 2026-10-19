@@ -44,7 +44,8 @@ export async function recordFieldChanges(
   eventId: string,
   changes: FieldChange[],
   actor: { userId: string; role: string },
-  triggeringAction: string
+  triggeringAction: string,
+  occurredAt?: Date
 ): Promise<void> {
   if (changes.length === 0) return;
 
@@ -59,6 +60,7 @@ export async function recordFieldChanges(
         actor_user_id: actor.userId,
         actor_role: actor.role,
         triggering_action: triggeringAction,
+        ...(occurredAt ? { occurred_at: occurredAt } : {}),
         created_by: actor.userId,
         updated_by: actor.userId,
       }))

@@ -1,5 +1,5 @@
 import { Router } from "express";
-import type { Sql } from "postgres";
+import type { Sql, TransactionSql } from "postgres";
 import type { AccessScope, EventStatus } from "@connectsphere/contracts";
 import { draftsRouter } from "./api/drafts.js";
 import { eventsRouter } from "./api/events.js";
@@ -9,6 +9,9 @@ import { reassignmentsRouter } from "./api/reassignments.js";
 import { eventDetailsRouter } from "./api/eventDetails.js";
 import { statusHistoryRouter } from "./api/statusHistory.js";
 import { findEventInScope, findReferences } from "./repo/events.js";
+import type { ChangeableEvent } from "./domain/proposedChange.js";
+
+export { checkProposedChange, type ChangeableEvent, type ProposedChanges } from "./domain/proposedChange.js";
 
 /** The module's outbox table, for the outbox relay (implementation.md §3.4). */
 export { EVENT_OUTBOX_TABLE } from "./events/outbox.js";
@@ -84,6 +87,56 @@ export async function findEventForPlanning(
   };
 }
 
+/** S1 — what the change module needs to check and snapshot a change request. */
+export interface EventForChange {
+  id: string;
+  reference: string | null;
+  name: string;
+  status: EventStatus;
+  ownerId: string;
+  assignedCoordinatorId: string | null;
+  current: ChangeableEvent;
+}
+
+/**
+ * The event under the A3 scope rule, with its current values; null when absent or out of scope (404).
+ * With `lock`, called inside a transaction, the event row is locked ("share" or "update") until it
+ * ends, so the values checked and snapshotted are the ones the request is stored against.
+ */
+export async function findEventForChange(
+  sql: Sql | TransactionSql,
+  eventId: string,
+  scope: AccessScope,
+  callerId: string,
+  options: { lock?: "share" | "update" } = {}
+): Promise<EventForChange | null> {
+  const event = await findEventInScope(sql, eventId, scope, callerId, options);
+  if (!event) return null;
+
+  return {
+    id: event.id,
+    reference: event.reference,
+    name: event.name,
+    status: event.status,
+    ownerId: event.ownerId,
+    assignedCoordinatorId: event.assignedCoordinatorId,
+    current: {
+      name: event.name,
+      purpose: event.purpose,
+      description: event.description,
+      proposedStartAt: event.proposedStartAt,
+      proposedEndAt: event.proposedEndAt,
+      expectedAttendance: event.expectedAttendance,
+      registrationRequired: event.registrationRequired,
+      registrationOpensAt: event.registrationOpensAt,
+      registrationClosesAt: event.registrationClosesAt,
+      equipmentRequired: event.equipmentRequired,
+      venueRequirements: event.venueRequirements,
+      equipmentRequirements: event.equipmentRequirements,
+    },
+  };
+}
+
 /**
  * I1 — the reference of each event among `eventIds` that exists, so the venue
  * calendar can label a booking with its event reference. Only the reference:
@@ -93,3 +146,6 @@ export async function findEventForPlanning(
 export function findEventReferences(sql: Sql, eventIds: readonly string[]): Promise<Map<string, string | null>> {
   return findReferences(sql, eventIds);
 }
+
+/** S2 — writes an approved change's values and field history inside the caller's transaction. */
+export { applyApprovedChange } from "./repo/events.js";

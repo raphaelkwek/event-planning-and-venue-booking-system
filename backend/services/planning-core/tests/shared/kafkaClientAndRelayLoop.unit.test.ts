@@ -151,3 +151,32 @@ describe("the relay's run loop", () => {
     await relay.stop();
   });
 });
+
+describe("a table that does not exist yet", () => {
+  it("is skipped with one warning, and the other tables are still relayed on every pass", async () => {
+    const warn = vi.spyOn(logger, "warn").mockImplementation(() => undefined);
+    const relayed: PassResult = { published: 2, failed: 0, parked: 0, busy: 0 };
+    let call = 0;
+    const sql = {
+      begin: async () => {
+        call += 1;
+        // Each pass visits "change.outbox" first, then "event.outbox".
+        if (call % 2 === 1) throw Object.assign(new Error('relation "change.outbox" does not exist'), { code: "42P01" });
+        return relayed;
+      },
+    } as unknown as Sql;
+    const relay = new OutboxRelay({ sql, tables: ["change.outbox", "event.outbox"], publisher: { publish: async () => undefined } });
+
+    expect(await relay.runOnce()).toEqual({ published: 2, failed: 0, parked: 0, busy: 0 });
+    expect(await relay.runOnce()).toEqual({ published: 2, failed: 0, parked: 0, busy: 0 });
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("does not exist"), { table: "change.outbox" });
+    warn.mockRestore();
+  });
+
+  it("still fails the pass on any other error", async () => {
+    const sql = { begin: async () => Promise.reject(new Error("connection terminated")) } as unknown as Sql;
+    const relay = new OutboxRelay({ sql, tables: ["event.outbox"], publisher: { publish: async () => undefined } });
+    await expect(relay.runOnce()).rejects.toThrow("connection terminated");
+  });
+});

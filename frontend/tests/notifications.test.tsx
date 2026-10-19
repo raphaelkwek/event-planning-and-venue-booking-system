@@ -48,6 +48,8 @@ vi.mock("../src/api/events.js", async () => {
 
 vi.mock("../src/api/users.js", () => ({ lookupUsers: vi.fn(async () => []) }));
 
+vi.mock("../src/api/changeRequests.js", () => ({ listChangeRequests: vi.fn(async () => ({ items: [] })) }));
+
 const { App } = await import("../src/App.js");
 
 function signInAs(role: string) {

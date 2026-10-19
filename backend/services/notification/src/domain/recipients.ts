@@ -1,4 +1,9 @@
-import { EQUIPMENT_LINE_STATUS_LABELS, type EquipmentRequestLineStatus } from "@connectsphere/contracts";
+import {
+  EQUIPMENT_LINE_STATUS_LABELS,
+  SIGNIFICANT_FIELD_LABELS,
+  type EquipmentRequestLineStatus,
+  type SignificantEventField,
+} from "@connectsphere/contracts";
 
 /**
  * T2's recipient rules (EN-04.3): who is told what, from the facts the message
@@ -81,6 +86,11 @@ function rejectionMessage(d: Record<string, unknown>, event: string): string {
   return text;
 }
 
+/** S1: names each changed field the way the organiser's form does. */
+function joinLabels(fields: unknown): string {
+  return (fields as SignificantEventField[]).map((field) => SIGNIFICANT_FIELD_LABELS[field] ?? field).join(", ");
+}
+
 const RULES: Record<string, Rule> = {
   // B1 asks for the coordinator assigned on submission to hear that a request
   // awaits review. event.submitted does not name that coordinator; this
@@ -122,6 +132,17 @@ const RULES: Record<string, Rule> = {
     ),
   // M2: they learn it was rejected, why, and any alternative suggested.
   "venue-booking.request-rejected": (d, event) => requesterAndOwner(d, rejectionMessage(d, event)),
+  // S1: the assigned coordinator hears that the organiser asked to change the event.
+  "change-request.submitted": (d, event) => [
+    [d.coordinatorId!, `A change has been requested for ${event}: ${joinLabels(d.fields)}.`],
+  ],
+  // S2: the organiser hears what the coordinator decided about their request.
+  "change-request.approved": (d, event) => [
+    [d.ownerId!, `Your change request for ${event} was approved: ${joinLabels(d.fields)}.`],
+  ],
+  "change-request.rejected": (d, event) => [
+    [d.ownerId!, `Your change request for ${event} was rejected. Reason: ${d.reason}`],
+  ],
 };
 
 /** The notifications a message raises; none for a type no story asks to notify about. */
