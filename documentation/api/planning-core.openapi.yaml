@@ -1964,6 +1964,7 @@ components:
         - BOOKING_REQUEST_NOT_FOUND
         - BOOKING_REQUEST_NOT_PENDING
         - REPLACEMENT_NOT_VALID
+        - JUSTIFICATION_REQUIRED
 
     ErrorEnvelope:
       type: object

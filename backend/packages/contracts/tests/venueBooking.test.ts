@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BOOKING_REQUEST_STATUSES, BOOKING_REQUEST_STATUS_LABELS } from "../src/venueBooking.js";
+import { BOOKING_REQUEST_STATUSES, BOOKING_REQUEST_STATUS_LABELS, SUITABILITY_STATUSES } from "../src/venueBooking.js";
 import { parseCloudEvent } from "../src/cloudEvent.js";
 import { ERROR_CODES } from "../src/errorCodes.js";
 
@@ -14,6 +14,12 @@ describe("BOOKING_REQUEST_STATUSES", () => {
       REJECTED: "Rejected",
       WITHDRAWN: "Withdrawn",
     });
+  });
+});
+
+describe("SUITABILITY_STATUSES (K1, K2)", () => {
+  it("are Suitable, Suitable with warnings and Not suitable", () => {
+    expect(SUITABILITY_STATUSES).toEqual(["SUITABLE", "SUITABLE_WITH_WARNINGS", "NOT_SUITABLE"]);
   });
 });
 
@@ -75,5 +81,9 @@ describe("ERROR_CODES", () => {
     ]) {
       expect(ERROR_CODES, code).toContain(code);
     }
+  });
+
+  it("has K2's refusal of an unsuitable venue without a justification", () => {
+    expect(ERROR_CODES).toContain("JUSTIFICATION_REQUIRED");
   });
 });
