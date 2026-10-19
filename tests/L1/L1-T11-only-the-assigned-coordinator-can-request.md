@@ -19,6 +19,6 @@
 |---|---|
 | Actual Result | coordinator2@connectsphere.test's review page offered no "Venue requests". The API refused them with 403 ROLE_NOT_AUTHORISED: "Only the event's assigned coordinator can request a venue for it." and the organiser with 403 ROLE_NOT_AUTHORISED. The event had no booking requests. |
 | Status | Pass |
-| Remarks | Commit: ff9e786 · Evidence: tests/L1/evidence/L1-T11.png · Defect: — |
+| Remarks | Commit: ba2d786 · Evidence: tests/L1/evidence/L1-T11.png · Defect: — |
 | Executed By | Yichen, via automated testing |
-| Date of Execution | 2026-10-18 |
+| Date of Execution | 2026-10-19 |

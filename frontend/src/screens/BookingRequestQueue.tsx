@@ -159,6 +159,11 @@ export function BookingRequestQueue() {
                   <div style={{ fontSize: 12, color: "#626F86" }}>{formatInstant(item.requestedAt)}</div>
                 </td>
                 <td style={cell}>
+                  {item.requiresReconfirmation && (
+                    <div style={{ marginBottom: 4 }}>
+                      <Lozenge appearance="removed">Requires reconfirmation</Lozenge>
+                    </div>
+                  )}
                   {item.differsFromEvent && (
                     <>
                       <Lozenge appearance="inprogress">Differs from the event</Lozenge>

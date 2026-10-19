@@ -14,7 +14,10 @@ import {
   notPendingMessage,
   readBookingRequest,
 } from "../domain/bookingRequest.js";
+import { requestBlockedMessage } from "../domain/unavailability.js";
 import { writeVenueOutbox } from "../events/outbox.js";
+import { activeBlocksOverlapping } from "../repo/bookingDecisions.js";
+import { lockVenue } from "../repo/slots.js";
 import {
   DuplicateBookingRequestError,
   findBookingRequest,
@@ -119,6 +122,11 @@ export function bookingRequestsRouter(sql: Sql) {
         if (input.replacesBookingId && !(await isReplaceableBooking(tx, input.replacesBookingId, event.id))) {
           return { code: "REPLACEMENT_NOT_VALID" } as const;
         }
+        // I2: no new request over recorded unavailability. Under the venue row lock,
+        // so a block recorded at the same moment either refuses this or flags it.
+        await lockVenue(tx, venue.id);
+        const blocks = await activeBlocksOverlapping(tx, venue.id, new Date(input.startsAt), new Date(input.endsAt), 0, 0);
+        if (blocks.length > 0) return { code: "UNAVAILABLE", blocks } as const;
         const created = await insertBookingRequest(tx, {
           ...input,
           layout,
@@ -155,6 +163,7 @@ export function bookingRequestsRouter(sql: Sql) {
       });
 
       if (outcome.code === "REPLACEMENT_NOT_VALID") return refuse(res, 422, "REPLACEMENT_NOT_VALID", REPLACEMENT_NOT_VALID);
+      if (outcome.code === "UNAVAILABLE") return refuse(res, 409, "VENUE_UNAVAILABLE", requestBlockedMessage(venue.name, outcome.blocks));
       res.status(201).json(present(outcome.created, event.reference));
     } catch (error) {
       if (error instanceof DuplicateBookingRequestError) {

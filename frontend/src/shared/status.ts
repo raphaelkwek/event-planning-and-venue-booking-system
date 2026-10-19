@@ -66,8 +66,8 @@ export const UNAVAILABILITY_LABELS: Record<string, string> = {
   MAINTENANCE: "Maintenance",
   EQUIPMENT_FAILURE: "Equipment failure",
   RENOVATION: "Renovation",
-  SAFETY: "Safety",
-  OTHER: "Other",
+  SAFETY: "Safety concern",
+  OTHER: "Other operational reason",
 };
 
 export const CALENDAR_APPEARANCE: Record<CalendarState, LozengeAppearance> = {

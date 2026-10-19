@@ -104,9 +104,12 @@ export function bookingDecisionsRouter(sql: Sql) {
 
       const outcome = await sql
         .begin(async (tx) => {
+          // The venue first, then the request: the order I2 takes them in when a block
+          // flags a pending request (implementation.md §4.6, rule 1). The other order
+          // deadlocks against a block recorded at the same moment.
+          await lockVenue(tx, request.venueId);
           const locked = (await lockBookingRequest(tx, request.id))!;
           if (locked.status !== "PENDING") return { code: "NOT_PENDING", locked } as const;
-          await lockVenue(tx, locked.venueId);
           const blocks = await activeBlocksOverlapping(tx, locked.venueId, startsAt, endsAt, SETUP_MINUTES, TURNAROUND_MINUTES);
           if (blocks.length > 0) return { code: "UNAVAILABLE", blocks } as const;
 

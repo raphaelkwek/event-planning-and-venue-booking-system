@@ -4,6 +4,57 @@
 
 ---
 
+# I2: Venue Staff record periods when a venue can't be used
+
+**Timestamp:** 2026-10-19T16:33+08:00 (SGT)
+**Author:** Seann, via Claude
+**Scope:**
+- `contracts`: the `venue-booking.booking-disrupted` and `venue-booking.disruption-cleared` messages, `BLOCK_NOT_FOUND` and `BLOCK_ALREADY_REMOVED`, and the reason labels in CR-02's words ("Safety concern", "Other operational reason"). **Needs a second owner's review.**
+- planning-core, venue module:
+  - migrations `venue/0009_unavailability_disruptions.sql` and `venue/0010_validate_unavailability_removal.sql`;
+  - `domain/unavailability.ts`, `repo/unavailability.ts` and `api/unavailability.ts` (new);
+  - L1's submit refuses a request over an active block;
+  - M1's approval takes the venue lock before the request's (a deadlock fix).
+- notification: rules for the two messages.
+- `planning-core.openapi.yaml`: four routes, four schemas, the two codes, and the request's `requiresReconfirmation`.
+- The web app: `VenueUnavailability` (new), reached from the venue's page; "Requires reconfirmation" on a disrupted request.
+- Tests: contracts, planning-core (unit, repo and integration), notification and web. Test cards `tests/I2/` (13). FX-CALENDAR (I1), J1's fixture and M1-T5 updated for 0009; the test-data reset removes I2's records. Traceability in `sprint-3.csv`.
+
+**Reason:** I2 (Sprint 3), revised by CR-01 and CR-02. Coordinators learn when a booked venue becomes unavailable, so they can re-plan; L5 is how they request a replacement.
+
+## What it does
+
+1. **Venue Staff record a block** from the venue's "Unavailability": start, end, one of CR-02's five reason types and a description, all required, the end after the start. Only the venue's own Venue Staff can.
+2. **"Review" lists what the block would disrupt** before anything is recorded: each confirmed booking, hold and pending request, with its reference, the event's reference and the overlapping period. Bookings are compared by occupied period, setup and turnaround included (CR-01); periods that only touch don't overlap.
+3. **Recording never cancels or releases anything** (C-12).
+   - Each disrupted booking, hold and request is flagged Requires Reconfirmation and keeps its period; the event is untouched.
+   - `venue.block_disruptions` records which block flagged what, who and when.
+   - The venue row is locked first, as M1's approval does, so a block and an approval never interleave (implementation.md §4.6, rule 1).
+4. **The coordinator is told alternative arrangements are required** (CR-02): the event's assigned coordinator for a booking or hold, the requesting coordinator for a request. The notification names the venue, the booking, the event, the period and the reason.
+5. **The period closes:** it shows on the calendar, drops out of search, and L1 refuses a new request over it (`VENUE_UNAVAILABLE`, naming the block).
+6. **Removing a block** records who and when and keeps it. Each flag it set clears unless another active block still disrupts the same booking, and the coordinator is told which.
+
+## Notes for the team
+
+7. **M1's approval could deadlock against a block.** Approval locked the request, then the venue; recording a block locks the venue, then flags that same pending request. Approval now takes the venue lock first. A test runs both at once ten times.
+8. **Migration 0009 needs a removed block to say who removed it and when.** Any statement that inserts a block as `REMOVED` must now set `removed_by` and `removed_at`. FX-CALENDAR (`tests/I1/README.md`) and J1's fixture (`tests/J1/README.md`) are updated; **J1's owner should know its statement changed**.
+9. **M1-T5** now raises its request before its block, since a request can't be raised over one.
+10. **Holds** belong to L3, which isn't built; integration tests flag a held slot instead. **CQ-09** (does setup and turnaround widen a block?) is still open; a block's own period is used.
+11. **H3 (unmerged)** also sets Requires Reconfirmation. Removing a block would clear a flag H3 had set on the same booking; H3 should record its own reason when it lands.
+12. **The shared database has `venue/0009` and `0010`,** and S1/S2's `change/0001`–`0003`, applied with `npm run migrate`.
+
+## Verified
+
+- **The 13 I2 cards pass in Chrome** through the automated runner, against `a9a9cc4`.
+- **The I1, L1, L2, M1, M2 and N1 cards pass again** (60), against `ba2d786`.
+- **planning-core:**
+  - unit tests: 53 files and 772 tests pass, with the new rules at 100% line, branch and mutation coverage;
+  - integration tests: all 1,445 pass. Coverage is 96.7% of lines, 92.2% of branches and 95.9% of functions.
+- **contracts:** 110/110. **notification:** 77 unit tests pass at 100% coverage. **web:** 257/257.
+- **Lint, typecheck, `lint:api`, `lint:boundaries` and squawk pass.**
+
+---
+
 # N1: A venue is never double-booked
 
 **Timestamp:** 2026-10-18T01:46+08:00 (SGT)

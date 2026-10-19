@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | The approval went through. The calendar showed two Confirmed bookings: 10:00–14:00 Confirmed EVT-008067; 14:00–18:00 Confirmed EVT-008066. |
+| Actual Result | The approval went through. The calendar showed two Confirmed bookings: 10:00–14:00 Confirmed EVT-009158; 14:00–18:00 Confirmed EVT-009157. |
 | Status | Pass |
-| Remarks | Commit: 7c418d5 · Evidence: tests/N1/evidence/N1-T4.png · Defect: — |
+| Remarks | Commit: ba2d786 · Evidence: tests/N1/evidence/N1-T4.png · Defect: — |
 | Executed By | Yichen, via automated testing |
-| Date of Execution | 2026-10-18 |
+| Date of Execution | 2026-10-19 |

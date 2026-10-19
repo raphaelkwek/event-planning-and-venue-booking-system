@@ -19,6 +19,6 @@
 |---|---|
 | Actual Result | empty: "Enter the reason for rejecting the request." shown, request PENDING with no decided_at; three spaces: "Enter the reason for rejecting the request." shown, request PENDING with no decided_at. With "X" it was rejected: REJECTED, reason "X". |
 | Status | Pass |
-| Remarks | Commit: 9adf0ff · Evidence: tests/M2/evidence/M2-T1.png · Defect: — |
+| Remarks | Commit: ba2d786 · Evidence: tests/M2/evidence/M2-T1.png · Defect: — |
 | Executed By | Yichen, via automated testing |
-| Date of Execution | 2026-10-18 |
+| Date of Execution | 2026-10-19 |

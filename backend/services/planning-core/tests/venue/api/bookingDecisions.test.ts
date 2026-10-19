@@ -251,13 +251,15 @@ describe("POST /api/v1/booking-requests/:id/approve (M1)", () => {
 
   it("refuses when the period overlaps recorded unavailability, naming its type, reason and period (M1-T5)", async () => {
     const venueId = await newVenue("M1 Auditorium");
-    await sql`
-      insert into venue.unavailability_blocks (venue_id, starts_at, ends_at, reason_type, description, status, created_by, updated_by)
-      values (${venueId}, ${at("16:00")}, ${at("19:00")}, 'MAINTENANCE', 'Stage rigging inspection', 'ACTIVE', ${STAFF}, ${STAFF}),
-             (${venueId}, ${at("15:00")}, ${at("16:00")}, 'SAFETY', 'Removed drill', 'REMOVED', ${STAFF}, ${STAFF})
-    `;
     const event = await newEvent();
+    // The request first: since I2, no request can be raised over an active block.
     const made = await requested(venueId, event);
+    await sql`
+      insert into venue.unavailability_blocks
+        (venue_id, starts_at, ends_at, reason_type, description, status, created_by, updated_by, removed_by, removed_at)
+      values (${venueId}, ${at("16:00")}, ${at("19:00")}, 'MAINTENANCE', 'Stage rigging inspection', 'ACTIVE', ${STAFF}, ${STAFF}, null, null),
+             (${venueId}, ${at("15:00")}, ${at("16:00")}, 'SAFETY', 'Removed drill', 'REMOVED', ${STAFF}, ${STAFF}, ${STAFF}, now())
+    `;
     signedInAs("VENUE_STAFF", STAFF);
 
     const res = await approve(made.id);

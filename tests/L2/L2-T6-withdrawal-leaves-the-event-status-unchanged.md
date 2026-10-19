@@ -19,6 +19,6 @@
 |---|---|
 | Actual Result | After both withdrawals the events showed Approved and Planning, and neither had a new status history entry. |
 | Status | Pass |
-| Remarks | Commit: ff9e786 · Evidence: tests/L2/evidence/L2-T6.png · Defect: — |
+| Remarks | Commit: ba2d786 · Evidence: tests/L2/evidence/L2-T6.png · Defect: — |
 | Executed By | Yichen, via automated testing |
-| Date of Execution | 2026-10-18 |
+| Date of Execution | 2026-10-19 |

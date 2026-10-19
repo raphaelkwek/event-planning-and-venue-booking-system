@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | venuestaff@connectsphere.test approving BKR-000395: 403 ROLE_NOT_AUTHORISED ("Only the venue's Venue Staff can decide its requests."); coordinator@connectsphere.test approving BKR-000396: 403 ROLE_NOT_AUTHORISED ("Your role is not authorised to use this function."). Both requests are still PENDING. |
+| Actual Result | venuestaff@connectsphere.test approving BKR-001157: 403 ROLE_NOT_AUTHORISED ("Only the venue's Venue Staff can decide its requests."); coordinator@connectsphere.test approving BKR-001158: 403 ROLE_NOT_AUTHORISED ("Your role is not authorised to use this function."). Both requests are still PENDING. |
 | Status | Pass |
-| Remarks | Commit: 9adf0ff · Evidence: tests/M1/evidence/M1-T11.png · Defect: — |
+| Remarks | Commit: ba2d786 · Evidence: tests/M1/evidence/M1-T11.png · Defect: — |
 | Executed By | Yichen, via automated testing |
-| Date of Execution | 2026-10-18 |
+| Date of Execution | 2026-10-19 |
