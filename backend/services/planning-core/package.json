@@ -8,6 +8,8 @@
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "start": "node dist/index.js",
+    "worker": "tsx watch --env-file=../../../.env src/temporal/worker.ts",
+    "start:worker": "node dist/temporal/worker.js",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:unit": "vitest run --config vitest.unit.config.ts --coverage",
