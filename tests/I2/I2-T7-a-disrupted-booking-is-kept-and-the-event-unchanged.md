@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | The calendar's committed rows for Wednesday 2 December 2026: 00:00–08:00 Outside operating hours; 14:00–18:00 Confirmed EVT-009049; 16:00–19:00 Maintenance Stage rigging inspection; 22:00–24:00 Outside operating hours; free: 08:00–14:00, 19:00–22:00. The event shows Approved; its status, version (4) and status history (3 entries) are as before. The booking is still CONFIRMED. |
+| Status | Pass |
+| Remarks | Commit: a9a9cc4 · Evidence: tests/I2/evidence/I2-T7.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-19 |

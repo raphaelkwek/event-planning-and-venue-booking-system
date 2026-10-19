@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | The dialog read "Record this unavailability?Lee Kong Chian Auditorium: Wednesday 2 December 2026, 16:00–19:00, Maintenance: Stage rigging inspectionIt will disrupt these. Each stays booked but will require reconfirmation, and its coordinator will be told that alternative arrangements are required.Booking request BKR-001118 for EVT-009051, Wednesday 2 December 2026, 16:00–18:00CancelRecord unavailability". The coordinator's row read "BKR-001118Lee Kong Chian AuditoriumWednesday 2 December 2026, 14:00–18:00Theatre150Pending Requires reconfirmationWithdraw", and an unread notification read: "Lee Kong Chian Auditorium is unavailable on Wednesday 2 December 2026, 16:00–19:00 (Maintenance: Stage rigging inspection), which disrupts booking request BKR-001118 for EVT-009051 “Annual Research Symposium”. The request requires reconfirmation, and alternative arrangements are required.10/19/2026, 4:18:22 PMUnreadOpenMark as read". |
+| Status | Pass |
+| Remarks | Commit: a9a9cc4 · Evidence: tests/I2/evidence/I2-T9.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-19 |

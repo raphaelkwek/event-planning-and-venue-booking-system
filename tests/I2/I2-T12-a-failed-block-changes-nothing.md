@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | The screen showed "The end must be after the start." and the API refused the same block with 400 VALIDATION_FAILED. The calendar still shows 00:00–08:00 Outside operating hours; 14:00–18:00 Confirmed EVT-009054; 22:00–24:00 Outside operating hours; the booking isn't flagged, the venue has no block, and the coordinator has no disruption notification. |
+| Status | Pass |
+| Remarks | Commit: a9a9cc4 · Evidence: tests/I2/evidence/I2-T12.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-19 |

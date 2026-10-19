@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | With every field empty, "Enter the start date and time.", "Enter the end date and time.", "Choose a reason type.", "Enter a description." were shown. With only the start and end and a blank description, only the reason type and description were named. No dialog opened and the venue has no block. |
+| Status | Pass |
+| Remarks | Commit: a9a9cc4 · Evidence: tests/I2/evidence/I2-T2.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-19 |

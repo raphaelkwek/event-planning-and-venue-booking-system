@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | The calendar showed 00:00–08:00 Outside operating hours; 09:00–13:00 Maintenance Annual rigging inspection; 22:00–24:00 Outside operating hours. Searching 10:00–12:00 listed Mochtar Riady Hall, Availability, Seminar Room 2-1, Availability, without Lee Kong Chian Auditorium. Requesting 10:00–12:00 was refused: "Lee Kong Chian Auditorium is unavailable for Maintenance, “Annual rigging inspection” (Wednesday 9 December 2026, 09:00–13:00), so it can't be requested for this period. Choose another time or venue." and stored nothing. 13:00–15:00 was accepted, BKR-001119 PENDING. |
+| Status | Pass |
+| Remarks | Commit: a9a9cc4 · Evidence: tests/I2/evidence/I2-T10.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-19 |

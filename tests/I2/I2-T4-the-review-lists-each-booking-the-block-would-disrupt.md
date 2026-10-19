@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | 16:00–19:00's dialog read "Record this unavailability?Lee Kong Chian Auditorium: Wednesday 2 December 2026, 16:00–19:00, Maintenance: Stage rigging inspectionIt will disrupt these. Each stays booked but will require reconfirmation, and its coordinator will be told that alternative arrangements are required.Booking BKR-001114 for EVT-009045, Wednesday 2 December 2026, 16:00–18:00CancelRecord unavailability". 18:00–19:00's read "Record this unavailability?Lee Kong Chian Auditorium: Wednesday 2 December 2026, 18:00–19:00, Maintenance: Stage rigging inspectionNothing is booked, held or requested in this period.CancelRecord unavailability". Nothing was recorded, and the booking isn't flagged. |
+| Status | Pass |
+| Remarks | Commit: a9a9cc4 · Evidence: tests/I2/evidence/I2-T4.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-19 |

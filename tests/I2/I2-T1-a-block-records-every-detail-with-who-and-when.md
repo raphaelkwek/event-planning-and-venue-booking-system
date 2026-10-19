@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | The dialog read "Record this unavailability?Lee Kong Chian Auditorium: Wednesday 9 December 2026, 09:00–13:00, Maintenance: Annual rigging inspectionNothing is booked, held or requested in this period.CancelRecord unavailability". "Unavailability recorded." was shown and the block listed as "Wednesday 9 December 2026, 09:00–13:00MaintenanceAnnual rigging inspection00000000-0000-0000-0000-00000000000310/19/2026, 4:17:35 PMRemove". Stored ACTIVE at Lee Kong Chian Auditorium, 2026-12-09T01:00:00.000Z to 2026-12-09T05:00:00.000Z, MAINTENANCE, created by 00000000-0000-0000-0000-000000000003 at 2026-10-19T08:17:35.622Z. |
+| Status | Pass |
+| Remarks | Commit: a9a9cc4 · Evidence: tests/I2/evidence/I2-T1.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-19 |

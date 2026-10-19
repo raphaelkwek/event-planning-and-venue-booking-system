@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | After removing A it was REMOVED, removed by 00000000-0000-0000-0000-000000000003 at 2026-10-19T08:18:35.292Z, and the booking still required reconfirmation (true). After removing B the flag was false. The coordinator was told "The unavailability of Lee Kong Chian Auditorium on Wednesday 2 December 2026, 15:00–16:00 (Maintenance: Fire alarm test) was removed. Booking BKR-001120 for EVT-009053 “Annual Research Symposium” still requires reconfirmation: other unavailability still overlaps it.10/19/2026, 4:18:35 PMUnreadOpenMark as read" and then "The unavailability of Lee Kong Chian Auditorium on Wednesday 2 December 2026, 17:00–19:00 (Maintenance: Stage rigging inspection) was removed. Booking BKR-001120 for EVT-009053 “Annual Research Symposium” no longer requires reconfirmation.10/19/2026, 4:18:37 PMUnreadOpenMark as read". The calendar shows 00:00–08:00 Outside operating hours; 14:00–18:00 Confirmed EVT-009053; 22:00–24:00 Outside operating hours. |
+| Status | Pass |
+| Remarks | Commit: a9a9cc4 · Evidence: tests/I2/evidence/I2-T11.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-19 |

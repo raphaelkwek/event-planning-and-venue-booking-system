@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | 12:30–13:30's dialog read "Record this unavailability?Lee Kong Chian Auditorium: Wednesday 2 December 2026, 12:30–13:30, Equipment failure: Lighting desk faultIt will disrupt these. Each stays booked but will require reconfirmation, and its coordinator will be told that alternative arrangements are required.Booking M1-FX-EVT-009047 for EVT-009047, Wednesday 2 December 2026, 12:30–12:45CancelRecord unavailability". 12:45–13:30's read "Record this unavailability?Lee Kong Chian Auditorium: Wednesday 2 December 2026, 12:45–13:30, Equipment failure: Lighting desk faultNothing is booked, held or requested in this period.CancelRecord unavailability". |
+| Status | Pass |
+| Remarks | Commit: a9a9cc4 · Evidence: tests/I2/evidence/I2-T5.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-19 |

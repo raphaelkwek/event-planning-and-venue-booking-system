@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | venuestaff@ recording at Mochtar Riady Hall: 403 "Only the venue's Venue Staff can record or remove its unavailability."; coordinator@connectsphere.test recording: 403 ROLE_NOT_AUTHORISED; removing: 403 ROLE_NOT_AUTHORISED. Mochtar Riady Hall has no block, and Lee Kong Chian Auditorium still has exactly one active block. |
+| Status | Pass |
+| Remarks | Commit: a9a9cc4 · Evidence: tests/I2/evidence/I2-T13.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-19 |

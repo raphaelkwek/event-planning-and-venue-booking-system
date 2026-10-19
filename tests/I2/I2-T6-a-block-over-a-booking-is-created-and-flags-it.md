@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | "Unavailability recorded. 1 booking now requires reconfirmation." was shown. The booking is CONFIRMED, requires_reconfirmation true, linked to MAINTENANCE "Stage rigging inspection", flagged by 00000000-0000-0000-0000-000000000003 at 2026-10-19T08:18:06.534Z. |
+| Status | Pass |
+| Remarks | Commit: a9a9cc4 · Evidence: tests/I2/evidence/I2-T6.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-19 |
