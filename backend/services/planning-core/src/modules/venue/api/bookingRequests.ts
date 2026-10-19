@@ -1,6 +1,7 @@
 import { Router, type NextFunction, type RequestHandler, type Response } from "express";
 import { rateLimit } from "express-rate-limit";
-import type { Sql } from "postgres";
+import type { Sql, TransactionSql } from "postgres";
+import type { ErrorCode, ErrorField } from "@connectsphere/contracts";
 import { findEventForPlanning, findEventReferences, type EventPlanningView } from "../../event/index.js";
 import { resolveAccessScope } from "../../identity/index.js";
 import { authenticate, requireRole, type ActorRequest } from "../auth/actor.js";
@@ -13,7 +14,9 @@ import {
   notBookableMessage,
   notPendingMessage,
   readBookingRequest,
+  type BookingRequestInput,
 } from "../domain/bookingRequest.js";
+import { releaseHeldSlotForRequest } from "../repo/holds.js";
 import { writeVenueOutbox } from "../events/outbox.js";
 import {
   DuplicateBookingRequestError,
@@ -63,8 +66,114 @@ export function bookingRequestRateLimit(): RequestHandler {
   });
 }
 
+/** A refusal, as `refuse` sends it. */
+export interface Refusal {
+  status: number;
+  code: ErrorCode;
+  message: string;
+  fields?: ErrorField[];
+}
+
+export type SubmitOutcome = ({ ok: true; created: BookingRequest; eventReference: string | null }) | ({ ok: false } & Refusal);
+
+/** Thrown inside the transaction to roll it back with a refusal. */
+class RefusedInTransaction extends Error {
+  constructor(readonly refusal: Refusal) {
+    super(refusal.message);
+  }
+}
+
+export interface SubmitHooks {
+  /** Runs first in the transaction; a refusal rolls it back (L3: the hold must still be Held). */
+  before?: (tx: TransactionSql) => Promise<Refusal | null>;
+  /** Runs after the request is stored, in the same transaction (L3: the hold becomes Converted). */
+  after?: (tx: TransactionSql, created: BookingRequest) => Promise<void>;
+}
+
+/**
+ * L1's checks and write: the assigned coordinator, an approved event, an active
+ * venue with the layout, then the request, stored Pending with a message to the
+ * venue's Venue Staff. Shared by L1's route and L3's conversion of a hold.
+ */
+export async function submitBookingRequest(
+  sql: Sql,
+  req: ActorRequest,
+  input: BookingRequestInput,
+  hooks: SubmitHooks = {},
+): Promise<SubmitOutcome> {
+  const actor = req.actor!;
+  const refused = (status: number, code: ErrorCode, message: string, fields?: ErrorField[]) =>
+    ({ ok: false, status, code, message, ...(fields ? { fields } : {}) }) as const;
+
+  const event = await findEvent(sql, input.eventId, req);
+  if (!event) return refused(404, "EVENT_NOT_FOUND", "No event with that id exists, or you can't see it.");
+  if (!isAssignedCoordinator(actor.userId, event)) return refused(403, "ROLE_NOT_AUTHORISED", NOT_ASSIGNED_REQUEST);
+  if (!eventBookable(event.status)) return refused(409, "EVENT_NOT_BOOKABLE", notBookableMessage(event.status));
+
+  const venue = await findVenue(sql, input.venueId);
+  if (!venue) return refused(404, "VENUE_NOT_FOUND", "No venue with that id exists.");
+  if (!venue.isActive) return refused(422, "VENUE_INACTIVE", `${venue.name} is inactive, so it can't be requested.`);
+  const layout = layoutAt(venue.layouts, input.layout);
+  if (!layout) return refused(400, "VALIDATION_FAILED", INVALID, [{ field: "layout", message: `${venue.name} has no ${input.layout} layout.` }]);
+
+  // An approved event always has its date, times and attendance (B2).
+  const eventValues = { startsAt: event.proposedStartAt!, endsAt: event.proposedEndAt!, attendance: event.expectedAttendance! };
+  const differs = differencesFromEvent(eventValues, input).length > 0;
+
+  try {
+    const created = await sql.begin(async (tx) => {
+      const before = await hooks.before?.(tx);
+      if (before) throw new RefusedInTransaction(before);
+      if (input.replacesBookingId && !(await isReplaceableBooking(tx, input.replacesBookingId, event.id))) {
+        throw new RefusedInTransaction({ status: 422, code: "REPLACEMENT_NOT_VALID", message: REPLACEMENT_NOT_VALID });
+      }
+      const created = await insertBookingRequest(tx, {
+        ...input,
+        layout,
+        eventStartsAt: eventValues.startsAt,
+        eventEndsAt: eventValues.endsAt,
+        eventAttendance: eventValues.attendance,
+        differsFromEvent: differs,
+        requestedBy: actor.userId,
+      });
+      await hooks.after?.(tx, created);
+      const staffIds = await venueStaffIds(tx, venue.id);
+      if (staffIds.length > 0) {
+        await writeVenueOutbox(tx, {
+          messageType: "venue-booking.request-submitted",
+          aggregateId: created.id,
+          actor,
+          correlationId: req.header("x-correlation-id") ?? null,
+          payload: {
+            bookingRequestId: created.id,
+            reference: created.reference,
+            eventId: event.id,
+            eventReference: event.reference,
+            eventName: event.name,
+            venueId: venue.id,
+            venueName: venue.name,
+            startsAt: created.startsAt,
+            endsAt: created.endsAt,
+            staffIds,
+            requestedBy: created.requestedBy,
+            requestedAt: created.requestedAt,
+          },
+        });
+      }
+      return created;
+    });
+    return { ok: true, created, eventReference: event.reference };
+  } catch (error) {
+    if (error instanceof RefusedInTransaction) return { ok: false, ...error.refusal };
+    if (error instanceof DuplicateBookingRequestError) {
+      return refused(409, "BOOKING_REQUEST_DUPLICATE", duplicateMessage(error.references));
+    }
+    throw error;
+  }
+}
+
 /** The request as the API shows it: with its event's reference, and each value that differs from the event's. */
-function present(request: BookingRequest, eventReference: string | null) {
+export function present(request: BookingRequest, eventReference: string | null) {
   return {
     ...request,
     eventReference,
@@ -95,71 +204,10 @@ export function bookingRequestsRouter(sql: Sql) {
     try {
       const read = readBookingRequest(req.body);
       if (!read.ok) return refuse(res, 400, "VALIDATION_FAILED", INVALID, read.fields);
-      const input = read.request;
-      const actor = req.actor!;
-
-      const event = await findEvent(sql, input.eventId, req);
-      if (!event) return eventNotFound(res);
-      if (!isAssignedCoordinator(actor.userId, event)) return refuse(res, 403, "ROLE_NOT_AUTHORISED", NOT_ASSIGNED_REQUEST);
-      if (!eventBookable(event.status)) return refuse(res, 409, "EVENT_NOT_BOOKABLE", notBookableMessage(event.status));
-
-      const venue = await findVenue(sql, input.venueId);
-      if (!venue) return refuse(res, 404, "VENUE_NOT_FOUND", "No venue with that id exists.");
-      if (!venue.isActive) return refuse(res, 422, "VENUE_INACTIVE", `${venue.name} is inactive, so it can't be requested.`);
-      const layout = layoutAt(venue.layouts, input.layout);
-      if (!layout) {
-        return refuse(res, 400, "VALIDATION_FAILED", INVALID, [{ field: "layout", message: `${venue.name} has no ${input.layout} layout.` }]);
-      }
-
-      // An approved event always has its date, times and attendance (B2).
-      const eventValues = { startsAt: event.proposedStartAt!, endsAt: event.proposedEndAt!, attendance: event.expectedAttendance! };
-      const differs = differencesFromEvent(eventValues, input).length > 0;
-
-      const outcome = await sql.begin(async (tx) => {
-        if (input.replacesBookingId && !(await isReplaceableBooking(tx, input.replacesBookingId, event.id))) {
-          return { code: "REPLACEMENT_NOT_VALID" } as const;
-        }
-        const created = await insertBookingRequest(tx, {
-          ...input,
-          layout,
-          eventStartsAt: eventValues.startsAt,
-          eventEndsAt: eventValues.endsAt,
-          eventAttendance: eventValues.attendance,
-          differsFromEvent: differs,
-          requestedBy: actor.userId,
-        });
-        const staffIds = await venueStaffIds(tx, venue.id);
-        if (staffIds.length > 0) {
-          await writeVenueOutbox(tx, {
-            messageType: "venue-booking.request-submitted",
-            aggregateId: created.id,
-            actor,
-            correlationId: req.header("x-correlation-id") ?? null,
-            payload: {
-              bookingRequestId: created.id,
-              reference: created.reference,
-              eventId: event.id,
-              eventReference: event.reference,
-              eventName: event.name,
-              venueId: venue.id,
-              venueName: venue.name,
-              startsAt: created.startsAt,
-              endsAt: created.endsAt,
-              staffIds,
-              requestedBy: created.requestedBy,
-              requestedAt: created.requestedAt,
-            },
-          });
-        }
-        return { code: "CREATED", created } as const;
-      });
-
-      if (outcome.code === "REPLACEMENT_NOT_VALID") return refuse(res, 422, "REPLACEMENT_NOT_VALID", REPLACEMENT_NOT_VALID);
-      res.status(201).json(present(outcome.created, event.reference));
+      const outcome = await submitBookingRequest(sql, req, read.request);
+      if (!outcome.ok) return refuse(res, outcome.status, outcome.code, outcome.message, outcome.fields);
+      res.status(201).json(present(outcome.created, outcome.eventReference));
     } catch (error) {
-      if (error instanceof DuplicateBookingRequestError) {
-        return refuse(res, 409, "BOOKING_REQUEST_DUPLICATE", duplicateMessage(error.references));
-      }
       next(error);
     }
   });
@@ -216,6 +264,8 @@ export function bookingRequestsRouter(sql: Sql) {
         const locked = (await lockBookingRequest(tx, id))!;
         if (locked.status !== "PENDING") return { code: "NOT_PENDING", locked } as const;
         await withdrawBookingRequest(tx, id, req.actor!.userId);
+        // L3-T14: a request converted from a hold frees the period the hold took.
+        await releaseHeldSlotForRequest(tx, id, req.actor!.userId);
         return { code: "WITHDRAWN", withdrawn: (await findBookingRequest(tx, id))! } as const;
       });
 

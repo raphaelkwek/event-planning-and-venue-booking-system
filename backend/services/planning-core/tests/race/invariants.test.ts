@@ -4,6 +4,7 @@ import { testDb } from "../support/testDb.js";
 import { isThrowawayDatabase, losers, race, winners } from "../support/race.js";
 import { insertVenueSlot, type NewVenueSlot } from "../../src/modules/venue/repo/slots.js";
 import { VenueSlotConflictError } from "../../src/modules/venue/domain/slotConflict.js";
+import { HoldConflictError, insertHold, lockHold, placeHold } from "../../src/modules/venue/repo/holds.js";
 import { reserveBulk, reserveUnit } from "../../src/modules/equipment/repo/inventory.js";
 import { reserveLine } from "../../src/modules/equipment/repo/reservations.js";
 import { releaseLine } from "../../src/modules/equipment/repo/releases.js";
@@ -90,6 +91,51 @@ describe.runIf(isThrowawayDatabase())(`${ATTEMPTS} attempts at the same moment (
       }
       const [stored] = await sql<{ n: number }[]>`select count(*)::int as n from venue.venue_slots where venue_id = ${venueId}`;
       expect(stored!.n).toBe(1);
+    }
+  });
+
+  it("L3-T17 exactly one of 50 requested holds placed at once on one venue and period is Held; the other 49 are refused naming it", async () => {
+    for (let round = 0; round < ROUNDS; round += 1) {
+      const venueId = await newVenue();
+      const requested = await sql.begin((tx) =>
+        Promise.all(
+          Array.from({ length: ATTEMPTS }, () =>
+            insertHold(tx, {
+              eventId: randomUUID(),
+              venueId,
+              startsAt: at("10:00").toISOString(),
+              endsAt: at("12:00").toISOString(),
+              reminderLeadMinutes: 60,
+              requestedBy: ACTOR,
+            }),
+          ),
+        ),
+      );
+
+      const results = await race(ATTEMPTS, async (tx, i) =>
+        placeHold(tx, (await lockHold(tx, requested[i]!.id))!, {
+          expiresAt: at("09:00").toISOString(),
+          setupMinutes: 0,
+          turnaroundMinutes: 0,
+          actorUserId: ACTOR,
+        }),
+      );
+
+      expect(winners(results)).toHaveLength(1);
+      const winner = winners(results)[0]!;
+      const refused = losers(results);
+      expect(refused).toHaveLength(ATTEMPTS - 1);
+      for (const reason of refused) {
+        expect(reason).toBeInstanceOf(HoldConflictError);
+        expect((reason as HoldConflictError).overlapped.map((o) => o.reference)).toEqual([winner.reference]);
+      }
+      const [held] = await sql<{ n: number }[]>`
+        select count(*)::int as n from venue.venue_slots where venue_id = ${venueId} and status = 'HELD'`;
+      expect(held!.n).toBe(1);
+      const [stillRequested] = await sql<{ n: number }[]>`
+        select count(*)::int as n from venue.holds where venue_id = ${venueId} and status = 'REQUESTED'`;
+      expect(stillRequested!.n).toBe(ATTEMPTS - 1);
+      await sql`delete from venue.holds where venue_id = ${venueId}`;
     }
   });
 
