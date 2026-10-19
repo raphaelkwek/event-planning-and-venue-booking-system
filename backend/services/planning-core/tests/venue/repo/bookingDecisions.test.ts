@@ -84,8 +84,10 @@ async function newSlot(
 
 async function newBlock(venueId: string, from: string, until: string, status = "ACTIVE"): Promise<string> {
   const [row] = await sql<{ id: string }[]>`
-    insert into venue.unavailability_blocks (venue_id, starts_at, ends_at, reason_type, description, status, created_by, updated_by)
-    values (${venueId}, ${at(from)}, ${at(until)}, 'MAINTENANCE', 'Stage rigging inspection', ${status}, ${STAFF}, ${STAFF})
+    insert into venue.unavailability_blocks
+      (venue_id, starts_at, ends_at, reason_type, description, status, created_by, updated_by, removed_by, removed_at)
+    values (${venueId}, ${at(from)}, ${at(until)}, 'MAINTENANCE', 'Stage rigging inspection', ${status}, ${STAFF}, ${STAFF},
+            ${status === "REMOVED" ? STAFF : null}, ${status === "REMOVED" ? new Date() : null})
     returning id
   `;
   return row!.id;

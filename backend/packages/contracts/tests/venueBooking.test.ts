@@ -122,9 +122,67 @@ describe("venue-booking.request-approved and venue-booking.request-rejected (M1,
   });
 });
 
+describe("venue-booking.booking-disrupted and venue-booking.disruption-cleared (I2)", () => {
+  const disrupted = {
+    blockId: "77777777-7777-4777-8777-777777777777",
+    venueId: "33333333-3333-4333-8333-333333333333",
+    venueName: "Lee Kong Chian Auditorium",
+    kind: "BOOKING",
+    reference: "BKR-000001",
+    eventId: "22222222-2222-4222-8222-222222222222",
+    eventReference: "EVT-000123",
+    eventName: "Annual Research Symposium",
+    coordinatorId: "00000000-0000-0000-0000-000000000002",
+    blockStartsAt: "2026-12-02T08:00:00.000Z",
+    blockEndsAt: "2026-12-02T11:00:00.000Z",
+    reasonType: "MAINTENANCE",
+    description: "Stage rigging inspection",
+    actedBy: "00000000-0000-0000-0000-000000000003",
+    actedAt: "2026-10-19T02:00:00.000Z",
+  };
+  const cleared = { ...disrupted, stillDisrupted: false };
+  const message = (type: string, payload: Record<string, unknown>) => ({
+    specversion: "1.0",
+    id: "44444444-4444-4444-8444-444444444444",
+    source: "/connectsphere/planning-core/venue",
+    type,
+    subject: disrupted.blockId,
+    time: "2026-10-19T02:00:00.000Z",
+    datacontenttype: "application/json",
+    traceparent: "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01",
+    actor: "VENUE_STAFF:00000000-0000-0000-0000-000000000003",
+    data: payload,
+  });
+
+  it("accepts a disrupted booking, hold or request, naming the coordinator to tell (I2-T8, I2-T9)", () => {
+    for (const kind of ["BOOKING", "HOLD", "REQUEST"]) {
+      const data = { ...disrupted, kind };
+      expect(parseCloudEvent(message("venue-booking.booking-disrupted", data)).data, kind).toEqual(data);
+    }
+  });
+
+  it("accepts a cleared disruption, saying whether another block still disrupts it (I2-T11)", () => {
+    expect(parseCloudEvent(message("venue-booking.disruption-cleared", cleared)).data).toEqual(cleared);
+    expect(() => parseCloudEvent(message("venue-booking.disruption-cleared", disrupted))).toThrow(/stillDisrupted/);
+  });
+
+  it("refuses an unknown kind or reason type, and a message without the coordinator", () => {
+    expect(() => parseCloudEvent(message("venue-booking.booking-disrupted", { ...disrupted, kind: "EVENT" }))).toThrow(/kind/);
+    expect(() => parseCloudEvent(message("venue-booking.booking-disrupted", { ...disrupted, reasonType: "FLOOD" }))).toThrow(/reasonType/);
+    const rest: Record<string, unknown> = { ...disrupted };
+    delete rest.coordinatorId;
+    expect(() => parseCloudEvent(message("venue-booking.booking-disrupted", rest))).toThrow(/coordinatorId/);
+  });
+});
+
 describe("ERROR_CODES", () => {
   it("has M1's refusal by recorded unavailability", () => {
     expect(ERROR_CODES).toContain("VENUE_UNAVAILABLE");
+  });
+
+  it("has I2's refusals for a block that doesn't exist or was already removed", () => {
+    expect(ERROR_CODES).toContain("BLOCK_NOT_FOUND");
+    expect(ERROR_CODES).toContain("BLOCK_ALREADY_REMOVED");
   });
 
   it("has L1 and L2's refusals", () => {

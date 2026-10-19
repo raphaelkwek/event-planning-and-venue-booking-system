@@ -49,13 +49,13 @@ describe("ERROR_CODES", () => {
 });
 
 describe("UNAVAILABILITY_REASON_LABELS", () => {
-  it("labels every reason type, for the refusal that names a block (M1)", () => {
+  it("labels every reason type in CR-02's words, for I2's form and M1's refusal", () => {
     expect(UNAVAILABILITY_REASON_LABELS).toEqual({
       MAINTENANCE: "Maintenance",
       EQUIPMENT_FAILURE: "Equipment failure",
       RENOVATION: "Renovation",
-      SAFETY: "Safety",
-      OTHER: "Other",
+      SAFETY: "Safety concern",
+      OTHER: "Other operational reason",
     });
   });
 });

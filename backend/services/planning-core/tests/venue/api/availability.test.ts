@@ -107,8 +107,10 @@ async function slot(
 
 async function block(venueId: string, from: string, until: string, reasonType: string, description: string, status = "ACTIVE") {
   await sql`
-    insert into venue.unavailability_blocks (venue_id, starts_at, ends_at, reason_type, description, status, created_by, updated_by)
-    values (${venueId}, ${from}, ${until}, ${reasonType}, ${description}, ${status}, ${STAFF}, ${STAFF})
+    insert into venue.unavailability_blocks
+      (venue_id, starts_at, ends_at, reason_type, description, status, created_by, updated_by, removed_by, removed_at)
+    values (${venueId}, ${from}, ${until}, ${reasonType}, ${description}, ${status}, ${STAFF}, ${STAFF},
+            ${status === "REMOVED" ? STAFF : null}, ${status === "REMOVED" ? new Date() : null})
   `;
 }
 

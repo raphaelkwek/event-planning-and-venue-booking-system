@@ -134,7 +134,7 @@ describe("unavailableMessage (M1-T5)", () => {
       block("MAINTENANCE", "Rigging", "13:00", "15:00"),
       block("SAFETY", "Fire drill", "16:00", "17:00"),
     ]);
-    expect(message).toContain("Maintenance, “Rigging” (Wednesday 2 December 2026, 13:00–15:00) and Safety, “Fire drill” (");
+    expect(message).toContain("Maintenance, “Rigging” (Wednesday 2 December 2026, 13:00–15:00) and Safety concern, “Fire drill” (");
   });
 });
 
