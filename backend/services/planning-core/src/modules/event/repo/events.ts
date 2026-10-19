@@ -2,6 +2,9 @@ import type { Sql, TransactionSql } from "postgres";
 import type { Fragment } from "./sqlFragment.js";
 import type { AccessScope, EventStatus } from "@connectsphere/contracts";
 import { isEventId } from "../domain/ids.js";
+import { historyText, type ChangeableEvent, type ProposedChanges } from "../domain/proposedChange.js";
+import { isSignificantEventField, type SignificantEventField } from "@connectsphere/contracts";
+import { recordFieldChanges } from "./eventHistory.js";
 
 /**
  * B1, C1–C3, D1, D4, D5 — the event aggregate, which a request belongs to from
@@ -133,11 +136,18 @@ function scopeCondition(sql: Sql | TransactionSql, scope: AccessScope, callerId:
   }
 }
 
+/**
+ * `lock: "share"` takes a share lock on the event row (inside a transaction), so a status change,
+ * which locks the row `for update` (updateStatusIf), waits until the reader's transaction ends,
+ * and a reader waits for a change in progress and then sees its result. `lock: "update"` locks it
+ * `for update`, for a caller that writes the event.
+ */
 export async function findEventInScope(
-  sql: Sql,
+  sql: Sql | TransactionSql,
   eventId: string,
   scope: AccessScope,
-  callerId: string
+  callerId: string,
+  options: { lock?: "share" | "update" } = {}
 ): Promise<EventRow | null> {
   if (!isEventId(eventId)) return null;
   const rows = await sql<RawEvent[]>`
@@ -145,8 +155,53 @@ export async function findEventInScope(
     from event.events e
     left join event.assignments a on a.event_id = e.id and a.is_active
     where e.id = ${eventId} and ${scopeCondition(sql, scope, callerId)}
+    ${options.lock === "update" ? sql`for update of e` : options.lock === "share" ? sql`for share of e` : sql``}
   `;
   return rows[0] ? toEvent(rows[0]) : null;
+}
+
+/**
+ * S2 — writes an approved change's values and one FIELD_CHANGE entry per field (AC3).
+ * The version trigger bumps `version`. Only the fields in `changes` are touched.
+ */
+export async function applyApprovedChange(
+  tx: TransactionSql,
+  event: { id: string; current: ChangeableEvent },
+  changes: ProposedChanges,
+  actor: { userId: string; role: string },
+  occurredAt?: Date
+): Promise<void> {
+  const fields = Object.keys(changes).filter(isSignificantEventField);
+  if (fields.length === 0) return;
+
+  const json = (value: unknown) => (value === null || value === undefined ? null : JSON.stringify(value));
+  const assignments: Record<SignificantEventField, Fragment> = {
+    proposedStartAt: tx`proposed_start_at = ${(changes.proposedStartAt as string | null) ?? null}`,
+    proposedEndAt: tx`proposed_end_at = ${(changes.proposedEndAt as string | null) ?? null}`,
+    expectedAttendance: tx`expected_attendance = ${(changes.expectedAttendance as number | null) ?? null}`,
+    venueRequirements: tx`venue_requirements = ${json(changes.venueRequirements)}::text::jsonb`,
+    equipmentRequired: tx`equipment_required = ${(changes.equipmentRequired as boolean | null) ?? null}`,
+    equipmentRequirements: tx`equipment_requirements = ${json(changes.equipmentRequirements)}::text::jsonb`,
+  };
+  const set = fields.map((field) => assignments[field]).reduce((all, one) => tx`${all}, ${one}`);
+
+  await tx`
+    update event.events
+    set ${set}, updated_at = now(), updated_by = ${actor.userId}
+    where id = ${event.id}
+  `;
+  await recordFieldChanges(
+    tx,
+    event.id,
+    fields.map((field) => ({
+      fieldName: field,
+      previousValue: historyText(field, event.current[field]),
+      newValue: historyText(field, changes[field]),
+    })),
+    actor,
+    "CHANGE_REQUEST_APPROVED",
+    occurredAt
+  );
 }
 
 /** I1 — each event's reference, for those of `eventIds` that exist. */
