@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | The form opened with Date 2026-12-02, Start time 14:00, End time 18:00 and Expected attendance 150. BKR-001124 was not marked as differing from the event. |
+| Actual Result | The form opened with Date 2026-12-02, Start time 14:00, End time 18:00 and Expected attendance 150. BKR-001372 was not marked as differing from the event. |
 | Status | Pass |
-| Remarks | Commit: ba2d786 · Evidence: tests/L1/evidence/L1-T3.png · Defect: — |
+| Remarks | Commit: 73c1d60 · Evidence: tests/L1/evidence/L1-T3.png · Defect: — |
 | Executed By | Yichen, via automated testing |
 | Date of Execution | 2026-10-19 |

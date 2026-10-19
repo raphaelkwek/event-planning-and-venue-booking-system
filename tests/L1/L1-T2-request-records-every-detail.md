@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | The Venue Staff queue's row for BKR-001123 read: "BKR-001123EVT-009113Lee Kong Chian AuditoriumWednesday 2 December 2026, 14:00–18:00Classroom150 attendingProjector, Wireless microphonesStep-free access, Hearing loopCoordinator One10/19/2026, 4:20:31 PMApprove Reject". |
+| Actual Result | The Venue Staff queue's row for BKR-001371 read: "BKR-001371EVT-009447Lee Kong Chian AuditoriumWednesday 2 December 2026, 14:00–18:00Classroom150 attendingProjector, Wireless microphonesStep-free access, Hearing loopCoordinator One10/19/2026, 4:55:30 PMApprove Reject". |
 | Status | Pass |
-| Remarks | Commit: ba2d786 · Evidence: tests/L1/evidence/L1-T2.png · Defect: — |
+| Remarks | Commit: 73c1d60 · Evidence: tests/L1/evidence/L1-T2.png · Defect: — |
 | Executed By | Yichen, via automated testing |
 | Date of Execution | 2026-10-19 |
