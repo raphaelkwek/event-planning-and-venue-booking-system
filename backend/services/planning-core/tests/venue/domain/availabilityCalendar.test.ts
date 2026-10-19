@@ -165,9 +165,9 @@ describe("assembleCalendar", () => {
     ]);
   });
 
-  it("shows a held slot as pending (I1-T3)", () => {
+  it("shows a placed hold's slot as held, labelled with its event reference (L3-T12)", () => {
     const [day] = assembleCalendar([MON], [row("BOOKING", "14:00", "16:00", { slotStatus: "HELD", eventId: alumni })], references);
-    expect(day!.committed[0]).toMatchObject({ kind: "BOOKING", bookingStatus: "PENDING", eventReference: "EVT-000102" });
+    expect(day!.committed[0]).toMatchObject({ kind: "BOOKING", bookingStatus: "HELD", eventReference: "EVT-000102" });
   });
 
   it("shows a pending booking request as pending, labelled with its event reference (L1-T6)", () => {

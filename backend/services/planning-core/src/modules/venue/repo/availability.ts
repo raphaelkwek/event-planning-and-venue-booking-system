@@ -9,8 +9,9 @@ import { CALENDAR_TIME_ZONE, type CalendarDay, type CalendarRow } from "../domai
  * holds, bookings and blocks touching a day, `*` clips each to the day, and
  * multirange subtraction leaves the free periods. A slot's occupied period is
  * its stored `blocked_period` (EN-02.1), so setup and turnaround are the parts
- * of it before `starts_at` and after `ends_at`. A held slot is shown pending;
- * released and expired slots and removed blocks commit nothing.
+ * of it before `starts_at` and after `ends_at`. A slot a placed hold owns is
+ * shown held (L3); any other held slot is shown pending; released and expired
+ * slots and removed blocks commit nothing.
  *
  * Free time is opening hours minus every slot and block. A booking or block
  * outside opening hours is still listed, beside the outside-hours period.
@@ -39,7 +40,14 @@ export async function readAvailability(sql: Sql, venueId: string, days: readonly
       from jsonb_to_recordset(${sql.json(days as never)}::jsonb) as d(date date, "opensAt" time, "closesAt" time)
     ),
     slot as (
-      select day.date, day.span, s.status, s.event_id, s.starts_at, s.ends_at, s.period, s.blocked_period
+      -- L3: a slot is shown Held while a placed hold owns it. Any other HELD
+      -- slot is a pending request: a converted hold's (shown here, so its
+      -- request isn't shown twice below), or one taken before L3 existed.
+      select day.date, day.span,
+             case when s.status <> 'HELD' then s.status
+                  when exists (select 1 from venue.holds h where h.slot_id = s.id and h.status = 'HELD') then 'HELD'
+                  else 'PENDING' end as status,
+             s.event_id, s.starts_at, s.ends_at, s.period, s.blocked_period
       from day
       join venue.venue_slots s
         on s.venue_id = ${venueId} and s.status in ('HELD', 'CONFIRMED') and s.blocked_period && day.span
@@ -59,6 +67,8 @@ export async function readAvailability(sql: Sql, venueId: string, days: readonly
       from day
       join venue.booking_requests r
         on r.venue_id = ${venueId} and r.status = 'PENDING' and r.period && day.span
+      -- A request converted from a hold is already shown, by the hold's slot.
+      where not exists (select 1 from venue.holds h where h.converted_request_id = r.id)
       union all
       select day.date, 'UNAVAILABLE', null, null, b.reason_type, b.description, b.period * day.span
       from day
