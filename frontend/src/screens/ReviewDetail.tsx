@@ -138,6 +138,12 @@ export function ReviewDetail() {
         </div>
         <p style={{ marginTop: 0, color: "#626F86" }}>
           {event.reference} · <Link to={`/events/${event.id}/equipment`}>Equipment request</Link>
+          {event.assignedCoordinatorId === session.userId && (
+            <>
+              {" · "}
+              <Link to={`/events/${event.id}/venue-requests`}>Venue requests</Link>
+            </>
+          )}
         </p>
 
         {savedNotice && (

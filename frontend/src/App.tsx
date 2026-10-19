@@ -16,6 +16,9 @@ import { Notifications } from "./screens/Notifications.js";
 import { useUnreadCount } from "./shared/useUnreadCount.js";
 import { VenueDetail } from "./screens/VenueDetail.js";
 import { EventDetailsEditor } from "./screens/EventDetailsEditor.js";
+import { EventVenueRequests } from "./screens/EventVenueRequests.js";
+import { BookingRequestForm } from "./screens/BookingRequestForm.js";
+import { BookingRequestQueue } from "./screens/BookingRequestQueue.js";
 import { EquipmentAvailability } from "./screens/EquipmentAvailability.js";
 import { VenueAvailability } from "./screens/VenueAvailability.js";
 import { VenueSearch } from "./screens/VenueSearch.js";
@@ -85,6 +88,16 @@ const ROUTES: {
   { path: "/events/:eventId/equipment", element: <EquipmentRequest />, roles: ["EVENT_COORDINATOR"] },
   // G1: the owning organiser or the assigned coordinator edits descriptive details.
   { path: "/events/:id/details", element: <EventDetailsEditor />, roles: ["EVENT_ORGANISER", "EVENT_COORDINATOR"] },
+  // L1, L2: an event's venue requests; its assigned coordinator requests and withdraws them.
+  { path: "/events/:id/venue-requests", element: <EventVenueRequests />, roles: ["EVENT_ORGANISER", "EVENT_COORDINATOR"] },
+  { path: "/events/:id/venue-requests/new", element: <BookingRequestForm />, roles: ["EVENT_COORDINATOR"] },
+  // L1, M1: the pending requests for the venues a Venue Staff member looks after.
+  {
+    path: "/booking-requests",
+    element: <BookingRequestQueue />,
+    roles: ["VENUE_STAFF"],
+    nav: { label: "Booking requests", to: "/booking-requests" },
+  },
   // H1, H2: every internal role reads the catalogue; only Venue Staff maintain it.
   {
     path: "/venues",

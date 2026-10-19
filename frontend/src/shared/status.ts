@@ -124,3 +124,18 @@ export const SUITABILITY_APPEARANCE: Record<keyof typeof SUITABILITY_LABELS, Loz
   SUITABLE_WITH_WARNINGS: "moved",
   NOT_SUITABLE: "removed",
 };
+
+/** L1, L2: a venue booking request's status, each with its own colour. */
+export const BOOKING_REQUEST_LABELS = {
+  PENDING: "Pending",
+  APPROVED: "Approved",
+  REJECTED: "Rejected",
+  WITHDRAWN: "Withdrawn",
+} as const;
+
+export const BOOKING_REQUEST_APPEARANCE: Record<keyof typeof BOOKING_REQUEST_LABELS, LozengeAppearance> = {
+  PENDING: "moved",
+  APPROVED: "success",
+  REJECTED: "removed",
+  WITHDRAWN: "default",
+};

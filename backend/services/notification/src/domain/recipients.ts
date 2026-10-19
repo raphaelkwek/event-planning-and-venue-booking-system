@@ -51,6 +51,27 @@ function equipmentLineMessage(d: Record<string, unknown>, event: string): string
   return text;
 }
 
+/** A period in Singapore time, where the venues are: one day, or both ends when it crosses midnight. */
+function period(startsAt: string, endsAt: string): string {
+  const parts = (iso: string) => {
+    const p = new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Asia/Singapore",
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    }).formatToParts(new Date(iso));
+    const part = (type: string) => p.find((x) => x.type === type)!.value;
+    return { day: `${part("weekday")} ${part("day")} ${part("month")} ${part("year")}`, time: `${part("hour")}:${part("minute")}` };
+  };
+  const start = parts(startsAt);
+  const end = parts(endsAt);
+  return start.day === end.day ? `${start.day}, ${start.time}–${end.time}` : `${start.day} ${start.time} to ${end.day} ${end.time}`;
+}
+
 /** S1: names each changed field the way the organiser's form does. */
 function joinLabels(fields: unknown): string {
   return (fields as SignificantEventField[]).map((field) => SIGNIFICANT_FIELD_LABELS[field] ?? field).join(", ");
@@ -83,6 +104,12 @@ const RULES: Record<string, Rule> = {
   ],
   // O2: the event's assigned coordinator learns what Technical Support decided about a line.
   "equipment-request.line-status-changed": (d, event) => [[d.coordinatorId!, equipmentLineMessage(d, event)]],
+  // L1: the venue's Venue Staff learn a request is waiting for them. The message names them.
+  "venue-booking.request-submitted": (d, event) =>
+    (d.staffIds as unknown as string[]).map((staffId) => [
+      staffId,
+      `Booking request ${d.reference} was submitted for ${d.venueName}: ${event}, ${period(d.startsAt!, d.endsAt!)}. It is waiting in your Booking requests queue.`,
+    ]),
   // S1: the assigned coordinator hears that the organiser asked to change the event.
   "change-request.submitted": (d, event) => [
     [d.coordinatorId!, `A change has been requested for ${event}: ${joinLabels(d.fields)}.`],
@@ -107,7 +134,8 @@ export function notificationsFor(message: NotifiableEvent): NewNotification[] {
     notificationType: message.type,
     eventId: data.eventId!,
     eventReference: data.eventReference!,
-    relatedReference: null,
+    // A booking request's own reference, for the venue-booking messages (L1).
+    relatedReference: message.type.startsWith("venue-booking.") ? data.reference! : null,
     message: text,
   }));
 }

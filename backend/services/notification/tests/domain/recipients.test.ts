@@ -282,3 +282,41 @@ describe("notificationsFor", () => {
     expect(note).toMatchObject({ notificationType: "event.approved", eventId, eventReference: "EVT-2026-0042" });
   });
 });
+
+describe("L1: tells the venue's Venue Staff about a new booking request", () => {
+  const staff = ["00000000-0000-0000-0000-000000000003", "00000000-0000-0000-0000-000000000013"];
+  const submitted = {
+    bookingRequestId: "44444444-4444-4444-8444-444444444444",
+    reference: "BKR-000001",
+    venueId: "55555555-5555-4555-8555-555555555555",
+    venueName: "Lee Kong Chian Auditorium",
+    startsAt: "2026-12-02T06:00:00.000Z",
+    endsAt: "2026-12-02T10:00:00.000Z",
+    staffIds: staff,
+    requestedBy: coordinator,
+    requestedAt: at,
+  };
+
+  it("notifies each of the venue's staff, naming the booking reference, the event and the period in Singapore time (L1-T7)", () => {
+    const notes = notificationsFor(message("venue-booking.request-submitted", submitted));
+    const text =
+      "Booking request BKR-000001 was submitted for Lee Kong Chian Auditorium: EVT-2026-0042 “Freshmen Orientation”, " +
+      "Wednesday 2 December 2026, 14:00–18:00. It is waiting in your Booking requests queue.";
+    expect(notes).toEqual(
+      staff.map((recipientUserId) => ({
+        ...common,
+        notificationType: "venue-booking.request-submitted",
+        recipientUserId,
+        relatedReference: "BKR-000001",
+        message: text,
+      })),
+    );
+  });
+
+  it("gives both days when the period crosses midnight", () => {
+    const [note] = notificationsFor(
+      message("venue-booking.request-submitted", { ...submitted, startsAt: "2026-12-02T14:00:00.000Z", endsAt: "2026-12-03T02:00:00.000Z" }),
+    );
+    expect(note!.message).toContain("Wednesday 2 December 2026 22:00 to Thursday 3 December 2026 10:00.");
+  });
+});

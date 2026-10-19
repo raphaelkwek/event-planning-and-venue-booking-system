@@ -3,6 +3,7 @@ import { ROLES } from "./accessScope.js";
 import { ACTOR_ROLES } from "./envelope.js";
 import { CHANGE_REQUEST_PAYLOAD_SCHEMAS } from "./changeRequestEvents.js";
 import { EQUIPMENT_REQUEST_PAYLOAD_SCHEMAS } from "./equipmentRequestEvents.js";
+import { VENUE_BOOKING_PAYLOAD_SCHEMAS } from "./venueBooking.js";
 import { EVENT_PAYLOAD_SCHEMAS } from "./eventEvents.js";
 
 /**
@@ -92,6 +93,7 @@ export const MESSAGE_DATA_SCHEMAS = {
   ...EVENT_PAYLOAD_SCHEMAS,
   ...EQUIPMENT_REQUEST_PAYLOAD_SCHEMAS,
   ...CHANGE_REQUEST_PAYLOAD_SCHEMAS,
+  ...VENUE_BOOKING_PAYLOAD_SCHEMAS,
 } as const;
 export type MessageType = keyof typeof MESSAGE_DATA_SCHEMAS;
 

@@ -44,6 +44,71 @@ coordinator approve it, applying the change, or reject it with a reason.
 
 ---
 
+# L1, L2: Request a venue for an event, and withdraw the request
+
+**Timestamp:** 2026-10-17T20:14+08:00 (SGT)
+**Author:** Seann, via Claude
+**Scope:**
+- `contracts`: `venueBooking.ts` (new): `BOOKING_REQUEST_STATUSES` and the `venue-booking.request-submitted` message, registered in `MESSAGE_DATA_SCHEMAS`. Six error codes: `EVENT_NOT_BOOKABLE`, `VENUE_INACTIVE`, `BOOKING_REQUEST_DUPLICATE`, `BOOKING_REQUEST_NOT_FOUND`, `BOOKING_REQUEST_NOT_PENDING`, `REPLACEMENT_NOT_VALID`. **Needs a second owner's review.**
+- planning-core, venue module:
+  - migrations `venue/0005_booking_requests.sql` and `venue/0006_venue_outbox.sql`;
+  - `domain/bookingRequest.ts`, `repo/bookingRequests.ts`, `api/bookingRequests.ts` and `events/outbox.ts` (new);
+  - the calendar (I1) now shows pending requests;
+  - the venue outbox added to the relay in `src/index.ts`.
+- notification: subscribes to `connectsphere.venue-booking.v1`, with a recipient rule for Venue Staff.
+- `planning-core.openapi.yaml`: four routes, four schemas and the six codes.
+- The web app:
+  - `EventVenueRequests`, `BookingRequestForm` and `BookingRequestQueue` (new);
+  - a "Venue requests" link on the assigned coordinator's review page;
+  - `api/bookingRequests.ts` and `shared/singaporeTime.ts`.
+- Tests: contracts, planning-core (unit, boundary and integration), notification and web. Test cards `tests/L1/` (14) and `tests/L2/` (6), with FX-BOOKING. The test-data reset removes booking requests. Traceability in `sprint-3.csv`.
+
+**Reason:** L1 and L2 (Sprint 3). Coordinators ask Venue Staff for a venue, and take the request back if it's no longer needed. M1, M2 and N1 decide the requests next.
+
+## What it does
+
+1. **The event's assigned coordinator requests a venue** from the event's "Venue requests" (`#/events/:id/venue-requests`), while the event is Approved, Planning, Safety Review or Confirmed.
+   - The form starts from the event's date, times and attendance, in Singapore time.
+   - It offers the chosen venue's layouts, facilities and accessibility features, with the ones the event asks for already chosen.
+2. **The request is stored Pending** with a `BKR-` reference, the coordinator and the time. It also keeps the event's own values, so a request that changes the times or attendance is marked "Differs from the event", and Venue Staff see each value beside the event's.
+3. **A request reserves nothing.**
+   - Two events may ask for the same venue and period. Only M1's approval will create a confirmed booking, which is where N1 prevents double-booking.
+   - What's refused is a second pending request of the same event for the same venue and an overlapping period, naming the first. An exclusion constraint decides that, so two simultaneous submissions can't both get through (ADR-0006).
+   - Touching periods are allowed.
+4. **The request reaches the venue's Venue Staff.** They're the staff linked to the venue in `venue.venue_staff`.
+   - It appears in their new "Booking requests" queue, which M1 will add Approve to.
+   - It shows as Pending on the venue's calendar.
+   - They're notified through Kafka.
+5. **CR-03 and CR-02:**
+   - an event can have requests for several venues at once, each handled separately;
+   - a request can be linked to one of the event's confirmed bookings flagged Requires Reconfirmation. L5 will add the screen; until then this is API only.
+6. **Refusals store nothing:** anyone but the assigned coordinator, an event not yet approved, an inactive or unknown venue, a layout the venue lacks, or an invalid field.
+7. **L2: the assigned coordinator withdraws a pending request,** after a confirmation naming it.
+   - It becomes Withdrawn, with who withdrew it and when, and the record is kept.
+   - It leaves the queue and the calendar.
+   - The event isn't touched.
+8. **The new routes have the same stopgap rate limit** as the others (ADR-0011, EN-12).
+
+## Notes for the team
+
+9. **Kafka is on Confluent Cloud now.** The `venue-booking` topic didn't exist on Aiven, so the cutover ADR-0008 planned for 13 Oct was done today: a Basic cluster in `ap-southeast-1`, all seven topics with 2 partitions, and Schema Registry (Essentials) turned on with no schemas.
+   - **Everyone needs the new `KAFKA_*` values in `.env`,** shared privately. `KAFKA_SSL_CA_PATH` is now empty, and `npm run kafka:check` should show all seven topics `ok`.
+   - The five-topic cap in contracts (`TOPICS_BEFORE_CUTOVER` and its test) can go in a small follow-up.
+10. **The shared database now has these migrations,** applied with the standard setup steps:
+    - `venue/0005` and `0006`, which are L1's and not merged yet;
+    - Q1 and Q2's merged `equipment/0005` to `0008`. Without them the equipment integration tests failed locally.
+
+## Verified
+
+- **The 20 L1 and L2 cards pass in Chrome** through the automated runner, against `0616c96`. That includes L1-T7, whose notification travelled through Confluent.
+- **planning-core:**
+  - unit tests: 48 files pass, with the request rules at 100% line, branch and mutation coverage;
+  - integration tests: all 1,237 pass. Coverage is 96.6% of lines, 92.1% of branches and 96.5% of functions, above the floors.
+- **contracts:** 94/94. **notification:** its unit tests pass. **web:** 24 files pass.
+- **Lint, typecheck, `lint:api`, `lint:boundaries` and squawk pass.** The policy tests need Linux and run in CI.
+
+---
+
 # S1: an organiser can request a change after submission
 
 **Timestamp:** 2026-10-17T05:31+08:00 (SGT)

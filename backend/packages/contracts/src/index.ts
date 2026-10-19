@@ -12,3 +12,4 @@ export * from "./eventStatus.js";
 export * from "./topics.js";
 export * from "./user.js";
 export * from "./venueSlots.js";
+export * from "./venueBooking.js";
