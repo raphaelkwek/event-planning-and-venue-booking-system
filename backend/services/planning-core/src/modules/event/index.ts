@@ -149,3 +149,12 @@ export function findEventReferences(sql: Sql, eventIds: readonly string[]): Prom
 
 /** S2 — writes an approved change's values and field history inside the caller's transaction. */
 export { applyApprovedChange } from "./repo/events.js";
+
+/** F5 — the change module checks readiness, then moves the event to Safety Review through these. */
+export {
+  arrangementsConfirmationRefusal,
+  confirmEventArrangements,
+  type ArrangementsNotice,
+  type ConfirmArrangementsOutcome,
+  type ConfirmedArrangements,
+} from "./api/confirmArrangements.js";
