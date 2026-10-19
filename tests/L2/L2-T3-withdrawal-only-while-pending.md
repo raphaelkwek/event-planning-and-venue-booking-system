@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | None of the three offered "Withdraw". BKR-001139: 409 "BKR-001139 is Approved, so it can't be withdrawn. Only a pending request can be."; BKR-001140: 409 "BKR-001140 is Rejected, so it can't be withdrawn. Only a pending request can be."; BKR-001141: 409 "BKR-001141 is Withdrawn, so it can't be withdrawn. Only a pending request can be.". Their statuses were unchanged. |
+| Actual Result | None of the three offered "Withdraw". BKR-001387: 409 "BKR-001387 is Approved, so it can't be withdrawn. Only a pending request can be."; BKR-001388: 409 "BKR-001388 is Rejected, so it can't be withdrawn. Only a pending request can be."; BKR-001389: 409 "BKR-001389 is Withdrawn, so it can't be withdrawn. Only a pending request can be.". Their statuses were unchanged. |
 | Status | Pass |
-| Remarks | Commit: ba2d786 · Evidence: tests/L2/evidence/L2-T3.png · Defect: — |
+| Remarks | Commit: 73c1d60 · Evidence: tests/L2/evidence/L2-T3.png · Defect: — |
 | Executed By | Yichen, via automated testing |
 | Date of Execution | 2026-10-19 |

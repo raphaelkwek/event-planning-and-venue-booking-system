@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | Both were accepted, BKR-001133 (Lee Kong Chian Auditorium) and BKR-001134 (Seminar Room 2-1), each Pending. After withdrawing BKR-001134: "BKR-001134Seminar Room 2-1Wednesday 2 December 2026, 14:00–18:00Classroom150Withdrawn"; BKR-001133 was still Pending. |
+| Actual Result | Both were accepted, BKR-001381 (Lee Kong Chian Auditorium) and BKR-001382 (Seminar Room 2-1), each Pending. After withdrawing BKR-001382: "BKR-001382Seminar Room 2-1Wednesday 2 December 2026, 14:00–18:00Classroom150Withdrawn"; BKR-001381 was still Pending. |
 | Status | Pass |
-| Remarks | Commit: ba2d786 · Evidence: tests/L1/evidence/L1-T9.png · Defect: — |
+| Remarks | Commit: 73c1d60 · Evidence: tests/L1/evidence/L1-T9.png · Defect: — |
 | Executed By | Yichen, via automated testing |
 | Date of Execution | 2026-10-19 |

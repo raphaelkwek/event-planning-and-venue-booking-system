@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | After withdrawing BKR-001143, Wednesday 2 December 2026 had no Pending row (Committed: 00:00–08:00 Outside operating hours; 22:00–24:00 Outside operating hours) and was free 08:00–22:00. |
+| Actual Result | After withdrawing BKR-001391, Wednesday 2 December 2026 had no Pending row (Committed: 00:00–08:00 Outside operating hours; 22:00–24:00 Outside operating hours) and was free 08:00–22:00. |
 | Status | Pass |
-| Remarks | Commit: ba2d786 · Evidence: tests/L2/evidence/L2-T5.png · Defect: — |
+| Remarks | Commit: 73c1d60 · Evidence: tests/L2/evidence/L2-T5.png · Defect: — |
 | Executed By | Yichen, via automated testing |
 | Date of Execution | 2026-10-19 |

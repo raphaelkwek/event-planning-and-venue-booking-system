@@ -1930,17 +1930,23 @@ paths:
         - { name: eventId, in: query, required: true, schema: { type: string, format: uuid } }
       responses:
         "200":
-          description: The event and its requests.
+          description: |
+            The event, its requests, and its bookings (L5): each booking with the active blocks that
+            disrupt it (I2) and the replacement requests raised for it (CR-02). Released bookings are
+            included, so a replaced booking's record stays visible.
           content:
             application/json:
               schema:
                 type: object
-                required: [event, items]
+                required: [event, items, bookings]
                 properties:
                   event: { $ref: "#/components/schemas/BookingEvent" }
                   items:
                     type: array
                     items: { $ref: "#/components/schemas/BookingRequest" }
+                  bookings:
+                    type: array
+                    items: { $ref: "#/components/schemas/EventBooking" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404":
@@ -3105,6 +3111,42 @@ components:
         rejectionReason: { type: [string, "null"], description: "M2: why it was rejected." }
         suggestedAlternative: { type: [string, "null"], description: "M2: alternative dates or venues, if any were suggested." }
         requiresReconfirmation: { type: boolean, description: "I2: an active block overlaps this pending request." }
+    EventBooking:
+      type: object
+      required: [id, reference, venueId, venueName, startsAt, endsAt, status, requiresReconfirmation, releaseReason, disruptions, replacements]
+      properties:
+        id: { type: string, format: uuid }
+        reference: { type: string }
+        venueId: { type: string, format: uuid }
+        venueName: { type: string }
+        startsAt: { type: string, format: date-time }
+        endsAt: { type: string, format: date-time }
+        status: { type: string, enum: [HELD, CONFIRMED, RELEASED] }
+        requiresReconfirmation: { type: boolean }
+        releaseReason: { type: [string, "null"], description: "CR-02: `replaced` once an approved replacement released it." }
+        disruptions:
+          type: array
+          description: The active blocks that disrupt it (I2).
+          items:
+            type: object
+            required: [blockId, reasonType, description, startsAt, endsAt]
+            properties:
+              blockId: { type: string, format: uuid }
+              reasonType: { type: string, enum: [MAINTENANCE, EQUIPMENT_FAILURE, RENOVATION, SAFETY, OTHER] }
+              description: { type: string }
+              startsAt: { type: string, format: date-time }
+              endsAt: { type: string, format: date-time }
+        replacements:
+          type: array
+          description: The requests raised to replace it (L5), oldest first.
+          items:
+            type: object
+            required: [id, reference, status, venueName]
+            properties:
+              id: { type: string, format: uuid }
+              reference: { type: string }
+              status: { type: string, enum: [PENDING, APPROVED, REJECTED, WITHDRAWN] }
+              venueName: { type: string }
     UnavailabilityBlockInput:
       type: object
       required: [startsAt, endsAt, reasonType, description]
