@@ -40,6 +40,9 @@ function parseInstant(value: string | null | undefined): Date | null {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
+/** B2's rule that registration ends by the event's start; S1 reports it on the start when the start moves. */
+export const REGISTRATION_AFTER_START_MESSAGE = "Registration closing must be no later than the event start.";
+
 export function validateSubmission(
   candidate: SubmissionCandidate,
   now: Date = new Date()
@@ -143,7 +146,7 @@ export function validateSubmission(
       if (start && closes.getTime() > start.getTime()) {
         errors.push({
           field: "registrationClosesAt",
-          message: "Registration closing must be no later than the event start.",
+          message: REGISTRATION_AFTER_START_MESSAGE,
         });
       }
     }

@@ -66,7 +66,13 @@ const history = async (id: string) =>
 const outboxRows = (id: string) => sql`select * from equipment.outbox where message_key = ${id} order by seq`;
 const reservationCount = async () =>
   Number((await sql`select count(*) from equipment.bulk_reservations where equipment_type_id in (${chairs.id}, ${projectors.id})`)[0]!.count) +
-  Number((await sql`select count(*) from equipment.unit_reservations`)[0]!.count);
+  Number(
+    (await sql`
+      select count(*) from equipment.unit_reservations r
+      join equipment.equipment_units u on u.id = r.unit_id
+      where u.equipment_type_id in (${chairs.id}, ${projectors.id})
+    `)[0]!.count,
+  );
 
 describe("O2 cards: updating a line's status", () => {
   it("O2-T1 sets a line Under Review and records who and when", async () => {
