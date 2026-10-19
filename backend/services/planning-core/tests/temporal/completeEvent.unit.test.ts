@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { TestWorkflowEnvironment } from "@temporalio/testing";
 import { Worker, type WorkflowBundleWithSourceMap } from "@temporalio/worker";
 import type { CompletionAttempt } from "../../src/modules/event/index.js";
@@ -16,6 +16,9 @@ import { RECHECK_AFTER_MS, rescheduleSignal, type completeEvent } from "../../sr
 
 const HOUR = 60 * 60 * 1000;
 const TASK_QUEUE = "en-11-tests";
+
+// Starting a worker per test takes a second or two, more on a CI runner.
+vi.setConfig({ testTimeout: 30_000 });
 
 let env: TestWorkflowEnvironment;
 let workflowBundle: WorkflowBundleWithSourceMap;
