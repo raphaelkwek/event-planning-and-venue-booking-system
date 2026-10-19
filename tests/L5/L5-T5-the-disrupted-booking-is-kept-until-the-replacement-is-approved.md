@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | Before the approval the booking was CONFIRMED, flagged, with no release reason. After it, it was RELEASED with release reason "replaced". The coordinator's Bookings read "BKR-001361Lee Kong Chian AuditoriumWednesday 2 December 2026, 14:00–18:00Released (replaced)Replacement BKR-001362 at Seminar Room 2-1: Approved" for the old booking, and showed the new one at Seminar Room 2-1 Confirmed. |
+| Status | Pass |
+| Remarks | Commit: a97986f · Evidence: tests/L5/evidence/L5-T5.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-19 |

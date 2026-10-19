@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | The event was APPROVED before, and after the block: APPROVED; after the replacement request: APPROVED; after the approval and release: APPROVED. Its review page shows Approved, with 3 status history entries before and after. It was never Cancelled. |
+| Status | Pass |
+| Remarks | Commit: a97986f · Evidence: tests/L5/evidence/L5-T8.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-19 |

@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | The search opened for BKR-001358 with From 2026-12-02T14:00, To 2026-12-02T18:00, minimum capacity 150, layout . It listed 1 venue(s) including Mochtar Riady Hall with "Request this venue", and not Lee Kong Chian Auditorium. |
+| Status | Pass |
+| Remarks | Commit: a97986f · Evidence: tests/L5/evidence/L5-T3.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-19 |

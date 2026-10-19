@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | The coordinator saw "Find a replacement" on BKR-001356 only; BKR-001357 read "BKR-001357Seminar Room 2-1Wednesday 9 December 2026, 10:00–12:00Confirmed" with no action. The organiser saw "BKR-001356Lee Kong Chian AuditoriumWednesday 2 December 2026, 14:00–18:00Confirmed Requires reconfirmationUnavailable: Maintenance, “Stage rigging inspection”, Wednesday 2 December 2026, 16:00–19:00" and no "Find a replacement". |
+| Status | Pass |
+| Remarks | Commit: a97986f · Evidence: tests/L5/evidence/L5-T2.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-19 |

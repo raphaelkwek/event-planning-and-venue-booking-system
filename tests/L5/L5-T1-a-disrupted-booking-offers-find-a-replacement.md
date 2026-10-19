@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | The booking's row read "BKR-001355Lee Kong Chian AuditoriumWednesday 2 December 2026, 14:00–18:00Confirmed Requires reconfirmationUnavailable: Maintenance, “Stage rigging inspection”, Wednesday 2 December 2026, 16:00–19:00Find a replacement", with a "Find a replacement" button. |
+| Status | Pass |
+| Remarks | Commit: a97986f · Evidence: tests/L5/evidence/L5-T1.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-19 |

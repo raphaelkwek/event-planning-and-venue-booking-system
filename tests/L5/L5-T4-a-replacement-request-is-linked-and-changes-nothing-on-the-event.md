@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | The form said it replaces BKR-001359, with Mochtar Riady Hall, 2026-12-02 14:00–18:00 and Theatre. BKR-001360 was accepted, PENDING, replaces_booking_id 07e9e434-c704-4665-8cd2-41af59831bd0. The event is still APPROVED, version 4. |
+| Status | Pass |
+| Remarks | Commit: a97986f · Evidence: tests/L5/evidence/L5-T4.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-19 |
