@@ -4,6 +4,42 @@
 
 ---
 
+# L5: Request a replacement venue for a disrupted booking
+
+**Timestamp:** 2026-10-19T17:04+08:00 (SGT)
+**Author:** Seann, via Claude
+**Scope:**
+- planning-core, venue module: `repo/eventBookings.ts` (new); the event's venue requests now include its bookings (`bookings` in `GET /api/v1/booking-requests?eventId=`). No migration, route or contract.
+- `planning-core.openapi.yaml`: the `EventBooking` schema and the response's `bookings`.
+- The web app:
+  - `EventVenueRequests` lists the event's bookings, with "Find a replacement";
+  - `VenueSearch` and `BookingRequestForm` accept replacement parameters.
+- Tests: planning-core (repo and integration) and web. Test cards `tests/L5/` (8), with FX-L5 and the L5 replacement statement. Traceability in `sprint-3.csv`.
+
+**Reason:** L5 (Sprint 3), new with CR-02. When a booked venue becomes unavailable (I2), the coordinator finds and requests a replacement in the system, and the event goes ahead.
+
+## What it does
+
+1. **"Venue requests" lists the event's bookings:** venue, period and status. A disrupted booking shows Requires reconfirmation and the unavailability behind it, any replacement requests show with their status, and a replaced booking shows "Released (replaced)".
+2. **"Find a replacement"** appears on a confirmed booking an active block disrupts, for the event's assigned coordinator only. It opens J1's search with the event's requirements and the booking's period; venues unavailable then aren't listed.
+3. **"Request this venue"** opens the request form for that venue and period, saying which booking it replaces. The request is linked (`replacesBookingId`, L1), and raising it changes nothing on the event.
+4. **The disrupted booking is kept, still flagged,** until a replacement is approved (M1 releases it as `replaced` and keeps it). If a replacement is rejected or withdrawn the booking stays as it was, and another can be requested.
+5. **The event is never cancelled** by any of this.
+
+## Notes for the team
+
+6. **J1's `VenueSearch` and L1's `BookingRequestForm`** gain replacement parameters (`replaces`, `booking`, `venue`, `from`, `to`, and `venueId` on the form). Without them both behave as before.
+7. **Three cards were corrected after their first run.** They assumed FX-BOOKING's event asks for a Theatre layout; it records no venue requirements, so no layout is pre-filled and the coordinator chooses it. The failing records weren't committed.
+8. **A replacement at `Mochtar Riady Hall` can't be decided:** no Venue Staff look after it in FX-BOOKING. Cases that approve or reject use `Seminar Room 2-1` through the L5 replacement statement.
+
+## Verified
+
+- **The 8 L5 cards pass in Chrome** through the automated runner, against `a97986f`. **The 20 L1 and L2 cards pass again**, against `73c1d60`.
+- **planning-core:** unit tests 772/772; integration tests all 1,455 pass, including CR-02's (the booking kept until its replacement is approved, and kept if it's rejected or withdrawn). Coverage is 96.7% of lines, 92.3% of branches and 95.9% of functions.
+- **web:** 261/261. **Lint, typecheck, `lint:api` and `lint:boundaries` pass.**
+
+---
+
 # I2: Venue Staff record periods when a venue can't be used
 
 **Timestamp:** 2026-10-19T16:33+08:00 (SGT)
