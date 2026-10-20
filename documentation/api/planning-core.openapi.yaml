@@ -1150,6 +1150,13 @@ paths:
         Venue Staff only. Replaces every attribute; `isActive` may be left out to keep
         the current state. An UPDATED history entry records each changed field's
         previous and new value. A refused update stores nothing.
+
+        H3-T10 (CR-01): when the setup or turnaround time changes, each live booking and hold that
+        now overlaps another, with the new times applied to both, is flagged Requires
+        Reconfirmation, and its event's assigned coordinator is told through
+        `venue-booking.buffer-conflict-flagged`. Nothing is removed, released or moved: each keeps
+        the times it was taken with. Once later times make a pair fit again, the flag clears,
+        unless an active block still disrupts the booking (I2).
       operationId: updateVenue
       requestBody:
         required: true
@@ -1158,10 +1165,29 @@ paths:
             schema: { $ref: "#/components/schemas/VenueInput" }
       responses:
         "200":
-          description: The venue as stored.
+          description: The venue as stored, with the bookings and holds the change newly flagged.
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/Venue" }
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Venue"
+                  - type: object
+                    required: [flaggedBookings]
+                    properties:
+                      flaggedBookings:
+                        type: array
+                        description: "H3-T10: each booking or hold that now overlaps one it didn't before, soonest first. Empty unless the setup or turnaround time changed."
+                        items:
+                          type: object
+                          required: [kind, reference, eventReference, overlapsReferences]
+                          properties:
+                            kind: { type: string, enum: [BOOKING, HOLD] }
+                            reference: { type: string }
+                            eventReference: { type: [string, "null"] }
+                            overlapsReferences:
+                              type: array
+                              description: Every other booking or hold it now overlaps, soonest first.
+                              items: { type: string }
         "400": { $ref: "#/components/responses/ValidationFailed" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
@@ -2110,7 +2136,8 @@ paths:
 
         It is refused, and nothing changes, when the period now overlaps a hold, a confirmed booking
         or recorded unavailability at the venue. Periods are compared as occupied periods, setup and
-        turnaround included (CR-01), and the exclusion constraint on venue slots decides (N1,
+        turnaround included (CR-01): the booking copies the venue's times as they stand at
+        approval (H3-T8, H3-T9). The exclusion constraint on venue slots decides (N1,
         ADR-0006), so of two overlapping approvals at the same moment exactly one succeeds.
 
         CR-02: when the request replaces a disrupted booking, that booking is released with the
@@ -3514,7 +3541,7 @@ components:
         justification: { type: [string, "null"], description: "K2: the coordinator's justification for a Not suitable venue; null otherwise." }
     EventBooking:
       type: object
-      required: [id, reference, venueId, venueName, startsAt, endsAt, status, requiresReconfirmation, releaseReason, disruptions, replacements]
+      required: [id, reference, venueId, venueName, startsAt, endsAt, status, requiresReconfirmation, releaseReason, disruptions, overlaps, replacements]
       properties:
         id: { type: string, format: uuid }
         reference: { type: string }
@@ -3537,6 +3564,10 @@ components:
               description: { type: string }
               startsAt: { type: string, format: date-time }
               endsAt: { type: string, format: date-time }
+        overlaps:
+          type: array
+          description: "H3-T10: the live bookings and holds the venue's current setup and turnaround time make it overlap, soonest first."
+          items: { type: string }
         replacements:
           type: array
           description: The requests raised to replace it (L5), oldest first.

@@ -17,7 +17,8 @@ import {
 } from "../repo/bookingDecisions.js";
 import { findBookingRequest, lockBookingRequest, type BookingRequest } from "../repo/bookingRequests.js";
 import { confirmHeldSlotForRequest, HeldSlotNotHeldError, releaseHeldSlotForRequest } from "../repo/holds.js";
-import { insertVenueSlot, lockVenue } from "../repo/slots.js";
+import { insertVenueSlot } from "../repo/slots.js";
+import { lockVenue } from "../repo/venues.js";
 import { BASE, bookingRequestRateLimit, present, requestNotFound, UUID } from "./bookingRequests.js";
 import { refuse } from "./errors.js";
 
@@ -34,9 +35,6 @@ import { refuse } from "./errors.js";
 
 /** The requests' events are read whatever the caller's event scope: deciding is scoped by venue (A3, venue_bookings). */
 const ALL_EVENTS = { scopeType: "ALL" } as const;
-/** Venues have no setup or turnaround time until H3 gives them one, so a new booking's are zero (CR-01). */
-const SETUP_MINUTES = 0;
-const TURNAROUND_MINUTES = 0;
 const INVALID_REJECTION = "The request could not be rejected. Check the highlighted fields.";
 
 /** The approval's booking overlapped another; thrown so the transaction rolls back CR-02's release. */
@@ -108,10 +106,11 @@ export function bookingDecisionsRouter(sql: Sql) {
           // The venue first, then the request: the order I2 takes them in when a block
           // flags a pending request (implementation.md §4.6, rule 1). The other order
           // deadlocks against a block recorded at the same moment.
-          await lockVenue(tx, request.venueId);
+          // H3 (CR-01): the booking copies the venue's setup and turnaround time as it stands now.
+          const { setupMinutes, turnaroundMinutes } = (await lockVenue(tx, request.venueId))!;
           const locked = (await lockBookingRequest(tx, request.id))!;
           if (locked.status !== "PENDING") return { code: "NOT_PENDING", locked } as const;
-          const blocks = await activeBlocksOverlapping(tx, locked.venueId, startsAt, endsAt, SETUP_MINUTES, TURNAROUND_MINUTES);
+          const blocks = await activeBlocksOverlapping(tx, locked.venueId, startsAt, endsAt, setupMinutes, turnaroundMinutes);
           if (blocks.length > 0) return { code: "UNAVAILABLE", blocks } as const;
 
           // CR-02: release the disrupted booking first, so a replacement at the same venue can take its period.
@@ -131,15 +130,15 @@ export function bookingDecisionsRouter(sql: Sql) {
                 reference: locked.reference,
                 startsAt,
                 endsAt,
-                setupMinutes: SETUP_MINUTES,
-                turnaroundMinutes: TURNAROUND_MINUTES,
+                setupMinutes,
+                turnaroundMinutes,
                 status: "CONFIRMED",
                 actorUserId: actor.userId,
               });
               bookingId = booking.id;
             } catch (error) {
               if (!(error instanceof VenueSlotConflictError)) throw error;
-              throw new ApprovalOverlapError(await bookingsOverlapping(tx, locked.venueId, startsAt, endsAt, SETUP_MINUTES, TURNAROUND_MINUTES));
+              throw new ApprovalOverlapError(await bookingsOverlapping(tx, locked.venueId, startsAt, endsAt, setupMinutes, turnaroundMinutes));
             }
           }
 
