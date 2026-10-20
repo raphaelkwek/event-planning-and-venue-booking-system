@@ -136,7 +136,8 @@ describe("POST /api/v1/booking-requests (L1)", () => {
     signedInAs("EVENT_COORDINATOR", COORDINATOR);
     const before = Date.now();
 
-    const res = await submit(body(event.id, venueId, { layout: "classroom", facilities: ["Projector", "Wireless microphones"], accessibilityFeatures: ["Step-free access", "Hearing loop"] }));
+    // Classroom seats 120, so K2 needs a justification for 150.
+    const res = await submit(body(event.id, venueId, { layout: "classroom", facilities: ["Projector", "Wireless microphones"], accessibilityFeatures: ["Step-free access", "Hearing loop"], justification: "Standing room at the back." }));
 
     expect(res.status).toBe(201);
     expect(res.body).toMatchObject({
@@ -156,6 +157,8 @@ describe("POST /api/v1/booking-requests (L1)", () => {
       differences: [],
       replacesBookingId: null,
       requestedBy: COORDINATOR,
+      suitabilityStatus: "NOT_SUITABLE",
+      justification: "Standing room at the back.",
     });
     expect(Date.parse(res.body.requestedAt)).toBeGreaterThanOrEqual(before - 5000);
   });

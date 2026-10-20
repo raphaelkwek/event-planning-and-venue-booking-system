@@ -1,5 +1,6 @@
 import { request } from "./client.js";
 import type { EventStatus, VenueRequirements } from "./types.js";
+import type { SuitabilityCondition, SuitabilityStatus } from "./venues.js";
 
 /** L1, L2, M1, M2: venue booking requests, served by planning-core's venue module. */
 
@@ -43,6 +44,12 @@ export interface BookingRequest {
   suggestedAlternative: string | null;
   /** I2: an active block overlaps this pending request. */
   requiresReconfirmation: boolean;
+  /** K2: assessed when the request was submitted; null on requests made before K2. */
+  suitabilityStatus: SuitabilityStatus | null;
+  /** K2: the failing conditions as they were then. */
+  suitabilityReasons: SuitabilityCondition[] | null;
+  justification: string | null;
+
 }
 
 /** The event's values the request form starts from. */
@@ -68,6 +75,8 @@ export interface BookingRequestInput {
   expectedAttendance: number | null;
   facilities: string[];
   accessibilityFeatures: string[];
+  /** K2: sent once the server has found the venue not suitable. */
+  justification?: string;
   /** L5 (CR-02): the disrupted booking this request replaces. */
   replacesBookingId?: string | null;
 }
