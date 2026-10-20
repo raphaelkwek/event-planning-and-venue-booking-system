@@ -181,6 +181,48 @@ describe("venue-booking.booking-disrupted and venue-booking.disruption-cleared (
   });
 });
 
+describe("venue-booking.buffer-conflict-flagged (H3)", () => {
+  const flagged = {
+    venueId: "33333333-3333-4333-8333-333333333333",
+    venueName: "Lee Kong Chian Auditorium",
+    kind: "BOOKING",
+    reference: "BKR-000001",
+    eventId: "22222222-2222-4222-8222-222222222222",
+    eventReference: "EVT-000123",
+    eventName: "Annual Research Symposium",
+    coordinatorId: "00000000-0000-0000-0000-000000000002",
+    overlapsReferences: ["BKR-000002"],
+    setupMinutes: 0,
+    turnaroundMinutes: 30,
+    actedBy: "00000000-0000-0000-0000-000000000003",
+    actedAt: "2026-10-20T02:00:00.000Z",
+  };
+  const message = (payload: Record<string, unknown>) => ({
+    specversion: "1.0",
+    id: "44444444-4444-4444-8444-444444444444",
+    source: "/connectsphere/planning-core/venue",
+    type: "venue-booking.buffer-conflict-flagged",
+    subject: flagged.venueId,
+    time: "2026-10-20T02:00:00.000Z",
+    datacontenttype: "application/json",
+    traceparent: "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01",
+    actor: "VENUE_STAFF:00000000-0000-0000-0000-000000000003",
+    data: payload,
+  });
+
+  it("accepts a booking or hold the venue's new times make overlap others, naming them and the coordinator (H3-T10)", () => {
+    expect(parseCloudEvent(message(flagged)).data).toEqual(flagged);
+    expect(parseCloudEvent(message({ ...flagged, kind: "HOLD" })).data).toMatchObject({ kind: "HOLD" });
+  });
+
+  it("refuses one that names nothing it overlaps, a request, or times that aren't whole minutes from 0", () => {
+    expect(() => parseCloudEvent(message({ ...flagged, overlapsReferences: [] }))).toThrow(/overlapsReferences/);
+    expect(() => parseCloudEvent(message({ ...flagged, kind: "REQUEST" }))).toThrow(/kind/);
+    expect(() => parseCloudEvent(message({ ...flagged, turnaroundMinutes: -1 }))).toThrow(/turnaroundMinutes/);
+    expect(() => parseCloudEvent(message({ ...flagged, setupMinutes: 1.5 }))).toThrow(/setupMinutes/);
+  });
+});
+
 describe("ERROR_CODES", () => {
   it("has M1's refusal by recorded unavailability", () => {
     expect(ERROR_CODES).toContain("VENUE_UNAVAILABLE");
