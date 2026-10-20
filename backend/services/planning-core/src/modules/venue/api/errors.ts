@@ -5,12 +5,20 @@ import { logger } from "../../../shared/logger.js";
 
 /**
  * The single error envelope from implementation.md §5, logged with its code,
- * as in the event module.
+ * as in the event module. `details` carries structured facts a screen shows
+ * beside the message, such as K2's failing conditions.
  */
-export function refuse(res: Response, status: number, code: ErrorCode, message: string, fields?: ErrorField[]) {
+export function refuse(
+  res: Response,
+  status: number,
+  code: ErrorCode,
+  message: string,
+  fields?: ErrorField[],
+  details?: Record<string, unknown>,
+) {
   const correlationId = (res.getHeader("x-correlation-id") as string | undefined) ?? null;
   logger.info("request refused", { correlationId, outcome: "refused", code });
-  res.status(status).json({ error: { code, message, ...(fields ? { fields } : {}), correlationId } });
+  res.status(status).json({ error: { code, message, ...(details ? { details } : {}), ...(fields ? { fields } : {}), correlationId } });
 }
 
 /** Turns a shape failure into the same `fields[]` the venue rules use. */

@@ -12,6 +12,12 @@ export default defineConfig({
     // row that E1 locks. Running files in parallel makes them contend for it.
     fileParallelism: false,
     testTimeout: 20000,
+    // EN-11: Temporal's native core (the Rust bridge behind @temporalio/worker and
+    // @temporalio/testing) crashes the run with a segfault (exit 139) when it is
+    // loaded in vitest's default worker threads. Child processes don't share it.
+    // Forks are vitest 2's default; a per-file glob (poolMatchGlobs) for just the
+    // Temporal tests did not take effect here on vitest 1.6.
+    pool: "forks",
     // SPM-116, moved here from vitest.unit.config.ts on 2026-10-07. Applies
     // when coverage is on (`npm run test:coverage`, CI's integration job), the
     // one run that executes repo/ and api/ against a database. Domain code is

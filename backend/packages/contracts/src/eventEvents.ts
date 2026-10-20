@@ -122,6 +122,41 @@ export const eventArrangementsConfirmedPayloadSchema = z.object({
   ),
 });
 
+/**
+ * EN-11 — every change of an event's status, whatever caused it. The event
+ * module writes it in `transitionEvent`, the one path that changes a status,
+ * so a consumer that cares about a status (the completion workflow cares about
+ * CONFIRMED) needs no message per story. `action` is the row of F1's
+ * transition table that moved it. The dates are the event's after the change,
+ * so the completion workflow can set its timer without reading the event.
+ */
+export const eventStatusChangedPayloadSchema = z.object({
+  eventId: z.string().uuid(),
+  ownerId: z.string().uuid(),
+  previousStatus: eventStatusSchema,
+  newStatus: eventStatusSchema,
+  action: z.string().regex(/^[A-Z][A-Z_]*$/),
+  proposedStartAt: z.string().datetime().nullable(),
+  proposedEndAt: z.string().datetime().nullable(),
+  changedAt: z.string().datetime(),
+});
+
+/**
+ * EN-11 — an approved event's date or times changed (S2 applies an approved
+ * change). The completion workflow of a Confirmed event resets its timer to
+ * the new end.
+ */
+export const eventScheduleChangedPayloadSchema = z.object({
+  eventId: z.string().uuid(),
+  ownerId: z.string().uuid(),
+  status: eventStatusSchema,
+  previousStartAt: z.string().datetime().nullable(),
+  previousEndAt: z.string().datetime().nullable(),
+  proposedStartAt: z.string().datetime().nullable(),
+  proposedEndAt: z.string().datetime().nullable(),
+  changedAt: z.string().datetime(),
+});
+
 /** Validators keyed by messageType, for producers and consumers alike. */
 export const EVENT_PAYLOAD_SCHEMAS = {
   "event.submitted": eventSubmittedPayloadSchema,
@@ -134,6 +169,8 @@ export const EVENT_PAYLOAD_SCHEMAS = {
   "event.reassignment-accepted": eventReassignmentAcceptedPayloadSchema,
   "event.reassignment-declined": eventReassignmentDeclinedPayloadSchema,
   "event.arrangements-confirmed": eventArrangementsConfirmedPayloadSchema,
+  "event.status-changed": eventStatusChangedPayloadSchema,
+  "event.schedule-changed": eventScheduleChangedPayloadSchema,
 } as const;
 
 export type EventMessageType = keyof typeof EVENT_PAYLOAD_SCHEMAS;

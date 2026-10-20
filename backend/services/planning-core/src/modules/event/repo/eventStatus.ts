@@ -79,6 +79,18 @@ export async function readStatus(tx: TransactionSql, eventId: string): Promise<E
   return rows[0]?.status ?? null;
 }
 
+/** EN-11 — what the completion workflow needs to know about one event: its status and its end. */
+export async function readCompletionState(
+  tx: TransactionSql,
+  eventId: string
+): Promise<{ status: EventStatus; proposedEndAt: string | null } | null> {
+  const rows = await tx<{ status: EventStatus; proposed_end_at: Date | null }[]>`
+    select status, proposed_end_at from event.events where id = ${eventId}
+  `;
+  const row = rows[0];
+  return row ? { status: row.status, proposedEndAt: row.proposed_end_at?.toISOString() ?? null } : null;
+}
+
 /**
  * F1 AC6 — an event's end has passed once `now` reaches it. At exactly the end
  * instant it counts as passed: periods are half-open, `'[)'`, so the end

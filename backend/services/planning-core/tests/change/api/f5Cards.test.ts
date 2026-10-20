@@ -440,7 +440,11 @@ describe("F5 cards (tests/F5)", () => {
     const b2 = await slot(v2.id, event.id, "CONFIRMED");
     expect((await confirm(event.id)).status).toBe(200);
 
-    const rows = await sql`select topic, message_key, envelope from event.outbox where message_key = ${event.id} order by seq`;
+    // EN-11 also writes an event.status-changed message for the move to Safety Review, so count F5's own.
+    const rows = await sql`
+      select topic, message_key, envelope from event.outbox
+      where message_key = ${event.id} and envelope->>'type' = 'event.arrangements-confirmed' order by seq
+    `;
     expect(rows).toHaveLength(1);
     expect(rows[0]!.topic).toBe(KAFKA_TOPICS.event);
     const message = parseCloudEvent(rows[0]!.envelope);

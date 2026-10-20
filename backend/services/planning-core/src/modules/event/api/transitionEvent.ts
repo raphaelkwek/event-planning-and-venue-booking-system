@@ -1,5 +1,6 @@
 import type { TransactionSql } from "postgres";
-import type { EventStatus } from "@connectsphere/contracts";
+import { KAFKA_TOPICS, type EventStatus } from "@connectsphere/contracts";
+import { writeOutbox } from "../events/outbox.js";
 import {
   COMPLETION_NOT_DUE_MESSAGE,
   refusalMessage,
@@ -43,7 +44,7 @@ export async function transitionEvent(
   eventId: string,
   action: EventAction,
   actor: TransitionActor,
-  options: { set?: Fragment; now?: Date } = {}
+  options: { set?: Fragment; now?: Date; correlationId?: string | null } = {}
 ): Promise<TransitionOutcome> {
   const rule = transitionRule(action);
 
@@ -95,6 +96,27 @@ export async function transitionEvent(
     actorUserId: actor.userId,
     actorRole: actor.role,
     triggeringAction: action,
+  });
+
+  // EN-11 — every status change is published, here where every status change
+  // is made, so a consumer that waits for a status (the completion workflow
+  // waits for Confirmed, ADR-0009) needs no message from each story.
+  await writeOutbox(tx, {
+    topic: KAFKA_TOPICS.event,
+    messageType: "event.status-changed",
+    aggregateId: eventId,
+    actor,
+    correlationId: options.correlationId ?? null,
+    payload: {
+      eventId,
+      ownerId: changed.event.ownerId,
+      previousStatus: changed.previousStatus,
+      newStatus: rule.to,
+      action,
+      proposedStartAt: changed.event.proposedStartAt,
+      proposedEndAt: changed.event.proposedEndAt,
+      changedAt: new Date().toISOString(),
+    },
   });
 
   return { ok: true, event: changed.event, previousStatus: changed.previousStatus };

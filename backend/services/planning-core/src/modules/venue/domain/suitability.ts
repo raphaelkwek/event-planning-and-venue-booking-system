@@ -1,4 +1,4 @@
-import { venueRequirementsSchema, type VenueRequirements } from "@connectsphere/contracts";
+import { venueRequirementsSchema, type SuitabilityStatus, type VenueRequirements } from "@connectsphere/contracts";
 import { calendarDays } from "./availabilityCalendar.js";
 import type { VenueInput } from "./venueRecord.js";
 
@@ -20,7 +20,8 @@ import type { VenueInput } from "./venueRecord.js";
 
 export type ConditionCode = "LAYOUT_CAPACITY" | "FACILITIES" | "ACCESSIBILITY" | "OPERATING_HOURS";
 export type ConditionOutcome = "MET" | "FAILED" | "NOT_ASSESSED";
-export type SuitabilityStatus = "SUITABLE" | "SUITABLE_WITH_WARNINGS" | "NOT_SUITABLE";
+/** The values live in contracts (SUITABILITY_STATUSES), since K2 stores them on each booking request. */
+export type { SuitabilityStatus };
 
 /** What one rule compared: the event's side (`required`) and the venue's (`available`). */
 export interface ConditionResult {
@@ -279,5 +280,30 @@ export function requirementsFromEvent(event: EventRequirementSource): Suitabilit
       event.proposedStartAt && event.proposedEndAt
         ? { startsAt: event.proposedStartAt, endsAt: event.proposedEndAt }
         : null,
+  };
+}
+
+/** The booking request fields requirements are built from (L1). */
+export interface RequestRequirementSource {
+  layout: string;
+  expectedAttendance: number;
+  facilities: readonly string[];
+  accessibilityFeatures: readonly string[];
+  startsAt: string;
+  endsAt: string;
+}
+
+/**
+ * K2, CR-03: what one booking request asks of its venue. Each venue of an event
+ * is judged against its own request, so every value is the request's, not the
+ * event's.
+ */
+export function requirementsFromRequest(request: RequestRequirementSource): SuitabilityRequirements {
+  return {
+    attendance: request.expectedAttendance,
+    layout: request.layout,
+    facilities: [...request.facilities],
+    accessibilityFeatures: [...request.accessibilityFeatures],
+    period: { startsAt: request.startsAt, endsAt: request.endsAt },
   };
 }
