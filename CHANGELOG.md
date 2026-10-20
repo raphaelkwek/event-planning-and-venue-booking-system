@@ -4,6 +4,56 @@
 
 ---
 
+# H3: Bookings occupy the venue's setup and turnaround time, and a change flags new overlaps
+
+**Timestamp:** 2026-10-21T00:01+08:00 (SGT)
+**Author:** Seann, via Claude
+**Scope:** H3's second half (CR-01), which waited for bookings: H3-T8 to H3-T10.
+- planning-core, venue module: migration `0013_buffer_conflicts.sql`, `domain/occupancy.ts`
+  (`bufferConflicts`), `repo/bufferConflicts.ts`, `api/bufferConflicts.ts`, and changes to
+  `api/venues.ts`, `api/bookingDecisions.ts`, `repo/unavailability.ts` and `repo/eventBookings.ts`.
+- `contracts`: the `venue-booking.buffer-conflict-flagged` message. **Needs a second owner's
+  review.**
+- notification: its recipient rule.
+- web: the venue editor and the event's bookings list.
+- OpenAPI: `PUT /api/v1/venues/{id}` returns `flaggedBookings`; `EventBooking` gains `overlaps`.
+- `tests/H3/` (README, T8 to T10 made executable, all ten records), `tests/fixtures/reset-test-data.sql`
+  and `sprint-3.csv`.
+**Reason:** H3's last three cases were Not Executed since Sprint 2 because nothing could be booked.
+M1 still booked every venue with zero setup and turnaround time.
+
+## Added
+
+- **An approval copies the venue's setup and turnaround time** into the booking, under the venue
+  row lock (H3-T8, H3-T9). A booking 10:00–12:00 with 30 and 45 minutes is occupied 09:30–12:45 on
+  the calendar, and one starting its setup at 12:45 is approved.
+- **Changing those times flags the bookings and holds that now overlap** (H3-T10). In the same
+  transaction, each live booking and hold is compared with the others under the new times. Each
+  one that overlaps another is flagged Requires Reconfirmation, and `venue.buffer_conflicts`
+  records which overlaps which, the times, who and when. Nothing is removed, released or moved;
+  each keeps the times it was taken with. Its event's assigned coordinator is told once per new
+  overlap, and the editor lists what was flagged.
+- Times that fit again clear the record (kept, with who and when) and the flag, unless an active
+  I2 block still disrupts the booking. Removing an I2 block likewise keeps a flag an open buffer
+  conflict causes.
+- The coordinator's bookings list names what each booking overlaps. A flagged confirmed booking
+  offers Find a replacement (L5), as the server already allowed.
+
+## Not done, on purpose
+
+- **Pending requests aren't flagged.** They reserve nothing; flagging conflicts on pending
+  requests is N2.
+- When I2's block removal leaves a booking flagged only by a buffer conflict, the coordinator's
+  message still says "other unavailability still overlaps it".
+- Releasing one of two conflicting bookings (L5's replacement, a released hold) leaves the other
+  flagged. Its overlaps list no longer names the released one.
+
+## Fixed
+
+- The test-data reset removed slots before the buffer conflicts that point at them.
+
+---
+
 # EN-11: Temporal worker and the CompleteEvent durable timer
 
 **Timestamp:** 2026-10-20T14:30+08:00 (SGT)
