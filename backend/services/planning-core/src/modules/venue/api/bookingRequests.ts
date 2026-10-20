@@ -9,11 +9,15 @@ import {
   duplicateMessage,
   eventBookable,
   isAssignedCoordinator,
+  JUSTIFICATION_MESSAGE,
   layoutAt,
   notBookableMessage,
   notPendingMessage,
+  notSuitableMessage,
   readBookingRequest,
+  suitabilityRecord,
 } from "../domain/bookingRequest.js";
+import { assessSuitability, requirementsFromRequest } from "../domain/suitability.js";
 import { requestBlockedMessage } from "../domain/unavailability.js";
 import { writeVenueOutbox } from "../events/outbox.js";
 import { activeBlocksOverlapping } from "../repo/bookingDecisions.js";
@@ -38,6 +42,10 @@ import { refuse } from "./errors.js";
  * L1 — the event's assigned coordinator requests a venue for it; the request
  * waits, Pending, in the queue of the venue's Venue Staff, who are notified.
  * L2 — the coordinator withdraws a request while it is still Pending.
+ *
+ * K2 — the venue is assessed by K1's rules against the request's own values
+ * (CR-03). A venue that isn't suitable can still be requested, but only with a
+ * justification, stored with a snapshot of the failing conditions.
  *
  * A request reserves nothing: only an approval (M1) creates a confirmed booking.
  * The one overlap refused here is a second pending request of the same event
@@ -115,6 +123,16 @@ export function bookingRequestsRouter(sql: Sql) {
         return refuse(res, 400, "VALIDATION_FAILED", INVALID, [{ field: "layout", message: `${venue.name} has no ${input.layout} layout.` }]);
       }
 
+      // K2: assessed against the request's own values, the layout in the venue's spelling.
+      const assessment = assessSuitability(requirementsFromRequest({ ...input, layout }), venue);
+      const suitability = suitabilityRecord(assessment, input.justification);
+      if (!suitability.ok) {
+        return refuse(res, 422, "JUSTIFICATION_REQUIRED", notSuitableMessage(venue.name), [{ field: "justification", message: JUSTIFICATION_MESSAGE }], {
+          status: assessment.status,
+          reasons: assessment.reasons,
+        });
+      }
+
       // An approved event always has its date, times and attendance (B2).
       const eventValues = { startsAt: event.proposedStartAt!, endsAt: event.proposedEndAt!, attendance: event.expectedAttendance! };
       const differs = differencesFromEvent(eventValues, input).length > 0;
@@ -130,6 +148,7 @@ export function bookingRequestsRouter(sql: Sql) {
         if (blocks.length > 0) return { code: "UNAVAILABLE", blocks } as const;
         const created = await insertBookingRequest(tx, {
           ...input,
+          ...suitability.record,
           layout,
           eventStartsAt: eventValues.startsAt,
           eventEndsAt: eventValues.endsAt,
