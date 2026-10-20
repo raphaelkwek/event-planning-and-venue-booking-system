@@ -53,6 +53,7 @@ function bookingRequest(overrides: Record<string, unknown> = {}) {
     suitabilityStatus: "SUITABLE",
     suitabilityReasons: [],
     justification: null,
+    conflicts: [],
     ...overrides,
   };
 }
