@@ -26,7 +26,7 @@ hold's expiry and reminder lead time; L6 acts on them.
 - **`PATCH /api/v1/holds/{id}/expiry`**: Venue Staff of the venue move a held hold's expiry (later
   than now). The reminder is armed again and the timer moves. Another venue's staff get 404, as on
   L3's place route.
-- **`GET /api/v1/holds/placed`**: Venue Staff's held and expired holds, so "Change expiry" and
+- **`GET /api/v1/holds/placed`**: Venue Staff's held holds and those that expired in the last 14 days, so "Change expiry" and
   "Expired on …" appear in the "Placed holds" section of "Hold requests". L3's queue is unchanged.
 - **Notices** to the holding coordinator before and at expiry, naming the venue, period, event
   and expiry time (Singapore time).

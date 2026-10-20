@@ -196,11 +196,14 @@ export async function listRequestedForStaff(db: Db, staffUserId: string): Promis
   return rows.map(toHold);
 }
 
-/** L6: the held and expired holds at the venues this Venue Staff member looks after, newest expiry first. */
+/**
+ * L6: the held holds at the venues this Venue Staff member looks after, and the ones that expired in the
+ * last 14 days, newest expiry first.
+ */
 export async function listPlacedForStaff(db: Db, staffUserId: string): Promise<Hold[]> {
   const rows = await db<Row[]>`
     select ${COLUMNS(db)} from venue.holds h join venue.venues v on v.id = h.venue_id
-    where h.status in ('HELD', 'EXPIRED')
+    where (h.status = 'HELD' or (h.status = 'EXPIRED' and h.expired_at >= now() - interval '14 days'))
       and exists (select 1 from venue.venue_staff s where s.venue_id = h.venue_id and s.user_id = ${staffUserId})
     order by h.expires_at desc, h.reference
   `;
@@ -402,9 +405,21 @@ export async function releaseHoldsForEvent(tx: TransactionSql, eventId: string, 
 }
 
 
+/**
+ * L6: a hold's event can't be found, so its notice can't be written. Retrying
+ * won't help; the HoldExpiry workflow lists this error's name as non-retryable.
+ */
+export class HoldEventMissingError extends Error {
+  constructor(holdId: string, eventId: string) {
+    super(`Hold ${holdId} names event ${eventId}, which could not be found`);
+    this.name = "HoldEventMissingError";
+  }
+}
+
 /** L6: what a reminder or expiry notice names; the holding coordinator is who requested the hold. */
 async function holdNoticePayload(tx: TransactionSql, hold: Hold): Promise<Record<string, unknown>> {
-  const event = (await findEventForChange(tx, hold.eventId, { scopeType: "ALL" }, hold.requestedBy))!;
+  const event = await findEventForChange(tx, hold.eventId, { scopeType: "ALL" }, hold.requestedBy);
+  if (!event) throw new HoldEventMissingError(hold.id, hold.eventId);
   return {
     holdId: hold.id,
     holdReference: hold.reference,

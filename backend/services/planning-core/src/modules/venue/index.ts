@@ -31,7 +31,7 @@ export { occupiedPeriod, periodsOverlap, type Period } from "./domain/occupancy.
 export { releaseHoldsForEvent } from "./repo/holds.js";
 
 /** L6, for the HoldExpiry workflow's activities (src/temporal): remind a hold's coordinator, and expire it. */
-export { expireHoldIfDue, remindHoldIfDue, type ExpireOutcome, type RemindOutcome } from "./repo/holds.js";
+export { HoldEventMissingError, expireHoldIfDue, remindHoldIfDue, type ExpireOutcome, type RemindOutcome } from "./repo/holds.js";
 
 /** L6, for `npm run jobs:schedule-hold-expiries`: a timer for every hold placed before L6. */
 export { listHeldHolds, scheduleHoldExpiries, type HeldHold, type HoldExpiryScheduling } from "./jobs/scheduleHoldExpiries.js";

@@ -1,4 +1,5 @@
 import { condition, defineSignal, proxyActivities, setHandler } from "@temporalio/workflow";
+import { HOLD_EVENT_MISSING_ERROR } from "../domain/holdExpiryErrors.js";
 import type { HoldExpiryActivities } from "../activities/holdExpiry.js";
 
 /**
@@ -40,7 +41,13 @@ export type HoldExpiryResult = { outcome: "expired" } | { outcome: "gone"; statu
 const { remindHoldIfDue, expireHoldIfDue } = proxyActivities<HoldExpiryActivities>({
   startToCloseTimeout: "30 seconds",
   // A database that is down is retried until it is back; both steps are idempotent.
-  retry: { initialInterval: "5 seconds", backoffCoefficient: 2, maximumInterval: "5 minutes" },
+  retry: {
+    initialInterval: "5 seconds",
+    backoffCoefficient: 2,
+    maximumInterval: "5 minutes",
+    // A hold whose event is missing never gets better by retrying: fail the workflow instead.
+    nonRetryableErrorTypes: [HOLD_EVENT_MISSING_ERROR],
+  },
 });
 
 export async function holdExpiry(input: HoldExpiryInput): Promise<HoldExpiryResult> {

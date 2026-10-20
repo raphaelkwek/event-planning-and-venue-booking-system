@@ -206,6 +206,7 @@ describe("expired holds (L6-T12)", () => {
     signInAs("venue-staff", "VENUE_STAFF", "/holds");
     render(<App />);
     expect(await screen.findByRole("heading", { name: "Placed holds" })).toBeTruthy();
+    expect(screen.getByText(/^Held and recently expired holds at your venues/)).toBeTruthy();
     const row = await screen.findByRole("row", { name: "HLD-000001" });
     expect(rowText(row)).toContain("Expired on Tuesday 1 December 2026, 18:00");
     expect(within(row).queryByRole("button")).toBeNull();

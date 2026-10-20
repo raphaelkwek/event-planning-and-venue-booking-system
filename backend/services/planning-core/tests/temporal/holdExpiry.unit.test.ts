@@ -3,6 +3,8 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { TestWorkflowEnvironment } from "@temporalio/testing";
 import { Worker, type WorkflowBundleWithSourceMap } from "@temporalio/worker";
 import type { ExpireOutcome, RemindOutcome } from "../../src/modules/venue/index.js";
+import { HoldEventMissingError } from "../../src/modules/venue/index.js";
+import { HOLD_EVENT_MISSING_ERROR } from "../../src/temporal/domain/holdExpiryErrors.js";
 import { holdExpiryWorkflowId } from "../../src/temporal/domain/holdExpiryTrigger.js";
 import { bundleCompletionWorkflows } from "../../src/temporal/workflowBundle.js";
 import { RECHECK_AFTER_MS, holdRescheduleSignal, type holdExpiry } from "../../src/temporal/workflows/holdExpiry.js";
@@ -287,6 +289,21 @@ describe("HoldExpiry (L6, CR-04)", () => {
       expect(await (await start(t0 + 120 * MINUTE)).result()).toEqual({ outcome: "expired" });
       expect(fake.reminds).toHaveLength(1);
       near(fake.expires[0], t0 + 120 * MINUTE);
+    });
+  });
+
+  it("fails the workflow at once, without retrying, when a hold's event is missing", async () => {
+    // Temporal names an activity's error by its class name; the workflow lists that name as non-retryable.
+    expect(new HoldEventMissingError("h", "e").constructor.name).toBe(HOLD_EVENT_MISSING_ERROR);
+    const fake = fakeHold();
+    let calls = 0;
+    fake.activities.remindHoldIfDue = async () => {
+      calls += 1;
+      throw new HoldEventMissingError("hold-1", "event-1");
+    };
+    await run(fake, async (t0) => {
+      await expect((await start(t0 + 120 * MINUTE)).result()).rejects.toThrow();
+      expect(calls).toBe(1);
     });
   });
 });

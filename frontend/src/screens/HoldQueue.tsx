@@ -72,7 +72,7 @@ export function HoldQueue() {
         <HoldTable holds={items} nameOf={nameOf} onPlaced={onPlaced} onChanged={onChanged} />
       )}
       <h3 style={{ marginTop: 32 }}>Placed holds</h3>
-      <p style={{ marginTop: 0, color: "#626F86" }}>Holds you have placed, newest expiry first. Change a held hold's expiry, or see when one expired.</p>
+      <p style={{ marginTop: 0, color: "#626F86" }}>Held and recently expired holds at your venues, newest expiry first. Change a held hold's expiry, or see when one expired.</p>
       {placed.length === 0 ? (
         <p>No hold has been placed.</p>
       ) : (

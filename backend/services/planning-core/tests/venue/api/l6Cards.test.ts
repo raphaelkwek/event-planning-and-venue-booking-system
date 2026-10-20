@@ -525,21 +525,26 @@ describe("a reminder after the expiry (L6, not a card)", () => {
 describe("Venue Staff's placed holds (L6, not a card)", () => {
   const placed = () => request(app).get("/api/v1/holds/placed").set(bearer);
 
-  it("lists the held and expired holds at the caller's venues, newest expiry first, and not requested, released or other venues' holds", async () => {
+  it("lists the held holds and the holds that expired in the last 14 days at the caller's venues, newest expiry first, and not requested, released, long-expired or other venues' holds", async () => {
     const v = await newVenue(VENUE_NAME, A.vs);
     const v2 = await newVenue("Second Venue", VS2_ID);
-    const [e1, e2, e3, e4, e5] = [
+    const [e1, e2, e3, e4, e5, e6] = [
       await newEvent(A.c1),
       await newEvent(A.c2),
       await newEvent(A.c1),
       await newEvent(A.c2),
       await newEvent(A.c1),
+      await newEvent(A.c2),
     ];
     const soon = await heldHold({ eventId: e1.id, venueId: v, expiresAt: dayFromNow() });
     const later = await heldHold({ eventId: e2.id, venueId: v, coordinator: A.c2, startsAt: at("13:00"), endsAt: at("15:00"), expiresAt: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString() });
     const expired = await heldHold({ eventId: e3.id, venueId: v, startsAt: at("16:00"), endsAt: at("18:00") });
     await backdate(expired.id);
     expect(await inTx((tx) => expireHoldIfDue(tx, expired.id))).toEqual({ outcome: "expired" });
+    const longExpired = await heldHold({ eventId: e6.id, venueId: v, coordinator: A.c2, startsAt: at("16:00"), endsAt: at("18:00") });
+    await backdate(longExpired.id);
+    expect(await inTx((tx) => expireHoldIfDue(tx, longExpired.id))).toEqual({ outcome: "expired" });
+    await sql`update venue.holds set expired_at = now() - interval '15 days' where id = ${longExpired.id}`;
     await requestHold({ eventId: e4.id, venueId: v, coordinator: A.c2, startsAt: at("19:00"), endsAt: at("20:00") });
     await heldHold({ eventId: e5.id, venueId: v2, placedBy: VS2_ID });
 

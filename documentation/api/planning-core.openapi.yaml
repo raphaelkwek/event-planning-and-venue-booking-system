@@ -2313,12 +2313,12 @@ paths:
   /api/v1/holds/placed:
     get:
       tags: [Venue bookings]
-      summary: Held and expired holds at the caller's venues (L6)
-      description: Venue Staff only. The Held and Expired holds at the venues they look after, newest expiry first, so they can change a held hold's expiry.
+      summary: Held and recently expired holds at the caller's venues (L6)
+      description: Venue Staff only. The Held holds at the venues they look after, and the holds that expired in the last 14 days, newest expiry first, so they can change a held hold's expiry.
       operationId: listPlacedHolds
       responses:
         "200":
-          description: Held and expired holds.
+          description: Held holds and holds that expired in the last 14 days.
           content:
             application/json:
               schema:
