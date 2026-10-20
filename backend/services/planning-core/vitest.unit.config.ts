@@ -12,6 +12,12 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["tests/**/domain/**/*.test.ts", "tests/boundaries/**/*.test.ts", "tests/**/*.unit.test.ts"],
+    // EN-11: Temporal's native core (the Rust bridge behind @temporalio/worker and
+    // @temporalio/testing) crashes the run with a segfault (exit 139) when it is
+    // loaded in vitest's default worker threads. Child processes don't share it.
+    // Forks are vitest 2's default; a per-file glob (poolMatchGlobs) for just the
+    // Temporal tests did not take effect here on vitest 1.6.
+    pool: "forks",
     // SPM-116. `npm run test:unit` turns coverage on; CI fails below these.
     coverage: {
       provider: "v8",
