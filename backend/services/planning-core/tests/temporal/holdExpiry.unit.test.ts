@@ -162,7 +162,7 @@ describe("HoldExpiry (L6, CR-04)", () => {
     });
   });
 
-  it("asks the reminder again later when the database says it isn't due", async () => {
+  it("asks the reminder again later when the database says it isn't due, then still expires at the expiry", async () => {
     let remindAt = 0;
     const fake = fakeHold();
     fake.activities.remindHoldIfDue = async () => {
@@ -170,10 +170,16 @@ describe("HoldExpiry (L6, CR-04)", () => {
       return fake.reminds.length === 1 ? { outcome: "not-due", remindAt: new Date(remindAt).toISOString() } : { outcome: "reminded", message: "m" };
     };
     await run(fake, async (t0) => {
-      remindAt = t0 + 80 * MINUTE;
-      await (await start(t0 + 120 * MINUTE)).result();
+      const expiresAt = t0 + 120 * MINUTE;
+      // The timer fires at the lead time (t0 + 60 min); the database says the reminder is due 5 minutes later.
+      remindAt = t0 + 65 * MINUTE;
+      expect(await (await start(expiresAt)).result()).toEqual({ outcome: "expired" });
       expect(fake.reminds).toHaveLength(2);
+      near(fake.reminds[0], t0 + 60 * MINUTE);
+      expect(fake.reminds[1]!).toBeGreaterThanOrEqual(Math.max(remindAt, fake.reminds[0]! + RECHECK_AFTER_MS));
       near(fake.reminds[1], remindAt);
+      expect(fake.expires).toHaveLength(1);
+      near(fake.expires[0], expiresAt);
     });
   });
 
