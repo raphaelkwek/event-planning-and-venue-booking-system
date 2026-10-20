@@ -70,7 +70,7 @@ Adds `reminded_at timestamptz`, `expired_at timestamptz`, and a check `NOT VALID
 
 | Route | Who | Responses |
 |---|---|---|
-| `PATCH /api/v1/holds/{id}/expiry` | Venue Staff of the venue | 200 the hold · 400 `VALIDATION_FAILED` (missing, unparseable, not later than now) · 409 `HOLD_NOT_HELD` (not HELD) · 403 not their venue · 404 |
+| `PATCH /api/v1/holds/{id}/expiry` | Venue Staff of the venue | 200 the hold · 400 `VALIDATION_FAILED` (missing, unparseable, not later than now) · 409 `HOLD_NOT_HELD` (not HELD) · 403 not Venue Staff · 404 `HOLD_NOT_FOUND` unknown hold, or another venue's (as L3's place route) |
 
 Contracts: `venue-booking.hold-placed`, `hold-expiry-changed`, `hold-expiring`, `hold-expired` payloads.
 Notification rules for `hold-expiring` and `hold-expired` → the holding coordinator.
@@ -97,7 +97,7 @@ minutes.
 | L6-T6 | 4 | Reminder at expiry − lead: one `hold-expiring` notice to C1 naming venue, period, event, expiry; a second call sends nothing |
 | L6-T7 | 4 | Expiry notice: one `hold-expired` notice to C1 naming the same |
 | L6-T8 | 1 | VS changes the expiry to later: 200; `reminded_at` cleared; `hold-expiry-changed` message |
-| L6-T9 | 1 | Expiry change refused: not later than now, unparseable, missing (400); not HELD (409); another venue's staff (403) |
+| L6-T9 | 1 | Expiry change refused: not later than now, unparseable, missing (400); not HELD (409); another venue's staff (404, as L3) |
 | L6-T10 | 5 | Workflow (Temporal time-skipping test env or replay): reminder then expiry fire at their times with nobody calling the API; a reschedule moves both |
 | L6-T11 | 1 | L3's placement rules still refuse a missing or past expiry (re-run L3's cards) |
 | L6-T12 | all | Browser walkthrough (manual) |

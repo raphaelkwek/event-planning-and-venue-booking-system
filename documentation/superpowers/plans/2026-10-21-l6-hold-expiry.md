@@ -44,7 +44,7 @@
   - `expireHoldIfDue(tx, holdId)` → `{ outcome: "expired" } | { outcome: "not-due", expiresAt } | { outcome: "gone", status }`; due when HELD and `expires_at <= now()`; sets hold `status='EXPIRED', expired_at=now()`, its slot `status='EXPIRED'`, writes `hold-expired`.
   - `changeHoldExpiry(tx, hold, expiresAt, actorUserId)`: HELD only; sets `expires_at`, clears `reminded_at`; writes `hold-expiry-changed`.
   - `placeHold` additionally writes `hold-placed` (in its transaction).
-- API: `PATCH /api/v1/holds/:id/expiry`, `requireRole("VENUE_STAFF")`, `looksAfterVenue` → else 403, `readExpiryChange` → 400, lock, not HELD → 409 `HOLD_NOT_HELD` (L3's message helper), 200 the hold. OpenAPI path and the two new hold fields, in the same commit.
+- API: `PATCH /api/v1/holds/:id/expiry`, `requireRole("VENUE_STAFF")`, `looksAfterVenue` → else 404 `HOLD_NOT_FOUND` (as L3's place route), `readExpiryChange` → 400, lock, not HELD → 409 `HOLD_NOT_HELD` (L3's message helper), 200 the hold. OpenAPI path and the two new hold fields, in the same commit.
 - Remove L3's stopgap? Keep `hasExpired` on convert (a HELD hold past expiry before the timer fires must still be refused).
 - Repo/API tests (CI only) for each outcome. Root gate. Commit `feat(l6): remind, expire and change a hold's expiry`.
 
