@@ -19,8 +19,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Waits for the L6 implementation and migration venue/0013 on the shared database, applied after the L6 PR merges (`npm run migrate -- venue`). Commit: · Evidence: · Defect: — |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | L3's placement tests, which this card points at, ran in the same CI run and passed: a missing or past expiry is still refused and stores nothing. |
+| Status | Pass (automated, API level) |
+| Remarks | Commit: f7e4b7073b9607b7db396aea29c36f36bd4a5916 · Evidence: backend/services/planning-core/tests/venue/api/holds.test.ts and tests/venue/domain/hold.test.ts, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/39463319772 · Defect: — |
+| Executed By | Raphael, via automated testing (CI) |
+| Date of Execution | 2026-10-21 |

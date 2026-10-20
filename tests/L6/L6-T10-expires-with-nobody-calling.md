@@ -19,8 +19,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Waits for the L6 implementation and migration venue/0013 on the shared database, applied after the L6 PR merges (`npm run migrate -- venue`). Commit: · Evidence: · Defect: — |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | The automated test ran the hold-expiry workflow on Temporal's time-skipping test server with nobody calling the API, and its assertions passed; they check the expected result above. |
+| Status | Pass (automated, workflow level) |
+| Remarks | Commit: f7e4b7073b9607b7db396aea29c36f36bd4a5916 · Evidence: backend/services/planning-core/tests/temporal/holdExpiry.unit.test.ts › L6-T10, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/39463319772 · Defect: — |
+| Executed By | Raphael, via automated testing (CI) |
+| Date of Execution | 2026-10-21 |
