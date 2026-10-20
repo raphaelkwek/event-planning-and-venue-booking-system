@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | Request A's row read "BKR-002981EVT-012019Lee Kong Chian AuditoriumWednesday 2 December 2026, 14:00–18:00Theatre150 attending——SuitableCoordinator One10/21/2026, 12:48:25 AMConflictConflicts with BKR-002982 (pending request), Wednesday 2 December 2026, 16:00–20:00Approve Reject". Request B's row read "BKR-002982EVT-012020Lee Kong Chian AuditoriumWednesday 2 December 2026, 16:00–20:00Theatre150 attending——SuitableCoordinator Two10/21/2026, 12:48:26 AMConflictConflicts with BKR-002981 (pending request), Wednesday 2 December 2026, 14:00–18:00Approve Reject". Both offered Approve and Reject. |
+| Status | Pass |
+| Remarks | Commit: f0c7c9d · Evidence: tests/N2/evidence/N2-T1.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-21 |

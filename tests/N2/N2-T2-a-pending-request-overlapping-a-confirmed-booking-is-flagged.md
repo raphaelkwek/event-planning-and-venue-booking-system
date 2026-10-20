@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | The request's row read "BKR-002983EVT-012021Lee Kong Chian AuditoriumWednesday 2 December 2026, 14:00–18:00Theatre150 attending——SuitableCoordinator One10/21/2026, 12:48:33 AMConflictConflicts with N1-FX-EVT-012022 (confirmed booking), Wednesday 2 December 2026, 13:00–15:00Approve Reject". |
+| Status | Pass |
+| Remarks | Commit: f0c7c9d · Evidence: tests/N2/evidence/N2-T2.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-21 |

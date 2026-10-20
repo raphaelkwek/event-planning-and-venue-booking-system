@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | On "Venue requests", request A's row read "BKR-002987Lee Kong Chian AuditoriumWednesday 2 December 2026, 14:00–18:00Theatre150PendingConflictConflicts with BKR-002988 (pending request), Wednesday 2 December 2026, 16:00–20:00Withdraw". |
+| Status | Pass |
+| Remarks | Commit: f0c7c9d · Evidence: tests/N2/evidence/N2-T5.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-21 |

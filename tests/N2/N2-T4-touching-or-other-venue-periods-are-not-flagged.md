@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | Neither row showed a conflict: "BKR-002985EVT-012025Lee Kong Chian AuditoriumWednesday 2 December 2026, 14:00–18:00Theatre150 attending——SuitableCoordinator One10/21/2026, 12:48:42 AMApprove Reject" / "BKR-002986EVT-012025Seminar Room 2-1Wednesday 2 December 2026, 14:00–18:00Classroom40 attending——SuitableCoordinator One10/21/2026, 12:48:42 AMDiffers from the eventAttendance 40 (event 150)Approve Reject". |
+| Status | Pass |
+| Remarks | Commit: f0c7c9d · Evidence: tests/N2/evidence/N2-T4.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-21 |

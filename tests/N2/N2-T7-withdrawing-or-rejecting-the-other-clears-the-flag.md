@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | after B was withdrawn, A read "BKR-002991EVT-012031Lee Kong Chian AuditoriumWednesday 2 December 2026, 14:00–18:00Theatre150 attending——SuitableCoordinator One10/21/2026, 12:48:55 AMApprove Reject" and C read "BKR-002993EVT-012031Lee Kong Chian AuditoriumWednesday 2 December 2026, 19:00–21:00Theatre150 attending——SuitableCoordinator One10/21/2026, 12:48:56 AMDiffers from the eventStart 19:00 (event 14:00)End 21:00 (event 18:00)Approve Reject"; after B was rejected, A read "BKR-002994EVT-012033Lee Kong Chian AuditoriumWednesday 2 December 2026, 14:00–18:00Theatre150 attending——SuitableCoordinator One10/21/2026, 12:49:00 AMApprove Reject" and C read "BKR-002996EVT-012033Lee Kong Chian AuditoriumWednesday 2 December 2026, 19:00–21:00Theatre150 attending——SuitableCoordinator One10/21/2026, 12:49:01 AMDiffers from the eventStart 19:00 (event 14:00)End 21:00 (event 18:00)Approve Reject". Both stayed Pending. |
+| Status | Pass |
+| Remarks | Commit: f0c7c9d · Evidence: tests/N2/evidence/N2-T7.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-21 |
