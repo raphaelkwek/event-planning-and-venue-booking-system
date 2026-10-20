@@ -302,7 +302,7 @@ describe("completing an event (F1)", () => {
 
 describe("the status-changed message (EN-11)", () => {
   async function messagesOf(id: string) {
-    return sql<{ topic: string; envelope: Record<string, any> }[]>`
+    return sql<{ topic: string; envelope: Record<string, unknown> }[]>`
       select topic, envelope from event.outbox
       where message_key = ${id} and envelope->>'type' = 'event.status-changed'
       order by seq

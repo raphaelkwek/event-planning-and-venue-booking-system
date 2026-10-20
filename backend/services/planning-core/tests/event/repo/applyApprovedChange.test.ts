@@ -95,7 +95,7 @@ describe("applyApprovedChange", () => {
     const actor = { userId: COORDINATOR, role: "EVENT_COORDINATOR" };
 
     async function scheduleMessages(id: string) {
-      return sql<{ envelope: Record<string, any> }[]>`
+      return sql<{ envelope: Record<string, unknown> }[]>`
         select envelope from event.outbox where message_key = ${id} and envelope->>'type' = 'event.schedule-changed'`;
     }
 
