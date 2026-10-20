@@ -462,6 +462,7 @@ describe("hold expiry (L6)", () => {
     const valid = { expiresAt: dayBefore("18:00") };
     const later = "The expiry must be later than now.";
     const missing = "Enter the expiry date and time.";
+    const unparseable = "Enter a date and time with its offset, for example 2026-12-02T14:00+08:00.";
     const refusedWith = (res: request.Response, message: string) => {
       expect(res.status).toBe(400);
       expect(res.body.error.code).toBe("VALIDATION_FAILED");
@@ -471,7 +472,7 @@ describe("hold expiry (L6)", () => {
     asVs();
     refusedWith(await patchExpiry(h1.id, { expiresAt: new Date(Date.now() - 60_000).toISOString() }), later);
     refusedWith(await patchExpiry(h1.id, { expiresAt: new Date().toISOString() }), later);
-    refusedWith(await patchExpiry(h1.id, { expiresAt: "not-a-date" }), missing);
+    refusedWith(await patchExpiry(h1.id, { expiresAt: "not-a-date" }), unparseable);
     refusedWith(await patchExpiry(h1.id, {}), missing);
 
     const released = await patchExpiry(h2.id, valid);

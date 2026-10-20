@@ -27,9 +27,10 @@ describe("readExpiryChange", () => {
     const missing = [{ field: "expiresAt", message: "Enter the expiry date and time." }];
     expect(readExpiryChange({}, NOW)).toEqual({ ok: false, fields: missing });
     expect(readExpiryChange(null, NOW)).toEqual({ ok: false, fields: missing });
-    const bad = readExpiryChange({ expiresAt: "not-a-date" }, NOW);
-    expect(bad.ok).toBe(false);
-    expect(bad.ok ? [] : bad.fields.map((f) => f.field)).toEqual(["expiresAt"]);
+    expect(readExpiryChange({ expiresAt: "not-a-date" }, NOW)).toEqual({
+      ok: false,
+      fields: [{ field: "expiresAt", message: "Enter a date and time with its offset, for example 2026-12-02T14:00+08:00." }],
+    });
   });
 });
 
