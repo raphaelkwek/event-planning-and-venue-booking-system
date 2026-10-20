@@ -1,6 +1,9 @@
 import type { Sql, TransactionSql } from "postgres";
 import type { HoldStatus } from "@connectsphere/contracts";
+import { findEventForChange } from "../../event/index.js";
 import { isLiveHoldDuplicate, type OverlappedPeriod } from "../domain/hold.js";
+import { reminderAt } from "../domain/holdExpiry.js";
+import { writeVenueOutbox } from "../events/outbox.js";
 import { VenueSlotConflictError } from "../domain/slotConflict.js";
 import { insertVenueSlot } from "./slots.js";
 
@@ -35,6 +38,10 @@ export interface Hold {
   convertedAt: string | null;
   releasedBy: string | null;
   releasedAt: string | null;
+  /** L6: when the coordinator was reminded of this expiry; null until then, and again after the expiry changes. */
+  remindedAt: string | null;
+  /** L6: when the hold expired; null unless it is Expired. */
+  expiredAt: string | null;
 }
 
 export interface NewHold {
@@ -83,6 +90,8 @@ interface Row {
   converted_at: Date | null;
   released_by: string | null;
   released_at: Date | null;
+  reminded_at: Date | null;
+  expired_at: Date | null;
 }
 
 const iso = (value: Date | null) => value?.toISOString() ?? null;
@@ -109,13 +118,16 @@ function toHold(row: Row): Hold {
     convertedAt: iso(row.converted_at),
     releasedBy: row.released_by,
     releasedAt: iso(row.released_at),
+    remindedAt: iso(row.reminded_at),
+    expiredAt: iso(row.expired_at),
   };
 }
 
 const COLUMNS = (db: Db) => db`
   h.id, h.reference, h.event_id, h.venue_id, v.name as venue_name, h.starts_at, h.ends_at, h.reminder_lead_minutes,
   h.status, h.requested_by, h.requested_at, h.placed_by, h.placed_at, h.expires_at, h.slot_id,
-  h.converted_request_id, h.converted_by, h.converted_at, h.released_by, h.released_at
+  h.converted_request_id, h.converted_by, h.converted_at, h.released_by, h.released_at,
+  h.reminded_at, h.expired_at
 `;
 
 /**
@@ -196,6 +208,7 @@ export interface Placement {
   setupMinutes: number;
   turnaroundMinutes: number;
   actorUserId: string;
+  correlationId?: string | null;
 }
 
 /**
@@ -230,7 +243,23 @@ export async function placeHold(tx: TransactionSql, hold: Hold, placement: Place
         expires_at = ${placement.expiresAt}, updated_at = now(), updated_by = ${placement.actorUserId}
     where id = ${hold.id}
   `;
-  return (await findHold(tx, hold.id))!;
+  const placed = (await findHold(tx, hold.id))!;
+  // L6: the hold-expiry workflow's consumer schedules the reminder and the expiry from this.
+  await writeVenueOutbox(tx, {
+    messageType: "venue-booking.hold-placed",
+    aggregateId: placed.id,
+    actor: { userId: placement.actorUserId, role: "VENUE_STAFF" },
+    correlationId: placement.correlationId ?? null,
+    payload: {
+      holdId: placed.id,
+      holdReference: placed.reference,
+      venueId: placed.venueId,
+      eventId: placed.eventId,
+      expiresAt: placed.expiresAt,
+      reminderLeadMinutes: placed.reminderLeadMinutes,
+    },
+  });
+  return placed;
 }
 
 /** Each overlapped hold's or booking's own period, for the refusal (L3-T8). */
@@ -359,4 +388,123 @@ export async function releaseHoldsForEvent(tx: TransactionSql, eventId: string, 
   const released: string[] = [];
   for (const { id } of live) released.push((await releaseHold(tx, (await findHold(tx, id))!, actorUserId)).reference);
   return released;
+}
+
+
+/** L6: what a reminder or expiry notice names; the holding coordinator is who requested the hold. */
+async function holdNoticePayload(tx: TransactionSql, hold: Hold): Promise<Record<string, unknown>> {
+  const event = (await findEventForChange(tx, hold.eventId, { scopeType: "ALL" }, hold.requestedBy))!;
+  return {
+    holdId: hold.id,
+    holdReference: hold.reference,
+    venueId: hold.venueId,
+    venueName: hold.venueName,
+    eventId: hold.eventId,
+    eventReference: event.reference ?? event.id,
+    eventName: event.name,
+    coordinatorId: hold.requestedBy,
+    startsAt: hold.startsAt,
+    endsAt: hold.endsAt,
+    expiresAt: hold.expiresAt,
+  };
+}
+
+export type RemindOutcome =
+  | { outcome: "reminded"; message: string }
+  | { outcome: "not-due"; remindAt: string }
+  | { outcome: "already" }
+  | { outcome: "gone"; status: HoldStatus | null };
+
+/**
+ * L6: reminds the holding coordinator if the hold is Held, not yet reminded of
+ * this expiry, and `now` (the database's clock unless given) has reached the
+ * expiry minus the lead time. Decided under the hold's row lock, so a reminder
+ * is written at most once per expiry. `gone` carries the hold's status, null
+ * when there is no such hold.
+ */
+export async function remindHoldIfDue(tx: TransactionSql, holdId: string, now?: Date): Promise<RemindOutcome> {
+  const hold = await lockHold(tx, holdId);
+  if (!hold || hold.status !== "HELD") return { outcome: "gone", status: hold?.status ?? null };
+  if (hold.remindedAt) return { outcome: "already" };
+  const remindAt = reminderAt(hold.expiresAt!, hold.reminderLeadMinutes);
+  const at = now ?? (await tx<{ now: Date }[]>`select now() as now`)[0]!.now;
+  if (at.getTime() < remindAt.getTime()) return { outcome: "not-due", remindAt: remindAt.toISOString() };
+  await tx`update venue.holds set reminded_at = ${at}, updated_at = now() where id = ${hold.id}`;
+  const message = await writeVenueOutbox(tx, {
+    messageType: "venue-booking.hold-expiring",
+    aggregateId: hold.id,
+    actor: { userId: null, role: "SYSTEM" },
+    correlationId: null,
+    payload: await holdNoticePayload(tx, hold),
+  });
+  return { outcome: "reminded", message };
+}
+
+export type ExpireOutcome =
+  | { outcome: "expired" }
+  | { outcome: "not-due"; expiresAt: string }
+  | { outcome: "gone"; status: HoldStatus | null };
+
+/**
+ * L6: expires the hold if it is Held and its expiry has been reached by the
+ * database's clock (`expires_at <= now()`). The hold and its slot become Expired
+ * in this transaction, so the period is free again, and the coordinator is told.
+ * `not-due` returns the expiry as it now is (it may have been moved).
+ */
+export async function expireHoldIfDue(tx: TransactionSql, holdId: string): Promise<ExpireOutcome> {
+  const hold = await lockHold(tx, holdId);
+  if (!hold || hold.status !== "HELD") return { outcome: "gone", status: hold?.status ?? null };
+  // Compared in SQL, at the column's full precision, not through a JavaScript Date.
+  const [reached] = await tx<{ due: boolean }[]>`select expires_at <= now() as due from venue.holds where id = ${hold.id}`;
+  if (!reached!.due) return { outcome: "not-due", expiresAt: hold.expiresAt! };
+  await tx`
+    update venue.holds set status = 'EXPIRED', expired_at = now(), updated_at = now()
+    where id = ${hold.id}
+  `;
+  await tx`
+    update venue.venue_slots set status = 'EXPIRED', updated_at = now()
+    where id = ${hold.slotId!} and status = 'HELD'
+  `;
+  await writeVenueOutbox(tx, {
+    messageType: "venue-booking.hold-expired",
+    aggregateId: hold.id,
+    actor: { userId: null, role: "SYSTEM" },
+    correlationId: null,
+    payload: await holdNoticePayload(tx, hold),
+  });
+  return { outcome: "expired" };
+}
+
+/**
+ * L6: Venue Staff move a Held hold's expiry. The coordinator can be reminded of
+ * the new expiry, so reminded_at is cleared, and the workflow is told to
+ * reschedule. The caller locks the hold and checks that it is Held.
+ */
+export async function changeHoldExpiry(
+  tx: TransactionSql,
+  hold: Hold,
+  expiresAt: string,
+  actorUserId: string,
+  correlationId: string | null = null,
+): Promise<Hold> {
+  await tx`
+    update venue.holds
+    set expires_at = ${expiresAt}, reminded_at = null, updated_at = now(), updated_by = ${actorUserId}
+    where id = ${hold.id}
+  `;
+  const changed = (await findHold(tx, hold.id))!;
+  await writeVenueOutbox(tx, {
+    messageType: "venue-booking.hold-expiry-changed",
+    aggregateId: changed.id,
+    actor: { userId: actorUserId, role: "VENUE_STAFF" },
+    correlationId,
+    payload: {
+      holdId: changed.id,
+      holdReference: changed.reference,
+      venueId: changed.venueId,
+      expiresAt: changed.expiresAt,
+      changedBy: actorUserId,
+    },
+  });
+  return changed;
 }

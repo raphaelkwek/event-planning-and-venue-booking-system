@@ -25,7 +25,7 @@ export interface VenueOutboxMessage {
   messageType: VenueBookingMessageType;
   /** The booking request, booking or hold the message is about: the message key. */
   aggregateId: string;
-  actor: { userId: string; role: string };
+  actor: { userId: string | null; role: string };
   correlationId: string | null;
   payload: Record<string, unknown>;
 }
