@@ -2310,6 +2310,33 @@ paths:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
         "503": { $ref: "#/components/responses/IdentityUnavailable" }
 
+  /api/v1/holds/placed:
+    get:
+      tags: [Venue bookings]
+      summary: Held and expired holds at the caller's venues (L6)
+      description: Venue Staff only. The Held and Expired holds at the venues they look after, newest expiry first, so they can change a held hold's expiry.
+      operationId: listPlacedHolds
+      responses:
+        "200":
+          description: Held and expired holds.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/Hold" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "429":
+          description: "`RATE_LIMITED`."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
   /api/v1/holds/{id}/place:
     parameters:
       - $ref: "#/components/parameters/RecordId"

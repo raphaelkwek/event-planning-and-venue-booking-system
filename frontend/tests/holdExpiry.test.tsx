@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { ApiError } from "../src/api/client.js";
 
@@ -73,6 +73,7 @@ const requestHold = vi.fn<Parameters<Fn>, ReturnType<Fn>>(async () => hold({ ref
 const releaseHold = vi.fn<Parameters<Fn>, ReturnType<Fn>>(async () => hold({ status: "RELEASED" }));
 const convertHold = vi.fn<Parameters<Fn>, ReturnType<Fn>>(async () => ({ request: { reference: "BKR-000009" }, hold: hold({ status: "CONVERTED" }) }));
 const listHoldQueue = vi.fn<Parameters<Fn>, ReturnType<Fn>>(async () => ({ items: [hold({ status: "REQUESTED", placedBy: null, placedAt: null, expiresAt: null })] }));
+const listPlacedHolds = vi.fn<Parameters<Fn>, ReturnType<Fn>>(async () => ({ items: [] }));
 const changeHoldExpiry = vi.fn<Parameters<Fn>, ReturnType<Fn>>(async () => hold({ expiresAt: "2026-12-01T12:00:00.000Z" }));
 const placeHold = vi.fn<Parameters<Fn>, ReturnType<Fn>>(async () => hold());
 
@@ -85,6 +86,7 @@ vi.mock("../src/api/holds.js", async () => {
     releaseHold: (...args: unknown[]) => releaseHold(...args),
     convertHold: (...args: unknown[]) => convertHold(...args),
     listHoldQueue: (...args: unknown[]) => listHoldQueue(...args),
+    listPlacedHolds: (...args: unknown[]) => listPlacedHolds(...args),
     placeHold: (...args: unknown[]) => placeHold(...args),
     changeHoldExpiry: (...args: unknown[]) => changeHoldExpiry(...args),
   };
@@ -120,6 +122,12 @@ function signInAs(userId: string, role: string, path: string) {
   window.location.hash = `#${path}`;
 }
 
+beforeEach(() => {
+  // These tests are about placed holds, so the requested queue is empty.
+  listHoldQueue.mockResolvedValue({ items: [] });
+  listPlacedHolds.mockResolvedValue({ items: [] });
+});
+
 afterEach(() => {
   cleanup();
   sessionStorage.clear();
@@ -131,7 +139,7 @@ const EXPIRED = { status: "EXPIRED", expiredAt: "2026-12-01T10:00:00.000Z", slot
 
 describe("changing a hold's expiry (L6-T12)", () => {
   it("saves a new expiry from Change expiry and shows it", async () => {
-    listHoldQueue.mockResolvedValue({ items: [hold()] });
+    listPlacedHolds.mockResolvedValue({ items: [hold()] });
     signInAs("venue-staff", "VENUE_STAFF", "/holds");
     render(<App />);
     const row = await screen.findByRole("row", { name: "HLD-000001" });
@@ -156,7 +164,7 @@ describe("changing a hold's expiry (L6-T12)", () => {
         correlationId: null,
       }),
     );
-    listHoldQueue.mockResolvedValue({ items: [hold()] });
+    listPlacedHolds.mockResolvedValue({ items: [hold()] });
     signInAs("venue-staff", "VENUE_STAFF", "/holds");
     render(<App />);
     const row = await screen.findByRole("row", { name: "HLD-000001" });
@@ -167,7 +175,7 @@ describe("changing a hold's expiry (L6-T12)", () => {
   });
 
   it("asks for the date and time when the field is cleared, without calling the server", async () => {
-    listHoldQueue.mockResolvedValue({ items: [hold()] });
+    listPlacedHolds.mockResolvedValue({ items: [hold()] });
     signInAs("venue-staff", "VENUE_STAFF", "/holds");
     render(<App />);
     const row = await screen.findByRole("row", { name: "HLD-000001" });
@@ -182,7 +190,7 @@ describe("changing a hold's expiry (L6-T12)", () => {
     changeHoldExpiry.mockRejectedValueOnce(
       new ApiError(409, { code: "HOLD_NOT_HELD", message: "Only a held hold's expiry can be changed. HLD-000001 is Expired.", correlationId: null }),
     );
-    listHoldQueue.mockResolvedValue({ items: [hold()] });
+    listPlacedHolds.mockResolvedValue({ items: [hold()] });
     signInAs("venue-staff", "VENUE_STAFF", "/holds");
     render(<App />);
     const row = await screen.findByRole("row", { name: "HLD-000001" });
@@ -194,9 +202,10 @@ describe("changing a hold's expiry (L6-T12)", () => {
 
 describe("expired holds (L6-T12)", () => {
   it("shows Expired on <date and time> with no actions on Venue Staff's list", async () => {
-    listHoldQueue.mockResolvedValue({ items: [hold(EXPIRED)] });
+    listPlacedHolds.mockResolvedValue({ items: [hold(EXPIRED)] });
     signInAs("venue-staff", "VENUE_STAFF", "/holds");
     render(<App />);
+    expect(await screen.findByRole("heading", { name: "Placed holds" })).toBeTruthy();
     const row = await screen.findByRole("row", { name: "HLD-000001" });
     expect(rowText(row)).toContain("Expired on Tuesday 1 December 2026, 18:00");
     expect(within(row).queryByRole("button")).toBeNull();

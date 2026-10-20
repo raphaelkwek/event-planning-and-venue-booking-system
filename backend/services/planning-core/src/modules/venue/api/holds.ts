@@ -26,6 +26,7 @@ import {
   findHold,
   insertHold,
   listHoldsForEvent,
+  listPlacedForStaff,
   listRequestedForStaff,
   lockHold,
   looksAfterVenue,
@@ -143,6 +144,17 @@ export function holdsRouter(sql: Sql, limiter: RequestHandler = holdsRateLimit()
   router.get(`${BASE}/queue`, limiter, authenticate, requireRole("VENUE_STAFF"), async (req: ActorRequest, res: Response, next: NextFunction) => {
     try {
       const items = await listRequestedForStaff(sql, req.actor!.userId);
+      const references = await findEventReferences(sql, [...new Set(items.map((hold) => hold.eventId))]);
+      res.json({ items: items.map((hold) => present(hold, references.get(hold.eventId) ?? null)) });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // L6: the held and expired holds at those venues, newest expiry first, so Venue Staff can change an expiry.
+  router.get(`${BASE}/placed`, limiter, authenticate, requireRole("VENUE_STAFF"), async (req: ActorRequest, res: Response, next: NextFunction) => {
+    try {
+      const items = await listPlacedForStaff(sql, req.actor!.userId);
       const references = await findEventReferences(sql, [...new Set(items.map((hold) => hold.eventId))]);
       res.json({ items: items.map((hold) => present(hold, references.get(hold.eventId) ?? null)) });
     } catch (error) {

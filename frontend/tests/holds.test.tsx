@@ -71,6 +71,7 @@ const listEventHolds = vi.fn<Parameters<Fn>, ReturnType<Fn>>(async () => ({
 const requestHold = vi.fn<Parameters<Fn>, ReturnType<Fn>>(async () => hold({ reference: "HLD-000003", status: "REQUESTED" }));
 const releaseHold = vi.fn<Parameters<Fn>, ReturnType<Fn>>(async () => hold({ status: "RELEASED" }));
 const convertHold = vi.fn<Parameters<Fn>, ReturnType<Fn>>(async () => ({ request: { reference: "BKR-000009" }, hold: hold({ status: "CONVERTED" }) }));
+const listPlacedHolds = vi.fn<Parameters<Fn>, ReturnType<Fn>>(async () => ({ items: [] }));
 const listHoldQueue = vi.fn<Parameters<Fn>, ReturnType<Fn>>(async () => ({ items: [hold({ status: "REQUESTED", placedBy: null, placedAt: null, expiresAt: null })] }));
 const placeHold = vi.fn<Parameters<Fn>, ReturnType<Fn>>(async () => hold());
 
@@ -83,6 +84,7 @@ vi.mock("../src/api/holds.js", async () => {
     releaseHold: (...args: unknown[]) => releaseHold(...args),
     convertHold: (...args: unknown[]) => convertHold(...args),
     listHoldQueue: (...args: unknown[]) => listHoldQueue(...args),
+    listPlacedHolds: (...args: unknown[]) => listPlacedHolds(...args),
     placeHold: (...args: unknown[]) => placeHold(...args),
   };
 });

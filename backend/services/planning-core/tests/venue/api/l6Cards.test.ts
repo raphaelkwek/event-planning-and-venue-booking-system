@@ -507,3 +507,42 @@ describe("hold expiry (L6)", () => {
     expect(changed!.n).toBe(0);
   });
 });
+
+describe("Venue Staff's placed holds (L6, not a card)", () => {
+  const placed = () => request(app).get("/api/v1/holds/placed").set(bearer);
+
+  it("lists the held and expired holds at the caller's venues, newest expiry first, and not requested, released or other venues' holds", async () => {
+    const v = await newVenue(VENUE_NAME, A.vs);
+    const v2 = await newVenue("Second Venue", VS2_ID);
+    const [e1, e2, e3, e4, e5] = [
+      await newEvent(A.c1),
+      await newEvent(A.c2),
+      await newEvent(A.c1),
+      await newEvent(A.c2),
+      await newEvent(A.c1),
+    ];
+    const soon = await heldHold({ eventId: e1.id, venueId: v, expiresAt: dayFromNow() });
+    const later = await heldHold({ eventId: e2.id, venueId: v, coordinator: A.c2, startsAt: at("13:00"), endsAt: at("15:00"), expiresAt: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString() });
+    const expired = await heldHold({ eventId: e3.id, venueId: v, startsAt: at("16:00"), endsAt: at("18:00") });
+    await backdate(expired.id);
+    expect(await inTx((tx) => expireHoldIfDue(tx, expired.id))).toEqual({ outcome: "expired" });
+    await requestHold({ eventId: e4.id, venueId: v, coordinator: A.c2, startsAt: at("19:00"), endsAt: at("20:00") });
+    await heldHold({ eventId: e5.id, venueId: v2, placedBy: VS2_ID });
+
+    asVs();
+    const res = await placed();
+    expect(res.status).toBe(200);
+    expect(res.body.items.map((h: { id: string }) => h.id)).toEqual([later.id, soon.id, expired.id]);
+    expect(res.body.items.map((h: { status: string }) => h.status)).toEqual(["HELD", "HELD", "EXPIRED"]);
+    expect(res.body.items[0]).toMatchObject({ eventReference: e2.reference, venueName: VENUE_NAME });
+    expect(res.body.items[2].expiredAt).toEqual(expect.any(String));
+
+    asVs2();
+    expect((await placed()).body.items).toHaveLength(1);
+
+    asC1();
+    const forbidden = await placed();
+    expect(forbidden.status).toBe(403);
+    expect(forbidden.body.error.code).toBe("ROLE_NOT_AUTHORISED");
+  });
+});

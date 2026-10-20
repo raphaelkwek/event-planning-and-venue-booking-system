@@ -196,6 +196,17 @@ export async function listRequestedForStaff(db: Db, staffUserId: string): Promis
   return rows.map(toHold);
 }
 
+/** L6: the held and expired holds at the venues this Venue Staff member looks after, newest expiry first. */
+export async function listPlacedForStaff(db: Db, staffUserId: string): Promise<Hold[]> {
+  const rows = await db<Row[]>`
+    select ${COLUMNS(db)} from venue.holds h join venue.venues v on v.id = h.venue_id
+    where h.status in ('HELD', 'EXPIRED')
+      and exists (select 1 from venue.venue_staff s where s.venue_id = h.venue_id and s.user_id = ${staffUserId})
+    order by h.expires_at desc, h.reference
+  `;
+  return rows.map(toHold);
+}
+
 /** True when the user is one of the venue's Venue Staff (venue.venue_staff). */
 export async function looksAfterVenue(db: Db, venueId: string, userId: string): Promise<boolean> {
   const rows = await db`select 1 from venue.venue_staff where venue_id = ${venueId} and user_id = ${userId}`;

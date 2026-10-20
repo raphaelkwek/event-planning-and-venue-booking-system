@@ -3,7 +3,7 @@ import Button from "@atlaskit/button/new";
 import SectionMessage from "@atlaskit/section-message";
 import { useSignedIn } from "../auth/SessionContext.js";
 import { ApiError } from "../api/client.js";
-import { changeHoldExpiry, listHoldQueue, placeHold, reminderText, type Hold } from "../api/holds.js";
+import { changeHoldExpiry, listHoldQueue, listPlacedHolds, placeHold, reminderText, type Hold } from "../api/holds.js";
 import { Refusal } from "../components/Refusal.js";
 import { useUserNames } from "../shared/useUserNames.js";
 import { formatMoment, formatPeriod, fromInputs, toInputs } from "../shared/singaporeTime.js";
@@ -24,12 +24,17 @@ export function HoldQueue() {
   const session = useSignedIn();
   const [items, setItems] = useState<Hold[] | null>(null);
   const [error, setError] = useState<unknown>(null);
+  const [placed, setPlaced] = useState<Hold[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
-  const nameOf = useUserNames(session.token, items?.map((item) => item.requestedBy) ?? []);
+  const nameOf = useUserNames(session.token, [...(items ?? []), ...placed].map((item) => item.requestedBy));
 
   const load = useCallback(() => {
-    listHoldQueue(session.token)
-      .then((result) => setItems(result.items))
+    // L6: the requested queue (L3) and, below it, the holds already placed or expired.
+    Promise.all([listHoldQueue(session.token), listPlacedHolds(session.token)])
+      .then(([queue, placedHolds]) => {
+        setItems(queue.items);
+        setPlaced(placedHolds.items);
+      })
       .catch(setError);
   }, [session.token]);
 
@@ -37,6 +42,15 @@ export function HoldQueue() {
 
   if (error) return <Refusal error={error} />;
   if (!items) return <p>Loading…</p>;
+
+  const onPlaced = (hold: Hold) => {
+    setNotice(`${hold.reference} placed. It expires on ${formatMoment(hold.expiresAt!)}.`);
+    load();
+  };
+  const onChanged = (hold: Hold) => {
+    setNotice(`${hold.reference} now expires on ${formatMoment(hold.expiresAt!)}.`);
+    load();
+  };
 
   return (
     <div>
@@ -55,36 +69,44 @@ export function HoldQueue() {
       {items.length === 0 ? (
         <p>No hold request is waiting.</p>
       ) : (
-        <table style={{ borderCollapse: "collapse", width: "100%" }}>
-          <thead>
-            <tr>
-              {["Reference", "Event", "Venue", "Date and time", "Requested by", "Reminder", "Expires", ""].map((heading, i) => (
-                <th key={i} style={cell}>
-                  {heading}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((hold) => (
-              <Row
-                key={hold.id}
-                hold={hold}
-                requester={nameOf(hold.requestedBy) ?? "—"}
-                onPlaced={(placed) => {
-                  setNotice(`${placed.reference} placed. It expires on ${formatMoment(placed.expiresAt!)}.`);
-                  load();
-                }}
-                onChanged={(changed) => {
-                  setNotice(`${changed.reference} now expires on ${formatMoment(changed.expiresAt!)}.`);
-                  load();
-                }}
-              />
-            ))}
-          </tbody>
-        </table>
+        <HoldTable holds={items} nameOf={nameOf} onPlaced={onPlaced} onChanged={onChanged} />
+      )}
+      <h3 style={{ marginTop: 32 }}>Placed holds</h3>
+      <p style={{ marginTop: 0, color: "#626F86" }}>Holds you have placed, newest expiry first. Change a held hold's expiry, or see when one expired.</p>
+      {placed.length === 0 ? (
+        <p>No hold has been placed.</p>
+      ) : (
+        <HoldTable holds={placed} nameOf={nameOf} onPlaced={onPlaced} onChanged={onChanged} />
       )}
     </div>
+  );
+}
+
+interface TableProps {
+  holds: Hold[];
+  nameOf: (id: string | null | undefined) => string | null;
+  onPlaced: (placed: Hold) => void;
+  onChanged: (changed: Hold) => void;
+}
+
+function HoldTable({ holds, nameOf, onPlaced, onChanged }: TableProps) {
+  return (
+    <table style={{ borderCollapse: "collapse", width: "100%" }}>
+      <thead>
+        <tr>
+          {["Reference", "Event", "Venue", "Date and time", "Requested by", "Reminder", "Expires", ""].map((heading, i) => (
+            <th key={i} style={cell}>
+              {heading}
+            </th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {holds.map((hold) => (
+          <Row key={hold.id} hold={hold} requester={nameOf(hold.requestedBy) ?? "—"} onPlaced={onPlaced} onChanged={onChanged} />
+        ))}
+      </tbody>
+    </table>
   );
 }
 

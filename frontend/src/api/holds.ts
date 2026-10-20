@@ -71,6 +71,11 @@ export function listHoldQueue(token: string) {
   return request<{ items: Hold[] }>(`${VENUE}/holds/queue`, { token });
 }
 
+/** L6: the held and expired holds at the caller's venues, newest expiry first. */
+export function listPlacedHolds(token: string) {
+  return request<{ items: Hold[] }>(`${VENUE}/holds/placed`, { token });
+}
+
 export function placeHold(token: string, id: string, expiresAt: string) {
   return request<Hold>(`${VENUE}/holds/${id}/place`, { method: "POST", token, body: { expiresAt } });
 }
