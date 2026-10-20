@@ -39,9 +39,18 @@ hold's expiry and reminder lead time; L6 acts on them.
 ## Before using it on the shared database
 
 1. `npm run migrate -- venue` applies 0013–0014 **before** deploying planning-core.
-2. Deploy the notification service with planning-core (unknown message types are dead-lettered).
-3. Restart the Temporal worker (`npm run worker`), then run `npm run jobs:schedule-hold-expiries`
-   once so holds placed earlier also expire.
+2. Deploy the notification service before or with planning-core (unknown message types are
+   dead-lettered).
+3. Restart the Temporal worker (`npm run worker`; in production, the worker deployment).
+4. Run `npm run jobs:schedule-hold-expiries` **only after the worker logs "hold-expiry consumer
+   started"**. The new consumer group starts from the latest offset, so `hold-placed` messages
+   published before it joined are caught only by the backfill. The backfill may send reminder or
+   expired notices at once for holds already close to or past their expiry.
+
+## Known follow-up
+
+- Replay histories for `holdExpiry` are a follow-up: recording them needs a live Temporal server
+  (see the workflow's FOLLOW-UP note).
 
 ---
 

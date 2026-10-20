@@ -47,7 +47,12 @@ expiry; the coordinator sets, per hold, how long before expiry to be reminded. N
 5. **Notices** to the holding coordinator (`requested_by`): reminder and expired, each naming the
    venue, period, event reference and name, and the expiry time (Singapore time, as L1's notices).
 6. **Backfill:** `npm run jobs:schedule-hold-expiries` starts workflows for every HELD hold
-   (idempotent, `signalWithStart`), for holds placed before L6 is deployed.
+   (idempotent, `signalWithStart`), for holds placed before L6 is deployed. Deploy the notification
+   service before or with planning-core and restart the Temporal worker first, and run the backfill
+   only after the worker logs "hold-expiry consumer started": the new consumer group starts from the
+   latest offset, so `hold-placed` messages published before it joined are caught only by the
+   backfill. The backfill may send reminder or expired notices at once for holds already close to or
+   past their expiry.
 
 ## 4. Data — migration `venue/0013_hold_expiry.sql`
 
@@ -56,7 +61,7 @@ Adds `reminded_at timestamptz`, `expired_at timestamptz`, and a check `NOT VALID
 
 ## 5. Operations
 
-- **Venue repo:** `remindHoldIfDue(tx, holdId, now?)` → `reminded | not-due(remindAt) | already | gone(status)`;
+- **Venue repo:** `remindHoldIfDue(tx, holdId, now?)` → `reminded | not-due(remindAt) | already | too-late | gone(status)` (`too-late`: the expiry has passed, so no reminder);
   `expireHoldIfDue(tx, holdId)` → `expired | not-due(expiresAt) | gone(status)`;
   `changeHoldExpiry(tx, hold, expiresAt, actor)`. Each takes the hold's row lock first (L3's `lockHold`).
 - **Pure rules (`domain/holdExpiry.ts`):** `reminderAt(expiresAt, leadMinutes)`, `readExpiryChange(body, now)`.
