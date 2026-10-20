@@ -76,6 +76,10 @@ async function setUp(options: { convert: boolean }) {
       eventAttendance: 50,
       differsFromEvent: false,
       replacesBookingId: null,
+      // K2: every request records its venue's suitability; this one needs no justification.
+      suitabilityStatus: "SUITABLE",
+      suitabilityReasons: [],
+      justification: null,
       requestedBy: ACTOR,
     });
     const hold = await markHoldConverted(tx, held, created, ACTOR);
