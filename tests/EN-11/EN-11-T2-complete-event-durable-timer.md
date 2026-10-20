@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | The full unit run attempted this suite, but its beforeAll could not start the ephemeral Temporal server: Operation not permitted (os error 1). The eight timer scenarios did not execute. |
-| Status | Blocked |
-| Remarks | Commit: `516df57` plus the code hashes in `evidence/2026-10-20-local-ci/revision.json`. Evidence: [execution log](evidence/2026-10-20-local-ci/unit-coverage.txt). No Cloud worker was started. |
-| Executed By | Codex |
-| Date of Execution | 2026-10-20 (SGT) |
+| Actual Result | `vitest run tests/temporal/completeEvent.unit.test.ts`: 1 file, 8 tests passed, on Temporal's time-skipping test server (no Docker, no cloud). The completion activity does not run before the effective deadline; an earlier or later rescheduled end time moves it; a not-due answer waits and retries; cancelled, missing and no-end-time events stop without completing. |
+| Status | Pass |
+| Remarks | Commit: d6ddffb · Evidence: the vitest output (CI's unit job runs it too) · Environment: local unit run on Temporal's time-skipping test server (no Docker, no Temporal Cloud) · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-20 |

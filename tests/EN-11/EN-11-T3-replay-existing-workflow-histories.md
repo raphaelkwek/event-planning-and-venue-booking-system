@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | Preconditions are unmet: the recorder exists, but committed baseline histories and the replay test are absent. Recording also requires the Temporal test server that this sandbox cannot start. |
-| Status | Blocked |
-| Remarks | Commit: `516df57` plus the code hashes in `evidence/2026-10-20-local-ci/revision.json`. Evidence: [execution log](evidence/2026-10-20-local-ci/README.md). No Cloud worker was started. |
-| Executed By | Codex |
-| Date of Execution | 2026-10-20 (SGT) |
+| Actual Result | Step 1: the four baseline histories are committed in tests/temporal/histories/ (recorded once from this branch's workflow with scripts/record-workflow-histories.ts; there is no earlier version to compare against). Step 2: `vitest run tests/temporal/replay.unit.test.ts`: 7 tests passed: the four histories replay deterministically, a history with its timer removed is rejected, and a history round-trips to the same text. Step 3: the file matches the unit config's include pattern, and the full `npm run test:unit` (58 files, 820 tests) ran it and passed. |
+| Status | Pass |
+| Remarks | Commit: d6ddffb · Evidence: the vitest output and the committed histories · Environment: local unit run on Temporal's time-skipping test server (no Docker, no Temporal Cloud) · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-20 |

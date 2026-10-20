@@ -1,9 +1,9 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
-import { historyToJSON } from "@temporalio/common/lib/proto-utils.js";
 import { TestWorkflowEnvironment } from "@temporalio/testing";
 import { Worker } from "@temporalio/worker";
 import type { CompletionAttempt } from "../src/modules/event/index.js";
+import { historyToText } from "../tests/temporal/historyFile.js";
 import { bundleCompletionWorkflows } from "../src/temporal/workflowBundle.js";
 import { rescheduleSignal, type completeEvent } from "../src/temporal/workflows/completeEvent.js";
 
@@ -26,7 +26,8 @@ const TASK_QUEUE = "record-histories";
 
 interface Scenario {
   name: string;
-  answers: CompletionAttempt[];
+  /** What the fake completion activity answers, in order; a function gets the test server's clock. */
+  answers: CompletionAttempt[] | ((now: number) => CompletionAttempt[]);
   /** Runs against a started workflow before its result is awaited. */
   during?: (signal: (endsAt: number) => Promise<void>, now: number) => Promise<void>;
 }
@@ -43,7 +44,7 @@ const SCENARIOS: Scenario[] = [
   },
   {
     name: "complete-event-not-due-then-completes",
-    answers: [{ outcome: "not-due", endsAt: "2100-01-01T00:00:00.000Z" }, { outcome: "completed" }],
+    answers: (now) => [{ outcome: "not-due", endsAt: new Date(now + 6 * HOUR).toISOString() }, { outcome: "completed" }],
   },
   { name: "complete-event-stops-when-cancelled", answers: [{ outcome: "not-confirmed", status: "CANCELLED" }] },
 ];
@@ -54,7 +55,7 @@ try {
   await mkdir(OUT, { recursive: true });
 
   for (const scenario of SCENARIOS) {
-    const answers = [...scenario.answers];
+    const answers = typeof scenario.answers === "function" ? scenario.answers(await env.currentTimeMs()) : [...scenario.answers];
     const activities = { completeEventIfDue: async (): Promise<CompletionAttempt> => answers.shift() ?? { outcome: "completed" } };
     const worker = await Worker.create({ connection: env.nativeConnection, taskQueue: TASK_QUEUE, workflowBundle, activities });
     const workflowId = `${scenario.name}`;
@@ -72,7 +73,7 @@ try {
     });
 
     const history = await env.client.workflow.getHandle(workflowId).fetchHistory();
-    await writeFile(`${OUT}${scenario.name}.json`, `${JSON.stringify(JSON.parse(historyToJSON(history)), null, 2)}\n`);
+    await writeFile(`${OUT}${scenario.name}.json`, historyToText(history));
     console.log(`recorded ${scenario.name}`);
   }
 } finally {

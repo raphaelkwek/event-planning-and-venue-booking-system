@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | All 11 settings tests passed, exit 0. This validates configuration rules only; it does not prove Cloud access or a running worker. |
+| Actual Result | `vitest run tests/temporal/domain/settings.test.ts`: 1 file, 11 tests passed, exit status 0. A missing address disables the worker; invalid settings name the field without echoing a value; an API key turns TLS on and routes by namespace; whitespace is trimmed and the task queue defaults to planning-core. |
 | Status | Pass |
-| Remarks | Commit: `516df57` plus the code hashes in `evidence/2026-10-20-local-ci/revision.json`. Evidence: [execution log](evidence/2026-10-20-local-ci/settings.txt). No Cloud worker was started. |
-| Executed By | Codex |
-| Date of Execution | 2026-10-20 (SGT) |
+| Remarks | Commit: d6ddffb · Evidence: the vitest output (CI's unit job runs it too) · Environment: local unit run (no database, no Temporal Cloud) · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-20 |

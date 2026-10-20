@@ -4,21 +4,51 @@
 
 ---
 
-# EN-11: read-only Temporal connectivity check and test lint fixes
+# EN-11: Temporal worker and the CompleteEvent durable timer
 
-**Timestamp:** 2026-10-20 (SGT)
-**Scope:** EN-11 (SPM-129), continuing the Temporal worker branch.
+**Timestamp:** 2026-10-20T14:30+08:00 (SGT)
+**Author:** Yichen, via Claude
+**Scope:** EN-11 (SPM-129), per ADR-0009.
+- `contracts`: the `event.status-changed` and `event.schedule-changed` messages. **Needs a second
+  owner's review.**
+- planning-core, event module: publishes both messages from the outbox, and exports
+  `completeEventIfDue` for the Temporal activity (the module boundary, ADR-0004).
+- planning-core, `src/temporal/`: `worker.ts` (`npm run worker`, also started by `npm run dev`),
+  `domain/settings.ts` and `domain/completionTrigger.ts`, `workflows/completeEvent.ts`,
+  `activities/completion.ts`, and `completionConsumer.ts`, which starts or reschedules one
+  workflow per event from the outbox messages.
+- `npm run temporal:check` (read-only connection check), the `TEMPORAL_*` variables in
+  `.env.example`, and `@temporalio/proto` as a dev dependency (the replay histories).
+- vitest runs in forks, because Temporal's native core segfaulted CI's integration job (exit 139)
+  inside vitest's worker threads.
+- `tests/EN-11/` (three cards) and `sprint-3.csv`.
+**Reason:** F1's "Completed only after the event's end time" needs a timer that survives restarts,
+and L6 needs the same machinery for hold expiry.
 
-Added `npm run temporal:check -- [env-file]` to verify connection and namespace
-access without starting a worker or consuming events. The command reads only
-Temporal settings and keeps credentials out of output. Replaced two untyped event
-message test envelopes with `Record<string, unknown>` to satisfy ESLint.
+## Added
 
-Workspace typechecks pass. The Temporal test run passed 31 tests, but its two
-server-dependent suites could not start their ephemeral server (`EPERM`). Cloud
-connectivity timed out. Baseline histories, replay tests/CI, integration validation
-and the broader CancelEvent acceptance criterion remain outstanding; EN-11 is not
-ready to mark Done.
+- **One `CompleteEvent` workflow per event** sleeps until the event's end time, then completes it
+  if it is still due. A changed end time reschedules it; a cancelled or missing event stops it.
+  The worker does nothing, and says so once, when `TEMPORAL_ADDRESS` is empty.
+- **Replay tests in CI.** Four recorded histories (`tests/temporal/histories/`) replay against the
+  current workflow code, and a history the workflow would no longer produce is rejected. Never
+  re-record a history to make a failing replay pass.
+- Temporal Cloud connection settings: address, namespace and API key (TLS is on when a key is set),
+  and the task queue `planning-core`.
+
+## Not done, on purpose
+
+1. **`CancelEvent`** (F3, F4) needs EN-13 and the Sprint 4 stories. **`HoldExpiry`** (L6) comes
+   with L6, on L3's hold model. EN-11's Jira description lists CancelEvent, so SPM-129 should be
+   split or moved on at review.
+2. **The worker has not been started against a real Temporal Cloud namespace** here; the tests use
+   Temporal's time-skipping test server. Run `npm run temporal:check` with your own `.env`.
+
+## Verified
+
+- **EN-11-T1 to T3 pass** (run 2026-10-20): 11 settings tests, 8 timer tests on the time-skipping
+  server, and 7 replay tests. planning-core unit tests 820/820 (58 files); typecheck, lint and
+  `lint:boundaries` pass.
 
 ---
 
