@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: · Awaiting L1, M1 (Sprint 3). |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | Approving BKR-002615 (13:15–14:00) returned 200 APPROVED; its booking is CONFIRMED and occupied from 12:45. The calendar shows 00:00–08:00 Outside operating hours; 09:30–10:00 Setup EVT-011449 · occupied; 10:00–12:00 Confirmed EVT-011449; 12:00–12:45 Turnaround EVT-011449 · occupied; 12:45–13:15 Setup EVT-011450 · occupied; 13:15–14:00 Confirmed EVT-011450; 14:00–14:45 Turnaround EVT-011450 · occupied; 22:00–24:00 Outside operating hours. |
+| Status | Pass |
+| Remarks | Commit: 0eb3119 · Evidence: tests/H3/evidence/H3-T9.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-20 |
