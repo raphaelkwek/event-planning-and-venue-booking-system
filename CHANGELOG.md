@@ -4,6 +4,24 @@
 
 ---
 
+# EN-11: read-only Temporal connectivity check and test lint fixes
+
+**Timestamp:** 2026-10-20 (SGT)
+**Scope:** EN-11 (SPM-129), continuing the Temporal worker branch.
+
+Added `npm run temporal:check -- [env-file]` to verify connection and namespace
+access without starting a worker or consuming events. The command reads only
+Temporal settings and keeps credentials out of output. Replaced two untyped event
+message test envelopes with `Record<string, unknown>` to satisfy ESLint.
+
+Workspace typechecks pass. The Temporal test run passed 31 tests, but its two
+server-dependent suites could not start their ephemeral server (`EPERM`). Cloud
+connectivity timed out. Baseline histories, replay tests/CI, integration validation
+and the broader CancelEvent acceptance criterion remain outstanding; EN-11 is not
+ready to mark Done.
+
+---
+
 # L5: Request a replacement venue for a disrupted booking
 
 **Timestamp:** 2026-10-19T17:04+08:00 (SGT)

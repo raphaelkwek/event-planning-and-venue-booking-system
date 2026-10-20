@@ -53,3 +53,27 @@ instead of stdout; `--order desc` matches CHANGELOG.md's own newest-first order 
 read it that way.
 
 See `documentation/planning/plan.md` for architecture and `documentation/planning/implementation.md` for the mandatory formats every service follows, including the repository layout (§2).
+
+### Temporal Cloud (EN-11 branch)
+
+Set `TEMPORAL_ADDRESS` (host:port), `TEMPORAL_NAMESPACE`, `TEMPORAL_API_KEY` and
+`TEMPORAL_TASK_QUEUE` in the root `.env`. Validate connectivity without starting
+workflows or touching application data:
+
+```sh
+npm run temporal:check
+# From an isolated worktree, use the main checkout's existing env file:
+npm run temporal:check -- ../../../.env
+```
+
+This check reads only `TEMPORAL_*` values and never prints credentials. A successful
+check proves connection and namespace access, not that a worker is running. The
+worker runs as part of this branch's `npm run dev`; it consumes event messages and
+can execute completion activities against the configured database.
+
+EN-11 is still incomplete: the history recorder in
+`backend/services/planning-core/scripts/record-workflow-histories.ts` needs a local
+Temporal test server to capture baseline histories, followed by a replay test wired
+into CI. The sandbox used on 20 October refused that server (`EPERM`), and the
+read-only Cloud probe timed out. Neither proves the supplied credentials invalid.
+CancelEvent is also outstanding against the broader Jira acceptance criteria.
