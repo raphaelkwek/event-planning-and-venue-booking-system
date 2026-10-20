@@ -19,6 +19,6 @@
 |---|---|
 | Actual Result | coordinator2@connectsphere.test: 403 ROLE_NOT_AUTHORISED ("Only the event's assigned coordinator can withdraw its requests."); organiser@connectsphere.test: 403 ROLE_NOT_AUTHORISED; venuestaff@connectsphere.test: 403 ROLE_NOT_AUTHORISED. The request is still PENDING, with no withdrawal recorded. |
 | Status | Pass |
-| Remarks | Commit: 0616c96 · Evidence: tests/L2/evidence/L2-T2.png · Defect: — |
+| Remarks | Commit: 73c1d60 · Evidence: tests/L2/evidence/L2-T2.png · Defect: — |
 | Executed By | Yichen, via automated testing |
-| Date of Execution | 2026-10-17 |
+| Date of Execution | 2026-10-19 |

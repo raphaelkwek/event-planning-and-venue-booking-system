@@ -19,6 +19,7 @@ const EXCLUSION_VIOLATION = "23P01";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 /** An instant with its offset, so it never depends on the server's time zone. */
+// Stryker disable next-line Regex: dropping `$` is equivalent, as Date.parse refuses any text after the offset; `^` is tested.
 const INSTANT = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:\d{2})$/;
 const INSTANT_MESSAGE = "Enter a date and time with its offset, for example 2026-12-02T14:00+08:00.";
 
@@ -36,7 +37,8 @@ export interface BookingRequestInput {
   replacesBookingId: string | null;
 }
 
-function instant(value: unknown): string | null {
+/** A date and time with its offset, as a UTC instant; null when it isn't one. I2 reads a block's times the same way. */
+export function instant(value: unknown): string | null {
   if (typeof value !== "string" || !INSTANT.test(value)) return null;
   const time = Date.parse(value);
   return Number.isNaN(time) ? null : new Date(time).toISOString();
@@ -177,6 +179,7 @@ export function duplicateMessage(references: readonly string[]): string {
   return `This event already has a pending request for this venue that overlaps this period: ${named}. Withdraw it, or choose a period that doesn't overlap it.`;
 }
 
-export function notPendingMessage(reference: string, status: BookingRequestStatus): string {
-  return `${reference} is ${BOOKING_REQUEST_STATUS_LABELS[status]}, so it can't be withdrawn. Only a pending request can be.`;
+/** L2, M1, M2: only a pending request can be withdrawn, approved or rejected. */
+export function notPendingMessage(reference: string, status: BookingRequestStatus, action: "withdrawn" | "approved" | "rejected"): string {
+  return `${reference} is ${BOOKING_REQUEST_STATUS_LABELS[status]}, so it can't be ${action}. Only a pending request can be.`;
 }

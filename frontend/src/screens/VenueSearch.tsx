@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import Button from "@atlaskit/button/new";
 import DynamicTable from "@atlaskit/dynamic-table";
@@ -30,6 +30,10 @@ import { Refusal } from "../components/Refusal.js";
  * requirements and stay editable (J1). Opened on its own, it starts by listing
  * every active venue (J2). An empty result is not an error: it says which
  * filters were applied. Times are Singapore time.
+ *
+ * Opened by "Find a replacement" (L5, `&replaces=`), the window is the disrupted
+ * booking's period rather than the event's, and each venue offers "Request this
+ * venue", a request linked to the booking it replaces.
  */
 
 const FIELD_STYLE = { padding: "6px 8px", border: "2px solid #DFE1E6", borderRadius: 3, font: "inherit", background: "#fff" };
@@ -39,6 +43,8 @@ export function VenueSearch() {
   const session = useSignedIn();
   const [params] = useSearchParams();
   const eventId = params.get("eventId");
+  // L5: finding a replacement for a disrupted booking, whose period overrides the event's.
+  const replacing = useMemo(() => (eventId && params.get("replaces") ? replacementFrom(params, eventId) : null), [params, eventId]);
   const [form, setForm] = useState<VenueSearchForm>(emptySearchForm);
   const [options, setOptions] = useState<VenueSearchOptions>({ layouts: [], facilities: [], accessibilityFeatures: [] });
   const [result, setResult] = useState<VenueSearchResult | null>(null);
@@ -74,7 +80,8 @@ export function VenueSearch() {
     }
     getSearchPrefill(session.token, eventId)
       .then((prefill) => {
-        const prefilled = formFromPrefill(prefill);
+        const fromEvent = formFromPrefill(prefill);
+        const prefilled = replacing ? { ...fromEvent, from: replacing.from, to: replacing.to } : fromEvent;
         setForm(prefilled);
         setUnmatched(prefill.unmatchedAccessibility);
         setFromEvent(prefill.reference ?? "this event");
@@ -85,7 +92,7 @@ export function VenueSearch() {
         run(emptySearchForm());
         setError(reason);
       });
-  }, [session.token, eventId, run]);
+  }, [session.token, eventId, run, replacing]);
 
   const set = (patch: Partial<VenueSearchForm>) => setForm((current) => ({ ...current, ...patch }));
   const toggle = (key: "facilities" | "accessibility", name: string, on: boolean) =>
@@ -113,6 +120,14 @@ export function VenueSearch() {
   return (
     <div style={{ maxWidth: 1040 }}>
       <h2>Find a venue</h2>
+      {replacing && (
+        <SectionMessage appearance="information" title="Finding a replacement">
+          <p>
+            Finding a replacement for {replacing.booking} at {replacing.venue}, which is unavailable. The window is the
+            booking's period; choose "Request this venue" to request a replacement linked to it.
+          </p>
+        </SectionMessage>
+      )}
       <p style={{ marginTop: 0 }}>
         {fromEvent ? `Filters start from the requirements of ${fromEvent}; change any of them. ` : ""}
         Only venues that meet every filter are listed. Times are Singapore time.
@@ -226,12 +241,46 @@ export function VenueSearch() {
         </SectionMessage>
       ) : null}
 
-      {result && <Results result={result} loading={loading} />}
+      {result && <Results result={result} loading={loading} replacing={replacing} />}
     </div>
   );
 }
 
-function Results({ result, loading }: { result: VenueSearchResult; loading: boolean }) {
+/** L5: what "Find a replacement" passes: the event, the disrupted booking, and its period as datetime-local values. */
+interface Replacing {
+  eventId: string;
+  bookingId: string;
+  booking: string;
+  venue: string;
+  from: string;
+  to: string;
+}
+
+function replacementFrom(params: URLSearchParams, eventId: string): Replacing {
+  return {
+    eventId,
+    bookingId: params.get("replaces") ?? "",
+    booking: params.get("booking") ?? "the disrupted booking",
+    venue: params.get("venue") ?? "its venue",
+    from: params.get("from") ?? "",
+    to: params.get("to") ?? "",
+  };
+}
+
+/** The request form for this venue, linked to the disrupted booking (L5). */
+function replacementRequest(replacing: Replacing, venueId: string): string {
+  const params = new URLSearchParams({
+    venueId,
+    replaces: replacing.bookingId,
+    booking: replacing.booking,
+    venue: replacing.venue,
+    from: replacing.from,
+    to: replacing.to,
+  });
+  return `/events/${replacing.eventId}/venue-requests/new?${params}`;
+}
+
+function Results({ result, loading, replacing }: { result: VenueSearchResult; loading: boolean; replacing: Replacing | null }) {
   const byLayout = result.filters.layout !== null;
   const head = {
     cells: [
@@ -251,7 +300,20 @@ function Results({ result, loading }: { result: VenueSearchResult; loading: bool
       { key: "capacity", content: String(venue.maxCapacity) },
       ...(byLayout ? [{ key: "layoutCapacity", content: String(venue.layoutCapacity ?? "") }] : []),
       { key: "facilities", content: venue.facilities.join(", ") },
-      { key: "actions", content: <Link to={`/venues/${venue.id}/availability`}>Availability</Link> },
+      {
+        key: "actions",
+        content: (
+          <>
+            <Link to={`/venues/${venue.id}/availability`}>Availability</Link>
+            {replacing && (
+              <>
+                {" · "}
+                <Link to={replacementRequest(replacing, venue.id)}>Request this venue</Link>
+              </>
+            )}
+          </>
+        ),
+      },
     ],
   }));
 
