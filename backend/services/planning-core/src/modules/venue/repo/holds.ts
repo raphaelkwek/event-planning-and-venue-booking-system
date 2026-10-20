@@ -313,13 +313,14 @@ export class HeldSlotNotHeldError extends Error {
 }
 
 /**
- * For M1. Approving a request that was converted from a hold confirms the slot
- * the hold took, instead of inserting a new one (implementation.md §4.6
- * rule 3): never release and re-insert, which would open a window for another
- * hold. Returns the slot's id, which M1 records as the request's booking, or
- * null when the request wasn't converted from a hold (M1 then inserts a
- * CONFIRMED slot as before). Throws HeldSlotNotHeldError if the slot is no
- * longer HELD. Call it inside M1's transaction, after the venue row lock.
+ * M1 (api/bookingDecisions.ts). Approving a request that was converted from a
+ * hold confirms the slot the hold took, instead of inserting a new one
+ * (implementation.md §4.6 rule 3): never release and re-insert, which would
+ * open a window for another hold. Returns the slot's id, which M1 records as
+ * the request's booking, or null when the request wasn't converted from a hold
+ * (M1 then inserts a CONFIRMED slot as before). Throws HeldSlotNotHeldError if
+ * the slot is no longer HELD. Called inside M1's transaction, after the venue
+ * row lock.
  */
 export async function confirmHeldSlotForRequest(tx: TransactionSql, requestId: string, actorUserId: string): Promise<string | null> {
   const slot = await lockConvertedSlot(tx, requestId);
@@ -333,7 +334,7 @@ export async function confirmHeldSlotForRequest(tx: TransactionSql, requestId: s
 }
 
 /**
- * For L2 (wired in), and for M2 to call when it rejects. A request converted
+ * L2 (withdrawal) and M2 (rejection) call this. A request converted
  * from a hold frees the period the hold took. True when a HELD slot was
  * released; false when the request wasn't converted from a hold, or its slot
  * isn't HELD any more.

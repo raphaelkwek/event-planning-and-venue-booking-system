@@ -483,6 +483,44 @@ describe("converting and releasing (L3)", () => {
     expect(bookings).toEqual([]);
   });
 
+  it("confirms the held period itself when the converted request is approved, without a second booking (L3-T13, M1)", async () => {
+    const venueId = await newVenue("L3 Auditorium");
+    const event = await newEvent();
+    const held = await heldHold(event.id, venueId);
+    asCoordinator();
+    const converted = (await convert(held.id)).body;
+
+    asStaff();
+    const approved = await request(app).post(`/api/v1/booking-requests/${converted.request.id}/approve`).set(bearer);
+    expect(approved.status).toBe(200);
+    expect(approved.body.status).toBe("APPROVED");
+    const hold = await holdRow(held.id);
+    expect(hold).toMatchObject({ status: "CONVERTED", slot_status: "CONFIRMED" });
+    const [row] = await sql<{ booking_id: string }[]>`select booking_id from venue.booking_requests where id = ${converted.request.id}`;
+    expect(row!.booking_id).toBe(hold.slot_id);
+    const slots = await sql`select status from venue.venue_slots where venue_id = ${venueId}`;
+    expect(slots.map((s) => s.status)).toEqual(["CONFIRMED"]);
+  });
+
+  it("releases the held period when the converted request is rejected (L3-T14, M2)", async () => {
+    const venueId = await newVenue("L3 Auditorium");
+    const event = await newEvent();
+    const other = await newEvent();
+    const held = await heldHold(event.id, venueId);
+    asCoordinator();
+    const converted = (await convert(held.id)).body;
+
+    asStaff();
+    const rejected = await request(app)
+      .post(`/api/v1/booking-requests/${converted.request.id}/reject`)
+      .set(bearer)
+      .send({ reason: "The hall is closed for a private function." });
+    expect(rejected.body.status).toBe("REJECTED");
+    expect(await holdRow(held.id)).toMatchObject({ status: "CONVERTED", slot_status: "RELEASED" });
+    // The period is free: another event's hold can take it (heldHold expects the placement to succeed).
+    expect((await heldHold(other.id, venueId)).slotId).toBeTruthy();
+  });
+
   it("releases a requested or held hold for its coordinator only, keeping the record (L3-T15)", async () => {
     const hall = await newVenue("L3 Auditorium");
     const seminar = await newVenue("L3 Seminar Room");
