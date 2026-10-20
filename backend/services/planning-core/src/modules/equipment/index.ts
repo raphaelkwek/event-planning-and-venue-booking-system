@@ -13,6 +13,9 @@ export { EQUIPMENT_OUTBOX_TABLE } from "./events/outbox.js";
 /** Q2 — F4's release run calls this inside its cancellation transaction (AC1). */
 export { releaseEventReservations } from "./repo/releases.js";
 
+/** F5 — the change module reads an event's live equipment arrangements inside its confirmation transaction. */
+export { equipmentArrangementsForEvent, type EquipmentArrangementLine } from "./repo/eventArrangements.js";
+
 /**
  * The equipment module's public interface (ADR-0004). Other modules import
  * this file and nothing else under modules/equipment; `npm run lint:boundaries`

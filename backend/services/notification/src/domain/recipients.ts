@@ -181,7 +181,37 @@ const RULES: Record<string, Rule> = {
   "change-request.rejected": (d, event) => [
     [d.ownerId!, `Your change request for ${event} was rejected. Reason: ${d.reason}`],
   ],
+  // F5: the owner, the Venue Staff of each booked venue (once per booking), and each Technical
+  // Support Staff member who reserved equipment (once, listing what they reserved).
+  "event.arrangements-confirmed": (d, event) => arrangementsConfirmed(d as unknown as ArrangementsConfirmed, event),
 };
+
+/** F5's message data, as its contract (`eventArrangementsConfirmedPayloadSchema`) validated it. */
+interface ArrangementsConfirmed {
+  ownerId: string;
+  bookings: { reference: string; venueName: string; startsAt: string; endsAt: string; staffIds: string[] }[];
+  reservations: { equipmentTypeName: string; reservedQuantity: number; reservedBy: string }[];
+}
+
+function arrangementsConfirmed(d: ArrangementsConfirmed, event: string): Array<[string, string]> {
+  const inReview = "It is now in Safety Review.";
+  const notices: Array<[string, string]> = [
+    [d.ownerId, `Your event ${event} has its venue and equipment arrangements confirmed. It is now in Safety Review, awaiting the Safety Officer.`],
+  ];
+  for (const booking of d.bookings) {
+    const text = `${event} has confirmed its arrangements, including booking ${booking.reference} at ${booking.venueName}, ${period(booking.startsAt, booking.endsAt)}. ${inReview}`;
+    for (const staffId of booking.staffIds) notices.push([staffId, text]);
+  }
+  const reservers = [...new Set(d.reservations.map((reservation) => reservation.reservedBy))];
+  for (const reserver of reservers) {
+    const reserved = d.reservations
+      .filter((reservation) => reservation.reservedBy === reserver)
+      .map((reservation) => `${reservation.equipmentTypeName} × ${reservation.reservedQuantity}`)
+      .join(", ");
+    notices.push([reserver, `${event} has confirmed its arrangements, including the equipment you reserved: ${reserved}. ${inReview}`]);
+  }
+  return notices;
+}
 
 /** The notifications a message raises; none for a type no story asks to notify about. */
 export function notificationsFor(message: NotifiableEvent): NewNotification[] {

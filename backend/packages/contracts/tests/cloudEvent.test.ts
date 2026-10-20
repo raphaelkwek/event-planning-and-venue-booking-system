@@ -67,6 +67,30 @@ const EXAMPLE_DATA: Record<EventMessageType, Record<string, unknown>> = {
     nomineeCoordinatorId: nominee,
     resolvedAt: at,
   },
+  "event.arrangements-confirmed": {
+    ...ref,
+    ownerId: organiser,
+    confirmedBy: coordinator,
+    confirmedAt: at,
+    bookings: [
+      {
+        bookingId: "44444444-4444-4444-8444-444444444444",
+        reference: "BKR-000042",
+        venueName: "Lee Kong Chian Auditorium",
+        startsAt: "2026-12-02T06:00:00.000Z",
+        endsAt: "2026-12-02T10:00:00.000Z",
+        staffIds: ["00000000-0000-0000-0000-000000000003"],
+      },
+    ],
+    reservations: [
+      {
+        reservationId: "55555555-5555-4555-8555-555555555555",
+        equipmentTypeName: "Folding Chairs",
+        reservedQuantity: 40,
+        reservedBy: "00000000-0000-0000-0000-000000000004",
+      },
+    ],
+  },
   "event.status-changed": {
     eventId,
     ownerId: organiser,
@@ -128,6 +152,11 @@ describe("parseCloudEvent: an example message for every event type", () => {
   it("refuses a message whose data does not match its type's schema", () => {
     const data = without(EXAMPLE_DATA["event.rejected"], "reason");
     expect(() => parseCloudEvent(exampleMessage("event.rejected", data))).toThrow(/reason/);
+  });
+
+  it("refuses an arrangements confirmation with no booking (F5 needs at least one)", () => {
+    const data = { ...EXAMPLE_DATA["event.arrangements-confirmed"], bookings: [] };
+    expect(() => parseCloudEvent(exampleMessage("event.arrangements-confirmed", data))).toThrow(/bookings/);
   });
 
   it("refuses a type it has no schema for, naming the type", () => {

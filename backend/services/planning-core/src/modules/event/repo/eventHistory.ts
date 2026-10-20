@@ -38,6 +38,18 @@ export async function recordStatusChange(
   `;
 }
 
+/** F5 — when the event's latest status change was recorded, so a message carries the history's own time. */
+export async function latestStatusChangeAt(tx: TransactionSql, eventId: string): Promise<string> {
+  const [row] = await tx<{ occurred_at: Date }[]>`
+    select occurred_at from event.event_history
+    where event_id = ${eventId} and entry_type = 'STATUS_CHANGE'
+    order by occurred_at desc, created_at desc
+    limit 1
+  `;
+  if (!row) throw new Error(`Event ${eventId} has no status change recorded.`);
+  return row.occurred_at.toISOString();
+}
+
 /** D3 — the values as originally submitted, retained alongside the amendments. */
 export async function recordFieldChanges(
   tx: TransactionSql,

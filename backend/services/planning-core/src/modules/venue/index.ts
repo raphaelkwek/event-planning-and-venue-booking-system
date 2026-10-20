@@ -33,6 +33,15 @@ export { releaseHoldsForEvent } from "./repo/holds.js";
 /** The module's outbox, for the outbox relay (implementation.md §3.4). */
 export { VENUE_OUTBOX_TABLE } from "./events/outbox.js";
 
+/** F5 — the change module reads an event's live venue arrangements inside its confirmation transaction. */
+export {
+  venueArrangementsForEvent,
+  type VenueArrangementBooking,
+  type VenueArrangementFlag,
+  type VenueArrangementRequest,
+  type VenueArrangements,
+} from "./repo/eventArrangements.js";
+
 export function venueRouter(sql: Sql): Router {
   const router = Router();
   // Before venuesRouter: "/venues/search" must not be read as "/venues/:id".

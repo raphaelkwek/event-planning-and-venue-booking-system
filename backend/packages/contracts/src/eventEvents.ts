@@ -89,6 +89,40 @@ export const eventReassignmentDeclinedPayloadSchema = z.object({
 });
 
 /**
+ * F5 — the assigned coordinator confirmed the venue and equipment arrangements,
+ * and the event moved to Safety Review (CR-06). It names everyone F5 notifies:
+ * the owner, the Venue Staff of each confirmed booking's venue, and whoever
+ * reserved each reservation. A venue with no staff has an empty `staffIds`; an
+ * event marked as needing no equipment has no reservations.
+ */
+export const eventArrangementsConfirmedPayloadSchema = z.object({
+  ...eventRef,
+  ownerId: z.string().uuid(),
+  confirmedBy: z.string().uuid(),
+  confirmedAt: z.string().datetime(),
+  bookings: z
+    .array(
+      z.object({
+        bookingId: z.string().uuid(),
+        reference: z.string().min(1),
+        venueName: z.string().min(1),
+        startsAt: z.string().datetime(),
+        endsAt: z.string().datetime(),
+        staffIds: z.array(z.string().uuid()),
+      })
+    )
+    .min(1),
+  reservations: z.array(
+    z.object({
+      reservationId: z.string().uuid(),
+      equipmentTypeName: z.string().min(1),
+      reservedQuantity: z.number().int().positive(),
+      reservedBy: z.string().uuid(),
+    })
+  ),
+});
+
+/**
  * EN-11 — every change of an event's status, whatever caused it. The event
  * module writes it in `transitionEvent`, the one path that changes a status,
  * so a consumer that cares about a status (the completion workflow cares about
@@ -134,6 +168,7 @@ export const EVENT_PAYLOAD_SCHEMAS = {
   "event.reassignment-proposed": eventReassignmentProposedPayloadSchema,
   "event.reassignment-accepted": eventReassignmentAcceptedPayloadSchema,
   "event.reassignment-declined": eventReassignmentDeclinedPayloadSchema,
+  "event.arrangements-confirmed": eventArrangementsConfirmedPayloadSchema,
   "event.status-changed": eventStatusChangedPayloadSchema,
   "event.schedule-changed": eventScheduleChangedPayloadSchema,
 } as const;

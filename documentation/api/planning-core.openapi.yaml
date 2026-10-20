@@ -902,6 +902,66 @@ paths:
         "429": { $ref: "#/components/responses/RateLimitExceeded" }
         "503": { $ref: "#/components/responses/IdentityUnavailable" }
 
+  /api/v1/events/{id}/confirmation:
+    parameters:
+      - $ref: "#/components/parameters/RecordId"
+    post:
+      tags: [Decisions]
+      summary: Confirm the event's venue and equipment arrangements (F5)
+      description: |
+        The Event Coordinator assigned to the event, while it is Approved or Planning. No body: the
+        arrangements are read live from the bookings and reservations, inside the confirmation's
+        transaction, never from a stored readiness value. Ready means at least one confirmed venue
+        booking and no tentative hold or pending booking request left (CQ-05, as F5's AC2 reads);
+        every equipment request line reserved in full, or the event marked as needing no equipment;
+        and no arrangement flagged Requires Reconfirmation (I2) or, once S3 stores it, unsuitable.
+        On success the event moves to Safety Review (CR-06), the history records the coordinator and
+        the time, and the owner, each booked venue's Venue Staff and each reserver are notified. Only
+        the Safety Officer's approval (U1) makes it Confirmed. A refusal stores nothing.
+      operationId: confirmArrangements
+      responses:
+        "200":
+          description: The event, now in Safety Review.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [event]
+                properties:
+                  event: { $ref: "#/components/schemas/ConfirmedArrangements" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403":
+          description: "`ROLE_NOT_AUTHORISED`: not an Event Coordinator, or not the event's assigned one."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "404":
+          description: "`EVENT_NOT_FOUND`: no event with that id, or it is outside the caller's scope (A3)."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "409":
+          description: "`STATUS_TRANSITION_NOT_PERMITTED`: the event is not Approved or Planning. The message names its status and Safety Review."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "422":
+          description: |
+            `ARRANGEMENTS_NOT_READY`. The message names each outstanding arrangement; `details` lists them
+            as `venue` (`NO_CONFIRMED_BOOKING`, or `HOLD` / `PENDING_REQUEST` with `reference` and
+            `venueName`), `equipment` (`NONE_REQUESTED`, or `LINE` with `lineId`, `equipmentTypeName`,
+            `quantity`, `status`, `requestedQuantity`, `reservedQuantity`) and `flags` (`arrangement`,
+            `reference`, `name`, `flag`).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "429": { $ref: "#/components/responses/RateLimitExceeded" }
+        "503":
+          description: "`ARRANGEMENTS_UNAVAILABLE`: the venue or equipment records could not be read, so nothing was changed; or `IDENTITY_UNAVAILABLE`."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+
   /api/v1/venues:
     get:
       tags: [Venues]
@@ -2533,6 +2593,8 @@ components:
         - VENUE_UNAVAILABLE
         - BLOCK_NOT_FOUND
         - BLOCK_ALREADY_REMOVED
+        - ARRANGEMENTS_NOT_READY
+        - ARRANGEMENTS_UNAVAILABLE
 
     ErrorEnvelope:
       type: object
@@ -3345,6 +3407,17 @@ components:
         fields:
           type: array
           items: { $ref: "#/components/schemas/ChangeRequestField" }
+
+    ConfirmedArrangements:
+      type: object
+      required: [id, reference, status, previousStatus, confirmedBy, confirmedAt]
+      properties:
+        id: { type: string, format: uuid }
+        reference: { type: [string, "null"] }
+        status: { type: string, enum: [SAFETY_REVIEW] }
+        previousStatus: { type: string, enum: [APPROVED, PLANNING] }
+        confirmedBy: { type: string, format: uuid, description: The assigned coordinator who confirmed. }
+        confirmedAt: { type: string, format: date-time, description: The history entry's time. }
 
     BookingRequestInput:
       type: object
