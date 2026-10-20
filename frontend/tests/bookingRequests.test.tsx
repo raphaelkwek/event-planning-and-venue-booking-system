@@ -145,6 +145,12 @@ vi.mock("../src/api/venues.js", async () => {
   };
 });
 
+// L3: the event's venue requests page also lists its holds; tests/holds.test.tsx covers them.
+vi.mock("../src/api/holds.js", async () => {
+  const actual = await vi.importActual<typeof import("../src/api/holds.js")>("../src/api/holds.js");
+  return { ...actual, listEventHolds: vi.fn(async () => ({ items: [] })) };
+});
+
 vi.mock("../src/api/users.js", () => ({ lookupUsers: vi.fn(async () => [{ id: ASSIGNED, displayName: "Coordinator One" }]) }));
 
 const { App } = await import("../src/App.js");

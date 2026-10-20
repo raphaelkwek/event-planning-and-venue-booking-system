@@ -95,6 +95,25 @@ describe("a venue's availability calendar", () => {
     expect(rows("Monday 7 December 2026", "Committed")).toContain("10:00–12:00 Confirmed EVT-000101");
   });
 
+  it("labels a tentative hold as Held with its event reference (L3-T12)", async () => {
+    vi.mocked(getVenueAvailability).mockResolvedValueOnce({
+      venueId: VENUE_ID,
+      timeZone: "Asia/Singapore",
+      from: "2026-12-07",
+      to: "2026-12-13",
+      days: [{
+        date: "2026-12-07",
+        committed: [{ kind: "BOOKING", ...period(7, "10:00", "12:00"), bookingStatus: "HELD", eventReference: "EVT-000103" }],
+        free: [],
+      }],
+    });
+
+    await openCalendar();
+
+    expect(rows("Monday 7 December 2026", "Committed")).toEqual(["10:00–12:00 Held EVT-000103"]);
+    expect(CALENDAR_APPEARANCE.HELD).not.toBe(CALENDAR_APPEARANCE.CONFIRMED);
+  });
+
   it("labels a pending request as pending, in a different colour from a confirmed booking (I1 AC3)", async () => {
     await openCalendar();
     expect(rows("Monday 7 December 2026", "Committed")).toContain("14:00–16:00 Pending EVT-000102");

@@ -2004,7 +2004,8 @@ paths:
       description: |
         The event's assigned coordinator, while the request is Pending. The request becomes Withdrawn,
         with who withdrew it and when; the record is kept. It leaves the Venue Staff queue and the
-        calendar. The event's status doesn't change.
+        calendar. The event's status doesn't change. L3: a request converted from a hold releases the
+        period the hold took.
       operationId: withdrawBookingRequest
       responses:
         "200":
@@ -2139,6 +2140,275 @@ paths:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
         "503": { $ref: "#/components/responses/IdentityUnavailable" }
 
+  /api/v1/holds:
+    post:
+      tags: [Venue bookings]
+      summary: Request a tentative hold on a venue (L3)
+      description: |
+        The event's assigned coordinator, for an event that isn't Completed, Cancelled or Rejected,
+        choosing how many minutes before the expiry to be reminded (at least 1). The hold is stored
+        Requested with an `HLD-` reference and reserves nothing until Venue Staff place it (the
+        customer's Week 9 answer, CQ-06). An event has at most one Requested or Held hold per venue
+        (CR-03). Limited to 120 requests a minute per address until the gateway applies limits.
+      operationId: requestHold
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/HoldInput" }
+      responses:
+        "201":
+          description: Stored, Requested.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Hold" }
+        "400": { $ref: "#/components/responses/ValidationFailed" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403":
+          description: "`ROLE_NOT_AUTHORISED`: not the event's assigned coordinator, or not an Event Coordinator."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "404":
+          description: "`EVENT_NOT_FOUND` or `VENUE_NOT_FOUND`."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "409":
+          description: "`EVENT_NOT_HOLDABLE` (the message names the event's status), or `HOLD_DUPLICATE` (the message names the event's existing hold at the venue)."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "422":
+          description: "`VENUE_INACTIVE`."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "429":
+          description: "`RATE_LIMITED`."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+    get:
+      tags: [Venue bookings]
+      summary: An event's holds (L3)
+      description: Event Coordinators, and the owning organiser (A3). Every hold of the event, oldest first, whatever its status.
+      operationId: listEventHolds
+      parameters:
+        - { name: eventId, in: query, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: The event's holds.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/Hold" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404":
+          description: "`EVENT_NOT_FOUND`: no such event, or not one the caller may see."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "429":
+          description: "`RATE_LIMITED`."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
+  /api/v1/holds/queue:
+    get:
+      tags: [Venue bookings]
+      summary: Hold requests waiting to be placed (L3)
+      description: Venue Staff only. The Requested holds at the venues they look after, soonest first.
+      operationId: listHoldQueue
+      responses:
+        "200":
+          description: Requested holds.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/Hold" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "429":
+          description: "`RATE_LIMITED`."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
+  /api/v1/holds/{id}/place:
+    parameters:
+      - $ref: "#/components/parameters/RecordId"
+    post:
+      tags: [Venue bookings]
+      summary: Place a requested hold, setting its expiry (L3)
+      description: |
+        Venue Staff who look after the hold's venue, while the hold is Requested and its event isn't
+        Completed, Cancelled or Rejected. The expiry must be later than now. Placing takes the period
+        as a HELD slot: the exclusion constraint refuses it when the occupied period (with the venue's
+        setup and turnaround, H3) overlaps another hold or confirmed booking at the venue, so the hold
+        placed first keeps the period. A refused placement changes nothing; the hold stays Requested.
+      operationId: placeHold
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [expiresAt]
+              properties:
+                expiresAt: { type: string, format: date-time, description: "With its offset, e.g. 2026-12-01T18:00+08:00." }
+      responses:
+        "200":
+          description: Held.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Hold" }
+        "400": { $ref: "#/components/responses/ValidationFailed" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404":
+          description: "`HOLD_NOT_FOUND`: no such hold, or not at a venue the caller looks after."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "409":
+          description: "`HOLD_NOT_REQUESTED` (the message names the hold's status), `EVENT_NOT_HOLDABLE`, or `VENUE_SLOT_CONFLICT` (the message names each overlapped hold or booking and its period)."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "422":
+          description: "`VENUE_INACTIVE`."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "429":
+          description: "`RATE_LIMITED`."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
+  /api/v1/holds/{id}/release:
+    parameters:
+      - $ref: "#/components/parameters/RecordId"
+    post:
+      tags: [Venue bookings]
+      summary: Release a hold (L3)
+      description: |
+        The event's assigned coordinator, while the hold is Requested or Held. The hold becomes
+        Released, with who released it and when, and a placed hold's period is free again. The record
+        is kept.
+      operationId: releaseHold
+      responses:
+        "200":
+          description: Released.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Hold" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403":
+          description: "`ROLE_NOT_AUTHORISED`: not the event's assigned coordinator, or not an Event Coordinator."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "404":
+          description: "`HOLD_NOT_FOUND`."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "409":
+          description: "`HOLD_NOT_HELD`: the hold is Converted, Released or Expired; the message names its status."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "429":
+          description: "`RATE_LIMITED`."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
+  /api/v1/holds/{id}/convert:
+    parameters:
+      - $ref: "#/components/parameters/RecordId"
+    post:
+      tags: [Venue bookings]
+      summary: Convert a held hold into a booking request (L3, L1)
+      description: |
+        The event's assigned coordinator, while the hold is Held and before its expiry. Creates an L1
+        booking request for the hold's venue and period (any `eventId`, `venueId`, `startsAt`,
+        `endsAt` or `replacesBookingId` sent is ignored), under L1's rules, without checking
+        availability again. The hold becomes Converted; its period stays held, under the request's
+        `BKR-` reference, until Venue Staff approve (M1: confirmed) or reject (M2: released) the
+        request, or the coordinator withdraws it (L2: released).
+      operationId: convertHold
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [layout, expectedAttendance]
+              properties:
+                layout: { type: string }
+                expectedAttendance: { type: integer, minimum: 1 }
+                facilities: { type: array, items: { type: string } }
+                accessibilityFeatures: { type: array, items: { type: string } }
+      responses:
+        "201":
+          description: The new Pending request, and the Converted hold.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [request, hold]
+                properties:
+                  request: { $ref: "#/components/schemas/BookingRequest" }
+                  hold: { $ref: "#/components/schemas/Hold" }
+        "400": { $ref: "#/components/responses/ValidationFailed" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403":
+          description: "`ROLE_NOT_AUTHORISED`: not the event's assigned coordinator, or not an Event Coordinator."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "404":
+          description: "`HOLD_NOT_FOUND`, `EVENT_NOT_FOUND` or `VENUE_NOT_FOUND`."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "409":
+          description: "`HOLD_NOT_HELD` (not Held, or past its expiry), `EVENT_NOT_BOOKABLE`, or `BOOKING_REQUEST_DUPLICATE`."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "422":
+          description: "`VENUE_INACTIVE`."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "429":
+          description: "`RATE_LIMITED`."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
 components:
   securitySchemes:
     bearerAuth:
@@ -2254,10 +2524,12 @@ components:
         - BOOKING_REQUEST_NOT_FOUND
         - BOOKING_REQUEST_NOT_PENDING
         - REPLACEMENT_NOT_VALID
-        - BOOKING_REQUEST_NOT_FOUND
-        - BOOKING_REQUEST_NOT_PENDING
-        - REPLACEMENT_NOT_VALID
         - JUSTIFICATION_REQUIRED
+        - HOLD_NOT_FOUND
+        - HOLD_DUPLICATE
+        - EVENT_NOT_HOLDABLE
+        - HOLD_NOT_REQUESTED
+        - HOLD_NOT_HELD
         - VENUE_UNAVAILABLE
         - BLOCK_NOT_FOUND
         - BLOCK_ALREADY_REMOVED
@@ -3088,6 +3360,40 @@ components:
         accessibilityFeatures: { type: array, items: { type: string } }
         replacesBookingId: { type: [string, "null"], format: uuid, description: "CR-02 (L5): the disrupted booking this request replaces." }
         justification: { type: [string, "null"], description: "K2: why a venue that isn't suitable is requested anyway. Required, with a character that isn't a space, when the venue is Not suitable; ignored otherwise." }
+    HoldInput:
+      type: object
+      required: [eventId, venueId, startsAt, endsAt, reminderLeadMinutes]
+      properties:
+        eventId: { type: string, format: uuid }
+        venueId: { type: string, format: uuid }
+        startsAt: { type: string, format: date-time, description: "With its offset." }
+        endsAt: { type: string, format: date-time }
+        reminderLeadMinutes: { type: integer, minimum: 1, description: "How long before the expiry to remind the coordinator (L6)." }
+    Hold:
+      type: object
+      required: [id, reference, eventId, eventReference, venueId, venueName, startsAt, endsAt, reminderLeadMinutes, status, requestedBy, requestedAt, placedBy, placedAt, expiresAt, slotId, convertedRequestId, convertedBy, convertedAt, releasedBy, releasedAt]
+      properties:
+        id: { type: string, format: uuid }
+        reference: { type: string, pattern: "^HLD-\\d{6}$" }
+        eventId: { type: string, format: uuid }
+        eventReference: { type: [string, "null"] }
+        venueId: { type: string, format: uuid }
+        venueName: { type: string }
+        startsAt: { type: string, format: date-time }
+        endsAt: { type: string, format: date-time }
+        reminderLeadMinutes: { type: integer, minimum: 1 }
+        status: { type: string, enum: [REQUESTED, HELD, CONVERTED, RELEASED, EXPIRED] }
+        requestedBy: { type: string, format: uuid }
+        requestedAt: { type: string, format: date-time }
+        placedBy: { type: [string, "null"], format: uuid, description: The Venue Staff member who placed it; null while Requested. }
+        placedAt: { type: [string, "null"], format: date-time }
+        expiresAt: { type: [string, "null"], format: date-time, description: Set by Venue Staff when placing; null while Requested. }
+        slotId: { type: [string, "null"], format: uuid, description: The venue slot the hold took when placed. }
+        convertedRequestId: { type: [string, "null"], format: uuid, description: The booking request it became. }
+        convertedBy: { type: [string, "null"], format: uuid }
+        convertedAt: { type: [string, "null"], format: date-time }
+        releasedBy: { type: [string, "null"], format: uuid }
+        releasedAt: { type: [string, "null"], format: date-time }
     BookingRequest:
       type: object
       required: [id, reference, eventId, eventReference, venueId, venueName, startsAt, endsAt, layout, expectedAttendance, facilities, accessibilityFeatures, eventStartsAt, eventEndsAt, eventAttendance, differsFromEvent, differences, replacesBookingId, status, requestedBy, requestedAt, withdrawnBy, withdrawnAt, suitabilityStatus, suitabilityReasons, justification, decidedBy, decidedAt, bookingId, rejectionReason, suggestedAlternative, requiresReconfirmation]

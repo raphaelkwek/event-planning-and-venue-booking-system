@@ -46,6 +46,7 @@ export function formatInstant(value: string | null): string {
  */
 export type CalendarState =
   | "CONFIRMED"
+  | "HELD"
   | "PENDING"
   | "SETUP"
   | "TURNAROUND"
@@ -55,6 +56,7 @@ export type CalendarState =
 
 export const CALENDAR_LABELS: Record<Exclude<CalendarState, "UNAVAILABLE">, string> = {
   CONFIRMED: "Confirmed",
+  HELD: "Held",
   PENDING: "Pending",
   SETUP: "Setup",
   TURNAROUND: "Turnaround",
@@ -72,6 +74,8 @@ export const UNAVAILABILITY_LABELS: Record<string, string> = {
 
 export const CALENDAR_APPEARANCE: Record<CalendarState, LozengeAppearance> = {
   CONFIRMED: "removed",
+  // L3: a placed hold, distinct from a pending request and a confirmed booking.
+  HELD: "default",
   PENDING: "moved",
   SETUP: "inprogress",
   TURNAROUND: "inprogress",
@@ -83,6 +87,7 @@ export const CALENDAR_APPEARANCE: Record<CalendarState, LozengeAppearance> = {
 /** The day bar's fill for each state, matching its lozenge's colour. */
 export const CALENDAR_BAR_COLOURS: Record<CalendarState, string> = {
   CONFIRMED: "#DE350B",
+  HELD: "#6B778C",
   PENDING: "#FF991F",
   SETUP: "#4C9AFF",
   TURNAROUND: "#4C9AFF",
@@ -138,4 +143,21 @@ export const BOOKING_REQUEST_APPEARANCE: Record<keyof typeof BOOKING_REQUEST_LAB
   APPROVED: "success",
   REJECTED: "removed",
   WITHDRAWN: "default",
+};
+
+/** L3: how a tentative hold's status reads, and its one colour. */
+export const HOLD_LABELS = {
+  REQUESTED: "Requested",
+  HELD: "Held",
+  CONVERTED: "Converted",
+  RELEASED: "Released",
+  EXPIRED: "Expired",
+} as const;
+
+export const HOLD_APPEARANCE: Record<keyof typeof HOLD_LABELS, LozengeAppearance> = {
+  REQUESTED: "new",
+  HELD: "moved",
+  CONVERTED: "success",
+  RELEASED: "default",
+  EXPIRED: "removed",
 };

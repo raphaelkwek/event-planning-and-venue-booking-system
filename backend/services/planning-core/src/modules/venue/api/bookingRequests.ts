@@ -1,6 +1,7 @@
 import { Router, type NextFunction, type RequestHandler, type Response } from "express";
 import { rateLimit } from "express-rate-limit";
-import type { Sql } from "postgres";
+import type { Sql, TransactionSql } from "postgres";
+import type { ErrorCode, ErrorField } from "@connectsphere/contracts";
 import { findEventForPlanning, findEventReferences, type EventPlanningView } from "../../event/index.js";
 import { resolveAccessScope } from "../../identity/index.js";
 import { authenticate, requireRole, type ActorRequest } from "../auth/actor.js";
@@ -16,8 +17,10 @@ import {
   notSuitableMessage,
   readBookingRequest,
   suitabilityRecord,
+  type BookingRequestInput,
 } from "../domain/bookingRequest.js";
 import { assessSuitability, requirementsFromRequest } from "../domain/suitability.js";
+import { releaseHeldSlotForRequest } from "../repo/holds.js";
 import { requestBlockedMessage } from "../domain/unavailability.js";
 import { writeVenueOutbox } from "../events/outbox.js";
 import { activeBlocksOverlapping } from "../repo/bookingDecisions.js";
@@ -75,6 +78,132 @@ export function bookingRequestRateLimit(): RequestHandler {
   });
 }
 
+/** A refusal, as `refuse` sends it. */
+export interface Refusal {
+  status: number;
+  code: ErrorCode;
+  message: string;
+  fields?: ErrorField[];
+  /** Structured facts a screen shows beside the message, such as K2's failing conditions. */
+  details?: Record<string, unknown>;
+}
+
+export type SubmitOutcome = ({ ok: true; created: BookingRequest; eventReference: string | null }) | ({ ok: false } & Refusal);
+
+/** Thrown inside the transaction to roll it back with a refusal. */
+class RefusedInTransaction extends Error {
+  constructor(readonly refusal: Refusal) {
+    super(refusal.message);
+  }
+}
+
+export interface SubmitHooks {
+  /** Runs first in the transaction; a refusal rolls it back (L3: the hold must still be Held). */
+  before?: (tx: TransactionSql) => Promise<Refusal | null>;
+  /** Runs after the request is stored, in the same transaction (L3: the hold becomes Converted). */
+  after?: (tx: TransactionSql, created: BookingRequest) => Promise<void>;
+}
+
+/**
+ * L1's checks and write: the assigned coordinator, an approved event, an active
+ * venue with the layout, then the request, stored Pending with a message to the
+ * venue's Venue Staff. Shared by L1's route and L3's conversion of a hold.
+ */
+export async function submitBookingRequest(
+  sql: Sql,
+  req: ActorRequest,
+  input: BookingRequestInput,
+  hooks: SubmitHooks = {},
+): Promise<SubmitOutcome> {
+  const actor = req.actor!;
+  const refused = (status: number, code: ErrorCode, message: string, fields?: ErrorField[], details?: Record<string, unknown>) =>
+    ({ ok: false, status, code, message, ...(fields ? { fields } : {}), ...(details ? { details } : {}) }) as const;
+
+  const event = await findEvent(sql, input.eventId, req);
+  if (!event) return refused(404, "EVENT_NOT_FOUND", "No event with that id exists, or you can't see it.");
+  if (!isAssignedCoordinator(actor.userId, event)) return refused(403, "ROLE_NOT_AUTHORISED", NOT_ASSIGNED_REQUEST);
+  if (!eventBookable(event.status)) return refused(409, "EVENT_NOT_BOOKABLE", notBookableMessage(event.status));
+
+  const venue = await findVenue(sql, input.venueId);
+  if (!venue) return refused(404, "VENUE_NOT_FOUND", "No venue with that id exists.");
+  if (!venue.isActive) return refused(422, "VENUE_INACTIVE", `${venue.name} is inactive, so it can't be requested.`);
+  const layout = layoutAt(venue.layouts, input.layout);
+  if (!layout) return refused(400, "VALIDATION_FAILED", INVALID, [{ field: "layout", message: `${venue.name} has no ${input.layout} layout.` }]);
+
+  // K2: assessed against the request's own values, the layout in the venue's spelling. A venue that
+  // isn't suitable needs a justification, whether the request is raised directly or converted from a hold.
+  const assessment = assessSuitability(requirementsFromRequest({ ...input, layout }), venue);
+  const suitability = suitabilityRecord(assessment, input.justification);
+  if (!suitability.ok) {
+    return refused(422, "JUSTIFICATION_REQUIRED", notSuitableMessage(venue.name), [{ field: "justification", message: JUSTIFICATION_MESSAGE }], {
+      status: assessment.status,
+      reasons: assessment.reasons,
+    });
+  }
+
+  // An approved event always has its date, times and attendance (B2).
+  const eventValues = { startsAt: event.proposedStartAt!, endsAt: event.proposedEndAt!, attendance: event.expectedAttendance! };
+  const differs = differencesFromEvent(eventValues, input).length > 0;
+
+  try {
+    const created = await sql.begin(async (tx) => {
+      const before = await hooks.before?.(tx);
+      if (before) throw new RefusedInTransaction(before);
+      if (input.replacesBookingId && !(await isReplaceableBooking(tx, input.replacesBookingId, event.id))) {
+        throw new RefusedInTransaction({ status: 422, code: "REPLACEMENT_NOT_VALID", message: REPLACEMENT_NOT_VALID });
+      }
+      // Serialize with I2 block creation for both direct requests and hold conversion.
+      await lockVenue(tx, venue.id);
+      const blocks = await activeBlocksOverlapping(tx, venue.id, new Date(input.startsAt), new Date(input.endsAt), 0, 0);
+      if (blocks.length > 0) {
+        throw new RefusedInTransaction({ status: 409, code: "VENUE_UNAVAILABLE", message: requestBlockedMessage(venue.name, blocks) });
+      }
+      const created = await insertBookingRequest(tx, {
+        ...input,
+        ...suitability.record,
+        layout,
+        eventStartsAt: eventValues.startsAt,
+        eventEndsAt: eventValues.endsAt,
+        eventAttendance: eventValues.attendance,
+        differsFromEvent: differs,
+        requestedBy: actor.userId,
+      });
+      await hooks.after?.(tx, created);
+      const staffIds = await venueStaffIds(tx, venue.id);
+      if (staffIds.length > 0) {
+        await writeVenueOutbox(tx, {
+          messageType: "venue-booking.request-submitted",
+          aggregateId: created.id,
+          actor,
+          correlationId: req.header("x-correlation-id") ?? null,
+          payload: {
+            bookingRequestId: created.id,
+            reference: created.reference,
+            eventId: event.id,
+            eventReference: event.reference,
+            eventName: event.name,
+            venueId: venue.id,
+            venueName: venue.name,
+            startsAt: created.startsAt,
+            endsAt: created.endsAt,
+            staffIds,
+            requestedBy: created.requestedBy,
+            requestedAt: created.requestedAt,
+          },
+        });
+      }
+      return created;
+    });
+    return { ok: true, created, eventReference: event.reference };
+  } catch (error) {
+    if (error instanceof RefusedInTransaction) return { ok: false, ...error.refusal };
+    if (error instanceof DuplicateBookingRequestError) {
+      return refused(409, "BOOKING_REQUEST_DUPLICATE", duplicateMessage(error.references));
+    }
+    throw error;
+  }
+}
+
 /** The request as the API shows it: with its event's reference, and each value that differs from the event's. */
 export function present(request: BookingRequest, eventReference: string | null) {
   return {
@@ -107,88 +236,10 @@ export function bookingRequestsRouter(sql: Sql) {
     try {
       const read = readBookingRequest(req.body);
       if (!read.ok) return refuse(res, 400, "VALIDATION_FAILED", INVALID, read.fields);
-      const input = read.request;
-      const actor = req.actor!;
-
-      const event = await findEvent(sql, input.eventId, req);
-      if (!event) return eventNotFound(res);
-      if (!isAssignedCoordinator(actor.userId, event)) return refuse(res, 403, "ROLE_NOT_AUTHORISED", NOT_ASSIGNED_REQUEST);
-      if (!eventBookable(event.status)) return refuse(res, 409, "EVENT_NOT_BOOKABLE", notBookableMessage(event.status));
-
-      const venue = await findVenue(sql, input.venueId);
-      if (!venue) return refuse(res, 404, "VENUE_NOT_FOUND", "No venue with that id exists.");
-      if (!venue.isActive) return refuse(res, 422, "VENUE_INACTIVE", `${venue.name} is inactive, so it can't be requested.`);
-      const layout = layoutAt(venue.layouts, input.layout);
-      if (!layout) {
-        return refuse(res, 400, "VALIDATION_FAILED", INVALID, [{ field: "layout", message: `${venue.name} has no ${input.layout} layout.` }]);
-      }
-
-      // K2: assessed against the request's own values, the layout in the venue's spelling.
-      const assessment = assessSuitability(requirementsFromRequest({ ...input, layout }), venue);
-      const suitability = suitabilityRecord(assessment, input.justification);
-      if (!suitability.ok) {
-        return refuse(res, 422, "JUSTIFICATION_REQUIRED", notSuitableMessage(venue.name), [{ field: "justification", message: JUSTIFICATION_MESSAGE }], {
-          status: assessment.status,
-          reasons: assessment.reasons,
-        });
-      }
-
-      // An approved event always has its date, times and attendance (B2).
-      const eventValues = { startsAt: event.proposedStartAt!, endsAt: event.proposedEndAt!, attendance: event.expectedAttendance! };
-      const differs = differencesFromEvent(eventValues, input).length > 0;
-
-      const outcome = await sql.begin(async (tx) => {
-        if (input.replacesBookingId && !(await isReplaceableBooking(tx, input.replacesBookingId, event.id))) {
-          return { code: "REPLACEMENT_NOT_VALID" } as const;
-        }
-        // I2: no new request over recorded unavailability. Under the venue row lock,
-        // so a block recorded at the same moment either refuses this or flags it.
-        await lockVenue(tx, venue.id);
-        const blocks = await activeBlocksOverlapping(tx, venue.id, new Date(input.startsAt), new Date(input.endsAt), 0, 0);
-        if (blocks.length > 0) return { code: "UNAVAILABLE", blocks } as const;
-        const created = await insertBookingRequest(tx, {
-          ...input,
-          ...suitability.record,
-          layout,
-          eventStartsAt: eventValues.startsAt,
-          eventEndsAt: eventValues.endsAt,
-          eventAttendance: eventValues.attendance,
-          differsFromEvent: differs,
-          requestedBy: actor.userId,
-        });
-        const staffIds = await venueStaffIds(tx, venue.id);
-        if (staffIds.length > 0) {
-          await writeVenueOutbox(tx, {
-            messageType: "venue-booking.request-submitted",
-            aggregateId: created.id,
-            actor,
-            correlationId: req.header("x-correlation-id") ?? null,
-            payload: {
-              bookingRequestId: created.id,
-              reference: created.reference,
-              eventId: event.id,
-              eventReference: event.reference,
-              eventName: event.name,
-              venueId: venue.id,
-              venueName: venue.name,
-              startsAt: created.startsAt,
-              endsAt: created.endsAt,
-              staffIds,
-              requestedBy: created.requestedBy,
-              requestedAt: created.requestedAt,
-            },
-          });
-        }
-        return { code: "CREATED", created } as const;
-      });
-
-      if (outcome.code === "REPLACEMENT_NOT_VALID") return refuse(res, 422, "REPLACEMENT_NOT_VALID", REPLACEMENT_NOT_VALID);
-      if (outcome.code === "UNAVAILABLE") return refuse(res, 409, "VENUE_UNAVAILABLE", requestBlockedMessage(venue.name, outcome.blocks));
-      res.status(201).json(present(outcome.created, event.reference));
+      const outcome = await submitBookingRequest(sql, req, read.request);
+      if (!outcome.ok) return refuse(res, outcome.status, outcome.code, outcome.message, outcome.fields, outcome.details);
+      res.status(201).json(present(outcome.created, outcome.eventReference));
     } catch (error) {
-      if (error instanceof DuplicateBookingRequestError) {
-        return refuse(res, 409, "BOOKING_REQUEST_DUPLICATE", duplicateMessage(error.references));
-      }
       next(error);
     }
   });
@@ -247,6 +298,8 @@ export function bookingRequestsRouter(sql: Sql) {
         const locked = (await lockBookingRequest(tx, id))!;
         if (locked.status !== "PENDING") return { code: "NOT_PENDING", locked } as const;
         await withdrawBookingRequest(tx, id, req.actor!.userId);
+        // L3-T14: a request converted from a hold frees the period the hold took.
+        await releaseHeldSlotForRequest(tx, id, req.actor!.userId);
         return { code: "WITHDRAWN", withdrawn: (await findBookingRequest(tx, id))! } as const;
       });
 
