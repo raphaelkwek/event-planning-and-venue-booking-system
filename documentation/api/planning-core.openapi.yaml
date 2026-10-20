@@ -3118,9 +3118,6 @@ components:
         requestedAt: { type: string, format: date-time }
         withdrawnBy: { type: [string, "null"], format: uuid }
         withdrawnAt: { type: [string, "null"], format: date-time }
-        requestedAt: { type: string, format: date-time }
-        withdrawnBy: { type: [string, "null"], format: uuid }
-        withdrawnAt: { type: [string, "null"], format: date-time }
         decidedBy: { type: [string, "null"], format: uuid, description: "M1, M2: the Venue Staff member who approved or rejected it." }
         decidedAt: { type: [string, "null"], format: date-time }
         bookingId: { type: [string, "null"], format: uuid, description: "M1: the confirmed booking the approval created." }

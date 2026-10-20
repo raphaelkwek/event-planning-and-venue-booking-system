@@ -17,15 +17,8 @@ import {
   readBookingRequest,
   suitabilityRecord,
 } from "../domain/bookingRequest.js";
-import {
-  readBookingRequest,
-  suitabilityRecord,
-} from "../domain/bookingRequest.js";
 import { assessSuitability, requirementsFromRequest } from "../domain/suitability.js";
 import { requestBlockedMessage } from "../domain/unavailability.js";
-import { writeVenueOutbox } from "../events/outbox.js";
-import { activeBlocksOverlapping } from "../repo/bookingDecisions.js";
-import { listBookingsForEvent } from "../repo/eventBookings.js";
 import { writeVenueOutbox } from "../events/outbox.js";
 import { activeBlocksOverlapping } from "../repo/bookingDecisions.js";
 import { listBookingsForEvent } from "../repo/eventBookings.js";

@@ -34,9 +34,6 @@ export interface BookingRequest {
   requestedAt: string;
   withdrawnBy: string | null;
   withdrawnAt: string | null;
-  requestedAt: string;
-  withdrawnBy: string | null;
-  withdrawnAt: string | null;
   /** M1, M2: the Venue Staff member who decided, and when. */
   decidedBy: string | null;
   decidedAt: string | null;
@@ -106,9 +103,6 @@ interface Row {
   requested_at: Date;
   withdrawn_by: string | null;
   withdrawn_at: Date | null;
-  requested_at: Date;
-  withdrawn_by: string | null;
-  withdrawn_at: Date | null;
   decided_by: string | null;
   decided_at: Date | null;
   booking_id: string | null;
@@ -144,9 +138,6 @@ function toRequest(row: Row): BookingRequest {
     requestedAt: row.requested_at.toISOString(),
     withdrawnBy: row.withdrawn_by,
     withdrawnAt: row.withdrawn_at?.toISOString() ?? null,
-    requestedAt: row.requested_at.toISOString(),
-    withdrawnBy: row.withdrawn_by,
-    withdrawnAt: row.withdrawn_at?.toISOString() ?? null,
     decidedBy: row.decided_by,
     decidedAt: row.decided_at?.toISOString() ?? null,
     bookingId: row.booking_id,
@@ -164,9 +155,6 @@ const COLUMNS = (db: Db) => db`
   r.id, r.reference, r.event_id, r.venue_id, v.name as venue_name, r.starts_at, r.ends_at, r.layout,
   r.expected_attendance, r.facilities, r.accessibility_features, r.event_starts_at, r.event_ends_at,
   r.event_attendance, r.differs_from_event, r.replaces_booking_id, r.status, r.requested_by, r.requested_at,
-  r.id, r.reference, r.event_id, r.venue_id, v.name as venue_name, r.starts_at, r.ends_at, r.layout,
-  r.expected_attendance, r.facilities, r.accessibility_features, r.event_starts_at, r.event_ends_at,
-  r.event_attendance, r.differs_from_event, r.differences, r.replaces_booking_id, r.status, r.requested_by, r.requested_at,
   r.withdrawn_by, r.withdrawn_at, r.decided_by, r.decided_at, r.booking_id, r.rejection_reason, r.suggested_alternative,
   r.requires_reconfirmation, r.suitability_status, r.suitability_reasons, r.unsuitable_justification
 `;

@@ -36,9 +36,6 @@ export interface BookingRequest {
   requestedAt: string;
   withdrawnBy: string | null;
   withdrawnAt: string | null;
-  requestedAt: string;
-  withdrawnBy: string | null;
-  withdrawnAt: string | null;
   /** M1, M2: the Venue Staff member who decided, and when. */
   decidedBy: string | null;
   decidedAt: string | null;
@@ -97,8 +94,6 @@ export interface EventBooking {
   releaseReason: string | null;
   disruptions: { blockId: string; reasonType: string; description: string; startsAt: string; endsAt: string }[];
   replacements: { id: string; reference: string; status: BookingRequestStatus; venueName: string }[];
-}
-
 }
 
 /** An event can request venues once approved, and until it is over (L1). */
