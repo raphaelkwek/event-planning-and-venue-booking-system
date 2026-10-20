@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | Both requests were created against EVT-012338, both PENDING. Venue requests listed "BKR-003307Lee Kong Chian AuditoriumWednesday 2 December 2026, 14:00–18:00Theatre150PendingWithdraw" and "BKR-003308Seminar Room 2-1Wednesday 2 December 2026, 14:00–18:00Classroom40Pending Differs from the eventWithdraw". |
+| Status | Pass |
+| Remarks | Commit: 333eb08 · Evidence: tests/L4/evidence/L4-T1.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-21 |

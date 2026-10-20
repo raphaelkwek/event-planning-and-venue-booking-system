@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | The Seminar Room 2-1 booking read "BKR-003324Seminar Room 2-1Wednesday 2 December 2026, 14:00–18:00Released". The Lee Kong Chian Auditorium booking read "BKR-003323Lee Kong Chian AuditoriumWednesday 2 December 2026, 14:00–18:00Confirmed". |
+| Status | Pass |
+| Remarks | Commit: 333eb08 · Evidence: tests/L4/evidence/L4-T8.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-21 |

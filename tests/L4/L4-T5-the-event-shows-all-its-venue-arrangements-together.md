@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | Venue requests showed the booking "BKR-003316Lee Kong Chian AuditoriumWednesday 2 December 2026, 14:00–18:00Confirmed", the hold "HLD-000359Seminar Room 2-1Wednesday 2 December 2026, 14:00–18:00HeldTuesday 1 December 2026, 18:001 day beforeConvert to requestRelease" and the request "BKR-003317Mochtar Riady HallWednesday 2 December 2026, 14:00–18:00Theatre150PendingWithdraw", each once. |
+| Status | Pass |
+| Remarks | Commit: 333eb08 · Evidence: tests/L4/evidence/L4-T5.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-21 |

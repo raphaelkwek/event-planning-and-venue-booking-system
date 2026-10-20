@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | After withdrawing BKR-003319: Lee Kong Chian Auditorium APPROVED, Seminar Room 2-1 WITHDRAWN, Mochtar Riady Hall PENDING; BKR-003320 is still Pending and the Lee Kong Chian Auditorium booking still CONFIRMED, 14:00–18:00. |
+| Status | Pass |
+| Remarks | Commit: 333eb08 · Evidence: tests/L4/evidence/L4-T6.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-21 |

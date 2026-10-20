@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | For 150 in Classroom, Seminar Room 2-1 was refused as not suitable (capacity 60), asking for a justification, while BKR-003309 at Lee Kong Chian Auditorium stayed Suitable. With 40 attending the request was created, Suitable. |
+| Status | Pass |
+| Remarks | Commit: 333eb08 · Evidence: tests/L4/evidence/L4-T2.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-21 |

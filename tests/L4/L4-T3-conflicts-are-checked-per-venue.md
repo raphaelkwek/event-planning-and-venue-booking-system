@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | In the queue only the Lee Kong Chian Auditorium request was flagged ("BKR-003311EVT-012340Lee Kong Chian AuditoriumWednesday 2 December 2026, 14:00–18:00Theatre150 attending——SuitableCoordinator One10/21/2026, 1:07:03 AMConflictConflicts with N1-FX-EVT-012341 (confirmed booking), Wednesday 2 December 2026, 13:00–15:00Approve Reject"); the Seminar Room 2-1 one wasn't. Seminar Room 2-1 was approved; the Lee Kong Chian Auditorium approval was refused: "BKR-003311 wasn't approved: Lee Kong Chian Auditorium is already booked for EVT-012341 (Wednesday 2 December 2026, 13:00–15:00), counting setup and turnaround time. Nothing was approved, and the request is still Pending.", and it stayed PENDING. |
+| Status | Pass |
+| Remarks | Commit: 333eb08 · Evidence: tests/L4/evidence/L4-T3.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-21 |

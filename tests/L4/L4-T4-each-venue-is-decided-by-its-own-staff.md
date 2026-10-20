@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | The queue listed the Lee Kong Chian Auditorium and Seminar Room 2-1 requests but not BKR-003315 at Mochtar Riady Hall. After the decisions: Lee Kong Chian Auditorium APPROVED, Seminar Room 2-1 REJECTED, Mochtar Riady Hall PENDING. |
+| Status | Pass |
+| Remarks | Commit: 333eb08 · Evidence: tests/L4/evidence/L4-T4.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-21 |
