@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | Venue Staff One's Hold requests did not list HLD-000046. Step 2 answered 404 HOLD_NOT_FOUND; step 3 (coordinator) answered 403 ROLE_NOT_AUTHORISED. The hold stayed REQUESTED with no slot. |
+| Status | Pass |
+| Remarks | Commit: 01a891e · Evidence: tests/L3/evidence/L3-T7.png · Environment: local throwaway Postgres + hosted Supabase Auth · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-20 |

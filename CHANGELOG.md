@@ -4,6 +4,59 @@
 
 ---
 
+# L3: tentative holds on a venue
+
+**Timestamp:** 2026-10-20T11:10+08:00 (SGT)
+**Author:** Yichen, via Claude
+**Scope:** L3 (SPM-110), built on H3 (setup and turnaround) and merged with `main`.
+- `contracts`: `venueHolds.ts` (the hold, its statuses and messages) and the hold error codes.
+  **Needs a second owner's review.**
+- planning-core, venue module: migration `venue/0012_holds.sql`; `api/holds.ts`, `repo/holds.ts`
+  and the module's `index.ts`, which exports the functions M1 and M2 call when a converted hold's
+  request is decided.
+- `policies/resources/booking_request.yaml` and its test; `planning-core.openapi.yaml`.
+- The web app: holds on the event's venue requests page, a "Request a hold" form, a Venue Staff
+  "Hold requests" queue, and "Held" on the availability calendar, labelled with the event.
+- `tests/L3/` (17 cards) and `sprint-3.csv`.
+**Reason:** Venue Staff sometimes keep a venue back while a coordinator finishes arrangements. The
+customer's Week 9 answers say the coordinator asks and Venue Staff place the hold and set its
+expiry.
+
+## Added
+
+- **The assigned coordinator requests a hold** (venue, period, and how many minutes before expiry
+  to be reminded). A request reserves nothing.
+- **Venue Staff of that venue place it with an expiry later than now.** Placing reserves the
+  occupied period (setup and turnaround included) in the venue's slot table, so the first hold
+  placed wins and the database refuses an overlap with another hold or booking, naming it
+  (`VENUE_SLOT_CONFLICT`). An event keeps one live hold per venue (`HOLD_DUPLICATE`); finished
+  events can't be held (`EVENT_NOT_HOLDABLE`).
+- **Convert to a request** (L1) keeps the period held until the request is decided. Withdrawing the
+  request (L2) releases it; M1 approval turns the slot Confirmed and M2 rejection releases it.
+- **Release** frees the period and keeps the record.
+- A held period shows as "Held" on the calendar and is left out of venue search.
+
+## Worth knowing
+
+1. **Hold statuses are Requested, Held, Converted, Released and Expired.** The cards first said
+   "Active" for Held; the code and the cards now agree.
+2. **L3 stores the expiry and reminder lead time; L6 acts on them** (expiring, reminders and
+   extension).
+3. **M1 and M2 (on `main`) call the venue module's hold functions.** Approving a converted hold's
+   request confirms the held period itself, without a second booking (tested in
+   `tests/venue/api/holds.test.ts`); rejecting or withdrawing releases it. F4 will call
+   `releaseHoldsForEvent` when it releases a cancelled event's arrangements.
+
+## Verified
+
+- **All 17 L3 cards pass** (run 2026-10-20, with screenshots in `tests/L3/evidence/`). T1 to T16 ran
+  in Chromium against the web app and planning-core on a throwaway local Postgres (not the shared
+  database), signing in through the hosted Supabase Auth with the seeded accounts. T17, the
+  50-way race, ran as the integration test against the same local database. The notification
+  service and Kafka weren't running. CI is green on the branch.
+
+---
+
 # L5: Request a replacement venue for a disrupted booking
 
 **Timestamp:** 2026-10-19T17:04+08:00 (SGT)

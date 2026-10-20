@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | Step 1 was refused: "This event already has hold HLD-000054 at Lee Kong Chian Auditorium. Release it, or convert it into a booking request, before holding the venue again." (1 hold stored). Step 2 showed "Hold HLD-000056 requested." at Seminar Room 2-1 (2 holds). |
+| Status | Pass |
+| Remarks | Commit: 01a891e · Evidence: tests/L3/evidence/L3-T11.png · Environment: local throwaway Postgres + hosted Supabase Auth · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-20 |

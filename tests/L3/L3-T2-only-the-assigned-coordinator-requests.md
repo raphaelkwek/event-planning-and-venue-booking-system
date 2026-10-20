@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | Steps 1 and 3 showed no "Request a hold" button. Step 2 answered 403 ROLE_NOT_AUTHORISED: "Only the event's assigned coordinator can request a hold for it.". Holds stored: 0. |
+| Status | Pass |
+| Remarks | Commit: 01a891e · Evidence: tests/L3/evidence/L3-T2.png · Environment: local throwaway Postgres + hosted Supabase Auth · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-20 |

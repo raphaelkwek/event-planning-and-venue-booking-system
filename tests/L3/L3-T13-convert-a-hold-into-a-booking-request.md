@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | Convert to request opened the form with the venue fixed; submitting showed "Booking request BKR-000004 submitted."; the Holds table shows HLD-000058 Converted and the requests table a Pending request. Lookup: status CONVERTED, slot HELD, slot reference BKR-000004. |
+| Status | Pass |
+| Remarks | Commit: 01a891e · Evidence: tests/L3/evidence/L3-T13.png · Environment: local throwaway Postgres + hosted Supabase Auth · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-20 |

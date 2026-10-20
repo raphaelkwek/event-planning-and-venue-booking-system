@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | The event is still PLANNING; the calendar shows 14:00–18:00 as Held, not Confirmed. |
+| Status | Pass |
+| Remarks | Commit: 01a891e · Evidence: tests/L3/evidence/L3-T16.png · Environment: local throwaway Postgres + hosted Supabase Auth · Defect: — · Event status set with FX-HOLD-STATUS SQL |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-20 |

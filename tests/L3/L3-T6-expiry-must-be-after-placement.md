@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | Step 1 answered 400 VALIDATION_FAILED "The expiry must be later than now."; step 2 answered 400 "Enter the expiry date and time."; the hold stayed REQUESTED with no slot. Step 3 answered 200 with the hold HELD expiring 2026-10-20T03:01:24.529Z. |
+| Status | Pass |
+| Remarks | Commit: 01a891e · Evidence: tests/L3/evidence/L3-T6.png · Environment: local throwaway Postgres + hosted Supabase Auth · Defect: — · Steps 1–3 sent through the endpoint the Place hold button calls |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-20 |

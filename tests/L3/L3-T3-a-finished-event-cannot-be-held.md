@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | Cancelled, Completed and Rejected events were refused: CANCELLED: 409 EVENT_NOT_HOLDABLE "A venue can't be held for an event that is Cancelled."; COMPLETED: 409 EVENT_NOT_HOLDABLE "A venue can't be held for an event that is Completed."; REJECTED: 409 EVENT_NOT_HOLDABLE "A venue can't be held for an event that is Rejected.". Holds stored: 0. After setting Planning, step 4 answered 201 with a REQUESTED hold. |
+| Status | Pass |
+| Remarks | Commit: 01a891e · Evidence: tests/L3/evidence/L3-T3.png · Environment: local throwaway Postgres + hosted Supabase Auth · Defect: — · Event statuses set with FX-HOLD-STATUS SQL; requests sent to the API the screen calls |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-20 |

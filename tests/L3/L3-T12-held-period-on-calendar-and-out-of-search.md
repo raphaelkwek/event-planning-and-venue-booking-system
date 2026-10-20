@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | The availability calendar for 2 December 2026 shows the period as "Held" labelled EVT-000056. "Find a venue" for 15:00–16:00 did not list Lee Kong Chian Auditorium (200); for 19:00–20:00 it did (200). |
+| Status | Pass |
+| Remarks | Commit: 01a891e · Evidence: tests/L3/evidence/L3-T12.png · Environment: local throwaway Postgres + hosted Supabase Auth · Defect: — · Search results read from the endpoint the Find a venue screen calls |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-20 |

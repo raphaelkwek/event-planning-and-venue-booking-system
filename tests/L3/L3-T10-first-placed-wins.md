@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | HLD-000053 (placed first) is HELD. Placing HLD-000052 was refused: "This period overlaps HLD-000053 (Wednesday 2 December 2026, 14:00–18:00) at Lee Kong Chian Auditorium."; HLD-000052 stayed REQUESTED. No screen offers a way to displace the held period. |
+| Status | Pass |
+| Remarks | Commit: 01a891e · Evidence: tests/L3/evidence/L3-T10.png · Environment: local throwaway Postgres + hosted Supabase Auth · Defect: — · The rival hold was requested through the API the form calls |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-20 |

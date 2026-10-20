@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | The unassigned coordinator's release answered 403 ROLE_NOT_AUTHORISED. The assigned coordinator's releases showed "HLD-000060 released." and "HLD-000061 released."; both holds are RELEASED, RELEASED; HLD-000060's slot is RELEASED; both records are kept. |
+| Status | Pass |
+| Remarks | Commit: 01a891e · Evidence: tests/L3/evidence/L3-T15.png · Environment: local throwaway Postgres + hosted Supabase Auth · Defect: — · Step 1 sent through the endpoint the Release button calls |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-20 |

@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | With setup 30 and turnaround 45, the 19:00–21:00 hold (occupying 18:30–21:45) was refused: "This period overlaps HLD-000049 (Wednesday 2 December 2026, 14:00–18:00) at Lee Kong Chian Auditorium.". After releasing it, the 19:15–21:00 hold (occupying 18:45–21:45) was placed: "HLD-000051 placed.", slot HELD. |
+| Status | Pass |
+| Remarks | Commit: 01a891e · Evidence: tests/L3/evidence/L3-T9.png · Environment: local throwaway Postgres + hosted Supabase Auth · Defect: — · Setup and turnaround set directly in the venue row (H3's columns); rival holds requested and released through the API |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-20 |

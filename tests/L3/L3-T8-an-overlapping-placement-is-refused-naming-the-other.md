@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | Placing the rival hold HLD-000048 showed: "This period overlaps HLD-000047 (Wednesday 2 December 2026, 14:00–18:00) at Lee Kong Chian Auditorium. A held or booked period can't be taken by another event.". The rival hold stayed REQUESTED; the calendar still shows only EVT-000049. |
+| Status | Pass |
+| Remarks | Commit: 01a891e · Evidence: tests/L3/evidence/L3-T8.png · Environment: local throwaway Postgres + hosted Supabase Auth · Defect: — · The rival hold was requested through the API the form calls |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-20 |

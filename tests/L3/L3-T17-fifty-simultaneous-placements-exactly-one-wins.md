@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | `npm test -w @connectsphere/planning-core -- tests/race/invariants.test.ts` ran against a throwaway local Postgres: 1 file, 10 tests, all passed (14.7 s). The L3 race test passed in each of its ten rounds: exactly one hold Held, 49 refused with VENUE_SLOT_CONFLICT naming the winner, and exactly one HELD slot at the venue. CI's integration job on the branch also passes. |
+| Status | Pass |
+| Remarks | Commit: 01a891e · Evidence: CI integration job (throwaway Postgres) and the local vitest output · Environment: local throwaway Postgres · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-20 |

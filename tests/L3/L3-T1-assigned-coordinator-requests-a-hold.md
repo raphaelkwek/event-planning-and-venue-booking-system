@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | Step 1 showed "Hold HLD-000041 requested." and the Holds table listed it at Lee Kong Chian Auditorium, 14:00–18:00, Requested. Step 2: the availability calendar for 2 December 2026 shows no 14:00–18:00 entry (a request reserves nothing). Step 3: status REQUESTED, requested_by the assigned coordinator, requested_at 2026-10-20T02:58:57.317Z, reminder_lead_minutes 1440, slot null. |
+| Status | Pass |
+| Remarks | Commit: 01a891e · Evidence: tests/L3/evidence/L3-T1.png · Environment: local throwaway Postgres + hosted Supabase Auth · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-20 |
