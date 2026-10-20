@@ -4,7 +4,9 @@ import {
   type BookingRequestStatus,
   type ErrorField,
   type EventStatus,
+  type SuitabilityStatus,
 } from "@connectsphere/contracts";
+import type { ConditionResult, SuitabilityAssessment } from "./suitability.js";
 
 /**
  * L1, L2 — a venue booking request's rules. Whether two requests overlap is the
@@ -35,6 +37,8 @@ export interface BookingRequestInput {
   accessibilityFeatures: string[];
   /** CR-02 (L5): the disrupted confirmed booking this request would replace. */
   replacesBookingId: string | null;
+  /** K2: why the coordinator requests a venue that isn't suitable, trimmed; null when none was sent. */
+  justification: string | null;
 }
 
 /** Parse an offset date-time as a UTC instant for booking requests, holds and unavailability. */
@@ -96,6 +100,11 @@ export function readBookingRequest(body: unknown): { ok: true; request: BookingR
     fields.push({ field: "replacesBookingId", message: "Must be the id of the booking to replace." });
   }
 
+  const sent = b.justification ?? null;
+  if (sent !== null && typeof sent !== "string") {
+    fields.push({ field: "justification", message: "The justification must be text." });
+  }
+
   if (fields.length > 0) return { ok: false, fields };
   return {
     ok: true,
@@ -109,6 +118,7 @@ export function readBookingRequest(body: unknown): { ok: true; request: BookingR
       facilities: facilities!,
       accessibilityFeatures: accessibilityFeatures!,
       replacesBookingId: replaces as string | null,
+      justification: sent === null ? null : (sent as string).trim(),
     },
   };
 }
@@ -182,4 +192,37 @@ export function duplicateMessage(references: readonly string[]): string {
 /** L2, M1, M2: only a pending request can be withdrawn, approved or rejected. */
 export function notPendingMessage(reference: string, status: BookingRequestStatus, action: "withdrawn" | "approved" | "rejected"): string {
   return `${reference} is ${BOOKING_REQUEST_STATUS_LABELS[status]}, so it can't be ${action}. Only a pending request can be.`;
+}
+
+/** K2: what a request records about its venue's suitability when it is submitted. */
+export interface SuitabilityRecord {
+  suitabilityStatus: SuitabilityStatus;
+  /** The failing conditions as evaluated now: a snapshot later venue changes don't touch. */
+  suitabilityReasons: ConditionResult[];
+  justification: string | null;
+}
+
+export const JUSTIFICATION_MESSAGE = "Give a justification: at least one character that isn't a space.";
+
+export function notSuitableMessage(venueName: string): string {
+  return `${venueName} is not suitable for this request. Give a justification to request it anyway.`;
+}
+
+/**
+ * K2 — a venue that isn't suitable can still be requested, but only with a
+ * justification of at least one character that isn't a space. A suitable venue,
+ * with or without warnings, needs none, and one sent anyway isn't kept.
+ */
+export function suitabilityRecord(
+  assessment: SuitabilityAssessment,
+  justification: string | null,
+): { ok: true; record: SuitabilityRecord } | { ok: false } {
+  if (assessment.status !== "NOT_SUITABLE") {
+    return { ok: true, record: { suitabilityStatus: assessment.status, suitabilityReasons: [], justification: null } };
+  }
+  if (justification === null || !/\S/.test(justification)) return { ok: false };
+  return {
+    ok: true,
+    record: { suitabilityStatus: "NOT_SUITABLE", suitabilityReasons: [...assessment.reasons], justification },
+  };
 }

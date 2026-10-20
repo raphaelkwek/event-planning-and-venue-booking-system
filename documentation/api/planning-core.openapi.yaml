@@ -1879,6 +1879,13 @@ paths:
         `replacesBookingId` links the request to one of the event's confirmed bookings flagged
         Requires Reconfirmation. A refused request stores nothing. Limited to 120 requests a minute per
         address until the gateway applies limits (ADR-0011, EN-12).
+
+        K2: the venue is assessed by K1's rules against the request's own layout, attendance,
+        facilities, accessibility features and period (CR-03). When it is Not suitable, the request needs
+        a `justification` with at least one character that isn't a space; without one the answer is 422
+        `JUSTIFICATION_REQUIRED`, with the failing conditions in `details.reasons`. The request stores the
+        suitability, a snapshot of the failing conditions and the justification. A justification sent
+        for a suitable venue isn't stored.
       operationId: createBookingRequest
       requestBody:
         required: true
@@ -1909,7 +1916,7 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
         "422":
-          description: "`VENUE_INACTIVE`, or `REPLACEMENT_NOT_VALID`."
+          description: "`VENUE_INACTIVE`, `REPLACEMENT_NOT_VALID`, or `JUSTIFICATION_REQUIRED` (K2: the venue is Not suitable for the request and no justification with a non-space character was sent; `fields` names `justification`, and `details` is `{ status, reasons }`, the failing conditions as `SuitabilityCondition`s)."
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
@@ -2517,6 +2524,7 @@ components:
         - BOOKING_REQUEST_NOT_FOUND
         - BOOKING_REQUEST_NOT_PENDING
         - REPLACEMENT_NOT_VALID
+        - JUSTIFICATION_REQUIRED
         - HOLD_NOT_FOUND
         - HOLD_DUPLICATE
         - EVENT_NOT_HOLDABLE
@@ -3351,6 +3359,7 @@ components:
         facilities: { type: array, items: { type: string } }
         accessibilityFeatures: { type: array, items: { type: string } }
         replacesBookingId: { type: [string, "null"], format: uuid, description: "CR-02 (L5): the disrupted booking this request replaces." }
+        justification: { type: [string, "null"], description: "K2: why a venue that isn't suitable is requested anyway. Required, with a character that isn't a space, when the venue is Not suitable; ignored otherwise." }
     HoldInput:
       type: object
       required: [eventId, venueId, startsAt, endsAt, reminderLeadMinutes]
@@ -3387,7 +3396,8 @@ components:
         releasedAt: { type: [string, "null"], format: date-time }
     BookingRequest:
       type: object
-      required: [id, reference, eventId, eventReference, venueId, venueName, startsAt, endsAt, layout, expectedAttendance, facilities, accessibilityFeatures, eventStartsAt, eventEndsAt, eventAttendance, differsFromEvent, differences, replacesBookingId, status, requestedBy, requestedAt, withdrawnBy, withdrawnAt, decidedBy, decidedAt, bookingId, rejectionReason, suggestedAlternative, requiresReconfirmation]
+      required: [id, reference, eventId, eventReference, venueId, venueName, startsAt, endsAt, layout, expectedAttendance, facilities, accessibilityFeatures, eventStartsAt, eventEndsAt, eventAttendance, differsFromEvent, differences, replacesBookingId, status, requestedBy, requestedAt, withdrawnBy, withdrawnAt, suitabilityStatus, suitabilityReasons, justification, decidedBy, decidedAt, bookingId, rejectionReason, suggestedAlternative, requiresReconfirmation]
+
       properties:
         id: { type: string, format: uuid }
         reference: { type: string, pattern: "^BKR-\\d{6}$" }
@@ -3420,6 +3430,15 @@ components:
         rejectionReason: { type: [string, "null"], description: "M2: why it was rejected." }
         suggestedAlternative: { type: [string, "null"], description: "M2: alternative dates or venues, if any were suggested." }
         requiresReconfirmation: { type: boolean, description: "I2: an active block overlaps this pending request." }
+        suitabilityStatus:
+          type: [string, "null"]
+          enum: [SUITABLE, SUITABLE_WITH_WARNINGS, NOT_SUITABLE, null]
+          description: "K2: assessed when the request was submitted. Null on requests made before K2: not assessed."
+        suitabilityReasons:
+          type: [array, "null"]
+          description: "K2: the failing conditions as they were evaluated when the request was submitted; later changes to the venue don't change them. Empty when suitable; null when not assessed."
+          items: { $ref: "#/components/schemas/SuitabilityCondition" }
+        justification: { type: [string, "null"], description: "K2: the coordinator's justification for a Not suitable venue; null otherwise." }
     EventBooking:
       type: object
       required: [id, reference, venueId, venueName, startsAt, endsAt, status, requiresReconfirmation, releaseReason, disruptions, replacements]
@@ -3502,6 +3521,7 @@ components:
       properties:
         reason: { type: string, minLength: 1, maxLength: 1000, description: "At least one character that isn't whitespace." }
         suggestion: { type: [string, "null"], maxLength: 1000, description: "Suggested alternative dates or venues, as free text." }
+
     BookingRequestDifference:
       type: object
       required: [field, event, requested]

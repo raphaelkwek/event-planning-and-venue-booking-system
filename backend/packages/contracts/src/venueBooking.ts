@@ -18,6 +18,14 @@ export const BOOKING_REQUEST_STATUS_LABELS: Record<BookingRequestStatus, string>
 };
 
 /**
+ * K1, K2 — whether a venue suits an event or one of its booking requests. K2
+ * records the result on each request when it is submitted (null on requests
+ * made before K2: not assessed).
+ */
+export const SUITABILITY_STATUSES = ["SUITABLE", "SUITABLE_WITH_WARNINGS", "NOT_SUITABLE"] as const;
+export type SuitabilityStatus = (typeof SUITABILITY_STATUSES)[number];
+
+/**
  * Domain events the venue module publishes to the venue-booking aggregate's
  * topic, `KAFKA_TOPICS.venueBooking`. The payload carries what the notification
  * needs, its recipients included (ADR-0008), never a whole aggregate.

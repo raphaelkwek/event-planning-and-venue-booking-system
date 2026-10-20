@@ -250,7 +250,7 @@ export function holdsRouter(sql: Sql, limiter: RequestHandler = holdsRateLimit()
           converted = await markHoldConverted(tx, (await findHold(tx, hold.id))!, created, req.actor!.userId);
         },
       });
-      if (!outcome.ok) return refuse(res, outcome.status, outcome.code, outcome.message, outcome.fields);
+      if (!outcome.ok) return refuse(res, outcome.status, outcome.code, outcome.message, outcome.fields, outcome.details);
       res.status(201).json({
         request: presentRequest(outcome.created, outcome.eventReference),
         hold: present(converted!, outcome.eventReference),

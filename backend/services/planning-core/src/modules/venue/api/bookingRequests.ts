@@ -10,12 +10,16 @@ import {
   duplicateMessage,
   eventBookable,
   isAssignedCoordinator,
+  JUSTIFICATION_MESSAGE,
   layoutAt,
   notBookableMessage,
   notPendingMessage,
+  notSuitableMessage,
   readBookingRequest,
+  suitabilityRecord,
   type BookingRequestInput,
 } from "../domain/bookingRequest.js";
+import { assessSuitability, requirementsFromRequest } from "../domain/suitability.js";
 import { releaseHeldSlotForRequest } from "../repo/holds.js";
 import { requestBlockedMessage } from "../domain/unavailability.js";
 import { writeVenueOutbox } from "../events/outbox.js";
@@ -41,6 +45,10 @@ import { refuse } from "./errors.js";
  * L1 — the event's assigned coordinator requests a venue for it; the request
  * waits, Pending, in the queue of the venue's Venue Staff, who are notified.
  * L2 — the coordinator withdraws a request while it is still Pending.
+ *
+ * K2 — the venue is assessed by K1's rules against the request's own values
+ * (CR-03). A venue that isn't suitable can still be requested, but only with a
+ * justification, stored with a snapshot of the failing conditions.
  *
  * A request reserves nothing: only an approval (M1) creates a confirmed booking.
  * The one overlap refused here is a second pending request of the same event
@@ -76,6 +84,8 @@ export interface Refusal {
   code: ErrorCode;
   message: string;
   fields?: ErrorField[];
+  /** Structured facts a screen shows beside the message, such as K2's failing conditions. */
+  details?: Record<string, unknown>;
 }
 
 export type SubmitOutcome = ({ ok: true; created: BookingRequest; eventReference: string | null }) | ({ ok: false } & Refusal);
@@ -106,8 +116,8 @@ export async function submitBookingRequest(
   hooks: SubmitHooks = {},
 ): Promise<SubmitOutcome> {
   const actor = req.actor!;
-  const refused = (status: number, code: ErrorCode, message: string, fields?: ErrorField[]) =>
-    ({ ok: false, status, code, message, ...(fields ? { fields } : {}) }) as const;
+  const refused = (status: number, code: ErrorCode, message: string, fields?: ErrorField[], details?: Record<string, unknown>) =>
+    ({ ok: false, status, code, message, ...(fields ? { fields } : {}), ...(details ? { details } : {}) }) as const;
 
   const event = await findEvent(sql, input.eventId, req);
   if (!event) return refused(404, "EVENT_NOT_FOUND", "No event with that id exists, or you can't see it.");
@@ -119,6 +129,17 @@ export async function submitBookingRequest(
   if (!venue.isActive) return refused(422, "VENUE_INACTIVE", `${venue.name} is inactive, so it can't be requested.`);
   const layout = layoutAt(venue.layouts, input.layout);
   if (!layout) return refused(400, "VALIDATION_FAILED", INVALID, [{ field: "layout", message: `${venue.name} has no ${input.layout} layout.` }]);
+
+  // K2: assessed against the request's own values, the layout in the venue's spelling. A venue that
+  // isn't suitable needs a justification, whether the request is raised directly or converted from a hold.
+  const assessment = assessSuitability(requirementsFromRequest({ ...input, layout }), venue);
+  const suitability = suitabilityRecord(assessment, input.justification);
+  if (!suitability.ok) {
+    return refused(422, "JUSTIFICATION_REQUIRED", notSuitableMessage(venue.name), [{ field: "justification", message: JUSTIFICATION_MESSAGE }], {
+      status: assessment.status,
+      reasons: assessment.reasons,
+    });
+  }
 
   // An approved event always has its date, times and attendance (B2).
   const eventValues = { startsAt: event.proposedStartAt!, endsAt: event.proposedEndAt!, attendance: event.expectedAttendance! };
@@ -139,6 +160,7 @@ export async function submitBookingRequest(
       }
       const created = await insertBookingRequest(tx, {
         ...input,
+        ...suitability.record,
         layout,
         eventStartsAt: eventValues.startsAt,
         eventEndsAt: eventValues.endsAt,
@@ -215,7 +237,7 @@ export function bookingRequestsRouter(sql: Sql) {
       const read = readBookingRequest(req.body);
       if (!read.ok) return refuse(res, 400, "VALIDATION_FAILED", INVALID, read.fields);
       const outcome = await submitBookingRequest(sql, req, read.request);
-      if (!outcome.ok) return refuse(res, outcome.status, outcome.code, outcome.message, outcome.fields);
+      if (!outcome.ok) return refuse(res, outcome.status, outcome.code, outcome.message, outcome.fields, outcome.details);
       res.status(201).json(present(outcome.created, outcome.eventReference));
     } catch (error) {
       next(error);

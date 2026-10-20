@@ -48,6 +48,8 @@ export interface ConversionInput {
   expectedAttendance: number | null;
   facilities: string[];
   accessibilityFeatures: string[];
+  /** K2: required when the hold's venue isn't suitable for the request; the server says when. */
+  justification?: string;
 }
 
 /** A hold can be requested for any event that isn't over or turned down (L3). */

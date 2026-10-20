@@ -6,6 +6,7 @@ import {
   checkLayoutCapacity,
   checkOperatingHours,
   requirementsFromEvent,
+  requirementsFromRequest,
   type SuitabilityRequirements,
   type SuitabilityVenue,
 } from "../../../src/modules/venue/domain/suitability.js";
@@ -452,5 +453,52 @@ describe("requirementsFromEvent", () => {
       layout: null,
       facilities: [],
     });
+  });
+});
+
+describe("requirementsFromRequest (K2, CR-03)", () => {
+  const request = {
+    layout: "Classroom",
+    expectedAttendance: 150,
+    facilities: ["Projector", "Livestream"],
+    accessibilityFeatures: ["Step-free access"],
+    startsAt: "2026-12-02T06:00:00.000Z",
+    endsAt: "2026-12-02T15:00:00.000Z",
+  };
+
+  it("takes every requirement from the request itself", () => {
+    expect(requirementsFromRequest(request)).toEqual({
+      attendance: 150,
+      layout: "Classroom",
+      facilities: ["Projector", "Livestream"],
+      accessibilityFeatures: ["Step-free access"],
+      period: { startsAt: "2026-12-02T06:00:00.000Z", endsAt: "2026-12-02T15:00:00.000Z" },
+    });
+  });
+
+  it("copies the lists, so the assessment can't change the request", () => {
+    const requirements = requirementsFromRequest(request);
+    requirements.facilities.push("Stage");
+    expect(request.facilities).toEqual(["Projector", "Livestream"]);
+  });
+
+  it("lets the assessment judge the request, not its event (K2-T7)", () => {
+    const venue: SuitabilityVenue = {
+      layouts: [{ name: "Theatre", capacity: 300 }, { name: "Classroom", capacity: 120 }],
+      facilities: ["Projector"],
+      accessibilityFeatures: ["Step-free access"],
+      operatingHours: {
+        monday: { opensAt: "08:00", closesAt: "22:00" },
+        tuesday: { opensAt: "08:00", closesAt: "22:00" },
+        wednesday: { opensAt: "08:00", closesAt: "22:00" },
+        thursday: { opensAt: "08:00", closesAt: "22:00" },
+        friday: { opensAt: "08:00", closesAt: "22:00" },
+        saturday: null,
+        sunday: null,
+      },
+    };
+    const assessment = assessSuitability(requirementsFromRequest(request), venue);
+    expect(assessment.status).toBe("NOT_SUITABLE");
+    expect(assessment.reasons.map((reason) => reason.condition)).toEqual(["LAYOUT_CAPACITY", "FACILITIES", "OPERATING_HOURS"]);
   });
 });

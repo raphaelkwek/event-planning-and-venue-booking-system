@@ -2,13 +2,15 @@ import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import SectionMessage from "@atlaskit/section-message";
 import Button from "@atlaskit/button/new";
+import Lozenge from "@atlaskit/lozenge";
 import { useSignedIn } from "../auth/SessionContext.js";
 import { ApiError } from "../api/client.js";
 import { createBookingRequest, listEventBookingRequests, type BookingEvent } from "../api/bookingRequests.js";
 import { convertHold, listEventHolds, type Hold } from "../api/holds.js";
-import { getVenue, listVenues, type Venue, type VenueListItem } from "../api/venues.js";
+import { getVenue, listVenues, type SuitabilityCondition, type Venue, type VenueListItem } from "../api/venues.js";
 import { Refusal } from "../components/Refusal.js";
 import { fromInputs, toInputs } from "../shared/singaporeTime.js";
+import { SUITABILITY_APPEARANCE, SUITABILITY_LABELS } from "../shared/status.js";
 
 /**
  * L1 — the assigned coordinator asks for a venue. The date, times and
@@ -17,11 +19,17 @@ import { fromInputs, toInputs } from "../shared/singaporeTime.js";
  * and accessibility features are the chosen venue's, with the ones the event
  * asks for already chosen.
  *
+ * K2 — the server assesses the venue against the request. When it isn't
+ * suitable, the form lists the failing conditions and asks for a justification,
+ * which is sent with the next submission.
+ *
  * L5 — opened from "Request this venue" in a replacement search, it starts from
  * that venue and the disrupted booking's period instead, and the request is
  * linked to the booking it replaces (CR-02).
+ *
  * L3 — opened with `?hold=<id>`, it converts that held hold into a request: the
- * venue, date and times are the hold's and can't be changed.
+ * venue, date and times are the hold's and can't be changed. K2's justification
+ * applies to the conversion as it does to a direct request.
  */
 
 interface Form {
@@ -71,6 +79,8 @@ export function BookingRequestForm() {
   const [loadError, setLoadError] = useState<unknown>(null);
   const [saveError, setSaveError] = useState<unknown>(null);
   const [saving, setSaving] = useState(false);
+  const [unsuitable, setUnsuitable] = useState<{ message: string; reasons: SuitabilityCondition[] } | null>(null);
+  const [justification, setJustification] = useState("");
 
   useEffect(() => {
     Promise.all([
@@ -103,6 +113,8 @@ export function BookingRequestForm() {
   async function chooseVenue(venueId: string, forEvent: BookingEvent | null = event) {
     setForm((current) => ({ ...current!, venueId, layout: "", facilities: [], accessibility: [] }));
     setVenue(null);
+    setUnsuitable(null);
+    setJustification("");
     if (!venueId) return;
     const chosen = await getVenue(session.token, venueId);
     const wanted = forEvent?.venueRequirements;
@@ -136,6 +148,8 @@ export function BookingRequestForm() {
       // In the venue's own order, as the catalogue lists them.
       facilities: venue ? venue.facilities.filter((f) => form.facilities.includes(f)) : form.facilities,
       accessibilityFeatures: venue ? venue.accessibilityFeatures.filter((a) => form.accessibility.includes(a)) : form.accessibility,
+      // K2: sent once the server has said the venue isn't suitable, for a conversion as for a direct request.
+      ...(unsuitable ? { justification } : {}),
     };
     try {
       const created = hold
@@ -150,6 +164,10 @@ export function BookingRequestForm() {
           });
       navigate(`/events/${event.id}/venue-requests`, { state: { notice: `Booking request ${created.reference} submitted.` } });
     } catch (caught) {
+      if (caught instanceof ApiError && caught.envelope.code === "JUSTIFICATION_REQUIRED") {
+        const reasons = (caught.envelope.details?.reasons ?? []) as SuitabilityCondition[];
+        setUnsuitable({ message: caught.envelope.message, reasons });
+      }
       setSaveError(caught);
     } finally {
       setSaving(false);
@@ -247,6 +265,27 @@ export function BookingRequestForm() {
             onToggle={(n, c) => toggle("accessibility", n, c)}
           />
         </>
+      )}
+
+      {unsuitable && (
+        <section aria-label="Not suitable" style={{ border: "1px solid #DFE1E6", borderRadius: 3, padding: 12, marginBottom: 12 }}>
+          <Lozenge appearance={SUITABILITY_APPEARANCE.NOT_SUITABLE}>{SUITABILITY_LABELS.NOT_SUITABLE}</Lozenge>
+          <p style={{ margin: "8px 0 4px" }}>{unsuitable.message}</p>
+          <ul style={{ margin: "0 0 8px", paddingLeft: 20 }}>
+            {unsuitable.reasons.map((reason) => (
+              <li key={reason.condition}>{reason.message}</li>
+            ))}
+          </ul>
+          <Field id="booking-justification" label="Justification" error={fieldError("justification")}>
+            <textarea
+              id="booking-justification"
+              rows={3}
+              value={justification}
+              onChange={(e) => setJustification(e.currentTarget.value)}
+              style={{ ...input, width: "100%", boxSizing: "border-box" }}
+            />
+          </Field>
+        </section>
       )}
 
       <div style={{ display: "flex", gap: 8, marginTop: 16 }}>

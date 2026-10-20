@@ -4,6 +4,54 @@
 
 ---
 
+# EN-11: Temporal worker and the CompleteEvent durable timer
+
+**Timestamp:** 2026-10-20T14:30+08:00 (SGT)
+**Author:** Yichen, via Claude
+**Scope:** EN-11 (SPM-129), per ADR-0009.
+- `contracts`: the `event.status-changed` and `event.schedule-changed` messages. **Needs a second
+  owner's review.**
+- planning-core, event module: publishes both messages from the outbox, and exports
+  `completeEventIfDue` for the Temporal activity (the module boundary, ADR-0004).
+- planning-core, `src/temporal/`: `worker.ts` (`npm run worker`, also started by `npm run dev`),
+  `domain/settings.ts` and `domain/completionTrigger.ts`, `workflows/completeEvent.ts`,
+  `activities/completion.ts`, and `completionConsumer.ts`, which starts or reschedules one
+  workflow per event from the outbox messages.
+- `npm run temporal:check` (read-only connection check), the `TEMPORAL_*` variables in
+  `.env.example`, and `@temporalio/proto` as a dev dependency (the replay histories).
+- vitest runs in forks, because Temporal's native core segfaulted CI's integration job (exit 139)
+  inside vitest's worker threads.
+- `tests/EN-11/` (three cards) and `sprint-3.csv`.
+**Reason:** F1's "Completed only after the event's end time" needs a timer that survives restarts,
+and L6 needs the same machinery for hold expiry.
+
+## Added
+
+- **One `CompleteEvent` workflow per event** sleeps until the event's end time, then completes it
+  if it is still due. A changed end time reschedules it; a cancelled or missing event stops it.
+  The worker does nothing, and says so once, when `TEMPORAL_ADDRESS` is empty.
+- **Replay tests in CI.** Four recorded histories (`tests/temporal/histories/`) replay against the
+  current workflow code, and a history the workflow would no longer produce is rejected. Never
+  re-record a history to make a failing replay pass.
+- Temporal Cloud connection settings: address, namespace and API key (TLS is on when a key is set),
+  and the task queue `planning-core`.
+
+## Not done, on purpose
+
+1. **`CancelEvent`** (F3, F4) needs EN-13 and the Sprint 4 stories. **`HoldExpiry`** (L6) comes
+   with L6, on L3's hold model. EN-11's Jira description lists CancelEvent, so SPM-129 should be
+   split or moved on at review.
+2. **The worker has not been started against a real Temporal Cloud namespace** here; the tests use
+   Temporal's time-skipping test server. Run `npm run temporal:check` with your own `.env`.
+
+## Verified
+
+- **EN-11-T1 to T3 pass** (run 2026-10-20): 11 settings tests, 8 timer tests on the time-skipping
+  server, and 7 replay tests. planning-core unit tests 820/820 (58 files); typecheck, lint and
+  `lint:boundaries` pass.
+
+---
+
 # L3: tentative holds on a venue
 
 **Timestamp:** 2026-10-20T11:10+08:00 (SGT)
@@ -54,6 +102,85 @@ expiry.
   database), signing in through the hosted Supabase Auth with the seeded accounts. T17, the
   50-way race, ran as the integration test against the same local database. The notification
   service and Kafka weren't running. CI is green on the branch.
+
+---
+
+# K2: justify requesting a venue that isn't suitable
+
+**Timestamp:** 2026-10-19T17:17+08:00 (SGT)
+**Author:** Yichen, via Claude
+**Scope:** K2 (SPM-39).
+- `contracts`: error code `JUSTIFICATION_REQUIRED`, and `SUITABILITY_STATUSES` (K1's three results,
+  now stored). **Needs a second owner's review.**
+- planning-core, venue module: migration `venue/0011_booking_request_suitability.sql`;
+  `domain/suitability.ts` (`requirementsFromRequest`), `domain/bookingRequest.ts`
+  (`suitabilityRecord`, the optional `justification`), `repo/bookingRequests.ts`,
+  `api/bookingRequests.ts`, and `api/errors.ts` (`refuse` can send `details`).
+- `planning-core.openapi.yaml`: the request's `justification`, the three new response fields, and
+  the 422.
+- The web app: the "Request a venue" form and the Venue Staff "Booking requests" queue.
+- `tests/K2/` (ten cards, FX-K2-UNSUITABLE) and `sprint-3.csv`.
+**Reason:** K1 tells a coordinator a venue isn't suitable but nothing stopped them requesting it
+without saying why. K2 lets them go ahead, but only with a justification Venue Staff can see.
+
+## Added
+
+- **When a booking request is submitted (L1), K1's rules assess the venue against the request's
+  own values**: its layout and attendance, facilities, accessibility features and period (CR-03:
+  each venue is judged against its own request).
+- **Not suitable without a justification is refused**: `422 JUSTIFICATION_REQUIRED`, naming the
+  `justification` field, with the failing conditions in `details.reasons`. Nothing is stored. A
+  justification needs at least one character that isn't a space.
+- **The request stores the suitability, a snapshot of the failing conditions and the
+  justification.** Later changes to the venue don't change the snapshot. The coordinator and time
+  are the request's own `requested_by` and `requested_at`. Postgres enforces the rule too: a Not
+  suitable row without a justification is refused (ADR-0006). A justification sent for a suitable
+  venue isn't stored.
+- Every request returned (create, the event's list, the Venue Staff queue) carries
+  `suitabilityStatus`, `suitabilityReasons` and `justification`.
+- The request form lists the failing conditions and asks for a justification when the server finds
+  the venue not suitable; the Venue Staff queue shows each request's suitability, and for a Not
+  suitable one its failing conditions and justification.
+
+## Changed
+
+- L1's first API test asked for the Classroom layout (120) for 150 people, which K2 now refuses
+  without a justification, so the test sends one.
+
+## Verified
+
+- **All ten K2 cards pass** (K2-T1 to K2-T10, run 2026-10-20, with screenshots in
+  `tests/K2/evidence/`). The browser steps ran in Chromium against the web app and planning-core on a
+  throwaway local Postgres (not the shared database), signing in through the hosted Supabase Auth
+  with the seeded accounts; the API and SQL steps ran against the same local database. The
+  notification service and Kafka weren't running. CI is green on the branch.
+
+## Worth knowing
+
+- **Through the form, only layout capacity and operating hours can fail**, because the form offers
+  only the chosen venue's own facilities and accessibility features. A request sent through the API
+  can ask for one the venue lacks (K2-T10).
+- **"Suitable with warnings" can't arise for a request**: L1 already refuses a missing layout,
+  attendance or period, so every condition is assessed. The rule is unit-tested.
+- **Requests made before K2** have the three columns null and show as "Not assessed".
+- **Migration number:** 0011, because 0007 to 0010 are taken by the unmerged M1, N1 and I2
+  branches. The runner applies files by name, so the gap is harmless. Both checks are added
+  `NOT VALID` (every existing row is null and passes); nothing validates them yet.
+
+## Verified
+
+- planning-core: `npm run test:unit` passes (762 tests), with the K2 domain files at 100% coverage
+  and a mutation score of 97.2% on them. Two of three local runs had one rate-limit test (H1's,
+  sending 121 requests) fail with a socket hang-up under load; it passes alone, and K2 doesn't touch
+  it; the venue tests, K2's card tests and Postgres checks included,
+  pass against a throwaway local Postgres built by `npm run migrate:all` (never the shared
+  database). Lint, typecheck, `lint:boundaries`, `lint:api` and squawk pass.
+- The web app's tests pass. The cards in `tests/K2/` haven't been run in a browser yet.
+
+## Before using it on the shared database
+
+1. `npm run migrate -- venue` applies 0011. Run it before deploying planning-core: every booking
+   request query reads the new columns.
 
 ---
 
@@ -232,6 +359,9 @@ expiry.
   - integration tests: all 1,283 pass. Coverage is 96.7% of lines, 92.1% of branches and 96.7% of functions, above the floors.
 - **contracts:** 100/100. **notification:** 85/85. **web:** 213/213.
 - **Lint, typecheck, `lint:api`, `lint:boundaries` and squawk pass.**
+
+---
+
 
 ---
 

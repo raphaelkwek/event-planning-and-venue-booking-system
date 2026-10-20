@@ -3,8 +3,9 @@ import type { Fragment } from "./sqlFragment.js";
 import type { AccessScope, EventStatus } from "@connectsphere/contracts";
 import { isEventId } from "../domain/ids.js";
 import { historyText, type ChangeableEvent, type ProposedChanges } from "../domain/proposedChange.js";
-import { isSignificantEventField, type SignificantEventField } from "@connectsphere/contracts";
+import { isSignificantEventField, KAFKA_TOPICS, type SignificantEventField } from "@connectsphere/contracts";
 import { recordFieldChanges } from "./eventHistory.js";
+import { writeOutbox } from "../events/outbox.js";
 
 /**
  * B1, C1–C3, D1, D4, D5 — the event aggregate, which a request belongs to from
@@ -185,11 +186,19 @@ export async function applyApprovedChange(
   };
   const set = fields.map((field) => assignments[field]).reduce((all, one) => tx`${all}, ${one}`);
 
-  await tx`
-    update event.events
+  // `previous` reads the row as it was before this statement changed it.
+  const [row] = await tx<ScheduleChange[]>`
+    with previous as (
+      select id, proposed_start_at, proposed_end_at from event.events where id = ${event.id}
+    )
+    update event.events e
     set ${set}, updated_at = now(), updated_by = ${actor.userId}
-    where id = ${event.id}
+    from previous
+    where e.id = previous.id
+    returning e.owner_id, e.status, e.proposed_start_at, e.proposed_end_at,
+      previous.proposed_start_at as previous_start_at, previous.proposed_end_at as previous_end_at
   `;
+  if (row && scheduleMoved(row)) await writeScheduleChanged(tx, event.id, row, actor);
   await recordFieldChanges(
     tx,
     event.id,
@@ -202,6 +211,55 @@ export async function applyApprovedChange(
     "CHANGE_REQUEST_APPROVED",
     occurredAt
   );
+}
+
+interface ScheduleChange {
+  owner_id: string;
+  status: EventStatus;
+  proposed_start_at: Date | null;
+  proposed_end_at: Date | null;
+  previous_start_at: Date | null;
+  previous_end_at: Date | null;
+}
+
+const instant = (value: Date | null) => value?.getTime() ?? null;
+const iso = (value: Date | null) => value?.toISOString() ?? null;
+
+/** True when the start or the end is now a different instant, however it was written. */
+function scheduleMoved(row: ScheduleChange): boolean {
+  return (
+    instant(row.proposed_start_at) !== instant(row.previous_start_at) ||
+    instant(row.proposed_end_at) !== instant(row.previous_end_at)
+  );
+}
+
+/**
+ * EN-11 — an approved change moved the event's date or times. A Confirmed
+ * event's completion workflow resets its timer to the new end (ADR-0009).
+ */
+function writeScheduleChanged(
+  tx: TransactionSql,
+  eventId: string,
+  row: ScheduleChange,
+  actor: { userId: string; role: string }
+): Promise<string> {
+  return writeOutbox(tx, {
+    topic: KAFKA_TOPICS.event,
+    messageType: "event.schedule-changed",
+    aggregateId: eventId,
+    actor,
+    correlationId: null,
+    payload: {
+      eventId,
+      ownerId: row.owner_id,
+      status: row.status,
+      previousStartAt: iso(row.previous_start_at),
+      previousEndAt: iso(row.previous_end_at),
+      proposedStartAt: iso(row.proposed_start_at),
+      proposedEndAt: iso(row.proposed_end_at),
+      changedAt: new Date().toISOString(),
+    },
+  });
 }
 
 /** I1 — each event's reference, for those of `eventIds` that exist. */

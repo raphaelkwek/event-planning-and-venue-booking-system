@@ -50,9 +50,37 @@ function bookingRequest(overrides: Record<string, unknown> = {}) {
     requestedAt: "2026-10-17T02:00:00.000Z",
     withdrawnBy: null,
     withdrawnAt: null,
+    suitabilityStatus: "SUITABLE",
+    suitabilityReasons: [],
+    justification: null,
     ...overrides,
   };
 }
+
+const CAPACITY = {
+  condition: "LAYOUT_CAPACITY",
+  outcome: "FAILED",
+  required: 150,
+  available: 120,
+  message: "Expected attendance 150 against layout capacity 120 (Classroom).",
+};
+const HOURS = {
+  condition: "OPERATING_HOURS",
+  outcome: "FAILED",
+  required: "2026-12-02 14:00–23:00",
+  available: "Wednesday 08:00–22:00",
+  message: "The requested period 2026-12-02 14:00–23:00 is outside Wednesday's operating hours 08:00–22:00.",
+};
+const NOT_SUITABLE = "Lee Kong Chian Auditorium is not suitable for this request. Give a justification to request it anyway.";
+const JUSTIFY = "Give a justification: at least one character that isn't a space.";
+const justificationRequired = (reasons: unknown[]) =>
+  new ApiError(422, {
+    code: "JUSTIFICATION_REQUIRED",
+    message: NOT_SUITABLE,
+    details: { status: "NOT_SUITABLE", reasons },
+    fields: [{ field: "justification", message: JUSTIFY }],
+    correlationId: null,
+  });
 
 const open = (opensAt: string, closesAt: string) => ({ opensAt, closesAt });
 function venue(id: string, name: string, layouts: { name: string; capacity: number }[], facilities: string[], accessibilityFeatures: string[]) {
@@ -293,6 +321,87 @@ describe("the request form (L1)", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: "Submit request" }));
     expect(await screen.findByText(/overlaps this period: BKR-000001/)).toBeTruthy();
+  });
+});
+
+describe("justifying a venue that isn't suitable (K2)", () => {
+  async function openFormWithVenue() {
+    signInAs(ASSIGNED, "EVENT_COORDINATOR", `/events/${EVENT_ID}/venue-requests/new`);
+    render(<App />);
+    await screen.findByRole("heading", { name: "Request a venue" });
+    fireEvent.change(screen.getByLabelText("Venue"), { target: { value: VENUE_ID } });
+    await screen.findByLabelText("Hearing loop");
+    fireEvent.change(screen.getByLabelText("Room layout"), { target: { value: "Classroom" } });
+  }
+
+  it("shows no justification box until the server finds the venue not suitable (K2-T1)", async () => {
+    await openFormWithVenue();
+    expect(screen.queryByLabelText("Justification")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Submit request" }));
+    await screen.findByText("Booking request BKR-000002 submitted.");
+    expect(createBookingRequest.mock.calls[0]![1]).not.toHaveProperty("justification");
+  });
+
+  it("lists every failing condition, asks for a justification, and stores nothing yet (K2-T2, K2-T7)", async () => {
+    await openFormWithVenue();
+    createBookingRequest.mockRejectedValueOnce(justificationRequired([CAPACITY, HOURS]));
+    fireEvent.click(screen.getByRole("button", { name: "Submit request" }));
+
+    const section = await screen.findByRole("region", { name: "Not suitable" });
+    expect(section.textContent).toContain(NOT_SUITABLE);
+    const items = within(section).getAllByRole("listitem").map((li) => li.textContent);
+    expect(items).toEqual([CAPACITY.message, HOURS.message]);
+    expect((screen.getByLabelText("Justification") as HTMLTextAreaElement).value).toBe("");
+    expect(screen.getByText(JUSTIFY)).toBeTruthy();
+    expect((screen.getByLabelText("Room layout") as HTMLSelectElement).value).toBe("Classroom");
+    expect(screen.queryByText(/submitted\./)).toBeNull();
+  });
+
+  it("sends the justification with the request and shows the new reference (K2-T4)", async () => {
+    await openFormWithVenue();
+    createBookingRequest.mockRejectedValueOnce(justificationRequired([CAPACITY]));
+    fireEvent.click(screen.getByRole("button", { name: "Submit request" }));
+    fireEvent.change(await screen.findByLabelText("Justification"), { target: { value: "x" } });
+    fireEvent.click(screen.getByRole("button", { name: "Submit request" }));
+
+    await screen.findByText("Booking request BKR-000002 submitted.");
+    expect(createBookingRequest).toHaveBeenLastCalledWith("token", expect.objectContaining({ layout: "Classroom", justification: "x" }));
+  });
+
+  it("drops the justification box when another venue is chosen", async () => {
+    await openFormWithVenue();
+    createBookingRequest.mockRejectedValueOnce(justificationRequired([CAPACITY]));
+    fireEvent.click(screen.getByRole("button", { name: "Submit request" }));
+    await screen.findByLabelText("Justification");
+
+    fireEvent.change(screen.getByLabelText("Venue"), { target: { value: SEMINAR_ID } });
+    await vi.waitFor(() => expect(screen.queryByLabelText("Justification")).toBeNull());
+  });
+
+  it("shows Venue Staff the suitability, the failing conditions and the justification (K2-T6)", async () => {
+    listBookingQueue.mockResolvedValueOnce({
+      items: [
+        bookingRequest({
+          layout: "Classroom",
+          suitabilityStatus: "NOT_SUITABLE",
+          suitabilityReasons: [CAPACITY],
+          justification: "Only the auditorium has a stage; the extra 30 will stand at the back.",
+        }),
+        bookingRequest({ id: "r2", reference: "BKR-000002" }),
+        bookingRequest({ id: "r3", reference: "BKR-000003", suitabilityStatus: null, suitabilityReasons: null }),
+      ],
+    });
+    signInAs("venue-staff", "VENUE_STAFF", "/booking-requests");
+    render(<App />);
+
+    const unsuitable = rowText(await screen.findByRole("row", { name: /BKR-000001/ }));
+    expect(unsuitable).toContain("Not suitable");
+    expect(unsuitable).toContain(CAPACITY.message);
+    expect(unsuitable).toContain("Justification: Only the auditorium has a stage; the extra 30 will stand at the back.");
+    const suitable = rowText(screen.getByRole("row", { name: /BKR-000002/ }));
+    expect(suitable).toContain("Suitable");
+    expect(suitable).not.toContain("Justification");
+    expect(rowText(screen.getByRole("row", { name: /BKR-000003/ }))).toContain("Not assessed");
   });
 });
 

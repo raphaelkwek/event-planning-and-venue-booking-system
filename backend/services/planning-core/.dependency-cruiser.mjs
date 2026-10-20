@@ -24,6 +24,24 @@ export default {
       to: { path: "^src/modules/" },
     },
     {
+      name: "temporal-uses-module-interfaces",
+      comment: "The Temporal worker (EN-11) reaches a module only through its index.ts, like another module (ADR-0004).",
+      severity: "error",
+      from: { path: "^src/temporal/" },
+      to: { path: "^src/modules/", pathNot: "^src/modules/[^/]+/index\\.ts$" },
+    },
+    {
+      name: "workflows-are-deterministic",
+      comment:
+        "Workflow code is replayed (ADR-0009), so it imports only @temporalio/workflow, other workflow files and pure temporal/domain rules. Types are fine: they vanish at build.",
+      severity: "error",
+      from: { path: "^src/temporal/workflows/" },
+      to: {
+        pathNot: ["^src/temporal/workflows/", "^src/temporal/domain/", "@temporalio/workflow"],
+        dependencyTypesNot: ["type-only"],
+      },
+    },
+    {
       name: "no-circular",
       comment: "A cycle between files makes the module boundaries meaningless.",
       severity: "error",

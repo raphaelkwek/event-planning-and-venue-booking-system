@@ -149,3 +149,6 @@ export function findEventReferences(sql: Sql, eventIds: readonly string[]): Prom
 
 /** S2 — writes an approved change's values and field history inside the caller's transaction. */
 export { applyApprovedChange } from "./repo/events.js";
+
+/** EN-11 — the completion workflow's step: complete one event if its end has passed (ADR-0009). */
+export { completeEventIfDue, type CompletionAttempt } from "./jobs/completeEvents.js";

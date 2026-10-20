@@ -67,6 +67,26 @@ const EXAMPLE_DATA: Record<EventMessageType, Record<string, unknown>> = {
     nomineeCoordinatorId: nominee,
     resolvedAt: at,
   },
+  "event.status-changed": {
+    eventId,
+    ownerId: organiser,
+    previousStatus: "SAFETY_REVIEW",
+    newStatus: "CONFIRMED",
+    action: "APPROVE_SAFETY",
+    proposedStartAt: "2026-11-20T01:00:00.000Z",
+    proposedEndAt: "2026-11-20T09:00:00.000Z",
+    changedAt: at,
+  },
+  "event.schedule-changed": {
+    eventId,
+    ownerId: organiser,
+    status: "CONFIRMED",
+    previousStartAt: "2026-11-20T01:00:00.000Z",
+    previousEndAt: "2026-11-20T09:00:00.000Z",
+    proposedStartAt: "2026-11-21T01:00:00.000Z",
+    proposedEndAt: "2026-11-21T09:00:00.000Z",
+    changedAt: at,
+  },
 };
 
 function exampleMessage(type: string, data: Record<string, unknown>): Record<string, unknown> {
@@ -112,6 +132,42 @@ describe("parseCloudEvent: an example message for every event type", () => {
 
   it("refuses a type it has no schema for, naming the type", () => {
     expect(() => parseCloudEvent(exampleMessage("event.teleported", {}))).toThrow(/event\.teleported/);
+  });
+});
+
+describe("parseCloudEvent: the event's status and schedule (EN-11)", () => {
+  const statusChanged = EXAMPLE_DATA["event.status-changed"];
+  const scheduleChanged = EXAMPLE_DATA["event.schedule-changed"];
+
+  it("accepts a status change sent by the system, as the completion workflow's is", () => {
+    const message = { ...exampleMessage("event.status-changed", { ...statusChanged, newStatus: "COMPLETED" }), actor: "SYSTEM" };
+    expect(parseCloudEvent(without(message, "correlationid")).data).toMatchObject({ newStatus: "COMPLETED" });
+  });
+
+  it("refuses a status outside the event statuses", () => {
+    expect(() => parseCloudEvent(exampleMessage("event.status-changed", { ...statusChanged, newStatus: "TELEPORTED" }))).toThrow(
+      /newStatus/,
+    );
+  });
+
+  it("refuses a status change that does not name the action, which says why it happened", () => {
+    expect(() => parseCloudEvent(exampleMessage("event.status-changed", without(statusChanged, "action")))).toThrow(/action/);
+  });
+
+  it("accepts an event without dates, as a draft has none", () => {
+    const data = { ...statusChanged, previousStatus: "DRAFT", newStatus: "SUBMITTED", proposedStartAt: null, proposedEndAt: null };
+    expect(parseCloudEvent(exampleMessage("event.status-changed", data)).data).toEqual(data);
+  });
+
+  it("accepts a schedule change whose previous dates were not set", () => {
+    const data = { ...scheduleChanged, previousStartAt: null, previousEndAt: null };
+    expect(parseCloudEvent(exampleMessage("event.schedule-changed", data)).data).toEqual(data);
+  });
+
+  it("refuses a schedule change without the new end, which the completion timer waits for", () => {
+    expect(() => parseCloudEvent(exampleMessage("event.schedule-changed", without(scheduleChanged, "proposedEndAt")))).toThrow(
+      /proposedEndAt/,
+    );
   });
 });
 

@@ -6,11 +6,15 @@ import {
   eventBookable,
   isAssignedCoordinator,
   isDuplicatePending,
+  JUSTIFICATION_MESSAGE,
   layoutAt,
   notBookableMessage,
   notPendingMessage,
+  notSuitableMessage,
   readBookingRequest,
+  suitabilityRecord,
 } from "../../../src/modules/venue/domain/bookingRequest.js";
+import type { ConditionResult, SuitabilityAssessment } from "../../../src/modules/venue/domain/suitability.js";
 
 /** L1, L2 — a venue booking request's rules. Postgres decides overlaps (the exclusion constraint). */
 
@@ -51,6 +55,7 @@ describe("readBookingRequest", () => {
         facilities: ["Projector", "Wireless microphones"],
         accessibilityFeatures: ["Step-free access"],
         replacesBookingId: null,
+        justification: null,
       },
     });
   });
@@ -220,5 +225,106 @@ describe("notPendingMessage", () => {
     expect(notPendingMessage("BKR-000004", "APPROVED", "rejected")).toBe(
       "BKR-000004 is Approved, so it can't be rejected. Only a pending request can be.",
     );
+  });
+});
+
+describe("readBookingRequest's justification (K2)", () => {
+  it("reads a missing or null justification as none", () => {
+    expect(readBookingRequest(valid)).toMatchObject({ ok: true, request: { justification: null } });
+    expect(readBookingRequest({ ...valid, justification: null })).toMatchObject({ ok: true, request: { justification: null } });
+  });
+
+  it("keeps a justification as written, trimmed at its ends", () => {
+    expect(readBookingRequest({ ...valid, justification: "  Only the auditorium has a stage.\n" })).toMatchObject({
+      ok: true,
+      request: { justification: "Only the auditorium has a stage." },
+    });
+  });
+
+  it("reads spaces only as an empty justification, for the rule to refuse (K2-T3)", () => {
+    expect(readBookingRequest({ ...valid, justification: " \t " })).toMatchObject({ ok: true, request: { justification: "" } });
+  });
+
+  it("refuses a justification that isn't text, naming the field", () => {
+    expect(readBookingRequest({ ...valid, justification: 5 })).toEqual({
+      ok: false,
+      fields: [{ field: "justification", message: "The justification must be text." }],
+    });
+  });
+});
+
+describe("suitabilityRecord (K2)", () => {
+  const capacity: ConditionResult = {
+    condition: "LAYOUT_CAPACITY",
+    outcome: "FAILED",
+    required: 150,
+    available: 120,
+    message: "Expected attendance 150 against layout capacity 120 (Classroom).",
+  };
+  const hours: ConditionResult = {
+    condition: "OPERATING_HOURS",
+    outcome: "FAILED",
+    required: "2026-12-02 14:00–23:00",
+    available: "Wednesday 08:00–22:00",
+    message: "The requested period 2026-12-02 14:00–23:00 is outside Wednesday's operating hours 08:00–22:00.",
+  };
+  const warning: ConditionResult = { ...capacity, outcome: "NOT_ASSESSED", available: null, message: "Not assessed." };
+  const suitable: SuitabilityAssessment = { status: "SUITABLE", reasons: [], warnings: [] };
+  const withWarnings: SuitabilityAssessment = { status: "SUITABLE_WITH_WARNINGS", reasons: [], warnings: [warning] };
+  const unsuitable: SuitabilityAssessment = { status: "NOT_SUITABLE", reasons: [capacity, hours], warnings: [] };
+
+  it("needs no justification for a suitable venue, and records none (K2-T1)", () => {
+    expect(suitabilityRecord(suitable, null)).toEqual({
+      ok: true,
+      record: { suitabilityStatus: "SUITABLE", suitabilityReasons: [], justification: null },
+    });
+  });
+
+  it("drops a justification sent with a suitable venue (K2-T9)", () => {
+    expect(suitabilityRecord(suitable, "Just in case.")).toEqual({
+      ok: true,
+      record: { suitabilityStatus: "SUITABLE", suitabilityReasons: [], justification: null },
+    });
+  });
+
+  it("needs no justification when some conditions could not be assessed, and records none", () => {
+    expect(suitabilityRecord(withWarnings, null)).toEqual({
+      ok: true,
+      record: { suitabilityStatus: "SUITABLE_WITH_WARNINGS", suitabilityReasons: [], justification: null },
+    });
+    expect(suitabilityRecord(withWarnings, "Noted.")).toMatchObject({ ok: true, record: { justification: null } });
+  });
+
+  it("refuses a venue that is not suitable without a justification (K2-T2)", () => {
+    expect(suitabilityRecord(unsuitable, null)).toEqual({ ok: false });
+  });
+
+  it("refuses an empty justification, and one of spaces only (K2-T3)", () => {
+    for (const justification of ["", " ", "\t\n ", "\u00a0"]) {
+      expect(suitabilityRecord(unsuitable, justification), JSON.stringify(justification)).toEqual({ ok: false });
+    }
+  });
+
+  it("accepts a justification of one character, with every failing condition (K2-T4, K2-T7)", () => {
+    expect(suitabilityRecord(unsuitable, "x")).toEqual({
+      ok: true,
+      record: { suitabilityStatus: "NOT_SUITABLE", suitabilityReasons: [capacity, hours], justification: "x" },
+    });
+  });
+
+  it("records a snapshot of the failing conditions, not the assessment it was given", () => {
+    const reasons = [capacity];
+    const result = suitabilityRecord({ status: "NOT_SUITABLE", reasons, warnings: [] }, "Stage needed.");
+    reasons.push(hours);
+    expect(result).toMatchObject({ ok: true, record: { suitabilityReasons: [capacity] } });
+  });
+});
+
+describe("K2's messages", () => {
+  it("names the venue in the refusal, and says what the justification needs", () => {
+    expect(notSuitableMessage("Lee Kong Chian Auditorium")).toBe(
+      "Lee Kong Chian Auditorium is not suitable for this request. Give a justification to request it anyway.",
+    );
+    expect(JUSTIFICATION_MESSAGE).toBe("Give a justification: at least one character that isn't a space.");
   });
 });
