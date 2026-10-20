@@ -13,10 +13,6 @@
 | Created By | Seann Khoo |
 | Date of Creation | 2026-10-04 |
 
-> **Not executable yet.** No booking (L1, M1) or calendar (I1) exists. The calculation itself is
-> unit-tested now in planning-core (`occupiedPeriod`, with this example), and the venue module
-> exports it for those stories.
-
 ## Execution record
 
 | Item | Content |

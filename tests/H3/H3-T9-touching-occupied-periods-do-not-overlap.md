@@ -13,9 +13,6 @@
 | Created By | Seann Khoo |
 | Date of Creation | 2026-10-04 |
 
-> **Not executable yet.** Needs L1 and M1 (Sprint 3). The overlap rule is unit-tested now
-> (`periodsOverlap`).
-
 ## Execution record
 
 | Item | Content |

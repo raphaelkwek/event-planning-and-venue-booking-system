@@ -13,9 +13,6 @@
 | Created By | Seann Khoo |
 | Date of Creation | 2026-10-04 |
 
-> **Not executable yet.** Needs bookings (EN-02.1, L1, M1; Sprint 3). Nothing can overlap until then,
-> so this rule is built with them.
-
 ## Execution record
 
 | Item | Content |
