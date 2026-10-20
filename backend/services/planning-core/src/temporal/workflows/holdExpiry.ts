@@ -55,7 +55,10 @@ export async function holdExpiry(input: HoldExpiryInput): Promise<HoldExpiryResu
 
   setHandler(holdRescheduleSignal, (signal) => {
     const moved = Date.parse(signal.expiresAt);
-    if (moved === expiresAt) return;
+    // A repeat of the expiry the workflow already holds changes nothing while the reminder is still armed.
+    // Once reminded, the signal may mean the database cleared reminded_at (the change did), so re-arm: the
+    // reminder activity answers `already` if it didn't.
+    if (moved === expiresAt && !reminded) return;
     expiresAt = moved;
     remindAt = remindAtFor(moved);
     reminded = false;
@@ -72,6 +75,7 @@ export async function holdExpiry(input: HoldExpiryInput): Promise<HoldExpiryResu
       const reminder = await remindHoldIfDue(input.holdId);
       if (rescheduled) continue;
       if (reminder.outcome === "gone") return { outcome: "gone", status: reminder.status };
+      // `too-late`: the expiry has passed, so there is nothing to remind of; go on to the expiry.
       if (reminder.outcome === "not-due") {
         remindAt = Date.parse(reminder.remindAt);
         notBefore = Date.now() + RECHECK_AFTER_MS;
@@ -87,7 +91,16 @@ export async function holdExpiry(input: HoldExpiryInput): Promise<HoldExpiryResu
     if (rescheduled) continue;
     if (attempt.outcome === "expired") return attempt;
     if (attempt.outcome === "gone") return { outcome: "gone", status: attempt.status };
-    expiresAt = Date.parse(attempt.expiresAt);
-    notBefore = Date.now() + RECHECK_AFTER_MS;
+    const learnt = Date.parse(attempt.expiresAt);
+    if (learnt !== expiresAt) {
+      // The expiry moved and the signal hasn't reached us (or was lost): arm the reminder for the new expiry.
+      // remindHoldIfDue answers `already` if the database says it was reminded, so this can't remind twice.
+      expiresAt = learnt;
+      remindAt = remindAtFor(learnt);
+      reminded = false;
+      notBefore = 0;
+    } else {
+      notBefore = Date.now() + RECHECK_AFTER_MS;
+    }
   }
 }

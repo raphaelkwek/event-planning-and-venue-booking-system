@@ -206,4 +206,78 @@ describe("HoldExpiry (L6, CR-04)", () => {
       expect(fake.reminds).toHaveLength(1);
     });
   });
+  it("re-arms the reminder when the expiry activity learns a later expiry (an extension the signal hasn't delivered)", async () => {
+    let newExpiry = 0;
+    const fake = fakeHold();
+    fake.activities.expireHoldIfDue = async () => {
+      fake.expires.push(await env.currentTimeMs());
+      return fake.expires.length === 1 ? { outcome: "not-due", expiresAt: new Date(newExpiry).toISOString() } : { outcome: "expired" };
+    };
+    await run(fake, async (t0) => {
+      newExpiry = t0 + 360 * MINUTE;
+      // Reminded at 60 for the 120 expiry; at 120 the database says the expiry is 360 now.
+      expect(await (await start(t0 + 120 * MINUTE)).result()).toEqual({ outcome: "expired" });
+      expect(fake.reminds).toHaveLength(2);
+      near(fake.reminds[0], t0 + 60 * MINUTE);
+      near(fake.reminds[1], t0 + 300 * MINUTE);
+      expect(fake.expires).toHaveLength(2);
+      near(fake.expires[1], newExpiry);
+    });
+  });
+
+  it("moves both waits earlier when a signal brings the expiry forward", async () => {
+    const fake = fakeHold();
+    await run(fake, async (t0) => {
+      const handle = await start(t0 + 240 * MINUTE);
+      await advanceTo(t0, 10);
+      await handle.signal(holdRescheduleSignal, { expiresAt: new Date(t0 + 90 * MINUTE).toISOString() });
+      expect(await handle.result()).toEqual({ outcome: "expired" });
+      near(fake.reminds[0], t0 + 30 * MINUTE);
+      near(fake.expires[0], t0 + 90 * MINUTE);
+      expect(fake.reminds).toHaveLength(1);
+      expect(fake.expires).toHaveLength(1);
+    });
+  });
+
+  it("discards the answer of an activity that was running when a reschedule signal arrived, then waits for the new expiry", async () => {
+    const fake = fakeHold();
+    let signalDuringActivity: (() => Promise<void>) | undefined;
+    fake.activities.expireHoldIfDue = async () => {
+      fake.expires.push(await env.currentTimeMs());
+      // The first expiry attempt is running when Venue Staff move the expiry; it still answers "expired".
+      if (fake.expires.length === 1) await signalDuringActivity?.();
+      return { outcome: "expired" };
+    };
+    await run(fake, async (t0) => {
+      const handle = await start(t0 + 120 * MINUTE);
+      signalDuringActivity = () => handle.signal(holdRescheduleSignal, { expiresAt: new Date(t0 + 300 * MINUTE).toISOString() });
+      expect(await handle.result()).toEqual({ outcome: "expired" });
+      expect(fake.expires).toHaveLength(2);
+      near(fake.expires[0], t0 + 120 * MINUTE);
+      near(fake.expires[1], t0 + 300 * MINUTE);
+      near(fake.reminds[fake.reminds.length - 1], t0 + 240 * MINUTE);
+    });
+  });
+
+  it("starts a new run for a hold when signalWithStart finds the earlier run completed", async () => {
+    const fake = fakeHold();
+    await run(fake, async (t0) => {
+      const holdId = randomUUID();
+      const workflowId = holdExpiryWorkflowId(holdId);
+      const signalWithStart = (expiresAt: number) =>
+        env.client.workflow.signalWithStart<typeof holdExpiry, [{ expiresAt: string }]>("holdExpiry", {
+          taskQueue: TASK_QUEUE,
+          workflowId,
+          args: [{ holdId, expiresAt: new Date(expiresAt).toISOString(), reminderLeadMinutes: 60 }],
+          signal: holdRescheduleSignal,
+          signalArgs: [{ expiresAt: new Date(expiresAt).toISOString() }],
+        });
+      const first = await signalWithStart(t0 + 120 * MINUTE);
+      expect(await first.result()).toEqual({ outcome: "expired" });
+      const second = await signalWithStart((await env.currentTimeMs()) + 120 * MINUTE);
+      expect(second.signaledRunId).not.toBe(first.signaledRunId);
+      expect(await second.result()).toEqual({ outcome: "expired" });
+      expect(fake.expires).toHaveLength(2);
+    });
+  });
 });
