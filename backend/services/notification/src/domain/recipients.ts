@@ -74,6 +74,16 @@ function period(startsAt: string, endsAt: string): string {
   return start.day === end.day ? `${start.day}, ${start.time}–${end.time}` : `${start.day} ${start.time} to ${end.day} ${end.time}`;
 }
 
+/** An instant in Singapore time, formatted as `period()` formats a day and time: "Wednesday 2 December 2026, 16:00". */
+function instant(iso: string): string {
+  return period(iso, iso).split("–")[0]!;
+}
+
+/** L6: a hold's reminder or expiry notice; `ending` completes the sentence after the period. */
+function holdNotice(d: Record<string, unknown>, event: string, verb: string, ending: string): string {
+  return `Hold ${d.holdReference} on ${d.venueName} for ${event}, ${period(d.startsAt as string, d.endsAt as string)}, ${verb} on ${instant(d.expiresAt as string)}. ${ending}`;
+}
+
 /** M1, M2: the coordinator who requested the venue and the event's owner, once each. */
 function requesterAndOwner(d: Record<string, string>, text: string): Array<[string, string]> {
   return [...new Set([d.coordinatorId!, d.ownerId!])].map((recipient) => [recipient, text]);
@@ -170,6 +180,14 @@ const RULES: Record<string, Rule> = {
       : `${thing} no longer requires reconfirmation.`;
     return [[d.coordinatorId!, `The unavailability of ${d.venueName} on ${blockPeriodAndReason(d)} was removed. ${outcome}`]];
   },
+  // L6: the holding coordinator is reminded before the hold expires, and told when it has.
+  // hold-placed and hold-expiry-changed have no rule: they only drive the expiry workflow.
+  "venue-booking.hold-expiring": (d, event) => [
+    [d.coordinatorId!, holdNotice(d, event, "expires", "Convert it to a booking request or ask Venue Staff to extend it.")],
+  ],
+  "venue-booking.hold-expired": (d, event) => [
+    [d.coordinatorId!, holdNotice(d, event, "expired", "The period is free for others.")],
+  ],
   // S1: the assigned coordinator hears that the organiser asked to change the event.
   "change-request.submitted": (d, event) => [
     [d.coordinatorId!, `A change has been requested for ${event}: ${joinLabels(d.fields)}.`],
@@ -224,8 +242,8 @@ export function notificationsFor(message: NotifiableEvent): NewNotification[] {
     notificationType: message.type,
     eventId: data.eventId!,
     eventReference: data.eventReference!,
-    // A booking request's own reference, for the venue-booking messages (L1).
-    relatedReference: message.type.startsWith("venue-booking.") ? data.reference! : null,
+    // A booking request's own reference, or a hold's, for the venue-booking messages (L1, L6).
+    relatedReference: message.type.startsWith("venue-booking.") ? (data.reference ?? data.holdReference!) : null,
     message: text,
   }));
 }

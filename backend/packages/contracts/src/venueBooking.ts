@@ -111,6 +111,54 @@ export const bookingDisruptedPayloadSchema = z.object(disruptionFields);
 /** I2: the block was removed. The flag is cleared unless another active block still disrupts it. */
 export const disruptionClearedPayloadSchema = z.object({ ...disruptionFields, stillDisrupted: z.boolean() });
 
+/**
+ * L6 — hold expiry. `hold-placed` and `hold-expiry-changed` are for the hold-expiry
+ * workflow's consumer (nobody is notified); `hold-expiring` and `hold-expired`
+ * tell the holding coordinator, named in `coordinatorId`.
+ */
+const holdReference = z.string().regex(/^HLD-\d{6}$/, "holdReference must be HLD- and six digits");
+
+/** L3 placed the hold: schedule its reminder and expiry (L6). */
+export const holdPlacedPayloadSchema = z.object({
+  holdId: z.string().uuid(),
+  holdReference,
+  venueId: z.string().uuid(),
+  eventId: z.string().uuid(),
+  expiresAt: z.string().datetime(),
+  reminderLeadMinutes: z.number().int().min(1),
+});
+
+/** L6: Venue Staff moved a held hold's expiry; reschedule its reminder and expiry. */
+export const holdExpiryChangedPayloadSchema = z.object({
+  holdId: z.string().uuid(),
+  holdReference,
+  venueId: z.string().uuid(),
+  expiresAt: z.string().datetime(),
+  changedBy: z.string().uuid(),
+});
+
+/** What the reminder and the expiry notice both carry: the hold, its event and period, and who to tell. */
+const holdNoticeFields = {
+  holdId: z.string().uuid(),
+  holdReference,
+  venueId: z.string().uuid(),
+  venueName: z.string().min(1),
+  eventId: z.string().uuid(),
+  eventReference: z.string().min(1),
+  eventName: z.string().min(1),
+  /** The coordinator who requested the hold (CQ-06). */
+  coordinatorId: z.string().uuid(),
+  startsAt: z.string().datetime(),
+  endsAt: z.string().datetime(),
+  expiresAt: z.string().datetime(),
+};
+
+/** L6: the hold expires soon (AC4). */
+export const holdExpiringPayloadSchema = z.object(holdNoticeFields);
+
+/** L6: the hold expired and its period is free (AC2, AC4). */
+export const holdExpiredPayloadSchema = z.object(holdNoticeFields);
+
 /** Validators keyed by messageType, for producers and consumers alike. */
 export const VENUE_BOOKING_PAYLOAD_SCHEMAS = {
   "venue-booking.request-submitted": bookingRequestSubmittedPayloadSchema,
@@ -118,6 +166,10 @@ export const VENUE_BOOKING_PAYLOAD_SCHEMAS = {
   "venue-booking.request-rejected": bookingRequestRejectedPayloadSchema,
   "venue-booking.booking-disrupted": bookingDisruptedPayloadSchema,
   "venue-booking.disruption-cleared": disruptionClearedPayloadSchema,
+  "venue-booking.hold-placed": holdPlacedPayloadSchema,
+  "venue-booking.hold-expiry-changed": holdExpiryChangedPayloadSchema,
+  "venue-booking.hold-expiring": holdExpiringPayloadSchema,
+  "venue-booking.hold-expired": holdExpiredPayloadSchema,
 } as const;
 
 export type VenueBookingMessageType = keyof typeof VENUE_BOOKING_PAYLOAD_SCHEMAS;

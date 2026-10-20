@@ -429,6 +429,43 @@ describe("I2: tell the coordinator when a block disrupts, or stops disrupting, t
   });
 });
 
+describe("L6: tells the holding coordinator a hold is about to expire, and that it has", () => {
+  const hold = {
+    holdId: "99999999-9999-4999-8999-999999999999",
+    holdReference: "HLD-000007",
+    venueId: "55555555-5555-4555-8555-555555555555",
+    venueName: "Lee Kong Chian Auditorium",
+    coordinatorId: coordinator,
+    startsAt: "2026-12-02T02:00:00.000Z",
+    endsAt: "2026-12-02T04:00:00.000Z",
+    expiresAt: "2026-12-01T06:00:00.000Z",
+  };
+  const where = "Hold HLD-000007 on Lee Kong Chian Auditorium for EVT-2026-0042 “Freshmen Orientation”, Wednesday 2 December 2026, 10:00–12:00,";
+  const one = (type: string, text: string) => [
+    { ...common, notificationType: type, recipientUserId: coordinator, relatedReference: "HLD-000007", message: text },
+  ];
+
+  it("reminds the coordinator, naming the venue, event, period and expiry in Singapore time (L6-T6)", () => {
+    expect(notificationsFor(message("venue-booking.hold-expiring", hold))).toEqual(
+      one(
+        "venue-booking.hold-expiring",
+        `${where} expires on Tuesday 1 December 2026, 14:00. Convert it to a booking request or ask Venue Staff to extend it.`,
+      ),
+    );
+  });
+
+  it("tells the coordinator it expired, and the period is free (L6-T7)", () => {
+    expect(notificationsFor(message("venue-booking.hold-expired", hold))).toEqual(
+      one("venue-booking.hold-expired", `${where} expired on Tuesday 1 December 2026, 14:00. The period is free for others.`),
+    );
+  });
+
+  it("notifies nobody when a hold is placed or its expiry changed", () => {
+    expect(notificationsFor(message("venue-booking.hold-placed", { ...hold, reminderLeadMinutes: 60 }))).toEqual([]);
+    expect(notificationsFor(message("venue-booking.hold-expiry-changed", { ...hold, changedBy: coordinator }))).toEqual([]);
+  });
+});
+
 describe("F5: tells the owner, each booked venue's staff and each reserver that the arrangements are confirmed", () => {
   const venueStaff = "00000000-0000-0000-0000-000000000003";
   const otherVenueStaff = "00000000-0000-0000-0000-000000000013";
