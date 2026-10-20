@@ -20,6 +20,8 @@ import { EventDetailsEditor } from "./screens/EventDetailsEditor.js";
 import { EventVenueRequests } from "./screens/EventVenueRequests.js";
 import { BookingRequestForm } from "./screens/BookingRequestForm.js";
 import { BookingRequestQueue } from "./screens/BookingRequestQueue.js";
+import { HoldQueue } from "./screens/HoldQueue.js";
+import { HoldRequestForm } from "./screens/HoldRequestForm.js";
 import { EquipmentAvailability } from "./screens/EquipmentAvailability.js";
 import { VenueAvailability } from "./screens/VenueAvailability.js";
 import { VenueSearch } from "./screens/VenueSearch.js";
@@ -98,6 +100,14 @@ const ROUTES: {
     element: <BookingRequestQueue />,
     roles: ["VENUE_STAFF"],
     nav: { label: "Booking requests", to: "/booking-requests" },
+  },
+  // L3: the assigned coordinator requests a hold; Venue Staff of the venue place it, with its expiry.
+  { path: "/events/:id/holds/new", element: <HoldRequestForm />, roles: ["EVENT_COORDINATOR"] },
+  {
+    path: "/holds",
+    element: <HoldQueue />,
+    roles: ["VENUE_STAFF"],
+    nav: { label: "Hold requests", to: "/holds" },
   },
   // H1, H2: every internal role reads the catalogue; only Venue Staff maintain it.
   {

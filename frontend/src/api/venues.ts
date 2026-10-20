@@ -153,7 +153,7 @@ export interface CommittedPeriod {
   kind: CommittedKind;
   startsAt: string;
   endsAt: string;
-  bookingStatus?: "CONFIRMED" | "PENDING";
+  bookingStatus?: "CONFIRMED" | "HELD" | "PENDING";
   eventReference?: string | null;
   reasonType?: UnavailabilityReasonType;
   description?: string;
