@@ -286,7 +286,13 @@ export function EventVenueRequests() {
                 <td style={cell}>
                   <Lozenge appearance={HOLD_APPEARANCE[hold.status]}>{HOLD_LABELS[hold.status]}</Lozenge>
                 </td>
-                <td style={cell}>{hold.expiresAt ? formatMoment(hold.expiresAt) : "Set when Venue Staff place it"}</td>
+                <td style={cell}>
+                  {hold.status === "EXPIRED"
+                    ? `Expired on ${formatMoment((hold.expiredAt ?? hold.expiresAt)!)}`
+                    : hold.expiresAt
+                      ? formatMoment(hold.expiresAt)
+                      : "Set when Venue Staff place it"}
+                </td>
                 <td style={cell}>{reminderText(hold.reminderLeadMinutes)} before</td>
                 <td style={cell}>
                   {assigned && hold.status === "HELD" && BOOKABLE_STATUSES.includes(event.status) && (

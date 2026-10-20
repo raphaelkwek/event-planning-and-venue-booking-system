@@ -3,7 +3,7 @@ import Button from "@atlaskit/button/new";
 import SectionMessage from "@atlaskit/section-message";
 import { useSignedIn } from "../auth/SessionContext.js";
 import { ApiError } from "../api/client.js";
-import { listHoldQueue, placeHold, reminderText, type Hold } from "../api/holds.js";
+import { changeHoldExpiry, listHoldQueue, placeHold, reminderText, type Hold } from "../api/holds.js";
 import { Refusal } from "../components/Refusal.js";
 import { useUserNames } from "../shared/useUserNames.js";
 import { formatMoment, formatPeriod, fromInputs, toInputs } from "../shared/singaporeTime.js";
@@ -75,6 +75,10 @@ export function HoldQueue() {
                   setNotice(`${placed.reference} placed. It expires on ${formatMoment(placed.expiresAt!)}.`);
                   load();
                 }}
+                onChanged={(changed) => {
+                  setNotice(`${changed.reference} now expires on ${formatMoment(changed.expiresAt!)}.`);
+                  load();
+                }}
               />
             ))}
           </tbody>
@@ -84,7 +88,122 @@ export function HoldQueue() {
   );
 }
 
-function Row({ hold, requester, onPlaced }: { hold: Hold; requester: string; onPlaced: (placed: Hold) => void }) {
+interface RowProps {
+  hold: Hold;
+  requester: string;
+  onPlaced: (placed: Hold) => void;
+  onChanged: (changed: Hold) => void;
+}
+
+function Row(props: RowProps) {
+  // L6: a held hold's expiry can be changed; an expired one only shows when it expired.
+  if (props.hold.status === "HELD") return <HeldRow {...props} />;
+  if (props.hold.status === "EXPIRED") return <ExpiredRow {...props} />;
+  return <RequestedRow {...props} />;
+}
+
+function Summary({ hold, requester }: { hold: Hold; requester: string }) {
+  return (
+    <>
+      <td style={cell}>{hold.reference}</td>
+      <td style={cell}>{hold.eventReference ?? "—"}</td>
+      <td style={cell}>{hold.venueName}</td>
+      <td style={cell}>{formatPeriod(hold.startsAt, hold.endsAt)}</td>
+      <td style={cell}>{requester}</td>
+      <td style={cell}>{reminderText(hold.reminderLeadMinutes)} before</td>
+    </>
+  );
+}
+
+function ExpiredRow({ hold, requester }: RowProps) {
+  return (
+    <tr aria-label={hold.reference}>
+      <Summary hold={hold} requester={requester} />
+      <td style={cell}>Expired on {formatMoment((hold.expiredAt ?? hold.expiresAt)!)}</td>
+      <td style={cell} />
+    </tr>
+  );
+}
+
+function HeldRow({ hold, requester, onChanged }: RowProps) {
+  const session = useSignedIn();
+  const [editing, setEditing] = useState(false);
+  const [expiry, setExpiry] = useState(() => toInputs(hold.expiresAt!));
+  const [error, setError] = useState<unknown>(null);
+  const [blank, setBlank] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  async function save() {
+    setError(null);
+    setBlank(false);
+    if (!expiry.date || !expiry.time) return setBlank(true);
+    setBusy(true);
+    try {
+      const changed = await changeHoldExpiry(session.token, hold.id, fromInputs(expiry.date, expiry.time));
+      setEditing(false);
+      onChanged(changed);
+    } catch (caught) {
+      setError(caught);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const fieldError = blank ? "Enter the expiry date and time." : error instanceof ApiError ? error.fieldMessage("expiresAt") : undefined;
+  const dateId = `new-expiry-date-${hold.id}`;
+  const timeId = `new-expiry-time-${hold.id}`;
+
+  return (
+    <tr aria-label={hold.reference}>
+      <Summary hold={hold} requester={requester} />
+      <td style={cell}>
+        {formatMoment(hold.expiresAt!)}
+        {editing && (
+          <div style={{ marginTop: 6 }}>
+            <label htmlFor={dateId} style={hidden}>
+              New expiry date for {hold.reference}
+            </label>
+            <input id={dateId} type="date" value={expiry.date} onChange={(e) => setExpiry({ ...expiry, date: e.currentTarget.value })} />{" "}
+            <label htmlFor={timeId} style={hidden}>
+              New expiry time for {hold.reference}
+            </label>
+            <input id={timeId} type="time" value={expiry.time} onChange={(e) => setExpiry({ ...expiry, time: e.currentTarget.value })} />
+            {fieldError && (
+              <div role="alert" style={{ color: "#AE2E24", fontSize: 12, marginTop: 4 }}>
+                {fieldError}
+              </div>
+            )}
+            {error && !fieldError ? <Refusal error={error} /> : null}
+          </div>
+        )}
+      </td>
+      <td style={cell}>
+        {editing ? (
+          <>
+            <Button appearance="primary" isDisabled={busy} onClick={() => void save()}>
+              Save
+            </Button>{" "}
+            <Button
+              appearance="subtle"
+              onClick={() => {
+                setEditing(false);
+                setError(null);
+                setBlank(false);
+                setExpiry(toInputs(hold.expiresAt!));
+              }}
+            >
+              Cancel
+            </Button>
+          </>
+        ) : (
+          <Button onClick={() => setEditing(true)}>Change expiry</Button>
+        )}
+      </td>
+    </tr>
+  );
+}
+
+function RequestedRow({ hold, requester, onPlaced }: RowProps) {
   const session = useSignedIn();
   const [expiry, setExpiry] = useState(() => suggestedExpiry(hold));
   const [error, setError] = useState<unknown>(null);
