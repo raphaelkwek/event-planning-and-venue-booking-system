@@ -17,6 +17,7 @@ import {
   toVenueBody,
   updateVenue,
   type Day,
+  type FlaggedBooking,
   type VenueForm,
 } from "../api/venues.js";
 import { Refusal } from "../components/Refusal.js";
@@ -38,6 +39,7 @@ export function VenueEditor() {
   const [notice, setNotice] = useState<string | null>((location.state as { saved?: boolean } | null)?.saved ? "Venue saved." : null);
   const [loading, setLoading] = useState(Boolean(venueId));
   const [saving, setSaving] = useState(false);
+  const [flagged, setFlagged] = useState<FlaggedBooking[]>([]);
 
   useEffect(() => {
     if (!venueId) {
@@ -65,11 +67,13 @@ export function VenueEditor() {
     setSaving(true);
     setError(null);
     setNotice(null);
+    setFlagged([]);
     try {
       const body = toVenueBody(form);
-      const saved = venueId ? await updateVenue(session.token, venueId, body) : await createVenue(session.token, body);
+      const saved = venueId ? await updateVenue(session.token, venueId, body) : { ...(await createVenue(session.token, body)), flaggedBookings: [] };
       setForm(fromVenue(saved));
       setNotice("Venue saved.");
+      setFlagged(saved.flaggedBookings);
       if (!venueId) navigate(`/venues/${saved.id}/edit`, { replace: true, state: { saved: true } });
     } catch (caught) {
       setError(caught);
@@ -84,12 +88,29 @@ export function VenueEditor() {
     <div style={{ maxWidth: 760 }}>
       <h2>{venueId ? "Edit venue" : "New venue"}</h2>
 
-      {notice && (
+      {notice && flagged.length === 0 && (
         <div style={{ marginBottom: 16 }}>
           <SectionMessage appearance="success">
             <p style={{ margin: 0 }}>{notice}</p>
           </SectionMessage>
         </div>
+      )}
+      {flagged.length > 0 && (
+        // H3-T10: the new times made these overlap; they are flagged, never moved.
+        <section aria-label="Bookings that now overlap" style={{ marginBottom: 16 }}>
+          <SectionMessage appearance="warning">
+            <p style={{ margin: 0 }}>Venue saved. With the new setup and turnaround time, these now overlap and require reconfirmation:</p>
+            <ul style={{ margin: "8px 0" }}>
+              {flagged.map((f) => (
+                <li key={f.reference}>
+                  {f.kind === "HOLD" ? "Hold" : "Booking"} {f.reference}
+                  {f.eventReference ? ` (${f.eventReference})` : ""} overlaps {f.overlapsReferences.join(" and ")}
+                </li>
+              ))}
+            </ul>
+            <p style={{ margin: 0 }}>Their coordinators have been told. Nothing was removed, released or moved.</p>
+          </SectionMessage>
+        </section>
       )}
       <div style={{ marginBottom: 16 }}>
         <Refusal error={error} />

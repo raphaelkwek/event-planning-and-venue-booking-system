@@ -141,8 +141,16 @@ export function createVenue(token: string, body: VenueBody) {
   return request<Venue>(`${VENUE}/venues`, { method: "POST", token, body });
 }
 
+/** H3-T10: a booking or hold the venue's new setup or turnaround time made overlap others. */
+export interface FlaggedBooking {
+  kind: "BOOKING" | "HOLD";
+  reference: string;
+  eventReference: string | null;
+  overlapsReferences: string[];
+}
+
 export function updateVenue(token: string, id: string, body: VenueBody) {
-  return request<Venue>(`${VENUE}/venues/${id}`, { method: "PUT", token, body });
+  return request<Venue & { flaggedBookings: FlaggedBooking[] }>(`${VENUE}/venues/${id}`, { method: "PUT", token, body });
 }
 
 /** I1: a venue's availability calendar. Times are UTC; the screen shows them in `timeZone`. */

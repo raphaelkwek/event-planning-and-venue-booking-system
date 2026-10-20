@@ -93,6 +93,8 @@ export interface EventBooking {
   requiresReconfirmation: boolean;
   releaseReason: string | null;
   disruptions: { blockId: string; reasonType: string; description: string; startsAt: string; endsAt: string }[];
+  /** H3-T10: the bookings and holds the venue's new setup or turnaround time makes it overlap. */
+  overlaps: string[];
   replacements: { id: string; reference: string; status: BookingRequestStatus; venueName: string }[];
 }
 
