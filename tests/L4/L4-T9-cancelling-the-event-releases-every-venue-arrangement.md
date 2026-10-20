@@ -13,7 +13,7 @@
 | Created By | Seann Khoo |
 | Date of Creation | 2026-10-21 |
 
-> **Not executable yet.** Cancelling an event is F3 and F4, which aren't built. The venue module's half is: `releaseVenueArrangementsForEvent` releases every booking and hold and withdraws every pending request of the event, for F4's cancellation to call. It is integration-tested (`tests/venue/repo/eventRelease.test.ts`).
+> **Not executable yet.** Cancelling an event is F3 and F4, which aren't built. The venue module's half is: `releaseVenueArrangementsForEvent` releases every booking and hold and withdraws every pending request of the event, for F4's cancellation to call. It is integration-tested (`tests/venue/api/severalVenues.test.ts`).
 
 ## Execution record
 
