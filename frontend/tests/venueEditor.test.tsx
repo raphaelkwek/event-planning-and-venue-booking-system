@@ -7,6 +7,24 @@ import { ApiError } from "../src/api/client.js";
  * field, and a refusal shown under the field that caused it.
  */
 
+const STORED = {
+  id: "venue-1",
+  name: "Lee Kong Chian Auditorium",
+  building: "School of Computing",
+  maxCapacity: 300,
+  layouts: [{ name: "Theatre", capacity: 300 }],
+  facilities: [],
+  accessibilityFeatures: [],
+  operatingHours: { monday: null, tuesday: null, wednesday: null, thursday: null, friday: null, saturday: null, sunday: null },
+  setupMinutes: 0,
+  turnaroundMinutes: 0,
+  isActive: true,
+  createdAt: "2026-10-04T01:00:00.000Z",
+  createdBy: "venue-staff-id",
+  updatedAt: "2026-10-04T01:00:00.000Z",
+  updatedBy: "venue-staff-id",
+};
+
 vi.mock("../src/api/venues.js", async () => {
   const actual = await vi.importActual<typeof import("../src/api/venues.js")>("../src/api/venues.js");
   return {
@@ -19,11 +37,13 @@ vi.mock("../src/api/venues.js", async () => {
         correlationId: null,
       });
     }),
+    getVenue: vi.fn(async () => STORED),
+    updateVenue: vi.fn(async () => ({ ...STORED, turnaroundMinutes: 30, flaggedBookings: [] })),
   };
 });
 
 const { App } = await import("../src/App.js");
-const { createVenue } = await import("../src/api/venues.js");
+const { createVenue, updateVenue } = await import("../src/api/venues.js");
 
 beforeEach(() => {
   sessionStorage.setItem(
@@ -85,5 +105,41 @@ describe("the venue editor", () => {
     const message = await screen.findByText("Maximum capacity must be a whole number greater than zero.");
     // Under the field: in the same block as the field's own label.
     expect(message.parentElement!.querySelector("label")!.textContent).toBe("Maximum capacity");
+  });
+});
+
+describe("saving new setup or turnaround time (H3-T10)", () => {
+  const text = (element: HTMLElement) => element.textContent!.replace(/\s+/g, " ").trim();
+
+  it("lists each booking the new times flagged, with what it overlaps, and says nothing was moved", async () => {
+    vi.mocked(updateVenue).mockResolvedValueOnce({
+      ...STORED,
+      turnaroundMinutes: 30,
+      flaggedBookings: [
+        { kind: "BOOKING", reference: "BKR-000001", eventReference: "EVT-000123", overlapsReferences: ["BKR-000002"] },
+        { kind: "HOLD", reference: "BKR-000002", eventReference: "EVT-000456", overlapsReferences: ["BKR-000001"] },
+      ],
+    } as never);
+    window.location.hash = "#/venues/venue-1/edit";
+    render(<App />);
+    await screen.findByRole("heading", { name: "Edit venue" });
+    type("Turnaround time (minutes)", "30");
+    fireEvent.click(screen.getByRole("button", { name: "Save venue" }));
+
+    const notice = await screen.findByRole("region", { name: "Bookings that now overlap" });
+    expect(text(notice)).toContain("Venue saved. With the new setup and turnaround time, these now overlap and require reconfirmation:");
+    expect(text(notice)).toContain("Booking BKR-000001 (EVT-000123) overlaps BKR-000002");
+    expect(text(notice)).toContain("Hold BKR-000002 (EVT-000456) overlaps BKR-000001");
+    expect(text(notice)).toContain("Their coordinators have been told. Nothing was removed, released or moved.");
+  });
+
+  it("says only Venue saved when nothing was flagged", async () => {
+    window.location.hash = "#/venues/venue-1/edit";
+    render(<App />);
+    await screen.findByRole("heading", { name: "Edit venue" });
+    fireEvent.click(screen.getByRole("button", { name: "Save venue" }));
+
+    expect(await screen.findByText("Venue saved.")).toBeTruthy();
+    expect(screen.queryByRole("region", { name: "Bookings that now overlap" })).toBeNull();
   });
 });
