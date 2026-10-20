@@ -83,7 +83,10 @@ export interface CalendarRow {
   kind: CommittedKind | "FREE";
   startsAt: Date;
   endsAt: Date;
-  /** A slot's status, or PENDING for a pending booking request (L1), which reserves nothing. */
+  /**
+   * CONFIRMED, HELD for a slot a placed hold owns (L3), or PENDING for a pending
+   * booking request (L1), including one converted from a hold.
+   */
   slotStatus: "HELD" | "CONFIRMED" | "PENDING" | null;
   eventId: string | null;
   reasonType: UnavailabilityReasonType | null;
@@ -94,8 +97,8 @@ export interface CommittedPeriod {
   kind: CommittedKind;
   startsAt: string;
   endsAt: string;
-  /** Bookings, and their setup and turnaround. A held slot is a pending request (§4.6 rule 3). */
-  bookingStatus?: "CONFIRMED" | "PENDING";
+  /** Bookings, and their setup and turnaround: confirmed, held by a placed hold (L3), or a pending request. */
+  bookingStatus?: "CONFIRMED" | "HELD" | "PENDING";
   eventReference?: string | null;
   /** Unavailability blocks (I2). */
   reasonType?: UnavailabilityReasonType;
@@ -123,7 +126,7 @@ function committedPeriod(row: CalendarRow, references: ReadonlyMap<string, strin
   if (row.slotStatus) {
     return {
       ...period,
-      bookingStatus: row.slotStatus === "CONFIRMED" ? "CONFIRMED" : "PENDING",
+      bookingStatus: row.slotStatus,
       eventReference: references.get(row.eventId!) ?? null,
     };
   }

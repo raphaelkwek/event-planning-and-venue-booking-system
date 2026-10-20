@@ -25,12 +25,16 @@ export interface VenueInput {
   facilities: string[];
   accessibilityFeatures: string[];
   operatingHours: Record<Day, DayHours>;
+  /** H3 (CR-01): minutes the venue needs before an event, and after it, in whole minutes. */
+  setupMinutes: number;
+  turnaroundMinutes: number;
   isActive: boolean;
 }
 
 export type VenueValidation = { ok: true; venue: VenueInput } | { ok: false; fields: ErrorField[] };
 
 const WHOLE_ABOVE_ZERO = (value: number) => Number.isInteger(value) && value > 0;
+const WHOLE_FROM_ZERO = (value: number) => Number.isInteger(value) && value >= 0;
 const TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
 const CAPITALISED: Record<Day, string> = {
   monday: "Monday",
@@ -84,6 +88,13 @@ export function validateVenue(input: VenueInput): VenueValidation {
     }
   }
 
+  if (!WHOLE_FROM_ZERO(input.setupMinutes)) {
+    fields.push({ field: "setupMinutes", message: "Setup time must be a whole number of minutes, 0 or more." });
+  }
+  if (!WHOLE_FROM_ZERO(input.turnaroundMinutes)) {
+    fields.push({ field: "turnaroundMinutes", message: "Turnaround time must be a whole number of minutes, 0 or more." });
+  }
+
   if (fields.length > 0) return { ok: false, fields };
   return {
     ok: true,
@@ -106,6 +117,8 @@ const TRACKED = [
   "facilities",
   "accessibilityFeatures",
   "operatingHours",
+  "setupMinutes",
+  "turnaroundMinutes",
   "isActive",
 ] as const;
 

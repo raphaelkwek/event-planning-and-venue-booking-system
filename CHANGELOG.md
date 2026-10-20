@@ -52,6 +52,59 @@ and L6 needs the same machinery for hold expiry.
 
 ---
 
+# L3: tentative holds on a venue
+
+**Timestamp:** 2026-10-20T11:10+08:00 (SGT)
+**Author:** Yichen, via Claude
+**Scope:** L3 (SPM-110), built on H3 (setup and turnaround) and merged with `main`.
+- `contracts`: `venueHolds.ts` (the hold, its statuses and messages) and the hold error codes.
+  **Needs a second owner's review.**
+- planning-core, venue module: migration `venue/0012_holds.sql`; `api/holds.ts`, `repo/holds.ts`
+  and the module's `index.ts`, which exports the functions M1 and M2 call when a converted hold's
+  request is decided.
+- `policies/resources/booking_request.yaml` and its test; `planning-core.openapi.yaml`.
+- The web app: holds on the event's venue requests page, a "Request a hold" form, a Venue Staff
+  "Hold requests" queue, and "Held" on the availability calendar, labelled with the event.
+- `tests/L3/` (17 cards) and `sprint-3.csv`.
+**Reason:** Venue Staff sometimes keep a venue back while a coordinator finishes arrangements. The
+customer's Week 9 answers say the coordinator asks and Venue Staff place the hold and set its
+expiry.
+
+## Added
+
+- **The assigned coordinator requests a hold** (venue, period, and how many minutes before expiry
+  to be reminded). A request reserves nothing.
+- **Venue Staff of that venue place it with an expiry later than now.** Placing reserves the
+  occupied period (setup and turnaround included) in the venue's slot table, so the first hold
+  placed wins and the database refuses an overlap with another hold or booking, naming it
+  (`VENUE_SLOT_CONFLICT`). An event keeps one live hold per venue (`HOLD_DUPLICATE`); finished
+  events can't be held (`EVENT_NOT_HOLDABLE`).
+- **Convert to a request** (L1) keeps the period held until the request is decided. Withdrawing the
+  request (L2) releases it; M1 approval turns the slot Confirmed and M2 rejection releases it.
+- **Release** frees the period and keeps the record.
+- A held period shows as "Held" on the calendar and is left out of venue search.
+
+## Worth knowing
+
+1. **Hold statuses are Requested, Held, Converted, Released and Expired.** The cards first said
+   "Active" for Held; the code and the cards now agree.
+2. **L3 stores the expiry and reminder lead time; L6 acts on them** (expiring, reminders and
+   extension).
+3. **M1 and M2 (on `main`) call the venue module's hold functions.** Approving a converted hold's
+   request confirms the held period itself, without a second booking (tested in
+   `tests/venue/api/holds.test.ts`); rejecting or withdrawing releases it. F4 will call
+   `releaseHoldsForEvent` when it releases a cancelled event's arrangements.
+
+## Verified
+
+- **All 17 L3 cards pass** (run 2026-10-20, with screenshots in `tests/L3/evidence/`). T1 to T16 ran
+  in Chromium against the web app and planning-core on a throwaway local Postgres (not the shared
+  database), signing in through the hosted Supabase Auth with the seeded accounts. T17, the
+  50-way race, ran as the integration test against the same local database. The notification
+  service and Kafka weren't running. CI is green on the branch.
+
+---
+
 # F5: Confirm an event only when its venue and equipment are ready
 
 **Timestamp:** 2026-10-20T03:00+08:00 (SGT)
@@ -1613,6 +1666,49 @@ No API change: the page reads H1's `GET /api/v1/venues/{id}`.
 
 - **This branch is from `main`, parallel to the H1/H3/H2 stack.** Whichever merges second will conflict at the top of the CHANGELOG, in the reset SQL, and in the traceability file. Each conflict is just two blocks to keep.
 - **Still to do in Jira:** create Test issues T2-T1 to T2-T20.
+
+---
+
+# H3: Setup and turnaround time on each venue (CR-01), and the occupied-period rule
+
+**Timestamp:** 2026-10-04T16:20+08:00 (SGT)
+**Author:** Seann, via Claude
+**Scope:**
+- planning-core: the venue module's `domain/venueRecord.ts`, `domain/occupancy.ts` (new), `api`, `repo` and `index.ts`; migration `venue/0002`; and the venue tests.
+- The OpenAPI spec.
+- The web app: `api/venues.ts`, `VenueEditor`, and the form test.
+- The test cards: `tests/H3/` (10 cases). Traceability.
+
+**Reason:** H3, the Week 7 change CR-01. Built now by your decision of 4 Oct, stacked on H1, which it extends.
+
+## What it does
+
+1. **Each venue records a setup time and a turnaround time** in whole minutes, 0 or more.
+   - Existing venues start at 0, so nothing changes for them.
+   - Venue Staff set both in the venue editor, under "Setup and turnaround".
+2. **Anything else is refused and stores nothing:** -1, 15.5, or text.
+   - Each change is recorded with its previous and new value, through H1's history.
+   - Only Venue Staff may change them (A2).
+   - An update that leaves them out keeps the current values.
+3. **`occupiedPeriod`** gives an event's occupied period: its start minus the setup time to its end plus the turnaround time. It's unit-tested with the customer's own example: 10:00–12:00 with 30 and 45 minutes occupies 09:30–12:45.
+4. **`periodsOverlap`** treats touching periods as not overlapping.
+5. **Both are exported from the venue module's `index.ts`** for I1, I2, J1, L3, M1, N1 and N2, which must compare occupied periods.
+
+## Not done yet, and why
+
+6. **Flagging the bookings a change now makes overlap** (AC4) needs bookings, which come with EN-02.1, L1 and M1 in Sprint 3. Nothing can overlap until then.
+   - H3-T8 to H3-T10 are Not Executed, naming those stories.
+   - **H3 can't be marked Done until they're built.**
+7. **CQ-09 is still open:** do the buffers also apply to holds and unavailability blocks, and must the buffered period fit inside opening hours?
+
+## Verified
+
+- **H3-T1 to H3-T7 pass in Chrome** through the automated runner, against `6514ab8`.
+- **H1's 14 cases also pass on this branch.**
+- **planning-core: 425/425** against the database. The rules and occupancy functions are at 100%.
+- **web: 32/32.**
+- **CI's steps all pass.**
+- **The migration `venue/0002` is applied to the shared database.** It adds two columns that default to 0.
 
 ---
 

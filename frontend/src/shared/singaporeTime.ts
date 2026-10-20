@@ -27,6 +27,12 @@ export function formatPeriod(startsAt: string, endsAt: string): string {
   return start.day === end.day ? `${start.day}, ${start.time}–${end.time}` : `${start.day} ${start.time} to ${end.day} ${end.time}`;
 }
 
+/** "Tuesday 1 December 2026, 18:00". */
+export function formatMoment(iso: string): string {
+  const p = parts(iso);
+  return `${p.day}, ${p.time}`;
+}
+
 /** "14:00". */
 export function formatTime(iso: string): string {
   return parts(iso).time;

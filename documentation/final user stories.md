@@ -563,18 +563,18 @@ Sprint allocation is in `plan.md` §10 and `sprint-reallocation.csv`.
 
 **Acceptance Criteria**
 
-* Only the coordinator assigned to the event can place a hold, and only for an event not in status Completed, Cancelled, or Rejected.  
-* A hold records the venue, date, start and end time, the event, the holding coordinator, and the timestamp.  
+* ⚠ **Week 9 answer (CQ-06):** only the coordinator assigned to the event can **request** a hold, and only for an event not in status Completed, Cancelled, or Rejected; the coordinator sets, per hold, how long before expiry to be reminded. Venue Staff of that venue **place** the requested hold and set its expiry date and time. A hold request reserves nothing until it is placed. *(Replaces "only the assigned coordinator can place a hold". Source: the customer's Week 9 clarification answers: "Venue Staff set and update the hold expiry date/time upon receiving the booking/hold request from the Coordinator"; "The warning time can be set by the coordinator per event hold".)*  
+* A hold records the venue, date, start and end time, the event, the holding coordinator, the timestamp of the request, and the Venue Staff member who placed it, when, and the expiry.  
 * At most one active tentative hold **or** confirmed booking exists for a given venue and period: a hold is refused when the period overlaps an existing hold or confirmed booking (two periods overlap when one starts before the other ends and ends after the other starts), and the refusal names the conflicting reference and period. Two events can never hold the same venue and period.  
 * ⚠ **CR-01:** this overlap check uses occupied periods, including the venue's setup and turnaround time (H3).  
-* Holds are allocated first-come, first-served. There is no override, appeal, or priority rule, and no user can displace an existing hold or confirmed booking.  
+* Holds are allocated first-come, first-served, counted from the moment Venue Staff place them. There is no override, appeal, or priority rule, and no user can displace an existing hold or confirmed booking.  
 * An event has at most one active hold per venue at a time (CR-03); placing a second hold on the same venue is refused and names the existing one.  
 * A held period is shown as held on the availability calendar (I1), labelled with the event reference, and is excluded from venue search results for that period (J1).  
-* A hold can be converted into a booking request (L1) for the same venue and period without re-checking availability, and is superseded by the resulting request.  
-* A hold can be released by the holding coordinator; the record is retained with status Released and the period becomes available again.  
+* A hold can be converted into a booking request (L1) for the same venue and period without re-checking availability, and is superseded by the resulting request. The period stays held while the request is pending: approving it (M1) confirms the held period, and rejecting (M2) or withdrawing (L2) it releases the period.  
+* A hold can be released by the holding coordinator, whether still requested or placed; the record is retained with status Released and the period becomes available again.  
 * A hold is released automatically when the event is cancelled, as part of the release run in F4.  
 * A hold creates no confirmed booking and does not by itself allow the event to become Confirmed (F5).  
-* ⚠ **CR-04:** every hold has an expiry date and time and expires as described in L6. This replaces "holds do not expire in this release".
+* ⚠ **CR-04:** every hold has an expiry date and time and expires as described in L6. This replaces "holds do not expire in this release". L3 requires and stores the expiry (set by Venue Staff when placing, later than that moment) and the reminder lead time (a whole number of minutes, at least 1); expiring, reminders and extending the expiry are L6.
 
 #### **L4 — Book more than one venue for an event** ⚠ **NEW — CR-03 (Week 7)**
 

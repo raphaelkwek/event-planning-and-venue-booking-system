@@ -13,10 +13,11 @@ import {
   type BookingRequest,
   type EventBooking,
 } from "../api/bookingRequests.js";
+import { listEventHolds, NOT_HOLDABLE_STATUSES, releaseHold, reminderText, type Hold } from "../api/holds.js";
 import { toLocalInput } from "../api/venues.js";
 import { Refusal } from "../components/Refusal.js";
-import { BOOKING_REQUEST_APPEARANCE, BOOKING_REQUEST_LABELS, UNAVAILABILITY_LABELS } from "../shared/status.js";
-import { formatPeriod } from "../shared/singaporeTime.js";
+import { BOOKING_REQUEST_APPEARANCE, BOOKING_REQUEST_LABELS, UNAVAILABILITY_LABELS, HOLD_APPEARANCE, HOLD_LABELS } from "../shared/status.js";
+import { formatMoment, formatPeriod } from "../shared/singaporeTime.js";
 
 /**
  * L1, L2, L4, M2 — every venue request an event has made, each with its venue,
@@ -29,6 +30,7 @@ import { formatPeriod } from "../shared/singaporeTime.js";
  * disrupts it (I2) and the replacements asked for. A confirmed booking a block
  * disrupts offers the assigned coordinator "Find a replacement", which opens the
  * venue search for the booking's period.
+ * L3: also lists tentative holds and offers conversion or release.
  */
 
 const SLOT_LABELS: Record<EventBooking["status"], string> = { HELD: "Held", CONFIRMED: "Confirmed", RELEASED: "Released" };
@@ -53,21 +55,41 @@ export function EventVenueRequests() {
   const [event, setEvent] = useState<BookingEvent | null>(null);
   const [items, setItems] = useState<BookingRequest[]>([]);
   const [bookings, setBookings] = useState<EventBooking[]>([]);
+  const [holds, setHolds] = useState<Hold[]>([]);
   const [loadError, setLoadError] = useState<unknown>(null);
   const [withdrawing, setWithdrawing] = useState<BookingRequest | null>(null);
   const [withdrawError, setWithdrawError] = useState<unknown>(null);
+  const [releasing, setReleasing] = useState<Hold | null>(null);
+  const [releaseError, setReleaseError] = useState<unknown>(null);
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
     try {
-      const loaded = await listEventBookingRequests(session.token, id!);
+      const [loaded, held] = await Promise.all([listEventBookingRequests(session.token, id!), listEventHolds(session.token, id!)]);
       setEvent(loaded.event);
       setItems(loaded.items);
       setBookings(loaded.bookings ?? []);
+      setHolds(held.items);
     } catch (caught) {
       setLoadError(caught);
     }
   }, [session.token, id]);
+
+  async function confirmRelease() {
+    if (!releasing) return;
+    setBusy(true);
+    setReleaseError(null);
+    try {
+      await releaseHold(session.token, releasing.id);
+      navigate(`/events/${id}/venue-requests`, { replace: true, state: { notice: `${releasing.reference} released.` } });
+      setReleasing(null);
+      await load();
+    } catch (caught) {
+      setReleaseError(caught);
+    } finally {
+      setBusy(false);
+    }
+  }
 
   useEffect(() => {
     void load();
@@ -95,11 +117,15 @@ export function EventVenueRequests() {
 
   const assigned = event.assignedCoordinatorId === session.userId;
   const canRequest = assigned && BOOKABLE_STATUSES.includes(event.status);
+  const canHold = assigned && !(NOT_HOLDABLE_STATUSES as readonly string[]).includes(event.status);
 
   return (
     <div style={{ maxWidth: 1100 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
         <h2 style={{ flex: 1, marginBottom: 4 }}>Venue requests</h2>
+        {canHold && (
+          <Button onClick={() => navigate(`/events/${event.id}/holds/new`)}>Request a hold</Button>
+        )}
         {canRequest && (
           <Button appearance="primary" onClick={() => navigate(`/events/${event.id}/venue-requests/new`)}>
             Request a venue
@@ -236,6 +262,74 @@ export function EventVenueRequests() {
           </table>
         </>
       )}
+
+      <h3 style={{ marginTop: 24 }}>Holds</h3>
+      {holds.length === 0 ? (
+        <p>No venue has been held for this event.</p>
+      ) : (
+        <table style={{ borderCollapse: "collapse", width: "100%" }} aria-label="Holds">
+          <thead>
+            <tr>
+              {["Reference", "Venue", "Date and time", "Status", "Expires", "Reminder", ""].map((heading, i) => (
+                <th key={i} style={cell}>
+                  {heading}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {holds.map((hold) => (
+              <tr key={hold.id} aria-label={hold.reference}>
+                <td style={cell}>{hold.reference}</td>
+                <td style={cell}>{hold.venueName}</td>
+                <td style={cell}>{formatPeriod(hold.startsAt, hold.endsAt)}</td>
+                <td style={cell}>
+                  <Lozenge appearance={HOLD_APPEARANCE[hold.status]}>{HOLD_LABELS[hold.status]}</Lozenge>
+                </td>
+                <td style={cell}>{hold.expiresAt ? formatMoment(hold.expiresAt) : "Set when Venue Staff place it"}</td>
+                <td style={cell}>{reminderText(hold.reminderLeadMinutes)} before</td>
+                <td style={cell}>
+                  {assigned && hold.status === "HELD" && BOOKABLE_STATUSES.includes(event.status) && (
+                    <Button appearance="subtle" onClick={() => navigate(`/events/${event.id}/venue-requests/new?hold=${hold.id}`)}>
+                      Convert to request
+                    </Button>
+                  )}
+                  {assigned && (hold.status === "REQUESTED" || hold.status === "HELD") && (
+                    <Button appearance="subtle" onClick={() => setReleasing(hold)}>
+                      Release
+                    </Button>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+
+      <ModalTransition>
+        {releasing && (
+          <Modal onClose={() => setReleasing(null)}>
+            <ModalHeader>
+              <ModalTitle>Release {releasing.reference}?</ModalTitle>
+            </ModalHeader>
+            <ModalBody>
+              <p>
+                The hold on {releasing.venueName}, {formatPeriod(releasing.startsAt, releasing.endsAt)}, will be released, and the
+                period becomes available to other events. The record is kept, and this can't be undone.
+              </p>
+              {releaseError ? <Refusal error={releaseError} /> : null}
+            </ModalBody>
+            <ModalFooter>
+              <Button appearance="subtle" onClick={() => setReleasing(null)}>
+                Cancel
+              </Button>
+              <Button appearance="danger" isDisabled={busy} onClick={() => void confirmRelease()}>
+                Release hold
+              </Button>
+            </ModalFooter>
+          </Modal>
+        )}
+      </ModalTransition>
 
       <ModalTransition>
         {withdrawing && (

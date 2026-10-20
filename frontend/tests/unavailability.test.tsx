@@ -73,6 +73,12 @@ vi.mock("../src/api/bookingRequests.js", async () => {
   return { ...actual, listEventBookingRequests: (...args: unknown[]) => listEventBookingRequests(...args) };
 });
 
+// L3: the event's venue requests page also lists its holds; tests/holds.test.tsx covers them.
+vi.mock("../src/api/holds.js", async () => {
+  const actual = await vi.importActual<typeof import("../src/api/holds.js")>("../src/api/holds.js");
+  return { ...actual, listEventHolds: vi.fn(async () => ({ items: [] })) };
+});
+
 vi.mock("../src/api/users.js", () => ({ lookupUsers: vi.fn(async () => [{ id: "venue-staff", displayName: "Venue Staff One" }]) }));
 
 const { App } = await import("../src/App.js");

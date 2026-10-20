@@ -22,6 +22,8 @@ export const venueBodySchema = z.object({
     saturday: dayHours.optional(),
     sunday: dayHours.optional(),
   }),
+  setupMinutes: z.number({ invalid_type_error: "Setup time must be a whole number of minutes, 0 or more." }).optional(),
+  turnaroundMinutes: z.number({ invalid_type_error: "Turnaround time must be a whole number of minutes, 0 or more." }).optional(),
   isActive: z.boolean().optional(),
 });
 

@@ -62,7 +62,7 @@ function span(period: { startsAt: string; endsAt: string }, timeZone: string): s
 }
 
 function stateOf(period: CommittedPeriod): CalendarState {
-  if (period.kind === "BOOKING") return period.bookingStatus === "PENDING" ? "PENDING" : "CONFIRMED";
+  if (period.kind === "BOOKING") return period.bookingStatus ?? "CONFIRMED";
   return period.kind;
 }
 
@@ -194,7 +194,7 @@ function DateField(props: { label: string; value: string; onChange: (value: stri
 }
 
 function Legend() {
-  const states: CalendarState[] = ["CONFIRMED", "PENDING", "SETUP", "TURNAROUND", "UNAVAILABLE", "OUTSIDE_HOURS", "FREE"];
+  const states: CalendarState[] = ["CONFIRMED", "HELD", "PENDING", "SETUP", "TURNAROUND", "UNAVAILABLE", "OUTSIDE_HOURS", "FREE"];
   return (
     <p aria-hidden style={{ display: "flex", gap: 12, flexWrap: "wrap", fontSize: 12 }}>
       {states.map((state) => (

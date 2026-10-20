@@ -19,11 +19,11 @@ export const DUPLICATE_REQUEST_CONSTRAINT = "booking_request_no_duplicate_pendin
 /** Postgres exclusion_violation. */
 const EXCLUSION_VIOLATION = "23P01";
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 /** An instant with its offset, so it never depends on the server's time zone. */
 // Stryker disable next-line Regex: dropping `$` is equivalent, as Date.parse refuses any text after the offset; `^` is tested.
 const INSTANT = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:\d{2})$/;
-const INSTANT_MESSAGE = "Enter a date and time with its offset, for example 2026-12-02T14:00+08:00.";
+export const INSTANT_MESSAGE = "Enter a date and time with its offset, for example 2026-12-02T14:00+08:00.";
 
 export interface BookingRequestInput {
   eventId: string;
@@ -41,7 +41,7 @@ export interface BookingRequestInput {
   justification: string | null;
 }
 
-/** A date and time with its offset, as a UTC instant; null when it isn't one. I2 reads a block's times the same way. */
+/** Parse an offset date-time as a UTC instant for booking requests, holds and unavailability. */
 export function instant(value: unknown): string | null {
   if (typeof value !== "string" || !INSTANT.test(value)) return null;
   const time = Date.parse(value);

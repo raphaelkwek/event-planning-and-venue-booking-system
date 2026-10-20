@@ -16,6 +16,7 @@ import {
   type OverlappingBooking,
 } from "../repo/bookingDecisions.js";
 import { findBookingRequest, lockBookingRequest, type BookingRequest } from "../repo/bookingRequests.js";
+import { confirmHeldSlotForRequest, HeldSlotNotHeldError, releaseHeldSlotForRequest } from "../repo/holds.js";
 import { insertVenueSlot, lockVenue } from "../repo/slots.js";
 import { BASE, bookingRequestRateLimit, present, requestNotFound, UUID } from "./bookingRequests.js";
 import { refuse } from "./errors.js";
@@ -116,23 +117,30 @@ export function bookingDecisionsRouter(sql: Sql) {
           // CR-02: release the disrupted booking first, so a replacement at the same venue can take its period.
           const replacedBookingId =
             locked.replacesBookingId && (await releaseReplacedBooking(tx, locked.replacesBookingId, actor.userId)) ? locked.replacesBookingId : null;
-          let bookingId: string;
-          try {
-            const booking = await insertVenueSlot(tx, {
-              venueId: locked.venueId,
-              eventId: locked.eventId,
-              reference: locked.reference,
-              startsAt,
-              endsAt,
-              setupMinutes: SETUP_MINUTES,
-              turnaroundMinutes: TURNAROUND_MINUTES,
-              status: "CONFIRMED",
-              actorUserId: actor.userId,
-            });
-            bookingId = booking.id;
-          } catch (error) {
-            if (!(error instanceof VenueSlotConflictError)) throw error;
-            throw new ApprovalOverlapError(await bookingsOverlapping(tx, locked.venueId, startsAt, endsAt, SETUP_MINUTES, TURNAROUND_MINUTES));
+          // L3: a request converted from a hold confirms the period the hold took,
+          // rather than releasing it and inserting another (implementation.md §4.6, rule 3).
+          let bookingId = await confirmHeldSlotForRequest(tx, locked.id, actor.userId).catch((error: unknown) => {
+            if (error instanceof HeldSlotNotHeldError) return null;
+            throw error;
+          });
+          if (!bookingId) {
+            try {
+              const booking = await insertVenueSlot(tx, {
+                venueId: locked.venueId,
+                eventId: locked.eventId,
+                reference: locked.reference,
+                startsAt,
+                endsAt,
+                setupMinutes: SETUP_MINUTES,
+                turnaroundMinutes: TURNAROUND_MINUTES,
+                status: "CONFIRMED",
+                actorUserId: actor.userId,
+              });
+              bookingId = booking.id;
+            } catch (error) {
+              if (!(error instanceof VenueSlotConflictError)) throw error;
+              throw new ApprovalOverlapError(await bookingsOverlapping(tx, locked.venueId, startsAt, endsAt, SETUP_MINUTES, TURNAROUND_MINUTES));
+            }
           }
 
           await approveBookingRequest(tx, locked.id, actor.userId, bookingId);
@@ -183,6 +191,8 @@ export function bookingDecisionsRouter(sql: Sql) {
         const locked = (await lockBookingRequest(tx, request.id))!;
         if (locked.status !== "PENDING") return { code: "NOT_PENDING", locked } as const;
         await rejectBookingRequest(tx, locked.id, actor.userId, read.reason, read.suggestion);
+        // L3: a request converted from a hold gives back the period the hold took.
+        await releaseHeldSlotForRequest(tx, locked.id, actor.userId);
         const rejected = (await findBookingRequest(tx, locked.id))!;
         await writeVenueOutbox(tx, {
           messageType: "venue-booking.request-rejected",

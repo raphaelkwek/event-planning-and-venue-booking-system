@@ -31,6 +31,8 @@ interface VenueRow {
   facilities: string[];
   accessibility_features: string[];
   operating_hours: VenueInput["operatingHours"];
+  setup_minutes: number;
+  turnaround_minutes: number;
   status: "ACTIVE" | "INACTIVE";
   created_at: Date;
   created_by: string | null;
@@ -48,6 +50,8 @@ function toRecord(row: VenueRow): VenueRecord {
     facilities: row.facilities,
     accessibilityFeatures: row.accessibility_features,
     operatingHours: row.operating_hours,
+    setupMinutes: row.setup_minutes,
+    turnaroundMinutes: row.turnaround_minutes,
     isActive: row.status === "ACTIVE",
     createdAt: row.created_at.toISOString(),
     createdBy: row.created_by,
@@ -61,10 +65,12 @@ const status = (venue: VenueInput) => (venue.isActive ? "ACTIVE" : "INACTIVE");
 export async function insertVenue(tx: TransactionSql, venue: VenueInput, actorId: string): Promise<VenueRecord> {
   const [row] = await tx<VenueRow[]>`
     insert into venue.venues
-      (name, building, max_capacity, layouts, facilities, accessibility_features, operating_hours, status, created_by, updated_by)
+      (name, building, max_capacity, layouts, facilities, accessibility_features, operating_hours,
+       setup_minutes, turnaround_minutes, status, created_by, updated_by)
     values
       (${venue.name}, ${venue.building}, ${venue.maxCapacity}, ${tx.json(venue.layouts as never)}, ${venue.facilities},
-       ${venue.accessibilityFeatures}, ${tx.json(venue.operatingHours as never)}, ${status(venue)}, ${actorId}, ${actorId})
+       ${venue.accessibilityFeatures}, ${tx.json(venue.operatingHours as never)}, ${venue.setupMinutes},
+       ${venue.turnaroundMinutes}, ${status(venue)}, ${actorId}, ${actorId})
     returning *
   `;
   return toRecord(row!);
@@ -99,6 +105,8 @@ export async function updateVenue(tx: TransactionSql, id: string, venue: VenueIn
       facilities = ${venue.facilities},
       accessibility_features = ${venue.accessibilityFeatures},
       operating_hours = ${tx.json(venue.operatingHours as never)},
+      setup_minutes = ${venue.setupMinutes},
+      turnaround_minutes = ${venue.turnaroundMinutes},
       status = ${status(venue)},
       updated_at = now(),
       updated_by = ${actorId}
