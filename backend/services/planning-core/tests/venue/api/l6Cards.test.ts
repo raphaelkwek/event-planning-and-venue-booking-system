@@ -509,6 +509,19 @@ describe("hold expiry (L6)", () => {
   });
 });
 
+describe("a reminder after the expiry (L6, not a card)", () => {
+  it("does not remind when the expiry has passed: too-late, no hold-expiring message, reminded_at stays empty", async () => {
+    const venueId = await newVenue(VENUE_NAME, A.vs);
+    const e1 = await newEvent(A.c1);
+    const h1 = await heldHold({ eventId: e1.id, venueId });
+    await backdate(h1.id);
+
+    expect(await inTx((tx) => remindHoldIfDue(tx, h1.id))).toEqual({ outcome: "too-late" });
+    expect((await lookUp(h1.id)).reminded_at).toBeNull();
+    expect(await messagesOf(h1.id, "venue-booking.hold-expiring")).toHaveLength(0);
+  });
+});
+
 describe("Venue Staff's placed holds (L6, not a card)", () => {
   const placed = () => request(app).get("/api/v1/holds/placed").set(bearer);
 

@@ -424,13 +424,15 @@ export type RemindOutcome =
   | { outcome: "reminded"; message: string }
   | { outcome: "not-due"; remindAt: string }
   | { outcome: "already" }
+  /** The expiry has passed: a reminder would arrive after the hold is gone. */
+  | { outcome: "too-late" }
   | { outcome: "gone"; status: HoldStatus | null };
 
 /**
  * L6: reminds the holding coordinator if the hold is Held, not yet reminded of
  * this expiry, and `now` (the database's clock unless given) has reached the
  * expiry minus the lead time. Decided under the hold's row lock, so a reminder
- * is written at most once per expiry. `gone` carries the hold's status, null
+ * is written at most once per expiry, and never at or after the expiry (`too-late`). `gone` carries the hold's status, null
  * when there is no such hold.
  */
 export async function remindHoldIfDue(tx: TransactionSql, holdId: string, now?: Date): Promise<RemindOutcome> {
@@ -440,6 +442,7 @@ export async function remindHoldIfDue(tx: TransactionSql, holdId: string, now?: 
   const remindAt = reminderAt(hold.expiresAt!, hold.reminderLeadMinutes);
   const at = now ?? (await tx<{ now: Date }[]>`select now() as now`)[0]!.now;
   if (at.getTime() < remindAt.getTime()) return { outcome: "not-due", remindAt: remindAt.toISOString() };
+  if (at.getTime() >= new Date(hold.expiresAt!).getTime()) return { outcome: "too-late" };
   await tx`update venue.holds set reminded_at = ${at}, updated_at = now() where id = ${hold.id}`;
   const message = await writeVenueOutbox(tx, {
     messageType: "venue-booking.hold-expiring",

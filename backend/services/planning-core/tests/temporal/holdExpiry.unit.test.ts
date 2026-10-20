@@ -280,4 +280,13 @@ describe("HoldExpiry (L6, CR-04)", () => {
       expect(fake.expires).toHaveLength(2);
     });
   });
+
+  it("goes on to the expiry when the reminder answers too-late", async () => {
+    const fake = fakeHold({ remind: [{ outcome: "too-late" }] });
+    await run(fake, async (t0) => {
+      expect(await (await start(t0 + 120 * MINUTE)).result()).toEqual({ outcome: "expired" });
+      expect(fake.reminds).toHaveLength(1);
+      near(fake.expires[0], t0 + 120 * MINUTE);
+    });
+  });
 });
