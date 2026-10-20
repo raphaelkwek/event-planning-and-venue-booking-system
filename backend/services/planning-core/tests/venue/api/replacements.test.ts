@@ -33,6 +33,18 @@ const COORDINATOR = "a9999999-0000-0000-0000-000000000082";
 const STAFF = "a9999999-0000-0000-0000-000000000083";
 const bearer = { Authorization: "Bearer test-token" };
 
+/** Open every weekday 08:00–22:00, so a request for 14:00–18:00 is suitable and needs no justification (K2). */
+const open = (opensAt: string, closesAt: string) => ({ opensAt, closesAt });
+const HOURS = {
+  monday: open("08:00", "22:00"),
+  tuesday: open("08:00", "22:00"),
+  wednesday: open("08:00", "22:00"),
+  thursday: open("08:00", "22:00"),
+  friday: open("08:00", "22:00"),
+  saturday: null,
+  sunday: null,
+};
+
 function signedInAs(role: string, userId: string) {
   vi.mocked(resolveCurrentUser).mockResolvedValue({ id: userId, email: "user@connectsphere.test", role: role as never });
 }
@@ -63,7 +75,7 @@ afterAll(async () => {
 async function newVenue(name: string): Promise<string> {
   const [row] = await sql<{ id: string }[]>`
     insert into venue.venues (name, building, max_capacity, layouts, operating_hours, created_by, updated_by)
-    values (${name}, 'L5 Test Building', 300, ${sql.json([{ name: "Theatre", capacity: 300 }])}, ${sql.json({})}, ${STAFF}, ${STAFF})
+    values (${name}, 'L5 Test Building', 300, ${sql.json([{ name: "Theatre", capacity: 300 }])}, ${sql.json(HOURS)}, ${STAFF}, ${STAFF})
     returning id
   `;
   await sql`insert into venue.venue_staff (venue_id, user_id, created_by, updated_by) values (${row!.id}, ${STAFF}, ${STAFF}, ${STAFF})`;
