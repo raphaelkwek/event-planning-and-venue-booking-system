@@ -25,6 +25,7 @@ import { requestBlockedMessage } from "../domain/unavailability.js";
 import { writeVenueOutbox } from "../events/outbox.js";
 import { activeBlocksOverlapping } from "../repo/bookingDecisions.js";
 import { listBookingsForEvent } from "../repo/eventBookings.js";
+import { conflictsOfRequests, type RequestConflict } from "../repo/requestConflicts.js";
 import { lockVenue } from "../repo/slots.js";
 import {
   DuplicateBookingRequestError,
@@ -204,8 +205,12 @@ export async function submitBookingRequest(
   }
 }
 
-/** The request as the API shows it: with its event's reference, and each value that differs from the event's. */
-export function present(request: BookingRequest, eventReference: string | null) {
+/**
+ * The request as the API shows it: with its event's reference, each value that
+ * differs from the event's, and, while it is pending, what it clashes with at
+ * the venue (N2). A decided or withdrawn request clashes with nothing.
+ */
+export function present(request: BookingRequest, eventReference: string | null, conflicts: RequestConflict[] = []) {
   return {
     ...request,
     eventReference,
@@ -213,7 +218,14 @@ export function present(request: BookingRequest, eventReference: string | null) 
       { startsAt: request.eventStartsAt, endsAt: request.eventEndsAt, attendance: request.eventAttendance },
       request,
     ),
+    conflicts,
   };
+}
+
+/** N2: each request presented with its conflicts, worked out in one query. */
+export async function presentAll(sql: Sql, requests: readonly BookingRequest[], referenceOf: (request: BookingRequest) => string | null) {
+  const conflicts = await conflictsOfRequests(sql, requests.filter((r) => r.status === "PENDING").map((r) => r.id));
+  return requests.map((request) => present(request, referenceOf(request), conflicts.get(request.id) ?? []));
 }
 
 /** The event, if the caller may see it (A3); null otherwise. */
@@ -238,7 +250,8 @@ export function bookingRequestsRouter(sql: Sql) {
       if (!read.ok) return refuse(res, 400, "VALIDATION_FAILED", INVALID, read.fields);
       const outcome = await submitBookingRequest(sql, req, read.request);
       if (!outcome.ok) return refuse(res, outcome.status, outcome.code, outcome.message, outcome.fields, outcome.details);
-      res.status(201).json(present(outcome.created, outcome.eventReference));
+      const [created] = await presentAll(sql, [outcome.created], () => outcome.eventReference);
+      res.status(201).json(created);
     } catch (error) {
       next(error);
     }
@@ -264,7 +277,7 @@ export function bookingRequestsRouter(sql: Sql) {
           venueRequirements: event.venueRequirements,
           accessibilityNeeds: event.accessibilityNeeds,
         },
-        items: items.map((item) => present(item, event.reference)),
+        items: await presentAll(sql, items, () => event.reference),
         // L5: the event's bookings, with what disrupts them and the replacements asked for.
         bookings: await listBookingsForEvent(sql, event.id),
       });
@@ -278,7 +291,7 @@ export function bookingRequestsRouter(sql: Sql) {
     try {
       const items = await listPendingForStaff(sql, req.actor!.userId);
       const references = await findEventReferences(sql, [...new Set(items.map((item) => item.eventId))]);
-      res.json({ items: items.map((item) => present(item, references.get(item.eventId) ?? null)) });
+      res.json({ items: await presentAll(sql, items, (item) => references.get(item.eventId) ?? null) });
     } catch (error) {
       next(error);
     }
