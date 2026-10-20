@@ -514,6 +514,7 @@ export async function changeHoldExpiry(
       holdReference: changed.reference,
       venueId: changed.venueId,
       expiresAt: changed.expiresAt,
+      reminderLeadMinutes: changed.reminderLeadMinutes,
       changedBy: actorUserId,
     },
   });

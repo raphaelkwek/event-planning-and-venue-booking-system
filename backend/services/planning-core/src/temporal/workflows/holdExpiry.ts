@@ -31,8 +31,8 @@ export interface HoldExpiryInput {
   holdId: string;
   /** The hold's expiry, RFC 3339. */
   expiresAt: string;
-  /** Null when unknown: the first reminder attempt then asks the database when it is due. */
-  reminderLeadMinutes: number | null;
+  /** How long before the expiry the coordinator is reminded; every placement and expiry change carries it. */
+  reminderLeadMinutes: number;
 }
 
 export type HoldExpiryResult = { outcome: "expired" } | { outcome: "gone"; status: string | null };
@@ -45,7 +45,7 @@ const { remindHoldIfDue, expireHoldIfDue } = proxyActivities<HoldExpiryActivitie
 
 export async function holdExpiry(input: HoldExpiryInput): Promise<HoldExpiryResult> {
   const lead = input.reminderLeadMinutes;
-  const remindAtFor = (expiry: number) => (lead === null ? 0 : expiry - lead * MINUTE_MS);
+  const remindAtFor = (expiry: number) => expiry - lead * MINUTE_MS;
 
   let expiresAt = Date.parse(input.expiresAt);
   let remindAt = remindAtFor(expiresAt);

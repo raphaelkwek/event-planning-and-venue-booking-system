@@ -442,7 +442,7 @@ describe("hold expiry (L6)", () => {
     expect(row).toMatchObject({ reminded_at: null, status: "HELD", slot_status: "HELD" });
     const messages = await messagesOf(h1.id, "venue-booking.hold-expiry-changed");
     expect(messages).toHaveLength(1);
-    expect(messages[0]!.data).toMatchObject({ holdId: h1.id, expiresAt: dayBefore("18:00") });
+    expect(messages[0]!.data).toMatchObject({ holdId: h1.id, expiresAt: dayBefore("18:00"), reminderLeadMinutes: 60 });
   });
 
   it("L6-T9 refuses a bad or unauthorised expiry change and stores nothing", async () => {

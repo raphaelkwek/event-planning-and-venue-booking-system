@@ -18,8 +18,7 @@ export interface HoldMessage {
 export interface HoldExpirySchedule {
   holdId: string;
   expiresAt: string;
-  /** Null when the message doesn't carry it (an expiry change); the workflow then asks the database. */
-  reminderLeadMinutes: number | null;
+  reminderLeadMinutes: number;
 }
 
 /**
@@ -30,11 +29,9 @@ export interface HoldExpirySchedule {
 export function holdExpiryScheduleFor(message: HoldMessage): HoldExpirySchedule | null {
   const { data } = message;
   if (typeof data.holdId !== "string" || typeof data.expiresAt !== "string") return null;
-  if (message.type === "venue-booking.hold-placed" && typeof data.reminderLeadMinutes === "number") {
+  const placedOrChanged = message.type === "venue-booking.hold-placed" || message.type === "venue-booking.hold-expiry-changed";
+  if (placedOrChanged && typeof data.reminderLeadMinutes === "number") {
     return { holdId: data.holdId, expiresAt: data.expiresAt, reminderLeadMinutes: data.reminderLeadMinutes };
-  }
-  if (message.type === "venue-booking.hold-expiry-changed") {
-    return { holdId: data.holdId, expiresAt: data.expiresAt, reminderLeadMinutes: null };
   }
   return null;
 }

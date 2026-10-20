@@ -56,12 +56,12 @@ describe("handleHoldExpiryMessage", () => {
 
   it("reschedules a hold whose expiry Venue Staff changed", async () => {
     const scheduler = fakeScheduler();
-    const data = { ...base(), changedBy: randomUUID() };
+    const data = { ...base(), reminderLeadMinutes: 90, changedBy: randomUUID() };
 
     const outcome = await handleHoldExpiryMessage(message("venue-booking.hold-expiry-changed", data), scheduler);
 
     expect(outcome).toEqual({ outcome: "scheduled", holdId: data.holdId });
-    expect(scheduler.scheduled).toEqual([{ holdId: data.holdId, expiresAt: data.expiresAt, reminderLeadMinutes: null }]);
+    expect(scheduler.scheduled).toEqual([{ holdId: data.holdId, expiresAt: data.expiresAt, reminderLeadMinutes: 90 }]);
   });
 
   it("ignores a message the workflow has no business with", async () => {

@@ -18,13 +18,13 @@ describe("holdExpiryScheduleFor", () => {
     expect(holdExpiryScheduleFor(message)).toEqual({ holdId, expiresAt, reminderLeadMinutes: 60 });
   });
 
-  it("resets the timers when the expiry changes; the message has no lead time", () => {
-    const message = { type: "venue-booking.hold-expiry-changed", data: { holdId, expiresAt } };
-    expect(holdExpiryScheduleFor(message)).toEqual({ holdId, expiresAt, reminderLeadMinutes: null });
+  it("resets the timers when the expiry changes, with the hold's lead time", () => {
+    const message = { type: "venue-booking.hold-expiry-changed", data: { holdId, expiresAt, reminderLeadMinutes: 90 } };
+    expect(holdExpiryScheduleFor(message)).toEqual({ holdId, expiresAt, reminderLeadMinutes: 90 });
   });
 
-  it("ignores a placed hold without a lead time", () => {
-    expect(holdExpiryScheduleFor({ type: "venue-booking.hold-placed", data: { holdId, expiresAt } })).toBeNull();
+  it.each(["venue-booking.hold-placed", "venue-booking.hold-expiry-changed"])("ignores %s without a lead time", (type) => {
+    expect(holdExpiryScheduleFor({ type, data: { holdId, expiresAt } })).toBeNull();
   });
 
   it.each(["venue-booking.hold-expiring", "venue-booking.hold-expired", "event.status-changed"])("ignores %s", (type) => {
@@ -36,6 +36,6 @@ describe("holdExpiryScheduleFor", () => {
     [{ holdId }],
     [{ holdId: 1, expiresAt }],
   ])("ignores a message without a hold id and expiry: %o", (data) => {
-    expect(holdExpiryScheduleFor({ type: "venue-booking.hold-expiry-changed", data })).toBeNull();
+    expect(holdExpiryScheduleFor({ type: "venue-booking.hold-expiry-changed", data: { ...data, reminderLeadMinutes: 60 } })).toBeNull();
   });
 });

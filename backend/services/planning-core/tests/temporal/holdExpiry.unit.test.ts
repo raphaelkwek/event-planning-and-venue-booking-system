@@ -60,7 +60,7 @@ async function run<T>(fake: ReturnType<typeof fakeHold>, body: (t0: number) => P
   return worker.runUntil(async () => body(await env.currentTimeMs()));
 }
 
-function start(expiresAt: number, reminderLeadMinutes: number | null = 60) {
+function start(expiresAt: number, reminderLeadMinutes = 60) {
   const holdId = randomUUID();
   return env.client.workflow.start<typeof holdExpiry>("holdExpiry", {
     taskQueue: TASK_QUEUE,
@@ -144,23 +144,6 @@ describe("HoldExpiry (L6, CR-04)", () => {
       expect(result).toEqual({ outcome: "expired" });
       near(fake.reminds[0], t0);
       near(fake.expires[0], t0 + 30 * MINUTE);
-    });
-  });
-
-  it("goes by the database's reminder time when the lead time isn't known, and by the first answer's time after", async () => {
-    let remindAt = 0;
-    const fake = fakeHold();
-    fake.activities.remindHoldIfDue = async () => {
-      fake.reminds.push(await env.currentTimeMs());
-      return fake.reminds.length === 1 ? { outcome: "not-due", remindAt: new Date(remindAt).toISOString() } : { outcome: "already" };
-    };
-    await run(fake, async (t0) => {
-      remindAt = t0 + 90 * MINUTE;
-      await (await start(t0 + 120 * MINUTE, null)).result();
-      expect(fake.reminds).toHaveLength(2);
-      near(fake.reminds[0], t0);
-      near(fake.reminds[1], remindAt);
-      near(fake.expires[0], t0 + 120 * MINUTE);
     });
   });
 

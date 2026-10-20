@@ -134,6 +134,8 @@ export const holdExpiryChangedPayloadSchema = z.object({
   holdReference,
   venueId: z.string().uuid(),
   expiresAt: z.string().datetime(),
+  /** The hold's reminder lead, so the workflow can restart the reminder without asking the database. */
+  reminderLeadMinutes: z.number().int().min(1),
   changedBy: z.string().uuid(),
 });
 

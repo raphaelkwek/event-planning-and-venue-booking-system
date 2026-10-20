@@ -201,6 +201,7 @@ describe("L6: hold expiry messages", () => {
     holdReference: "HLD-000001",
     venueId: ids.venueId,
     expiresAt: "2026-12-02T06:00:00.000Z",
+    reminderLeadMinutes: 60,
     changedBy: "00000000-0000-0000-0000-000000000003",
   };
   const notice = {
