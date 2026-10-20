@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | The form listed the capacity condition then the operating-hours one ("The requested period … is outside Wednesday's operating hours 08:00–22:00."). The request was created Pending. Stored reasons: LAYOUT_CAPACITY FAILED, OPERATING_HOURS FAILED. |
+| Status | Pass |
+| Remarks | Commit: 1848a1f · Evidence: tests/K2/evidence/K2-T7.png · Environment: local throwaway Postgres + hosted Supabase Auth · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-20 |

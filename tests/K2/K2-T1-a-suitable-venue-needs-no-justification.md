@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | Step 1: no Justification box. Step 2 returned to the venue requests with "Booking request BKR-000038 submitted.", the request Pending. Step 3: the Venue Staff queue row shows Suitable and no justification. |
+| Status | Pass |
+| Remarks | Commit: 1848a1f · Evidence: tests/K2/evidence/K2-T1.png · Environment: local throwaway Postgres + hosted Supabase Auth · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-20 |

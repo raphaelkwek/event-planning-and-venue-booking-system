@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | Step 1 returned NOT_SUITABLE, one LAYOUT_CAPACITY FAILED condition (required 150, available 120, "Expected attendance 150 against layout capacity 120 (Classroom)."), the justification, requested_by the assigned coordinator and requested_at 2026-10-20T02:49:38.339Z. Step 2 changed Classroom to 200 through the venue editor. Step 3 returned exactly the same row: true. |
+| Status | Pass |
+| Remarks | Commit: 1848a1f · Evidence: tests/K2/evidence/K2-T5.png · Environment: local throwaway Postgres + hosted Supabase Auth · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-20 |

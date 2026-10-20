@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | The row for BKR-000040 shows "Not suitable", "Expected attendance 150 against layout capacity 120 (Classroom)." and "Justification: Only the auditorium has a stage; the extra 30 will stand at the back.". |
+| Status | Pass |
+| Remarks | Commit: 1848a1f · Evidence: tests/K2/evidence/K2-T6.png · Environment: local throwaway Postgres + hosted Supabase Auth · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-20 |

@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | Step 1 returned 422 JUSTIFICATION_REQUIRED: "Lee Kong Chian Auditorium is not suitable for this request. Give a justification to request it anyway.", field justification, one condition FACILITIES missing Livestream, message "Required facility absent: Livestream. The venue offers: Projector, Wireless microphones, Stage lighting."; 0 requests stored. Step 2 returned 201, PENDING suitabilityStatus NOT_SUITABLE, the condition and the justification. |
+| Status | Pass |
+| Remarks | Commit: 1848a1f · Evidence: tests/K2/evidence/K2-T10.png · Environment: local throwaway Postgres + hosted Supabase Auth · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-20 |

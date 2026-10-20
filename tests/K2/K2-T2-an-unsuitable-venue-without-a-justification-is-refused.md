@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | After step 2 the form showed "Not suitable", "Lee Kong Chian Auditorium is not suitable for this request. Give a justification to request it anyway.", the condition "Expected attendance 150 against layout capacity 120 (Classroom).", an empty Justification box and no reference. After step 3 it showed the same with "Give a justification: at least one character that isn't a space." under the box. Step 4 count = 0. |
+| Status | Pass |
+| Remarks | Commit: 1848a1f · Evidence: tests/K2/evidence/K2-T2.png · Environment: local throwaway Postgres + hosted Supabase Auth · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-20 |

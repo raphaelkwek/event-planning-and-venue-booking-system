@@ -46,6 +46,14 @@ without saying why. K2 lets them go ahead, but only with a justification Venue S
 - L1's first API test asked for the Classroom layout (120) for 150 people, which K2 now refuses
   without a justification, so the test sends one.
 
+## Verified
+
+- **All ten K2 cards pass** (K2-T1 to K2-T10, run 2026-10-20, with screenshots in
+  `tests/K2/evidence/`). The browser steps ran in Chromium against the web app and planning-core on a
+  throwaway local Postgres (not the shared database), signing in through the hosted Supabase Auth
+  with the seeded accounts; the API and SQL steps ran against the same local database. The
+  notification service and Kafka weren't running. CI is green on the branch.
+
 ## Worth knowing
 
 - **Through the form, only layout capacity and operating hours can fail**, because the form offers
