@@ -4,7 +4,7 @@ import { isDuplicatePending } from "../domain/bookingRequest.js";
 import type { ConditionResult } from "../domain/suitability.js";
 
 /**
- * L1, L2 — venue booking requests. SQL against the venue schema only. Whether a
+ * L1, L2, M1, M2 — venue booking requests. SQL against the venue schema only. Whether a
  * new request duplicates a pending one is the exclusion constraint's decision
  * (migration venue/0005); nothing here checks first and then writes.
  */
@@ -34,12 +34,26 @@ export interface BookingRequest {
   requestedAt: string;
   withdrawnBy: string | null;
   withdrawnAt: string | null;
+  requestedAt: string;
+  withdrawnBy: string | null;
+  withdrawnAt: string | null;
+  /** M1, M2: the Venue Staff member who decided, and when. */
+  decidedBy: string | null;
+  decidedAt: string | null;
+  /** M1: the confirmed booking the approval created. */
+  bookingId: string | null;
+  /** M2: why it was rejected, and any alternative suggested. */
+  rejectionReason: string | null;
+  suggestedAlternative: string | null;
+  /** I2: a block overlaps this pending request. */
+  requiresReconfirmation: boolean;
   /** K2: assessed when submitted; null on requests made before K2 (not assessed). */
   suitabilityStatus: SuitabilityStatus | null;
   /** K2: the failing conditions as evaluated then. */
   suitabilityReasons: ConditionResult[] | null;
   /** K2: why a venue that isn't suitable was requested anyway. */
   justification: string | null;
+
 }
 
 export interface NewBookingRequest {
@@ -92,9 +106,19 @@ interface Row {
   requested_at: Date;
   withdrawn_by: string | null;
   withdrawn_at: Date | null;
+  requested_at: Date;
+  withdrawn_by: string | null;
+  withdrawn_at: Date | null;
+  decided_by: string | null;
+  decided_at: Date | null;
+  booking_id: string | null;
+  rejection_reason: string | null;
+  suggested_alternative: string | null;
+  requires_reconfirmation: boolean;
   suitability_status: SuitabilityStatus | null;
   suitability_reasons: ConditionResult[] | null;
   unsuitable_justification: string | null;
+
 }
 
 function toRequest(row: Row): BookingRequest {
@@ -120,9 +144,19 @@ function toRequest(row: Row): BookingRequest {
     requestedAt: row.requested_at.toISOString(),
     withdrawnBy: row.withdrawn_by,
     withdrawnAt: row.withdrawn_at?.toISOString() ?? null,
+    requestedAt: row.requested_at.toISOString(),
+    withdrawnBy: row.withdrawn_by,
+    withdrawnAt: row.withdrawn_at?.toISOString() ?? null,
+    decidedBy: row.decided_by,
+    decidedAt: row.decided_at?.toISOString() ?? null,
+    bookingId: row.booking_id,
+    rejectionReason: row.rejection_reason,
+    suggestedAlternative: row.suggested_alternative,
+    requiresReconfirmation: row.requires_reconfirmation,
     suitabilityStatus: row.suitability_status,
     suitabilityReasons: row.suitability_reasons,
     justification: row.unsuitable_justification,
+
   };
 }
 
@@ -130,7 +164,11 @@ const COLUMNS = (db: Db) => db`
   r.id, r.reference, r.event_id, r.venue_id, v.name as venue_name, r.starts_at, r.ends_at, r.layout,
   r.expected_attendance, r.facilities, r.accessibility_features, r.event_starts_at, r.event_ends_at,
   r.event_attendance, r.differs_from_event, r.replaces_booking_id, r.status, r.requested_by, r.requested_at,
-  r.withdrawn_by, r.withdrawn_at, r.suitability_status, r.suitability_reasons, r.unsuitable_justification
+  r.id, r.reference, r.event_id, r.venue_id, v.name as venue_name, r.starts_at, r.ends_at, r.layout,
+  r.expected_attendance, r.facilities, r.accessibility_features, r.event_starts_at, r.event_ends_at,
+  r.event_attendance, r.differs_from_event, r.differences, r.replaces_booking_id, r.status, r.requested_by, r.requested_at,
+  r.withdrawn_by, r.withdrawn_at, r.decided_by, r.decided_at, r.booking_id, r.rejection_reason, r.suggested_alternative,
+  r.requires_reconfirmation, r.suitability_status, r.suitability_reasons, r.unsuitable_justification
 `;
 
 /**
@@ -179,7 +217,10 @@ export async function findBookingRequest(db: Db, id: string): Promise<BookingReq
   return rows[0] ? toRequest(rows[0]) : null;
 }
 
-/** L2: holds the request's row until the transaction ends, so two withdrawals can't both pass the Pending check. */
+/**
+ * L2, M1, M2: holds the request's row until the transaction ends, so two
+ * withdrawals or decisions can't both pass the Pending check.
+ */
 export async function lockBookingRequest(tx: TransactionSql, id: string): Promise<BookingRequest | null> {
   const rows = await tx<Row[]>`
     select ${COLUMNS(tx)} from venue.booking_requests r join venue.venues v on v.id = r.venue_id

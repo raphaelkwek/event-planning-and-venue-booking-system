@@ -1,8 +1,10 @@
 import { Router } from "express";
 import type { Sql } from "postgres";
 import { availabilityRouter } from "./api/availability.js";
+import { bookingDecisionsRouter } from "./api/bookingDecisions.js";
 import { bookingRequestsRouter } from "./api/bookingRequests.js";
 import { searchRouter } from "./api/search.js";
+import { unavailabilityRouter } from "./api/unavailability.js";
 import { suitabilityRouter } from "./api/suitability.js";
 import { venuesRouter } from "./api/venues.js";
 
@@ -13,7 +15,8 @@ import { venuesRouter } from "./api/venues.js";
  *
  * H1 maintains the catalogue and H2 reads it; I1 is the availability
  * calendar; J1 and J2 are the venue search; K1 assesses a venue's suitability
- * for an event. The booking stories (K2, L, M, N) add to this module.
+ * for an event. L1 and L2 raise and withdraw booking requests, and M1 and M2
+ * decide them; the other booking stories (K2, L, N) add to this module.
  * Routers go in api/, pure rules in domain/, SQL against the `venue` schema
  * only in repo/, and outbox writers and consumers in events/.
  */
@@ -28,5 +31,7 @@ export function venueRouter(sql: Sql): Router {
   router.use(availabilityRouter(sql));
   router.use(suitabilityRouter(sql));
   router.use(bookingRequestsRouter(sql));
+  router.use(bookingDecisionsRouter(sql));
+  router.use(unavailabilityRouter(sql));
   return router;
 }

@@ -17,8 +17,19 @@ import {
   readBookingRequest,
   suitabilityRecord,
 } from "../domain/bookingRequest.js";
+import {
+  readBookingRequest,
+  suitabilityRecord,
+} from "../domain/bookingRequest.js";
 import { assessSuitability, requirementsFromRequest } from "../domain/suitability.js";
+import { requestBlockedMessage } from "../domain/unavailability.js";
 import { writeVenueOutbox } from "../events/outbox.js";
+import { activeBlocksOverlapping } from "../repo/bookingDecisions.js";
+import { listBookingsForEvent } from "../repo/eventBookings.js";
+import { writeVenueOutbox } from "../events/outbox.js";
+import { activeBlocksOverlapping } from "../repo/bookingDecisions.js";
+import { listBookingsForEvent } from "../repo/eventBookings.js";
+import { lockVenue } from "../repo/slots.js";
 import {
   DuplicateBookingRequestError,
   findBookingRequest,
@@ -48,8 +59,8 @@ import { refuse } from "./errors.js";
  * for the same venue, and the exclusion constraint decides that (ADR-0006).
  */
 
-const BASE = "/api/v1/booking-requests";
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+export const BASE = "/api/v1/booking-requests";
+export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const NOT_ASSIGNED_REQUEST = "Only the event's assigned coordinator can request a venue for it.";
 const NOT_ASSIGNED_WITHDRAW = "Only the event's assigned coordinator can withdraw its requests.";
 const INVALID = "The request could not be submitted. Check the highlighted fields.";
@@ -72,7 +83,7 @@ export function bookingRequestRateLimit(): RequestHandler {
 }
 
 /** The request as the API shows it: with its event's reference, and each value that differs from the event's. */
-function present(request: BookingRequest, eventReference: string | null) {
+export function present(request: BookingRequest, eventReference: string | null) {
   return {
     ...request,
     eventReference,
@@ -91,7 +102,7 @@ function findEvent(sql: Sql, eventId: string, req: ActorRequest): Promise<EventP
 
 const eventNotFound = (res: Response) =>
   refuse(res, 404, "EVENT_NOT_FOUND", "No event with that id exists, or you can't see it.");
-const requestNotFound = (res: Response) =>
+export const requestNotFound = (res: Response) =>
   refuse(res, 404, "BOOKING_REQUEST_NOT_FOUND", "No booking request with that id exists, or you can't see it.");
 
 export function bookingRequestsRouter(sql: Sql) {
@@ -137,6 +148,11 @@ export function bookingRequestsRouter(sql: Sql) {
         if (input.replacesBookingId && !(await isReplaceableBooking(tx, input.replacesBookingId, event.id))) {
           return { code: "REPLACEMENT_NOT_VALID" } as const;
         }
+        // I2: no new request over recorded unavailability. Under the venue row lock,
+        // so a block recorded at the same moment either refuses this or flags it.
+        await lockVenue(tx, venue.id);
+        const blocks = await activeBlocksOverlapping(tx, venue.id, new Date(input.startsAt), new Date(input.endsAt), 0, 0);
+        if (blocks.length > 0) return { code: "UNAVAILABLE", blocks } as const;
         const created = await insertBookingRequest(tx, {
           ...input,
           ...suitability.record,
@@ -174,6 +190,7 @@ export function bookingRequestsRouter(sql: Sql) {
       });
 
       if (outcome.code === "REPLACEMENT_NOT_VALID") return refuse(res, 422, "REPLACEMENT_NOT_VALID", REPLACEMENT_NOT_VALID);
+      if (outcome.code === "UNAVAILABLE") return refuse(res, 409, "VENUE_UNAVAILABLE", requestBlockedMessage(venue.name, outcome.blocks));
       res.status(201).json(present(outcome.created, event.reference));
     } catch (error) {
       if (error instanceof DuplicateBookingRequestError) {
@@ -183,7 +200,7 @@ export function bookingRequestsRouter(sql: Sql) {
     }
   });
 
-  // L1, L4: one event's requests, with the event's values the request form starts from.
+  // L1, L4, L5: one event's requests and bookings, with the event's values the request form starts from.
   router.get(BASE, limiter, authenticate, requireRole("EVENT_COORDINATOR", "EVENT_ORGANISER"), async (req: ActorRequest, res: Response, next: NextFunction) => {
     try {
       const eventId = typeof req.query.eventId === "string" ? req.query.eventId : "";
@@ -204,6 +221,8 @@ export function bookingRequestsRouter(sql: Sql) {
           accessibilityNeeds: event.accessibilityNeeds,
         },
         items: items.map((item) => present(item, event.reference)),
+        // L5: the event's bookings, with what disrupts them and the replacements asked for.
+        bookings: await listBookingsForEvent(sql, event.id),
       });
     } catch (error) {
       next(error);
@@ -239,7 +258,7 @@ export function bookingRequestsRouter(sql: Sql) {
       });
 
       if (outcome.code === "NOT_PENDING") {
-        return refuse(res, 409, "BOOKING_REQUEST_NOT_PENDING", notPendingMessage(outcome.locked.reference, outcome.locked.status));
+        return refuse(res, 409, "BOOKING_REQUEST_NOT_PENDING", notPendingMessage(outcome.locked.reference, outcome.locked.status, "withdrawn"));
       }
       res.json(present(outcome.withdrawn, event.reference));
     } catch (error) {

@@ -32,6 +32,16 @@ const valid = {
 };
 
 describe("readBookingRequest", () => {
+  it("refuses an id with anything before or after it, and a year beyond four digits", () => {
+    for (const eventId of [`x${EVENT}`, `${EVENT}x`]) {
+      expect(readBookingRequest({ ...valid, eventId }), eventId).toMatchObject({ ok: false, fields: [{ field: "eventId" }] });
+    }
+    expect(readBookingRequest({ ...valid, startsAt: "+012026-12-02T14:00+08:00" })).toMatchObject({
+      ok: false,
+      fields: [{ field: "startsAt" }],
+    });
+  });
+
   it("reads a whole request, trimmed, with repeats dropped and times in UTC (L1-T2)", () => {
     expect(readBookingRequest(valid)).toEqual({
       ok: true,
@@ -184,6 +194,7 @@ describe("isAssignedCoordinator", () => {
 
 describe("isDuplicatePending and duplicateMessage", () => {
   it("recognise only the duplicate-request constraint's refusal (L1-T8)", () => {
+    expect(isDuplicatePending({ code: "23P01", constraint_name: "booking_request_no_duplicate_pending" })).toBe(true);
     expect(isDuplicatePending({ code: "23P01", constraint_name: DUPLICATE_REQUEST_CONSTRAINT })).toBe(true);
     expect(isDuplicatePending({ code: "23P01", constraint_name: "venue_slot_no_overlap" })).toBe(false);
     expect(isDuplicatePending({ code: "23505", constraint_name: DUPLICATE_REQUEST_CONSTRAINT })).toBe(false);
@@ -203,9 +214,17 @@ describe("isDuplicatePending and duplicateMessage", () => {
 });
 
 describe("notPendingMessage", () => {
-  it("names the request's status (L2-T3)", () => {
-    expect(notPendingMessage("BKR-000001", "APPROVED")).toBe("BKR-000001 is Approved, so it can't be withdrawn. Only a pending request can be.");
-    expect(notPendingMessage("BKR-000002", "WITHDRAWN")).toContain("is Withdrawn");
+  it("names the request's status and what can't be done to it (L2-T3, M1-T9, M2-T7)", () => {
+    expect(notPendingMessage("BKR-000001", "APPROVED", "withdrawn")).toBe(
+      "BKR-000001 is Approved, so it can't be withdrawn. Only a pending request can be.",
+    );
+    expect(notPendingMessage("BKR-000002", "WITHDRAWN", "withdrawn")).toContain("is Withdrawn");
+    expect(notPendingMessage("BKR-000003", "REJECTED", "approved")).toBe(
+      "BKR-000003 is Rejected, so it can't be approved. Only a pending request can be.",
+    );
+    expect(notPendingMessage("BKR-000004", "APPROVED", "rejected")).toBe(
+      "BKR-000004 is Approved, so it can't be rejected. Only a pending request can be.",
+    );
   });
 });
 

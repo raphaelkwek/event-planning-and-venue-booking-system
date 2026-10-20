@@ -476,19 +476,24 @@ describe("POST /api/v1/booking-requests/:id/withdraw (L2)", () => {
   });
 
   it("refuses a request that isn't pending, naming its status, and an unknown one (L2-T3)", async () => {
-    const { id, reference } = await pending();
-    for (const [status, label] of [["APPROVED", "Approved"], ["REJECTED", "Rejected"]]) {
-      await sql`update venue.booking_requests set status = ${status} where id = ${id}`;
-      const res = await withdraw(id);
-      expect(res.status, status).toBe(409);
+    const { id, reference, event, venueId } = await pending();
+    const rejected = await submit(body(event.id, venueId, { startsAt: at("18:00"), endsAt: at("20:00") }));
+    signedInAs("VENUE_STAFF", STAFF);
+    await request(app).post(`/api/v1/booking-requests/${id}/approve`).set(bearer);
+    await request(app).post(`/api/v1/booking-requests/${rejected.body.id}/reject`).set(bearer).send({ reason: "Not available" });
+    signedInAs("EVENT_COORDINATOR", COORDINATOR);
+
+    for (const [made, label] of [[{ id, reference }, "Approved"], [rejected.body, "Rejected"]] as const) {
+      const res = await withdraw(made.id);
+      expect(res.status, label).toBe(409);
       expect(res.body.error).toMatchObject({
         code: "BOOKING_REQUEST_NOT_PENDING",
-        message: `${reference} is ${label}, so it can't be withdrawn. Only a pending request can be.`,
+        message: `${made.reference} is ${label}, so it can't be withdrawn. Only a pending request can be.`,
       });
     }
-    await sql`update venue.booking_requests set status = 'PENDING' where id = ${id}`;
-    expect((await withdraw(id)).status).toBe(200);
-    expect((await withdraw(id)).body.error.message).toContain("is Withdrawn");
+    const third = await submit(body(event.id, venueId, { startsAt: at("20:00"), endsAt: at("21:00") }));
+    expect((await withdraw(third.body.id)).status).toBe(200);
+    expect((await withdraw(third.body.id)).body.error.message).toContain("is Withdrawn");
 
     for (const unknown of [randomUUID(), "not-a-request"]) {
       const res = await withdraw(unknown);

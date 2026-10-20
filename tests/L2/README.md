@@ -15,12 +15,43 @@ L1-T9 also withdraws one of an event's two requests and checks the other is unto
 
 ## L2 decision statement (L2-T3)
 
-Approving and rejecting are M1 and M2. Until they're built, this sets a request's status the way
-they will. Replace `<REFERENCE>` and `<STATUS>` (`'APPROVED'` or `'REJECTED'`).
+Approving and rejecting are M1 and M2: `venuestaff@connectsphere.test` does either from "Booking
+requests". The statement comes in two forms, one per decision. Each decides a pending request the
+same way in SQL, as `venuestaff@`, recording who and when, as migration venue/0007 requires.
+Replace `<REFERENCE>`.
+
+Until 18 Oct 2026 it was a single update that set `<STATUS>` alone. Migration venue/0007 refuses
+that now, because an approval must name its booking and a rejection its reason.
+
+**Approve** (this also confirms the booking, as M1 does):
 
 ~~~sql
-update venue.booking_requests set status = <STATUS>, updated_at = now()
-where reference = '<REFERENCE>'
+with request as (
+  select id, venue_id, event_id, reference, starts_at, ends_at from venue.booking_requests
+  where reference = '<REFERENCE>' and status = 'PENDING'
+    and venue_id in (select id from venue.venues where created_by = '00000000-0000-0000-0000-000000000003')
+), booking as (
+  insert into venue.venue_slots (venue_id, event_id, reference, starts_at, ends_at, status, created_by, updated_by)
+  select venue_id, event_id, reference, starts_at, ends_at, 'CONFIRMED',
+         '00000000-0000-0000-0000-000000000003', '00000000-0000-0000-0000-000000000003'
+  from request
+  returning id
+)
+update venue.booking_requests r
+set status = 'APPROVED', decided_by = '00000000-0000-0000-0000-000000000003', decided_at = now(),
+    booking_id = booking.id, updated_at = now(), updated_by = '00000000-0000-0000-0000-000000000003'
+from request, booking
+where r.id = request.id;
+~~~
+
+**Reject:**
+
+~~~sql
+update venue.booking_requests
+set status = 'REJECTED', decided_by = '00000000-0000-0000-0000-000000000003', decided_at = now(),
+    rejection_reason = 'Set by the L2 decision statement', updated_at = now(),
+    updated_by = '00000000-0000-0000-0000-000000000003'
+where reference = '<REFERENCE>' and status = 'PENDING'
   and venue_id in (select id from venue.venues where created_by = '00000000-0000-0000-0000-000000000003');
 ~~~
 

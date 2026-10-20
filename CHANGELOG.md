@@ -75,6 +75,187 @@ without saying why. K2 lets them go ahead, but only with a justification Venue S
 
 ---
 
+# L5: Request a replacement venue for a disrupted booking
+
+**Timestamp:** 2026-10-19T17:04+08:00 (SGT)
+**Author:** Seann, via Claude
+**Scope:**
+- planning-core, venue module: `repo/eventBookings.ts` (new); the event's venue requests now include its bookings (`bookings` in `GET /api/v1/booking-requests?eventId=`). No migration, route or contract.
+- `planning-core.openapi.yaml`: the `EventBooking` schema and the response's `bookings`.
+- The web app:
+  - `EventVenueRequests` lists the event's bookings, with "Find a replacement";
+  - `VenueSearch` and `BookingRequestForm` accept replacement parameters.
+- Tests: planning-core (repo and integration) and web. Test cards `tests/L5/` (8), with FX-L5 and the L5 replacement statement. Traceability in `sprint-3.csv`.
+
+**Reason:** L5 (Sprint 3), new with CR-02. When a booked venue becomes unavailable (I2), the coordinator finds and requests a replacement in the system, and the event goes ahead.
+
+## What it does
+
+1. **"Venue requests" lists the event's bookings:** venue, period and status. A disrupted booking shows Requires reconfirmation and the unavailability behind it, any replacement requests show with their status, and a replaced booking shows "Released (replaced)".
+2. **"Find a replacement"** appears on a confirmed booking an active block disrupts, for the event's assigned coordinator only. It opens J1's search with the event's requirements and the booking's period; venues unavailable then aren't listed.
+3. **"Request this venue"** opens the request form for that venue and period, saying which booking it replaces. The request is linked (`replacesBookingId`, L1), and raising it changes nothing on the event.
+4. **The disrupted booking is kept, still flagged,** until a replacement is approved (M1 releases it as `replaced` and keeps it). If a replacement is rejected or withdrawn the booking stays as it was, and another can be requested.
+5. **The event is never cancelled** by any of this.
+
+## Notes for the team
+
+6. **J1's `VenueSearch` and L1's `BookingRequestForm`** gain replacement parameters (`replaces`, `booking`, `venue`, `from`, `to`, and `venueId` on the form). Without them both behave as before.
+7. **Three cards were corrected after their first run.** They assumed FX-BOOKING's event asks for a Theatre layout; it records no venue requirements, so no layout is pre-filled and the coordinator chooses it. The failing records weren't committed.
+8. **A replacement at `Mochtar Riady Hall` can't be decided:** no Venue Staff look after it in FX-BOOKING. Cases that approve or reject use `Seminar Room 2-1` through the L5 replacement statement.
+
+## Verified
+
+- **The 8 L5 cards pass in Chrome** through the automated runner, against `a97986f`. **The 20 L1 and L2 cards pass again**, against `73c1d60`.
+- **planning-core:** unit tests 772/772; integration tests all 1,455 pass, including CR-02's (the booking kept until its replacement is approved, and kept if it's rejected or withdrawn). Coverage is 96.7% of lines, 92.3% of branches and 95.9% of functions.
+- **web:** 261/261. **Lint, typecheck, `lint:api` and `lint:boundaries` pass.**
+
+---
+
+# I2: Venue Staff record periods when a venue can't be used
+
+**Timestamp:** 2026-10-19T16:33+08:00 (SGT)
+**Author:** Seann, via Claude
+**Scope:**
+- `contracts`: the `venue-booking.booking-disrupted` and `venue-booking.disruption-cleared` messages, `BLOCK_NOT_FOUND` and `BLOCK_ALREADY_REMOVED`, and the reason labels in CR-02's words ("Safety concern", "Other operational reason"). **Needs a second owner's review.**
+- planning-core, venue module:
+  - migrations `venue/0009_unavailability_disruptions.sql` and `venue/0010_validate_unavailability_removal.sql`;
+  - `domain/unavailability.ts`, `repo/unavailability.ts` and `api/unavailability.ts` (new);
+  - L1's submit refuses a request over an active block;
+  - M1's approval takes the venue lock before the request's (a deadlock fix).
+- notification: rules for the two messages.
+- `planning-core.openapi.yaml`: four routes, four schemas, the two codes, and the request's `requiresReconfirmation`.
+- The web app: `VenueUnavailability` (new), reached from the venue's page; "Requires reconfirmation" on a disrupted request.
+- Tests: contracts, planning-core (unit, repo and integration), notification and web. Test cards `tests/I2/` (13). FX-CALENDAR (I1), J1's fixture and M1-T5 updated for 0009; the test-data reset removes I2's records. Traceability in `sprint-3.csv`.
+
+**Reason:** I2 (Sprint 3), revised by CR-01 and CR-02. Coordinators learn when a booked venue becomes unavailable, so they can re-plan; L5 is how they request a replacement.
+
+## What it does
+
+1. **Venue Staff record a block** from the venue's "Unavailability": start, end, one of CR-02's five reason types and a description, all required, the end after the start. Only the venue's own Venue Staff can.
+2. **"Review" lists what the block would disrupt** before anything is recorded: each confirmed booking, hold and pending request, with its reference, the event's reference and the overlapping period. Bookings are compared by occupied period, setup and turnaround included (CR-01); periods that only touch don't overlap.
+3. **Recording never cancels or releases anything** (C-12).
+   - Each disrupted booking, hold and request is flagged Requires Reconfirmation and keeps its period; the event is untouched.
+   - `venue.block_disruptions` records which block flagged what, who and when.
+   - The venue row is locked first, as M1's approval does, so a block and an approval never interleave (implementation.md §4.6, rule 1).
+4. **The coordinator is told alternative arrangements are required** (CR-02): the event's assigned coordinator for a booking or hold, the requesting coordinator for a request. The notification names the venue, the booking, the event, the period and the reason.
+5. **The period closes:** it shows on the calendar, drops out of search, and L1 refuses a new request over it (`VENUE_UNAVAILABLE`, naming the block).
+6. **Removing a block** records who and when and keeps it. Each flag it set clears unless another active block still disrupts the same booking, and the coordinator is told which.
+
+## Notes for the team
+
+7. **M1's approval could deadlock against a block.** Approval locked the request, then the venue; recording a block locks the venue, then flags that same pending request. Approval now takes the venue lock first. A test runs both at once ten times.
+8. **Migration 0009 needs a removed block to say who removed it and when.** Any statement that inserts a block as `REMOVED` must now set `removed_by` and `removed_at`. FX-CALENDAR (`tests/I1/README.md`) and J1's fixture (`tests/J1/README.md`) are updated; **J1's owner should know its statement changed**.
+9. **M1-T5** now raises its request before its block, since a request can't be raised over one.
+10. **Holds** belong to L3, which isn't built; integration tests flag a held slot instead. **CQ-09** (does setup and turnaround widen a block?) is still open; a block's own period is used.
+11. **H3 (unmerged)** also sets Requires Reconfirmation. Removing a block would clear a flag H3 had set on the same booking; H3 should record its own reason when it lands.
+12. **The shared database has `venue/0009` and `0010`,** and S1/S2's `change/0001`–`0003`, applied with `npm run migrate`.
+
+## Verified
+
+- **The 13 I2 cards pass in Chrome** through the automated runner, against `a9a9cc4`.
+- **The I1, L1, L2, M1, M2 and N1 cards pass again** (60), against `ba2d786`.
+- **planning-core:**
+  - unit tests: 53 files and 772 tests pass, with the new rules at 100% line, branch and mutation coverage;
+  - integration tests: all 1,445 pass. Coverage is 96.7% of lines, 92.2% of branches and 95.9% of functions.
+- **contracts:** 110/110. **notification:** 77 unit tests pass at 100% coverage. **web:** 257/257.
+- **Lint, typecheck, `lint:api`, `lint:boundaries` and squawk pass.**
+
+---
+
+# N1: A venue is never double-booked
+
+**Timestamp:** 2026-10-18T01:46+08:00 (SGT)
+**Author:** Seann, via Claude
+**Scope:**
+- planning-core: five integration tests in `tests/venue/api/bookingDecisions.test.ts`. No production code.
+- Test cards `tests/N1/` (8), with statements for another event's booking, a release, and a second event wanting the same venue. Traceability in `sprint-3.csv`.
+
+**Reason:** N1 (Sprint 3). M1's approval enforces the double-booking rule, so N1 checks the rule through it.
+
+## What it does
+
+1. **The rule is the database's** (ADR-0006). Approving a request inserts the confirmed booking under the venue's row lock, and the exclusion constraint on `venue.venue_slots` refuses any booking whose occupied period overlaps another's. Setup and turnaround are included (CR-01), and periods are `[)`, so bookings that only touch are both allowed.
+2. **The new tests check, through the approval route:**
+   - a refused approval leaves the existing booking exactly as it was;
+   - touching bookings are both confirmed;
+   - exactly one of six overlapping approvals sent at once confirms, every refusal names the winner, and the losers stay Pending;
+   - released bookings, and withdrawn or rejected requests, never block a new booking;
+   - search leaves out a venue booked for one minute of the window, and lists one whose booking only touches it.
+
+## Notes for the team
+
+3. **N1-T7's precondition is fixed.** It made two confirmed bookings for the same period before releasing either, which the constraint refuses. Each booking is now released before the next is made.
+4. **Unavailability blocks (I2)** aren't built yet. Search and M1's approval already treat an active block with the same `&&` rule.
+5. **Execution dates:** the local runner's reporter wrote the UTC date, so tonight's runs after midnight said 17 Oct. Those records (N1, M1, M2, and the L1/L2 re-run) are corrected to 18 Oct. The reporter, which is gitignored, now uses Singapore time; anyone with their own copy should make the same change.
+
+## Verified
+
+- **The 8 N1 cards pass in Chrome** through the automated runner, against `7c418d5`.
+- **The six-way approval race passed five runs in a row.**
+- **planning-core integration tests:** all 1,288 pass. Coverage is 96.7% of lines, 92.0% of branches and 96.7% of functions.
+
+---
+
+# M1, M2: Venue Staff approve or reject a booking request
+
+**Timestamp:** 2026-10-18T01:32+08:00 (SGT)
+**Author:** Seann, via Claude
+**Scope:**
+- `contracts`: the `venue-booking.request-approved` and `venue-booking.request-rejected` messages, the `VENUE_UNAVAILABLE` error code, and `UNAVAILABILITY_REASON_LABELS`. **Needs a second owner's review.**
+- planning-core, venue module:
+  - migrations `venue/0007_booking_decisions.sql` and `venue/0008_validate_booking_decisions.sql`;
+  - `domain/bookingDecision.ts`, `repo/bookingDecisions.ts` and `api/bookingDecisions.ts` (new);
+  - a request now carries who decided it and when, its booking, and a rejection's reason and suggestion. `notPendingMessage` names the action it refuses.
+- notification: recipient rules for the two messages.
+- `planning-core.openapi.yaml`: two routes, the `BookingRejectionInput` schema, the decision fields on `BookingRequest`, and the new code.
+- The web app: Approve and Reject in `BookingRequestQueue`, and a rejection's reason and suggestion in `EventVenueRequests`.
+- Tests: contracts, planning-core (unit, repo and integration), notification and web. Test cards `tests/M1/` (11) and `tests/M2/` (7). L2's decision statement now records the decision as venue/0007 requires. Traceability in `sprint-3.csv`.
+
+**Reason:** M1 and M2 (Sprint 3). Venue Staff decide the requests L1 raises. N1 follows, with its own cases for the double-booking rule approval enforces.
+
+## What it does
+
+1. **Venue Staff approve from their "Booking requests" queue,** after a dialog naming the request, venue and period. Only the Venue Staff linked to the venue can decide its requests.
+2. **An approval confirms the booking:** a `CONFIRMED` slot in `venue.venue_slots` for the venue and requested period, under the request's `BKR-` reference.
+   - The request becomes Approved, with who approved it, when, and the booking.
+   - The booking shows as Confirmed on the calendar, and the venue drops out of search for that period.
+3. **An approval is refused, and nothing changes, when the period now overlaps:**
+   - recorded unavailability (`VENUE_UNAVAILABLE`), named with its type, reason and period;
+   - a hold or confirmed booking (`VENUE_SLOT_CONFLICT`), named with the other event's reference and its occupied period, setup and turnaround included (CR-01).
+4. **The exclusion constraint decides overlapping bookings** (ADR-0006).
+   - The request's row lock serialises decisions on one request, and the venue's row lock serialises approvals at one venue.
+   - Of two overlapping approvals at once, exactly one confirms.
+5. **CR-02:** approving a request that replaces a disrupted booking releases that booking with the reason `replaced`. The row is kept. If the approval is refused, the release is rolled back.
+6. **Rejecting needs a reason** that isn't only spaces, and takes an optional suggested alternative as free text.
+   - The request becomes Rejected, with the reason, the suggestion, who and when.
+   - The venue stays free, the request leaves the calendar, and the event's status doesn't change.
+   - The coordinator sees the reason and suggestion on "Venue requests", and can request again.
+7. **The requesting coordinator and the event's owner are notified** of either decision; a rejection's notification includes the reason and suggestion. Someone who is both is told once.
+8. **A decided request can't be decided again** (`BOOKING_REQUEST_NOT_PENDING`, naming its status).
+9. **The two routes have the same stopgap rate limit** as the others (ADR-0011, EN-12).
+
+## Notes for the team
+
+10. **The shared database has `venue/0007` and `0008`,** applied with `npm run migrate -- venue`. They aren't merged yet.
+11. **Setting a request's status directly no longer works.** 0007's check needs an approval to name its booking, a rejection its reason, and both to record who and when. The L2 decision statement in `tests/L2/README.md` now has two forms. Anything else that set a status directly should approve or reject through the API instead.
+12. **Venues have no setup or turnaround yet (H3),** so a booking M1 confirms has zero of each. Once H3 lands, approval should copy the venue's times.
+13. **M1-T2 waits for K2,** which records the unsuitability justification with a request. It stays Not Executed.
+14. **Mutation testing:** three of L1's mutants had survived, two regex anchors and a constraint name. Two are killed now; the third is an equivalent anchor, marked as such in the code.
+
+## Verified
+
+- **The 17 runnable M1 and M2 cards pass in Chrome** through the automated runner, against `9adf0ff`. **The 20 L1 and L2 cards pass again**, against `ff9e786`.
+- **planning-core:**
+  - unit tests: 49 files and 686 tests pass, with the decision rules at 100% line, branch and mutation coverage;
+  - integration tests: all 1,283 pass. Coverage is 96.7% of lines, 92.1% of branches and 96.7% of functions, above the floors.
+- **contracts:** 100/100. **notification:** 85/85. **web:** 213/213.
+- **Lint, typecheck, `lint:api`, `lint:boundaries` and squawk pass.**
+
+---
+
+
+---
+
 # S2: the coordinator approves or rejects a change request
 
 **Timestamp:** 2026-10-18T01:28+08:00 (SGT)

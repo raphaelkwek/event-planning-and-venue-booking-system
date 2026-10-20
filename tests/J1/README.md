@@ -107,10 +107,12 @@ slots as (
 ),
 blocks as (
   insert into venue.unavailability_blocks (
-    venue_id, starts_at, ends_at, reason_type, description, status, created_by, updated_by
+    venue_id, starts_at, ends_at, reason_type, description, status, created_by, updated_by, removed_by, removed_at
   )
   select venues.id, b.starts_at, b.ends_at, b.reason_type, b.description, b.status,
-         '00000000-0000-0000-0000-000000000003', '00000000-0000-0000-0000-000000000003'
+         '00000000-0000-0000-0000-000000000003', '00000000-0000-0000-0000-000000000003',
+         case b.status when 'REMOVED' then '00000000-0000-0000-0000-000000000003'::uuid end,
+         case b.status when 'REMOVED' then now() end
   from venues
   join (values
     ('FX Lecture Hall', timestamptz '2026-12-14 09:00+08', timestamptz '2026-12-14 13:00+08', 'MAINTENANCE', 'J1 fixture: stage lighting rewiring', 'ACTIVE'),

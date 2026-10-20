@@ -15,6 +15,7 @@ import { VenueEditor } from "./screens/VenueEditor.js";
 import { Notifications } from "./screens/Notifications.js";
 import { useUnreadCount } from "./shared/useUnreadCount.js";
 import { VenueDetail } from "./screens/VenueDetail.js";
+import { VenueUnavailability } from "./screens/VenueUnavailability.js";
 import { EventDetailsEditor } from "./screens/EventDetailsEditor.js";
 import { EventVenueRequests } from "./screens/EventVenueRequests.js";
 import { BookingRequestForm } from "./screens/BookingRequestForm.js";
@@ -128,6 +129,8 @@ const ROUTES: {
   { path: "/venues/:id/suitability", element: <VenueSuitability />, roles: ["EVENT_COORDINATOR"] },
   { path: "/venues/new", element: <VenueEditor />, roles: ["VENUE_STAFF"] },
   { path: "/venues/:id/edit", element: <VenueEditor />, roles: ["VENUE_STAFF"] },
+  // I2: Venue Staff record and remove a venue's unavailability; the server limits it to the venue's own staff.
+  { path: "/venues/:id/unavailability", element: <VenueUnavailability />, roles: ["VENUE_STAFF"] },
   {
     path: "/equipment",
     element: <EquipmentList />,
