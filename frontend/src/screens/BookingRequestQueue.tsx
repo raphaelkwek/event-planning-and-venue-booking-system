@@ -15,6 +15,7 @@ import {
 } from "../api/bookingRequests.js";
 import { ApiError } from "../api/client.js";
 import { Refusal } from "../components/Refusal.js";
+import { RequestConflicts } from "../components/RequestConflicts.js";
 import { useUserNames } from "../shared/useUserNames.js";
 import { formatInstant, SUITABILITY_APPEARANCE, SUITABILITY_LABELS } from "../shared/status.js";
 import { formatPeriod, formatTime } from "../shared/singaporeTime.js";
@@ -30,6 +31,9 @@ import { formatPeriod, formatTime } from "../shared/singaporeTime.js";
  *
  * M1, M2: each pending request can be approved or rejected with a reason, and the
  * queue shows the resulting state and action columns.
+ *
+ * N2: a request that clashes with another pending request or a confirmed booking
+ * at its venue is flagged, naming each; the decision stays with Venue Staff.
 
  */
 
@@ -186,6 +190,7 @@ export function BookingRequestQueue() {
                   <div style={{ fontSize: 12, color: "#626F86" }}>{formatInstant(item.requestedAt)}</div>
                 </td>
                 <td style={cell}>
+                  <RequestConflicts conflicts={item.conflicts} />
                   {item.requiresReconfirmation && (
                     <div style={{ marginBottom: 4 }}>
                       <Lozenge appearance="removed">Requires reconfirmation</Lozenge>
