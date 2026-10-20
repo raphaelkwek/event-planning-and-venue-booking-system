@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import SectionMessage from "@atlaskit/section-message";
 import Button from "@atlaskit/button/new";
 import { useSignedIn } from "../auth/SessionContext.js";
 import { ApiError } from "../api/client.js";
@@ -14,6 +15,10 @@ import { fromInputs, toInputs } from "../shared/singaporeTime.js";
  * differing from the event, which Venue Staff then see. The layout, facilities
  * and accessibility features are the chosen venue's, with the ones the event
  * asks for already chosen.
+ *
+ * L5 — opened from "Request this venue" in a replacement search, it starts from
+ * that venue and the disrupted booking's period instead, and the request is
+ * linked to the booking it replaces (CR-02).
  */
 
 interface Form {
@@ -48,6 +53,12 @@ export function BookingRequestForm() {
   const session = useSignedIn();
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
+  const [params] = useSearchParams();
+  // L5: the disrupted booking this request replaces, with the venue and period to start from.
+  const replaces = params.get("replaces");
+  const replacing = replaces
+    ? { bookingId: replaces, booking: params.get("booking") ?? "", venue: params.get("venue") ?? "", venueId: params.get("venueId") ?? "", from: params.get("from") ?? "", to: params.get("to") ?? "" }
+    : null;
   const [event, setEvent] = useState<BookingEvent | null>(null);
   const [venues, setVenues] = useState<VenueListItem[]>([]);
   const [venue, setVenue] = useState<Venue | null>(null);
@@ -60,19 +71,28 @@ export function BookingRequestForm() {
     Promise.all([listEventBookingRequests(session.token, id!), listVenues(session.token)])
       .then(([loaded, catalogue]) => {
         setEvent(loaded.event);
-        setForm(startFrom(loaded.event));
+        const start = startFrom(loaded.event);
+        // datetime-local values ("2026-12-02T14:00"): one date, a start and an end time.
+        setForm(
+          replacing?.from && replacing.to
+            ? { ...start, date: replacing.from.slice(0, 10), start: replacing.from.slice(11, 16), end: replacing.to.slice(11, 16) }
+            : start,
+        );
         setVenues(catalogue.items.filter((item) => item.isActive));
+        if (replacing?.venueId) void chooseVenue(replacing.venueId, loaded.event);
       })
       .catch(setLoadError);
+    // The replacement parameters are read once, when the form opens.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session.token, id]);
 
-  async function chooseVenue(venueId: string) {
+  async function chooseVenue(venueId: string, forEvent: BookingEvent | null = event) {
     setForm((current) => ({ ...current!, venueId, layout: "", facilities: [], accessibility: [] }));
     setVenue(null);
     if (!venueId) return;
     const chosen = await getVenue(session.token, venueId);
-    const wanted = event?.venueRequirements;
-    const needs = (event?.accessibilityNeeds ?? "").toLowerCase();
+    const wanted = forEvent?.venueRequirements;
+    const needs = (forEvent?.accessibilityNeeds ?? "").toLowerCase();
     const layout = chosen.layouts.find((l) => l.name.toLowerCase() === (wanted?.layout ?? "").toLowerCase())?.name ?? "";
     setVenue(chosen);
     setForm((current) => ({
@@ -107,6 +127,7 @@ export function BookingRequestForm() {
         // In the venue's own order, as the catalogue lists them.
         facilities: venue ? venue.facilities.filter((f) => form.facilities.includes(f)) : form.facilities,
         accessibilityFeatures: venue ? venue.accessibilityFeatures.filter((a) => form.accessibility.includes(a)) : form.accessibility,
+        ...(replacing ? { replacesBookingId: replacing.bookingId } : {}),
       });
       navigate(`/events/${event.id}/venue-requests`, { state: { notice: `Booking request ${created.reference} submitted.` } });
     } catch (caught) {
@@ -129,6 +150,17 @@ export function BookingRequestForm() {
       <p style={{ marginTop: 0, color: "#626F86" }}>
         {event.name} · {event.reference}. Times are Singapore time.
       </p>
+
+      {replacing && (
+        <div style={{ marginBottom: 16 }}>
+          <SectionMessage appearance="information" title="Replacement request">
+            <p style={{ margin: 0 }}>
+              This request replaces {replacing.booking} at {replacing.venue}, which is unavailable. That booking is kept until
+              this request is approved, and then released.
+            </p>
+          </SectionMessage>
+        </div>
+      )}
 
       {saveError && !hasFieldErrors ? <Refusal error={saveError} /> : null}
 

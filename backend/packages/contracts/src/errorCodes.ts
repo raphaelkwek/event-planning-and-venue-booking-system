@@ -55,6 +55,9 @@ export const ERROR_CODES = [
   "EVENT_NOT_HOLDABLE",
   "HOLD_NOT_REQUESTED",
   "HOLD_NOT_HELD",
+  "VENUE_UNAVAILABLE",
+  "BLOCK_NOT_FOUND",
+  "BLOCK_ALREADY_REMOVED",
 ] as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[number];

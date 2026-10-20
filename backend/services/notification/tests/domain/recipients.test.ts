@@ -320,3 +320,111 @@ describe("L1: tells the venue's Venue Staff about a new booking request", () => 
     expect(note!.message).toContain("Wednesday 2 December 2026 22:00 to Thursday 3 December 2026 10:00.");
   });
 });
+
+describe("M1, M2: tell the requesting coordinator and the event's owner what Venue Staff decided", () => {
+  const decided = {
+    bookingRequestId: "44444444-4444-4444-8444-444444444444",
+    reference: "BKR-000001",
+    venueId: "55555555-5555-4555-8555-555555555555",
+    venueName: "Lee Kong Chian Auditorium",
+    startsAt: "2026-12-02T06:00:00.000Z",
+    endsAt: "2026-12-02T10:00:00.000Z",
+    coordinatorId: coordinator,
+    ownerId: organiser,
+    decidedBy: "00000000-0000-0000-0000-000000000003",
+    decidedAt: at,
+  };
+  const approved = { ...decided, bookingId: "66666666-6666-4666-8666-666666666666", replacedBookingId: null };
+  const rejected = { ...decided, reason: "Already promised to another faculty", suggestion: "Seminar Room 2-1" };
+  const each = (type: string, text: string) =>
+    [coordinator, organiser].map((recipientUserId) => ({
+      ...common,
+      notificationType: type,
+      recipientUserId,
+      relatedReference: "BKR-000001",
+      message: text,
+    }));
+
+  it("tells both that the request was approved and the booking confirmed, naming the venue, event and period (M1-T8)", () => {
+    expect(notificationsFor(message("venue-booking.request-approved", approved))).toEqual(
+      each(
+        "venue-booking.request-approved",
+        "Booking request BKR-000001 was approved, and the booking is confirmed: Lee Kong Chian Auditorium for " +
+          "EVT-2026-0042 “Freshmen Orientation”, Wednesday 2 December 2026, 14:00–18:00.",
+      ),
+    );
+  });
+
+  it("tells both that the request was rejected, with the reason and the suggested alternative (M2-T5)", () => {
+    expect(notificationsFor(message("venue-booking.request-rejected", rejected))).toEqual(
+      each(
+        "venue-booking.request-rejected",
+        "Booking request BKR-000001 for Lee Kong Chian Auditorium was rejected: EVT-2026-0042 “Freshmen Orientation”, " +
+          "Wednesday 2 December 2026, 14:00–18:00. Reason: Already promised to another faculty. Suggested alternative: Seminar Room 2-1",
+      ),
+    );
+  });
+
+  it("gives the reason alone when nothing was suggested, without doubling its full stop", () => {
+    const [note] = notificationsFor(message("venue-booking.request-rejected", { ...rejected, reason: "Closed for exams.", suggestion: null }));
+    expect(note!.message).toMatch(/Reason: Closed for exams\.$/);
+    const [inner] = notificationsFor(message("venue-booking.request-rejected", { ...rejected, reason: "Closed. Exams", suggestion: null }));
+    expect(inner!.message).toMatch(/Reason: Closed\. Exams\.$/);
+  });
+
+  it("tells a coordinator who also owns the event once", () => {
+    const notes = notificationsFor(message("venue-booking.request-approved", { ...approved, ownerId: coordinator }));
+    expect(notes.map((n) => n.recipientUserId)).toEqual([coordinator]);
+  });
+});
+
+describe("I2: tell the coordinator when a block disrupts, or stops disrupting, their booking or request", () => {
+  const disrupted = {
+    blockId: "77777777-7777-4777-8777-777777777777",
+    venueId: "55555555-5555-4555-8555-555555555555",
+    venueName: "Lee Kong Chian Auditorium",
+    kind: "BOOKING",
+    reference: "BKR-000001",
+    coordinatorId: coordinator,
+    blockStartsAt: "2026-12-02T08:00:00.000Z",
+    blockEndsAt: "2026-12-02T11:00:00.000Z",
+    reasonType: "MAINTENANCE",
+    description: "Stage rigging inspection",
+    actedBy: "00000000-0000-0000-0000-000000000003",
+    actedAt: at,
+  };
+  const one = (type: string, text: string) => [
+    { ...common, notificationType: type, recipientUserId: coordinator, relatedReference: "BKR-000001", message: text },
+  ];
+
+  it("names the venue, booking, event, period and reason, and says alternative arrangements are required (I2-T8, CR-02)", () => {
+    expect(notificationsFor(message("venue-booking.booking-disrupted", disrupted))).toEqual(
+      one(
+        "venue-booking.booking-disrupted",
+        "Lee Kong Chian Auditorium is unavailable on Wednesday 2 December 2026, 16:00–19:00 (Maintenance: Stage rigging inspection), " +
+          "which disrupts booking BKR-000001 for EVT-2026-0042 “Freshmen Orientation”. The booking requires reconfirmation, " +
+          "and alternative arrangements are required.",
+      ),
+    );
+  });
+
+  it("names a pending request as a booking request, and a hold as a hold (I2-T9)", () => {
+    const [request] = notificationsFor(message("venue-booking.booking-disrupted", { ...disrupted, kind: "REQUEST" }));
+    expect(request!.message).toContain("which disrupts booking request BKR-000001 for EVT-2026-0042 “Freshmen Orientation”. The request requires reconfirmation");
+    const [hold] = notificationsFor(message("venue-booking.booking-disrupted", { ...disrupted, kind: "HOLD", reason: undefined }));
+    expect(hold!.message).toContain("which disrupts hold BKR-000001");
+    expect(hold!.message).toContain("The hold requires reconfirmation");
+  });
+
+  it("says when the removal clears the flag, and when another block still disrupts it (I2-T11)", () => {
+    const removed =
+      "The unavailability of Lee Kong Chian Auditorium on Wednesday 2 December 2026, 16:00–19:00 (Maintenance: Stage rigging inspection) was removed.";
+    expect(notificationsFor(message("venue-booking.disruption-cleared", { ...disrupted, stillDisrupted: false }))).toEqual(
+      one("venue-booking.disruption-cleared", `${removed} Booking BKR-000001 for EVT-2026-0042 “Freshmen Orientation” no longer requires reconfirmation.`),
+    );
+    const [still] = notificationsFor(message("venue-booking.disruption-cleared", { ...disrupted, stillDisrupted: true }));
+    expect(still!.message).toBe(
+      `${removed} Booking BKR-000001 for EVT-2026-0042 “Freshmen Orientation” still requires reconfirmation: other unavailability still overlaps it.`,
+    );
+  });
+});

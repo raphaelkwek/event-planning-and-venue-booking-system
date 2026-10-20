@@ -1690,6 +1690,179 @@ paths:
         "429": { $ref: "#/components/responses/RateLimitExceeded" }
         "503": { $ref: "#/components/responses/IdentityUnavailable" }
 
+  /api/v1/venues/{id}/unavailability:
+    parameters:
+      - $ref: "#/components/parameters/RecordId"
+    get:
+      tags: [Venues]
+      summary: A venue's active periods of unavailability (I2)
+      description: The venue's own Venue Staff only. Soonest first; removed blocks are left out.
+      operationId: listVenueUnavailability
+      responses:
+        "200":
+          description: The active blocks.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/UnavailabilityBlock" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403":
+          description: "`ROLE_NOT_AUTHORISED`: not one of the venue's Venue Staff."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "404":
+          description: "`VENUE_NOT_FOUND`."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "429": { $ref: "#/components/responses/RateLimitExceeded" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+    post:
+      tags: [Venues]
+      summary: Record a period of unavailability (I2)
+      description: |
+        The venue's own Venue Staff only, even over periods already booked (C-12). The block is
+        created; nothing it overlaps is cancelled or released. Each confirmed booking, hold and
+        pending request whose period it overlaps is flagged Requires Reconfirmation, recording the
+        block, who and when; a booking is compared by its occupied period, setup and turnaround
+        included (CR-01). Each one's coordinator is told, through `venue-booking.booking-disrupted`,
+        that alternative arrangements are required (CR-02). The venue row is locked first, as M1's
+        approval does, so a block and an approval never interleave. From then on the period is
+        unavailable on the calendar and in search, and new requests over it are refused.
+      operationId: recordVenueUnavailability
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UnavailabilityBlockInput" }
+      responses:
+        "201":
+          description: Recorded, with what it disrupted.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [block, disrupted]
+                properties:
+                  block: { $ref: "#/components/schemas/UnavailabilityBlock" }
+                  disrupted:
+                    type: array
+                    items: { $ref: "#/components/schemas/DisruptedItem" }
+        "400":
+          description: "`VALIDATION_FAILED`: a field is missing or invalid, or the end isn't after the start. Nothing is created."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403":
+          description: "`ROLE_NOT_AUTHORISED`: not one of the venue's Venue Staff."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "404":
+          description: "`VENUE_NOT_FOUND`."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "429": { $ref: "#/components/responses/RateLimitExceeded" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
+  /api/v1/venues/{id}/unavailability/impact:
+    parameters:
+      - $ref: "#/components/parameters/RecordId"
+    get:
+      tags: [Venues]
+      summary: What a block over a period would disrupt, before it is recorded (I2)
+      description: |
+        The venue's own Venue Staff only. Each confirmed booking, hold and pending request a block
+        from `startsAt` to `endsAt` would disrupt, with its reference, its event's reference and the
+        overlapping period. Records nothing.
+      operationId: reviewVenueUnavailability
+      parameters:
+        - { name: startsAt, in: query, required: true, schema: { type: string, format: date-time }, description: "With its offset." }
+        - { name: endsAt, in: query, required: true, schema: { type: string, format: date-time } }
+      responses:
+        "200":
+          description: What it would disrupt; empty when nothing.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/DisruptedItem" }
+        "400":
+          description: "`VALIDATION_FAILED`: a missing time, or an end that isn't after the start."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403":
+          description: "`ROLE_NOT_AUTHORISED`: not one of the venue's Venue Staff."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "404":
+          description: "`VENUE_NOT_FOUND`."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "429": { $ref: "#/components/responses/RateLimitExceeded" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
+  /api/v1/venues/{id}/unavailability/{blockId}/remove:
+    parameters:
+      - $ref: "#/components/parameters/RecordId"
+      - { name: blockId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [Venues]
+      summary: Remove a period of unavailability (I2)
+      description: |
+        The venue's own Venue Staff only. The block becomes Removed, with who and when, and is kept.
+        Its period is available again. Each booking, hold and pending request it had flagged has the
+        flag cleared, unless another active block still disrupts it, and its coordinator is told
+        through `venue-booking.disruption-cleared`.
+      operationId: removeVenueUnavailability
+      responses:
+        "200":
+          description: Removed, with what it had disrupted.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [block, cleared]
+                properties:
+                  block: { $ref: "#/components/schemas/UnavailabilityBlock" }
+                  cleared:
+                    type: array
+                    items: { $ref: "#/components/schemas/ClearedDisruption" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403":
+          description: "`ROLE_NOT_AUTHORISED`: not one of the venue's Venue Staff."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "404":
+          description: "`VENUE_NOT_FOUND`, or `BLOCK_NOT_FOUND` when the block doesn't exist at this venue."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "409":
+          description: "`BLOCK_ALREADY_REMOVED`."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "429": { $ref: "#/components/responses/RateLimitExceeded" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
   /api/v1/booking-requests:
     post:
       tags: [Venue bookings]
@@ -1731,7 +1904,7 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
         "409":
-          description: "`EVENT_NOT_BOOKABLE` (the event isn't approved, or is over; the message names its status), or `BOOKING_REQUEST_DUPLICATE` (the message names the overlapping pending request)."
+          description: "`EVENT_NOT_BOOKABLE` (the event isn't approved, or is over; the message names its status), or `BOOKING_REQUEST_DUPLICATE` (the message names the overlapping pending request), or `VENUE_UNAVAILABLE` (I2: the period overlaps recorded unavailability, which the message names)."
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
@@ -1757,17 +1930,23 @@ paths:
         - { name: eventId, in: query, required: true, schema: { type: string, format: uuid } }
       responses:
         "200":
-          description: The event and its requests.
+          description: |
+            The event, its requests, and its bookings (L5): each booking with the active blocks that
+            disrupt it (I2) and the replacement requests raised for it (CR-02). Released bookings are
+            included, so a replaced booking's record stays visible.
           content:
             application/json:
               schema:
                 type: object
-                required: [event, items]
+                required: [event, items, bookings]
                 properties:
                   event: { $ref: "#/components/schemas/BookingEvent" }
                   items:
                     type: array
                     items: { $ref: "#/components/schemas/BookingRequest" }
+                  bookings:
+                    type: array
+                    items: { $ref: "#/components/schemas/EventBooking" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404":
@@ -1830,6 +2009,110 @@ paths:
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403":
           description: "`ROLE_NOT_AUTHORISED`: not the event's assigned coordinator, or not an Event Coordinator."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "404":
+          description: "`BOOKING_REQUEST_NOT_FOUND`."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "409":
+          description: "`BOOKING_REQUEST_NOT_PENDING`: the message names the request's status."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "429":
+          description: "`RATE_LIMITED`."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
+  /api/v1/booking-requests/{id}/approve:
+    parameters:
+      - $ref: "#/components/parameters/RecordId"
+    post:
+      tags: [Venue bookings]
+      summary: Approve a pending booking request, confirming the booking (M1)
+      description: |
+        One of the venue's own Venue Staff, while the request is Pending. A confirmed booking is
+        created for the venue and the requested period, and the request becomes Approved, with who
+        approved it, when, and its `bookingId`. The coordinator who requested it and the event's
+        owner are notified through `venue-booking.request-approved`.
+
+        It is refused, and nothing changes, when the period now overlaps a hold, a confirmed booking
+        or recorded unavailability at the venue. Periods are compared as occupied periods, setup and
+        turnaround included (CR-01), and the exclusion constraint on venue slots decides (N1,
+        ADR-0006), so of two overlapping approvals at the same moment exactly one succeeds.
+
+        CR-02: when the request replaces a disrupted booking, that booking is released with the
+        reason `replaced`, and kept.
+      operationId: approveBookingRequest
+      responses:
+        "200":
+          description: Approved; the booking is confirmed.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BookingRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403":
+          description: "`ROLE_NOT_AUTHORISED`: not one of the venue's Venue Staff."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "404":
+          description: "`BOOKING_REQUEST_NOT_FOUND`."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "409":
+          description: |
+            `BOOKING_REQUEST_NOT_PENDING`, naming the request's status; `VENUE_SLOT_CONFLICT`, naming
+            each overlapping event and its occupied period; or `VENUE_UNAVAILABLE`, naming each period
+            of recorded unavailability with its type and reason.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "429":
+          description: "`RATE_LIMITED`."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
+  /api/v1/booking-requests/{id}/reject:
+    parameters:
+      - $ref: "#/components/parameters/RecordId"
+    post:
+      tags: [Venue bookings]
+      summary: Reject a pending booking request (M2)
+      description: |
+        One of the venue's own Venue Staff, while the request is Pending. The request becomes
+        Rejected, with the reason, any suggested alternative, who rejected it and when. The venue
+        stays free and the event's status doesn't change. The coordinator who requested it and the
+        event's owner are notified, with the reason and the suggestion, through
+        `venue-booking.request-rejected`.
+      operationId: rejectBookingRequest
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BookingRejectionInput" }
+      responses:
+        "200":
+          description: Rejected.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BookingRequest" }
+        "400":
+          description: "`VALIDATION_FAILED`: no reason, or a reason or suggestion over 1000 characters."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403":
+          description: "`ROLE_NOT_AUTHORISED`: not one of the venue's Venue Staff."
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
@@ -2239,6 +2522,9 @@ components:
         - EVENT_NOT_HOLDABLE
         - HOLD_NOT_REQUESTED
         - HOLD_NOT_HELD
+        - VENUE_UNAVAILABLE
+        - BLOCK_NOT_FOUND
+        - BLOCK_ALREADY_REMOVED
 
     ErrorEnvelope:
       type: object
@@ -2533,8 +2819,6 @@ components:
             friday: { $ref: "#/components/schemas/DayHours" }
             saturday: { $ref: "#/components/schemas/DayHours" }
             sunday: { $ref: "#/components/schemas/DayHours" }
-        setupMinutes: { type: integer, minimum: 0, description: "H3 (CR-01): minutes the venue needs before an event. Defaults to 0 on create; left out on update, it keeps the current value." }
-        turnaroundMinutes: { type: integer, minimum: 0, description: "H3 (CR-01): minutes the venue needs after an event. Same defaults as setupMinutes." }
         isActive: { type: boolean, description: "Defaults to true on create; left out on update, it keeps the current state." }
 
     Venue:
@@ -2703,8 +2987,8 @@ components:
         endsAt: { type: string, format: date-time }
         bookingStatus:
           type: string
-          enum: [CONFIRMED, HELD, PENDING]
-          description: On BOOKING, SETUP and TURNAROUND. HELD is a placed hold (L3); PENDING a pending booking request, including one converted from a hold.
+          enum: [CONFIRMED, PENDING]
+          description: On BOOKING, SETUP and TURNAROUND. A held slot is a pending request.
         eventReference:
           type: [string, "null"]
           description: On BOOKING, SETUP and TURNAROUND. Null if the event can no longer be found.
@@ -3103,7 +3387,7 @@ components:
         releasedAt: { type: [string, "null"], format: date-time }
     BookingRequest:
       type: object
-      required: [id, reference, eventId, eventReference, venueId, venueName, startsAt, endsAt, layout, expectedAttendance, facilities, accessibilityFeatures, eventStartsAt, eventEndsAt, eventAttendance, differsFromEvent, differences, replacesBookingId, status, requestedBy, requestedAt, withdrawnBy, withdrawnAt]
+      required: [id, reference, eventId, eventReference, venueId, venueName, startsAt, endsAt, layout, expectedAttendance, facilities, accessibilityFeatures, eventStartsAt, eventEndsAt, eventAttendance, differsFromEvent, differences, replacesBookingId, status, requestedBy, requestedAt, withdrawnBy, withdrawnAt, decidedBy, decidedAt, bookingId, rejectionReason, suggestedAlternative, requiresReconfirmation]
       properties:
         id: { type: string, format: uuid }
         reference: { type: string, pattern: "^BKR-\\d{6}$" }
@@ -3130,6 +3414,94 @@ components:
         requestedAt: { type: string, format: date-time }
         withdrawnBy: { type: [string, "null"], format: uuid }
         withdrawnAt: { type: [string, "null"], format: date-time }
+        decidedBy: { type: [string, "null"], format: uuid, description: "M1, M2: the Venue Staff member who approved or rejected it." }
+        decidedAt: { type: [string, "null"], format: date-time }
+        bookingId: { type: [string, "null"], format: uuid, description: "M1: the confirmed booking the approval created." }
+        rejectionReason: { type: [string, "null"], description: "M2: why it was rejected." }
+        suggestedAlternative: { type: [string, "null"], description: "M2: alternative dates or venues, if any were suggested." }
+        requiresReconfirmation: { type: boolean, description: "I2: an active block overlaps this pending request." }
+    EventBooking:
+      type: object
+      required: [id, reference, venueId, venueName, startsAt, endsAt, status, requiresReconfirmation, releaseReason, disruptions, replacements]
+      properties:
+        id: { type: string, format: uuid }
+        reference: { type: string }
+        venueId: { type: string, format: uuid }
+        venueName: { type: string }
+        startsAt: { type: string, format: date-time }
+        endsAt: { type: string, format: date-time }
+        status: { type: string, enum: [HELD, CONFIRMED, RELEASED] }
+        requiresReconfirmation: { type: boolean }
+        releaseReason: { type: [string, "null"], description: "CR-02: `replaced` once an approved replacement released it." }
+        disruptions:
+          type: array
+          description: The active blocks that disrupt it (I2).
+          items:
+            type: object
+            required: [blockId, reasonType, description, startsAt, endsAt]
+            properties:
+              blockId: { type: string, format: uuid }
+              reasonType: { type: string, enum: [MAINTENANCE, EQUIPMENT_FAILURE, RENOVATION, SAFETY, OTHER] }
+              description: { type: string }
+              startsAt: { type: string, format: date-time }
+              endsAt: { type: string, format: date-time }
+        replacements:
+          type: array
+          description: The requests raised to replace it (L5), oldest first.
+          items:
+            type: object
+            required: [id, reference, status, venueName]
+            properties:
+              id: { type: string, format: uuid }
+              reference: { type: string }
+              status: { type: string, enum: [PENDING, APPROVED, REJECTED, WITHDRAWN] }
+              venueName: { type: string }
+    UnavailabilityBlockInput:
+      type: object
+      required: [startsAt, endsAt, reasonType, description]
+      properties:
+        startsAt: { type: string, format: date-time, description: "With its offset." }
+        endsAt: { type: string, format: date-time, description: "After the start." }
+        reasonType: { type: string, enum: [MAINTENANCE, EQUIPMENT_FAILURE, RENOVATION, SAFETY, OTHER], description: "CR-02's reasons." }
+        description: { type: string, minLength: 1, maxLength: 1000, description: "At least one character that isn't whitespace." }
+    UnavailabilityBlock:
+      type: object
+      required: [id, venueId, startsAt, endsAt, reasonType, description, status, createdBy, createdAt, removedBy, removedAt]
+      properties:
+        id: { type: string, format: uuid }
+        venueId: { type: string, format: uuid }
+        startsAt: { type: string, format: date-time }
+        endsAt: { type: string, format: date-time }
+        reasonType: { type: string, enum: [MAINTENANCE, EQUIPMENT_FAILURE, RENOVATION, SAFETY, OTHER] }
+        description: { type: string }
+        status: { type: string, enum: [ACTIVE, REMOVED] }
+        createdBy: { type: string, format: uuid }
+        createdAt: { type: string, format: date-time }
+        removedBy: { type: [string, "null"], format: uuid }
+        removedAt: { type: [string, "null"], format: date-time }
+    DisruptedItem:
+      type: object
+      required: [kind, reference, eventReference, overlapFrom, overlapUntil]
+      properties:
+        kind: { type: string, enum: [BOOKING, HOLD, REQUEST] }
+        reference: { type: string, description: "The booking's, hold's or request's own reference." }
+        eventReference: { type: [string, "null"] }
+        overlapFrom: { type: string, format: date-time, description: "Where the block meets the booking's occupied period, or the request's period." }
+        overlapUntil: { type: string, format: date-time }
+    ClearedDisruption:
+      type: object
+      required: [kind, reference, eventReference, stillDisrupted]
+      properties:
+        kind: { type: string, enum: [BOOKING, HOLD, REQUEST] }
+        reference: { type: string }
+        eventReference: { type: [string, "null"] }
+        stillDisrupted: { type: boolean, description: "True when another active block still overlaps it, so its flag stays." }
+    BookingRejectionInput:
+      type: object
+      required: [reason]
+      properties:
+        reason: { type: string, minLength: 1, maxLength: 1000, description: "At least one character that isn't whitespace." }
+        suggestion: { type: [string, "null"], maxLength: 1000, description: "Suggested alternative dates or venues, as free text." }
     BookingRequestDifference:
       type: object
       required: [field, event, requested]

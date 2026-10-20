@@ -47,6 +47,9 @@ export function VenueDetail() {
           <Button onClick={() => navigate(`/venues/${venue.id}/suitability`)}>Check suitability</Button>
         )}
         {session.role === "VENUE_STAFF" && (
+          <Button onClick={() => navigate(`/venues/${venue.id}/unavailability`)}>Unavailability</Button>
+        )}
+        {session.role === "VENUE_STAFF" && (
           <Button appearance="primary" onClick={() => navigate(`/venues/${venue.id}/edit`)}>
             Edit venue
           </Button>
