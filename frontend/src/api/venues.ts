@@ -141,9 +141,9 @@ export function createVenue(token: string, body: VenueBody) {
   return request<Venue>(`${VENUE}/venues`, { method: "POST", token, body });
 }
 
-/** H3-T10: a booking or hold the venue's new setup or turnaround time made overlap others. */
+/** H3-T10, H3-T11: a booking, hold or pending request the venue's new setup or turnaround time made overlap others. */
 export interface FlaggedBooking {
-  kind: "BOOKING" | "HOLD";
+  kind: "BOOKING" | "HOLD" | "REQUEST";
   reference: string;
   eventReference: string | null;
   overlapsReferences: string[];

@@ -172,12 +172,15 @@ const RULES: Record<string, Rule> = {
         `The ${d.kind === "REQUEST" ? "request" : d.kind === "HOLD" ? "hold" : "booking"} requires reconfirmation, and alternative arrangements are required.`,
     ],
   ],
-  // I2: the block was removed; the flag clears unless other unavailability still overlaps it.
+  // I2: the block was removed; the flag clears unless other unavailability, or H3-T14 the venue's
+  // times, still make it overlap. Messages written before H3-T14 carry no stillCause: unavailability.
   "venue-booking.disruption-cleared": (d, event) => {
     const thing = `${capitalised(disruptedThing(d.kind!))} ${d.reference} for ${event}`;
-    const outcome = (d.stillDisrupted as unknown as boolean)
-      ? `${thing} still requires reconfirmation: other unavailability still overlaps it.`
-      : `${thing} no longer requires reconfirmation.`;
+    const outcome = !(d.stillDisrupted as unknown as boolean)
+      ? `${thing} no longer requires reconfirmation.`
+      : d.stillCause === "BUFFER_CONFLICT"
+        ? `${thing} still requires reconfirmation: with the venue's setup and turnaround time it still overlaps another booking, hold or request.`
+        : `${thing} still requires reconfirmation: other unavailability still overlaps it.`;
     return [[d.coordinatorId!, `The unavailability of ${d.venueName} on ${blockPeriodAndReason(d)} was removed. ${outcome}`]];
   },
   // L6: the holding coordinator is reminded before the hold expires, and told when it has.
@@ -188,16 +191,17 @@ const RULES: Record<string, Rule> = {
   "venue-booking.hold-expired": (d, event) => [
     [d.coordinatorId!, holdNotice(d, event, "expired", "The period is free for others.")],
   ],
-  // H3-T10, CR-01: the venue's new setup or turnaround time makes the coordinator's booking or hold
-  // overlap others. It is flagged for reconfirmation and nothing else changes.
+  // H3-T10, H3-T11, CR-01: the venue's new setup or turnaround time makes the coordinator's booking,
+  // hold or pending request overlap others. It is flagged for reconfirmation and nothing else changes.
   "venue-booking.buffer-conflict-flagged": (d, event) => {
     const overlaps = (d.overlapsReferences as unknown as string[]).join(" and ");
-    const thing = d.kind === "HOLD" ? "hold" : "booking";
+    const thing = disruptedThing(d.kind!);
+    const short = d.kind === "REQUEST" ? "request" : thing;
     return [
       [
         d.coordinatorId!,
         `${d.venueName} now needs ${d.setupMinutes} minutes of setup and ${d.turnaroundMinutes} minutes of turnaround, ` +
-          `so ${thing} ${d.reference} for ${event} now overlaps ${overlaps}. The ${thing} requires reconfirmation. ` +
+          `so ${thing} ${d.reference} for ${event} now overlaps ${overlaps}. The ${short} requires reconfirmation. ` +
           "It has not been removed, released or moved.",
       ],
     ];

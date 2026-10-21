@@ -42,8 +42,10 @@ export interface BookingRequest {
   /** M2: why it was rejected, and any alternative suggested. */
   rejectionReason: string | null;
   suggestedAlternative: string | null;
-  /** I2: a block overlaps this pending request. */
+  /** I2: a block overlaps this pending request; H3-T11: or the venue's times now make it overlap another. */
   requiresReconfirmation: boolean;
+  /** H3-T11: the live bookings, holds and pending requests the venue's times now make it overlap, soonest first. */
+  overlaps: string[];
   /** K2: assessed when submitted; null on requests made before K2 (not assessed). */
   suitabilityStatus: SuitabilityStatus | null;
   /** K2: the failing conditions as evaluated then. */
@@ -109,6 +111,7 @@ interface Row {
   rejection_reason: string | null;
   suggested_alternative: string | null;
   requires_reconfirmation: boolean;
+  overlaps: string[];
   suitability_status: SuitabilityStatus | null;
   suitability_reasons: ConditionResult[] | null;
   unsuitable_justification: string | null;
@@ -144,6 +147,7 @@ function toRequest(row: Row): BookingRequest {
     rejectionReason: row.rejection_reason,
     suggestedAlternative: row.suggested_alternative,
     requiresReconfirmation: row.requires_reconfirmation,
+    overlaps: row.overlaps,
     suitabilityStatus: row.suitability_status,
     suitabilityReasons: row.suitability_reasons,
     justification: row.unsuitable_justification,
@@ -156,7 +160,19 @@ const COLUMNS = (db: Db) => db`
   r.expected_attendance, r.facilities, r.accessibility_features, r.event_starts_at, r.event_ends_at,
   r.event_attendance, r.differs_from_event, r.replaces_booking_id, r.status, r.requested_by, r.requested_at,
   r.withdrawn_by, r.withdrawn_at, r.decided_by, r.decided_at, r.booking_id, r.rejection_reason, r.suggested_alternative,
-  r.requires_reconfirmation, r.suitability_status, r.suitability_reasons, r.unsuitable_justification
+  r.requires_reconfirmation, r.suitability_status, r.suitability_reasons, r.unsuitable_justification,
+  coalesce((
+    select json_agg(o.reference order by o.starts_at, o.reference)
+    from (
+      select os.reference, os.starts_at
+      from venue.buffer_conflicts c join venue.venue_slots os on os.id = c.other_slot_id
+      where c.booking_request_id = r.id and c.cleared_at is null and os.status in ('HELD', 'CONFIRMED')
+      union all
+      select orq.reference, orq.starts_at
+      from venue.buffer_conflicts c join venue.booking_requests orq on orq.id = c.other_booking_request_id
+      where c.booking_request_id = r.id and c.cleared_at is null and orq.status = 'PENDING'
+    ) o
+  ), '[]'::json) as overlaps
 `;
 
 /**

@@ -118,6 +118,7 @@ describe("saving new setup or turnaround time (H3-T10)", () => {
       flaggedBookings: [
         { kind: "BOOKING", reference: "BKR-000001", eventReference: "EVT-000123", overlapsReferences: ["BKR-000002"] },
         { kind: "HOLD", reference: "BKR-000002", eventReference: "EVT-000456", overlapsReferences: ["BKR-000001"] },
+        { kind: "REQUEST", reference: "BKR-000003", eventReference: "EVT-000789", overlapsReferences: ["BKR-000002"] },
       ],
     } as never);
     window.location.hash = "#/venues/venue-1/edit";
@@ -130,6 +131,7 @@ describe("saving new setup or turnaround time (H3-T10)", () => {
     expect(text(notice)).toContain("Venue saved. With the new setup and turnaround time, these now overlap and require reconfirmation:");
     expect(text(notice)).toContain("Booking BKR-000001 (EVT-000123) overlaps BKR-000002");
     expect(text(notice)).toContain("Hold BKR-000002 (EVT-000456) overlaps BKR-000001");
+    expect(text(notice)).toContain("Request BKR-000003 (EVT-000789) overlaps BKR-000002"); // H3-T11
     expect(text(notice)).toContain("Their coordinators have been told. Nothing was removed, released or moved.");
   });
 

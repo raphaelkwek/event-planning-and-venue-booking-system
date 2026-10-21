@@ -44,8 +44,13 @@ delete from venue.outbox where message_key in (
   select id::text from venue.unavailability_blocks where venue_id in (select id from test_owned_venues));
 
 -- H3-T10's record of which booking a venue's new times made overlap which, and the messages
--- it wrote, keyed by the flagged slot. Before the slots they point at.
+-- it wrote, keyed by the flagged slot. Before the slots they point at. H3-T11: a side may be a
+-- pending request, which may be the seeded organisers' at another venue, so before the requests.
 delete from venue.buffer_conflicts where venue_id in (select id from test_owned_venues);
+delete from venue.buffer_conflicts where booking_request_id in (
+    select id from venue.booking_requests where event_id in (select id from test_owned_events))
+  or other_booking_request_id in (
+    select id from venue.booking_requests where event_id in (select id from test_owned_events));
 delete from venue.outbox where message_key in (
   select id::text from venue.venue_slots where venue_id in (select id from test_owned_venues));
 

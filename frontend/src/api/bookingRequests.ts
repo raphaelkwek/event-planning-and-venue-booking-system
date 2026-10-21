@@ -42,8 +42,10 @@ export interface BookingRequest {
   bookingId: string | null;
   rejectionReason: string | null;
   suggestedAlternative: string | null;
-  /** I2: an active block overlaps this pending request. */
+  /** I2: an active block overlaps this pending request; H3-T11: or the venue's new times make it overlap another. */
   requiresReconfirmation: boolean;
+  /** H3-T11: the bookings, holds and requests the venue's new times make it overlap, soonest first. */
+  overlaps: string[];
   /** K2: assessed when the request was submitted; null on requests made before K2. */
   suitabilityStatus: SuitabilityStatus | null;
   /** K2: the failing conditions as they were then. */

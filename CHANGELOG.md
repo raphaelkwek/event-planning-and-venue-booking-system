@@ -4,6 +4,84 @@
 
 ---
 
+# H3: A change of setup or turnaround time flags pending requests too
+
+**Timestamp:** 2026-10-21T11:35+08:00 (SGT)
+**Author:** Sahanya, via Claude
+**Scope:** completes H3 (CR-01) on top of Seann's H3 and N2 work (PRs #56 and #57). Those flagged
+bookings and holds when a venue's times changed, and left pending requests out on purpose. The
+story names "every hold, pending request and confirmed booking", so this adds the requests.
+- planning-core, venue module: migrations `0016_buffer_conflicts_requests.sql` and
+  `0017_validate_buffer_conflicts_requests.sql`; `domain/occupancy.ts`, `repo/bufferConflicts.ts`,
+  `api/bufferConflicts.ts`, `api/venues.ts`, `repo/unavailability.ts`, `api/unavailability.ts`,
+  `repo/eventBookings.ts` and `repo/bookingRequests.ts`.
+- `contracts`: `venue-booking.buffer-conflict-flagged` accepts `kind: "REQUEST"`, and
+  `venue-booking.disruption-cleared` gains an optional `stillCause`. Both are additive.
+  **Needs a second owner's review.**
+- notification: the two messages' wording.
+- web: the venue editor and the event's Venue requests. OpenAPI: `BookingRequest` gains `overlaps`,
+  and `flaggedBookings[].kind` takes `REQUEST`.
+- `tests/H3/` (H3-T11 to H3-T14, written before the code, and the README), the test-data reset and
+  `sprint-3.csv`.
+**Reason:** H3's fourth criterion was only partly met. A pending request whose occupied period a
+change made overlap wasn't flagged Requires Reconfirmation, and its coordinator wasn't told.
+
+## Added
+
+- **Pending requests are compared too.** When Venue Staff change the times, each pending request is
+  widened by the venue's new times (as an approval would copy them) and compared with the live
+  bookings, holds and other pending requests. One the change makes overlap is flagged Requires
+  Reconfirmation. `venue.buffer_conflicts` records which request overlaps which, with the times, who
+  and when. The request stays Pending with its period unchanged (H3-T11).
+- **Its requesting coordinator is told,** as I2 tells one: "…so booking request BKR-… for EVT-… now
+  overlaps BKR-…. The request requires reconfirmation. It has not been removed, released or moved."
+  A booking flagged against a request is told the same way and names the request.
+- **The coordinator sees why.** A flagged request shows "Overlaps BKR-… with the venue's new setup and
+  turnaround time" on the event's Venue requests, as a flagged booking already did. The venue editor
+  lists flagged requests beside bookings and holds.
+- **Times that fit again clear it** (H3-T13). Periods that only touch don't overlap; one minute over
+  flags them again and tells the coordinators again.
+
+## Fixed
+
+- **Removing an I2 block gave the wrong reason** when a flag stayed only because of the venue's times
+  (one of Seann's "Not done" items). The coordinator now reads "…still requires reconfirmation: with
+  the venue's setup and turnaround time it still overlaps another booking, hold or request." Removing
+  a block also keeps a *request's* flag that an open buffer conflict causes (H3-T14).
+
+## Worth knowing
+
+1. **Requests that already clashed aren't flagged by the change (H3-T12).** Two events may ask for
+   the same period, and N2 already shows that as "Conflict" for Venue Staff to decide. A pair with a
+   request in it counts only when the new times made it overlap, or when it's already recorded.
+   Bookings and holds are compared as Seann built them. This reads "would now overlap" as "overlaps
+   because of this change". **Please confirm that reading with the Product Owner** (§11 rule 4).
+2. **A confirmed booking is flagged when a pending request now overlaps it.** The criterion says each
+   item that would now overlap *another* is flagged, and a pending request is one of those.
+3. **A flagged request can still be approved** if its new occupied period clears the booking's
+   stored one. The booking keeps the times it was made with (§4.6), and approval compares stored
+   periods. That's existing behaviour, not changed here.
+
+## Not done, on purpose
+
+- **Releasing one of two conflicting items still leaves the other flagged** until the venue's times
+  are next saved. That save clears the record, because the released one is no longer live. The
+  criterion doesn't ask for this, so it stays as Seann left it.
+
+## Verified
+
+- Unit tests with CI's placeholder environment: planning-core 910/910, web 293/293, notification
+  86/86 and contracts 126/126, coverage thresholds met. Stryker on `domain/occupancy.ts`: 56/56
+  mutants killed (100%). Typecheck, `npm run lint` (ESLint, `lint:boundaries`, `lint:api`) and
+  squawk on 0016 and 0017 pass.
+- **The integration tests pass in CI** (`tests/venue/api/bufferConflicts.test.ts` and
+  `tests/venue/repo/bufferConflicts.test.ts`, with the rest of the suite, on the runner's throwaway
+  Postgres), along with every other check on the pull request. The first run failed: postgres.js
+  sent a JS boolean array as a single boolean, so which items were requests now goes as `uuid[]`.
+- **H3-T11 to H3-T14 are Not Executed:** they are run by hand in the web app.
+
+---
+
 # L4: Several venues for one event
 
 **Timestamp:** 2026-10-21T01:08+08:00 (SGT)

@@ -1,6 +1,6 @@
 # H3 — Set a venue's setup and turnaround time (CR-01)
 
-Ten cases, written from the story on 4 Oct 2026, before the code. They also cover H1's CR-01
+Ten cases, written from the story on 4 Oct 2026, before the code, and four more (H3-T11 to H3-T14) on 21 Oct 2026, before pending requests were flagged. They also cover H1's CR-01
 criterion, that the venue record holds both times.
 
 | Acceptance criterion | Cases |
@@ -8,7 +8,7 @@ criterion, that the venue record holds both times.
 | Whole minutes, 0 or more; any other value is refused and stores nothing | H3-T1 to H3-T5 |
 | An event's occupied period runs from start − setup to end + turnaround | H3-T8 |
 | Availability, holds, approval, conflicts and blocks compare occupied periods; touching ones don't overlap | H3-T9, and each of I1, I2, J1, L3, M1, N1, N2's own cases |
-| A change flags the bookings that now overlap, removes none, and notifies their coordinators | H3-T10 |
+| A change flags the holds, pending requests and bookings that now overlap, removes none, and notifies their coordinators | H3-T10 (bookings and holds), H3-T11 (a pending request), H3-T12 (requests that already clashed aren't), H3-T13 (times that touch clear it), H3-T14 (removing a block keeps the flag, saying why) |
 | Each change records who, when, and previous and new values | H3-T6 |
 | Only Venue Staff can change them | H3-T7 |
 

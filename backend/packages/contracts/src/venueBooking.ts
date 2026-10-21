@@ -108,8 +108,20 @@ const disruptionFields = {
 /** I2: a block was recorded over this booking, hold or request, which now requires reconfirmation. */
 export const bookingDisruptedPayloadSchema = z.object(disruptionFields);
 
-/** I2: the block was removed. The flag is cleared unless another active block still disrupts it. */
-export const disruptionClearedPayloadSchema = z.object({ ...disruptionFields, stillDisrupted: z.boolean() });
+/** Why a flag stays when a block is removed: another active block (I2), or the venue's setup and turnaround time (H3). */
+export const STILL_FLAGGED_CAUSES = ["UNAVAILABILITY", "BUFFER_CONFLICT"] as const;
+export type StillFlaggedCause = (typeof STILL_FLAGGED_CAUSES)[number];
+
+/**
+ * I2: the block was removed. The flag is cleared unless another active block
+ * still disrupts it, or H3-T14 the venue's times still make it overlap another.
+ * `stillCause` says which; messages written before H3-T14 don't carry it.
+ */
+export const disruptionClearedPayloadSchema = z.object({
+  ...disruptionFields,
+  stillDisrupted: z.boolean(),
+  stillCause: z.enum(STILL_FLAGGED_CAUSES).nullable().optional(),
+});
 
 /**
  * L6 — hold expiry. `hold-placed` and `hold-expiry-changed` are for the hold-expiry
@@ -162,21 +174,21 @@ export const holdExpiringPayloadSchema = z.object(holdNoticeFields);
 export const holdExpiredPayloadSchema = z.object(holdNoticeFields);
 
 /**
- * H3-T10 (CR-01): Venue Staff changed the venue's setup or turnaround time, and
- * this booking or hold now overlaps the others named, so it requires
- * reconfirmation. Nothing is removed, released or moved.
+ * H3-T10, H3-T11 (CR-01): Venue Staff changed the venue's setup or turnaround
+ * time, and this booking, hold or pending request now overlaps the others
+ * named, so it requires reconfirmation. Nothing is removed, released or moved.
  */
 export const bufferConflictFlaggedPayloadSchema = z.object({
   venueId: z.string().uuid(),
   venueName: z.string().min(1),
-  kind: z.enum(["BOOKING", "HOLD"]),
+  kind: z.enum(DISRUPTED_KINDS),
   reference: z.string().min(1),
   eventId: z.string().uuid(),
   eventReference: z.string().min(1),
   eventName: z.string().min(1),
-  /** The event's assigned coordinator. */
+  /** A booking's or hold's event's assigned coordinator; a request's requesting coordinator. */
   coordinatorId: z.string().uuid(),
-  /** The other bookings' and holds' references it now overlaps. */
+  /** The other bookings', holds' and requests' references it now overlaps. */
   overlapsReferences: z.array(z.string().min(1)).min(1),
   /** The venue's times after the change. */
   setupMinutes: z.number().int().min(0),

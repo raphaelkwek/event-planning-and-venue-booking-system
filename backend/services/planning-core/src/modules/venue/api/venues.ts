@@ -116,9 +116,9 @@ export function venuesRouter(sql: Sql, limiter: RequestHandler = venuesRateLimit
       if (Object.keys(changes).length === 0) return { record: locked, flaggedBookings: [] };
       const record = await updateVenue(tx, locked.id, venue, actor.userId);
       await recordVenueHistory(tx, locked.id, "UPDATED", changes, actor);
-      // H3-T10: new times can make live bookings and holds overlap; they are flagged, never moved.
+      // H3-T10, H3-T11: new times can make live bookings, holds and pending requests overlap; they are flagged, never moved.
       const timesChanged = "setupMinutes" in changes || "turnaroundMinutes" in changes;
-      return { record, flaggedBookings: timesChanged ? await flagBufferConflicts(sql, tx, req, record) : [] };
+      return { record, flaggedBookings: timesChanged ? await flagBufferConflicts(sql, tx, req, record, locked) : [] };
     });
     if (!updated) return notFound(res);
     res.json({ ...updated.record, flaggedBookings: updated.flaggedBookings });

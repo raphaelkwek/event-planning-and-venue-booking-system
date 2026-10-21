@@ -1,5 +1,5 @@
 import type { Sql, TransactionSql } from "postgres";
-import type { DisruptedKind, UnavailabilityBlockStatus, UnavailabilityReasonType } from "@connectsphere/contracts";
+import type { DisruptedKind, StillFlaggedCause, UnavailabilityBlockStatus, UnavailabilityReasonType } from "@connectsphere/contracts";
 
 /**
  * I2 — periods when a venue can't be used. SQL against the venue schema only.
@@ -194,6 +194,8 @@ export interface ClearedDisruption {
   requestedBy: string | null;
   /** True when another active block still disrupts it, or H3's buffer conflict remains, so its flag stays. */
   stillDisrupted: boolean;
+  /** H3-T14: why the flag stays, another block before the venue's times; null when it clears. */
+  stillCause: StillFlaggedCause | null;
 }
 
 /**
@@ -204,31 +206,44 @@ export interface ClearedDisruption {
  */
 export async function clearDisruptions(tx: TransactionSql, blockId: string): Promise<ClearedDisruption[]> {
   const rows = await tx<
-    { kind: DisruptedKind; id: string; reference: string; event_id: string; requested_by: string | null; starts_at: Date; still: boolean }[]
+    {
+      kind: DisruptedKind;
+      id: string;
+      reference: string;
+      event_id: string;
+      requested_by: string | null;
+      starts_at: Date;
+      still_cause: StillFlaggedCause | null;
+    }[]
   >`
     select case s.status when 'HELD' then 'HOLD' else 'BOOKING' end as kind, s.id, s.reference, s.event_id,
            null::uuid as requested_by, s.starts_at,
-           exists (
-             select 1 from venue.block_disruptions o join venue.unavailability_blocks ob on ob.id = o.block_id
-             where o.slot_id = s.id and o.block_id <> ${blockId} and ob.status = 'ACTIVE'
-           ) or exists (
-             -- H3-T10: the venue's times still make it overlap another booking or hold.
-             select 1 from venue.buffer_conflicts c where c.slot_id = s.id and c.cleared_at is null
-           ) as still
+           case
+             when exists (
+               select 1 from venue.block_disruptions o join venue.unavailability_blocks ob on ob.id = o.block_id
+               where o.slot_id = s.id and o.block_id <> ${blockId} and ob.status = 'ACTIVE'
+             ) then 'UNAVAILABILITY'
+             -- H3-T10: the venue's times still make it overlap another booking, hold or request.
+             when exists (select 1 from venue.buffer_conflicts c where c.slot_id = s.id and c.cleared_at is null) then 'BUFFER_CONFLICT'
+           end as still_cause
     from venue.block_disruptions d join venue.venue_slots s on s.id = d.slot_id
     where d.block_id = ${blockId} and s.status in ('HELD', 'CONFIRMED')
     union all
     select 'REQUEST', r.id, r.reference, r.event_id, r.requested_by, r.starts_at,
-           exists (
-             select 1 from venue.block_disruptions o join venue.unavailability_blocks ob on ob.id = o.block_id
-             where o.booking_request_id = r.id and o.block_id <> ${blockId} and ob.status = 'ACTIVE'
-           )
+           case
+             when exists (
+               select 1 from venue.block_disruptions o join venue.unavailability_blocks ob on ob.id = o.block_id
+               where o.booking_request_id = r.id and o.block_id <> ${blockId} and ob.status = 'ACTIVE'
+             ) then 'UNAVAILABILITY'
+             -- H3-T11: the venue's times still make the request overlap another.
+             when exists (select 1 from venue.buffer_conflicts c where c.booking_request_id = r.id and c.cleared_at is null) then 'BUFFER_CONFLICT'
+           end
     from venue.block_disruptions d join venue.booking_requests r on r.id = d.booking_request_id
     where d.block_id = ${blockId} and r.status = 'PENDING'
     order by starts_at, kind, reference
   `;
-  const clearSlots = rows.filter((r) => !r.still && r.kind !== "REQUEST").map((r) => r.id);
-  const clearRequests = rows.filter((r) => !r.still && r.kind === "REQUEST").map((r) => r.id);
+  const clearSlots = rows.filter((r) => !r.still_cause && r.kind !== "REQUEST").map((r) => r.id);
+  const clearRequests = rows.filter((r) => !r.still_cause && r.kind === "REQUEST").map((r) => r.id);
   if (clearSlots.length > 0) {
     await tx`update venue.venue_slots set requires_reconfirmation = false, updated_at = now() where id = any(${clearSlots}::uuid[])`;
   }
@@ -241,6 +256,7 @@ export async function clearDisruptions(tx: TransactionSql, blockId: string): Pro
     reference: row.reference,
     eventId: row.event_id,
     requestedBy: row.requested_by,
-    stillDisrupted: row.still,
+    stillDisrupted: row.still_cause !== null,
+    stillCause: row.still_cause,
   }));
 }
