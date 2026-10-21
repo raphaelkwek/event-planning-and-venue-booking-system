@@ -33,6 +33,10 @@ export interface Hold {
   convertedAt: string | null;
   releasedBy: string | null;
   releasedAt: string | null;
+  /** L6: when the coordinator was reminded of the current expiry. */
+  remindedAt?: string | null;
+  /** L6: when the hold expired; null unless Expired. */
+  expiredAt?: string | null;
 }
 
 export interface HoldInput {
@@ -67,8 +71,18 @@ export function listHoldQueue(token: string) {
   return request<{ items: Hold[] }>(`${VENUE}/holds/queue`, { token });
 }
 
+/** L6: the held and recently (14 days) expired holds at the caller's venues, newest expiry first. */
+export function listPlacedHolds(token: string) {
+  return request<{ items: Hold[] }>(`${VENUE}/holds/placed`, { token });
+}
+
 export function placeHold(token: string, id: string, expiresAt: string) {
   return request<Hold>(`${VENUE}/holds/${id}/place`, { method: "POST", token, body: { expiresAt } });
+}
+
+/** L6: Venue Staff move a held hold's expiry; the server refuses one that isn't later than now. */
+export function changeHoldExpiry(token: string, id: string, expiresAt: string) {
+  return request<Hold>(`${VENUE}/holds/${id}/expiry`, { method: "PATCH", token, body: { expiresAt } });
 }
 
 export function releaseHold(token: string, id: string) {

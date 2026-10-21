@@ -189,6 +189,80 @@ describe("venue-booking.booking-disrupted and venue-booking.disruption-cleared (
   });
 });
 
+describe("L6: hold expiry messages", () => {
+  const ids = {
+    holdId: "11111111-1111-4111-8111-111111111111",
+    venueId: "33333333-3333-4333-8333-333333333333",
+    eventId: "22222222-2222-4222-8222-222222222222",
+    coordinatorId: "00000000-0000-0000-0000-000000000002",
+  };
+  const placed = {
+    holdId: ids.holdId,
+    holdReference: "HLD-000001",
+    venueId: ids.venueId,
+    eventId: ids.eventId,
+    expiresAt: "2026-12-01T06:00:00.000Z",
+    reminderLeadMinutes: 60,
+  };
+  const changed = {
+    holdId: ids.holdId,
+    holdReference: "HLD-000001",
+    venueId: ids.venueId,
+    expiresAt: "2026-12-02T06:00:00.000Z",
+    reminderLeadMinutes: 60,
+    changedBy: "00000000-0000-0000-0000-000000000003",
+  };
+  const notice = {
+    holdId: ids.holdId,
+    holdReference: "HLD-000001",
+    venueId: ids.venueId,
+    venueName: "Lee Kong Chian Auditorium",
+    eventId: ids.eventId,
+    eventReference: "EVT-000123",
+    eventName: "Annual Research Symposium",
+    coordinatorId: ids.coordinatorId,
+    startsAt: "2026-12-02T02:00:00.000Z",
+    endsAt: "2026-12-02T04:00:00.000Z",
+    expiresAt: "2026-12-01T06:00:00.000Z",
+  };
+  const message = (type: string, data: Record<string, unknown>) => ({
+    specversion: "1.0",
+    id: "44444444-4444-4444-8444-444444444444",
+    source: "/connectsphere/planning-core/venue",
+    type,
+    subject: ids.holdId,
+    time: "2026-10-21T02:00:00.000Z",
+    datacontenttype: "application/json",
+    traceparent: "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01",
+    actor: "VENUE_STAFF:00000000-0000-0000-0000-000000000003",
+    data,
+  });
+  const cases: Array<[string, Record<string, unknown>]> = [
+    ["venue-booking.hold-placed", placed],
+    ["venue-booking.hold-expiry-changed", changed],
+    ["venue-booking.hold-expiring", notice],
+    ["venue-booking.hold-expired", notice],
+  ];
+
+  it.each(cases)("accepts a valid %s and returns its data", (type, data) => {
+    expect(parseCloudEvent(message(type, data)).data).toEqual(data);
+  });
+
+  it.each(cases)("refuses %s with any field missing", (type, data) => {
+    for (const field of Object.keys(data)) {
+      const rest = { ...data };
+      delete rest[field];
+      expect(() => parseCloudEvent(message(type, rest)), `${type} without ${field}`).toThrow(new RegExp(field));
+    }
+  });
+
+  it("refuses a reminder lead under one minute", () => {
+    expect(() => parseCloudEvent(message("venue-booking.hold-placed", { ...placed, reminderLeadMinutes: 0 }))).toThrow(
+      /reminderLeadMinutes/,
+    );
+  });
+});
+
 describe("venue-booking.buffer-conflict-flagged (H3)", () => {
   const flagged = {
     venueId: "33333333-3333-4333-8333-333333333333",

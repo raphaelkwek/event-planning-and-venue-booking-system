@@ -11,8 +11,8 @@
 **Scope:** completes H3 (CR-01) on top of Seann's H3 and N2 work (PRs #56 and #57). Those flagged
 bookings and holds when a venue's times changed, and left pending requests out on purpose. The
 story names "every hold, pending request and confirmed booking", so this adds the requests.
-- planning-core, venue module: migrations `0014_buffer_conflicts_requests.sql` and
-  `0015_validate_buffer_conflicts_requests.sql`; `domain/occupancy.ts`, `repo/bufferConflicts.ts`,
+- planning-core, venue module: migrations `0016_buffer_conflicts_requests.sql` and
+  `0017_validate_buffer_conflicts_requests.sql`; `domain/occupancy.ts`, `repo/bufferConflicts.ts`,
   `api/bufferConflicts.ts`, `api/venues.ts`, `repo/unavailability.ts`, `api/unavailability.ts`,
   `repo/eventBookings.ts` and `repo/bookingRequests.ts`.
 - `contracts`: `venue-booking.buffer-conflict-flagged` accepts `kind: "REQUEST"`, and
@@ -73,10 +73,98 @@ change made overlap wasn't flagged Requires Reconfirmation, and its coordinator 
 - Unit tests with CI's placeholder environment: planning-core 910/910, web 293/293, notification
   86/86 and contracts 126/126, coverage thresholds met. Stryker on `domain/occupancy.ts`: 56/56
   mutants killed (100%). Typecheck, `npm run lint` (ESLint, `lint:boundaries`, `lint:api`) and
-  squawk on 0014 and 0015 pass.
+  squawk on 0016 and 0017 pass.
 - **Not yet run:** the integration tests (`tests/venue/api/bufferConflicts.test.ts` and
   `tests/venue/repo/bufferConflicts.test.ts`). They need a Postgres, and none was available here;
   CI's integration job runs them on the pull request. H3-T11 to H3-T14 are Not Executed.
+
+---
+
+# L4: Several venues for one event
+
+**Timestamp:** 2026-10-21T01:08+08:00 (SGT)
+**Author:** Seann, via Claude
+**Scope:** L4 (CR-03). Branched from N2, whose conflict flag L4 relies on.
+- planning-core, venue module: `repo/eventRelease.ts`, exported from `index.ts`, and a fix in
+  `repo/eventBookings.ts`.
+- `tests/L4/` (README and eleven cards; nine executed, two awaiting other stories),
+  `tests/fixtures/reset-test-data.sql` and `sprint-3.csv`.
+**Reason:** Larger events use a main hall and breakout rooms at once. Most of L4 was already built
+by the stories CR-03 revised (L1, L3, K2, N1, N2, M1, M2, L5, F5); these cases test it for one
+event at several venues.
+
+## Added
+
+- **`releaseVenueArrangementsForEvent`, for F4's cancellation.** In F4's transaction, it takes each
+  venue's row lock in order, then:
+  - releases the event's holds and its confirmed bookings, with the reason "event cancelled";
+  - withdraws the event's pending requests, giving back a converted hold's period.
+  - Nothing is deleted.
+- Integration tests for CR-03: two venues booked for one event, rejecting one leaves the other,
+  and cancelling releases both.
+
+## Fixed
+
+- **A placed hold appeared twice on the event's Venue requests,** under Holds and again as a
+  "Held" booking. The bookings list (L5) predates L3's holds list. It now shows confirmed
+  bookings, and released ones that were bookings.
+- The test-data reset removed slots before the L3 holds that point at them.
+
+## Not done, on purpose
+
+- **L4-T9 (cancelling an event releases everything)** waits for F3 and F4. The venue half is built.
+- **L4-T11 (registration capacity across venues)** waits for R2, R7 and the answer to CQ-04.
+- L4-T10 follows F5 as written: every active booking must be confirmed. CQ-05 is still open.
+
+---
+
+# L6: tentative holds expire (CR-04)
+
+**Timestamp:** 2026-10-21T01:05+08:00 (SGT)
+**Author:** Raphael, via Claude
+**Scope:** L6 (SPM-182). The venue module's hold repo, routes and pure rules, migrations
+venue/0013–0014, contracts' four hold messages, the notification service's two rules, a new
+Temporal workflow with its activities and consumer (`src/temporal/`), a backfill job, the OpenAPI
+contract, the Venue Staff and coordinator hold screens, `tests/L6/` and `sprint-3.csv`.
+**Reason:** CR-04: a tentative hold must not reserve a venue indefinitely. L3 already stores each
+hold's expiry and reminder lead time; L6 acts on them.
+
+## Added
+
+- **A Temporal `holdExpiry` timer per placed hold** (ADR-0009, EN-11's pattern). Placing a hold
+  writes `venue-booking.hold-placed`; a consumer on the venue-booking topic starts the timer. At
+  expiry minus the coordinator's lead time it reminds the holding coordinator once; at the expiry
+  the hold and its slot become **Expired**, the record is kept and the period frees up. It runs
+  whether or not anyone is using the system. The database decides each step under the hold's lock,
+  so an extended, converted or released hold is never expired by mistake.
+- **`PATCH /api/v1/holds/{id}/expiry`**: Venue Staff of the venue move a held hold's expiry (later
+  than now). The reminder is armed again and the timer moves. Another venue's staff get 404, as on
+  L3's place route.
+- **`GET /api/v1/holds/placed`**: Venue Staff's held holds and those that expired in the last 14 days, so "Change expiry" and
+  "Expired on …" appear in the "Placed holds" section of "Hold requests". L3's queue is unchanged.
+- **Notices** to the holding coordinator before and at expiry, naming the venue, period, event
+  and expiry time (Singapore time).
+- **Migrations venue/0013–0014:** `reminded_at`, `expired_at`, and a check tying `expired_at` to
+  the Expired status.
+- **`npm run jobs:schedule-hold-expiries`** starts timers for holds placed before L6 was deployed.
+- Cards L6-T1 to L6-T12: automated tests for T1–T10 (T10 on Temporal's time-skipping test server),
+  T11 is L3's existing placement tests, T12 a browser walkthrough.
+
+## Before using it on the shared database
+
+1. `npm run migrate -- venue` applies 0013–0014 **before** deploying planning-core.
+2. Deploy the notification service before or with planning-core (unknown message types are
+   dead-lettered).
+3. Restart the Temporal worker (`npm run worker`; in production, the worker deployment).
+4. Run `npm run jobs:schedule-hold-expiries` **only after the worker logs "hold-expiry consumer
+   started"**. The new consumer group starts from the latest offset, so `hold-placed` messages
+   published before it joined are caught only by the backfill. The backfill may send reminder or
+   expired notices at once for holds already close to or past their expiry.
+
+## Known follow-up
+
+- Replay histories for `holdExpiry` are a follow-up: recording them needs a live Temporal server
+  (see the workflow's FOLLOW-UP note).
 
 ---
 

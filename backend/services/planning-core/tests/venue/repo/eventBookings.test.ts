@@ -106,6 +106,17 @@ describe("listBookingsForEvent (L5-T1, L5-T5)", () => {
     });
   });
 
+  it("leaves out holds' slots, held or released, which the event's holds list shows (L3, L4-T5)", async () => {
+    const lkc = await newVenue("L5 Auditorium");
+    const eventId = randomUUID();
+    const booking = await newSlot(lkc, eventId, "BKR-910021", "08:00", "10:00");
+    await newSlot(lkc, eventId, "HLD-910022", "11:00", "12:00", "HELD");
+    const releasedHold = await newSlot(lkc, eventId, "HLD-910023", "12:00", "13:00", "HELD");
+    await sql`update venue.venue_slots set status = 'RELEASED' where id = ${releasedHold}`;
+
+    expect((await listBookingsForEvent(sql, eventId)).map((b) => b.id)).toEqual([booking]);
+  });
+
   it("keeps a released booking, with its reason, and drops a removed block from its disruptions", async () => {
     const lkc = await newVenue("L5 Auditorium");
     const eventId = randomUUID();

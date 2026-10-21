@@ -42,7 +42,7 @@ export interface EventBooking {
   replacements: ReplacementRequest[];
 }
 
-/** The event's bookings and holds, soonest first; released ones too, so a replaced booking's record stays visible. */
+/** The event's confirmed bookings, soonest first; released ones too, so a replaced booking's record stays visible. */
 export async function listBookingsForEvent(db: Db, eventId: string): Promise<EventBooking[]> {
   const rows = await db<
     {
@@ -90,7 +90,16 @@ export async function listBookingsForEvent(db: Db, eventId: string): Promise<Eve
              where r.replaces_booking_id = s.id
            ), '[]'::json) as replacements
     from venue.venue_slots s join venue.venues v on v.id = s.venue_id
-    where s.event_id = ${eventId} and s.status in ('HELD', 'CONFIRMED', 'RELEASED')
+    where s.event_id = ${eventId}
+      and (
+        s.status = 'CONFIRMED'
+        -- A released slot that was a booking: released for a reason (L5's replacement, F4's
+        -- cancellation) or confirmed by an approval. A hold's slot, held or released, is
+        -- shown once, in the event's holds (L3), not here as well (L4-T5).
+        or (s.status = 'RELEASED' and (
+              s.release_reason is not null
+              or exists (select 1 from venue.booking_requests r where r.booking_id = s.id and r.status = 'APPROVED')))
+      )
     order by s.starts_at, s.reference
   `;
   return rows.map((row) => ({

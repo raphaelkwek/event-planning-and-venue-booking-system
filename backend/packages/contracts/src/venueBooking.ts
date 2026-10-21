@@ -124,6 +124,56 @@ export const disruptionClearedPayloadSchema = z.object({
 });
 
 /**
+ * L6 — hold expiry. `hold-placed` and `hold-expiry-changed` are for the hold-expiry
+ * workflow's consumer (nobody is notified); `hold-expiring` and `hold-expired`
+ * tell the holding coordinator, named in `coordinatorId`.
+ */
+const holdReference = z.string().regex(/^HLD-\d{6}$/, "holdReference must be HLD- and six digits");
+
+/** L3 placed the hold: schedule its reminder and expiry (L6). */
+export const holdPlacedPayloadSchema = z.object({
+  holdId: z.string().uuid(),
+  holdReference,
+  venueId: z.string().uuid(),
+  eventId: z.string().uuid(),
+  expiresAt: z.string().datetime(),
+  reminderLeadMinutes: z.number().int().min(1),
+});
+
+/** L6: Venue Staff moved a held hold's expiry; reschedule its reminder and expiry. */
+export const holdExpiryChangedPayloadSchema = z.object({
+  holdId: z.string().uuid(),
+  holdReference,
+  venueId: z.string().uuid(),
+  expiresAt: z.string().datetime(),
+  /** The hold's reminder lead, so the workflow can restart the reminder without asking the database. */
+  reminderLeadMinutes: z.number().int().min(1),
+  changedBy: z.string().uuid(),
+});
+
+/** What the reminder and the expiry notice both carry: the hold, its event and period, and who to tell. */
+const holdNoticeFields = {
+  holdId: z.string().uuid(),
+  holdReference,
+  venueId: z.string().uuid(),
+  venueName: z.string().min(1),
+  eventId: z.string().uuid(),
+  eventReference: z.string().min(1),
+  eventName: z.string().min(1),
+  /** The coordinator who requested the hold (CQ-06). */
+  coordinatorId: z.string().uuid(),
+  startsAt: z.string().datetime(),
+  endsAt: z.string().datetime(),
+  expiresAt: z.string().datetime(),
+};
+
+/** L6: the hold expires soon (AC4). */
+export const holdExpiringPayloadSchema = z.object(holdNoticeFields);
+
+/** L6: the hold expired and its period is free (AC2, AC4). */
+export const holdExpiredPayloadSchema = z.object(holdNoticeFields);
+
+/**
  * H3-T10, H3-T11 (CR-01): Venue Staff changed the venue's setup or turnaround
  * time, and this booking, hold or pending request now overlaps the others
  * named, so it requires reconfirmation. Nothing is removed, released or moved.
@@ -154,6 +204,10 @@ export const VENUE_BOOKING_PAYLOAD_SCHEMAS = {
   "venue-booking.request-rejected": bookingRequestRejectedPayloadSchema,
   "venue-booking.booking-disrupted": bookingDisruptedPayloadSchema,
   "venue-booking.disruption-cleared": disruptionClearedPayloadSchema,
+  "venue-booking.hold-placed": holdPlacedPayloadSchema,
+  "venue-booking.hold-expiry-changed": holdExpiryChangedPayloadSchema,
+  "venue-booking.hold-expiring": holdExpiringPayloadSchema,
+  "venue-booking.hold-expired": holdExpiredPayloadSchema,
   "venue-booking.buffer-conflict-flagged": bufferConflictFlaggedPayloadSchema,
 } as const;
 

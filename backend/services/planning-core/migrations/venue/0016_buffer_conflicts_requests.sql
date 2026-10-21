@@ -6,7 +6,7 @@
 -- (migration 0009). The flag itself is booking_requests.requires_reconfirmation,
 -- which I2 already sets.
 --
--- The foreign keys and checks are added NOT VALID and validated in 0015, in a
+-- The foreign keys and checks are added NOT VALID and validated in 0017, in a
 -- transaction of their own. Every existing row has a slot on both sides and the
 -- new columns null, so validation finds nothing to refuse.
 

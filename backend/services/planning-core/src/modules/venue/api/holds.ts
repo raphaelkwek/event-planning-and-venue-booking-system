@@ -18,12 +18,15 @@ import {
   readHoldRequest,
   readPlacement,
 } from "../domain/hold.js";
+import { expiryNotChangeableMessage, readExpiryChange } from "../domain/holdExpiry.js";
 import {
   DuplicateHoldError,
   HoldConflictError,
+  changeHoldExpiry,
   findHold,
   insertHold,
   listHoldsForEvent,
+  listPlacedForStaff,
   listRequestedForStaff,
   lockHold,
   looksAfterVenue,
@@ -50,6 +53,7 @@ const BASE = "/api/v1/holds";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const INVALID_HOLD = "The hold could not be requested. Check the highlighted fields.";
 const INVALID_PLACEMENT = "The hold could not be placed. Check the highlighted fields.";
+const INVALID_EXPIRY = "The expiry could not be changed. Check the highlighted fields.";
 const INVALID_REQUEST = "The request could not be submitted. Check the highlighted fields.";
 const NOT_ASSIGNED_REQUEST = "Only the event's assigned coordinator can request a hold for it.";
 const NOT_ASSIGNED_RELEASE = "Only the event's assigned coordinator can release its holds.";
@@ -147,6 +151,17 @@ export function holdsRouter(sql: Sql, limiter: RequestHandler = holdsRateLimit()
     }
   });
 
+  // L6: the held and recently expired holds at those venues, newest expiry first, so Venue Staff can change an expiry.
+  router.get(`${BASE}/placed`, limiter, authenticate, requireRole("VENUE_STAFF"), async (req: ActorRequest, res: Response, next: NextFunction) => {
+    try {
+      const items = await listPlacedForStaff(sql, req.actor!.userId);
+      const references = await findEventReferences(sql, [...new Set(items.map((hold) => hold.eventId))]);
+      res.json({ items: items.map((hold) => present(hold, references.get(hold.eventId) ?? null)) });
+    } catch (error) {
+      next(error);
+    }
+  });
+
   // L3: Venue Staff of the venue place a requested hold, setting its expiry.
   router.post(`${BASE}/:id/place`, limiter, authenticate, requireRole("VENUE_STAFF"), async (req: ActorRequest, res: Response, next: NextFunction) => {
     try {
@@ -175,6 +190,7 @@ export function holdsRouter(sql: Sql, limiter: RequestHandler = holdsRateLimit()
             setupMinutes: venue.setupMinutes,
             turnaroundMinutes: venue.turnaroundMinutes,
             actorUserId: actor.userId,
+            correlationId: req.header("x-correlation-id") ?? null,
           });
           return { code: "PLACED", hold: placed } as const;
         } catch (error) {
@@ -187,6 +203,37 @@ export function holdsRouter(sql: Sql, limiter: RequestHandler = holdsRateLimit()
         return refuse(res, 409, "HOLD_NOT_REQUESTED", notRequestedMessage(outcome.hold.reference, outcome.hold.status));
       }
       if (outcome.code === "CONFLICT") return refuse(res, 409, "VENUE_SLOT_CONFLICT", holdConflictMessage(outcome.overlapped, venue.name));
+      res.json(present(outcome.hold, event.reference));
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // L6: Venue Staff of the venue move a held hold's expiry.
+  router.patch(`${BASE}/:id/expiry`, limiter, authenticate, requireRole("VENUE_STAFF"), async (req: ActorRequest, res: Response, next: NextFunction) => {
+    try {
+      const actor = req.actor!;
+      const id = req.params.id!;
+      const found = UUID.test(id) ? await findHold(sql, id) : null;
+      // As for placing: another venue's hold is "not found".
+      if (!found || !(await looksAfterVenue(sql, found.venueId, actor.userId))) return holdNotFound(res);
+
+      const change = readExpiryChange(req.body, new Date());
+      if (!change.ok) return refuse(res, 400, "VALIDATION_FAILED", INVALID_EXPIRY, change.fields);
+
+      const event = await findEventForPlanning(sql, found.eventId, { scopeType: "ALL" }, actor.userId);
+      if (!event) return holdNotFound(res);
+
+      const outcome = await sql.begin(async (tx) => {
+        const hold = (await lockHold(tx, found.id))!;
+        if (hold.status !== "HELD") return { code: "NOT_HELD", hold } as const;
+        const changed = await changeHoldExpiry(tx, hold, change.expiresAt, actor.userId, req.header("x-correlation-id") ?? null);
+        return { code: "CHANGED", hold: changed } as const;
+      });
+
+      if (outcome.code === "NOT_HELD") {
+        return refuse(res, 409, "HOLD_NOT_HELD", expiryNotChangeableMessage(outcome.hold.reference, outcome.hold.status));
+      }
       res.json(present(outcome.hold, event.reference));
     } catch (error) {
       next(error);
