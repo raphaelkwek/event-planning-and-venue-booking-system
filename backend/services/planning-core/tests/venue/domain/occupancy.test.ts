@@ -87,3 +87,64 @@ describe("bufferConflicts (H3-T10)", () => {
     expect(bufferConflicts([morning], { setupMinutes: 600, turnaroundMinutes: 600 })).toEqual([]);
   });
 });
+
+describe("bufferConflicts with pending requests (H3-T11 to H3-T13)", () => {
+  const item = (id: string, reference: string, from: string, until: string, pending = false) => ({
+    id,
+    reference,
+    startsAt: at(from),
+    endsAt: at(until),
+    pending,
+  });
+  const booking = item("b", "BKR-000001", "10:00", "12:00");
+  const request = item("r", "BKR-000002", "12:15", "14:00", true);
+  const none = { setupMinutes: 0, turnaroundMinutes: 0 };
+  const thirty = { setupMinutes: 0, turnaroundMinutes: 30 };
+  const nothingOpen = { times: none, open: new Set<string>() };
+
+  it("flags a request and the booking the change makes overlap, each naming the other (H3-T11)", () => {
+    expect(bufferConflicts([request, booking], thirty, nothingOpen)).toEqual([
+      { slotId: "b", overlapsId: "r", overlapsReference: "BKR-000002" },
+      { slotId: "r", overlapsId: "b", overlapsReference: "BKR-000001" },
+    ]);
+  });
+
+  it("leaves out requests that already clashed before the change (H3-T12)", () => {
+    const first = item("p", "BKR-000010", "10:00", "12:00", true);
+    const second = item("q", "BKR-000011", "10:00", "12:00", true);
+    expect(bufferConflicts([second, first], { setupMinutes: 15, turnaroundMinutes: 0 }, nothingOpen)).toEqual([]);
+  });
+
+  it("leaves out a request that already clashed with a booking before the change", () => {
+    const clashing = item("r", "BKR-000002", "11:00", "13:00", true);
+    expect(bufferConflicts([booking, clashing], thirty, nothingOpen)).toEqual([]);
+  });
+
+  it("keeps a recorded request conflict open while it still overlaps under a further change", () => {
+    const open = new Set(["b:r", "r:b"]);
+    expect(bufferConflicts([booking, request], { setupMinutes: 0, turnaroundMinutes: 45 }, { times: thirty, open })).toEqual([
+      { slotId: "b", overlapsId: "r", overlapsReference: "BKR-000002" },
+      { slotId: "r", overlapsId: "b", overlapsReference: "BKR-000001" },
+    ]);
+  });
+
+  it("finds nothing once the times only touch again (H3-T13)", () => {
+    const open = new Set(["b:r", "r:b"]);
+    expect(bufferConflicts([booking, request], { setupMinutes: 0, turnaroundMinutes: 15 }, { times: thirty, open })).toEqual([]);
+  });
+
+  it("compares bookings and holds as before, whatever overlapped under the previous times", () => {
+    const later = item("c", "BKR-000003", "11:00", "13:00");
+    expect(bufferConflicts([booking, later], thirty, nothingOpen)).toHaveLength(2);
+  });
+
+  it("without the previous times, compares a request like a booking", () => {
+    expect(bufferConflicts([booking, request], thirty)).toHaveLength(2);
+  });
+
+  it("orders items that start together by reference", () => {
+    const first = item("p", "BKR-000010", "10:00", "12:00", true);
+    const second = item("q", "BKR-000011", "10:00", "12:00", true);
+    expect(bufferConflicts([second, first], none).map((c) => c.slotId)).toEqual(["p", "q"]);
+  });
+});
