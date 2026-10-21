@@ -74,9 +74,11 @@ change made overlap wasn't flagged Requires Reconfirmation, and its coordinator 
   86/86 and contracts 126/126, coverage thresholds met. Stryker on `domain/occupancy.ts`: 56/56
   mutants killed (100%). Typecheck, `npm run lint` (ESLint, `lint:boundaries`, `lint:api`) and
   squawk on 0016 and 0017 pass.
-- **Not yet run:** the integration tests (`tests/venue/api/bufferConflicts.test.ts` and
-  `tests/venue/repo/bufferConflicts.test.ts`). They need a Postgres, and none was available here;
-  CI's integration job runs them on the pull request. H3-T11 to H3-T14 are Not Executed.
+- **The integration tests pass in CI** (`tests/venue/api/bufferConflicts.test.ts` and
+  `tests/venue/repo/bufferConflicts.test.ts`, with the rest of the suite, on the runner's throwaway
+  Postgres), along with every other check on the pull request. The first run failed: postgres.js
+  sent a JS boolean array as a single boolean, so which items were requests now goes as `uuid[]`.
+- **H3-T11 to H3-T14 are Not Executed:** they are run by hand in the web app.
 
 ---
 
