@@ -172,6 +172,14 @@ describe("venue-booking.booking-disrupted and venue-booking.disruption-cleared (
     expect(() => parseCloudEvent(message("venue-booking.disruption-cleared", disrupted))).toThrow(/stillDisrupted/);
   });
 
+  it("says why a flag stays, when it does: another block, or the venue's setup and turnaround time (H3-T14)", () => {
+    for (const stillCause of ["UNAVAILABILITY", "BUFFER_CONFLICT", null] as const) {
+      const still = { ...cleared, stillDisrupted: stillCause !== null, stillCause };
+      expect(parseCloudEvent(message("venue-booking.disruption-cleared", still)).data).toEqual(still);
+    }
+    expect(() => parseCloudEvent(message("venue-booking.disruption-cleared", { ...cleared, stillCause: "HOLD" }))).toThrow(/stillCause/);
+  });
+
   it("refuses an unknown kind or reason type, and a message without the coordinator", () => {
     expect(() => parseCloudEvent(message("venue-booking.booking-disrupted", { ...disrupted, kind: "EVENT" }))).toThrow(/kind/);
     expect(() => parseCloudEvent(message("venue-booking.booking-disrupted", { ...disrupted, reasonType: "FLOOD" }))).toThrow(/reasonType/);
@@ -215,9 +223,13 @@ describe("venue-booking.buffer-conflict-flagged (H3)", () => {
     expect(parseCloudEvent(message({ ...flagged, kind: "HOLD" })).data).toMatchObject({ kind: "HOLD" });
   });
 
-  it("refuses one that names nothing it overlaps, a request, or times that aren't whole minutes from 0", () => {
+  it("accepts a pending request the venue's new times make overlap others, naming its requesting coordinator (H3-T11)", () => {
+    expect(parseCloudEvent(message({ ...flagged, kind: "REQUEST" })).data).toMatchObject({ kind: "REQUEST" });
+  });
+
+  it("refuses one that names nothing it overlaps, an unknown kind, or times that aren't whole minutes from 0", () => {
     expect(() => parseCloudEvent(message({ ...flagged, overlapsReferences: [] }))).toThrow(/overlapsReferences/);
-    expect(() => parseCloudEvent(message({ ...flagged, kind: "REQUEST" }))).toThrow(/kind/);
+    expect(() => parseCloudEvent(message({ ...flagged, kind: "BLOCK" }))).toThrow(/kind/);
     expect(() => parseCloudEvent(message({ ...flagged, turnaroundMinutes: -1 }))).toThrow(/turnaroundMinutes/);
     expect(() => parseCloudEvent(message({ ...flagged, setupMinutes: 1.5 }))).toThrow(/setupMinutes/);
   });
