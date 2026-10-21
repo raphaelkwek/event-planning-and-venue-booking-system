@@ -6,8 +6,8 @@ import { testDb } from "../../support/testDb.js";
  * H3 (CR-01) — a venue's setup and turnaround time, against the venue and event
  * schemas: an approval occupies the venue for the event's period widened by
  * the venue's times (H3-T8, H3-T9), and changing those times flags each live
- * booking and hold that now overlaps another, naming it, telling its
- * coordinator and removing nothing (H3-T10).
+ * booking, hold and pending request that now overlaps another, naming it,
+ * telling its coordinator and removing nothing (H3-T10 to H3-T14).
  */
 
 vi.mock("../../../src/shared/auth/verifyJwt.js", () => ({
@@ -67,12 +67,11 @@ const venueBody = (setupMinutes: number, turnaroundMinutes: number) => ({
 
 async function cleanUp() {
   const ours = sql`select id from venue.venues where created_by = ${STAFF}`;
-  const slots = sql`select id from venue.venue_slots where venue_id in (${ours})`;
   const blocks = sql`select id from venue.unavailability_blocks where venue_id in (${ours})`;
   await sql`delete from venue.outbox where message_key in (select id::text from venue.venue_slots where venue_id in (${ours}))`;
   await sql`delete from venue.outbox where message_key in (select id::text from venue.unavailability_blocks where venue_id in (${ours}))`;
   await sql`delete from venue.outbox where message_key in (select id::text from venue.booking_requests where venue_id in (${ours}))`;
-  await sql`delete from venue.buffer_conflicts where slot_id in (${slots})`;
+  await sql`delete from venue.buffer_conflicts where venue_id in (${ours})`;
   await sql`delete from venue.block_disruptions where block_id in (${blocks})`;
   await sql`delete from venue.booking_requests where venue_id in (${ours})`;
   await sql`delete from venue.venue_slots where venue_id in (${ours})`;
@@ -157,6 +156,22 @@ async function held(venueId: string, event: { id: string; reference: string }, f
   `;
   return { bookingId: row!.id, reference: `H3-HOLD-${event.reference}` };
 }
+
+/** The event's coordinator requests the venue, and it stays Pending (L1). */
+async function pending(venueId: string, event: { id: string }, from: string, until: string, coordinator = COORDINATOR) {
+  signedInAs("EVENT_COORDINATOR", coordinator);
+  const made = await request(app)
+    .post("/api/v1/booking-requests")
+    .set(bearer)
+    .send({ eventId: event.id, venueId, startsAt: at(from), endsAt: at(until), layout: "Theatre", expectedAttendance: 150 });
+  expect(made.status).toBe(201);
+  return made.body as { id: string; reference: string };
+}
+
+const requestState = async (id: string) =>
+  (await sql<{ status: string; starts_at: Date; ends_at: Date; requires_reconfirmation: boolean }[]>`
+    select status, starts_at, ends_at, requires_reconfirmation from venue.booking_requests where id = ${id}
+  `)[0]!;
 
 interface SlotState {
   status: string;
@@ -415,5 +430,127 @@ describe("PUT /api/v1/venues/:id with new setup or turnaround time (H3-T10)", ()
     expect(removed.status).toBe(200);
     expect(removed.body.cleared).toEqual([expect.objectContaining({ reference: morning.reference, stillDisrupted: true })]);
     expect((await slot(morning.bookingId)).requires_reconfirmation).toBe(true);
+  });
+});
+
+describe("PUT /api/v1/venues/:id flags pending requests too (H3-T11 to H3-T14)", () => {
+  async function bookingAndRequest() {
+    const venueId = await newVenue();
+    const symposium = await newEvent("H3 Symposium");
+    const workshop = await newEvent("H3 Workshop", OTHER_COORDINATOR);
+    const morning = await booked(venueId, symposium, "10:00", "12:00");
+    const asked = await pending(venueId, workshop, "12:15", "14:00", OTHER_COORDINATOR);
+    signedInAs("VENUE_STAFF", STAFF);
+    return { venueId, symposium, workshop, morning, asked };
+  }
+
+  it("flags a pending request and the booking it now overlaps, each naming the other, and keeps it Pending (H3-T11)", async () => {
+    const { venueId, symposium, workshop, morning, asked } = await bookingAndRequest();
+    const res = await save(venueId, 0, 30);
+
+    expect(res.status).toBe(200);
+    expect(res.body.flaggedBookings).toEqual([
+      { kind: "BOOKING", reference: morning.reference, eventReference: symposium.reference, overlapsReferences: [asked.reference] },
+      { kind: "REQUEST", reference: asked.reference, eventReference: workshop.reference, overlapsReferences: [morning.reference] },
+    ]);
+    expect(await requestState(asked.id)).toEqual({
+      status: "PENDING",
+      starts_at: new Date(at("12:15")),
+      ends_at: new Date(at("14:00")),
+      requires_reconfirmation: true,
+    });
+    expect((await slot(morning.bookingId)).requires_reconfirmation).toBe(true);
+  });
+
+  it("tells the request's requesting coordinator, naming it as a request (H3-T11)", async () => {
+    const { venueId, workshop, morning, asked } = await bookingAndRequest();
+    await save(venueId, 0, 30);
+
+    const [told] = await flaggedMessages(asked.id);
+    expect(told!.envelope.data).toMatchObject({
+      kind: "REQUEST",
+      reference: asked.reference,
+      eventId: workshop.id,
+      coordinatorId: OTHER_COORDINATOR,
+      overlapsReferences: [morning.reference],
+      setupMinutes: 0,
+      turnaroundMinutes: 30,
+    });
+    expect(await flaggedMessages(morning.bookingId)).toHaveLength(1);
+  });
+
+  it("shows each coordinator what their request or booking now overlaps (H3-T11)", async () => {
+    const { venueId, symposium, workshop, morning, asked } = await bookingAndRequest();
+    await save(venueId, 0, 30);
+
+    signedInAs("EVENT_COORDINATOR", OTHER_COORDINATOR);
+    const theirs = await eventBookings(workshop.id);
+    expect(theirs.body.items).toMatchObject([{ reference: asked.reference, requiresReconfirmation: true, overlaps: [morning.reference] }]);
+    signedInAs("EVENT_COORDINATOR", COORDINATOR);
+    const mine = await eventBookings(symposium.id);
+    expect(mine.body.bookings).toMatchObject([{ reference: morning.reference, overlaps: [asked.reference] }]);
+  });
+
+  it("flags nothing for requests that already clashed before the change (H3-T12)", async () => {
+    const venueId = await newVenue();
+    const first = await pending(venueId, await newEvent("H3 Symposium"), "10:00", "12:00");
+    const second = await pending(venueId, await newEvent("H3 Workshop", OTHER_COORDINATOR), "10:00", "12:00", OTHER_COORDINATOR);
+    signedInAs("VENUE_STAFF", STAFF);
+    const res = await save(venueId, 15, 0);
+
+    expect(res.body.flaggedBookings).toEqual([]);
+    for (const asked of [first, second]) {
+      expect((await requestState(asked.id)).requires_reconfirmation).toBe(false);
+      expect(await flaggedMessages(asked.id)).toHaveLength(0);
+    }
+  });
+
+  it("clears the request's flag when the periods only touch again, and flags it anew a minute over (H3-T13)", async () => {
+    const { venueId, morning, asked } = await bookingAndRequest();
+    await save(venueId, 0, 30);
+
+    const touching = await save(venueId, 0, 15);
+    expect(touching.body.flaggedBookings).toEqual([]);
+    expect((await requestState(asked.id)).requires_reconfirmation).toBe(false);
+    expect((await slot(morning.bookingId)).requires_reconfirmation).toBe(false);
+    expect(await flaggedMessages(asked.id)).toHaveLength(1);
+
+    const over = await save(venueId, 0, 16);
+    expect(over.body.flaggedBookings.map((f: { reference: string }) => f.reference)).toEqual([morning.reference, asked.reference]);
+    expect((await requestState(asked.id)).requires_reconfirmation).toBe(true);
+    expect(await flaggedMessages(asked.id)).toHaveLength(2);
+  });
+
+  it("keeps a request flagged when its block is removed while the venue's times still make it overlap", async () => {
+    const { venueId, asked } = await bookingAndRequest();
+    const block = await request(app)
+      .post(`/api/v1/venues/${venueId}/unavailability`)
+      .set(bearer)
+      .send({ startsAt: at("13:00"), endsAt: at("13:30"), reasonType: "MAINTENANCE", description: "Projector replacement" });
+    expect(block.status).toBe(201);
+    await save(venueId, 0, 30);
+
+    const removed = await request(app).post(`/api/v1/venues/${venueId}/unavailability/${block.body.block.id}/remove`).set(bearer);
+    expect(removed.status).toBe(200);
+    expect(removed.body.cleared).toEqual([expect.objectContaining({ kind: "REQUEST", reference: asked.reference, stillDisrupted: true })]);
+    expect((await requestState(asked.id)).requires_reconfirmation).toBe(true);
+  });
+
+  it("tells the coordinator the venue's times keep the flag, not other unavailability (H3-T14)", async () => {
+    const venueId = await newVenue();
+    const morning = await booked(venueId, await newEvent("H3 Symposium"), "10:00", "12:00");
+    await booked(venueId, await newEvent("H3 Workshop"), "12:15", "14:00");
+    signedInAs("VENUE_STAFF", STAFF);
+    const block = await request(app)
+      .post(`/api/v1/venues/${venueId}/unavailability`)
+      .set(bearer)
+      .send({ startsAt: at("10:30"), endsAt: at("11:00"), reasonType: "MAINTENANCE", description: "Projector replacement" });
+    await save(venueId, 0, 30);
+    await request(app).post(`/api/v1/venues/${venueId}/unavailability/${block.body.block.id}/remove`).set(bearer);
+
+    const [cleared] = await sql<{ envelope: { data: Record<string, unknown> } }[]>`
+      select envelope from venue.outbox where message_key = ${block.body.block.id} and envelope->>'type' = 'venue-booking.disruption-cleared'
+    `;
+    expect(cleared!.envelope.data).toMatchObject({ reference: morning.reference, stillDisrupted: true, stillCause: "BUFFER_CONFLICT" });
   });
 });
