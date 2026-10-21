@@ -33,7 +33,7 @@
   - expiring: `Hold ${holdReference} on ${venueName} for ${event}, ${period}, expires on ${expiry}. Convert it to a booking request or ask Venue Staff to extend it.`
   - expired: `Hold ${holdReference} on ${venueName} for ${event}, ${period}, expired on ${expiry}. The period is free for others.`
   (`expiry` formatted in Singapore time like `period()`.) Tests assert full sentences. `hold-placed` and `hold-expiry-changed` have no rule (nobody is notified) — confirm the notification consumer only processes types with rules, or that an unruled type is accepted (it must be registered in `MESSAGE_DATA_SCHEMAS`, else it is dead-lettered).
-- `PC/migrations/venue/0013_hold_expiry.sql`: add `reminded_at timestamptz`, `expired_at timestamptz`; constraint `holds_expiry_recorded` `((status = 'EXPIRED') = (expired_at is not null)) not valid`. `0014_validate_hold_expiry.sql` validates it. Squawk both.
+- `PC/migrations/venue/0014_hold_expiry.sql`: add `reminded_at timestamptz`, `expired_at timestamptz`; constraint `holds_expiry_recorded` `((status = 'EXPIRED') = (expired_at is not null)) not valid`. `0015_validate_hold_expiry.sql` validates it. Squawk both.
 - Root gate. Commit `feat(l6): hold expiry messages, notification rules and columns`.
 
 ### Task 3: Venue module — remind, expire, change expiry

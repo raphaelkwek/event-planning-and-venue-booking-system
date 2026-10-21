@@ -54,7 +54,7 @@ expiry; the coordinator sets, per hold, how long before expiry to be reminded. N
    backfill. The backfill may send reminder or expired notices at once for holds already close to or
    past their expiry.
 
-## 4. Data — migration `venue/0013_hold_expiry.sql`
+## 4. Data — migration `venue/0014_hold_expiry.sql`
 
 Adds `reminded_at timestamptz`, `expired_at timestamptz`, and a check `NOT VALID` (validated in
 0014): `status = 'EXPIRED'` ⇔ `expired_at is not null`.

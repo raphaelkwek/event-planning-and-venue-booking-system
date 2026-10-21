@@ -3,7 +3,7 @@
 -- (reminded_at, at most once per expiry: a new expiry clears it) and then
 -- expires the hold (status EXPIRED, expired_at), which frees its slot.
 --
--- The check is added NOT VALID so no table scan holds a lock; 0014 validates
+-- The check is added NOT VALID so no table scan holds a lock; 0015 validates
 -- it. Existing rows already satisfy it: no hold is EXPIRED yet.
 -- ---------------------------------------------------------------------------
 
