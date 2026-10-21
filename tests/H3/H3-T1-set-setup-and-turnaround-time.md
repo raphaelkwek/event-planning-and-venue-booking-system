@@ -19,6 +19,6 @@
 |---|---|
 | Actual Result | "Venue saved." was shown; the form showed setup 30 and turnaround 45 minutes, and the other fields unchanged. |
 | Status | Pass |
-| Remarks | Commit: 6514ab8 · Evidence: tests/H3/evidence/H3-T1.png · Defect: — |
+| Remarks | Commit: 0eb3119 · Evidence: tests/H3/evidence/H3-T1.png · Defect: — |
 | Executed By | Yichen, via automated testing |
-| Date of Execution | 2026-10-04 |
+| Date of Execution | 2026-10-20 |

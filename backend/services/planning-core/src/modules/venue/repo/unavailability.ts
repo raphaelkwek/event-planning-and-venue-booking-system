@@ -192,7 +192,7 @@ export interface ClearedDisruption {
   reference: string;
   eventId: string;
   requestedBy: string | null;
-  /** True when another active block still disrupts it, so its flag stays. */
+  /** True when another active block still disrupts it, or H3's buffer conflict remains, so its flag stays. */
   stillDisrupted: boolean;
 }
 
@@ -211,6 +211,9 @@ export async function clearDisruptions(tx: TransactionSql, blockId: string): Pro
            exists (
              select 1 from venue.block_disruptions o join venue.unavailability_blocks ob on ob.id = o.block_id
              where o.slot_id = s.id and o.block_id <> ${blockId} and ob.status = 'ACTIVE'
+           ) or exists (
+             -- H3-T10: the venue's times still make it overlap another booking or hold.
+             select 1 from venue.buffer_conflicts c where c.slot_id = s.id and c.cleared_at is null
            ) as still
     from venue.block_disruptions d join venue.venue_slots s on s.id = d.slot_id
     where d.block_id = ${blockId} and s.status in ('HELD', 'CONFIRMED')

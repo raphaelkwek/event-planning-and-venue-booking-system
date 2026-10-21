@@ -111,6 +111,30 @@ export const bookingDisruptedPayloadSchema = z.object(disruptionFields);
 /** I2: the block was removed. The flag is cleared unless another active block still disrupts it. */
 export const disruptionClearedPayloadSchema = z.object({ ...disruptionFields, stillDisrupted: z.boolean() });
 
+/**
+ * H3-T10 (CR-01): Venue Staff changed the venue's setup or turnaround time, and
+ * this booking or hold now overlaps the others named, so it requires
+ * reconfirmation. Nothing is removed, released or moved.
+ */
+export const bufferConflictFlaggedPayloadSchema = z.object({
+  venueId: z.string().uuid(),
+  venueName: z.string().min(1),
+  kind: z.enum(["BOOKING", "HOLD"]),
+  reference: z.string().min(1),
+  eventId: z.string().uuid(),
+  eventReference: z.string().min(1),
+  eventName: z.string().min(1),
+  /** The event's assigned coordinator. */
+  coordinatorId: z.string().uuid(),
+  /** The other bookings' and holds' references it now overlaps. */
+  overlapsReferences: z.array(z.string().min(1)).min(1),
+  /** The venue's times after the change. */
+  setupMinutes: z.number().int().min(0),
+  turnaroundMinutes: z.number().int().min(0),
+  actedBy: z.string().uuid(),
+  actedAt: z.string().datetime(),
+});
+
 /** Validators keyed by messageType, for producers and consumers alike. */
 export const VENUE_BOOKING_PAYLOAD_SCHEMAS = {
   "venue-booking.request-submitted": bookingRequestSubmittedPayloadSchema,
@@ -118,6 +142,7 @@ export const VENUE_BOOKING_PAYLOAD_SCHEMAS = {
   "venue-booking.request-rejected": bookingRequestRejectedPayloadSchema,
   "venue-booking.booking-disrupted": bookingDisruptedPayloadSchema,
   "venue-booking.disruption-cleared": disruptionClearedPayloadSchema,
+  "venue-booking.buffer-conflict-flagged": bufferConflictFlaggedPayloadSchema,
 } as const;
 
 export type VenueBookingMessageType = keyof typeof VENUE_BOOKING_PAYLOAD_SCHEMAS;

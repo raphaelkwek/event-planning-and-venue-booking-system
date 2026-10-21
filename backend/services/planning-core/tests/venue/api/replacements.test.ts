@@ -164,6 +164,7 @@ describe("the event's bookings (L5-T1, L5-T2)", () => {
         requiresReconfirmation: true,
         releaseReason: null,
         disruptions: [{ blockId, reasonType: "MAINTENANCE", description: "Stage rigging inspection", startsAt: utc("16:00"), endsAt: utc("19:00") }],
+        overlaps: [],
         replacements: [{ id: replacement.id, reference: replacement.reference, status: "PENDING", venueName: "L5 Seminar Room" }],
       },
     ]);

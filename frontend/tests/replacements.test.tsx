@@ -38,6 +38,7 @@ function booking(overrides: Record<string, unknown> = {}) {
     disruptions: [
       { blockId: "block-1", reasonType: "MAINTENANCE", description: "Stage rigging inspection", startsAt: "2026-12-02T08:00:00.000Z", endsAt: "2026-12-02T11:00:00.000Z" },
     ],
+    overlaps: [],
     replacements: [],
     ...overrides,
   };
@@ -169,6 +170,20 @@ describe("the event's bookings (L5-T1, L5-T2)", () => {
     expect(screen.queryByRole("button", { name: "Find a replacement" })).toBeNull();
     listEventBookingRequests.mockReset();
     listEventBookingRequests.mockImplementation(async () => ({ event: EVENT, items: [], bookings: [booking()] }));
+  });
+
+  it("names the bookings the venue's new setup or turnaround time makes it overlap, and offers a replacement (H3-T10)", async () => {
+    listEventBookingRequests.mockResolvedValueOnce({
+      event: EVENT,
+      items: [],
+      bookings: [booking({ disruptions: [], overlaps: ["BKR-000002", "BKR-000003"] })],
+    });
+    signInAs(ASSIGNED, "EVENT_COORDINATOR", `/events/${EVENT_ID}/venue-requests`);
+    render(<App />);
+    const row = within(await bookingsTable()).getByRole("row", { name: /BKR-000001/ });
+    expect(text(row)).toContain("Requires reconfirmation");
+    expect(text(row)).toContain("Overlaps BKR-000002 and BKR-000003 with the venue's new setup and turnaround time");
+    expect(within(row).getByRole("button", { name: "Find a replacement" })).toBeTruthy();
   });
 
   it("lists a booking's replacement requests with their status", async () => {

@@ -98,6 +98,7 @@ describe("listBookingsForEvent (L5-T1, L5-T5)", () => {
       disruptions: [
         { blockId: made.id, reasonType: "MAINTENANCE", description: "Stage rigging inspection", startsAt: at("16:00").toISOString(), endsAt: at("19:00").toISOString() },
       ],
+      overlaps: [],
       replacements: [
         { id: withdrawn.id, reference: withdrawn.reference, status: "WITHDRAWN", venueName: expect.stringMatching(/^L5 Seminar Room/) },
         { id: pending.id, reference: pending.reference, status: "PENDING", venueName: expect.stringMatching(/^L5 Seminar Room/) },
