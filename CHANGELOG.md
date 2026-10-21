@@ -42,6 +42,56 @@ event at several venues.
 
 ---
 
+# L6: tentative holds expire (CR-04)
+
+**Timestamp:** 2026-10-21T01:05+08:00 (SGT)
+**Author:** Raphael, via Claude
+**Scope:** L6 (SPM-182). The venue module's hold repo, routes and pure rules, migrations
+venue/0013–0014, contracts' four hold messages, the notification service's two rules, a new
+Temporal workflow with its activities and consumer (`src/temporal/`), a backfill job, the OpenAPI
+contract, the Venue Staff and coordinator hold screens, `tests/L6/` and `sprint-3.csv`.
+**Reason:** CR-04: a tentative hold must not reserve a venue indefinitely. L3 already stores each
+hold's expiry and reminder lead time; L6 acts on them.
+
+## Added
+
+- **A Temporal `holdExpiry` timer per placed hold** (ADR-0009, EN-11's pattern). Placing a hold
+  writes `venue-booking.hold-placed`; a consumer on the venue-booking topic starts the timer. At
+  expiry minus the coordinator's lead time it reminds the holding coordinator once; at the expiry
+  the hold and its slot become **Expired**, the record is kept and the period frees up. It runs
+  whether or not anyone is using the system. The database decides each step under the hold's lock,
+  so an extended, converted or released hold is never expired by mistake.
+- **`PATCH /api/v1/holds/{id}/expiry`**: Venue Staff of the venue move a held hold's expiry (later
+  than now). The reminder is armed again and the timer moves. Another venue's staff get 404, as on
+  L3's place route.
+- **`GET /api/v1/holds/placed`**: Venue Staff's held holds and those that expired in the last 14 days, so "Change expiry" and
+  "Expired on …" appear in the "Placed holds" section of "Hold requests". L3's queue is unchanged.
+- **Notices** to the holding coordinator before and at expiry, naming the venue, period, event
+  and expiry time (Singapore time).
+- **Migrations venue/0013–0014:** `reminded_at`, `expired_at`, and a check tying `expired_at` to
+  the Expired status.
+- **`npm run jobs:schedule-hold-expiries`** starts timers for holds placed before L6 was deployed.
+- Cards L6-T1 to L6-T12: automated tests for T1–T10 (T10 on Temporal's time-skipping test server),
+  T11 is L3's existing placement tests, T12 a browser walkthrough.
+
+## Before using it on the shared database
+
+1. `npm run migrate -- venue` applies 0013–0014 **before** deploying planning-core.
+2. Deploy the notification service before or with planning-core (unknown message types are
+   dead-lettered).
+3. Restart the Temporal worker (`npm run worker`; in production, the worker deployment).
+4. Run `npm run jobs:schedule-hold-expiries` **only after the worker logs "hold-expiry consumer
+   started"**. The new consumer group starts from the latest offset, so `hold-placed` messages
+   published before it joined are caught only by the backfill. The backfill may send reminder or
+   expired notices at once for holds already close to or past their expiry.
+
+## Known follow-up
+
+- Replay histories for `holdExpiry` are a follow-up: recording them needs a live Temporal server
+  (see the workflow's FOLLOW-UP note).
+
+---
+
 # N2: Flag pending requests that clash before a decision is made
 
 **Timestamp:** 2026-10-21T00:49+08:00 (SGT)

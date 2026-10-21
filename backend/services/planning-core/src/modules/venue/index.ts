@@ -37,6 +37,12 @@ export { releaseHoldsForEvent } from "./repo/holds.js";
  */
 export { EVENT_CANCELLED, releaseVenueArrangementsForEvent, type ReleasedArrangements } from "./repo/eventRelease.js";
 
+/** L6, for the HoldExpiry workflow's activities (src/temporal): remind a hold's coordinator, and expire it. */
+export { HoldEventMissingError, expireHoldIfDue, remindHoldIfDue, type ExpireOutcome, type RemindOutcome } from "./repo/holds.js";
+
+/** L6, for `npm run jobs:schedule-hold-expiries`: a timer for every hold placed before L6. */
+export { listHeldHolds, scheduleHoldExpiries, type HeldHold, type HoldExpiryScheduling } from "./jobs/scheduleHoldExpiries.js";
+
 /** The module's outbox, for the outbox relay (implementation.md §3.4). */
 export { VENUE_OUTBOX_TABLE } from "./events/outbox.js";
 

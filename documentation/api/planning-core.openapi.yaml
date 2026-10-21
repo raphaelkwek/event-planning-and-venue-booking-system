@@ -2339,6 +2339,33 @@ paths:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
         "503": { $ref: "#/components/responses/IdentityUnavailable" }
 
+  /api/v1/holds/placed:
+    get:
+      tags: [Venue bookings]
+      summary: Held and recently expired holds at the caller's venues (L6)
+      description: Venue Staff only. The Held holds at the venues they look after, and the holds that expired in the last 14 days, newest expiry first, so they can change a held hold's expiry.
+      operationId: listPlacedHolds
+      responses:
+        "200":
+          description: Held holds and holds that expired in the last 14 days.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/Hold" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "429":
+          description: "`RATE_LIMITED`."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
   /api/v1/holds/{id}/place:
     parameters:
       - $ref: "#/components/parameters/RecordId"
@@ -2382,6 +2409,52 @@ paths:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
         "422":
           description: "`VENUE_INACTIVE`."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "429":
+          description: "`RATE_LIMITED`."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
+  /api/v1/holds/{id}/expiry:
+    parameters:
+      - $ref: "#/components/parameters/RecordId"
+    patch:
+      tags: [Venue bookings]
+      summary: Change a held hold's expiry (L6)
+      description: |
+        Venue Staff who look after the hold's venue, while the hold is Held. The new expiry must be
+        later than now. The coordinator is reminded again (`remindedAt` is cleared) and the hold's
+        expiry timer is rescheduled. An Expired hold can't be extended.
+      operationId: changeHoldExpiry
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [expiresAt]
+              properties:
+                expiresAt: { type: string, format: date-time, description: "With its offset, e.g. 2026-12-01T18:00+08:00." }
+      responses:
+        "200":
+          description: The hold with its new expiry.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Hold" }
+        "400": { $ref: "#/components/responses/ValidationFailed" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404":
+          description: "`HOLD_NOT_FOUND`: no such hold, or not at a venue the caller looks after."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "409":
+          description: "`HOLD_NOT_HELD` (the message names the hold's status)."
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
@@ -3473,7 +3546,7 @@ components:
         reminderLeadMinutes: { type: integer, minimum: 1, description: "How long before the expiry to remind the coordinator (L6)." }
     Hold:
       type: object
-      required: [id, reference, eventId, eventReference, venueId, venueName, startsAt, endsAt, reminderLeadMinutes, status, requestedBy, requestedAt, placedBy, placedAt, expiresAt, slotId, convertedRequestId, convertedBy, convertedAt, releasedBy, releasedAt]
+      required: [id, reference, eventId, eventReference, venueId, venueName, startsAt, endsAt, reminderLeadMinutes, status, requestedBy, requestedAt, placedBy, placedAt, expiresAt, slotId, convertedRequestId, convertedBy, convertedAt, releasedBy, releasedAt, remindedAt, expiredAt]
       properties:
         id: { type: string, format: uuid }
         reference: { type: string, pattern: "^HLD-\\d{6}$" }
@@ -3496,6 +3569,8 @@ components:
         convertedAt: { type: [string, "null"], format: date-time }
         releasedBy: { type: [string, "null"], format: uuid }
         releasedAt: { type: [string, "null"], format: date-time }
+        remindedAt: { type: [string, "null"], format: date-time, description: "L6: when the coordinator was reminded of the current expiry; cleared when the expiry changes." }
+        expiredAt: { type: [string, "null"], format: date-time, description: "L6: when the hold expired; null unless Expired." }
     BookingRequest:
       type: object
       required: [id, reference, eventId, eventReference, venueId, venueName, startsAt, endsAt, layout, expectedAttendance, facilities, accessibilityFeatures, eventStartsAt, eventEndsAt, eventAttendance, differsFromEvent, differences, replacesBookingId, status, requestedBy, requestedAt, withdrawnBy, withdrawnAt, suitabilityStatus, suitabilityReasons, justification, decidedBy, decidedAt, bookingId, rejectionReason, suggestedAlternative, requiresReconfirmation, conflicts]
