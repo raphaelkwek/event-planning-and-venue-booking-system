@@ -438,6 +438,25 @@ describe("converting and releasing (L3)", () => {
     expect(bookings).toEqual([expect.objectContaining({ bookingStatus: "PENDING", eventReference: event.reference })]);
   });
 
+  it("returns the converted request with what it clashes with at the venue (N2)", async () => {
+    const venueId = await newVenue("L3 Auditorium");
+    const other = await newEvent();
+    asCoordinator();
+    const pending = await request(app)
+      .post("/api/v1/booking-requests")
+      .set(bearer)
+      .send({ eventId: other.id, venueId, startsAt: at("17:00"), endsAt: at("19:00"), layout: "Theatre", expectedAttendance: 150 });
+    expect(pending.status).toBe(201);
+    const held = await heldHold((await newEvent()).id, venueId);
+
+    asCoordinator();
+    const res = await convert(held.id);
+    expect(res.status).toBe(201);
+    expect(res.body.request.conflicts).toEqual([
+      { kind: "REQUEST", reference: pending.body.reference, startsAt: utc("17:00"), endsAt: utc("19:00") },
+    ]);
+  });
+
   it("refuses converting a hold that isn't Held, or has passed its expiry", async () => {
     const venueId = await newVenue("L3 Auditorium");
     const event = await newEvent();

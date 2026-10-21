@@ -466,6 +466,43 @@ describe("L6: tells the holding coordinator a hold is about to expire, and that 
   });
 });
 
+describe("H3: tell the coordinator when the venue's new setup or turnaround time makes their booking overlap others", () => {
+  const flagged = {
+    venueId: "55555555-5555-4555-8555-555555555555",
+    venueName: "Lee Kong Chian Auditorium",
+    kind: "BOOKING",
+    reference: "BKR-000001",
+    coordinatorId: coordinator,
+    overlapsReferences: ["BKR-000002"],
+    setupMinutes: 0,
+    turnaroundMinutes: 30,
+    actedBy: "00000000-0000-0000-0000-000000000003",
+    actedAt: at,
+  };
+
+  it("names the venue's new times, the booking, the event and what it overlaps, and says nothing was moved (H3-T10)", () => {
+    expect(notificationsFor(message("venue-booking.buffer-conflict-flagged", flagged))).toEqual([
+      {
+        ...common,
+        notificationType: "venue-booking.buffer-conflict-flagged",
+        recipientUserId: coordinator,
+        relatedReference: "BKR-000001",
+        message:
+          "Lee Kong Chian Auditorium now needs 0 minutes of setup and 30 minutes of turnaround, so booking BKR-000001 for " +
+          "EVT-2026-0042 “Freshmen Orientation” now overlaps BKR-000002. The booking requires reconfirmation. " +
+          "It has not been removed, released or moved.",
+      },
+    ]);
+  });
+
+  it("names a hold as a hold, and lists every reference it overlaps", () => {
+    const [hold] = notificationsFor(
+      message("venue-booking.buffer-conflict-flagged", { ...flagged, kind: "HOLD", overlapsReferences: ["BKR-000002", "BKR-000003"] }),
+    );
+    expect(hold!.message).toContain("so hold BKR-000001 for EVT-2026-0042 “Freshmen Orientation” now overlaps BKR-000002 and BKR-000003. The hold requires");
+  });
+});
+
 describe("F5: tells the owner, each booked venue's staff and each reserver that the arrangements are confirmed", () => {
   const venueStaff = "00000000-0000-0000-0000-000000000003";
   const otherVenueStaff = "00000000-0000-0000-0000-000000000013";

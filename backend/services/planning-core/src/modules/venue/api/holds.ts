@@ -36,7 +36,7 @@ import {
   type Hold,
 } from "../repo/holds.js";
 import { findVenue } from "../repo/venues.js";
-import { present as presentRequest, submitBookingRequest } from "./bookingRequests.js";
+import { presentAll, submitBookingRequest } from "./bookingRequests.js";
 import { refuse } from "./errors.js";
 
 /**
@@ -298,8 +298,10 @@ export function holdsRouter(sql: Sql, limiter: RequestHandler = holdsRateLimit()
         },
       });
       if (!outcome.ok) return refuse(res, outcome.status, outcome.code, outcome.message, outcome.fields, outcome.details);
+      // N2: the new pending request with what it clashes with.
+      const [request] = await presentAll(sql, [outcome.created], () => outcome.eventReference);
       res.status(201).json({
-        request: presentRequest(outcome.created, outcome.eventReference),
+        request,
         hold: present(converted!, outcome.eventReference),
       });
     } catch (error) {

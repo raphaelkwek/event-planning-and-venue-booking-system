@@ -19,6 +19,6 @@
 |---|---|
 | Actual Result | The PUT returned 403 ROLE_NOT_AUTHORISED; the setup time was still 0. |
 | Status | Pass |
-| Remarks | Commit: 6514ab8 · Evidence: tests/H3/evidence/H3-T7.png · Defect: — |
+| Remarks | Commit: 0eb3119 · Evidence: tests/H3/evidence/H3-T7.png · Defect: — |
 | Executed By | Yichen, via automated testing |
-| Date of Execution | 2026-10-04 |
+| Date of Execution | 2026-10-20 |

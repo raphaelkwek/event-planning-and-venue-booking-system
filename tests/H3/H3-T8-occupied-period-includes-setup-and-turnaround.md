@@ -13,16 +13,12 @@
 | Created By | Seann Khoo |
 | Date of Creation | 2026-10-04 |
 
-> **Not executable yet.** No booking (L1, M1) or calendar (I1) exists. The calculation itself is
-> unit-tested now in planning-core (`occupiedPeriod`, with this example), and the venue module
-> exports it for those stories.
-
 ## Execution record
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: · Awaiting I1 (Sprint 2) and L1, M1 (Sprint 3). |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | The calendar's committed rows for Wednesday 2 December 2026: 00:00–08:00 Outside operating hours; 09:30–10:00 Setup EVT-011448 · occupied; 10:00–12:00 Confirmed EVT-011448; 12:00–12:45 Turnaround EVT-011448 · occupied; 22:00–24:00 Outside operating hours; free: 08:00–09:30, 12:45–22:00. The venue is occupied from 09:30 to 12:45. |
+| Status | Pass |
+| Remarks | Commit: 0eb3119 · Evidence: tests/H3/evidence/H3-T8.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-20 |

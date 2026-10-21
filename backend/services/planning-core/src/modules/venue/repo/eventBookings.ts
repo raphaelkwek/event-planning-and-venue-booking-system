@@ -37,6 +37,8 @@ export interface EventBooking {
   /** CR-02: "replaced" once an approved replacement released it. */
   releaseReason: string | null;
   disruptions: BookingDisruption[];
+  /** H3-T10: the live bookings and holds the venue's times now make it overlap, soonest first. */
+  overlaps: string[];
   replacements: ReplacementRequest[];
 }
 
@@ -54,6 +56,7 @@ export async function listBookingsForEvent(db: Db, eventId: string): Promise<Eve
       requires_reconfirmation: boolean;
       release_reason: string | null;
       disruptions: { blockId: string; reasonType: UnavailabilityReasonType; description: string; startsAt: string; endsAt: string }[];
+      overlaps: string[];
       replacements: ReplacementRequest[];
     }[]
   >`
@@ -66,6 +69,11 @@ export async function listBookingsForEvent(db: Db, eventId: string): Promise<Eve
              from venue.block_disruptions d join venue.unavailability_blocks b on b.id = d.block_id
              where d.slot_id = s.id and b.status = 'ACTIVE'
            ), '[]'::json) as disruptions,
+           coalesce((
+             select json_agg(o.reference order by o.starts_at, o.reference)
+             from venue.buffer_conflicts c join venue.venue_slots o on o.id = c.other_slot_id
+             where c.slot_id = s.id and c.cleared_at is null and o.status in ('HELD', 'CONFIRMED')
+           ), '[]'::json) as overlaps,
            coalesce((
              select json_agg(json_build_object(
                       'id', r.id, 'reference', r.reference, 'status', r.status, 'venueName', rv.name)
@@ -89,6 +97,7 @@ export async function listBookingsForEvent(db: Db, eventId: string): Promise<Eve
     releaseReason: row.release_reason,
     // json_build_object writes timestamps in the session's zone; normalise them to UTC instants.
     disruptions: row.disruptions.map((d) => ({ ...d, startsAt: new Date(d.startsAt).toISOString(), endsAt: new Date(d.endsAt).toISOString() })),
+    overlaps: row.overlaps,
     replacements: row.replacements,
   }));
 }

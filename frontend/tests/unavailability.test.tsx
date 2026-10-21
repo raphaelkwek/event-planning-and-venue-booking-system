@@ -264,6 +264,7 @@ describe("a disrupted request (I2-T9)", () => {
           rejectionReason: null,
           suggestedAlternative: null,
           requiresReconfirmation: true,
+          conflicts: [],
         },
       ],
     });

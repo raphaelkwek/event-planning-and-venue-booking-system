@@ -16,6 +16,7 @@ import {
 import { listEventHolds, NOT_HOLDABLE_STATUSES, releaseHold, reminderText, type Hold } from "../api/holds.js";
 import { toLocalInput } from "../api/venues.js";
 import { Refusal } from "../components/Refusal.js";
+import { RequestConflicts } from "../components/RequestConflicts.js";
 import { BOOKING_REQUEST_APPEARANCE, BOOKING_REQUEST_LABELS, UNAVAILABILITY_LABELS, HOLD_APPEARANCE, HOLD_LABELS } from "../shared/status.js";
 import { formatMoment, formatPeriod } from "../shared/singaporeTime.js";
 
@@ -179,6 +180,11 @@ export function EventVenueRequests() {
                       <Lozenge appearance="removed">Requires reconfirmation</Lozenge>
                     </>
                   )}
+                  {item.status === "PENDING" && (
+                    <div style={{ marginTop: 4 }}>
+                      <RequestConflicts conflicts={item.conflicts} />
+                    </div>
+                  )}
                   {item.status === "REJECTED" && item.rejectionReason && (
                     <div style={{ fontSize: 12, marginTop: 4 }}>
                       <div>Reason: {item.rejectionReason}</div>
@@ -220,7 +226,8 @@ export function EventVenueRequests() {
             <tbody>
               {bookings.map((b) => {
                 const live = b.status !== "RELEASED";
-                const replaceable = assigned && canRequest && b.status === "CONFIRMED" && b.requiresReconfirmation && b.disruptions.length > 0;
+                const replaceable =
+                  assigned && canRequest && b.status === "CONFIRMED" && b.requiresReconfirmation && (b.disruptions.length > 0 || b.overlaps.length > 0);
                 return (
                   <tr key={b.id} aria-label={b.reference}>
                     <td style={cell}>{b.reference}</td>
@@ -242,6 +249,11 @@ export function EventVenueRequests() {
                             Unavailable: {UNAVAILABILITY_LABELS[d.reasonType] ?? d.reasonType}, “{d.description}”, {formatPeriod(d.startsAt, d.endsAt)}
                           </div>
                         ))}
+                      {live && b.overlaps.length > 0 && (
+                        <div style={{ fontSize: 12, marginTop: 4 }}>
+                          Overlaps {b.overlaps.join(" and ")} with the venue's new setup and turnaround time
+                        </div>
+                      )}
                       {b.replacements.map((r) => (
                         <div key={r.id} style={{ fontSize: 12, marginTop: 4 }}>
                           Replacement {r.reference} at {r.venueName}: {BOOKING_REQUEST_LABELS[r.status]}

@@ -49,7 +49,16 @@ export interface BookingRequest {
   /** K2: the failing conditions as they were then. */
   suitabilityReasons: SuitabilityCondition[] | null;
   justification: string | null;
+  /** N2: while pending, the requests and confirmed bookings at the venue it clashes with. */
+  conflicts: RequestConflict[];
+}
 
+/** N2: another pending request, or a confirmed booking, whose occupied period overlaps the request's. */
+export interface RequestConflict {
+  kind: "REQUEST" | "BOOKING";
+  reference: string;
+  startsAt: string;
+  endsAt: string;
 }
 
 /** The event's values the request form starts from. */
@@ -93,6 +102,8 @@ export interface EventBooking {
   requiresReconfirmation: boolean;
   releaseReason: string | null;
   disruptions: { blockId: string; reasonType: string; description: string; startsAt: string; endsAt: string }[];
+  /** H3-T10: the bookings and holds the venue's new setup or turnaround time makes it overlap. */
+  overlaps: string[];
   replacements: { id: string; reference: string; status: BookingRequestStatus; venueName: string }[];
 }
 

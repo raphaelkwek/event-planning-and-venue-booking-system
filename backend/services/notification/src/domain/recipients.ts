@@ -188,6 +188,20 @@ const RULES: Record<string, Rule> = {
   "venue-booking.hold-expired": (d, event) => [
     [d.coordinatorId!, holdNotice(d, event, "expired", "The period is free for others.")],
   ],
+  // H3-T10, CR-01: the venue's new setup or turnaround time makes the coordinator's booking or hold
+  // overlap others. It is flagged for reconfirmation and nothing else changes.
+  "venue-booking.buffer-conflict-flagged": (d, event) => {
+    const overlaps = (d.overlapsReferences as unknown as string[]).join(" and ");
+    const thing = d.kind === "HOLD" ? "hold" : "booking";
+    return [
+      [
+        d.coordinatorId!,
+        `${d.venueName} now needs ${d.setupMinutes} minutes of setup and ${d.turnaroundMinutes} minutes of turnaround, ` +
+          `so ${thing} ${d.reference} for ${event} now overlaps ${overlaps}. The ${thing} requires reconfirmation. ` +
+          "It has not been removed, released or moved.",
+      ],
+    ];
+  },
   // S1: the assigned coordinator hears that the organiser asked to change the event.
   "change-request.submitted": (d, event) => [
     [d.coordinatorId!, `A change has been requested for ${event}: ${joinLabels(d.fields)}.`],
