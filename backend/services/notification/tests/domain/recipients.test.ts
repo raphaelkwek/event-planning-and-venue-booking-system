@@ -427,6 +427,15 @@ describe("I2: tell the coordinator when a block disrupts, or stops disrupting, t
       `${removed} Booking BKR-000001 for EVT-2026-0042 “Freshmen Orientation” still requires reconfirmation: other unavailability still overlaps it.`,
     );
   });
+
+  it("says the venue's setup and turnaround time keep the flag, when no other block does (H3-T14)", () => {
+    const still = (stillCause: string) =>
+      notificationsFor(message("venue-booking.disruption-cleared", { ...disrupted, stillDisrupted: true, stillCause }))[0]!.message;
+    expect(still("BUFFER_CONFLICT")).toMatch(
+      /was removed\. Booking BKR-000001 for EVT-2026-0042 “Freshmen Orientation” still requires reconfirmation: with the venue's setup and turnaround time it still overlaps another booking, hold or request\.$/,
+    );
+    expect(still("UNAVAILABILITY")).toContain("still requires reconfirmation: other unavailability still overlaps it.");
+  });
 });
 
 describe("H3: tell the coordinator when the venue's new setup or turnaround time makes their booking overlap others", () => {
@@ -463,6 +472,16 @@ describe("H3: tell the coordinator when the venue's new setup or turnaround time
       message("venue-booking.buffer-conflict-flagged", { ...flagged, kind: "HOLD", overlapsReferences: ["BKR-000002", "BKR-000003"] }),
     );
     expect(hold!.message).toContain("so hold BKR-000001 for EVT-2026-0042 “Freshmen Orientation” now overlaps BKR-000002 and BKR-000003. The hold requires");
+  });
+
+  it("names a pending request as a booking request, told to its requesting coordinator (H3-T11)", () => {
+    const [request] = notificationsFor(message("venue-booking.buffer-conflict-flagged", { ...flagged, kind: "REQUEST" }));
+    expect(request).toMatchObject({ recipientUserId: coordinator, relatedReference: "BKR-000001" });
+    expect(request!.message).toBe(
+      "Lee Kong Chian Auditorium now needs 0 minutes of setup and 30 minutes of turnaround, so booking request BKR-000001 for " +
+        "EVT-2026-0042 “Freshmen Orientation” now overlaps BKR-000002. The request requires reconfirmation. " +
+        "It has not been removed, released or moved.",
+    );
   });
 });
 
