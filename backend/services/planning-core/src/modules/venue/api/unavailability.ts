@@ -122,7 +122,7 @@ async function tellCoordinators(
         description: block.description,
         actedBy: acted.by,
         actedAt: acted.at,
-        ...("stillDisrupted" in item ? { stillDisrupted: item.stillDisrupted } : {}),
+        ...("stillDisrupted" in item ? { stillDisrupted: item.stillDisrupted, stillCause: item.stillCause } : {}),
       },
     });
   }
