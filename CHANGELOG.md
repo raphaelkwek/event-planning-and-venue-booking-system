@@ -4,6 +4,43 @@
 
 ---
 
+# N2: Flag pending requests that clash before a decision is made
+
+**Timestamp:** 2026-10-21T00:49+08:00 (SGT)
+**Author:** Seann, via Claude
+**Scope:** N2 (CR-01). Stacked on H3.
+- planning-core, venue module: `repo/requestConflicts.ts`, and `api/bookingRequests.ts` and
+  `api/holds.ts`, which present each request with its conflicts.
+- OpenAPI: `BookingRequest` gains `conflicts`.
+- web: `components/RequestConflicts.tsx`, used by the Booking requests queue and the event's
+  Venue requests.
+- `tests/N2/` (README and nine cards, all executed) and `sprint-3.csv`.
+**Reason:** Venue Staff should decide between clashing requests deliberately, not first come,
+first served.
+
+## Added
+
+- **Each pending request shows "Conflict"** when its occupied period (CR-01) overlaps another
+  pending request or a confirmed booking at its venue, naming each one's reference and period.
+  - Venue Staff see it in their queue, and the requesting coordinator sees the same flag on the
+    event's Venue requests.
+  - A pending request is widened by the venue's setup and turnaround time as they stand now, the
+    times an approval would copy (H3). A confirmed booking keeps the times it was made with.
+- **Nothing is stored.** The flag is worked out in Postgres each time a request is shown, so it
+  follows every request created, approved, rejected or withdrawn, every booking released at the
+  venue, and any change of the venue's times.
+- **The flag is informational.** It changes no status, and a flagged request can still be
+  approved or rejected.
+
+## Not done, on purpose
+
+- Holds aren't compared: the story names pending requests and confirmed bookings. A pending
+  request still can't be approved over a hold, as before (N1).
+- A replacement (L5) isn't compared with the booking it replaces, because its approval releases
+  that booking first.
+
+---
+
 # H3: Bookings occupy the venue's setup and turnaround time, and a change flags new overlaps
 
 **Timestamp:** 2026-10-21T00:01+08:00 (SGT)

@@ -2058,7 +2058,9 @@ paths:
     get:
       tags: [Venue bookings]
       summary: The Venue Staff queue (L1, M1)
-      description: Venue Staff only. The pending requests for the venues they look after, soonest first.
+      description: |
+        Venue Staff only. The pending requests for the venues they look after, soonest first, each
+        flagged with what it clashes with (N2, `conflicts`).
       operationId: listBookingRequestQueue
       responses:
         "200":
@@ -3496,7 +3498,7 @@ components:
         releasedAt: { type: [string, "null"], format: date-time }
     BookingRequest:
       type: object
-      required: [id, reference, eventId, eventReference, venueId, venueName, startsAt, endsAt, layout, expectedAttendance, facilities, accessibilityFeatures, eventStartsAt, eventEndsAt, eventAttendance, differsFromEvent, differences, replacesBookingId, status, requestedBy, requestedAt, withdrawnBy, withdrawnAt, suitabilityStatus, suitabilityReasons, justification, decidedBy, decidedAt, bookingId, rejectionReason, suggestedAlternative, requiresReconfirmation]
+      required: [id, reference, eventId, eventReference, venueId, venueName, startsAt, endsAt, layout, expectedAttendance, facilities, accessibilityFeatures, eventStartsAt, eventEndsAt, eventAttendance, differsFromEvent, differences, replacesBookingId, status, requestedBy, requestedAt, withdrawnBy, withdrawnAt, suitabilityStatus, suitabilityReasons, justification, decidedBy, decidedAt, bookingId, rejectionReason, suggestedAlternative, requiresReconfirmation, conflicts]
 
       properties:
         id: { type: string, format: uuid }
@@ -3539,6 +3541,22 @@ components:
           description: "K2: the failing conditions as they were evaluated when the request was submitted; later changes to the venue don't change them. Empty when suitable; null when not assessed."
           items: { $ref: "#/components/schemas/SuitabilityCondition" }
         justification: { type: [string, "null"], description: "K2: the coordinator's justification for a Not suitable venue; null otherwise." }
+        conflicts:
+          type: array
+          description: |
+            N2: while the request is pending, the other pending requests and confirmed bookings at the venue
+            whose occupied periods overlap its own (CR-01), soonest first. Worked out on every read, so it
+            follows each request created, approved, rejected or withdrawn and each booking released at the
+            venue. Informational: it approves and rejects nothing. Empty once the request is decided or
+            withdrawn.
+          items:
+            type: object
+            required: [kind, reference, startsAt, endsAt]
+            properties:
+              kind: { type: string, enum: [REQUEST, BOOKING], description: "A pending request, or a confirmed booking." }
+              reference: { type: string }
+              startsAt: { type: string, format: date-time }
+              endsAt: { type: string, format: date-time }
     EventBooking:
       type: object
       required: [id, reference, venueId, venueName, startsAt, endsAt, status, requiresReconfirmation, releaseReason, disruptions, overlaps, replacements]
