@@ -30,6 +30,13 @@ export { occupiedPeriod, periodsOverlap, type Period } from "./domain/occupancy.
  */
 export { releaseHoldsForEvent } from "./repo/holds.js";
 
+/**
+ * L4 (CR-03), for F4: cancelling an event releases all of its venue
+ * arrangements at every venue: bookings and holds Released, pending requests
+ * Withdrawn. Call inside F4's cancellation transaction.
+ */
+export { EVENT_CANCELLED, releaseVenueArrangementsForEvent, type ReleasedArrangements } from "./repo/eventRelease.js";
+
 /** L6, for the HoldExpiry workflow's activities (src/temporal): remind a hold's coordinator, and expire it. */
 export { HoldEventMissingError, expireHoldIfDue, remindHoldIfDue, type ExpireOutcome, type RemindOutcome } from "./repo/holds.js";
 

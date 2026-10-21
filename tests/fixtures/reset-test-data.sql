@@ -49,6 +49,14 @@ delete from venue.buffer_conflicts where venue_id in (select id from test_owned_
 delete from venue.outbox where message_key in (
   select id::text from venue.venue_slots where venue_id in (select id from test_owned_venues));
 
+-- L3's holds at those venues or for the seeded organisers' events, with their outbox messages.
+-- Before the slots and the requests a hold points at.
+delete from venue.outbox where message_key in (
+  select id::text from venue.holds
+  where venue_id in (select id from test_owned_venues) or event_id in (select id from test_owned_events));
+delete from venue.holds
+  where venue_id in (select id from test_owned_venues) or event_id in (select id from test_owned_events);
+
 -- Booking requests (L1, L2) at those venues or for the seeded organisers' events, with their
 -- outbox messages. Before the slots, which a replacement request may point at (CR-02).
 delete from venue.outbox where message_key in (

@@ -4,6 +4,44 @@
 
 ---
 
+# L4: Several venues for one event
+
+**Timestamp:** 2026-10-21T01:08+08:00 (SGT)
+**Author:** Seann, via Claude
+**Scope:** L4 (CR-03). Branched from N2, whose conflict flag L4 relies on.
+- planning-core, venue module: `repo/eventRelease.ts`, exported from `index.ts`, and a fix in
+  `repo/eventBookings.ts`.
+- `tests/L4/` (README and eleven cards; nine executed, two awaiting other stories),
+  `tests/fixtures/reset-test-data.sql` and `sprint-3.csv`.
+**Reason:** Larger events use a main hall and breakout rooms at once. Most of L4 was already built
+by the stories CR-03 revised (L1, L3, K2, N1, N2, M1, M2, L5, F5); these cases test it for one
+event at several venues.
+
+## Added
+
+- **`releaseVenueArrangementsForEvent`, for F4's cancellation.** In F4's transaction, it takes each
+  venue's row lock in order, then:
+  - releases the event's holds and its confirmed bookings, with the reason "event cancelled";
+  - withdraws the event's pending requests, giving back a converted hold's period.
+  - Nothing is deleted.
+- Integration tests for CR-03: two venues booked for one event, rejecting one leaves the other,
+  and cancelling releases both.
+
+## Fixed
+
+- **A placed hold appeared twice on the event's Venue requests,** under Holds and again as a
+  "Held" booking. The bookings list (L5) predates L3's holds list. It now shows confirmed
+  bookings, and released ones that were bookings.
+- The test-data reset removed slots before the L3 holds that point at them.
+
+## Not done, on purpose
+
+- **L4-T9 (cancelling an event releases everything)** waits for F3 and F4. The venue half is built.
+- **L4-T11 (registration capacity across venues)** waits for R2, R7 and the answer to CQ-04.
+- L4-T10 follows F5 as written: every active booking must be confirmed. CQ-05 is still open.
+
+---
+
 # L6: tentative holds expire (CR-04)
 
 **Timestamp:** 2026-10-21T01:05+08:00 (SGT)
