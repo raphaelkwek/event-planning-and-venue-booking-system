@@ -180,6 +180,12 @@ export function EventVenueRequests() {
                       <Lozenge appearance="removed">Requires reconfirmation</Lozenge>
                     </>
                   )}
+                  {item.status === "PENDING" && item.overlaps.length > 0 && (
+                    // H3-T11: why it requires reconfirmation, naming what it now overlaps.
+                    <div style={{ fontSize: 12, marginTop: 4 }}>
+                      Overlaps {item.overlaps.join(" and ")} with the venue's new setup and turnaround time
+                    </div>
+                  )}
                   {item.status === "PENDING" && (
                     <div style={{ marginTop: 4 }}>
                       <RequestConflicts conflicts={item.conflicts} />

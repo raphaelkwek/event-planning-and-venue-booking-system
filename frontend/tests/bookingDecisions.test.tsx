@@ -55,6 +55,7 @@ function bookingRequest(overrides: Record<string, unknown> = {}) {
     rejectionReason: null,
     suggestedAlternative: null,
     conflicts: [],
+    overlaps: [],
     ...overrides,
   };
 }

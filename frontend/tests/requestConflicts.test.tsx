@@ -63,6 +63,7 @@ function bookingRequest(overrides: Record<string, unknown> = {}) {
     suitabilityReasons: null,
     justification: null,
     conflicts: CONFLICTS,
+    overlaps: [],
     ...overrides,
   };
 }
@@ -143,5 +144,20 @@ describe("the coordinator's venue requests (N2-T5)", () => {
     expect(within(row).getByText("Conflict")).toBeTruthy();
     for (const line of LINES) expect(text(row), line).toContain(line);
     expect(within(screen.getByRole("row", { name: /BKR-000004/ })).queryByText("Conflict")).toBeNull();
+  });
+});
+
+describe("the coordinator's venue requests (H3-T11)", () => {
+  it("shows a pending request the venue's new times flagged, naming what it now overlaps", async () => {
+    listEventBookingRequests.mockResolvedValueOnce({
+      event: EVENT,
+      items: [bookingRequest({ conflicts: [], requiresReconfirmation: true, overlaps: ["BKR-000009"] })],
+      bookings: [],
+    });
+    signInAs(ASSIGNED, "EVENT_COORDINATOR", `/events/${EVENT_ID}/venue-requests`);
+    render(<App />);
+    const row = await screen.findByRole("row", { name: /BKR-000001/ });
+    expect(within(row).getByText("Requires reconfirmation")).toBeTruthy();
+    expect(text(row)).toContain("Overlaps BKR-000009 with the venue's new setup and turnaround time");
   });
 });

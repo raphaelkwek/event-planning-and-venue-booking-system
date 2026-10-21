@@ -37,7 +37,7 @@ export interface EventBooking {
   /** CR-02: "replaced" once an approved replacement released it. */
   releaseReason: string | null;
   disruptions: BookingDisruption[];
-  /** H3-T10: the live bookings and holds the venue's times now make it overlap, soonest first. */
+  /** H3-T10, H3-T11: the live bookings, holds and pending requests the venue's times now make it overlap, soonest first. */
   overlaps: string[];
   replacements: ReplacementRequest[];
 }
@@ -71,8 +71,16 @@ export async function listBookingsForEvent(db: Db, eventId: string): Promise<Eve
            ), '[]'::json) as disruptions,
            coalesce((
              select json_agg(o.reference order by o.starts_at, o.reference)
-             from venue.buffer_conflicts c join venue.venue_slots o on o.id = c.other_slot_id
-             where c.slot_id = s.id and c.cleared_at is null and o.status in ('HELD', 'CONFIRMED')
+             from (
+               select os.reference, os.starts_at
+               from venue.buffer_conflicts c join venue.venue_slots os on os.id = c.other_slot_id
+               where c.slot_id = s.id and c.cleared_at is null and os.status in ('HELD', 'CONFIRMED')
+               union all
+               -- H3-T11: a pending request the venue's times now make it overlap.
+               select orq.reference, orq.starts_at
+               from venue.buffer_conflicts c join venue.booking_requests orq on orq.id = c.other_booking_request_id
+               where c.slot_id = s.id and c.cleared_at is null and orq.status = 'PENDING'
+             ) o
            ), '[]'::json) as overlaps,
            coalesce((
              select json_agg(json_build_object(

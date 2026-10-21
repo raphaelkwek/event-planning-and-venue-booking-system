@@ -27,6 +27,8 @@ import { Refusal } from "../components/Refusal.js";
  * with the server's message, and each field's problem under that field. After
  * a save the form shows what the server stored, not what was typed.
  */
+const FLAGGED_KIND_LABELS: Record<FlaggedBooking["kind"], string> = { BOOKING: "Booking", HOLD: "Hold", REQUEST: "Request" };
+
 export function VenueEditor() {
   const session = useSignedIn();
   const navigate = useNavigate();
@@ -96,14 +98,14 @@ export function VenueEditor() {
         </div>
       )}
       {flagged.length > 0 && (
-        // H3-T10: the new times made these overlap; they are flagged, never moved.
+        // H3-T10, H3-T11: the new times made these overlap; they are flagged, never moved.
         <section aria-label="Bookings that now overlap" style={{ marginBottom: 16 }}>
           <SectionMessage appearance="warning">
             <p style={{ margin: 0 }}>Venue saved. With the new setup and turnaround time, these now overlap and require reconfirmation:</p>
             <ul style={{ margin: "8px 0" }}>
               {flagged.map((f) => (
                 <li key={f.reference}>
-                  {f.kind === "HOLD" ? "Hold" : "Booking"} {f.reference}
+                  {FLAGGED_KIND_LABELS[f.kind]} {f.reference}
                   {f.eventReference ? ` (${f.eventReference})` : ""} overlaps {f.overlapsReferences.join(" and ")}
                 </li>
               ))}

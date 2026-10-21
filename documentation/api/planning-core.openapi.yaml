@@ -1176,17 +1176,17 @@ paths:
                     properties:
                       flaggedBookings:
                         type: array
-                        description: "H3-T10: each booking or hold that now overlaps one it didn't before, soonest first. Empty unless the setup or turnaround time changed."
+                        description: "H3-T10, H3-T11: each booking, hold or pending request that now overlaps one it didn't before, soonest first. Empty unless the setup or turnaround time changed. A pending request counts only when the change made the overlap."
                         items:
                           type: object
                           required: [kind, reference, eventReference, overlapsReferences]
                           properties:
-                            kind: { type: string, enum: [BOOKING, HOLD] }
+                            kind: { type: string, enum: [BOOKING, HOLD, REQUEST] }
                             reference: { type: string }
                             eventReference: { type: [string, "null"] }
                             overlapsReferences:
                               type: array
-                              description: Every other booking or hold it now overlaps, soonest first.
+                              description: Every other booking, hold or pending request it now overlaps, soonest first.
                               items: { type: string }
         "400": { $ref: "#/components/responses/ValidationFailed" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
@@ -3498,7 +3498,7 @@ components:
         releasedAt: { type: [string, "null"], format: date-time }
     BookingRequest:
       type: object
-      required: [id, reference, eventId, eventReference, venueId, venueName, startsAt, endsAt, layout, expectedAttendance, facilities, accessibilityFeatures, eventStartsAt, eventEndsAt, eventAttendance, differsFromEvent, differences, replacesBookingId, status, requestedBy, requestedAt, withdrawnBy, withdrawnAt, suitabilityStatus, suitabilityReasons, justification, decidedBy, decidedAt, bookingId, rejectionReason, suggestedAlternative, requiresReconfirmation, conflicts]
+      required: [id, reference, eventId, eventReference, venueId, venueName, startsAt, endsAt, layout, expectedAttendance, facilities, accessibilityFeatures, eventStartsAt, eventEndsAt, eventAttendance, differsFromEvent, differences, replacesBookingId, status, requestedBy, requestedAt, withdrawnBy, withdrawnAt, suitabilityStatus, suitabilityReasons, justification, decidedBy, decidedAt, bookingId, rejectionReason, suggestedAlternative, requiresReconfirmation, overlaps, conflicts]
 
       properties:
         id: { type: string, format: uuid }
@@ -3531,7 +3531,11 @@ components:
         bookingId: { type: [string, "null"], format: uuid, description: "M1: the confirmed booking the approval created." }
         rejectionReason: { type: [string, "null"], description: "M2: why it was rejected." }
         suggestedAlternative: { type: [string, "null"], description: "M2: alternative dates or venues, if any were suggested." }
-        requiresReconfirmation: { type: boolean, description: "I2: an active block overlaps this pending request." }
+        requiresReconfirmation: { type: boolean, description: "I2: an active block overlaps this pending request. H3-T11: or the venue's new setup or turnaround time made it overlap another." }
+        overlaps:
+          type: array
+          description: "H3-T11: the live bookings, holds and pending requests the venue's setup and turnaround time made it overlap, soonest first."
+          items: { type: string }
         suitabilityStatus:
           type: [string, "null"]
           enum: [SUITABLE, SUITABLE_WITH_WARNINGS, NOT_SUITABLE, null]
@@ -3584,7 +3588,7 @@ components:
               endsAt: { type: string, format: date-time }
         overlaps:
           type: array
-          description: "H3-T10: the live bookings and holds the venue's current setup and turnaround time make it overlap, soonest first."
+          description: "H3-T10, H3-T11: the live bookings, holds and pending requests the venue's current setup and turnaround time make it overlap, soonest first."
           items: { type: string }
         replacements:
           type: array
