@@ -88,8 +88,8 @@ export async function recordBufferConflicts(
 ): Promise<Set<string>> {
   const itemIds = conflicts.map((c) => c.slotId);
   const otherIds = conflicts.map((c) => c.overlapsId);
-  const itemIsRequest = itemIds.map((id) => requestIds.has(id));
-  const otherIsRequest = otherIds.map((id) => requestIds.has(id));
+  // Sent as uuid[], like the ids: postgres.js types a JS boolean array as one boolean, which won't cast to boolean[].
+  const requests = [...requestIds];
 
   const cleared = await tx<{ slot_id: string | null; booking_request_id: string | null }[]>`
     update venue.buffer_conflicts set cleared_by = ${actorUserId}, cleared_at = now()
@@ -102,13 +102,12 @@ export async function recordBufferConflicts(
     insert into venue.buffer_conflicts
       (venue_id, slot_id, booking_request_id, other_slot_id, other_booking_request_id, setup_minutes, turnaround_minutes, created_by)
     select ${venueId},
-           case when pair.item_is_request then null else pair.item_id end,
-           case when pair.item_is_request then pair.item_id end,
-           case when pair.other_is_request then null else pair.other_id end,
-           case when pair.other_is_request then pair.other_id end,
+           case when pair.item_id = any(${requests}::uuid[]) then null else pair.item_id end,
+           case when pair.item_id = any(${requests}::uuid[]) then pair.item_id end,
+           case when pair.other_id = any(${requests}::uuid[]) then null else pair.other_id end,
+           case when pair.other_id = any(${requests}::uuid[]) then pair.other_id end,
            ${times.setupMinutes}, ${times.turnaroundMinutes}, ${actorUserId}
-    from unnest(${itemIds}::uuid[], ${itemIsRequest}::boolean[], ${otherIds}::uuid[], ${otherIsRequest}::boolean[])
-      as pair (item_id, item_is_request, other_id, other_is_request)
+    from unnest(${itemIds}::uuid[], ${otherIds}::uuid[]) as pair (item_id, other_id)
     on conflict ((coalesce(slot_id, booking_request_id)), (coalesce(other_slot_id, other_booking_request_id)))
       where (cleared_at is null) do nothing
     returning coalesce(slot_id, booking_request_id) as item_id
