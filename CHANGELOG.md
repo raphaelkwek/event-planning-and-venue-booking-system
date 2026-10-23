@@ -4,6 +4,48 @@
 
 ---
 
+# I5: Record a block with no end
+
+**Timestamp:** 2026-10-24T03:48+08:00 (SGT)
+**Author:** Seann, via Claude
+**Scope:** I5 (SPM-195, Sprint 4), the customer's Week 9 answer W9-49 and decision D-01. Stacked on I4.
+- planning-core, venue module: migration `0018_open_ended_blocks.sql`; the block's repos, the
+  review and the record route; the calendar's query and presenter; the refusal wording
+  (`singaporePeriod`, `readBlock`, `readPeriod`).
+- `contracts` and notification: `blockEndsAt` is a required, nullable date-time on the two
+  disruption messages. **Needs a second owner's review.**
+- OpenAPI: the block, its input, the impact query and the calendar's `openEnded`.
+- web: the Unavailability form, list and dialogs, the availability calendar, and the event's
+  bookings.
+- `tests/I5/` (README and eight cards, all executed) and `sprint-3.csv`.
+**Reason:** the customer gave two answers about open-ended blocks. By D-01 the later one counts:
+Venue Staff "can set temporary unavailability with end dates or leave it open-ended until
+operational issues are resolved and lifted" (W9-49), over "it should not be open-ended" (W9-41).
+
+## Added
+
+- **A block's end is optional.** Leave both end fields empty (or send no `endsAt`) for a block
+  that lasts until Venue Staff remove it. An end that is given must still be after the start.
+- **Nothing else needed a special case.** A block's `period` is generated from its start and end;
+  with no end it has no upper bound, so every overlap the calendar, search, booking requests,
+  holds (I4), approvals and I2's review make answers for it. It disrupts and flags whatever ends
+  after it starts, and refuses requests and holds for any later period.
+- **The calendar shows it from its start on every later day,** labelled open-ended. Messages name
+  it "from <start>, open-ended", and the coordinator is told the venue is unavailable "until Venue
+  Staff lift it".
+
+## Changed
+
+- I2's end was mandatory, and its cards (I2-T2, I2-T3) and tests said so. An end that is left out
+  is now valid; the I2 integration and web tests that asserted it was required were updated. I2's
+  records are not edited.
+
+## Not done, on purpose
+
+- Nothing ends an open-ended block except Venue Staff removing it (I2). There's no reminder.
+
+---
+
 # I4: A block refuses a hold over its period
 
 **Timestamp:** 2026-10-24T03:15+08:00 (SGT)
