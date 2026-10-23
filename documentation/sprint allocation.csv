@@ -54,3 +54,12 @@ R6,Join and be invited from the waitlist,Attendee Registration,,4,10-11,,,New,Ne
 R7,Add an attendee manually,Attendee Registration,,4,10-11,,,New,New story from the clarifications
 S3,Reconsider arrangements affected by an approved change,Event Change Requests,4,4,10-11,8,,Unchanged,Needs bookings reservations and registrations
 T1,Receive notifications about events relevant to me,Notification System,4,,,5,,Removed,Epic in disguise; fifteen triggers redistributed as ACs on the stories that raise them; record and recipient rules moved to T2
+A4,Act only on the events assigned to me,Auth & Authorisation,,4,10-11,,,New,Week 7 change CR-05; added to Sprint 4 on 2026-10-24
+E3,Assign incoming requests from the unassigned queue,Coordinator Assignment,,4,10-11,,,New,Week 7 change CR-05; added to Sprint 4 on 2026-10-24
+E4,Reassign an event as the Lead,Coordinator Assignment,,4,10-11,,,New,Week 7 change CR-05; also retires E2 peer reassignment (Week 9 W9-FX-5); added to Sprint 4 on 2026-10-24
+E5,Oversee coordinator assignments,Coordinator Assignment,,4,10-11,,,New,Week 7 change CR-05; added to Sprint 4 on 2026-10-24
+U1,Conduct an Operational Safety Check,Operational Safety Check,,4,10-11,,,New,Week 7 change CR-06; added to Sprint 4 on 2026-10-24
+I3,Return a Confirmed event to Planning when its venue is blocked,Venue Availability Calendar,,4,10-11,,,New,Week 9 answers (W9-FX-1); I2 is Done so this is a new story
+I4,Refuse a hold over a blocked period,Venue Availability Calendar,,4,10-11,,,New,Week 9 answers (W9-FX-2); I2 and L3 are Done so this is a new story
+I5,Record a block with no end,Venue Availability Calendar,,4,10-11,,,New,Week 9 answers (W9-FX-3) and decision D-01; I2 is Done so this is a new story
+I6,Flag buffer-change overlaps on the availability calendar,Venue Availability Calendar,,4,10-11,,,New,Week 9 answers (W9-FX-4); H3 and I1 are Done so this is a new story
