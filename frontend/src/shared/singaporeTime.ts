@@ -20,9 +20,13 @@ function parts(iso: string) {
   return { day: `${part("weekday")} ${part("day")} ${part("month")} ${part("year")}`, time: `${part("hour")}:${part("minute")}` };
 }
 
-/** "Wednesday 2 December 2026, 14:00–18:00", or both days when the period crosses midnight. */
-export function formatPeriod(startsAt: string, endsAt: string): string {
+/**
+ * "Wednesday 2 December 2026, 14:00–18:00", or both days when the period crosses midnight.
+ * With no end (I5, a block that lasts until Venue Staff remove it): "from Wednesday 2 December 2026, 14:00, open-ended".
+ */
+export function formatPeriod(startsAt: string, endsAt: string | null): string {
   const start = parts(startsAt);
+  if (endsAt === null) return `from ${start.day}, ${start.time}, open-ended`;
   const end = parts(endsAt);
   return start.day === end.day ? `${start.day}, ${start.time}–${end.time}` : `${start.day} ${start.time} to ${end.day} ${end.time}`;
 }
