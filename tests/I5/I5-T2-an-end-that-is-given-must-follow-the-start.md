@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | An end equal to the start was refused with "The end must be after the start." and nothing was stored. With the end at 13:01 the block was recorded, ending 2026-12-02T05:01:00.000Z. |
+| Status | Pass |
+| Remarks | Commit: 44bda64 · Evidence: tests/I5/evidence/I5-T2.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-24 |

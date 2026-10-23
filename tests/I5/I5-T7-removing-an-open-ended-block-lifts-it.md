@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | The block is REMOVED by 00000000-0000-0000-0000-000000000003 at 2026-10-23T19:48:15.283Z. BKR-003879's booking and BKR-003880 are no longer flagged. A request for 21 December was then accepted (BKR-003881). |
+| Status | Pass |
+| Remarks | Commit: 44bda64 · Evidence: tests/I5/evidence/I5-T7.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-24 |

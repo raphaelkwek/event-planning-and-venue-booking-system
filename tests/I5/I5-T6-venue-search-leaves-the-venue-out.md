@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | Searching 21 December 14:00–18:00 listed Mochtar Riady Hall, Availability, Seminar Room 2-1, Availability, without Lee Kong Chian Auditorium. Searching 1 December, before the block, listed Lee Kong Chian Auditorium, Availability, Mochtar Riady Hall, Availability, Seminar Room 2-1, Availability. |
+| Status | Pass |
+| Remarks | Commit: 44bda64 · Evidence: tests/I5/evidence/I5-T6.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-24 |

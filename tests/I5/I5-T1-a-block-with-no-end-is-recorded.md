@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | The review read "Record this unavailability?Lee Kong Chian Auditorium: from Wednesday 2 December 2026, 13:00, open-ended, Maintenance: Roof leak repairNothing is booked, held or requested in this period.CancelRecord unavailability". After recording, the list showed "from Wednesday 2 December 2026, 13:00, open-endedMaintenanceRoof leak repair00000000-0000-0000-0000-00000000000310/24/2026, 3:47:44 AMRemove". Stored ACTIVE with no end date. |
+| Status | Pass |
+| Remarks | Commit: 44bda64 · Evidence: tests/I5/evidence/I5-T1.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-24 |

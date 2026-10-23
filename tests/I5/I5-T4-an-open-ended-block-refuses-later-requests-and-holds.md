@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | Requesting 21 December was refused: "Lee Kong Chian Auditorium is unavailable for Maintenance, “Roof leak repair” (from Wednesday 2 December 2026, 13:00, open-ended), so it can't be requested for this period. Choose another time or venue.", storing nothing. A hold for 21 December was refused (409): "Lee Kong Chian Auditorium is unavailable for Maintenance, “Roof leak repair” (from Wednesday 2 December 2026, 13:00, open-ended), so a hold can't be requested for this period. Choose another time or venue.". Requesting 1 December 10:00–12:00, before the block, was accepted: BKR-003878 PENDING. |
+| Status | Pass |
+| Remarks | Commit: 44bda64 · Evidence: tests/I5/evidence/I5-T4.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-24 |

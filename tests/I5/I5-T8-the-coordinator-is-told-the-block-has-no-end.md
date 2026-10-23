@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | An unread notification read: "Lee Kong Chian Auditorium is unavailable from Wednesday 2 December 2026, 13:00 until Venue Staff lift it (Maintenance: Roof leak repair), which disrupts booking BKR-003882 for EVT-013120 “Annual Research Symposium”. The booking requires reconfirmation, and alternative arrangements are required.10/24/2026, 3:48:18 AMUnreadOpenMark as read". |
+| Status | Pass |
+| Remarks | Commit: 44bda64 · Evidence: tests/I5/evidence/I5-T8.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-24 |

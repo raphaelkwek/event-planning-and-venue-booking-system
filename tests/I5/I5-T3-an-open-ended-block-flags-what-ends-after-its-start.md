@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | The review read "Record this unavailability?Lee Kong Chian Auditorium: from Wednesday 2 December 2026, 13:00, open-ended, Maintenance: Roof leak repairIt will disrupt these. Each stays booked but will require reconfirmation, and its coordinator will be told that alternative arrangements are required.Booking BKR-003876 for EVT-013114, Wednesday 2 December 2026, 14:00–18:00Booking request BKR-003877 for EVT-013114, Wednesday 9 December 2026, 14:00–18:00CancelRecord unavailability". BKR-003876 (2 December) and BKR-003877 (9 December) are flagged Requires Reconfirmation; the 10:00–12:00 booking, which ended before the block starts, is not. BKR-003876's booking is still CONFIRMED. |
+| Status | Pass |
+| Remarks | Commit: 44bda64 · Evidence: tests/I5/evidence/I5-T3.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-24 |

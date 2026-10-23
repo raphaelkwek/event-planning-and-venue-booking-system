@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | 8 December was free 08:00–22:00. 9 December showed "00:00–08:00 Outside operating hours; 13:00–24:00 Maintenance Roof leak repair · open-ended; 22:00–24:00 Outside operating hours", free 08:00–13:00. 10 and 11 December showed "00:00–08:00 Outside operating hours; 00:00–24:00 Maintenance Roof leak repair · open-ended; 22:00–24:00 Outside operating hours" and "00:00–08:00 Outside operating hours; 00:00–24:00 Maintenance Roof leak repair · open-ended; 22:00–24:00 Outside operating hours", with no free periods. |
+| Status | Pass |
+| Remarks | Commit: 44bda64 · Evidence: tests/I5/evidence/I5-T5.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-24 |
