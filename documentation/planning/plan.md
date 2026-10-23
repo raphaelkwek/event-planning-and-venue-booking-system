@@ -184,9 +184,9 @@ Four two-week sprints, Weeks 4–11. The final sprint must end by Friday of Week
 | 1 | 4–5 | 9–20 Sep, closed | Foundations, request and review, end to end *(as delivered)* | A1, A2, A3, B1, B2, C1, C2, C3, D1, D2, D3, D4, D5, E1, E2 | **35** | — |
 | 2 | 6–7 | 23 Sep – 6 Oct, active | Status, notifications, venue catalogue, equipment intake | F1, F2, G1, H1, H2, I1, J1, J2, K1, O1, O2, **P1**, P2, T2 | **34**, plus P1 not yet estimated | EN-01 to EN-09; SPM-113 to 116 (12 pts); PX-01 to PX-14; CQ-01 to CQ-03 |
 | 3 | 8–9 | 7–20 Oct | Holds, booking, conflict, reservation, attendee shell | I2, K2, L1, L2, L3, M1, M2, N1, N2, Q1, Q2, S1, S2, **F5** | 5 (F5); the rest to be poker'd | EN-10 to EN-15 |
-| 4 | 10–11 | 21 Oct – 3 Nov | Registration, readiness, change impact *(showcase)* | **F3**, F4, G2, **R1**, R2, R3, R4, R5, R6, R7, S3 | 3 (F3); the rest to be poker'd | EN-16 to EN-23 |
+| 4 | 10–11 | 21 Oct – 3 Nov | Registration, readiness, change impact *(showcase)* | **F3**, F4, G2, **R1**, R2, R3, R4, R5, R6, R7, S3, *A4, E3, E4, E5, U1, I3, I4, I5, I6* | 3 (F3); the rest to be poker'd | EN-16 to EN-23 |
 
-There are 54 stories, and T1 is removed (closed in Jira, not deleted). Stories in **bold** moved on 1 Oct 2026 (§9.1).
+There are 54 stories, and T1 is removed (closed in Jira, not deleted). Stories in **bold** moved on 1 Oct 2026 (§9.1). Stories in *italics* joined Sprint 4 on 24 Oct 2026, before it started: A4, E3, E4, E5 and U1 from the Week 7 changes, and I3 to I6 from the Week 9 answers (`final user stories.md`, revision 5).
 
 **A note on the earlier figures.** Earlier versions of this table gave Sprint 1 as 44 points planned and 47 delivered. The Sprint 1 planning transcript totals 34, and a CHANGELOG entry said 52. All of these came from document estimates (for example A3 = 5, B2 = 5) that never matched the team's planning-poker votes in Jira (A3 = 1, B2 = 2). Jira holds the votes, so **Sprint 1 is 35**, all fifteen stories Done.
 

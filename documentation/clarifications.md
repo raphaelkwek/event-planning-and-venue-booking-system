@@ -18,13 +18,13 @@ Other documents already point here:
 
 ## Questions
 
-The Week 9 clarification session answered CQ-01 and CQ-04 to CQ-10; the session's full record is below, and each answer cites its rows (W9-nn). Part of CQ-07 and part of CQ-09 went unanswered and are now CQ-11 and CQ-12. CQ-03 remains open, and CQ-02 has an implementation decision.
+The Week 9 clarification session answered CQ-01 and CQ-04 to CQ-10; the session's full record is below, and each answer cites its rows (W9-nn). Part of CQ-07 and part of CQ-09 went unanswered and are now CQ-11 and CQ-12. CQ-02 and CQ-03 have implementation decisions, not customer answers.
 
 | Id | Jira | Question | Affects | Asked | Answered | Answer |
 |---|---|---|---|---|---|---|
 | CQ-01 | SPM-156 | R7 lets a VIP be added "even when no registration places remain", but R2 defines places as capacity minus VIP additions, so that clause can never apply. Should VIPs come from a pool the organiser reserves? | R2, R7 | | Week 9 | No pool: "Registration is enabled for attendees to register directly up to capacity, while Organisers can make final decision if exceed capacity" (W9-28). By D-01 this replaces R7's refusal above capacity: a manual addition may take the total above capacity, at the organiser's or coordinator's decision. |
 | CQ-02 | SPM-157 | P1: is available equipment the total minus the **peak** use at any moment in the period, or minus **every** overlapping reservation added up (which counts back-to-back bookings as simultaneous)? | P1, Q1 | | 2026-10-08 | User instruction in the Codex session: "take peak concurrent use. continue". Implementation proceeds with the peak of combined reserved and unavailable quantities within the requested period. This records the user's decision; an original customer statement/source has not been supplied. |
-| CQ-03 | SPM-158 | T2: must a notification be visible within about 10 seconds of the event that causes it? | T2 | | | |
+| CQ-03 | SPM-158 | T2: must a notification be visible within about 10 seconds of the event that causes it? | T2 | | 2026-10-24 | Team decision, not a customer answer: the question was never put to the customer. A notification's intent is committed with the action that causes it (the outbox, ADR-0008), and the notification becomes visible within about 10 seconds. That is the objective "99% of notifications visible within 10 s of the commit" (ADR-0013), which EN-17 writes down. T2's criteria are unchanged, because they promise no delivery time. SPM-158 was closed on 14 Oct without an answer. |
 | CQ-04 | SPM-184 | When an event uses several venues, which capacity limits registrations: a designated main venue, the total of all its venues, or another rule? | R2, R7 | Week 9 | Week 9 | The total: "each venue is checked independently for suitability and capacity. Total attendee capacity is determined by the total layout capacity and the Event Coordinator will decide whether to confirm" (W9-08). |
 | CQ-05 | SPM-185 | Must *every* active venue booking be confirmed before an event can be confirmed, or is one enough? | F5 | Week 9 | Week 9 | Every one: "All required venue and technical arrangements must be approved, and safety check completed, before the Coordinator marks the event as Confirmed" (W9-25); "Every required venue booking for the event must be independently approved/confirmed before the overall event is confirmed" (W9-53). F5 already does this. |
 | CQ-06 | SPM-186 | Who places a tentative hold, Venue Staff or the assigned coordinator? Who sets the expiry, is there a default or maximum, and how long before expiry should the reminder go out? | L3, L6 | Week 9 | Week 9 | "Venue Staff set and update the hold expiry date/time upon receiving the booking/hold request from the Coordinator" (W9-44); no default or maximum: "length is not fixed by the system" (W9-29), and Venue Staff may extend it (W9-34, W9-40, W9-56); "The warning time can be set by the coordinator per event hold" (W9-09). Applied to L3 and L6 in Sprint 3. |
@@ -43,15 +43,15 @@ The Week 9 clarification session answered CQ-01 and CQ-04 to CQ-10; the session'
 
 ## Work the Week 9 answers create for stories already Done
 
-Done stories keep their criteria (see `final user stories.md`), so each change below is a new Sprint 4 item. **PO: please create these in Jira.**
+Done stories keep their criteria (see `final user stories.md`), so each change below is new Sprint 4 work. None is a criterion the Done story missed, so no Done story is reopened (course guide, scenario 1). Each of W9-FX-1 to W9-FX-4 is a new requirement and becomes a new story (scenario 2). W9-FX-5 is part of E4, which is not yet Done. **PO: please create these in Jira.**
 
-| Item | Story | Change | Source |
-|---|---|---|---|
-| W9-FX-1 | I2 | When a block disrupts a booking of an event that is **Confirmed**, the event returns to Planning (its record kept, never cancelled), and the coordinator is told at once. The organiser and attendees are told only when the replacement arrangements are confirmed. | W9-43, W9-50, W9-51 |
-| W9-FX-2 | I2, L3 | An active block refuses a new **hold** over its period, as it already refuses a new booking request. | W9-41 |
-| W9-FX-3 | I2 | A block may be recorded without an end, until Venue Staff lift it. | W9-49, D-01 |
-| W9-FX-4 | H3, I1 | The availability calendar flags the periods a change of setup or turnaround time made overlap. Venue Staff already see them on saving, and coordinators are already notified. | W9-46 |
-| W9-FX-5 | E2 | Retire coordinator-to-coordinator reassignment once the Lead can reassign (E4). | W9-35, W9-59 |
+| Item | Story | Change | Source | Carried by |
+|---|---|---|---|---|
+| W9-FX-1 | I2 | When a block disrupts a booking of an event that is **Confirmed**, the event returns to Planning (its record kept, never cancelled), and the coordinator is told at once. The organiser and attendees are told only when the replacement arrangements are confirmed. | W9-43, W9-50, W9-51 | New story I3 |
+| W9-FX-2 | I2, L3 | An active block refuses a new **hold** over its period, as it already refuses a new booking request. | W9-41 | New story I4 |
+| W9-FX-3 | I2 | A block may be recorded without an end, until Venue Staff lift it. | W9-49, D-01 | New story I5 |
+| W9-FX-4 | H3, I1 | The availability calendar flags the periods a change of setup or turnaround time made overlap. Venue Staff already see them on saving, and coordinators are already notified. | W9-46 | New story I6 |
+| W9-FX-5 | E2 | Retire coordinator-to-coordinator reassignment once the Lead can reassign (E4). | W9-35, W9-59 | E4, revised |
 
 ## Earlier clarifications cited in the stories
 

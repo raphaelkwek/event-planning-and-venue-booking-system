@@ -4,6 +4,51 @@
 
 ---
 
+# Stories I3 to I6 for the Week 9 changes to Done stories; CQ-03 decided by the team
+
+**Timestamp:** 2026-10-24T12:00+08:00 (SGT)
+**Author:** Seann, via Claude
+**Scope:** documentation only; no code changes.
+- `documentation/final user stories.md`, revision 5: new stories I3, I4, I5 and I6; R2 gains the
+  D-01 rule for places remaining; the notes on A3, F1, H3, I1, I2 and L3 name the new stories.
+- `documentation/clarifications.md`: CQ-03's team decision; the W9-FX items name the story that
+  carries each.
+- `documentation/planning/plan.md` §9 and `documentation/sprint allocation.csv`: A4, E3, E4, E5,
+  U1 and I3 to I6 join Sprint 4.
+
+**Reason:** the course's guide to managing changes (Week 7). A new requirement on a Done story is
+a new user story with its own criteria and estimate (scenario 2); a criterion the story missed
+would reopen it (scenario 1). None of W9-FX-1 to W9-FX-5 is a missed criterion.
+
+## Added
+
+- **I3:** a block over a Confirmed event's booking returns the event to Planning (W9-FX-1).
+- **I4:** a block refuses new holds over its period (W9-FX-2).
+- **I5:** a block may have no end, until Venue Staff remove it (W9-FX-3, D-01).
+- **I6:** the availability calendar flags the overlaps a change of setup or turnaround time
+  creates (W9-FX-4).
+
+## Changed
+
+- **R2:** when manual additions take an event above capacity, places remaining is zero, never
+  negative (D-01).
+- **W9-FX-5 stays in E4,** which already retires E2's peer reassignment, because E4 is not yet
+  Done.
+
+## Decided
+
+- **CQ-03:** the team accepts that a notification becomes visible within about 10 seconds of its
+  action (ADR-0008, ADR-0013, EN-17). It was never put to the customer. T2's criteria promise no
+  delivery time, so they are unchanged.
+
+## Not done, on purpose
+
+- **No story points.** I3 to I6, and the not-yet-Done stories revised on 23 Oct, are estimated at
+  the team's planning poker (PX-02).
+- **Jira is not yet updated.** The PO reviews this revision first.
+
+---
+
 # Clarifications: the customer's Week 9 answers
 
 **Timestamp:** 2026-10-23T12:42+08:00 (SGT)
