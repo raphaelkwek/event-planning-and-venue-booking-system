@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | On the hold's row: "Lee Kong Chian Auditorium is unavailable for Maintenance, “Stage rigging inspection” (Wednesday 2 December 2026, 16:00–19:00), so HLD-000547 can't be placed for this period. It stays Requested.". The hold is REQUESTED with no slot, still listed under Hold requests. |
+| Status | Pass |
+| Remarks | Commit: 1a6f807 · Evidence: tests/I4/evidence/I4-T2.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-24 |

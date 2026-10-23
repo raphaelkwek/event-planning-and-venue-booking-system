@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | The request was refused over the block (VENUE_UNAVAILABLE). After its removal HLD-000551 was requested and placed: HELD. |
+| Status | Pass |
+| Remarks | Commit: 1a6f807 · Evidence: tests/I4/evidence/I4-T6.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-24 |

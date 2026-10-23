@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | With setup 30, the 14:00–18:00 hold (occupied from 13:30) was refused: "Lee Kong Chian Auditorium is unavailable for Maintenance, “Projector replacement” (Wednesday 2 December 2026, 13:00–13:45), so a hold can't be requested for this period. Choose another time or venue.". No hold was stored. |
+| Status | Pass |
+| Remarks | Commit: 1a6f807 · Evidence: tests/I4/evidence/I4-T3.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-24 |

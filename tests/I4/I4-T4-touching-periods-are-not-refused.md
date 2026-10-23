@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | HLD-000548 was requested, then placed: it is HELD with a slot. The block 12:00–14:00 only touches it at 14:00. |
+| Status | Pass |
+| Remarks | Commit: 1a6f807 · Evidence: tests/I4/evidence/I4-T4.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-24 |

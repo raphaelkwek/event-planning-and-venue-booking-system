@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | After the block: HLD-000549 is HELD with its slot HELD and flagged Requires Reconfirmation; HLD-000550, at another venue and Requested, is untouched. |
+| Status | Pass |
+| Remarks | Commit: 1a6f807 · Evidence: tests/I4/evidence/I4-T5.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-24 |
