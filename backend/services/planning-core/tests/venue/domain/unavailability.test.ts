@@ -123,6 +123,32 @@ describe("requestBlockedMessage (I2-T10)", () => {
   });
 });
 
+describe("holdBlockedMessage (I4-T1, I4-T2)", () => {
+  const maintenance = { reasonType: "MAINTENANCE" as const, description: "Annual rigging inspection", startsAt: "2026-12-09T01:00:00.000Z", endsAt: "2026-12-09T05:00:00.000Z" };
+
+  it("says a hold can't be requested over the block, naming its reason type, description and period", () => {
+    expect(holdBlockedMessage("Lee Kong Chian Auditorium", [maintenance])).toBe(
+      "Lee Kong Chian Auditorium is unavailable for Maintenance, “Annual rigging inspection” (Wednesday 9 December 2026, 09:00–13:00), " +
+        "so a hold can't be requested for this period. Choose another time or venue.",
+    );
+  });
+
+  it("says the named hold can't be placed, and stays Requested", () => {
+    expect(holdBlockedMessage("Lee Kong Chian Auditorium", [maintenance], "HLD-000007")).toBe(
+      "Lee Kong Chian Auditorium is unavailable for Maintenance, “Annual rigging inspection” (Wednesday 9 December 2026, 09:00–13:00), " +
+        "so HLD-000007 can't be placed for this period. It stays Requested.",
+    );
+  });
+
+  it("names several blocks", () => {
+    const message = holdBlockedMessage("Hall", [
+      { reasonType: "SAFETY", description: "Fire drill", startsAt: "2026-12-09T01:00:00.000Z", endsAt: "2026-12-09T02:00:00.000Z" },
+      { reasonType: "OTHER", description: "Exams", startsAt: "2026-12-09T03:00:00.000Z", endsAt: "2026-12-09T04:00:00.000Z" },
+    ]);
+    expect(message).toContain("Safety concern, “Fire drill” (Wednesday 9 December 2026, 09:00–10:00) and Other operational reason, “Exams” (");
+  });
+});
+
 describe("NOT_VENUE_STAFF (I2-T13)", () => {
   it("says only the venue's Venue Staff record or remove its unavailability", () => {
     expect(NOT_VENUE_STAFF).toBe("Only the venue's Venue Staff can record or remove its unavailability.");
