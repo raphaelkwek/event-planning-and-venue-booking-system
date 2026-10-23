@@ -7,7 +7,7 @@
 | Test Case ID | I5-T4 |
 | Test Scenario | From its start, an open-ended block refuses new booking requests and new holds for any later period, naming it as open-ended |
 | Pre-conditions | 1. Standard environment running and test data reset.<br>2. FX-BOOKING completed.<br>3. A block recorded at `Lee Kong Chian Auditorium` from 2 December 2026 13:00 with no end, Maintenance, `Roof leak repair` (I5-T1).<br>4. Signed in as FX-BOOKING's assigned coordinator. |
-| Test Steps | 1. Request `Lee Kong Chian Auditorium`, Theatre, 150, 20 December 2026 14:00–18:00.<br>2. Request a hold at `Lee Kong Chian Auditorium`, 20 December 2026 14:00–18:00, reminder 60 minutes.<br>3. Request `Lee Kong Chian Auditorium`, Theatre, 150, 1 December 2026 10:00–12:00. |
+| Test Steps | 1. Request `Lee Kong Chian Auditorium`, Theatre, 150, 21 December 2026 14:00–18:00.<br>2. Request a hold at `Lee Kong Chian Auditorium`, 21 December 2026 14:00–18:00, reminder 60 minutes.<br>3. Request `Lee Kong Chian Auditorium`, Theatre, 150, 1 December 2026 10:00–12:00. |
 | Test Data | Block from 2 December 13:00, no end |
 | Expected Result | Steps 1 and 2 are refused, each message naming the Maintenance block, `Roof leak repair`, its start Wednesday 2 December 2026, 13:00 and that it is open-ended; nothing is stored. Step 3, before the block starts, is accepted. |
 | Created By | Seann Khoo |
