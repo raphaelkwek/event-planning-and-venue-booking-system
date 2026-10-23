@@ -4,6 +4,38 @@
 
 ---
 
+# I4: A block refuses a hold over its period
+
+**Timestamp:** 2026-10-24T03:15+08:00 (SGT)
+**Author:** Seann, via Claude
+**Scope:** I4 (SPM-194, Sprint 4), the customer's Week 9 answer W9-41.
+- planning-core, venue module: `api/holds.ts` (request and place), `domain/unavailability.ts`
+  (`holdBlockedMessage`).
+- OpenAPI: the two hold routes' 409 responses.
+- `tests/I4/` (README and seven cards, all executed) and `sprint-3.csv`.
+**Reason:** a venue marked unavailable should stop new holds as well as new booking requests. I2
+already refused booking requests over a block.
+
+## Added
+
+- **A hold over an active block is refused with `VENUE_UNAVAILABLE`, and nothing is stored.** It
+  applies when the coordinator requests the hold and again when Venue Staff place it, because a
+  block can be recorded in between. The message names each block, its period and its reason type.
+- The hold's **occupied period** is compared (CR-01): the venue's setup and turnaround time count,
+  and periods that only touch don't overlap.
+- Placing now takes the venue's row lock before the hold's, as every booking change at a venue
+  does (implementation.md §4.6, rule 1), so it is decided against a block recorded at the same moment.
+
+## Not done, on purpose
+
+- **A hold that is only Requested isn't flagged by a block.** It reserves nothing and has no slot,
+  so there is nothing to disrupt; it stays Requested and placing it is refused. A hold already
+  placed is flagged Requires Reconfirmation by I2, unchanged.
+- **Open-ended blocks** (I5) are the next story; this one checks blocks with an end.
+- **Converting a hold** into a booking request already refused a request over a block (I2), unchanged.
+
+---
+
 # H3: A change of setup or turnaround time flags pending requests too
 
 **Timestamp:** 2026-10-21T11:35+08:00 (SGT)
