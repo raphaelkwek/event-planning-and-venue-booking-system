@@ -32,8 +32,8 @@ The Week 9 clarification session answered CQ-01 and CQ-04 to CQ-10; the session'
 | CQ-08 | SPM-188 | What does "reject the safety arrangement" lead to: is the event rejected, or sent back like "request changes"? Which stage does "request changes" return to, and do the venue and equipment bookings stay in place meanwhile? | U1, F1 | Week 9 | Week 9 | Back to Planning, like request changes: "Both return the event to the planning stage for adjustments; rejection indicates overall unsuitability, while requesting changes specifies targeted modifications" (W9-63); "Neither automatically terminates the event" (W9-21); "so arrangements can be reevaluated and adjusted" (W9-10). The arrangements stay in place to be re-evaluated (our reading of W9-10; nothing says they are released). |
 | CQ-09 | SPM-189 | Do setup and turnaround times also apply to tentative holds and unavailability blocks, and must the buffered period fit inside the venue's operating hours? | H3, I2, L3 | Week 9 | Week 9 (first part) | Holds yes, blocks no: buffers "are added around event times when checking availability, detecting conflicts, and placing holds" (W9-38); "Buffers primarily ensure room preparation and reset between event uses and holds" (W9-48). Operating hours were not answered: now CQ-12. |
 | CQ-10 | SPM-190 | Are emergency access and known venue restrictions new details on the venue record, maintained by Venue Staff? | H1, H3, U1 | Week 9 | Week 9 | No new venue fields are required: "The Safety Officer evaluates factors (capacity, layout, emergency access, crowd movement) outside the system and records an approval/rejection decision with tracking comments" (W9-64); "Structured vs free-form record format is flexible for implementation by the team" (W9-33). |
-| CQ-11 | *to create* | Follows CQ-07. May an Event Coordinator still **view**, read-only, events that aren't assigned to them, or do they see only their own (A3, A4)? | A3, A4 | | | |
-| CQ-12 | *to create* | Follows CQ-09. Must an event's occupied period, setup and turnaround included, fit inside the venue's operating hours? For example, may a 08:00 event at a venue opening at 08:00 have 30 minutes' setup? | H3, L1, L3, M1 | | | |
+| CQ-11 | SPM-191 | Follows CQ-07. May an Event Coordinator still **view**, read-only, events that aren't assigned to them, or do they see only their own (A3, A4)? | A3, A4 | | | |
+| CQ-12 | SPM-192 | Follows CQ-09. Must an event's occupied period, setup and turnaround included, fit inside the venue's operating hours? For example, may a 08:00 event at a venue opening at 08:00 have 30 minutes' setup? | H3, L1, L3, M1 | | | |
 
 ## Decisions where the customer's answers conflict
 
@@ -43,15 +43,15 @@ The Week 9 clarification session answered CQ-01 and CQ-04 to CQ-10; the session'
 
 ## Work the Week 9 answers create for stories already Done
 
-Done stories keep their criteria (see `final user stories.md`), so each change below is new Sprint 4 work. None is a criterion the Done story missed, so no Done story is reopened (course guide, scenario 1). Each of W9-FX-1 to W9-FX-4 is a new requirement and becomes a new story (scenario 2). W9-FX-5 is part of E4, which is not yet Done. **PO: please create these in Jira.**
+Done stories keep their criteria (see `final user stories.md`), so each change below is new Sprint 4 work. None is a criterion the Done story missed, so no Done story is reopened (course guide, scenario 1). Each of W9-FX-1 to W9-FX-4 is a new requirement and becomes a new story (scenario 2). W9-FX-5 is part of E4, which is not yet Done. Created in Jira on 24 Oct 2026, in Sprint 4.
 
 | Item | Story | Change | Source | Carried by |
 |---|---|---|---|---|
-| W9-FX-1 | I2 | When a block disrupts a booking of an event that is **Confirmed**, the event returns to Planning (its record kept, never cancelled), and the coordinator is told at once. The organiser and attendees are told only when the replacement arrangements are confirmed. | W9-43, W9-50, W9-51 | New story I3 |
-| W9-FX-2 | I2, L3 | An active block refuses a new **hold** over its period, as it already refuses a new booking request. | W9-41 | New story I4 |
-| W9-FX-3 | I2 | A block may be recorded without an end, until Venue Staff lift it. | W9-49, D-01 | New story I5 |
-| W9-FX-4 | H3, I1 | The availability calendar flags the periods a change of setup or turnaround time made overlap. Venue Staff already see them on saving, and coordinators are already notified. | W9-46 | New story I6 |
-| W9-FX-5 | E2 | Retire coordinator-to-coordinator reassignment once the Lead can reassign (E4). | W9-35, W9-59 | E4, revised |
+| W9-FX-1 | I2 | When a block disrupts a booking of an event that is **Confirmed**, the event returns to Planning (its record kept, never cancelled), and the coordinator is told at once. The organiser and attendees are told only when the replacement arrangements are confirmed. | W9-43, W9-50, W9-51 | New story I3 (SPM-193) |
+| W9-FX-2 | I2, L3 | An active block refuses a new **hold** over its period, as it already refuses a new booking request. | W9-41 | New story I4 (SPM-194) |
+| W9-FX-3 | I2 | A block may be recorded without an end, until Venue Staff lift it. | W9-49, D-01 | New story I5 (SPM-195) |
+| W9-FX-4 | H3, I1 | The availability calendar flags the periods a change of setup or turnaround time made overlap. Venue Staff already see them on saving, and coordinators are already notified. | W9-46 | New story I6 (SPM-196) |
+| W9-FX-5 | E2 | Retire coordinator-to-coordinator reassignment once the Lead can reassign (E4). | W9-35, W9-59 | E4 (SPM-177), revised |
 
 ## Earlier clarifications cited in the stories
 
