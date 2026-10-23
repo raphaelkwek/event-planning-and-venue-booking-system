@@ -4,6 +4,60 @@
 
 ---
 
+# Clarifications: the customer's Week 9 answers
+
+**Timestamp:** 2026-10-23T12:42+08:00 (SGT)
+**Author:** Seann, via Claude
+**Scope:** documentation only; no code changes.
+- `documentation/clarifications.md`: the Week 9 session in the customer's words (W9-01 to W9-66),
+  answers to CQ-01 and CQ-04 to CQ-10, decision D-01, new questions CQ-11 and CQ-12, and the
+  Sprint 4 items W9-FX-1 to W9-FX-5.
+- `documentation/final user stories.md`, revision 5: A4, E4, F3, R2, R7, S3 and U1 revised; notes
+  on Done stories E2, F1, F5, H3, I1, I2, L3 and L6.
+- `tests/L4/`: L4-T10, L4-T11 and the README cite the answers to CQ-05 and CQ-04.
+
+**Reason:** the answers were in a spreadsheet, not in the repo. A story's criteria may change only
+after its answer is recorded in `clarifications.md`.
+
+## Changed
+
+- **Registration capacity (R2, R7):** with several venues, it is the total of their layout
+  capacities (CQ-04).
+- **Manual additions (R7):** may go above capacity, at the organiser's or coordinator's decision
+  (CQ-01, D-01). Previously refused.
+- **Reassignment (A4, E4):** only the Lead assigns and reassigns. Coordinator-to-coordinator
+  reassignment (E2) is retired when E4 ships (CQ-07).
+- **Safety check (U1):**
+  - approval marks the check passed, then the coordinator marks the event Confirmed;
+  - rejecting returns the event to Planning, like request changes (CQ-08);
+  - no new venue fields for emergency access (CQ-10).
+- **Material change to a Confirmed event (S3):** it returns to Planning and needs F5 and the
+  safety check again.
+- **Cancellation (F3):** it closes any pending change request for the event.
+
+## Decided
+
+- **D-01:** where the customer's answers conflict, the latest one wins. So blocks may be
+  open-ended (W9-49 over W9-41), and organisers may add attendees above capacity (W9-28 over R7).
+
+## Not done, on purpose
+
+- **Done stories keep their criteria.** Their changes are new Sprint 4 items, W9-FX-1 to W9-FX-5,
+  for the PO to create in Jira:
+  - I2: a disrupted Confirmed event returns to Planning;
+  - I2 and L3: blocks refuse new holds;
+  - I2: blocks may be open-ended;
+  - H3 and I1: the calendar flags buffer conflicts;
+  - E2: retired.
+- **Still open:**
+  - CQ-03 (notification speed);
+  - CQ-11 (may coordinators view other events read-only?);
+  - CQ-12 (must a buffered period fit inside operating hours?).
+- **The session's date isn't known.** The Jira items for the answered questions (SPM-156,
+  SPM-184 to SPM-190) are still to close.
+
+---
+
 # H3: A change of setup or turnaround time flags pending requests too
 
 **Timestamp:** 2026-10-21T11:35+08:00 (SGT)
