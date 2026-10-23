@@ -2238,7 +2238,13 @@ paths:
         choosing how many minutes before the expiry to be reminded (at least 1). The hold is stored
         Requested with an `HLD-` reference and reserves nothing until Venue Staff place it (the
         customer's Week 9 answer, CQ-06). An event has at most one Requested or Held hold per venue
-        (CR-03). Limited to 120 requests a minute per address until the gateway applies limits.
+        (CR-03).
+
+        I4 (Week 9 answer W9-41): refused with `VENUE_UNAVAILABLE`, storing nothing, when the hold's
+        occupied period (with the venue's setup and turnaround, H3) overlaps an active block (I2). The
+        message names each block, its period and its reason type. Periods that merely touch don't overlap.
+
+        Limited to 120 requests a minute per address until the gateway applies limits.
       operationId: requestHold
       requestBody:
         required: true
@@ -2264,7 +2270,7 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
         "409":
-          description: "`EVENT_NOT_HOLDABLE` (the message names the event's status), or `HOLD_DUPLICATE` (the message names the event's existing hold at the venue)."
+          description: "`EVENT_NOT_HOLDABLE` (the message names the event's status), `HOLD_DUPLICATE` (the message names the event's existing hold at the venue), or `VENUE_UNAVAILABLE` (I4: an active block overlaps the hold's occupied period; the message names each block, its period and its reason type)."
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
@@ -2378,6 +2384,11 @@ paths:
         as a HELD slot: the exclusion constraint refuses it when the occupied period (with the venue's
         setup and turnaround, H3) overlaps another hold or confirmed booking at the venue, so the hold
         placed first keeps the period. A refused placement changes nothing; the hold stays Requested.
+
+        I4 (W9-41): placing is also refused with `VENUE_UNAVAILABLE` when an active block, recorded since
+        the hold was requested, overlaps its occupied period. The check runs under the venue row lock
+        I2 takes to record a block, so the two happen one after the other: the placement is refused, or
+        the hold it placed is flagged by the block.
       operationId: placeHold
       requestBody:
         required: true
@@ -2403,7 +2414,7 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
         "409":
-          description: "`HOLD_NOT_REQUESTED` (the message names the hold's status), `EVENT_NOT_HOLDABLE`, or `VENUE_SLOT_CONFLICT` (the message names each overlapped hold or booking and its period)."
+          description: "`HOLD_NOT_REQUESTED` (the message names the hold's status), `EVENT_NOT_HOLDABLE`, `VENUE_SLOT_CONFLICT` (the message names each overlapped hold or booking and its period), or `VENUE_UNAVAILABLE` (I4: an active block overlaps the occupied period; the message names each block)."
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
