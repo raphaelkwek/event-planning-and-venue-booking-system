@@ -91,6 +91,8 @@ export interface CalendarRow {
   eventId: string | null;
   reasonType: UnavailabilityReasonType | null;
   description: string | null;
+  /** A block with no end (I5), shown from its start on every later day. */
+  openEnded?: boolean;
 }
 
 export interface CommittedPeriod {
@@ -103,6 +105,8 @@ export interface CommittedPeriod {
   /** Unavailability blocks (I2). */
   reasonType?: UnavailabilityReasonType;
   description?: string;
+  /** Present, true, only on a block with no end (I5): it lasts until Venue Staff remove it. */
+  openEnded?: true;
 }
 
 export interface CalendarDayView {
@@ -130,7 +134,9 @@ function committedPeriod(row: CalendarRow, references: ReadonlyMap<string, strin
       eventReference: references.get(row.eventId!) ?? null,
     };
   }
-  if (row.reasonType) return { ...period, reasonType: row.reasonType, description: row.description! };
+  if (row.reasonType) {
+    return { ...period, reasonType: row.reasonType, description: row.description!, ...(row.openEnded ? { openEnded: true as const } : {}) };
+  }
   return period;
 }
 
