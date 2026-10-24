@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | The event is PLANNING. BKR-004484 (Lee Kong Chian Auditorium) is CONFIRMED, flagged true; BKR-004485 (Seminar Room 2-1) is CONFIRMED, flagged false. Neither has a release reason. |
+| Status | Pass |
+| Remarks | Commit: d54760c · Evidence: tests/I3/evidence/I3-T3.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-24 |

@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | The block was refused with "The end must be after the start."; the event is still CONFIRMED, the booking's flag is false, and no history entry was added. |
+| Status | Pass |
+| Remarks | Commit: d54760c · Evidence: tests/I3/evidence/I3-T7.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-24 |

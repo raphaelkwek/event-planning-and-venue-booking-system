@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | The review read "Record this unavailability?Lee Kong Chian Auditorium: Wednesday 2 December 2026, 16:00–19:00, Maintenance: Stage rigging inspectionIt will disrupt these. Each stays booked but will require reconfirmation, and its coordinator will be told that alternative arrangements are required.Booking BKR-004481 for EVT-013871, Wednesday 2 December 2026, 16:00–18:00EVT-013871 is Confirmed and will return to Planning, to be confirmed again. It won't be cancelled.CancelRecord unavailability". After recording: "Unavailability recorded. 1 booking now requires reconfirmation. EVT-013871 has returned to Planning.". The coordinator's page shows Planning; the last status history row reads "ConfirmedPlanningVenue Staff10/24/2026, 10:37:00 AM". Stored: CONFIRMED → PLANNING, VENUE_STAFF, VENUE_BLOCKED, at 2026-10-24T02:37:00.363Z (block recorded 2026-10-24T02:37:00.363Z). |
+| Status | Pass |
+| Remarks | Commit: d54760c · Evidence: tests/I3/evidence/I3-T1.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-24 |

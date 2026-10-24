@@ -19,8 +19,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | After the block the organiser had no new notification; once BKR-004488 was approved they had one: "Booking request BKR-004488 was approved, and the booking is confirmed: Seminar Room 2-1 for EVT-013877 “Annual Research Symposium”, Wednesday 2 December 2026, 14:00–18:00.10/24/2026, 10:37:39 AMUnreadOpenMark as read". |
+| Status | Pass |
+| Remarks | Commit: d54760c · Evidence: tests/I3/evidence/I3-T5.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-24 |

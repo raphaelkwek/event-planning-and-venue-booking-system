@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | The coordinator's unread notification read "Lee Kong Chian Auditorium is unavailable on Wednesday 2 December 2026, 16:00–19:00 (Maintenance: Stage rigging inspection), which disrupts booking BKR-004486 for EVT-013876 “Annual Research Symposium”. The booking requires reconfirmation, and alternative arrangements are required. EVT-013876 “Annual Research Symposium” has returned to Planning and must be confirmed again.10/24/2026, 10:37:25 AMUnreadOpenMark as read". The organiser had no new notification about the event. |
+| Status | Pass |
+| Remarks | Commit: d54760c · Evidence: tests/I3/evidence/I3-T4.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-24 |

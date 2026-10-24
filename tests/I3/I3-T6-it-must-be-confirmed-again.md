@@ -19,8 +19,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | With BKR-004489 flagged, confirmation was refused, listing "Outstanding flagsBKR-004489 at Lee Kong Chian Auditorium: requires reconfirmation.", and the event stayed PLANNING. Once BKR-004490 at Seminar Room 2-1 was approved (BKR-004489 released, replaced), confirmation succeeded and the event is SAFETY_REVIEW. |
+| Status | Pass |
+| Remarks | Commit: d54760c · Evidence: tests/I3/evidence/I3-T6.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-24 |
