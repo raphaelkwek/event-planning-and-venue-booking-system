@@ -165,6 +165,8 @@ export interface CommittedPeriod {
   eventReference?: string | null;
   reasonType?: UnavailabilityReasonType;
   description?: string;
+  /** I5: a block with no end, shown from its start on every later day. */
+  openEnded?: true;
 }
 
 export interface AvailabilityDay {

@@ -167,6 +167,16 @@ describe("venue-booking.booking-disrupted and venue-booking.disruption-cleared (
     }
   });
 
+  it("accepts a block with no end, carrying a null end, but not a missing or malformed one (I5-T8)", () => {
+    for (const type of ["venue-booking.booking-disrupted", "venue-booking.disruption-cleared"]) {
+      const data = { ...(type.endsWith("cleared") ? cleared : disrupted), blockEndsAt: null };
+      expect(parseCloudEvent(message(type, data)).data, type).toEqual(data);
+      const { blockEndsAt: _omitted, ...noEnd } = data;
+      expect(() => parseCloudEvent(message(type, noEnd)), type).toThrow(/blockEndsAt/);
+      expect(() => parseCloudEvent(message(type, { ...data, blockEndsAt: "later" })), type).toThrow(/blockEndsAt/);
+    }
+  });
+
   it("accepts a cleared disruption, saying whether another block still disrupts it (I2-T11)", () => {
     expect(parseCloudEvent(message("venue-booking.disruption-cleared", cleared)).data).toEqual(cleared);
     expect(() => parseCloudEvent(message("venue-booking.disruption-cleared", disrupted))).toThrow(/stillDisrupted/);

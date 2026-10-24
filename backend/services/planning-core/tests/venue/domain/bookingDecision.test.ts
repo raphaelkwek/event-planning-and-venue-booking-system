@@ -64,6 +64,10 @@ describe("singaporePeriod", () => {
   it("names both days when the period crosses midnight", () => {
     expect(singaporePeriod(at("22:00"), at("01:00", "03"))).toBe("Wednesday 2 December 2026 22:00 to Thursday 3 December 2026 01:00");
   });
+
+  it("names only the start, and says it is open-ended, when there is no end (I5)", () => {
+    expect(singaporePeriod(at("13:00"), null)).toBe("from Wednesday 2 December 2026, 13:00, open-ended");
+  });
 });
 
 describe("bookingConflictMessage (M1-T4, M1-T6)", () => {
@@ -126,6 +130,13 @@ describe("unavailableMessage (M1-T5)", () => {
     expect(unavailableMessage("BKR-000001", "Lee Kong Chian Auditorium", [block("MAINTENANCE", "Stage rigging inspection", "16:00", "19:00")])).toBe(
       "BKR-000001 wasn't approved: Lee Kong Chian Auditorium is unavailable for Maintenance, “Stage rigging inspection” " +
         "(Wednesday 2 December 2026, 16:00–19:00). Nothing was approved, and the request is still Pending.",
+    );
+  });
+
+  it("names a block with no end by its start, as open-ended (I5)", () => {
+    expect(unavailableMessage("BKR-000001", "Hall", [{ reasonType: "MAINTENANCE", description: "Roof leak repair", startsAt: at("13:00"), endsAt: null }])).toBe(
+      "BKR-000001 wasn't approved: Hall is unavailable for Maintenance, “Roof leak repair” " +
+        "(from Wednesday 2 December 2026, 13:00, open-ended). Nothing was approved, and the request is still Pending.",
     );
   });
 

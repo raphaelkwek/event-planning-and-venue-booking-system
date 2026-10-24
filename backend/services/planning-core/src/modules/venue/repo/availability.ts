@@ -24,6 +24,8 @@ interface Row {
   event_id: string | null;
   reason_type: CalendarRow["reasonType"];
   description: string | null;
+  /** I5: a block with no end. */
+  open_ended: boolean;
   starts_at: Date;
   ends_at: Date;
 }
@@ -54,38 +56,39 @@ export async function readAvailability(sql: Sql, venueId: string, days: readonly
     ),
     committed as (
       select date, 'SETUP'::text as kind, status as slot_status, event_id, null::text as reason_type,
-             null::text as description, tstzrange(lower(blocked_period), starts_at) * span as part
+             null::text as description, false as open_ended, tstzrange(lower(blocked_period), starts_at) * span as part
       from slot
       union all
-      select date, 'BOOKING', status, event_id, null, null, period * span from slot
+      select date, 'BOOKING', status, event_id, null, null, false, period * span from slot
       union all
-      select date, 'TURNAROUND', status, event_id, null, null, tstzrange(ends_at, upper(blocked_period)) * span from slot
+      select date, 'TURNAROUND', status, event_id, null, null, false, tstzrange(ends_at, upper(blocked_period)) * span from slot
       union all
       -- L1: a pending booking request. It reserves nothing, so several may overlap,
       -- but it is shown, so a coordinator sees the period is already asked for.
-      select day.date, 'BOOKING', 'PENDING', r.event_id, null, null, r.period * day.span
+      select day.date, 'BOOKING', 'PENDING', r.event_id, null, null, false, r.period * day.span
       from day
       join venue.booking_requests r
         on r.venue_id = ${venueId} and r.status = 'PENDING' and r.period && day.span
       -- A request converted from a hold is already shown, by the hold's slot.
       where not exists (select 1 from venue.holds h where h.converted_request_id = r.id)
       union all
-      select day.date, 'UNAVAILABLE', null, null, b.reason_type, b.description, b.period * day.span
+      -- I5: a block with no end has no upper bound, so it runs from its start to the end of every later day.
+      select day.date, 'UNAVAILABLE', null, null, b.reason_type, b.description, b.ends_at is null, b.period * day.span
       from day
       join venue.unavailability_blocks b
         on b.venue_id = ${venueId} and b.status = 'ACTIVE' and b.period && day.span
       union all
-      select date, 'OUTSIDE_HOURS', null, null, null, null, unnest(tstzmultirange(span) - tstzmultirange(open)) from day
+      select date, 'OUTSIDE_HOURS', null, null, null, null, false, unnest(tstzmultirange(span) - tstzmultirange(open)) from day
     ),
     free as (
       select day.date, 'FREE'::text as kind, null::text as slot_status, null::uuid as event_id, null::text as reason_type,
-             null::text as description,
+             null::text as description, false as open_ended,
              unnest(tstzmultirange(day.open) - coalesce(
                (select range_agg(c.part) from committed c where c.date = day.date and c.kind <> 'OUTSIDE_HOURS'),
                '{}'::tstzmultirange)) as part
       from day
     )
-    select to_char(date, 'YYYY-MM-DD') as date, kind, slot_status, event_id, reason_type, description,
+    select to_char(date, 'YYYY-MM-DD') as date, kind, slot_status, event_id, reason_type, description, open_ended,
            lower(part) as starts_at, upper(part) as ends_at
     from (select * from committed union all select * from free) as period
     where not isempty(part)
@@ -100,5 +103,6 @@ export async function readAvailability(sql: Sql, venueId: string, days: readonly
     eventId: row.event_id,
     reasonType: row.reason_type,
     description: row.description,
+    openEnded: row.open_ended,
   }));
 }
