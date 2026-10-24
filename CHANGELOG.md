@@ -4,6 +4,63 @@
 
 ---
 
+# I3: A block returns a Confirmed event to Planning
+
+**Timestamp:** 2026-10-24T10:40+08:00 (SGT)
+**Author:** Seann, via Claude
+**Scope:** I3 (SPM-193, Sprint 4), the customer's Week 9 answers W9-43, W9-50 and W9-51 (W9-FX-1).
+- planning-core, event module: F1's status machine gains `VENUE_BLOCKED`. There is a new public
+  `returnBlockedEventsToPlanning()` and `blockReturnsToPlanning()` (`api/venueBlocked.ts`), and
+  `lockEventStatuses()` in the status repo.
+- planning-core, venue module: I2's record route and review (`api/unavailability.ts`).
+- `contracts` and notification: an optional `eventReturnedToPlanning` on
+  `venue-booking.booking-disrupted`, and the coordinator's sentence. **Needs a second owner's
+  review.**
+- OpenAPI: the record route and `DisruptedItem.returnsEventToPlanning`.
+- web: the Unavailability review and its confirmation.
+- The F1 design spec, §6; `tests/I3/` (README and seven cards, all executed); `sprint-3.csv`.
+
+**Reason:** I2 left the event's status alone whatever it was. The customer answered that a
+Confirmed event whose venue becomes unavailable "should revert to Planning review. The event itself
+is preserve and not automatically cancelled" (W9-50). They also said the coordinator is told at once
+and the organiser and attendees only when replacement arrangements or changes are confirmed (W9-51).
+
+## Added
+
+- **Confirmed → Planning when a block lands on a confirmed booking.** Recording a block over a
+  confirmed booking of a Confirmed event moves the event to Planning, never to Cancelled. The
+  status history names the Venue Staff member, with `VENUE_BLOCKED` as the triggering action, and
+  `event.status-changed` is published. An event in any other status is unchanged, as are blocks
+  that touch only its holds or pending requests. Nothing is released, and its other bookings keep
+  their status and flags.
+- **Lock order.** The events are locked (`for update`, in id order) after the venue row and before
+  the bookings are flagged. That is F5's order (event, then bookings), so a block and a
+  confirmation can't deadlock. A block waits for any transaction holding the event, then acts on
+  the status it finds.
+- **Venue Staff see it first.** The review says "EVT-… is Confirmed and will return to Planning, to
+  be confirmed again. It won't be cancelled." Afterwards the notice says it has returned. Each
+  review and response item carries `returnsEventToPlanning`.
+- **The coordinator's notification** adds "EVT-… has returned to Planning and must be confirmed
+  again." The organiser is not told now. They are told when the replacement is approved (M1's
+  existing notice).
+- **The event confirms again through F5,** refused while the booking is flagged and accepted once
+  it is replaced, into Safety Review.
+
+## Changed
+
+- I2's review and record responses have a new required field, `returnsEventToPlanning`. I2's
+  integration tests that compare the items exactly now include it. I2's cards and records are not
+  edited: their events were Approved, and still are.
+
+## Not done, on purpose
+
+- **Attendees** are notified with the organiser (W9-51), but registration (R2) isn't built.
+- **U1 isn't built,** so I3-T6 stops at Safety Review.
+- **The event's status history screen** shows From, To, By and When, not the triggering action.
+  `VENUE_BLOCKED` is stored and returned by the history API; I3-T1 reads it in the database.
+
+---
+
 # H3: A change of setup or turnaround time flags pending requests too
 
 **Timestamp:** 2026-10-21T11:35+08:00 (SGT)
