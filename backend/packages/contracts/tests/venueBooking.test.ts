@@ -167,6 +167,14 @@ describe("venue-booking.booking-disrupted and venue-booking.disruption-cleared (
     }
   });
 
+  it("says, when it did, that the block returned the Confirmed event to Planning (I3-T4)", () => {
+    const returned = { ...disrupted, eventReturnedToPlanning: true };
+    expect(parseCloudEvent(message("venue-booking.booking-disrupted", returned)).data).toEqual(returned);
+    expect(() =>
+      parseCloudEvent(message("venue-booking.booking-disrupted", { ...disrupted, eventReturnedToPlanning: "yes" })),
+    ).toThrow(/eventReturnedToPlanning/);
+  });
+
   it("accepts a cleared disruption, saying whether another block still disrupts it (I2-T11)", () => {
     expect(parseCloudEvent(message("venue-booking.disruption-cleared", cleared)).data).toEqual(cleared);
     expect(() => parseCloudEvent(message("venue-booking.disruption-cleared", disrupted))).toThrow(/stillDisrupted/);
