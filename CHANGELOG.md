@@ -4,6 +4,42 @@
 
 ---
 
+# I6: The availability calendar flags buffer-change overlaps
+
+**Timestamp:** 2026-10-24T15:14+08:00 (SGT)
+**Author:** Seann, via Claude
+**Scope:** I6 (SPM-196, Sprint 4), the customer's Week 9 answer W9-46 (W9-FX-4).
+- planning-core, venue module: the calendar's query (`repo/availability.ts`), its presenter
+  (`domain/availabilityCalendar.ts`) and route.
+- OpenAPI: `CommittedPeriod.bufferOverlaps`.
+- web: the availability calendar.
+- `tests/I6/` (README and five cards, all executed) and `sprint-3.csv`.
+
+**Reason:** H3 shows Venue Staff the conflicts a change of setup or turnaround time causes, and
+tells the coordinators. The customer also wants the calendar to flag the overlapping periods:
+"Venue Staff see identified conflicts upon setting buffers, the calendar flags overlapping
+periods, and affected Coordinators receive notifications" (W9-46).
+
+## Added
+
+- **A flagged arrangement says so on the calendar.** Each confirmed booking, hold or pending
+  request in an uncleared H3 conflict reads "Requires reconfirmation: overlaps BKR-… (EVT-…) with
+  the venue's setup and turnaround time". The row is tinted and bordered in red, unlike unflagged
+  rows. Each arrangement is named with its event's reference, so it can be found on the same
+  calendar.
+- **Only live arrangements are named,** as on the event's bookings (H3-T10): a booking since
+  released, or a request since decided, drops out.
+- **A cleared conflict is gone the next time the calendar loads.** Every internal role sees the
+  flag; attendees still can't open the calendar (I1).
+
+## Not done, on purpose
+
+- The flag is H3's only. A booking flagged by an unavailability block (I2) isn't marked this way:
+  the block is its own row on the calendar.
+- The flag is on the booking's row, not repeated on its setup and turnaround rows.
+
+---
+
 # H3: A change of setup or turnaround time flags pending requests too
 
 **Timestamp:** 2026-10-21T11:35+08:00 (SGT)
