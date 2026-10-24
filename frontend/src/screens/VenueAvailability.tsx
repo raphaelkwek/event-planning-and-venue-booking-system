@@ -86,6 +86,13 @@ function detail(period: CommittedPeriod, timeZone: string): string {
   }
 }
 
+/** I6: "Requires reconfirmation: overlaps BKR-000002 (EVT-000102) with the venue's setup and turnaround time", or null. */
+function bufferFlag(period: CommittedPeriod): string | null {
+  if (!period.bufferOverlaps?.length) return null;
+  const named = period.bufferOverlaps.map((o) => `${o.reference} (${o.eventReference ?? "unknown event"})`).join(" and ");
+  return `Requires reconfirmation: overlaps ${named} with the venue's setup and turnaround time`;
+}
+
 export function VenueAvailability() {
   const session = useSignedIn();
   const navigate = useNavigate();
@@ -225,13 +232,34 @@ function Day({ day, timeZone }: { day: AvailabilityDay; timeZone: string }) {
             <p style={{ margin: 0 }}>Nothing committed</p>
           ) : (
             <ul aria-labelledby={`${headingId}-committed`} style={{ margin: 0, paddingLeft: 0, listStyle: "none" }}>
-              {day.committed.map((period, i) => (
-                <li key={i} style={{ display: "flex", gap: 8, alignItems: "center", padding: "2px 0" }}>
-                  <span style={{ fontVariantNumeric: "tabular-nums", minWidth: 96 }}>{span(period, timeZone)}</span>{" "}
-                  <Lozenge appearance={CALENDAR_APPEARANCE[stateOf(period)]}>{lozengeText(period)}</Lozenge>{" "}
-                  <span>{detail(period, timeZone)}</span>
-                </li>
-              ))}
+              {day.committed.map((period, i) => {
+                const flag = bufferFlag(period);
+                return (
+                  <li
+                    key={i}
+                    style={{
+                      display: "flex",
+                      flexWrap: "wrap",
+                      gap: 8,
+                      alignItems: "center",
+                      padding: "2px 0",
+                      // I6: a flagged arrangement stands apart from unflagged ones.
+                      background: flag ? "#FFEBE6" : "transparent",
+                      borderLeft: flag ? "3px solid #DE350B" : "3px solid transparent",
+                    }}
+                  >
+                    <span style={{ fontVariantNumeric: "tabular-nums", minWidth: 96 }}>{span(period, timeZone)}</span>{" "}
+                    <Lozenge appearance={CALENDAR_APPEARANCE[stateOf(period)]}>{lozengeText(period)}</Lozenge>{" "}
+                    <span>{detail(period, timeZone)}</span>
+                    {flag && (
+                      <>
+                        {" "}
+                        <strong style={{ color: "#BF2600" }}>{flag}</strong>
+                      </>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           )}
         </div>

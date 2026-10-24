@@ -163,6 +163,8 @@ export interface CommittedPeriod {
   endsAt: string;
   bookingStatus?: "CONFIRMED" | "HELD" | "PENDING";
   eventReference?: string | null;
+  /** I6: only on a booking, hold or request a change of the venue's times made overlap others. */
+  bufferOverlaps?: { reference: string; eventReference: string | null }[];
   reasonType?: UnavailabilityReasonType;
   description?: string;
 }
