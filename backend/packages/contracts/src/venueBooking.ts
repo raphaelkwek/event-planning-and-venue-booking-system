@@ -105,8 +105,15 @@ const disruptionFields = {
   actedAt: z.string().datetime(),
 };
 
-/** I2: a block was recorded over this booking, hold or request, which now requires reconfirmation. */
-export const bookingDisruptedPayloadSchema = z.object(disruptionFields);
+/**
+ * I2: a block was recorded over this booking, hold or request, which now requires reconfirmation.
+ * I3: `eventReturnedToPlanning` is true when the block returned the Confirmed event to Planning;
+ * otherwise it is left out.
+ */
+export const bookingDisruptedPayloadSchema = z.object({
+  ...disruptionFields,
+  eventReturnedToPlanning: z.boolean().optional(),
+});
 
 /** Why a flag stays when a block is removed: another active block (I2), or the venue's setup and turnaround time (H3). */
 export const STILL_FLAGGED_CAUSES = ["UNAVAILABILITY", "BUFFER_CONFLICT"] as const;
