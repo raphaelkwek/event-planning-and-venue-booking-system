@@ -408,6 +408,19 @@ describe("I2: tell the coordinator when a block disrupts, or stops disrupting, t
     );
   });
 
+  it("says the event has returned to Planning when the block returned it, and tells only the coordinator (I3-T4, W9-51)", () => {
+    const notes = notificationsFor(message("venue-booking.booking-disrupted", { ...disrupted, eventReturnedToPlanning: true }));
+    expect(notes.map((n) => n.recipientUserId)).toEqual([coordinator]);
+    expect(notes[0]!.message).toMatch(
+      /The booking requires reconfirmation, and alternative arrangements are required\. EVT-2026-0042 “Freshmen Orientation” has returned to Planning and must be confirmed again\.$/,
+    );
+    const [unchanged] = notificationsFor(message("venue-booking.booking-disrupted", { ...disrupted, eventReturnedToPlanning: false }));
+    expect(unchanged!.message).not.toContain("Planning");
+    // The organiser and attendees are told when a replacement or change is approved, not now (W9-51).
+    const statusChanged = { eventId: disrupted.blockId, ownerId: organiser, previousStatus: "CONFIRMED", newStatus: "PLANNING", action: "VENUE_BLOCKED" };
+    expect(notificationsFor(message("event.status-changed", statusChanged))).toEqual([]);
+  });
+
   it("names a pending request as a booking request, and a hold as a hold (I2-T9)", () => {
     const [request] = notificationsFor(message("venue-booking.booking-disrupted", { ...disrupted, kind: "REQUEST" }));
     expect(request!.message).toContain("which disrupts booking request BKR-000001 for EVT-2026-0042 “Freshmen Orientation”. The request requires reconfirmation");

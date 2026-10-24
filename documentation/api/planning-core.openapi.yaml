@@ -1821,6 +1821,14 @@ paths:
         that alternative arrangements are required (CR-02). The venue row is locked first, as M1's
         approval does, so a block and an approval never interleave. From then on the period is
         unavailable on the calendar and in search, and new requests over it are refused.
+
+        I3: a Confirmed event whose confirmed booking the block disrupts returns to Planning, never
+        to Cancelled (W9-50). The status history records the change by the Venue Staff member, with
+        `VENUE_BLOCKED` as the triggering action, and `event.status-changed` is published. The
+        coordinator's message carries `eventReturnedToPlanning: true`; the organiser isn't told
+        until a replacement or change is approved (W9-51). The events are locked after the venue
+        row and before the bookings are flagged, in F5's order. An event in any other status is
+        left as it is.
       operationId: recordVenueUnavailability
       requestBody:
         required: true
@@ -3701,13 +3709,16 @@ components:
         removedAt: { type: [string, "null"], format: date-time }
     DisruptedItem:
       type: object
-      required: [kind, reference, eventReference, overlapFrom, overlapUntil]
+      required: [kind, reference, eventReference, overlapFrom, overlapUntil, returnsEventToPlanning]
       properties:
         kind: { type: string, enum: [BOOKING, HOLD, REQUEST] }
         reference: { type: string, description: "The booking's, hold's or request's own reference." }
         eventReference: { type: [string, "null"] }
         overlapFrom: { type: string, format: date-time, description: "Where the block meets the booking's occupied period, or the request's period." }
         overlapUntil: { type: string, format: date-time }
+        returnsEventToPlanning:
+          type: boolean
+          description: "I3: the event is Confirmed and a confirmed booking of it is disrupted, so the block returns (in the review: would return) the event to Planning."
     ClearedDisruption:
       type: object
       required: [kind, reference, eventReference, stillDisrupted]

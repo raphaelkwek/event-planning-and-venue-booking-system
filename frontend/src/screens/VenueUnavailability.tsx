@@ -65,6 +65,28 @@ function flaggedSentence(disrupted: readonly Disrupted[]): string {
   return ` ${listed} now ${disrupted.length === 1 ? "requires" : "require"} reconfirmation.`;
 }
 
+/** I3: the references of the Confirmed events the block returns to Planning, each once, joined with "and". */
+function returningEvents(disrupted: readonly Disrupted[]): string | null {
+  const refs = [...new Set(disrupted.filter((d) => d.returnsEventToPlanning).map((d) => d.eventReference ?? "An event"))];
+  if (refs.length === 0) return null;
+  return refs.length === 1 ? refs[0]! : `${refs.slice(0, -1).join(", ")} and ${refs[refs.length - 1]}`;
+}
+
+/** In the review, before recording: "EVT-000123 is Confirmed and will return to Planning, …" (W9-50). */
+function willReturnSentence(disrupted: readonly Disrupted[]): string | null {
+  const events = returningEvents(disrupted);
+  if (!events) return null;
+  const several = events.includes(" and ");
+  return `${events} ${several ? "are" : "is"} Confirmed and will return to Planning, to be confirmed again. ${several ? "They" : "It"} won't be cancelled.`;
+}
+
+/** After recording: " EVT-000123 has returned to Planning." */
+function returnedSentence(disrupted: readonly Disrupted[]): string {
+  const events = returningEvents(disrupted);
+  if (!events) return "";
+  return ` ${events} ${events.includes(" and ") ? "have" : "has"} returned to Planning.`;
+}
+
 function describe(d: Disrupted): string {
   const kind = KIND_LABELS[d.kind][0];
   return `${kind.charAt(0).toUpperCase()}${kind.slice(1)} ${d.reference} for ${d.eventReference ?? "an event"}, ${formatPeriod(d.overlapFrom, d.overlapUntil)}`;
@@ -125,7 +147,7 @@ export function VenueUnavailability() {
     setActionError(null);
     try {
       const { disrupted } = await recordBlock(session.token, id!, reviewing.input);
-      setNotice(`Unavailability recorded.${flaggedSentence(disrupted)}`);
+      setNotice(`Unavailability recorded.${flaggedSentence(disrupted)}${returnedSentence(disrupted)}`);
       setReviewing(null);
       setForm(EMPTY);
       await load();
@@ -282,6 +304,7 @@ export function VenueUnavailability() {
                       <li key={`${d.kind}-${d.reference}`}>{describe(d)}</li>
                     ))}
                   </ul>
+                  {willReturnSentence(reviewing.disrupted) && <p>{willReturnSentence(reviewing.disrupted)}</p>}
                 </>
               )}
               <Refusal error={actionError} />

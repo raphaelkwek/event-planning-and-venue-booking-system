@@ -20,6 +20,7 @@ export type EventAction =
   | "CONFIRM_ARRANGEMENTS"
   | "APPROVE_SAFETY"
   | "REQUEST_SAFETY_CHANGES"
+  | "VENUE_BLOCKED"
   | "COMPLETE";
 
 export interface TransitionRule {
@@ -45,6 +46,9 @@ const TRANSITIONS: Record<EventAction, TransitionRule> = {
   // CR-06 proposes Planning; CQ-08 also asks which stage this returns to, so
   // the target may change with the customer's answer.
   REQUEST_SAFETY_CHANGES: { from: ["SAFETY_REVIEW"], to: "PLANNING" },
+  // I3 — a block over a confirmed booking returns a Confirmed event to Planning,
+  // never to Cancelled (W9-50). From there it passes F5 and the safety check again.
+  VENUE_BLOCKED: { from: ["CONFIRMED"], to: "PLANNING" },
   // F1 — only a confirmed event took place, so only a confirmed event
   // completes, and only once its end has passed (checked where the transition
   // is applied, in transitionEvent).
