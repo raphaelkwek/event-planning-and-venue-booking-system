@@ -114,6 +114,41 @@ describe("a venue's availability calendar", () => {
     expect(CALENDAR_APPEARANCE.HELD).not.toBe(CALENDAR_APPEARANCE.CONFIRMED);
   });
 
+  it("flags a booking the venue's new times make overlap, naming each arrangement and its event, apart from unflagged ones (I6-T1, I6-T3)", async () => {
+    vi.mocked(getVenueAvailability).mockResolvedValueOnce({
+      venueId: VENUE_ID,
+      timeZone: "Asia/Singapore",
+      from: "2026-12-07",
+      to: "2026-12-07",
+      days: [{
+        date: "2026-12-07",
+        committed: [
+          {
+            kind: "BOOKING",
+            ...period(7, "10:00", "12:00"),
+            bookingStatus: "CONFIRMED",
+            eventReference: "EVT-000101",
+            bufferOverlaps: [
+              { reference: "BKR-000002", eventReference: "EVT-000102" },
+              { reference: "HLD-000003", eventReference: null },
+            ],
+          },
+          { kind: "BOOKING", ...period(7, "16:00", "18:00"), bookingStatus: "CONFIRMED", eventReference: "EVT-000104" },
+        ],
+        free: [],
+      }],
+    });
+
+    await openCalendar();
+
+    expect(rows("Monday 7 December 2026", "Committed")).toEqual([
+      "10:00–12:00 Confirmed EVT-000101 Requires reconfirmation: overlaps BKR-000002 (EVT-000102) and HLD-000003 (unknown event) with the venue's setup and turnaround time",
+      "16:00–18:00 Confirmed EVT-000104",
+    ]);
+    const [flagged, plain] = within(within(day("Monday 7 December 2026")).getByRole("list", { name: "Committed" })).getAllByRole("listitem");
+    expect(flagged!.style.background).not.toBe(plain!.style.background);
+  });
+
   it("labels a pending request as pending, in a different colour from a confirmed booking (I1 AC3)", async () => {
     await openCalendar();
     expect(rows("Monday 7 December 2026", "Committed")).toContain("14:00–16:00 Pending EVT-000102");

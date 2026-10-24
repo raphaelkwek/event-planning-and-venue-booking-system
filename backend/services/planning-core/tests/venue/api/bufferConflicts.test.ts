@@ -554,3 +554,100 @@ describe("PUT /api/v1/venues/:id flags pending requests too (H3-T11 to H3-T14)",
     expect(cleared!.envelope.data).toMatchObject({ reference: morning.reference, stillDisrupted: true, stillCause: "BUFFER_CONFLICT" });
   });
 });
+
+describe("the availability calendar flags what the venue's times make overlap (I6, W9-46)", () => {
+  type Committed = { kind: string; startsAt: string; bookingStatus?: string; eventReference?: string | null; bufferOverlaps?: unknown };
+  const committed = async (venueId: string) => {
+    signedInAs("EVENT_COORDINATOR", COORDINATOR);
+    const res = await calendar(venueId);
+    expect(res.status).toBe(200);
+    return res.body.days[0].committed as Committed[];
+  };
+  const bookingAt = (rows: Committed[], from: string) => rows.find((r) => r.kind === "BOOKING" && r.startsAt === utc(from))!;
+
+  async function twoBookings() {
+    const venueId = await newVenue();
+    const symposium = await newEvent("H3 Symposium");
+    const workshop = await newEvent("H3 Workshop", OTHER_COORDINATOR);
+    const morning = await booked(venueId, symposium, "10:00", "12:00");
+    const midday = await booked(venueId, workshop, "12:15", "14:00", OTHER_COORDINATOR);
+    signedInAs("VENUE_STAFF", STAFF);
+    return { venueId, symposium, workshop, morning, midday };
+  }
+
+  it("names on each flagged booking the booking it overlaps and that booking's event (I6-T1)", async () => {
+    const { venueId, symposium, workshop, morning, midday } = await twoBookings();
+    await save(venueId, 0, 30);
+
+    const rows = await committed(venueId);
+    expect(bookingAt(rows, "10:00")).toMatchObject({
+      bookingStatus: "CONFIRMED",
+      eventReference: symposium.reference,
+      bufferOverlaps: [{ reference: midday.reference, eventReference: workshop.reference }],
+    });
+    expect(bookingAt(rows, "12:15")).toMatchObject({
+      eventReference: workshop.reference,
+      bufferOverlaps: [{ reference: morning.reference, eventReference: symposium.reference }],
+    });
+    // The flag is on the booking itself, not repeated on its setup and turnaround.
+    expect(rows.filter((r) => r.kind !== "BOOKING" && "bufferOverlaps" in r)).toEqual([]);
+  });
+
+  it("flags a hold and a pending request too, each naming the other (I6-T2)", async () => {
+    const venueId = await newVenue();
+    const symposium = await newEvent("H3 Symposium");
+    const workshop = await newEvent("H3 Workshop", OTHER_COORDINATOR);
+    const hold = await held(venueId, symposium, "10:00", "12:00");
+    const asked = await pending(venueId, workshop, "12:15", "14:00", OTHER_COORDINATOR);
+    signedInAs("VENUE_STAFF", STAFF);
+    await save(venueId, 0, 30);
+
+    const rows = await committed(venueId);
+    expect(bookingAt(rows, "10:00").bufferOverlaps).toEqual([{ reference: asked.reference, eventReference: workshop.reference }]);
+    expect(bookingAt(rows, "12:15").bufferOverlaps).toEqual([{ reference: hold.reference, eventReference: symposium.reference }]);
+  });
+
+  it("leaves a booking the change doesn't make overlap anything unflagged (I6-T3)", async () => {
+    const { venueId, symposium } = await twoBookings();
+    await booked(venueId, symposium, "16:00", "18:00");
+    signedInAs("VENUE_STAFF", STAFF);
+    await save(venueId, 0, 30);
+
+    const rows = await committed(venueId);
+    expect(bookingAt(rows, "16:00")).not.toHaveProperty("bufferOverlaps");
+    expect(bookingAt(rows, "10:00")).toHaveProperty("bufferOverlaps");
+  });
+
+  it("no longer shows the flag once the times fit again (I6-T4)", async () => {
+    const { venueId } = await twoBookings();
+    await save(venueId, 0, 30);
+    signedInAs("VENUE_STAFF", STAFF);
+    await save(venueId, 0, 0);
+
+    const rows = await committed(venueId);
+    expect(rows.filter((r) => "bufferOverlaps" in r)).toEqual([]);
+  });
+
+  it("names only arrangements still live: a released booking is no longer named", async () => {
+    const { venueId, midday } = await twoBookings();
+    await save(venueId, 0, 30);
+    await sql`update venue.venue_slots set status = 'RELEASED', updated_at = now() where id = ${midday.bookingId}`;
+
+    const rows = await committed(venueId);
+    expect(bookingAt(rows, "10:00")).not.toHaveProperty("bufferOverlaps");
+  });
+
+  it("shows the flag to every internal role that reads the calendar (I6-T5)", async () => {
+    const { venueId } = await twoBookings();
+    await save(venueId, 0, 30);
+
+    for (const role of ["EVENT_ORGANISER", "VENUE_STAFF", "TECH_SUPPORT_STAFF"]) {
+      signedInAs(role, OWNER);
+      const res = await calendar(venueId);
+      expect(res.status, role).toBe(200);
+      expect(bookingAt(res.body.days[0].committed, "10:00"), role).toHaveProperty("bufferOverlaps");
+    }
+    signedInAs("ATTENDEE", OWNER);
+    expect((await calendar(venueId)).status).toBe(403);
+  });
+});

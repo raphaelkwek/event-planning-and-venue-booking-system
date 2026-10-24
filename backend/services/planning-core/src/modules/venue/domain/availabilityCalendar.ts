@@ -91,6 +91,14 @@ export interface CalendarRow {
   eventId: string | null;
   reasonType: UnavailabilityReasonType | null;
   description: string | null;
+  /** I6: the live arrangements an uncleared H3 conflict says this booking, hold or request overlaps; otherwise empty. */
+  bufferOverlaps: { reference: string; eventId: string }[];
+}
+
+/** An arrangement a booking overlaps with the venue's setup and turnaround time (I6), by reference and its event's. */
+export interface BufferOverlap {
+  reference: string;
+  eventReference: string | null;
 }
 
 export interface CommittedPeriod {
@@ -100,6 +108,8 @@ export interface CommittedPeriod {
   /** Bookings, and their setup and turnaround: confirmed, held by a placed hold (L3), or a pending request. */
   bookingStatus?: "CONFIRMED" | "HELD" | "PENDING";
   eventReference?: string | null;
+  /** I6: present only on a booking a change of the venue's times flagged, naming what it now overlaps. */
+  bufferOverlaps?: BufferOverlap[];
   /** Unavailability blocks (I2). */
   reasonType?: UnavailabilityReasonType;
   description?: string;
@@ -128,10 +138,20 @@ function committedPeriod(row: CalendarRow, references: ReadonlyMap<string, strin
       ...period,
       bookingStatus: row.slotStatus,
       eventReference: references.get(row.eventId!) ?? null,
+      ...(row.bufferOverlaps.length > 0
+        ? {
+            bufferOverlaps: row.bufferOverlaps.map((o) => ({ reference: o.reference, eventReference: references.get(o.eventId) ?? null })),
+          }
+        : {}),
     };
   }
   if (row.reasonType) return { ...period, reasonType: row.reasonType, description: row.description! };
   return period;
+}
+
+/** The events whose references the calendar shows: each booking's, and each arrangement it overlaps (I6). */
+export function calendarEventIds(rows: readonly CalendarRow[]): string[] {
+  return [...new Set(rows.flatMap((row) => [...(row.eventId ? [row.eventId] : []), ...row.bufferOverlaps.map((o) => o.eventId)]))];
 }
 
 /** One entry per date, in order, each with its committed and free periods in time order. */
