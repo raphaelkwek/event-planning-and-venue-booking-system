@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | The hold's row read "10:00–12:00 Held EVT-014306 Requires reconfirmation: overlaps BKR-004873 (EVT-014307) with the venue's setup and turnaround time"; the request's row read "12:15–14:00 Pending EVT-014307 Requires reconfirmation: overlaps HLD-000833 (EVT-014306) with the venue's setup and turnaround time". |
+| Status | Pass |
+| Remarks | Commit: e541b51 · Evidence: tests/I6/evidence/I6-T2.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-24 |

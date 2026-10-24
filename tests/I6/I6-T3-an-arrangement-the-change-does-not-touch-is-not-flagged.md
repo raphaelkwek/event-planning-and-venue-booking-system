@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | The 16:00–18:00 row read "16:00–18:00 Confirmed EVT-014308", with no flag; the two overlapping bookings were still flagged. |
+| Status | Pass |
+| Remarks | Commit: e541b51 · Evidence: tests/I6/evidence/I6-T3.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-24 |

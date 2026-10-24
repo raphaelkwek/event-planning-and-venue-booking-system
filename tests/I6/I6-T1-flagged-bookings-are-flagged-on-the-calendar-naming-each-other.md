@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | The 10:00–12:00 row read "10:00–12:00 Confirmed EVT-014304 Requires reconfirmation: overlaps BKR-004872 (EVT-014305) with the venue's setup and turnaround time"; the 12:15–14:00 row read "12:15–14:00 Confirmed EVT-014305 Requires reconfirmation: overlaps BKR-004871 (EVT-014304) with the venue's setup and turnaround time". The flagged rows' background is rgb(255, 235, 230), an unflagged row's rgba(0, 0, 0, 0). |
+| Status | Pass |
+| Remarks | Commit: e541b51 · Evidence: tests/I6/evidence/I6-T1.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-24 |

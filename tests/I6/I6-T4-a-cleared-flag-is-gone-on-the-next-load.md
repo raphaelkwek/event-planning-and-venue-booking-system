@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | With the turnaround back to 0 the rows read "10:00–12:00 Confirmed EVT-014310" and "12:15–14:00 Confirmed EVT-014311", neither flagged. |
+| Status | Pass |
+| Remarks | Commit: e541b51 · Evidence: tests/I6/evidence/I6-T4.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-24 |

@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | organiser: both flagged; venuestaff: both flagged; techsupport: both flagged. The attendee was not shown the calendar and nothing was requested. |
+| Status | Pass |
+| Remarks | Commit: e541b51 · Evidence: tests/I6/evidence/I6-T5.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-24 |
