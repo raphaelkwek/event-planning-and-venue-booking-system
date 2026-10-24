@@ -79,10 +79,25 @@ export interface BlockedPeriod {
   endsAt: string;
 }
 
+/** Each block as the refusals name it: its reason type, description and period. */
+function namedBlocks(blocks: readonly BlockedPeriod[]): string {
+  return listed(
+    blocks.map((b) => `${UNAVAILABILITY_REASON_LABELS[b.reasonType]}, “${b.description}” (${singaporePeriod(b.startsAt, b.endsAt)})`),
+  );
+}
+
 /** I2-T10: a request over recorded unavailability is refused, naming each block it overlaps. */
 export function requestBlockedMessage(venueName: string, blocks: readonly BlockedPeriod[]): string {
-  const named = blocks.map(
-    (b) => `${UNAVAILABILITY_REASON_LABELS[b.reasonType]}, “${b.description}” (${singaporePeriod(b.startsAt, b.endsAt)})`,
-  );
-  return `${venueName} is unavailable for ${listed(named)}, so it can't be requested for this period. Choose another time or venue.`;
+  return `${venueName} is unavailable for ${namedBlocks(blocks)}, so it can't be requested for this period. Choose another time or venue.`;
+}
+
+/**
+ * I4 (W9-41): a hold over recorded unavailability is refused, naming each block
+ * it overlaps. Placing a requested hold names it, and says it stays Requested.
+ */
+export function holdBlockedMessage(venueName: string, blocks: readonly BlockedPeriod[], placingReference?: string): string {
+  const unavailable = `${venueName} is unavailable for ${namedBlocks(blocks)}`;
+  return placingReference
+    ? `${unavailable}, so ${placingReference} can't be placed for this period. It stays Requested.`
+    : `${unavailable}, so a hold can't be requested for this period. Choose another time or venue.`;
 }

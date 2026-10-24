@@ -19,6 +19,8 @@ import {
   readPlacement,
 } from "../domain/hold.js";
 import { expiryNotChangeableMessage, readExpiryChange } from "../domain/holdExpiry.js";
+import { holdBlockedMessage } from "../domain/unavailability.js";
+import { activeBlocksOverlapping } from "../repo/bookingDecisions.js";
 import {
   DuplicateHoldError,
   HoldConflictError,
@@ -35,6 +37,7 @@ import {
   releaseHold,
   type Hold,
 } from "../repo/holds.js";
+import { lockVenue } from "../repo/slots.js";
 import { findVenue } from "../repo/venues.js";
 import { presentAll, submitBookingRequest } from "./bookingRequests.js";
 import { refuse } from "./errors.js";
@@ -47,6 +50,9 @@ import { refuse } from "./errors.js";
  * the exclusion constraint decides who gets it, first placed first served
  * (ADR-0006). The coordinator then converts the hold into a booking request
  * (L1) or releases it. Expiring is L6.
+ *
+ * I4 (W9-41): an active block refuses a hold over its occupied period, when it
+ * is requested and when it is placed. A hold already placed is flagged by I2.
  */
 
 const BASE = "/api/v1/holds";
@@ -116,6 +122,12 @@ export function holdsRouter(sql: Sql, limiter: RequestHandler = holdsRateLimit()
       if (!venue.isActive) return refuse(res, 422, "VENUE_INACTIVE", `${venue.name} is inactive, so it can't be held.`);
 
       try {
+        // I4: a block over the hold's occupied period (H3) refuses it. A request reserves nothing and
+        // placing it checks again under the venue lock, so no lock is needed here.
+        const blocks = await sql.begin((tx) =>
+          activeBlocksOverlapping(tx, venue.id, new Date(input.startsAt), new Date(input.endsAt), venue.setupMinutes, venue.turnaroundMinutes),
+        );
+        if (blocks.length > 0) return refuse(res, 409, "VENUE_UNAVAILABLE", holdBlockedMessage(venue.name, blocks));
         const hold = await sql.begin((tx) => insertHold(tx, { ...input, requestedBy: actor.userId }));
         res.status(201).json(present(hold, event.reference));
       } catch (error) {
@@ -182,8 +194,20 @@ export function holdsRouter(sql: Sql, limiter: RequestHandler = holdsRateLimit()
       if (!venue.isActive) return refuse(res, 422, "VENUE_INACTIVE", `${venue.name} is inactive, so it can't be held.`);
 
       const outcome = await sql.begin(async (tx) => {
+        // The venue first, then the hold: the order every booking change at a venue takes (implementation.md §4.6, rule 1).
+        await lockVenue(tx, found.venueId);
         const hold = (await lockHold(tx, id))!;
         if (hold.status !== "REQUESTED") return { code: "NOT_REQUESTED", hold } as const;
+        // I4: a block recorded since the request refuses it. Checked under the venue lock I2 takes to record one.
+        const blocks = await activeBlocksOverlapping(
+          tx,
+          hold.venueId,
+          new Date(hold.startsAt),
+          new Date(hold.endsAt),
+          venue.setupMinutes,
+          venue.turnaroundMinutes,
+        );
+        if (blocks.length > 0) return { code: "BLOCKED", hold, blocks } as const;
         try {
           const placed = await placeHold(tx, hold, {
             expiresAt: placement.expiresAt,
@@ -201,6 +225,9 @@ export function holdsRouter(sql: Sql, limiter: RequestHandler = holdsRateLimit()
 
       if (outcome.code === "NOT_REQUESTED") {
         return refuse(res, 409, "HOLD_NOT_REQUESTED", notRequestedMessage(outcome.hold.reference, outcome.hold.status));
+      }
+      if (outcome.code === "BLOCKED") {
+        return refuse(res, 409, "VENUE_UNAVAILABLE", holdBlockedMessage(venue.name, outcome.blocks, outcome.hold.reference));
       }
       if (outcome.code === "CONFLICT") return refuse(res, 409, "VENUE_SLOT_CONFLICT", holdConflictMessage(outcome.overlapped, venue.name));
       res.json(present(outcome.hold, event.reference));
