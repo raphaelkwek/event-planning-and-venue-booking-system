@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | The Lead's queue listed EVT-014760 on row 1 and EVT-014761 on row 2: "EVT-014760Annual Research SymposiumWednesday 2 December 2026, 14:00–18:00150Tuesday 27 October 2026, 19:19". coordinator: no link, no queue, API 403; organiser: no link, no queue, API 403; venuestaff: no link, no queue, API 403; techsupport: no link, no queue, API 403. |
+| Status | Pass |
+| Remarks | Commit: f17c393 · Evidence: tests/E3/evidence/E3-T2.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-27 |

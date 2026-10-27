@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | The organiser's page showed "Awaiting assignment" and no coordinator. The Lead's queue listed EVT-014759. No assignment row exists, and no coordinator was notified. |
+| Status | Pass |
+| Remarks | Commit: f17c393 · Evidence: tests/E3/evidence/E3-T1.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-27 |

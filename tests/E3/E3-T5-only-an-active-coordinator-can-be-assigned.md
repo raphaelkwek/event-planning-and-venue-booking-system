@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | 00000000-0000-0000-0000-000000000003: 400 NOT_AN_ACTIVE_COORDINATOR; 00000000-0000-0000-0000-000000000006: 400 NOT_AN_ACTIVE_COORDINATOR; 00000000-0000-0000-0000-0000000000ff: 400 NOT_AN_ACTIVE_COORDINATOR, each "Only an active Event Coordinator can be assigned." The page offered . No assignment row exists. |
+| Status | Pass |
+| Remarks | Commit: f17c393 · Evidence: tests/E3/evidence/E3-T5.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-27 |

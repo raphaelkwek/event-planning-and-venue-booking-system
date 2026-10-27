@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | "Assigned to Coordinator Two." was shown and the request left the queue. One active row: coordinator 00000000-0000-0000-0000-000000000008, by 00000000-0000-0000-0000-000000000009, at 2026-10-27T11:19:48.727Z. Coordinator Two was told "Event request EVT-014763 “Annual Research Symposium” has been assigned to you and is awaiting your review.10/27/2026, 7:19:49 PMUnreadOpenMark as read" and has it in their review queue. The organiser was told "Your event request EVT-014763 “Annual Research Symposium” has been assigned to Coordinator Two, who is now your point of contact.10/27/2026, 7:19:49 PMUnreadOpenMark as read", and the request names Coordinator Two. |
+| Status | Pass |
+| Remarks | Commit: f17c393 · Evidence: tests/E3/evidence/E3-T4.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-27 |

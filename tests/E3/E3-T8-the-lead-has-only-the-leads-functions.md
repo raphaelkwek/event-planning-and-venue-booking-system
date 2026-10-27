@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | The header read "ConnectSphereUnassignedNotificationsAPI consolelead@connectsphere.test · Event Coordinator LeadSign out". The navigation offered Unassigned, Notifications, API console. The approval was refused, 403: "Your role is not authorised to use this function."; the request is still UNDER_REVIEW. |
+| Status | Pass |
+| Remarks | Commit: f17c393 · Evidence: tests/E3/evidence/E3-T8.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-27 |
