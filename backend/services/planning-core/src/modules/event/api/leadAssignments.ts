@@ -12,6 +12,7 @@ import {
   insertAssignment,
   listUnassigned,
   lockEventForAssignment,
+  raiseEventVersion,
 } from "../repo/assignments.js";
 import { eventRateLimiter } from "./eventRateLimiter.js";
 import { refuse } from "./errors.js";
@@ -70,6 +71,7 @@ export function leadAssignmentsRouter(sql: Sql, limiter: RequestHandler = eventR
         if (current) return { code: "ASSIGNED", coordinatorId: current.coordinatorId } as const;
 
         const assignment = await insertAssignment(tx, event.id, coordinator.id, LEAD_ASSIGNMENT_RULE, lead.userId);
+        await raiseEventVersion(tx, event.id, lead.userId);
         await writeOutbox(tx, {
           topic: KAFKA_TOPICS.event,
           messageType: "event.coordinator-assigned",

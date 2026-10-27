@@ -252,3 +252,12 @@ export async function lockEventForAssignment(tx: TransactionSql, eventId: string
   const row = rows[0];
   return row ? { id: row.id, reference: row.reference, name: row.name, status: row.status, ownerId: row.owner_id } : null;
 }
+
+/**
+ * E3, E4 — a change of coordinator is a change to the event: its version (the
+ * ETag, ADR-0015) rises, so a copy read before it is never served as current,
+ * and an edit begun before it is refused as stale.
+ */
+export async function raiseEventVersion(tx: TransactionSql, eventId: string, actorId: string): Promise<void> {
+  await tx`update event.events set version = version + 1, updated_at = now(), updated_by = ${actorId} where id = ${eventId}`;
+}

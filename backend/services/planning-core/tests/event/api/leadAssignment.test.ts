@@ -242,6 +242,21 @@ describe("POST /api/v1/events/:id/assignment (E3)", () => {
     expect((await request(app).get(`/api/v1/events/${event.id}`).set(bearer)).body.assignedCoordinatorId).toBe(OTHER_COORDINATOR);
   });
 
+  it("raises the event's version, so a copy read before the assignment is never served as current (found by E3-T4)", async () => {
+    const event = await submitted();
+    signedInAs(LEAD, "EVENT_COORDINATOR_LEAD");
+    const before = await request(app).get(`/api/v1/events/${event.id}`).set(bearer);
+    expect(before.body.assignedCoordinatorId).toBeNull();
+
+    await assign(event.id, OTHER_COORDINATOR);
+
+    signedInAs(ORGANISER, "EVENT_ORGANISER");
+    const after = await request(app).get(`/api/v1/events/${event.id}`).set(bearer).set("If-None-Match", before.headers.etag!);
+    expect(after.status).toBe(200);
+    expect(after.body).toMatchObject({ assignedCoordinatorId: OTHER_COORDINATOR, version: before.body.version + 1 });
+    expect(after.headers.etag).not.toBe(before.headers.etag);
+  });
+
   it("refuses anyone but an active Event Coordinator, storing nothing (E3-T5)", async () => {
     const event = await submitted();
     signedInAs(LEAD, "EVENT_COORDINATOR_LEAD");
