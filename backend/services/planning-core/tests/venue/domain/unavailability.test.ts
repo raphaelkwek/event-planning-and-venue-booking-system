@@ -36,7 +36,8 @@ describe("readBlock (I2-T1, I2-T2, I2-T3)", () => {
   });
 
   it("reads a block with no end as open-ended, whether the end is left out, null or empty (I5-T1)", () => {
-    const { endsAt: _omitted, ...withoutEnd } = valid;
+    const withoutEnd: Record<string, unknown> = { ...valid };
+    delete withoutEnd.endsAt;
     for (const body of [withoutEnd, { ...withoutEnd, endsAt: null }, { ...withoutEnd, endsAt: "" }, { ...withoutEnd, endsAt: "   " }]) {
       expect(readBlock(body)).toEqual({
         ok: true,

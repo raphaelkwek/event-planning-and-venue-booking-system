@@ -171,7 +171,8 @@ describe("venue-booking.booking-disrupted and venue-booking.disruption-cleared (
     for (const type of ["venue-booking.booking-disrupted", "venue-booking.disruption-cleared"]) {
       const data = { ...(type.endsWith("cleared") ? cleared : disrupted), blockEndsAt: null };
       expect(parseCloudEvent(message(type, data)).data, type).toEqual(data);
-      const { blockEndsAt: _omitted, ...noEnd } = data;
+      const noEnd: Record<string, unknown> = { ...data };
+      delete noEnd.blockEndsAt;
       expect(() => parseCloudEvent(message(type, noEnd)), type).toThrow(/blockEndsAt/);
       expect(() => parseCloudEvent(message(type, { ...data, blockEndsAt: "later" })), type).toThrow(/blockEndsAt/);
     }
