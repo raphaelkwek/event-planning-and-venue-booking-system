@@ -4,7 +4,14 @@ import Button from "@atlaskit/button/new";
 import Lozenge from "@atlaskit/lozenge";
 import SectionMessage from "@atlaskit/section-message";
 import { useSignedIn } from "../auth/SessionContext.js";
-import { assignCoordinator, listCoordinators, reassignCoordinator, type Coordinator } from "../api/assignments.js";
+import {
+  assignCoordinator,
+  listAssignmentHistory,
+  listCoordinators,
+  reassignCoordinator,
+  type AssignmentHistoryEntry,
+  type Coordinator,
+} from "../api/assignments.js";
 import { openEvent } from "../api/events.js";
 import type { EventRecord, EventStatus } from "../api/types.js";
 import { useUserNames } from "../shared/useUserNames.js";
@@ -13,14 +20,15 @@ import { STATUS_APPEARANCE, STATUS_LABELS } from "../shared/status.js";
 import { Refusal } from "../components/Refusal.js";
 
 const coordinatorName = (c: Coordinator) => c.displayName ?? c.email;
+const cell = { padding: "6px 8px", borderBottom: "1px solid #DFE1E6", textAlign: "left" as const, verticalAlign: "top" as const };
 
 /** No coordinator is assigned to, or moved from, an event that is a draft or has left the workflow (E3, E4). */
 const CLOSED: EventStatus[] = ["DRAFT", "COMPLETED", "CANCELLED", "REJECTED"];
 
 /**
- * E3, E4 — the Lead opens a request and sees its basic information, then assigns
- * it to one active Event Coordinator, or reassigns it to another at once.
- * Opening it here never claims it for review.
+ * E3, E4, E5 — the Lead opens a request and sees its basic information, then assigns
+ * it to one active Event Coordinator, or reassigns it to another at once, and
+ * reads its assignment history. Opening it here never claims it for review.
  */
 export function AssignmentDetail() {
   const session = useSignedIn();
@@ -33,13 +41,26 @@ export function AssignmentDetail() {
   const [missing, setMissing] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const nameOf = useUserNames(session.token, [event?.ownerId, event?.assignedCoordinatorId]);
+  const [history, setHistory] = useState<AssignmentHistoryEntry[]>([]);
+  const nameOf = useUserNames(session.token, [
+    event?.ownerId,
+    event?.assignedCoordinatorId,
+    ...history.flatMap((entry) => [entry.coordinatorId, entry.assignedBy]),
+  ]);
+
+  const loadHistory = () =>
+    listAssignmentHistory(session.token, eventId!)
+      .then((page) => setHistory(page.items))
+      .catch(setLoadError);
 
   useEffect(() => {
     openEvent(session.token, eventId!).then(setEvent).catch(setLoadError);
     listCoordinators(session.token)
       .then((page) => setCoordinators(page.items))
       .catch(setLoadError);
+    void loadHistory();
+    // loadHistory reads only the token and the event id, both listed.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session.token, eventId]);
 
   async function onAssign(e: FormEvent) {
@@ -63,6 +84,7 @@ export function AssignmentDetail() {
       setNotice(reassigning ? `Reassigned to ${name}. They are now the event's coordinator.` : `Assigned to ${name}.`);
       setEvent((current) => (current ? { ...current, assignedCoordinatorId: result.coordinatorId } : current));
       setChosen("");
+      void loadHistory();
     } catch (error) {
       setActionError(error);
     } finally {
@@ -136,6 +158,33 @@ export function AssignmentDetail() {
         </form>
       )}
       <Refusal error={actionError} />
+
+      <h3 style={{ marginTop: 32 }}>Assignment history</h3>
+      {history.length === 0 ? (
+        <p>No coordinator has been assigned yet.</p>
+      ) : (
+        <table aria-label="Assignment history" style={{ borderCollapse: "collapse", width: "100%" }}>
+          <thead>
+            <tr>
+              {["Coordinator", "Assigned by", "From", "Until"].map((heading) => (
+                <th key={heading} style={cell}>
+                  {heading}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {history.map((entry) => (
+              <tr key={`${entry.coordinatorId}-${entry.assignedAt}`}>
+                <td style={cell}>{nameOf(entry.coordinatorId)}</td>
+                <td style={cell}>{entry.assignedBy ? nameOf(entry.assignedBy) : "Automatically on submission (E1)"}</td>
+                <td style={cell}>{formatMoment(entry.assignedAt)}</td>
+                <td style={cell}>{entry.endedAt ? formatMoment(entry.endedAt) : "Current"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
     </div>
   );
 }

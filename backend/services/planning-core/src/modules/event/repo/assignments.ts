@@ -251,3 +251,58 @@ export async function lockEventForAssignment(tx: TransactionSql, eventId: string
 export async function raiseEventVersion(tx: TransactionSql, eventId: string, actorId: string): Promise<void> {
   await tx`update event.events set version = version + 1, updated_at = now(), updated_by = ${actorId} where id = ${eventId}`;
 }
+
+/** E5 — an active event in the Lead's overview. */
+export interface OverviewEvent {
+  id: string;
+  reference: string | null;
+  name: string;
+  status: EventStatus;
+  assignedCoordinatorId: string | null;
+}
+
+/**
+ * E5 — every submitted event that is not Completed, Cancelled or Rejected,
+ * with its active coordinator or none, oldest submission first; only one
+ * coordinator's when `coordinatorId` is given.
+ */
+export async function listActiveEvents(sql: Sql, coordinatorId?: string): Promise<OverviewEvent[]> {
+  const rows = await sql<{ id: string; reference: string | null; name: string; status: EventStatus; coordinator_id: string | null }[]>`
+    select e.id, e.reference, e.name, e.status, a.coordinator_id
+    from event.events e
+    left join event.assignments a on a.event_id = e.id and a.is_active
+    where e.status not in ('DRAFT', 'COMPLETED', 'CANCELLED', 'REJECTED')
+      ${coordinatorId ? sql`and a.coordinator_id = ${coordinatorId}` : sql``}
+    order by e.submitted_at, e.id
+  `;
+  return rows.map((row) => ({ id: row.id, reference: row.reference, name: row.name, status: row.status, assignedCoordinatorId: row.coordinator_id }));
+}
+
+/** E5 — one assignment in an event's history. */
+export interface AssignmentHistoryEntry {
+  coordinatorId: string;
+  /** The Lead who made it; null for one E1 made automatically on submission. */
+  assignedBy: string | null;
+  rule: string;
+  assignedAt: string;
+  endedAt: string | null;
+}
+
+/** E5 — every assignment the event has had, oldest first; null when there is no such event. */
+export async function listAssignmentHistory(sql: Sql, eventId: string): Promise<AssignmentHistoryEntry[] | null> {
+  const exists = await sql`select 1 from event.events where id = ${eventId}`;
+  if (exists.length === 0) return null;
+  const rows = await sql<{ coordinator_id: string; created_by: string | null; assignment_rule: string; assigned_at: Date; ended_at: Date | null }[]>`
+    select coordinator_id, created_by, assignment_rule, assigned_at, ended_at
+    from event.assignments where event_id = ${eventId}
+    order by assigned_at, id
+  `;
+  return rows.map((row) => ({
+    coordinatorId: row.coordinator_id,
+    // E1's round robin ran as part of the organiser's submission: no one made those.
+    assignedBy: row.assignment_rule === "ROUND_ROBIN_STUB" ? null : row.created_by,
+    rule: row.assignment_rule,
+    assignedAt: row.assigned_at.toISOString(),
+    endedAt: row.ended_at?.toISOString() ?? null,
+  }));
+}

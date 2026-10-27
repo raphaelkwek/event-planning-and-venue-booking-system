@@ -310,10 +310,13 @@ describe("an event's assignment history (E5-T3)", () => {
 
     const table = await screen.findByRole("table", { name: "Assignment history" });
     await waitFor(() => expect(text(table)).toContain("Lead One"));
-    const rows = within(table).getAllByRole("row").slice(1).map(text);
+    const rows = within(table)
+      .getAllByRole("row")
+      .slice(1)
+      .map((row) => within(row).getAllByRole("cell").map(text));
     expect(rows).toEqual([
-      "Coordinator One Lead One Tuesday 27 October 2026, 10:00 Tuesday 27 October 2026, 11:00",
-      "Coordinator Two Automatically on submission (E1) Tuesday 27 October 2026, 11:00 Current",
+      ["Coordinator One", "Lead One", "Tuesday 27 October 2026, 10:00", "Tuesday 27 October 2026, 11:00"],
+      ["Coordinator Two", "Automatically on submission (E1)", "Tuesday 27 October 2026, 11:00", "Current"],
     ]);
   });
 });
