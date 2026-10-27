@@ -19,6 +19,6 @@
 |---|---|
 | Actual Result | The page showed the reference, name, purpose, proposed time, attendance 150, Organiser One as organiser, and "Unassigned". The status is still SUBMITTED. |
 | Status | Pass |
-| Remarks | Commit: f17c393 · Evidence: tests/E3/evidence/E3-T3.png · Defect: — |
+| Remarks | Commit: dbf341e · Evidence: tests/E3/evidence/E3-T3.png · Defect: — |
 | Executed By | Yichen, via automated testing |
 | Date of Execution | 2026-10-27 |

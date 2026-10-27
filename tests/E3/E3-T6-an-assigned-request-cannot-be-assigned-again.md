@@ -19,6 +19,6 @@
 |---|---|
 | Actual Result | The second assignment was refused, 409 ALREADY_ASSIGNED: "This event is already assigned to Coordinator Two. Reassign it instead.". One row, Coordinator Two's, is active; the page offers no Assign. |
 | Status | Pass |
-| Remarks | Commit: f17c393 · Evidence: tests/E3/evidence/E3-T6.png · Defect: — |
+| Remarks | Commit: dbf341e · Evidence: tests/E3/evidence/E3-T6.png · Defect: — |
 | Executed By | Yichen, via automated testing |
 | Date of Execution | 2026-10-27 |
