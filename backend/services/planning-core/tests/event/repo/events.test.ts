@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { testDb } from "../../support/testDb.js";
+import { assignForTest } from "../../support/assignment.js";
 import { deleteSeededEvents, seedEvent } from "../../support/seedEvent.js";
 import { EVENT_END } from "../../support/eventDates.js";
 import {
@@ -113,9 +114,20 @@ describe("events repo — access scope (A3)", () => {
 });
 
 describe("events repo — review queue (D1)", () => {
+  it("leaves out a request no coordinator is assigned to (E3)", async () => {
+    const event = await givenSubmittedEvent();
+
+    const queue = await listReviewQueue(sql, QUEUE_STATUSES);
+
+    expect(queue.map((row) => row.id)).not.toContain(event.id);
+  });
+
   it("orders the queue by submission timestamp, oldest first", async () => {
     const first = await givenSubmittedEvent(OWNER, "First in");
     const second = await givenSubmittedEvent(OWNER, "Second in");
+    // E3: only assigned requests reach a coordinator's queue.
+    await assignForTest(sql, first, COORDINATOR);
+    await assignForTest(sql, second, COORDINATOR);
 
     const queue = await listReviewQueue(sql, QUEUE_STATUSES);
     const mine = queue.filter((row) => [first.id, second.id].includes(row.id));
