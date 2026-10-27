@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | The proposal is CLOSED, resolved 2026-10-27T12:42:13.721Z; it was not accepted. Coordinator Two is assigned and is offered no Accept or Decline. |
+| Status | Pass |
+| Remarks | Commit: 23a2d37 · Evidence: tests/E4/evidence/E4-T7.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-27 |

@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | coordinator: "Event request EVT-015179 “Annual Research Symposium” has been reassigned to Coordinator Two. You are no longer its coordinator.10/27/2026, 8:42:05 PMUnreadOpenMark as read"; coordinator2: "Event request EVT-015179 “Annual Research Symposium” has been reassigned to you.10/27/2026, 8:42:05 PMUnreadOpenMark as read"; organiser: "Your event request EVT-015179 “Annual Research Symposium” has been reassigned to Coordinator Two, who is now your point of contact.10/27/2026, 8:42:05 PMUnreadOpenMark as read". The organiser's request names Coordinator Two as the assigned coordinator. |
+| Status | Pass |
+| Remarks | Commit: 23a2d37 · Evidence: tests/E4/evidence/E4-T5.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-27 |

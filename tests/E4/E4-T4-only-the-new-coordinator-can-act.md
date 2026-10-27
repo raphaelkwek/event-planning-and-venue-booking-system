@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | Coordinator One was offered no "Edit details", and the API refused the edit, 403 ROLE_NOT_AUTHORISED: "Only the owning organiser or the assigned coordinator can edit this event's details.". Coordinator Two's edit was saved. |
+| Status | Pass |
+| Remarks | Commit: 23a2d37 · Evidence: tests/E4/evidence/E4-T4.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-27 |

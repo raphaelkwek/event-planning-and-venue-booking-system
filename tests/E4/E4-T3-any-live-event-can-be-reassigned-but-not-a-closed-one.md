@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | CONFIRMED: 201; COMPLETED: 409 "This event is Completed and cannot be assigned."; CANCELLED: 409 "This event is Cancelled and cannot be assigned."; REJECTED: 409 "This event is Rejected and cannot be assigned.". The Confirmed event is now Coordinator Two's; the others kept Coordinator One. |
+| Status | Pass |
+| Remarks | Commit: 23a2d37 · Evidence: tests/E4/evidence/E4-T3.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-27 |

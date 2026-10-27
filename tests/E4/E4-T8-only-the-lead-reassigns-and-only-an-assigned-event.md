@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | coordinator: 403 "Your role is not authorised to use this function."; organiser: 403 "Your role is not authorised to use this function.". The unassigned request: 409 "This event has no coordinator to replace. Assign one instead.". Venue Staff: 400 "Only an active Event Coordinator can be assigned.". Nothing changed. |
+| Status | Pass |
+| Remarks | Commit: 23a2d37 · Evidence: tests/E4/evidence/E4-T8.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-27 |

@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | "Reassigned to Coordinator Two. They are now the event's coordinator." was shown, with no acceptance step. Two rows: Coordinator One's, inactive, ended 2026-10-27T12:41:54.281Z; Coordinator Two's, active, by the Lead, from 2026-10-27T12:41:54.281Z. |
+| Status | Pass |
+| Remarks | Commit: 23a2d37 · Evidence: tests/E4/evidence/E4-T1.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-27 |
