@@ -372,3 +372,23 @@ describe("parseCloudEvent: change request messages (S1)", () => {
     expect(() => parseCloudEvent(exampleMessage("change-request.rejected", { ...decidedChange, reason: "" }))).toThrow(/reason/);
   });
 });
+
+describe("parseCloudEvent: a Lead's assignment (E3)", () => {
+  const lead = "00000000-0000-0000-0000-000000000009";
+
+  it("carries the owner, the coordinator's name and the Lead, so both the coordinator and the organiser are told", () => {
+    const data = {
+      ...EXAMPLE_DATA["event.coordinator-assigned"],
+      assignmentRule: "LEAD",
+      coordinatorName: "Coordinator Two",
+      ownerId: organiser,
+      assignedBy: lead,
+    };
+    expect(parseCloudEvent(exampleMessage("event.coordinator-assigned", data)).data).toEqual(data);
+  });
+
+  it("refuses an assignedBy that isn't a user id", () => {
+    const data = { ...EXAMPLE_DATA["event.coordinator-assigned"], assignedBy: "the lead" };
+    expect(() => parseCloudEvent(exampleMessage("event.coordinator-assigned", data))).toThrow(/assignedBy/);
+  });
+});

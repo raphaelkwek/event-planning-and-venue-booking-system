@@ -4,11 +4,6 @@ import { parseCloudEvent } from "@connectsphere/contracts";
 import { testDb } from "../../support/testDb.js";
 import { EVENT_END, EVENT_START } from "../../support/eventDates.js";
 
-const COORDINATOR_A = "a4444444-0000-0000-0000-00000000000a";
-const COORDINATOR_B = "a4444444-0000-0000-0000-00000000000b";
-
-// E1's eligible pool is configuration while the story is stubbed.
-process.env.EVENT_COORDINATOR_POOL = `${COORDINATOR_A},${COORDINATOR_B}`;
 
 vi.mock("../../../src/shared/auth/verifyJwt.js", () => ({
   verifyJwt: (
@@ -76,7 +71,6 @@ beforeEach(async () => {
   vi.mocked(resolveEventsScope).mockReset();
   signedInAs(ORGANISER, "EVENT_ORGANISER");
   await cleanUp();
-  await sql`update event.assignment_cursor set next_index = 0 where id = true`;
 });
 
 afterAll(async () => {
@@ -229,48 +223,18 @@ describe("POST /api/v1/events (B1)", () => {
   });
 });
 
-describe("coordinator assignment on submission (E1)", () => {
-  it("assigns a coordinator as part of the submission", async () => {
+describe("no coordinator on submission (E3, replacing E1)", () => {
+  it("submits the request unassigned, writing no assignment and no assignment message", async () => {
     const res = await request(app).post("/api/v1/events").set(bearer).send(validRequest);
 
-    expect(res.body.assignedCoordinatorId).toBe(COORDINATOR_A);
-  });
-
-  it("records the allocation rule that was applied, so the outcome can be explained", async () => {
-    const res = await request(app).post("/api/v1/events").set(bearer).send(validRequest);
-
-    const rows = await sql`
-      select assignment_rule, is_active from event.assignments where event_id = ${res.body.id}
-    `;
-    expect(rows[0]).toMatchObject({ assignment_rule: "ROUND_ROBIN_STUB", is_active: true });
-  });
-
-  it("gives each event exactly one active assignment", async () => {
-    const res = await request(app).post("/api/v1/events").set(bearer).send(validRequest);
-
-    const rows = await sql`
-      select count(*)::int as n from event.assignments where event_id = ${res.body.id} and is_active
-    `;
-    expect(rows[0]!.n).toBe(1);
-  });
-
-  it("applies the rule consistently, taking the next coordinator in turn", async () => {
-    const first = await request(app).post("/api/v1/events").set(bearer).send(validRequest);
-    const second = await request(app).post("/api/v1/events").set(bearer).send(validRequest);
-
-    expect(first.body.assignedCoordinatorId).toBe(COORDINATOR_A);
-    expect(second.body.assignedCoordinatorId).toBe(COORDINATOR_B);
-  });
-
-  it("notifies the newly assigned coordinator", async () => {
-    const res = await request(app).post("/api/v1/events").set(bearer).send(validRequest);
-
+    expect(res.status).toBe(201);
+    expect(res.body.assignedCoordinatorId).toBeNull();
+    const [{ n }] = await sql<{ n: number }[]>`select count(*)::int as n from event.assignments where event_id = ${res.body.id}`;
+    expect(n).toBe(0);
     const outbox = await sql`
-      select envelope from event.outbox
-      where message_key = ${res.body.id}
-        and topic = 'connectsphere.event.v1' and envelope->>'type' = 'event.coordinator-assigned'
+      select 1 from event.outbox where message_key = ${res.body.id} and envelope->>'type' = 'event.coordinator-assigned'
     `;
-    expect(outbox[0]!.envelope.data.coordinatorId).toBe(COORDINATOR_A);
+    expect(outbox).toHaveLength(0);
   });
 });
 

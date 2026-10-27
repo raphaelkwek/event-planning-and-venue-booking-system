@@ -36,6 +36,23 @@ describe("notificationsFor", () => {
     ]);
   });
 
+  it("E3: tells the coordinator the Lead assigned, and the owner who their point of contact now is", () => {
+    const notes = notificationsFor(
+      message("event.coordinator-assigned", {
+        coordinatorId: coordinator,
+        coordinatorName: "Coordinator Two",
+        ownerId: organiser,
+        assignedBy: "00000000-0000-0000-0000-000000000009",
+        assignmentRule: "LEAD",
+        assignedAt: at,
+      }),
+    );
+    expect(notes.map((n) => [n.recipientUserId, n.message])).toEqual([
+      [coordinator, "Event request EVT-2026-0042 “Freshmen Orientation” has been assigned to you and is awaiting your review."],
+      [organiser, "Your event request EVT-2026-0042 “Freshmen Orientation” has been assigned to Coordinator Two, who is now your point of contact."],
+    ]);
+  });
+
   it("B1: notifies nobody on submission itself, because the coordinator is named only by the assignment message", () => {
     expect(
       notificationsFor(

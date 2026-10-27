@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { accessScopeSchema } from "../src/accessScope.js";
+import { accessScopeSchema, ROLES } from "../src/accessScope.js";
 
 describe("accessScopeSchema", () => {
   it.each([
@@ -19,5 +19,11 @@ describe("accessScopeSchema", () => {
 
   it("rejects OWNED_BY_USER without a userId", () => {
     expect(() => accessScopeSchema.parse({ scopeType: "OWNED_BY_USER" })).toThrow();
+  });
+});
+
+describe("ROLES", () => {
+  it("includes the Event Coordinator Lead, a role of its own (E3 to E5, A4)", () => {
+    expect(ROLES).toContain("EVENT_COORDINATOR_LEAD");
   });
 });

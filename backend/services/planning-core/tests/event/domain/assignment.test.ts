@@ -1,57 +1,35 @@
 import { describe, expect, it } from "vitest";
+import { EVENT_STATUSES } from "@connectsphere/contracts";
 import {
-  allocateCoordinator,
-  ASSIGNMENT_RULE,
+  ASSIGNMENT_NOT_ACTIVE_COORDINATOR,
+  canAssign,
+  LEAD_ASSIGNMENT_RULE,
   canProposeReassignment,
   isSelfNomination,
 } from "../../../src/modules/event/domain/assignment.js";
 
 /**
- * E1 — automatic coordinator assignment. The allocation rule is applied
- * consistently to every event and is recorded with the assignment, so any
- * given outcome can be explained.
+ * E3 — the Lead assigns a submitted request. A draft has not been submitted, and
+ * a Rejected, Cancelled or Completed event has left the workflow; every other
+ * status may be assigned.
  */
-const POOL = ["coordinator-a", "coordinator-b", "coordinator-c"];
+describe("canAssign (E3)", () => {
+  const closed = ["DRAFT", "REJECTED", "CANCELLED", "COMPLETED"];
+  for (const status of EVENT_STATUSES) {
+    const expected = !closed.includes(status);
+    it(`${expected ? "permits" : "refuses"} assigning an event that is ${status}`, () => {
+      expect(canAssign(status)).toBe(expected);
+    });
+  }
+});
 
-describe("allocateCoordinator (E1)", () => {
-  it("assigns the first coordinator when the cursor starts at zero", () => {
-    expect(allocateCoordinator(POOL, 0)).toMatchObject({ coordinatorId: "coordinator-a" });
+describe("what a Lead's assignment records (E3)", () => {
+  it("names its rule, so it is told apart from E1's automatic ones", () => {
+    expect(LEAD_ASSIGNMENT_RULE).toBe("LEAD");
   });
 
-  it("assigns each coordinator in turn as the cursor advances", () => {
-    const first = allocateCoordinator(POOL, 0)!;
-    const second = allocateCoordinator(POOL, first.nextCursor)!;
-    const third = allocateCoordinator(POOL, second.nextCursor)!;
-
-    expect([first.coordinatorId, second.coordinatorId, third.coordinatorId]).toEqual([
-      "coordinator-a",
-      "coordinator-b",
-      "coordinator-c",
-    ]);
-  });
-
-  it("wraps back to the first coordinator after the last", () => {
-    const third = allocateCoordinator(POOL, 2)!;
-    const fourth = allocateCoordinator(POOL, third.nextCursor)!;
-
-    expect(fourth.coordinatorId).toBe("coordinator-a");
-  });
-
-  it("records the allocation rule that produced the assignment", () => {
-    expect(allocateCoordinator(POOL, 0)!.assignmentRule).toBe(ASSIGNMENT_RULE);
-  });
-
-  it("assigns exactly one coordinator, never a list", () => {
-    const allocation = allocateCoordinator(POOL, 0)!;
-    expect(typeof allocation.coordinatorId).toBe("string");
-  });
-
-  it("returns nothing when no eligible coordinator exists, so the event can still be submitted", () => {
-    expect(allocateCoordinator([], 0)).toBeNull();
-  });
-
-  it("stays inside the pool when the stored cursor is beyond its end", () => {
-    expect(allocateCoordinator(POOL, 99)!.coordinatorId).toBe("coordinator-a");
+  it("refuses anyone else in the story's words", () => {
+    expect(ASSIGNMENT_NOT_ACTIVE_COORDINATOR).toBe("Only an active Event Coordinator can be assigned.");
   });
 });
 

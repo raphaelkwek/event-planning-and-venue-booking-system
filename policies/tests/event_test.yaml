@@ -5,9 +5,9 @@ description: Who may act on an event request (A2), derived from the stories.
 tests:
   - name: Every role against an event open for registration
     input:
-      principals: [organiser, other_organiser, assigned_coordinator, other_coordinator, nominee, venue_manager, other_venue_staff, tech_support, attendee, other_attendee]
+      principals: [organiser, other_organiser, assigned_coordinator, other_coordinator, nominee, venue_manager, other_venue_staff, tech_support, attendee, other_attendee, lead]
       resources: [event_open]
-      actions: [create, update_draft, submit_draft, view, view_history, view_clarifications, view_reassignments, review, request_clarification, approve, reject, respond_to_clarification, propose_reassignment, respond_to_reassignment, cancel, confirm, decide_change, update_details, preview_change_impact, reconsider_arrangements, request_change]
+      actions: [create, update_draft, submit_draft, view, view_history, view_clarifications, view_reassignments, review, request_clarification, approve, reject, respond_to_clarification, propose_reassignment, respond_to_reassignment, cancel, confirm, decide_change, update_details, preview_change_impact, reconsider_arrangements, request_change, assign]
     expected:
       - principal: organiser # the owner
         resource: event_open
@@ -91,6 +91,11 @@ tests:
         resource: event_open
         actions:
           view: EFFECT_ALLOW
+      - principal: lead # E3: the Lead opens a request and assigns it, and acts on nothing else
+        resource: event_open
+        actions:
+          view: EFFECT_ALLOW # E3, E5
+          assign: EFFECT_ALLOW # E3
 
   - name: Attendees can't open an event that isn't open for registration (R1, A3)
     input:
