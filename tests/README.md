@@ -113,7 +113,7 @@ address bar (`#/requests/<id>`, `#/drafts/<id>` or `#/review/<id>`), and its **r
 |---|---|
 | **FX-DRAFT** | Sign in as `organiser@connectsphere.test` → "New request" → enter the Event name only → "Save draft". |
 | **FX-SUBMITTED** | Sign in as `organiser@connectsphere.test` → "New request" → enter the standard request → "Submit request". No coordinator is assigned: since E3 it waits in the Lead's unassigned queue. |
-| **FX-ASSIGNED** | FX-SUBMITTED → sign out → sign in as `lead@connectsphere.test` → "Unassigned" → the request's reference → choose Coordinator One → "Assign" (E3). Cases that name another coordinator assign that one instead. |
+| **FX-ASSIGNED** | FX-SUBMITTED, then the FX-ASSIGNED statement in `tests/E3/README.md`: the request assigned to Coordinator One as the Lead would (E3), notifying no one. Cases that name another coordinator assign that one instead. |
 | **FX-UNDER-REVIEW** | FX-ASSIGNED → sign out → sign in as the assigned coordinator (`coordinator@connectsphere.test` unless the case says otherwise) → "Review queue" → "Open" on the request. |
 | **FX-AWAITING** | FX-UNDER-REVIEW → type `Please confirm the expected attendance.` under "Ask for clarification" → "Send clarification request". |
 | **FX-APPROVED** | FX-UNDER-REVIEW → "Approve". |

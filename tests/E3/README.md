@@ -25,6 +25,17 @@ identity seed (`npm run migrate:identity`) gives it the role.
 
 ## How the shared fixtures change
 
-FX-SUBMITTED leaves the request unassigned. FX-ASSIGNED, new, has the Lead assign
-`coordinator@connectsphere.test`, and FX-UNDER-REVIEW now starts from FX-ASSIGNED. Every later
-fixture is unchanged and builds on these (`tests/README.md`).
+FX-SUBMITTED leaves the request unassigned. FX-ASSIGNED, new, assigns it to
+`coordinator@connectsphere.test` as the Lead would, and FX-UNDER-REVIEW now starts from FX-ASSIGNED.
+Every later fixture is unchanged and builds on these (`tests/README.md`).
+
+FX-ASSIGNED is a statement, not the Lead's screen, so that it notifies no one: the cases of other
+stories that count notifications (T2) see only their own. E3-T4 assigns through the screen and
+checks both notifications. Replace `<EVENT_ID>` with the request's id, and `<COORDINATOR_ID>` with
+the coordinator's (Accounts table); the Lead is `lead@connectsphere.test`.
+
+~~~sql
+insert into event.assignments (event_id, coordinator_id, assignment_rule, created_by, updated_by)
+values ('<EVENT_ID>', '<COORDINATOR_ID>', 'LEAD', '00000000-0000-0000-0000-000000000009', '00000000-0000-0000-0000-000000000009');
+update event.events set version = version + 1, updated_at = now() where id = '<EVENT_ID>';
+~~~
