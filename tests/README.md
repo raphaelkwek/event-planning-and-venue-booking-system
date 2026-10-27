@@ -65,6 +65,7 @@ The app shows people by display name; database queries and API responses show us
 | `organiser2@connectsphere.test` | Organiser Two | Event Organiser | `00000000-0000-0000-0000-000000000007` |
 | `coordinator@connectsphere.test` | Coordinator One | Event Coordinator | `00000000-0000-0000-0000-000000000002` |
 | `coordinator2@connectsphere.test` | Coordinator Two | Event Coordinator | `00000000-0000-0000-0000-000000000008` |
+| `lead@connectsphere.test` | Lead One | Event Coordinator Lead (E3 to E5) | `00000000-0000-0000-0000-000000000009` |
 | `venuestaff@connectsphere.test` | Venue Staff One | Venue Staff | `00000000-0000-0000-0000-000000000003` |
 | `techsupport@connectsphere.test` | Tech Support One | Technical Support Staff | `00000000-0000-0000-0000-000000000004` |
 | `attendee@connectsphere.test` | Attendee One | Attendee | `00000000-0000-0000-0000-000000000005` |
@@ -111,8 +112,9 @@ address bar (`#/requests/<id>`, `#/drafts/<id>` or `#/review/<id>`), and its **r
 | Name | Steps |
 |---|---|
 | **FX-DRAFT** | Sign in as `organiser@connectsphere.test` → "New request" → enter the Event name only → "Save draft". |
-| **FX-SUBMITTED** | Sign in as `organiser@connectsphere.test` → "New request" → enter the standard request → "Submit request". Do **not** open it as a coordinator. |
-| **FX-UNDER-REVIEW** | FX-SUBMITTED → sign out → sign in as `coordinator@connectsphere.test` → "Review queue" → "Open" on the request. |
+| **FX-SUBMITTED** | Sign in as `organiser@connectsphere.test` → "New request" → enter the standard request → "Submit request". No coordinator is assigned: since E3 it waits in the Lead's unassigned queue. |
+| **FX-ASSIGNED** | FX-SUBMITTED → sign out → sign in as `lead@connectsphere.test` → "Unassigned" → the request's reference → choose Coordinator One → "Assign" (E3). Cases that name another coordinator assign that one instead. |
+| **FX-UNDER-REVIEW** | FX-ASSIGNED → sign out → sign in as the assigned coordinator (`coordinator@connectsphere.test` unless the case says otherwise) → "Review queue" → "Open" on the request. |
 | **FX-AWAITING** | FX-UNDER-REVIEW → type `Please confirm the expected attendance.` under "Ask for clarification" → "Send clarification request". |
 | **FX-APPROVED** | FX-UNDER-REVIEW → "Approve". |
 | **FX-REJECTED** | FX-UNDER-REVIEW → "Reject" → reason `No suitable venue is available.` → "Reject request". |

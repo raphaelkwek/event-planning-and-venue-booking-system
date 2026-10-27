@@ -47,6 +47,8 @@ tags:
     description: D2 request clarification, D3 respond with amendments (event module)
   - name: Reassignment
     description: E2 propose, accept and decline coordinator reassignment (event module)
+  - name: Assignment
+    description: E3 the Event Coordinator Lead assigns coordinators from the unassigned queue (event module)
   - name: Venues
     description: H1 maintain venue records, H2 view them (venue module)
 
@@ -774,6 +776,106 @@ paths:
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
+  /api/v1/assignments/unassigned:
+    get:
+      tags: [Assignment]
+      summary: The Lead's unassigned queue (E3)
+      description: |
+        Event Coordinator Lead only. Every submitted event with no active coordinator that is not
+        Draft, Completed, Cancelled or Rejected, oldest submission first. Since E3 a submission
+        assigns no coordinator; each request waits here until the Lead assigns one.
+      operationId: listUnassigned
+      responses:
+        "200":
+          description: The unassigned requests.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/UnassignedRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "429": { $ref: "#/components/responses/RateLimitExceeded" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
+  /api/v1/coordinators:
+    get:
+      tags: [Assignment]
+      summary: The active Event Coordinators, with their load (E3, E5)
+      description: Event Coordinator Lead only. The users who may be assigned an event, each with their number of active assigned events (not Completed, Cancelled or Rejected).
+      operationId: listCoordinators
+      responses:
+        "200":
+          description: The active coordinators, by name.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/CoordinatorLoad" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "429": { $ref: "#/components/responses/RateLimitExceeded" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
+  /api/v1/events/{id}/assignment:
+    parameters:
+      - $ref: "#/components/parameters/RecordId"
+    post:
+      tags: [Assignment]
+      summary: Assign a coordinator to an unassigned event (E3)
+      description: |
+        Event Coordinator Lead only. Under the event's row lock: refuses anyone but an active Event
+        Coordinator, an event that already has a coordinator (E4 reassigns), and a Draft,
+        Completed, Cancelled or Rejected event. Records the coordinator, the Lead and the time, and
+        writes `event.coordinator-assigned` naming the owner, so the coordinator and the organiser
+        are told. Never more than one active assignment, even when two Leads assign at once.
+      operationId: assignCoordinator
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [coordinatorId]
+              properties:
+                coordinatorId: { type: string, format: uuid }
+      responses:
+        "201":
+          description: Assigned.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [eventId, coordinatorId, assignedBy, assignedAt]
+                properties:
+                  eventId: { type: string, format: uuid }
+                  coordinatorId: { type: string, format: uuid }
+                  assignedBy: { type: string, format: uuid }
+                  assignedAt: { type: string, format: date-time }
+        "400":
+          description: "`VALIDATION_FAILED` with no coordinator; `NOT_AN_ACTIVE_COORDINATOR` for anyone else."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: "`ALREADY_ASSIGNED`, naming the coordinator; `STATUS_NOT_ASSIGNABLE` for a Draft, Completed, Cancelled or Rejected event."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "429": { $ref: "#/components/responses/RateLimitExceeded" }
         "503": { $ref: "#/components/responses/IdentityUnavailable" }
 
   /api/v1/events/{id}/change-requests:
@@ -2940,6 +3042,26 @@ components:
         triggeringAction: { type: string }
         occurredAt: { type: string, format: date-time }
 
+    UnassignedRequest:
+      type: object
+      required: [id, reference, name, proposedStartAt, proposedEndAt, expectedAttendance, submittedAt, status]
+      properties:
+        id: { type: string, format: uuid }
+        reference: { type: [string, "null"] }
+        name: { type: string }
+        proposedStartAt: { type: [string, "null"], format: date-time }
+        proposedEndAt: { type: [string, "null"], format: date-time }
+        expectedAttendance: { type: [integer, "null"] }
+        submittedAt: { type: [string, "null"], format: date-time }
+        status: { type: string }
+    CoordinatorLoad:
+      type: object
+      required: [id, displayName, email, activeAssignments]
+      properties:
+        id: { type: string, format: uuid }
+        displayName: { type: [string, "null"] }
+        email: { type: string }
+        activeAssignments: { type: integer, minimum: 0 }
     ReassignmentProposal:
       type: object
       required: [id, eventId, outgoingCoordinatorId, nomineeCoordinatorId, status, proposedAt, resolvedAt]
