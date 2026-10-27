@@ -12,23 +12,11 @@ export const ASSIGNMENT_NOT_ACTIVE_COORDINATOR = "Only an active Event Coordinat
 /** A draft hasn't been submitted, and these have left the workflow; nothing else is assignable. */
 const NOT_ASSIGNABLE: readonly EventStatus[] = ["DRAFT", "COMPLETED", "CANCELLED", "REJECTED"];
 
-/** E3 — whether the Lead may assign an event in `status`. */
+/** E3, E4 — whether the Lead may assign or reassign an event in `status`. */
 export function canAssign(status: EventStatus): boolean {
   return !NOT_ASSIGNABLE.includes(status);
 }
 
-/** Statuses a request cannot be reassigned from (E2) — it has left the review workflow. */
-const REASSIGNMENT_TERMINAL_STATUSES: readonly EventStatus[] = ["COMPLETED", "CANCELLED", "REJECTED"];
-
-/** E2 — reassignment proposals are permitted only while the event is still live. */
-export function canProposeReassignment(status: EventStatus): boolean {
-  return !REASSIGNMENT_TERMINAL_STATUSES.includes(status);
-}
-
-/**
- * E2 — proposing reassignment to the coordinator already assigned is refused
- * and creates no new history entry, so this is checked before any write.
- */
-export function isSelfNomination(currentCoordinatorId: string, nomineeId: string): boolean {
-  return currentCoordinatorId === nomineeId;
-}
+/** E4 retired E2's proposals (W9-FX-5): a coordinator asking to propose one is told who reassigns now. */
+export const REASSIGNMENT_RETIRED =
+  "Coordinators no longer propose reassignments: the Event Coordinator Lead reassigns events.";

@@ -64,6 +64,7 @@ const validRequest = {
 
 async function cleanUp() {
   const owned = sql`select id from event.events where owner_id = ${ORGANISER}`;
+  await sql`delete from event.reassignment_proposals where event_id in (${owned})`;
   await sql`delete from event.event_history where event_id in (${owned})`;
   await sql`delete from event.assignments where event_id in (${owned})`;
   await sql`delete from event.outbox where message_key in (select id::text from event.events where owner_id = ${ORGANISER})`;
@@ -445,6 +446,8 @@ describe("POST /api/v1/events/:id/reassignment (E4)", () => {
 
   it("hands the coordinator's actions to the new coordinator alone (E4-T4)", async () => {
     const event = await assignedTo();
+    // G1 edits an event once it is Approved.
+    await sql`update event.events set status = 'APPROVED' where id = ${event.id}`;
     await reassign(event.id, OTHER_COORDINATOR);
     const edit = (version: number) =>
       request(app).patch(`/api/v1/events/${event.id}`).set(bearer).set("If-Match", `"${version}"`).send({ purpose: "Share faculty research across schools" });

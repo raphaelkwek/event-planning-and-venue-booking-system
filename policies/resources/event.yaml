@@ -64,15 +64,11 @@ resourcePolicy:
       effect: EFFECT_ALLOW
       roles: [EVENT_COORDINATOR_LEAD]
 
-    - name: E3-only-the-lead-assigns
-      actions: [assign]
+    # E4 (W9-59): the Lead is the only route to a reassignment; E2's proposals are retired.
+    - name: E3-E4-only-the-lead-assigns-and-reassigns
+      actions: [assign, reassign]
       effect: EFFECT_ALLOW
       roles: [EVENT_COORDINATOR_LEAD]
-
-    - name: E2-only-the-assigned-coordinator-proposes
-      actions: [propose_reassignment]
-      effect: EFFECT_ALLOW
-      derivedRoles: [assigned_coordinator]
 
     - name: E2-only-the-nominee-accepts-or-declines
       actions: [respond_to_reassignment]

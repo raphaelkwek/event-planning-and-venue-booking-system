@@ -40,3 +40,16 @@ export function listCoordinators(token: string) {
 export function assignCoordinator(token: string, eventId: string, coordinatorId: string) {
   return request<Assignment>(`${EVENT}/events/${eventId}/assignment`, { token, method: "POST", body: { coordinatorId } });
 }
+
+/** E4 — the Lead's reassignment, which takes effect at once. */
+export interface Reassignment {
+  eventId: string;
+  coordinatorId: string;
+  previousCoordinatorId: string;
+  reassignedBy: string;
+  reassignedAt: string;
+}
+
+export function reassignCoordinator(token: string, eventId: string, coordinatorId: string) {
+  return request<Reassignment>(`${EVENT}/events/${eventId}/reassignment`, { token, method: "POST", body: { coordinatorId } });
+}

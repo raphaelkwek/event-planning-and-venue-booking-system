@@ -713,33 +713,75 @@ paths:
         "503": { $ref: "#/components/responses/IdentityUnavailable" }
     post:
       tags: [Reassignment]
-      summary: Propose a different coordinator (E2)
-      description: Only the event's current coordinator may propose, and only one proposal may be pending.
+      summary: Propose a different coordinator (E2, retired by E4)
+      description: |
+        Retired by E4 (W9-FX-5, W9-59): the Event Coordinator Lead reassigns events
+        (`POST /api/v1/events/{id}/reassignment`). Every proposal is refused with 410 and nothing is
+        stored. A proposal made before the retirement can still be accepted or declined until the
+        Lead reassigns the event, which closes it.
       operationId: proposeReassignment
+      deprecated: true
+      responses:
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "410":
+          description: "`REASSIGNMENT_RETIRED`: coordinators no longer propose reassignments."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
+  /api/v1/events/{id}/reassignment:
+    parameters:
+      - $ref: "#/components/parameters/RecordId"
+    post:
+      tags: [Assignment]
+      summary: Reassign an event to another coordinator (E4)
+      description: |
+        Event Coordinator Lead only, and the only route to a reassignment (W9-59). Takes effect at
+        once, with no acceptance, at any point before the event is Completed, Cancelled or Rejected
+        (W9-20, W9-34). Under the event's row lock: closes the outgoing assignment (kept, with its
+        end time), records the new one with the Lead, raises the event's version, closes a pending
+        E2 proposal unaccepted (status `CLOSED`), and writes `event.coordinator-reassigned`, which
+        tells the outgoing and new coordinators and the owner.
+      operationId: reassignCoordinator
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
+              required: [coordinatorId]
               properties:
-                nomineeId: { type: [string, "null"], format: uuid }
+                coordinatorId: { type: string, format: uuid }
       responses:
         "201":
-          description: Proposal pending.
+          description: Reassigned.
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/ReassignmentProposal" }
-        "400": { $ref: "#/components/responses/ValidationFailed" }
-        "401": { $ref: "#/components/responses/Unauthenticated" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-        "404": { $ref: "#/components/responses/NotFound" }
-        "409": { $ref: "#/components/responses/Conflict" }
-        "422":
-          description: "`NOMINEE_NOT_ELIGIBLE` or `SELF_NOMINATION_NOT_PERMITTED`"
+              schema:
+                type: object
+                required: [eventId, coordinatorId, previousCoordinatorId, reassignedBy, reassignedAt]
+                properties:
+                  eventId: { type: string, format: uuid }
+                  coordinatorId: { type: string, format: uuid }
+                  previousCoordinatorId: { type: string, format: uuid }
+                  reassignedBy: { type: string, format: uuid }
+                  reassignedAt: { type: string, format: date-time }
+        "400":
+          description: "`VALIDATION_FAILED` with no coordinator; `NOT_AN_ACTIVE_COORDINATOR` for anyone else."
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: "`ALREADY_ASSIGNED` to the coordinator chosen, creating no history; `EVENT_NOT_ASSIGNED` when there is no coordinator to replace (assign instead); `STATUS_NOT_ASSIGNABLE` for a Completed, Cancelled or Rejected event."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "429": { $ref: "#/components/responses/RateLimitExceeded" }
         "503": { $ref: "#/components/responses/IdentityUnavailable" }
 
   /api/v1/events/{id}/reassignment-proposals/accept:
@@ -2802,6 +2844,8 @@ components:
         - NOT_AN_ACTIVE_COORDINATOR
         - ALREADY_ASSIGNED
         - STATUS_NOT_ASSIGNABLE
+        - EVENT_NOT_ASSIGNED
+        - REASSIGNMENT_RETIRED
 
     ErrorEnvelope:
       type: object
@@ -3070,7 +3114,7 @@ components:
         eventId: { type: string, format: uuid }
         outgoingCoordinatorId: { type: string, format: uuid }
         nomineeCoordinatorId: { type: string, format: uuid }
-        status: { type: string, enum: [PENDING, ACCEPTED, DECLINED] }
+        status: { type: string, enum: [PENDING, ACCEPTED, DECLINED, CLOSED], description: "CLOSED: closed unaccepted when the Lead reassigned the event (E4)." }
         proposedAt: { type: string, format: date-time }
         resolvedAt: { type: [string, "null"], format: date-time }
 

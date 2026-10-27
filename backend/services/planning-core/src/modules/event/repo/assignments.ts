@@ -75,7 +75,7 @@ export interface ProposalRow {
   eventId: string;
   outgoingCoordinatorId: string;
   nomineeCoordinatorId: string;
-  status: "PENDING" | "ACCEPTED" | "DECLINED";
+  status: "PENDING" | "ACCEPTED" | "DECLINED" | "CLOSED";
   proposedAt: string;
   resolvedAt: string | null;
 }
@@ -85,7 +85,7 @@ interface RawProposal {
   event_id: string;
   outgoing_coordinator_id: string;
   nominee_coordinator_id: string;
-  status: "PENDING" | "ACCEPTED" | "DECLINED";
+  status: "PENDING" | "ACCEPTED" | "DECLINED" | "CLOSED";
   proposed_at: Date;
   resolved_at: Date | null;
 }
@@ -103,25 +103,15 @@ function toProposal(row: RawProposal): ProposalRow {
 }
 
 /**
- * E2 — creating the proposal. The partial unique index
- * `reassignment_proposals_one_pending_per_event` (migration 0004) is what
- * actually enforces "only one pending proposal per event"; this is a plain
- * insert, and the caller catches its `23505` unique violation on the race.
+ * E4 — a peer proposal still pending when the Lead reassigns the event is
+ * closed, unaccepted (W9-FX-5). The row is kept, as every resolved one is.
  */
-export async function insertProposal(
-  tx: TransactionSql,
-  params: { eventId: string; outgoingCoordinatorId: string; nomineeId: string; actorId: string }
-): Promise<ProposalRow> {
-  const rows = await tx<RawProposal[]>`
-    insert into event.reassignment_proposals (
-      event_id, outgoing_coordinator_id, nominee_coordinator_id, status, created_by, updated_by
-    ) values (
-      ${params.eventId}, ${params.outgoingCoordinatorId}, ${params.nomineeId}, 'PENDING',
-      ${params.actorId}, ${params.actorId}
-    )
-    returning *
+export async function closePendingProposal(tx: TransactionSql, eventId: string, actorId: string): Promise<void> {
+  await tx`
+    update event.reassignment_proposals
+    set status = 'CLOSED', resolved_at = now(), updated_at = now(), updated_by = ${actorId}
+    where event_id = ${eventId} and status = 'PENDING'
   `;
-  return toProposal(rows[0]!);
 }
 
 export async function findPendingProposal(

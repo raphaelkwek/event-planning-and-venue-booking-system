@@ -39,6 +39,17 @@ export const eventCoordinatorAssignedPayloadSchema = z.object({
   assignedAt: z.string().datetime(),
 });
 
+/** E4: the Lead moved the event from one coordinator to another, at once. All three are told. */
+export const eventCoordinatorReassignedPayloadSchema = z.object({
+  ...eventRef,
+  previousCoordinatorId: z.string().uuid(),
+  coordinatorId: z.string().uuid(),
+  coordinatorName: z.string().min(1),
+  ownerId: z.string().uuid(),
+  reassignedBy: z.string().uuid(),
+  reassignedAt: z.string().datetime(),
+});
+
 export const eventClarificationRequestedPayloadSchema = z.object({
   ...eventRef,
   clarificationId: z.string().uuid(),
@@ -169,6 +180,7 @@ export const eventScheduleChangedPayloadSchema = z.object({
 export const EVENT_PAYLOAD_SCHEMAS = {
   "event.submitted": eventSubmittedPayloadSchema,
   "event.coordinator-assigned": eventCoordinatorAssignedPayloadSchema,
+  "event.coordinator-reassigned": eventCoordinatorReassignedPayloadSchema,
   "event.clarification-requested": eventClarificationRequestedPayloadSchema,
   "event.clarification-responded": eventClarificationRespondedPayloadSchema,
   "event.approved": eventApprovedPayloadSchema,

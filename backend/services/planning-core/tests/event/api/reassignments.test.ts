@@ -86,17 +86,6 @@ async function givenSubmittedEvent() {
   return created.body;
 }
 
-async function givenRejectedEvent() {
-  const event = await givenSubmittedEvent();
-  signedInAs(event.assignedCoordinatorId, "EVENT_COORDINATOR");
-  await request(app).get(`/api/v1/events/${event.id}`).set(bearer);
-  await request(app)
-    .post(`/api/v1/events/${event.id}/reject`)
-    .set(bearer)
-    .send({ reason: "No suitable venue." });
-  return event;
-}
-
 /** A proposal made before E2 was retired: the FX-PROPOSAL statement (tests/E4/README.md). */
 async function pendingProposal(eventId: string, outgoing: string, nominee: string): Promise<void> {
   await sql`

@@ -134,6 +134,12 @@ const RULES: Record<string, Rule> = {
       ? [[d.ownerId, `Your event request ${event} has been assigned to ${d.coordinatorName}, who is now your point of contact.`] as [string, string]]
       : []),
   ],
+  // E4: the Lead's reassignment takes effect at once; the outgoing coordinator, the new one and the owner are told.
+  "event.coordinator-reassigned": (d, event) => [
+    [d.previousCoordinatorId!, `Event request ${event} has been reassigned to ${d.coordinatorName}. You are no longer its coordinator.`],
+    [d.coordinatorId!, `Event request ${event} has been reassigned to you.`],
+    [d.ownerId!, `Your event request ${event} has been reassigned to ${d.coordinatorName}, who is now your point of contact.`],
+  ],
   "event.clarification-requested": (d, event) => [
     [d.ownerId!, `Clarification is required on your event request ${event}.`],
   ],
