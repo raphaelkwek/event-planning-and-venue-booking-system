@@ -2697,6 +2697,9 @@ components:
         - BLOCK_ALREADY_REMOVED
         - ARRANGEMENTS_NOT_READY
         - ARRANGEMENTS_UNAVAILABLE
+        - NOT_AN_ACTIVE_COORDINATOR
+        - ALREADY_ASSIGNED
+        - STATUS_NOT_ASSIGNABLE
 
     ErrorEnvelope:
       type: object

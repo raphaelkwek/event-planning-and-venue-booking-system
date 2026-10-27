@@ -57,6 +57,18 @@ resourcePolicy:
       effect: EFFECT_ALLOW
       derivedRoles: [owner]
 
+    # E3, E5 (CR-05): the Lead opens any event to assign and oversee it, and
+    # coordinates none (W9-35).
+    - name: E3-E5-the-lead-views-every-event
+      actions: [view]
+      effect: EFFECT_ALLOW
+      roles: [EVENT_COORDINATOR_LEAD]
+
+    - name: E3-only-the-lead-assigns
+      actions: [assign]
+      effect: EFFECT_ALLOW
+      roles: [EVENT_COORDINATOR_LEAD]
+
     - name: E2-only-the-assigned-coordinator-proposes
       actions: [propose_reassignment]
       effect: EFFECT_ALLOW

@@ -31,6 +31,8 @@ import { EquipmentList } from "./screens/EquipmentList.js";
 import { EquipmentEditor } from "./screens/EquipmentEditor.js";
 import { EquipmentRequest } from "./screens/EquipmentRequest.js";
 import { EquipmentRequests } from "./screens/EquipmentRequests.js";
+import { UnassignedQueue } from "./screens/UnassignedQueue.js";
+import { AssignmentDetail } from "./screens/AssignmentDetail.js";
 
 const ROLE_LABELS: Record<Role, string> = {
   EVENT_ORGANISER: "Event Organiser",
@@ -38,6 +40,7 @@ const ROLE_LABELS: Record<Role, string> = {
   VENUE_STAFF: "Venue Staff",
   TECH_SUPPORT_STAFF: "Technical Support",
   ATTENDEE: "Attendee",
+  EVENT_COORDINATOR_LEAD: "Event Coordinator Lead",
 };
 
 const EVERY_ROLE: Role[] = [
@@ -46,6 +49,7 @@ const EVERY_ROLE: Role[] = [
   "VENUE_STAFF",
   "TECH_SUPPORT_STAFF",
   "ATTENDEE",
+  "EVENT_COORDINATOR_LEAD",
 ];
 
 /**
@@ -162,6 +166,14 @@ const ROUTES: {
     roles: ["TECH_SUPPORT_STAFF"],
     nav: { label: "Equipment requests", to: "/equipment/requests" },
   },
+  // E3: the Lead assigns each submitted request from the unassigned queue; no other role reaches it.
+  {
+    path: "/assignments/unassigned",
+    element: <UnassignedQueue />,
+    roles: ["EVENT_COORDINATOR_LEAD"],
+    nav: { label: "Unassigned", to: "/assignments/unassigned" },
+  },
+  { path: "/assignments/:eventId", element: <AssignmentDetail />, roles: ["EVENT_COORDINATOR_LEAD"] },
   // T2: every role reads its own notifications.
   {
     path: "/notifications",
@@ -181,6 +193,7 @@ function landingFor(role: Role): string {
   if (role === "EVENT_ORGANISER") return "/requests";
   if (role === "EVENT_COORDINATOR") return "/queue";
   if (role === "TECH_SUPPORT_STAFF") return "/equipment";
+  if (role === "EVENT_COORDINATOR_LEAD") return "/assignments/unassigned";
   return "/console";
 }
 

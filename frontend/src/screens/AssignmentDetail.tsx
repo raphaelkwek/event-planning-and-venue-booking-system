@@ -1,0 +1,126 @@
+import { useEffect, useState, type FormEvent } from "react";
+import { Link, useParams } from "react-router-dom";
+import Button from "@atlaskit/button/new";
+import Lozenge from "@atlaskit/lozenge";
+import SectionMessage from "@atlaskit/section-message";
+import { useSignedIn } from "../auth/SessionContext.js";
+import { assignCoordinator, listCoordinators, type Coordinator } from "../api/assignments.js";
+import { openEvent } from "../api/events.js";
+import type { EventRecord } from "../api/types.js";
+import { useUserNames } from "../shared/useUserNames.js";
+import { formatMoment, formatPeriod } from "../shared/singaporeTime.js";
+import { STATUS_APPEARANCE, STATUS_LABELS } from "../shared/status.js";
+import { Refusal } from "../components/Refusal.js";
+
+const coordinatorName = (c: Coordinator) => c.displayName ?? c.email;
+
+/**
+ * E3 — the Lead opens a request and sees its basic information, then assigns
+ * it to one active Event Coordinator. Opening it here never claims it for review.
+ */
+export function AssignmentDetail() {
+  const session = useSignedIn();
+  const { eventId } = useParams<{ eventId: string }>();
+  const [event, setEvent] = useState<EventRecord | null>(null);
+  const [coordinators, setCoordinators] = useState<Coordinator[]>([]);
+  const [chosen, setChosen] = useState("");
+  const [loadError, setLoadError] = useState<unknown>(null);
+  const [actionError, setActionError] = useState<unknown>(null);
+  const [missing, setMissing] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const nameOf = useUserNames(session.token, [event?.ownerId, event?.assignedCoordinatorId]);
+
+  useEffect(() => {
+    openEvent(session.token, eventId!).then(setEvent).catch(setLoadError);
+    listCoordinators(session.token)
+      .then((page) => setCoordinators(page.items))
+      .catch(setLoadError);
+  }, [session.token, eventId]);
+
+  async function onAssign(e: FormEvent) {
+    e.preventDefault();
+    setActionError(null);
+    setNotice(null);
+    if (!chosen) {
+      setMissing(true);
+      return;
+    }
+    setMissing(false);
+    setBusy(true);
+    try {
+      const assignment = await assignCoordinator(session.token, eventId!, chosen);
+      const who = coordinators.find((c) => c.id === assignment.coordinatorId);
+      setNotice(`Assigned to ${who ? coordinatorName(who) : "the coordinator"}.`);
+      setEvent((current) => (current ? { ...current, assignedCoordinatorId: assignment.coordinatorId } : current));
+    } catch (error) {
+      setActionError(error);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (loadError) return <Refusal error={loadError} />;
+  if (!event) return <p>Loading…</p>;
+
+  const assignedTo = event.assignedCoordinatorId;
+  const assignedName = coordinators.find((c) => c.id === assignedTo);
+
+  return (
+    <div>
+      <p>
+        <Link to="/assignments/unassigned">Back to unassigned requests</Link>
+      </p>
+      <h2 style={{ marginBottom: 8 }}>{event.name}</h2>
+      <p>
+        {event.reference} · <Lozenge appearance={STATUS_APPEARANCE[event.status]}>{STATUS_LABELS[event.status]}</Lozenge>
+      </p>
+      <dl style={{ display: "grid", gridTemplateColumns: "max-content 1fr", gap: "4px 16px" }}>
+        <dt>Purpose</dt>
+        <dd style={{ margin: 0 }}>{event.purpose ?? "—"}</dd>
+        <dt>Proposed</dt>
+        <dd style={{ margin: 0 }}>{event.proposedStartAt && event.proposedEndAt ? formatPeriod(event.proposedStartAt, event.proposedEndAt) : "—"}</dd>
+        <dt>Expected attendance</dt>
+        <dd style={{ margin: 0 }}>{event.expectedAttendance ?? "—"}</dd>
+        <dt>Organiser</dt>
+        <dd style={{ margin: 0 }}>{nameOf(event.ownerId) ?? "—"}</dd>
+        <dt>Submitted</dt>
+        <dd style={{ margin: 0 }}>{event.submittedAt ? formatMoment(event.submittedAt) : "—"}</dd>
+        <dt>Coordinator</dt>
+        <dd style={{ margin: 0 }}>{assignedTo ? (assignedName ? coordinatorName(assignedName) : nameOf(assignedTo)) : "Unassigned"}</dd>
+      </dl>
+
+      {notice && (
+        <div style={{ margin: "16px 0" }}>
+          <SectionMessage appearance="success">
+            <p>{notice}</p>
+          </SectionMessage>
+        </div>
+      )}
+
+      {!assignedTo && (
+        <form onSubmit={(e) => void onAssign(e)} style={{ marginTop: 24 }}>
+          <h3>Assign a coordinator</h3>
+          <label htmlFor="assign-coordinator" style={{ display: "block", marginBottom: 4 }}>
+            Coordinator
+          </label>
+          <select id="assign-coordinator" value={chosen} onChange={(e) => setChosen(e.target.value)}>
+            <option value="">Choose a coordinator</option>
+            {coordinators.map((c) => (
+              <option key={c.id} value={c.id}>
+                {`${coordinatorName(c)} (${c.activeAssignments} active)`}
+              </option>
+            ))}
+          </select>
+          {missing && <p style={{ color: "#AE2E24" }}>Choose a coordinator to assign.</p>}
+          <div style={{ marginTop: 12 }}>
+            <Button type="submit" appearance="primary" isDisabled={busy}>
+              Assign
+            </Button>
+          </div>
+        </form>
+      )}
+      <Refusal error={actionError} />
+    </div>
+  );
+}

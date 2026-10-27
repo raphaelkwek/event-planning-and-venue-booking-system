@@ -61,6 +61,10 @@ export const ERROR_CODES = [
   "BLOCK_ALREADY_REMOVED",
   "ARRANGEMENTS_NOT_READY",
   "ARRANGEMENTS_UNAVAILABLE",
+  // E3: the Lead assigns only an active Event Coordinator, once, to a submitted event.
+  "NOT_AN_ACTIVE_COORDINATOR",
+  "ALREADY_ASSIGNED",
+  "STATUS_NOT_ASSIGNABLE",
 ] as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[number];

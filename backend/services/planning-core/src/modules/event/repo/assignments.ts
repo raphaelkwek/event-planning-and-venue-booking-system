@@ -1,31 +1,13 @@
 import type { Sql, TransactionSql } from "postgres";
+import type { EventStatus } from "@connectsphere/contracts";
 
-/** E1 (stubbed) — see domain/assignment.ts for why the pool is configuration. */
+/** E1, E2, E3 — an event's coordinator assignments: one active at a time, the rest kept as history. */
 
 export interface AssignmentRow {
   id: string;
   coordinatorId: string;
   assignmentRule: string;
   assignedAt: string;
-}
-
-/**
- * Takes the round-robin cursor under a row lock, so two concurrent
- * submissions cannot read the same value and be handed the same coordinator.
- */
-export async function takeCursor(tx: TransactionSql): Promise<number> {
-  const rows = await tx<{ next_index: number }[]>`
-    select next_index from event.assignment_cursor where id = true for update
-  `;
-  return rows[0]?.next_index ?? 0;
-}
-
-export async function saveCursor(tx: TransactionSql, nextIndex: number): Promise<void> {
-  await tx`
-    update event.assignment_cursor
-    set next_index = ${nextIndex}, updated_at = now()
-    where id = true
-  `;
 }
 
 export async function insertAssignment(
@@ -188,4 +170,85 @@ export async function resolveProposalDecline(
     returning *
   `;
   return rows[0] ? toProposal(rows[0]) : null;
+}
+
+/** E3 — a request in the Lead's unassigned queue. */
+export interface UnassignedRequest {
+  id: string;
+  reference: string | null;
+  name: string;
+  proposedStartAt: string | null;
+  proposedEndAt: string | null;
+  expectedAttendance: number | null;
+  submittedAt: string | null;
+  status: string;
+}
+
+/**
+ * E3 — every submitted event with no active coordinator that is still in the
+ * workflow (not Draft, Completed, Cancelled or Rejected), oldest submission first.
+ */
+export async function listUnassigned(sql: Sql): Promise<UnassignedRequest[]> {
+  const rows = await sql<
+    {
+      id: string;
+      reference: string | null;
+      name: string;
+      proposed_start_at: Date | null;
+      proposed_end_at: Date | null;
+      expected_attendance: number | null;
+      submitted_at: Date | null;
+      status: string;
+    }[]
+  >`
+    select e.id, e.reference, e.name, e.proposed_start_at, e.proposed_end_at, e.expected_attendance, e.submitted_at, e.status
+    from event.events e
+    where e.status not in ('DRAFT', 'COMPLETED', 'CANCELLED', 'REJECTED')
+      and not exists (select 1 from event.assignments a where a.event_id = e.id and a.is_active)
+    order by e.submitted_at, e.id
+  `;
+  return rows.map((row) => ({
+    id: row.id,
+    reference: row.reference,
+    name: row.name,
+    proposedStartAt: row.proposed_start_at?.toISOString() ?? null,
+    proposedEndAt: row.proposed_end_at?.toISOString() ?? null,
+    expectedAttendance: row.expected_attendance,
+    submittedAt: row.submitted_at?.toISOString() ?? null,
+    status: row.status,
+  }));
+}
+
+/** E3, E5 — each coordinator's number of active assignments to events still in the workflow. */
+export async function countActiveAssignments(sql: Sql, coordinatorIds: readonly string[]): Promise<Map<string, number>> {
+  if (coordinatorIds.length === 0) return new Map();
+  const rows = await sql<{ coordinator_id: string; n: number }[]>`
+    select a.coordinator_id, count(*)::int as n
+    from event.assignments a join event.events e on e.id = a.event_id
+    where a.is_active and a.coordinator_id = any(${[...coordinatorIds]}::uuid[])
+      and e.status not in ('COMPLETED', 'CANCELLED', 'REJECTED')
+    group by a.coordinator_id
+  `;
+  return new Map(rows.map((row) => [row.coordinator_id, row.n]));
+}
+
+/** What an assignment needs to know about the event, read under its row lock. */
+export interface EventForAssignment {
+  id: string;
+  reference: string | null;
+  name: string;
+  status: EventStatus;
+  ownerId: string;
+}
+
+/**
+ * E3, E4 — locks the event row (`for update`) so two Leads acting on it at
+ * once are taken in turn; null when there is no such event.
+ */
+export async function lockEventForAssignment(tx: TransactionSql, eventId: string): Promise<EventForAssignment | null> {
+  const rows = await tx<{ id: string; reference: string | null; name: string; status: EventForAssignment["status"]; owner_id: string }[]>`
+    select id, reference, name, status, owner_id from event.events where id = ${eventId} for update
+  `;
+  const row = rows[0];
+  return row ? { id: row.id, reference: row.reference, name: row.name, status: row.status, ownerId: row.owner_id } : null;
 }

@@ -1,9 +1,9 @@
 /** Settings only the event module reads. */
 export const eventConfig = {
   /**
-   * TODO(E1): replace with a live Identity query for active users holding
-   * EVENT_COORDINATOR. Until that exists the eligible pool is configuration:
-   * a comma-separated list of identity.users.id values.
+   * E2's nominee eligibility, as configuration: a comma-separated list of
+   * identity.users.id values. E1 also assigned from it until E3 replaced
+   * automatic assignment; E4 retires E2's proposals, and this with them.
    */
   coordinatorPool: (process.env.EVENT_COORDINATOR_POOL ?? "")
     .split(",")

@@ -24,9 +24,17 @@ export const eventSubmittedPayloadSchema = z.object({
   submittedAt: z.string().datetime(),
 });
 
+/**
+ * E1 assigned on submission; since E3 the Lead assigns, and the message also
+ * names the coordinator, the owner and the Lead, so the organiser is told who
+ * their point of contact is. Messages written before E3 carry none of the three.
+ */
 export const eventCoordinatorAssignedPayloadSchema = z.object({
   ...eventRef,
   coordinatorId: z.string().uuid(),
+  coordinatorName: z.string().min(1).optional(),
+  ownerId: z.string().uuid().optional(),
+  assignedBy: z.string().uuid().optional(),
   assignmentRule: z.string().min(1),
   assignedAt: z.string().datetime(),
 });

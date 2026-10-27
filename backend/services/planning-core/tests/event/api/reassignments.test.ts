@@ -12,6 +12,8 @@ const POOL = [COORDINATOR_A, COORDINATOR_B, COORDINATOR_C];
 
 /** E3: submission assigns no one, so each test assigns as the Lead would. */
 const POOL_COORDINATOR = COORDINATOR_A;
+// E2 still checks a nominee against the configured pool until E4 retires proposals.
+process.env.EVENT_COORDINATOR_POOL = POOL.join(",");
 
 vi.mock("../../../src/shared/auth/verifyJwt.js", () => ({
   verifyJwt: (

@@ -9,6 +9,7 @@ import { Refusal } from "./Refusal.js";
 const ROLE_LABELS: Record<string, string> = {
   EVENT_ORGANISER: "Event Organiser",
   EVENT_COORDINATOR: "Event Coordinator",
+  EVENT_COORDINATOR_LEAD: "Event Coordinator Lead",
   VENUE_STAFF: "Venue Staff",
   TECH_SUPPORT_STAFF: "Technical Support",
   ATTENDEE: "Attendee",
