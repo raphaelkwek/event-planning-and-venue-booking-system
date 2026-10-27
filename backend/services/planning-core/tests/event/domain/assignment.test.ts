@@ -4,12 +4,11 @@ import {
   ASSIGNMENT_NOT_ACTIVE_COORDINATOR,
   canAssign,
   LEAD_ASSIGNMENT_RULE,
-  canProposeReassignment,
-  isSelfNomination,
+  REASSIGNMENT_RETIRED,
 } from "../../../src/modules/event/domain/assignment.js";
 
 /**
- * E3 — the Lead assigns a submitted request. A draft has not been submitted, and
+ * E3, E4 — the Lead assigns and reassigns a submitted request. A draft has not been submitted, and
  * a Rejected, Cancelled or Completed event has left the workflow; every other
  * status may be assigned.
  */
@@ -33,33 +32,8 @@ describe("what a Lead's assignment records (E3)", () => {
   });
 });
 
-/**
- * E2 — reassignment proposals. Permitted statuses, and refusing a proposal
- * to the coordinator already assigned.
- */
-describe("canProposeReassignment (E2)", () => {
-  it("permits reassignment while the event is still under review or later", () => {
-    expect(canProposeReassignment("SUBMITTED")).toBe(true);
-    expect(canProposeReassignment("UNDER_REVIEW")).toBe(true);
-    expect(canProposeReassignment("AWAITING_CLARIFICATION")).toBe(true);
-    expect(canProposeReassignment("APPROVED")).toBe(true);
-    expect(canProposeReassignment("PLANNING")).toBe(true);
-    expect(canProposeReassignment("CONFIRMED")).toBe(true);
-  });
-
-  it("refuses reassignment once the event has left the review workflow", () => {
-    expect(canProposeReassignment("COMPLETED")).toBe(false);
-    expect(canProposeReassignment("CANCELLED")).toBe(false);
-    expect(canProposeReassignment("REJECTED")).toBe(false);
-  });
-});
-
-describe("isSelfNomination (E2)", () => {
-  it("is true when the nominee is already the assigned coordinator", () => {
-    expect(isSelfNomination("coordinator-a", "coordinator-a")).toBe(true);
-  });
-
-  it("is false when the nominee is someone else", () => {
-    expect(isSelfNomination("coordinator-a", "coordinator-b")).toBe(false);
+describe("E2's proposals, retired by E4 (W9-FX-5)", () => {
+  it("are refused, pointing to the Lead", () => {
+    expect(REASSIGNMENT_RETIRED).toBe("Coordinators no longer propose reassignments: the Event Coordinator Lead reassigns events.");
   });
 });

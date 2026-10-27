@@ -29,6 +29,15 @@ const EXAMPLE_DATA: Record<EventMessageType, Record<string, unknown>> = {
     submittedAt: at,
   },
   "event.coordinator-assigned": { ...ref, coordinatorId: coordinator, assignmentRule: "ROUND_ROBIN", assignedAt: at },
+  "event.coordinator-reassigned": {
+    ...ref,
+    previousCoordinatorId: coordinator,
+    coordinatorId: nominee,
+    coordinatorName: "Coordinator Two",
+    ownerId: organiser,
+    reassignedBy: "00000000-0000-0000-0000-000000000009",
+    reassignedAt: at,
+  },
   "event.clarification-requested": {
     ...ref,
     clarificationId: "11111111-1111-4111-8111-111111111111",

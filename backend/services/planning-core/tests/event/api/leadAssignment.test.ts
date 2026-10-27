@@ -362,3 +362,144 @@ describe("the Lead is a role of its own (E3-T8, A2)", () => {
     expect(approve.body.error.code).toBe("ROLE_NOT_AUTHORISED");
   });
 });
+
+describe("POST /api/v1/events/:id/reassignment (E4)", () => {
+  const reassign = (eventId: string, coordinatorId: unknown) =>
+    request(app).post(`/api/v1/events/${eventId}/reassignment`).set(bearer).send({ coordinatorId });
+
+  async function assignedTo(coordinatorId = COORDINATOR) {
+    const event = await submitted();
+    signedInAs(LEAD, "EVENT_COORDINATOR_LEAD");
+    expect((await assign(event.id, coordinatorId)).status).toBe(201);
+    return event;
+  }
+
+  it("moves the event at once, closing the outgoing assignment and recording the new one with the Lead (E4-T1)", async () => {
+    const event = await assignedTo();
+    const before = Date.now();
+
+    const res = await reassign(event.id, OTHER_COORDINATOR);
+
+    expect(res.status).toBe(201);
+    expect(res.body).toMatchObject({ eventId: event.id, coordinatorId: OTHER_COORDINATOR, previousCoordinatorId: COORDINATOR, reassignedBy: LEAD });
+    const rows = await sql<{ coordinator_id: string; created_by: string; is_active: boolean; ended_at: Date | null; assigned_at: Date }[]>`
+      select coordinator_id, created_by, is_active, ended_at, assigned_at from event.assignments where event_id = ${event.id} order by assigned_at
+    `;
+    expect(rows).toEqual([
+      expect.objectContaining({ coordinator_id: COORDINATOR, is_active: false, ended_at: expect.any(Date) }),
+      expect.objectContaining({ coordinator_id: OTHER_COORDINATOR, created_by: LEAD, is_active: true, ended_at: null }),
+    ]);
+    expect(rows[0]!.ended_at!.getTime()).toBeGreaterThanOrEqual(before - 5000);
+  });
+
+  it("tells the outgoing and new coordinators and the owner, and raises the event's version (E4-T5)", async () => {
+    const event = await assignedTo();
+    signedInAs(ORGANISER, "EVENT_ORGANISER");
+    const read = await request(app).get(`/api/v1/events/${event.id}`).set(bearer);
+    signedInAs(LEAD, "EVENT_COORDINATOR_LEAD");
+
+    const res = await reassign(event.id, OTHER_COORDINATOR);
+
+    const [message] = await outbox(event.id, "event.coordinator-reassigned");
+    expect(message!.envelope.data).toEqual({
+      eventId: event.id,
+      eventReference: event.reference,
+      eventName: "Annual Research Symposium",
+      previousCoordinatorId: COORDINATOR,
+      coordinatorId: OTHER_COORDINATOR,
+      coordinatorName: "E3 Second Coordinator",
+      ownerId: ORGANISER,
+      reassignedBy: LEAD,
+      reassignedAt: res.body.reassignedAt,
+    });
+    signedInAs(ORGANISER, "EVENT_ORGANISER");
+    const after = await request(app).get(`/api/v1/events/${event.id}`).set(bearer).set("If-None-Match", read.headers.etag!);
+    expect(after.status).toBe(200);
+    expect(after.body).toMatchObject({ assignedCoordinatorId: OTHER_COORDINATOR, version: read.body.version + 1 });
+  });
+
+  it("refuses the coordinator already assigned, creating no history entry (E4-T2)", async () => {
+    const event = await assignedTo();
+
+    const res = await reassign(event.id, COORDINATOR);
+
+    expect(res.status).toBe(409);
+    expect(res.body.error).toMatchObject({ code: "ALREADY_ASSIGNED", message: "This event is already assigned to E3 Coordinator." });
+    expect(await assignments(event.id)).toEqual([expect.objectContaining({ coordinator_id: COORDINATOR, is_active: true })]);
+    expect(await outbox(event.id, "event.coordinator-reassigned")).toEqual([]);
+  });
+
+  it("reassigns a Confirmed event, and refuses a Completed, Cancelled or Rejected one (E4-T3)", async () => {
+    const event = await assignedTo();
+    await sql`update event.events set status = 'CONFIRMED' where id = ${event.id}`;
+    expect((await reassign(event.id, OTHER_COORDINATOR)).status).toBe(201);
+
+    for (const status of ["COMPLETED", "CANCELLED", "REJECTED"]) {
+      await sql`update event.events set status = ${status} where id = ${event.id}`;
+      const res = await reassign(event.id, COORDINATOR);
+      expect(res.status, status).toBe(409);
+      expect(res.body.error.code, status).toBe("STATUS_NOT_ASSIGNABLE");
+    }
+    expect((await assignments(event.id)).filter((a) => a.is_active)).toEqual([expect.objectContaining({ coordinator_id: OTHER_COORDINATOR })]);
+  });
+
+  it("hands the coordinator's actions to the new coordinator alone (E4-T4)", async () => {
+    const event = await assignedTo();
+    await reassign(event.id, OTHER_COORDINATOR);
+    const edit = (version: number) =>
+      request(app).patch(`/api/v1/events/${event.id}`).set(bearer).set("If-Match", `"${version}"`).send({ purpose: "Share faculty research across schools" });
+    const { version } = (await sql<{ version: number }[]>`select version from event.events where id = ${event.id}`)[0]!;
+
+    signedInAs(COORDINATOR, "EVENT_COORDINATOR");
+    const refused = await edit(version);
+    expect(refused.status).toBe(403);
+
+    signedInAs(OTHER_COORDINATOR, "EVENT_COORDINATOR");
+    expect((await edit(version)).status).toBe(200);
+  });
+
+  it("closes a pending peer proposal, unaccepted (E4-T7)", async () => {
+    const event = await assignedTo();
+    await sql`
+      insert into event.reassignment_proposals (event_id, outgoing_coordinator_id, nominee_coordinator_id, status, created_by, updated_by)
+      values (${event.id}, ${COORDINATOR}, ${OTHER_COORDINATOR}, 'PENDING', ${COORDINATOR}, ${COORDINATOR})
+    `;
+
+    await reassign(event.id, OTHER_COORDINATOR);
+
+    const [proposal] = await sql<{ status: string; resolved_at: Date | null; updated_by: string }[]>`
+      select status, resolved_at, updated_by from event.reassignment_proposals where event_id = ${event.id}
+    `;
+    expect(proposal).toMatchObject({ status: "CLOSED", resolved_at: expect.any(Date), updated_by: LEAD });
+  });
+
+  it("refuses an unassigned event, an inactive coordinator, and every role but the Lead (E4-T8)", async () => {
+    const event = await assignedTo();
+    const unassignedEvent = await submitted("Unassigned request");
+    signedInAs(LEAD, "EVENT_COORDINATOR_LEAD");
+
+    const none = await reassign(unassignedEvent.id, COORDINATOR);
+    expect(none.status).toBe(409);
+    expect(none.body.error).toMatchObject({ code: "EVENT_NOT_ASSIGNED", message: "This event has no coordinator to replace. Assign one instead." });
+
+    for (const candidate of [STAFF, RETIRED_COORDINATOR]) {
+      const res = await reassign(event.id, candidate);
+      expect(res.status, candidate).toBe(400);
+      expect(res.body.error.code).toBe("NOT_AN_ACTIVE_COORDINATOR");
+    }
+    for (const [userId, role] of [[COORDINATOR, "EVENT_COORDINATOR"], [ORGANISER, "EVENT_ORGANISER"]]) {
+      signedInAs(userId!, role!);
+      expect((await reassign(event.id, OTHER_COORDINATOR)).status, role).toBe(403);
+    }
+    expect(await assignments(event.id)).toEqual([expect.objectContaining({ coordinator_id: COORDINATOR, is_active: true })]);
+  });
+
+  it("reassigns once when two Leads reassign the same event at the same moment", async () => {
+    const event = await assignedTo();
+
+    const results = await Promise.all([reassign(event.id, OTHER_COORDINATOR), reassign(event.id, OTHER_COORDINATOR)]);
+
+    expect(results.map((r) => r.status).sort()).toEqual([201, 409]);
+    expect((await assignments(event.id)).filter((a) => a.is_active)).toHaveLength(1);
+  });
+});

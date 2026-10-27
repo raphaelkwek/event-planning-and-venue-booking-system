@@ -65,12 +65,20 @@ const assignCoordinator = vi.fn<Parameters<Fn>, ReturnType<Fn>>(async () => ({
   assignedBy: "lead-id",
   assignedAt: "2026-10-27T02:00:00.000Z",
 }));
+const reassignCoordinator = vi.fn<Parameters<Fn>, ReturnType<Fn>>(async () => ({
+  eventId: EVENT_ID,
+  coordinatorId: "coordinator-2",
+  previousCoordinatorId: "coordinator-1",
+  reassignedBy: "lead-id",
+  reassignedAt: "2026-10-27T03:00:00.000Z",
+}));
 const openEvent = vi.fn<Parameters<Fn>, ReturnType<Fn>>(async () => EVENT);
 
 vi.mock("../src/api/assignments.js", () => ({
   listUnassigned: (...args: unknown[]) => listUnassigned(...args),
   listCoordinators: (...args: unknown[]) => listCoordinators(...args),
   assignCoordinator: (...args: unknown[]) => assignCoordinator(...args),
+  reassignCoordinator: (...args: unknown[]) => reassignCoordinator(...args),
 }));
 
 vi.mock("../src/api/events.js", async () => {
@@ -193,5 +201,40 @@ describe("assigning a request (E3-T3, E3-T4)", () => {
     fireEvent.change(await screen.findByLabelText("Coordinator"), { target: { value: "coordinator-2" } });
     fireEvent.click(screen.getByRole("button", { name: "Assign" }));
     expect(await screen.findByText("This event is already assigned to Coordinator One. Reassign it instead.")).toBeTruthy();
+  });
+});
+
+describe("reassigning an event (E4-T1)", () => {
+  async function openAssigned() {
+    openEvent.mockResolvedValue({ ...EVENT, status: "UNDER_REVIEW", assignedCoordinatorId: "coordinator-1" });
+    signInAs("EVENT_COORDINATOR_LEAD", `/assignments/${EVENT_ID}`);
+    render(<App />);
+    await screen.findByRole("heading", { name: "Annual Research Symposium" });
+  }
+
+  afterEach(() => openEvent.mockResolvedValue(EVENT));
+
+  it("shows the current coordinator and offers only the others, then reassigns at once", async () => {
+    await openAssigned();
+    expect(text(document.body)).toContain("Coordinator One");
+    expect(screen.queryByRole("button", { name: "Assign" })).toBeNull();
+    const select = (await screen.findByLabelText("New coordinator")) as HTMLSelectElement;
+    expect([...select.options].map((o) => o.textContent)).toEqual(["Choose a coordinator", "Coordinator Two (0 active)"]);
+
+    fireEvent.change(select, { target: { value: "coordinator-2" } });
+    fireEvent.click(screen.getByRole("button", { name: "Reassign" }));
+
+    await waitFor(() => expect(reassignCoordinator).toHaveBeenCalledWith("token", EVENT_ID, "coordinator-2"));
+    expect(await screen.findByText("Reassigned to Coordinator Two. They are now the event's coordinator.")).toBeTruthy();
+  });
+
+  it("shows the server's refusal", async () => {
+    reassignCoordinator.mockRejectedValueOnce(
+      new ApiError(409, { code: "STATUS_NOT_ASSIGNABLE", message: "This event is Completed and cannot be assigned.", correlationId: null }),
+    );
+    await openAssigned();
+    fireEvent.change(await screen.findByLabelText("New coordinator"), { target: { value: "coordinator-2" } });
+    fireEvent.click(screen.getByRole("button", { name: "Reassign" }));
+    expect(await screen.findByText("This event is Completed and cannot be assigned.")).toBeTruthy();
   });
 });
