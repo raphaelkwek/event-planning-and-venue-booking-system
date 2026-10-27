@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | Counts: Coordinator One: 2 active; Coordinator Two: 1 active; the Rejected request isn't counted. Filtered to Coordinator One the list showed EVT-015376 and EVT-015377 only; with "All coordinators" EVT-015378 was listed again. |
+| Status | Pass |
+| Remarks | Commit: 742bee5 · Evidence: tests/E5/evidence/E5-T2.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-28 |

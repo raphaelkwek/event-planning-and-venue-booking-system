@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | coordinator: no link, no list, API 403/403; organiser: no link, no list, API 403/403; venuestaff: no link, no list, API 403/403; techsupport: no link, no list, API 403/403; attendee: no link, no list, API 403/403. |
+| Status | Pass |
+| Remarks | Commit: 742bee5 · Evidence: tests/E5/evidence/E5-T4.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-28 |

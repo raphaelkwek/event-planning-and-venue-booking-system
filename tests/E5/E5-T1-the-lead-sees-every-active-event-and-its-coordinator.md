@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | Rows: EVT-015372 \| Under review symposium \| Under Review \| Coordinator One; EVT-015373 \| Assigned symposium \| Submitted \| Coordinator Two; EVT-015374 \| Waiting symposium \| Submitted \| Unassigned. The Rejected request (EVT-015375) and the draft were not listed. |
+| Status | Pass |
+| Remarks | Commit: 742bee5 · Evidence: tests/E5/evidence/E5-T1.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-28 |

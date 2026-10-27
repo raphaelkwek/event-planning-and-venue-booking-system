@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | The history read, oldest first: Coordinator One \| Lead One \| Wednesday 28 October 2026, 00:29 \| Wednesday 28 October 2026, 00:29; Coordinator Two \| Lead One \| Wednesday 28 October 2026, 00:29 \| Current. |
+| Status | Pass |
+| Remarks | Commit: 742bee5 · Evidence: tests/E5/evidence/E5-T3.png · Defect: — |
+| Executed By | Yichen, via automated testing |
+| Date of Execution | 2026-10-28 |
