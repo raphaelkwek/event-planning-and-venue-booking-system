@@ -4,6 +4,44 @@
 
 ---
 
+# E5: The Lead oversees every active event, coordinators' load and assignment history
+
+**Timestamp:** 2026-10-28T00:29+08:00 (SGT)
+**Author:** Seann, via Claude
+**Scope:** E5 (SPM-178, Sprint 4), CR-05, and the Week 9 answers W9-30, W9-37 and W9-57. Stacked
+on E4.
+- **planning-core, event module:**
+  - `GET /api/v1/assignments`;
+  - `GET /api/v1/events/:id/assignments`;
+  - `listActiveEvents()` and `listAssignmentHistory()`.
+- **Cerbos:** the Lead may `view_assignments`.
+- **OpenAPI:** both routes and their schemas.
+- **Web:** the "Assignments" screen, and the history on the Lead's assignment page.
+- **Cases:** `tests/E5/` (README and four cards, all executed) and `sprint-3.csv`.
+
+**Reason:** CR-05 gives the Lead an overview of the workload. Week 9: Leads see all unassigned and
+assigned requests and the active assignments, system-wide (W9-37), and several Leads may each see
+everything (W9-30, W9-57).
+
+## Added
+
+- **The overview:** every submitted event not Completed, Cancelled or Rejected, oldest first, with
+  its status and its coordinator, or "Unassigned".
+  - Each active coordinator is shown with their number of active events.
+  - A filter shows one coordinator's events and keeps every coordinator's count; the server
+    applies it.
+  - A coordinator who has since left is still named.
+- **An event's assignment history,** oldest first: each assignment's coordinator, who made it and
+  its start and end, with "Current" for the active one. An assignment that E1 made automatically
+  on submission shows as made "Automatically on submission (E1)".
+- **No other role** sees the screen or the routes (A2).
+
+## Not done, on purpose
+
+- **Drafts aren't listed:** they haven't been submitted, so they aren't events in the workflow yet.
+
+---
+
 # E4: The Lead reassigns an event, and coordinator-to-coordinator reassignment is retired
 
 **Timestamp:** 2026-10-27T20:51+08:00 (SGT)
