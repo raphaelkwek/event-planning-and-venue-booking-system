@@ -31,12 +31,7 @@ let event: { id: string; reference: string; name: string };
 let chairs: { id: string; name: string };
 let tables: { id: string; name: string };
 
-async function clean() {
-  const types = sql`select id from equipment.equipment_types where created_by = ${A.ts}`;
-  await sql`delete from equipment.reservation_flags where reservation_id in (
-    select id from equipment.reservations where equipment_type_id in (${types}))`;
-  await cleanLineFixtures(sql, [A.org], [A.ts]);
-}
+const clean = () => cleanLineFixtures(sql, [A.org], [A.ts]);
 beforeEach(async () => {
   await clean();
   event = await createEvent(sql, { ownerId: A.org, coordinatorId: A.c1, name: "S3 repo event" });

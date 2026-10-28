@@ -1,6 +1,7 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { randomUUID } from "node:crypto";
 import { testDb } from "../../support/testDb.js";
+import { cleanVenueFixtures } from "../../support/venueFixtures.js";
 import {
   bookingsForImpact,
   flagBookings,
@@ -18,14 +19,7 @@ const sql = testDb();
 const STAFF = "a5333333-0000-0000-0000-000000000031";
 const COORDINATOR = "a5333333-0000-0000-0000-000000000032";
 
-async function cleanUp() {
-  const ours = sql`select id from venue.venues where created_by = ${STAFF}`;
-  await sql`delete from venue.arrangement_flags where slot_id in (select id from venue.venue_slots where venue_id in (${ours}))`;
-  await sql`delete from venue.booking_requests where venue_id in (${ours})`;
-  await sql`delete from venue.venue_slots where venue_id in (${ours})`;
-  await sql`delete from venue.venue_staff where venue_id in (${ours})`;
-  await sql`delete from venue.venues where created_by = ${STAFF}`;
-}
+const cleanUp = () => cleanVenueFixtures(sql, STAFF);
 
 beforeEach(cleanUp);
 afterAll(async () => {
