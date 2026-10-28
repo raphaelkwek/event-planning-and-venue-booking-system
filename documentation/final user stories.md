@@ -1,8 +1,10 @@
 # ConnectSphere — Final User Stories
 
-**Revision 4 (2 Oct 2026).** Adds the Week 7 customer changes CR-01 to CR-06 (`documentation/change-requests.md`) to revision 3, which incorporated the customer clarification set and the INVEST review. 63 stories across 21 feature areas.
+**Revision 5 (23–24 Oct 2026).** Adds the customer's Week 9 clarification answers (`documentation/clarifications.md`) to revision 4, which added the Week 7 customer changes CR-01 to CR-06 (`documentation/change-requests.md`) to revision 3, which incorporated the customer clarification set and the INVEST review. 67 stories across 21 feature areas.
 
 Markers used below: ⚠ **REVISED** — changed by a customer clarification; ⚠ **NEW** — story added after the clarifications; ⚠ **SPLIT** — story divided so each half can be finished in one sprint. ⚠ **NEW — CR-0n** or ⚠ **REVISED — CR-0n**: added or changed by a Week 7 customer change request. A story that was already Done keeps its criteria and notes which new story supersedes part of it (course guide, scenario 2).
+
+Changes in revision 5 (23 Oct 2026): the customer's Week 9 answers (`clarifications.md`: CQ-01, CQ-04 to CQ-10, rows W9-01 to W9-66, decision D-01). Revised, not yet Done: A4, E4, F3, R2, R7, S3, U1, each change marked ⚠ **Week 9**. Done stories A3, F1, F5, H3, I1, I2, L3, L6 and E2 keep their criteria, each with a note naming the answer and the Sprint 4 item (W9-FX-1 to W9-FX-5) that changes it. On 24 Oct, new stories I3, I4, I5 and I6 were added for W9-FX-1 to W9-FX-4 (course guide, scenario 2: a new requirement on a Done story is a new story); W9-FX-5 is part of E4, which is not yet Done. CQ-03 has a team decision. Still open: CQ-11 and CQ-12.
 
 Changes in revision 4: new stories A4, E3, E4, E5 (CR-05), H3 (CR-01), L4 (CR-03), L5 (CR-02), L6 (CR-04) and U1 in new feature 21 (CR-06). Revised, not yet Done: F1, F5, H1, I1, I2, J1, K1, L1, L3, M1, N1, N2, R1, R2, R7, S3. Done stories A3, D1, E1 and E2 are unchanged, each with a note naming the story that supersedes part of it. Questions CQ-04 to CQ-10 are open, and the criteria that depend on them say so.
 
@@ -41,7 +43,7 @@ Sprint allocation is in `plan.md` §10 and `sprint-reallocation.csv`.
 
 #### **A3 — See only the events I am related to**
 
-> **Done in Sprint 1. Partly superseded by A4 (CR-05): coordinators act only on events assigned to them; the Event Coordinator Lead sees all.**
+> **Done in Sprint 1. Partly superseded by A4 (CR-05): coordinators act only on events assigned to them; the Event Coordinator Lead sees all.** ⚠ **Week 9 (revision 5):** whether a coordinator may still view other events read-only is CQ-11.
 
 **User Story:** As a ConnectSphere user, I want to see only the events I own, am assigned to, or am registered for, so that information about other people's events stays confidential.
 
@@ -61,7 +63,8 @@ Sprint allocation is in `plan.md` §10 and `sprint-reallocation.csv`.
 **Acceptance Criteria**
 
 * An Event Coordinator can perform coordinator actions (D2–D5, F3–F5, G1, L1–L6, O1, S2) only on events assigned to them; on any other event the action is refused, nothing is stored, and the message states that the event is not assigned to them.  
-* An Event Coordinator's review queue (D1) and event list contain only the events assigned to them. Whether a coordinator may still view other events read-only (A3) is CQ-07.  
+* An Event Coordinator's review queue (D1) and event list contain only the events assigned to them. Whether a coordinator may still view other events read-only (A3) is CQ-11 (the part of CQ-07 the Week 9 answers left open).  
+* ⚠ **Week 9 answer (CQ-07):** coordinators manage only the events the Lead assigned to them, and cannot claim an unassigned event; the Lead does not coordinate events. *(Source: "Coordinators only manage events assigned to them by the Lead. At the moment, the lead is not able to coordinate event", W9-35.)*  
 * The Event Coordinator Lead sees all events and all assignments (E5).  
 * Event Coordinator Lead is an internal role governed by A2 like every other: it has its own list of permitted functions, and navigation shows only those.  
 * Filtering is applied when a list is retrieved, so an event outside the coordinator's assignments returns no event data (as in A3).
@@ -230,7 +233,7 @@ Sprint allocation is in `plan.md` §10 and `sprint-reallocation.csv`.
 
 #### **E2 — Reassign an event to a different coordinator**
 
-> **Done in Sprint 1. Extended by E4 (CR-05): the Event Coordinator Lead can also reassign. Whether this peer flow remains is CQ-07.**
+> **Done in Sprint 1. Extended by E4 (CR-05): the Event Coordinator Lead can also reassign.** ⚠ **Week 9 (revision 5):** CQ-07 is answered: the peer flow does not remain; the Lead manages all assignments and reassignments (W9-35, W9-59). It is retired when E4 ships, Sprint 4 item W9-FX-5.
 
 **User Story:** As the assigned Event Coordinator, I want to hand an event over to a colleague who has accepted it, so that coordination continues when I am unavailable and no event is left with an owner who did not agree to it. ⚠ **REVISED — reassignment requires acceptance**
 
@@ -271,7 +274,7 @@ Sprint allocation is in `plan.md` §10 and `sprint-reallocation.csv`.
 * The outgoing assignment is closed with an end timestamp and kept in the assignment history; the new assignment records the coordinator, the Lead, and the timestamp.  
 * From that moment only the new coordinator can perform coordinator actions on the event, and the previous coordinator no longer can.  
 * The outgoing coordinator, the new coordinator, and the owning organiser are notified, and the organiser sees the new point of contact.  
-* How a Lead reassignment interacts with a pending peer proposal (E2) follows the answer to CQ-07.
+* ⚠ **Week 9 answer (CQ-07):** the Lead is the only route to a reassignment. Coordinator-to-coordinator reassignment (E2) is retired with this story (W9-FX-5): coordinators can no longer propose one, and a peer proposal still pending is closed, unaccepted, when the Lead reassigns the event. A Lead reassignment takes effect at once, with no acceptance by the incoming coordinator, at any point before the event is Completed, Cancelled or Rejected, including after its arrangements are confirmed. *(Replaces "How a Lead reassignment interacts with a pending peer proposal (E2) follows the answer to CQ-07". Sources: W9-20, W9-34, W9-58, W9-59.)*
 
 #### **E5 — Oversee coordinator assignments** ⚠ **NEW — CR-05 (Week 7)**
 
@@ -289,6 +292,8 @@ Sprint allocation is in `plan.md` §10 and `sprint-reallocation.csv`.
 ### **Feature 6 — Event Status Management**
 
 #### **F1 — Trust that an event's status reflects what has actually happened** ⚠ **REVISED — CR-06 (Week 7)**
+
+> ⚠ **Week 9 (revision 5):** U1's approval no longer moves an event to Confirmed by itself: the assigned coordinator marks it Confirmed once the safety check has passed (W9-31, W9-61). U1 carries the change; this story's criteria are unchanged. Week 9 also adds returns to Planning, each defined in its own story: rejecting the safety arrangement (U1), a material change to a Confirmed event (S3), and a block disrupting a Confirmed event's booking (I3).
 
 **User Story:** As an Event Coordinator, I want an event's status to change only when something real has happened to it, so that I can rely on the status when deciding what to work on next.
 
@@ -326,7 +331,8 @@ Sprint allocation is in `plan.md` §10 and `sprint-reallocation.csv`.
 * The cancelled event remains visible to the users related to it, showing the reason and the cancellation date.  
 * A cancelled event cannot be edited, submitted, or have new bookings, reservations, or registrations raised against it.  
 * The owning organiser, the assigned coordinator, the Venue Staff of any booked venue, and the Technical Support Staff of any reserved equipment are notified of the cancellation.  
-* Releasing the event's arrangements is specified separately in F4.
+* Releasing the event's arrangements is specified separately in F4.  
+* ⚠ **Week 9 answer:** cancelling the event closes any change request still pending for it (S1), recording that it was closed because the event was cancelled; it can no longer be decided. *(Source: "If an event is cancelled or completed, any open pending change request for that event is rendered obsolete and should automatically become invalid/rejected or closed", W9-07. Completion is F1's.)*
 
 #### **F4 — Release the arrangements of a cancelled event**
 
@@ -343,6 +349,8 @@ Sprint allocation is in `plan.md` §10 and `sprint-reallocation.csv`.
 * Releasing an arrangement that is already released changes no quantity and writes no second release timestamp, so a retried cancellation produces the same end state.
 
 #### **F5 — Confirm an event only when venue and equipment are ready** ⚠ **NEW — split from F1; both arrangements must be complete** ⚠ **REVISED — CR-03, CR-06 (Week 7)**
+
+> ⚠ **Week 9 (revision 5):** CQ-05 is answered: every required venue booking must be confirmed (W9-25, W9-53), which is what this story already requires.
 
 **User Story:** As an assigned Event Coordinator, I want to confirm an event only once both the venue and the equipment are actually arranged, so that a Confirmed event is one I can rely on rather than one that is still missing something.
 
@@ -418,6 +426,8 @@ Sprint allocation is in `plan.md` §10 and `sprint-reallocation.csv`.
 
 #### **H3 — Set a venue's setup and turnaround time** ⚠ **NEW — CR-01 (Week 7)**
 
+> ⚠ **Week 9 (revision 5):** the availability calendar should also flag the periods a change of times made overlap (W9-46). Sprint 4 item W9-FX-4, story I6.
+
 **User Story:** As a Venue Staff member, I want to record how long my venue needs to be prepared before an event and reset after it, so that bookings always leave that time free.
 
 **Acceptance Criteria**
@@ -435,6 +445,8 @@ Sprint allocation is in `plan.md` §10 and `sprint-reallocation.csv`.
 
 #### **I1 — View a venue's availability calendar** ⚠ **REVISED — CR-01 (Week 7)**
 
+> ⚠ **Week 9 (revision 5):** the calendar should flag the periods a change of a venue's setup or turnaround time made overlap (W9-46). Sprint 4 item W9-FX-4, story I6. It should also show a block with no end (W9-FX-3, story I5).
+
 **User Story:** As an Event Coordinator, I want to see when a venue is already committed, so that I request a period the venue can actually offer.
 
 **Acceptance Criteria**
@@ -449,6 +461,8 @@ Sprint allocation is in `plan.md` §10 and `sprint-reallocation.csv`.
 * Attendees have no access to the calendar.
 
 #### **I2 — Record a period of venue unavailability** ⚠ **REVISED — CR-01, CR-02 (Week 7)**
+
+> ⚠ **Week 9 (revision 5):** three changes, each a Sprint 4 item with its own story. W9-FX-1, story I3: a block over a Confirmed event's booking returns the event to Planning, never cancelled; the coordinator is told at once, the organiser and attendees when the replacement is confirmed (W9-43, W9-50, W9-51). W9-FX-2, story I4: a block also refuses new holds (W9-41). W9-FX-3, story I5: a block may be open-ended, until Venue Staff lift it (W9-49, decision D-01).
 
 **User Story:** As a Venue Staff member, I want to record periods when my venue cannot be used — including periods that are already booked — so that coordinators know an arrangement has been disrupted and can re-plan it. ⚠ **REVISED — see clarification C-12**
 
@@ -465,6 +479,58 @@ Sprint allocation is in `plan.md` §10 and `sprint-reallocation.csv`.
 * A created block makes the venue unavailable for that period in both the calendar (I1) and venue search (J1), so no new request can be raised for it.  
 * Creating and removing a block each record the acting user and timestamp. Removing a block restores availability for that period, clears the Requires Reconfirmation flag on any booking disrupted only by that block, and notifies the affected coordinators.  
 * A failed block creation leaves availability for the period unchanged, flags no booking, and sends no notification.
+
+#### **I3 — Return a Confirmed event to Planning when its venue is blocked** ⚠ **NEW — Week 9 (W9-FX-1)**
+
+**User Story:** As an assigned Event Coordinator, I want a Confirmed event whose venue becomes unavailable to go back to Planning, so that it is re-planned and checked again before it goes ahead.
+
+**Acceptance Criteria**
+
+* When a block (I2) disrupts a confirmed booking of an event in status Confirmed, the event's status becomes Planning, with a status history entry naming the block as the triggering action (F1). This replaces I2's "the corresponding event's status is unchanged" for a Confirmed event; an event in any other status is unchanged, as in I2.  
+* The event and its record are kept: it is never cancelled, and its other arrangements and registrations are unchanged.  
+* The assigned coordinator is notified at once, as in I2, and the notification states that the event has returned to Planning.  
+* The owning organiser and the registered attendees are not notified when the block is recorded. They are notified when a replacement booking is approved (L5, M1) or a change to the event is approved (S2).  
+* To become Confirmed again, the event passes confirmation (F5) and the safety check (U1) again, as after any other return to Planning.  
+* A failed block creation changes no event's status (I2).
+
+*Source: "Should revert to Planning review. The event itself is preserve and not automatically cancelled" (W9-50); "The Event Coordinator is informed immediately … Organisers and Attendees are notified when replacement arrangements or formal event changes are confirmed" (W9-51); W9-43.*
+
+#### **I4 — Refuse a hold over a blocked period** ⚠ **NEW — Week 9 (W9-FX-2)**
+
+**User Story:** As a Venue Staff member, I want a block to stop new holds as well as new booking requests, so that nobody reserves a period the venue cannot offer.
+
+**Acceptance Criteria**
+
+* Requesting or placing a tentative hold (L3) whose occupied period (H3) overlaps an active block is refused. The refusal names the block, its period and its reason type, and nothing is stored. Periods that merely touch do not overlap.  
+* Holds already requested or placed when a block is created are flagged, not refused or released, as in I2.  
+* Once the block is removed, holds over its period can be requested and placed again.
+
+*Source: "Marking a venue unavailable for hold blocks new holds and bookings, and flags affected existing bookings so alternative venues can be arranged" (W9-41).*
+
+#### **I5 — Record a block with no end** ⚠ **NEW — Week 9 (W9-FX-3, D-01)**
+
+**User Story:** As a Venue Staff member, I want to record unavailability without knowing when it will end, so that a venue stays blocked until the problem is fixed.
+
+**Acceptance Criteria**
+
+* A block may be created with no end date and time; it stays active until Venue Staff remove it (I2). This replaces I2's "end date/time … mandatory". When an end is given, it must still be later than the start, as in I2.  
+* An open-ended block disrupts and flags, as in I2, every confirmed booking, pending request and hold at the venue whose occupied period ends after the block starts.  
+* From its start, an open-ended block refuses new booking requests (I2) and new holds (I4) for any later period.  
+* The calendar (I1) and venue search (J1) show the venue as unavailable from the block's start, with no end, labelled as open-ended.
+
+*Source: "Venue Staff can set temporary unavailability with end dates or leave it open-ended until operational issues are resolved and lifted" (W9-49). This conflicts with W9-41 ("It should not be open-ended"); by D-01 the later answer, W9-49, counts.*
+
+#### **I6 — Flag buffer-change overlaps on the availability calendar** ⚠ **NEW — Week 9 (W9-FX-4)**
+
+**User Story:** As an Event Coordinator, I want the availability calendar to show where a change of setup or turnaround time has made arrangements overlap, so that I can see at a glance what needs reconfirming.
+
+**Acceptance Criteria**
+
+* On the availability calendar (I1), each confirmed booking, hold and pending request flagged Requires Reconfirmation by a change of setup or turnaround time (H3) is shown flagged, distinguishable from unflagged arrangements, and names the arrangement it overlaps.  
+* When the flag is cleared, the calendar no longer shows it the next time it is loaded.  
+* The flag is visible to every internal user who can see the calendar (I1); attendees still have no access.
+
+*Venue Staff already see the conflicts when they save a change, and coordinators are already notified (H3); this story adds only the calendar flag. Source: "Venue Staff see identified conflicts upon setting buffers, the calendar flags overlapping periods, and affected Coordinators receive notifications" (W9-46).*
 
 ---
 
@@ -559,6 +625,8 @@ Sprint allocation is in `plan.md` §10 and `sprint-reallocation.csv`.
 
 #### **L3 — Place a tentative hold on a venue** ⚠ **NEW — tentative holding is in scope** ⚠ **REVISED — CR-01, CR-03, CR-04 (Week 7)**
 
+> ⚠ **Week 9 (revision 5):** an active block should refuse a new hold over its period (W9-41). Sprint 4 item W9-FX-2, story I4.
+
 **User Story:** As an assigned Event Coordinator, I want to hold a venue and time slot while the event is still being planned, so that it is not taken by another event before the booking request is decided.
 
 **Acceptance Criteria**
@@ -603,6 +671,8 @@ Sprint allocation is in `plan.md` §10 and `sprint-reallocation.csv`.
 * A venue becoming unavailable never cancels the event automatically.
 
 #### **L6 — Tentative holds expire** ⚠ **NEW — CR-04 (Week 7)**
+
+> ⚠ **Week 9 (revision 5):** CQ-06 is answered as this story was built: Venue Staff set and extend each hold's expiry, with no default or maximum, and the coordinator sets the reminder per hold (W9-09, W9-29, W9-40, W9-44).
 
 **User Story:** As a Venue Staff member, I want tentative holds to expire, so that a venue is not reserved indefinitely by a hold nobody acts on.
 
@@ -790,7 +860,8 @@ Sprint allocation is in `plan.md` §10 and `sprint-reallocation.csv`.
 
 * A successful registration is stored with the attendee, the event, status Registered, and the registration timestamp, and the attendee sees a confirmation.  
 * The number of places is derived from the capacity of the booked venue for the booked layout, less any attendees added manually (R7). There is no separately entered registration capacity, and expected attendance does not cap registration. ⚠ **REVISED — capacity comes from the venue**  
-* ⚠ **CR-03 (pending CQ-04):** for an event with several venues (L4), the capacity that limits registration follows the customer's answer to CQ-04.  
+* ⚠ **CR-03, Week 9 answer (CQ-04):** for an event with several venues (L4), the capacity that limits registration is the **total** of the layout capacities of its confirmed bookings, each booking counted for its own booked layout. *(Source: "Total attendee capacity is determined by the total layout capacity", W9-08.)*  
+* ⚠ **Week 9 decision (D-01):** manual additions (R7) may take the number of attendees above capacity. Places remaining is then zero, never negative, and a registration is refused for capacity until withdrawals bring the total below capacity. *(Source: "Registration is enabled for attendees to register directly up to capacity", W9-28.)*  
 * The capacity check and the registration are atomic: when two attendees register simultaneously for the last remaining place, exactly one registration is created.  
 * The unsuccessful attempt creates no registration record, leaves places remaining unchanged, returns a message naming capacity as the cause, and offers the attendee a place on the waitlist (R6). ⚠ **REVISED**  
 * A second registration by the same attendee for the same event is refused, no second record is created, and the message names the existing registration.  
@@ -856,8 +927,8 @@ Sprint allocation is in `plan.md` §10 and `sprint-reallocation.csv`.
 
 * Only the owning organiser or the assigned coordinator can add an attendee manually, and only to an event they manage.  
 * A manual addition is permitted even when no registration places remain and when the registration window has closed.  
-* A manual addition is refused when it would take the total number of attendees above the capacity of the booked venue for the booked layout; the refusal names the venue capacity and the current total, and creates no record.  
-* ⚠ **CR-03 (pending CQ-04):** for an event with several venues, the capacity this check uses follows the answer to CQ-04, as in R2.  
+* ⚠ **Week 9 answer (CQ-01, decision D-01):** a manual addition is permitted even when it takes the total number of attendees above the capacity; going over capacity is the organiser's or coordinator's decision. Before it is saved they are shown the capacity and the total the addition would make, and the registration records that it was added over capacity. *(Replaces "A manual addition is refused when it would take the total number of attendees above the capacity … and creates no record". Source: "Organisers can make final decision if exceed capacity", W9-28.)*  
+* ⚠ **CR-03, Week 9 answer (CQ-04):** for an event with several venues, the capacity is the total of the layout capacities of its confirmed bookings, as in R2 (W9-08).  
 * A manual addition is refused when the event has no confirmed venue booking, because the capacity ceiling is not yet known.  
 * The registration is stored with status Registered, marked as manually added, and records who added it, when, and an optional reason.  
 * Manually added attendees appear in the organiser's registration list (R5) distinguishable from self-registered attendees, and are included in the totals and in the places-remaining calculation (R2).  
@@ -906,7 +977,8 @@ Sprint allocation is in `plan.md` §10 and `sprint-reallocation.csv`.
 * An equipment reservation whose period no longer matches the event's new required window is flagged for review; its reserved quantity is not released until Technical Support Staff release it (Q2).  
 * When the new expected attendance exceeds the capacity of the booked venue for the booked layout, the booking is flagged unsuitable with the two compared values shown.  
 * ⚠ **CR-03:** for an event with several venues (L4), each booking is assessed and flagged separately; flagging one leaves the others unchanged.  
-* **The event's status is not changed by flagging.** An event that was Confirmed remains Confirmed and is displayed with its outstanding flags; no status transition is performed automatically. Any change of status is made by the assigned Event Coordinator through an action defined elsewhere (F1), after agreeing the new arrangement with the Event Organiser outside the system.  
+* **The event's status is not changed by flagging** while it is not yet Confirmed; any change of status is made by the assigned Event Coordinator through an action defined elsewhere (F1), after agreeing the new arrangement with the Event Organiser outside the system.  
+* ⚠ **Week 9 answer:** when the approved change is to a **Confirmed** event and is material (date, time, attendance, venue, layout or equipment), the event returns to Planning with its flags, and is confirmed again only after F5 and a new safety check (U1). *(Replaces "An event that was Confirmed remains Confirmed and is displayed with its outstanding flags". Source: "Any post-confirmation material change (date, time, attendance, venue, layout, or equipment) requires re-reviewing affected arrangements and undergoing the safety check again before re-confirmation", W9-22. Returning to Planning is our reading of "re-confirmation".)*  
 * Every outstanding flag is visible on the event to the owning organiser, the assigned coordinator, and Event Coordinators, each stating which arrangement is affected and why.  
 * An event that is **not** currently Confirmed cannot become Confirmed while any arrangement carries a Requires Reconfirmation or unsuitable flag (F5 readiness rule); the refusal names the outstanding flags.  
 * Venue Staff for the affected booking and Technical Support Staff for the affected reservations are notified, as are attendees with an active registration.  
@@ -949,10 +1021,11 @@ Sprint allocation is in `plan.md` §10 and `sprint-reallocation.csv`.
 **Acceptance Criteria**
 
 * When an event's venue and equipment arrangements are confirmed (F5), its status becomes Safety Review and it appears in the Safety Officer's queue. It cannot proceed to preparation (Confirmed) until the Safety Officer approves it.  
-* The review shows the factors to weigh: expected attendance; each booked venue's capacity and layout; emergency access and any known venue restrictions, where recorded (CQ-10); accessibility requirements; equipment and its placement notes; and crowd movement.  
+* The review shows the factors to weigh: expected attendance; each booked venue's capacity and layout; accessibility requirements; equipment and its placement notes. ⚠ **Week 9 answer (CQ-10):** emergency access, venue restrictions and crowd movement are assessed by the Safety Officer outside the system and written into the decision's comments; the venue record gains no new fields. *(Source: W9-33, W9-64.)*  
 * The Safety Officer records one decision: approve, request changes, or reject the safety arrangement. Requesting changes or rejecting requires a reason.  
-* Approve: the status becomes Confirmed, and the event may proceed to preparation.  
+* ⚠ **Week 9 answer:** Approve: the safety check is recorded as passed, and the event stays in Safety Review until the assigned coordinator **marks it Confirmed**, which only a passed check allows; it may then proceed to preparation and registration. *(Replaces "Approve: the status becomes Confirmed". Sources: "the Safety Officer approves the check, after which the Coordinator marks the event Confirmed", W9-31; W9-25, W9-61.)*  
 * Request changes: the event returns to Planning with the requested changes recorded, and the venue or equipment arrangements named in the request are flagged for review. After rework it passes confirmation (F5) and the safety check again.  
-* Reject the safety arrangement: the outcome follows the customer's answer to CQ-08.  
+* ⚠ **Week 9 answer (CQ-08):** Reject the safety arrangement: the event returns to Planning as for request changes, recorded as a rejection of the arrangement as a whole; the event is not rejected or cancelled, and its venue and equipment arrangements stay in place to be re-evaluated. *(Sources: W9-10, W9-21, W9-63.)*  
+* ⚠ **Week 9 answer:** every event reaching Safety Review after release goes through the check; events confirmed before the feature are not reviewed. *(Sources: W9-32, W9-65.)*  
 * Each decision records the Safety Officer, the timestamp, the decision, and the reason; writes a status history entry (F1); and notifies the assigned coordinator and the owning organiser.  
 * Only the Safety Officer can record a safety decision (A2); every other role is refused.

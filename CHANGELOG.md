@@ -75,6 +75,102 @@ already refused booking requests over a block.
   placed is flagged Requires Reconfirmation by I2, unchanged.
 - **Open-ended blocks** (I5) are the next story; this one checks blocks with an end.
 - **Converting a hold** into a booking request already refused a request over a block (I2), unchanged.
+# Stories I3 to I6 for the Week 9 changes to Done stories; CQ-03 decided by the team
+
+**Timestamp:** 2026-10-24T12:00+08:00 (SGT)
+**Author:** Seann, via Claude
+**Scope:** documentation only; no code changes.
+- `documentation/final user stories.md`, revision 5: new stories I3, I4, I5 and I6; R2 gains the
+  D-01 rule for places remaining; the notes on A3, F1, H3, I1, I2 and L3 name the new stories.
+- `documentation/clarifications.md`: CQ-03's team decision; the W9-FX items name the story that
+  carries each.
+- `documentation/planning/plan.md` §9 and `documentation/sprint allocation.csv`: A4, E3, E4, E5,
+  U1 and I3 to I6 join Sprint 4.
+
+**Reason:** the course's guide to managing changes (Week 7). A new requirement on a Done story is
+a new user story with its own criteria and estimate (scenario 2); a criterion the story missed
+would reopen it (scenario 1). None of W9-FX-1 to W9-FX-5 is a missed criterion.
+
+## Added
+
+- **I3:** a block over a Confirmed event's booking returns the event to Planning (W9-FX-1).
+- **I4:** a block refuses new holds over its period (W9-FX-2).
+- **I5:** a block may have no end, until Venue Staff remove it (W9-FX-3, D-01).
+- **I6:** the availability calendar flags the overlaps a change of setup or turnaround time
+  creates (W9-FX-4).
+
+## Changed
+
+- **R2:** when manual additions take an event above capacity, places remaining is zero, never
+  negative (D-01).
+- **W9-FX-5 stays in E4,** which already retires E2's peer reassignment, because E4 is not yet
+  Done.
+
+## Decided
+
+- **CQ-03:** the team accepts that a notification becomes visible within about 10 seconds of its
+  action (ADR-0008, ADR-0013, EN-17). It was never put to the customer. T2's criteria promise no
+  delivery time, so they are unchanged.
+
+## Not done, on purpose
+
+- **No story points.** I3 to I6, and the not-yet-Done stories revised on 23 Oct, are estimated at
+  the team's planning poker (PX-02).
+- **Jira is not yet updated.** The PO reviews this revision first.
+
+---
+
+# Clarifications: the customer's Week 9 answers
+
+**Timestamp:** 2026-10-23T12:42+08:00 (SGT)
+**Author:** Seann, via Claude
+**Scope:** documentation only; no code changes.
+- `documentation/clarifications.md`: the Week 9 session in the customer's words (W9-01 to W9-66),
+  answers to CQ-01 and CQ-04 to CQ-10, decision D-01, new questions CQ-11 and CQ-12, and the
+  Sprint 4 items W9-FX-1 to W9-FX-5.
+- `documentation/final user stories.md`, revision 5: A4, E4, F3, R2, R7, S3 and U1 revised; notes
+  on Done stories E2, F1, F5, H3, I1, I2, L3 and L6.
+- `tests/L4/`: L4-T10, L4-T11 and the README cite the answers to CQ-05 and CQ-04.
+
+**Reason:** the answers were in a spreadsheet, not in the repo. A story's criteria may change only
+after its answer is recorded in `clarifications.md`.
+
+## Changed
+
+- **Registration capacity (R2, R7):** with several venues, it is the total of their layout
+  capacities (CQ-04).
+- **Manual additions (R7):** may go above capacity, at the organiser's or coordinator's decision
+  (CQ-01, D-01). Previously refused.
+- **Reassignment (A4, E4):** only the Lead assigns and reassigns. Coordinator-to-coordinator
+  reassignment (E2) is retired when E4 ships (CQ-07).
+- **Safety check (U1):**
+  - approval marks the check passed, then the coordinator marks the event Confirmed;
+  - rejecting returns the event to Planning, like request changes (CQ-08);
+  - no new venue fields for emergency access (CQ-10).
+- **Material change to a Confirmed event (S3):** it returns to Planning and needs F5 and the
+  safety check again.
+- **Cancellation (F3):** it closes any pending change request for the event.
+
+## Decided
+
+- **D-01:** where the customer's answers conflict, the latest one wins. So blocks may be
+  open-ended (W9-49 over W9-41), and organisers may add attendees above capacity (W9-28 over R7).
+
+## Not done, on purpose
+
+- **Done stories keep their criteria.** Their changes are new Sprint 4 items, W9-FX-1 to W9-FX-5,
+  for the PO to create in Jira:
+  - I2: a disrupted Confirmed event returns to Planning;
+  - I2 and L3: blocks refuse new holds;
+  - I2: blocks may be open-ended;
+  - H3 and I1: the calendar flags buffer conflicts;
+  - E2: retired.
+- **Still open:**
+  - CQ-03 (notification speed);
+  - CQ-11 (may coordinators view other events read-only?);
+  - CQ-12 (must a buffered period fit inside operating hours?).
+- **The session's date isn't known.** The Jira items for the answered questions (SPM-156,
+  SPM-184 to SPM-190) are still to close.
 
 ---
 

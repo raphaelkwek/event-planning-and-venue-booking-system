@@ -13,7 +13,7 @@
 | Created By | Seann Khoo |
 | Date of Creation | 2026-10-21 |
 
-> F5-T8 and F5-T9 test the rule through the API. CQ-05 (must every booking be confirmed?) is open; this follows F5 as written.
+> F5-T8 and F5-T9 test the rule through the API. CQ-05 is answered: every required venue booking must be confirmed (`documentation/clarifications.md`, W9-25, W9-53), as F5 requires.
 
 ## Execution record
 
