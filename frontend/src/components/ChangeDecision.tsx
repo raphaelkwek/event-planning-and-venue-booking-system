@@ -4,7 +4,7 @@ import Modal, { ModalBody, ModalFooter, ModalHeader, ModalTitle, ModalTransition
 import SectionMessage from "@atlaskit/section-message";
 import TextArea from "@atlaskit/textarea";
 import { ApiError } from "../api/client.js";
-import { decideChangeRequest, type ChangeRequest } from "../api/changeRequests.js";
+import { decideChangeRequest, type ChangeImpact, type ChangeRequest } from "../api/changeRequests.js";
 import { formatChangeValue, SIGNIFICANT_FIELD_LABELS } from "../shared/changeRequests.js";
 import { Refusal } from "./Refusal.js";
 
@@ -18,7 +18,7 @@ function detailFields(error: unknown): { field: string; message: string }[] {
 }
 
 /** S2 — Approve and Reject for the assigned coordinator while a change request is pending. */
-export function ChangeDecisionActions({ request, token, onDecided }: { request: ChangeRequest; token: string; onDecided: () => void }) {
+export function ChangeDecisionActions({ request, token, onDecided }: { request: ChangeRequest; token: string; onDecided: (impact?: ChangeImpact) => void }) {
   const [mode, setMode] = useState<"approve" | "reject" | null>(null);
   const [reason, setReason] = useState("");
   const [reasonError, setReasonError] = useState<string | null>(null);
@@ -35,10 +35,10 @@ export function ChangeDecisionActions({ request, token, onDecided }: { request: 
     setError(null);
     setBusy(true);
     try {
-      await decideChangeRequest(token, request.id, body);
+      const decided = await decideChangeRequest(token, request.id, body);
       close();
       setReason("");
-      onDecided();
+      onDecided(decided.impact);
     } catch (caught) {
       setError(caught);
     } finally {

@@ -90,7 +90,7 @@ vi.mock("../src/api/users.js", () => ({
   ]),
 }));
 
-vi.mock("../src/api/changeRequests.js", () => ({ listChangeRequests: vi.fn(async () => ({ items: [] })) }));
+vi.mock("../src/api/changeRequests.js", () => ({ listChangeRequests: vi.fn(async () => ({ items: [] })), listArrangementFlags: vi.fn(async () => ({ flags: [] })) }));
 
 const { App } = await import("../src/App.js");
 

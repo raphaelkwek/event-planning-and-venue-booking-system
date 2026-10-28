@@ -45,10 +45,12 @@ const { App } = await import("../src/App.js");
 const reply = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status });
 let stored: unknown[];
 let onDecision: (body: Record<string, unknown>) => Response;
+let flagsResponse: () => Response;
 const fetchMock = vi.fn(async (path: string, init?: RequestInit) => {
   const url = new URL(path, "http://app.test");
   if (url.pathname === "/event/api/v1/change-requests/c1/decision") return onDecision(JSON.parse(init!.body as string));
   if (url.pathname === `/event/api/v1/events/${EVENT_ID}/change-requests`) return reply({ items: stored });
+  if (url.pathname === `/event/api/v1/events/${EVENT_ID}/arrangement-flags`) return flagsResponse();
   if (url.pathname.includes("/notifications")) return reply({ items: [], unreadCount: 0, nextCursor: null });
   return reply({ items: [] });
 });
@@ -67,6 +69,7 @@ beforeEach(() => {
   current = event();
   stored = [pending];
   onDecision = () => reply({ changeRequest: approved });
+  flagsResponse = () => reply({ flags: [] });
   vi.stubGlobal("fetch", fetchMock);
 });
 afterEach(() => {
@@ -201,5 +204,108 @@ describe("the organiser's page", () => {
     asOrganiser();
     expect(await screen.findByText(/Change rejected on /)).toBeTruthy();
     expect(screen.queryByText(/Change approved on /)).toBeNull();
+  });
+});
+
+/** S3 — the impact list after an approval, and the Outstanding flags section. */
+const B1 = "b1000000-0000-4000-8000-000000000001";
+const B2 = "b2000000-0000-4000-8000-000000000002";
+const R1 = "r1000000-0000-4000-8000-000000000001";
+const impact = {
+  bookings: [
+    { id: B1, reference: "BKG-000001", venueName: "Grand Theatre", startsAt: "2026-12-02T06:00:00.000Z", endsAt: "2026-12-02T10:00:00.000Z" },
+    { id: B2, reference: "BKG-000002", venueName: "Main Hall", startsAt: "2026-12-02T06:00:00.000Z", endsAt: "2026-12-02T10:00:00.000Z" },
+  ],
+  reservations: [{ id: R1, equipmentTypeName: "Projector", reservedQuantity: 2, startsAt: "2026-12-02T06:00:00.000Z", endsAt: "2026-12-02T10:00:00.000Z" }],
+  activeRegistrations: 0,
+  flags: [
+    { arrangement: "BOOKING", id: B1, reference: "BKG-000001", name: "Grand Theatre", flag: "REQUIRES_RECONFIRMATION", reason: "The event's period changed." },
+    { arrangement: "BOOKING", id: B1, reference: "BKG-000001", name: "Grand Theatre", flag: "UNSUITABLE", reason: "Expected attendance is now 150, but Grand Theatre holds 100 in the Theatre layout." },
+    { arrangement: "BOOKING", id: B2, reference: "BKG-000002", name: "Main Hall", flag: "REQUIRES_RECONFIRMATION", reason: "The event's period changed." },
+    { arrangement: "EQUIPMENT", id: R1, reference: R1, name: "Projector", flag: "FLAGGED_FOR_REVIEW", reason: "The event's period changed; check the equipment is still free." },
+  ],
+};
+
+async function approve() {
+  asCoordinator();
+  fireEvent.click(await screen.findByRole("button", { name: "Approve change" }));
+  stored = [approved];
+  fireEvent.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Confirm approval" }));
+  return await screen.findByText("Affected arrangements");
+}
+
+describe("the impact of an approval", () => {
+  it("lists each booking and reservation with its flags and reasons, and the registrations", async () => {
+    onDecision = () => reply({ changeRequest: approved, impact });
+    await approve();
+    expect(await screen.findByText("Affected arrangements")).toBeTruthy();
+    expect(screen.getByText(/BKG-000001, Grand Theatre/)).toBeTruthy();
+    expect(screen.getByText(/BKG-000002, Main Hall/)).toBeTruthy();
+    expect(screen.getByText(/Projector, quantity 2/)).toBeTruthy();
+    expect(screen.getAllByText("Requires reconfirmation")).toHaveLength(2);
+    expect(screen.getByText("Unsuitable")).toBeTruthy();
+    expect(screen.getByText("Flagged for review")).toBeTruthy();
+    expect(screen.getByText(/Expected attendance is now 150, but Grand Theatre holds 100/)).toBeTruthy();
+    expect(screen.getByText(/check the equipment is still free/)).toBeTruthy();
+    expect(screen.getByText("Registrations: 0")).toBeTruthy();
+    expect(screen.queryByText(/No venue bookings or equipment reservations/)).toBeNull();
+  });
+
+  it("says so when no booking or reservation is affected", async () => {
+    onDecision = () => reply({ changeRequest: approved, impact: { bookings: [], reservations: [], activeRegistrations: 3, flags: [] } });
+    await approve();
+    expect(await screen.findByText("No venue bookings or equipment reservations are affected.")).toBeTruthy();
+    expect(screen.getByText("Registrations: 3")).toBeTruthy();
+  });
+
+  it("shows no impact section after a rejection", async () => {
+    onDecision = () => reply({ changeRequest: rejected });
+    asCoordinator();
+    fireEvent.click(await screen.findByRole("button", { name: "Reject change" }));
+    const dialog = await screen.findByRole("dialog");
+    fireEvent.change(within(dialog).getByLabelText("Reason"), { target: { value: "No larger hall" } });
+    stored = [rejected];
+    fireEvent.click(within(dialog).getByRole("button", { name: "Confirm rejection" }));
+    await screen.findByText(/Change rejected on /);
+    expect(screen.queryByText("Affected arrangements")).toBeNull();
+  });
+});
+
+describe("the Outstanding flags section", () => {
+  const outstanding = impact.flags.map((flag) => ({ ...flag, flaggedAt: "2026-10-28T02:00:00.000Z" }));
+
+  it("lists each flag with its arrangement, reference, name, label and reason, to the coordinator", async () => {
+    flagsResponse = () => reply({ flags: outstanding });
+    stored = [approved];
+    asCoordinator();
+    expect(await screen.findByText("Outstanding flags")).toBeTruthy();
+    expect(screen.getByText("Equipment " + R1 + ", Projector")).toBeTruthy();
+    expect(screen.getAllByText(/Booking BKG-000001, Grand Theatre/)).toHaveLength(2);
+    expect(screen.getByText("Unsuitable")).toBeTruthy();
+    expect(screen.getByText(/holds 100 in the Theatre layout/)).toBeTruthy();
+  });
+
+  it("is shown on the organiser's page too", async () => {
+    flagsResponse = () => reply({ flags: outstanding });
+    stored = [approved];
+    asOrganiser();
+    expect(await screen.findByText("Outstanding flags")).toBeTruthy();
+  });
+
+  it("is hidden when there are no flags", async () => {
+    stored = [approved];
+    asCoordinator();
+    await screen.findByText(/Change approved on/);
+    await waitFor(() => expect(fetchMock.mock.calls.some(([path]) => String(path).includes("arrangement-flags"))).toBe(true));
+    expect(screen.queryByText("Outstanding flags")).toBeNull();
+  });
+
+  it("is hidden when the route answers 404", async () => {
+    flagsResponse = () => reply({ error: { code: "NOT_FOUND", message: "Not found", correlationId: null } }, 404);
+    stored = [approved];
+    asOrganiser();
+    await screen.findByText(/Change approved on/);
+    await waitFor(() => expect(fetchMock.mock.calls.some(([path]) => String(path).includes("arrangement-flags"))).toBe(true));
+    expect(screen.queryByText("Outstanding flags")).toBeNull();
   });
 });

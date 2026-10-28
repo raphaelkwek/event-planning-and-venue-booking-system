@@ -25,10 +25,12 @@ import { formatInstant, STATUS_APPEARANCE, STATUS_LABELS } from "../shared/statu
 import { StatusHistory } from "../components/StatusHistory.js";
 import { Refusal } from "../components/Refusal.js";
 import { canEditDetails } from "../shared/eventDetails.js";
-import { listChangeRequests, type ChangeRequest } from "../api/changeRequests.js";
+import { listChangeRequests, type ChangeImpact, type ChangeRequest } from "../api/changeRequests.js";
 import { ChangeDecisionActions, DecidedChangeNotice } from "../components/ChangeDecision.js";
 import { PendingChangeNotice } from "../components/PendingChangeNotice.js";
 import { EquipmentRequirementsView, VenueRequirementsView } from "../components/Requirements.js";
+import { ChangeImpactView } from "../components/ChangeImpactView.js";
+import { OutstandingFlags } from "../components/OutstandingFlags.js";
 import { ConfirmArrangementsAction } from "../components/ConfirmArrangements.js";
 
 /**
@@ -48,6 +50,8 @@ export function ReviewDetail() {
   const [proposals, setProposals] = useState<ReassignmentProposal[]>([]);
   const [changeRequests, setChangeRequests] = useState<ChangeRequest[]>([]);
   const [changesFailed, setChangesFailed] = useState(false);
+  // S3: the impact returned by an approval made on this screen; the approval refreshes the page, so it is kept here.
+  const [impact, setImpact] = useState<ChangeImpact | null>(null);
   const [loadError, setLoadError] = useState<unknown>(null);
   const [actionError, setActionError] = useState<unknown>(null);
   const [loading, setLoading] = useState(true);
@@ -189,12 +193,16 @@ export function ReviewDetail() {
             <PendingChangeNotice request={pendingChange} />
             {event.assignedCoordinatorId === session.userId && (
               <div style={{ marginBottom: 16, marginTop: -8 }}>
-                <ChangeDecisionActions request={pendingChange} token={session.token} onDecided={() => void load()} />
+                <ChangeDecisionActions request={pendingChange} token={session.token} onDecided={(result) => {
+                    setImpact(result ?? null);
+                    void load();
+                  }} />
               </div>
             )}
           </section>
         )}
         {!pendingChange && latestDecided && <DecidedChangeNotice request={latestDecided} />}
+        {!pendingChange && impact && <ChangeImpactView impact={impact} />}
 
         <Detail label="Purpose" value={event.purpose} />
         <Detail label="Description" value={event.description} />
@@ -210,6 +218,7 @@ export function ReviewDetail() {
         <EquipmentRequirementsView required={event.equipmentRequired} lines={event.equipmentRequirements} />
         <Detail label="Registration required" value={event.registrationRequired ? "Yes" : "No"} />
 
+        <OutstandingFlags eventId={event.id} refreshKey={`${event.status}/${latestDecided?.id ?? ""}`} />
         <StatusHistory eventId={event.id} refreshKey={event.status} />
         <h3 style={{ marginTop: 32 }}>Clarifications</h3>
         {clarifications.length === 0 && <p>None requested.</p>}

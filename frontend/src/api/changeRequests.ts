@@ -51,7 +51,36 @@ export function listChangeRequests(token: string, eventId: string) {
 
 export type ChangeDecision = { decision: "APPROVE" } | { decision: "REJECT"; reason: string };
 
-/** S2 — only the event's assigned coordinator may decide; an approval also returns the changed event. */
+export type ArrangementFlag = "REQUIRES_RECONFIRMATION" | "UNSUITABLE" | "FLAGGED_FOR_REVIEW";
+
+export interface ImpactFlag {
+  arrangement: "BOOKING" | "EQUIPMENT";
+  id: string;
+  reference: string;
+  name: string;
+  flag: ArrangementFlag;
+  reason: string;
+}
+
+/** S3 — mirrors `ChangeImpact` in documentation/api/planning-core.openapi.yaml. */
+export interface ChangeImpact {
+  bookings: { id: string; reference: string; venueName: string; startsAt: string; endsAt: string }[];
+  reservations: { id: string; equipmentTypeName: string; reservedQuantity: number; startsAt: string; endsAt: string }[];
+  activeRegistrations: number;
+  flags: ImpactFlag[];
+}
+
+/** S2 — only the event's assigned coordinator may decide; an approval also returns the changed event and (S3) its impact. */
 export function decideChangeRequest(token: string, id: string, body: ChangeDecision) {
-  return request<{ changeRequest: ChangeRequest; event?: unknown }>(`${EVENT}/change-requests/${id}/decision`, { method: "POST", token, body });
+  return request<{ changeRequest: ChangeRequest; event?: unknown; impact?: ChangeImpact }>(`${EVENT}/change-requests/${id}/decision`, { method: "POST", token, body });
+}
+
+/** S3 — one outstanding flag on an event's arrangements. */
+export interface OutstandingFlag extends ImpactFlag {
+  flaggedAt: string;
+}
+
+/** S3 — the owner, assigned coordinator and Event Coordinators; anyone else gets 404. */
+export function listArrangementFlags(token: string, eventId: string) {
+  return request<{ flags: OutstandingFlag[] }>(`${EVENT}/events/${eventId}/arrangement-flags`, { token });
 }
