@@ -134,6 +134,17 @@ describe("flagReservations and outstandingReservationFlags (S3, AC8)", () => {
 
     expect((await outstandingReservationFlags(sql, event.id)).map((f) => f.reservationId)).toEqual([still.reservationId]);
   });
+
+  it("lists a reservation flagged by two approved changes once, with the newest reason", async () => {
+    const { reservationId } = await reserved(chairs.id, 4);
+    await sql.begin((tx) => flagReservations(tx, event.id, randomUUID(), [flag(reservationId, "The event moved to 15:00.")]));
+    await sql`update equipment.reservation_flags set flagged_at = now() - interval '1 hour' where reservation_id = ${reservationId}`;
+    await sql.begin((tx) => flagReservations(tx, event.id, randomUUID(), [flag(reservationId, "The event moved to 16:00.")]));
+
+    expect((await outstandingReservationFlags(sql, event.id)).map((f) => [f.reservationId, f.reason])).toEqual([
+      [reservationId, "The event moved to 16:00."],
+    ]);
+  });
 });
 
 describe("equipmentArrangementsForEvent (F5, AC9)", () => {

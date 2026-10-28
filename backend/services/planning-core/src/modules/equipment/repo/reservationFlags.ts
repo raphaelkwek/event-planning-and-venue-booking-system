@@ -84,15 +84,22 @@ export async function flagReservations(
   }
 }
 
-/** The event's flags that still hold: the reservation is RESERVED and still flagged. Oldest first. */
+/**
+ * The event's flags that still hold: the reservation is RESERVED and still flagged. Each
+ * reservation and flag once, with the newest reason (a later approved change may flag it again).
+ * Oldest first.
+ */
 export async function outstandingReservationFlags(db: Db, eventId: string): Promise<OutstandingReservationFlag[]> {
   const rows = await db<{ reservation_id: string; type_name: string; flag: "FLAGGED_FOR_REVIEW"; reason: string; flagged_at: Date }[]>`
-    select f.reservation_id, t.name as type_name, f.flag, f.reason, f.flagged_at
-    from equipment.reservation_flags f
-    join equipment.reservations r on r.id = f.reservation_id
-    join equipment.equipment_types t on t.id = r.equipment_type_id
-    where f.event_id = ${eventId} and r.status = 'RESERVED' and r.flagged_for_review
-    order by f.flagged_at, t.name, f.id
+    select * from (
+      select distinct on (f.reservation_id, f.flag) f.reservation_id, t.name as type_name, f.flag, f.reason, f.flagged_at
+      from equipment.reservation_flags f
+      join equipment.reservations r on r.id = f.reservation_id
+      join equipment.equipment_types t on t.id = r.equipment_type_id
+      where f.event_id = ${eventId} and r.status = 'RESERVED' and r.flagged_for_review
+      order by f.reservation_id, f.flag, f.flagged_at desc, f.id
+    ) outstanding
+    order by flagged_at, type_name, reservation_id
   `;
   return rows.map((row) => ({
     reservationId: row.reservation_id,
