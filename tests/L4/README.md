@@ -14,16 +14,16 @@ arrangements, for F4's cancellation.
 | The event shows all its venue arrangements together, each with its venue, period, status and booking reference | L4-T5 |
 | Withdrawing, rejecting, releasing or changing one arrangement leaves the others unchanged | L4-T6, L4-T7, L4-T8 |
 | Cancelling the event (F3, F4) releases all of its venue arrangements | L4-T9 (Not executable: F3, F4) |
-| Confirmation (F5) and registration capacity (R2, R7) take every venue into account (CQ-05, CQ-04) | L4-T10; L4-T11 (Not executable: R2, R7, CQ-04) |
+| Confirmation (F5) and registration capacity (R2, R7) take every venue into account (CQ-05, CQ-04) | L4-T10; L4-T11 (Not executable: R2, R7) |
 
 **Not executable yet.**
 - L4-T9 needs F3 and F4, which cancel an event. The venue half is built and integration-tested:
   `releaseVenueArrangementsForEvent`, exported from the venue module, releases every booking and
   hold of the event and withdraws its pending requests, in F4's transaction.
-- L4-T11 needs registration (R2, R7) and the customer's answer to CQ-04.
+- L4-T11 needs registration (R2, R7). CQ-04 is answered (Week 9): the total of the venues' layout capacities.
 
-**CQ-05 is open.** L4-T10 follows F5 as written: every active booking must be confirmed, and at
-least one.
+**CQ-05 is answered (Week 9):** every required venue booking must be confirmed, which is what F5
+does and L4-T10 tests.
 
 ## Fixtures
 
