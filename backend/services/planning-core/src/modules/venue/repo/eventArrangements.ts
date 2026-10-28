@@ -12,8 +12,12 @@ import type { TransactionSql } from "postgres";
  * it commits (implementation.md §4.7). The caller has already locked the event.
  */
 
-/** I2's flag. S3 adds the unsuitable flag here once it stores one. */
-export type VenueArrangementFlag = "REQUIRES_RECONFIRMATION";
+/**
+ * Requires Reconfirmation, set by I2, H3 and S3, and Unsuitable, set by S3 on a
+ * confirmed booking when an approved change outgrows its layout. A booking
+ * request has no Unsuitable column, so only bookings carry that flag.
+ */
+export type VenueArrangementFlag = "REQUIRES_RECONFIRMATION" | "UNSUITABLE";
 
 export interface VenueArrangementBooking {
   id: string;
@@ -42,8 +46,10 @@ export interface VenueArrangements {
   requests: VenueArrangementRequest[];
 }
 
-const flagsOf = (requiresReconfirmation: boolean): VenueArrangementFlag[] =>
-  requiresReconfirmation ? ["REQUIRES_RECONFIRMATION"] : [];
+const flagsOf = (requiresReconfirmation: boolean, unsuitable = false): VenueArrangementFlag[] => [
+  ...(requiresReconfirmation ? (["REQUIRES_RECONFIRMATION"] as const) : []),
+  ...(unsuitable ? (["UNSUITABLE"] as const) : []),
+];
 
 export async function venueArrangementsForEvent(tx: TransactionSql, eventId: string): Promise<VenueArrangements> {
   const slots = await tx<
@@ -56,10 +62,11 @@ export async function venueArrangementsForEvent(tx: TransactionSql, eventId: str
       ends_at: Date;
       status: "HELD" | "CONFIRMED";
       requires_reconfirmation: boolean;
+      unsuitable: boolean;
     }[]
   >`
     select s.id, s.reference, s.venue_id, v.name as venue_name, s.starts_at, s.ends_at, s.status,
-           s.requires_reconfirmation
+           s.requires_reconfirmation, s.unsuitable
     from venue.venue_slots s join venue.venues v on v.id = s.venue_id
     where s.event_id = ${eventId} and s.status in ('HELD', 'CONFIRMED')
     order by s.starts_at, s.reference
@@ -95,7 +102,7 @@ export async function venueArrangementsForEvent(tx: TransactionSql, eventId: str
       startsAt: slot.starts_at.toISOString(),
       endsAt: slot.ends_at.toISOString(),
       status: slot.status,
-      flags: flagsOf(slot.requires_reconfirmation),
+      flags: flagsOf(slot.requires_reconfirmation, slot.unsuitable),
       staffIds: staff.filter((member) => member.venue_id === slot.venue_id).map((member) => member.user_id),
     })),
     requests: requests.map((request) => ({

@@ -62,6 +62,18 @@ delete from venue.outbox where message_key in (
 delete from venue.holds
   where venue_id in (select id from test_owned_venues) or event_id in (select id from test_owned_events);
 
+-- S3's record of which approved change flagged which booking, at those venues or for the
+-- seeded organisers' events. Before the slots it points at. Skipped where migration
+-- venue/0018 isn't applied yet.
+do $$
+begin
+  if to_regclass('venue.arrangement_flags') is not null then
+    delete from venue.arrangement_flags
+      where event_id in (select id from test_owned_events)
+         or slot_id in (select id from venue.venue_slots where venue_id in (select id from test_owned_venues));
+  end if;
+end $$;
+
 -- Booking requests (L1, L2) at those venues or for the seeded organisers' events, with their
 -- outbox messages. Before the slots, which a replacement request may point at (CR-02).
 delete from venue.outbox where message_key in (
@@ -101,6 +113,14 @@ delete from equipment.request_line_history
 do $$
 begin
   if to_regclass('equipment.reservations') is not null then
+    -- S3's flags on those reservations, before the reservations. Skipped where migration
+    -- equipment/0009 isn't applied yet.
+    if to_regclass('equipment.reservation_flags') is not null then
+      delete from equipment.reservation_flags
+        where reservation_id in (select id from equipment.reservations
+                                 where request_line_id in (select id from test_owned_lines)
+                                    or equipment_type_id in (select id from test_owned_equipment));
+    end if;
     delete from equipment.unit_reservations
       where reservation_id in (select id from equipment.reservations
                                where request_line_id in (select id from test_owned_lines));
