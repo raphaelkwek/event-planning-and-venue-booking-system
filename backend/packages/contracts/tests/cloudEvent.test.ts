@@ -372,3 +372,73 @@ describe("parseCloudEvent: change request messages (S1)", () => {
     expect(() => parseCloudEvent(exampleMessage("change-request.rejected", { ...decidedChange, reason: "" }))).toThrow(/reason/);
   });
 });
+
+describe("parseCloudEvent: change-request.arrangements-flagged (S3)", () => {
+  const flagged = {
+    ...ref,
+    changeRequestId: "44444444-4444-4444-8444-444444444444",
+    bookings: [
+      {
+        reference: "BKR-000101",
+        venueName: "Venue One",
+        flag: "REQUIRES_RECONFIRMATION",
+        reason: "The booking is for 2 Dec 14:00–18:00, but the event is now 2 Dec 15:00–18:00.",
+        staffIds: [organiser],
+      },
+      {
+        reference: "BKR-000101",
+        venueName: "Venue One",
+        flag: "UNSUITABLE",
+        reason: "Expected attendance is now 150, but Venue One holds 100 in the Theatre layout.",
+        staffIds: [],
+      },
+    ],
+    reservations: [
+      {
+        equipmentTypeName: "Projectors",
+        flag: "FLAGGED_FOR_REVIEW",
+        reason: "The reservation is for 2 Dec 14:00–18:00, but the event is now 2 Dec 15:00–18:00.",
+        reservedBy: coordinator,
+      },
+    ],
+    returnedToPlanning: true,
+  };
+
+  it("accepts the flagged bookings and reservations and returns its data", () => {
+    const message = parseCloudEvent(exampleMessage("change-request.arrangements-flagged", flagged));
+    expect(message.type).toBe("change-request.arrangements-flagged");
+    expect(message.data).toEqual(flagged);
+  });
+
+  it("accepts one that flags only reservations", () => {
+    const data = { ...flagged, bookings: [], returnedToPlanning: false };
+    expect(parseCloudEvent(exampleMessage("change-request.arrangements-flagged", data)).data).toEqual(data);
+  });
+
+  it("refuses one without returnedToPlanning", () => {
+    expect(() =>
+      parseCloudEvent(exampleMessage("change-request.arrangements-flagged", without(flagged, "returnedToPlanning"))),
+    ).toThrow(/returnedToPlanning/);
+  });
+
+  it("refuses a booking without its staff ids, or with a flag a booking cannot carry", () => {
+    const noStaff = without(flagged.bookings[0]!, "staffIds");
+    expect(() =>
+      parseCloudEvent(exampleMessage("change-request.arrangements-flagged", { ...flagged, bookings: [noStaff] })),
+    ).toThrow(/staffIds/);
+    expect(() =>
+      parseCloudEvent(
+        exampleMessage("change-request.arrangements-flagged", {
+          ...flagged,
+          bookings: [{ ...flagged.bookings[0]!, flag: "FLAGGED_FOR_REVIEW" }],
+        }),
+      ),
+    ).toThrow(/flag/);
+  });
+
+  it("refuses one that flags nothing, since nothing flagged writes no message", () => {
+    expect(() =>
+      parseCloudEvent(exampleMessage("change-request.arrangements-flagged", { ...flagged, bookings: [], reservations: [] })),
+    ).toThrow(/flag/i);
+  });
+});

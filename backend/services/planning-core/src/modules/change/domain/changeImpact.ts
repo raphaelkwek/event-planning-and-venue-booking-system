@@ -1,4 +1,5 @@
 import type { SignificantEventField } from "@connectsphere/contracts";
+import type { ProposedChanges } from "../../event/index.js";
 import { formatPeriod } from "./formatPeriod.js";
 
 /**
@@ -111,5 +112,33 @@ export function assessChangeImpact(input: {
     activeRegistrations: 0,
     bookingFlags,
     reservationFlags,
+  };
+}
+
+/** An instant from the event row or a change request's JSON, as ISO-8601; throws when there is none. */
+function instant(value: unknown, field: string): string {
+  const readable = value instanceof Date || typeof value === "string" || typeof value === "number";
+  const time = readable ? new Date(value).getTime() : NaN;
+  if (Number.isNaN(time)) throw new Error(`An approved change left the event without a valid ${field}.`);
+  return new Date(time).toISOString();
+}
+
+function attendance(value: unknown): number {
+  const parsed = typeof value === "number" ? value : typeof value === "string" ? Number(value) : NaN;
+  if (!Number.isFinite(parsed)) throw new Error("An approved change left the event without a valid expected attendance.");
+  return parsed;
+}
+
+/** The event's significant timing and attendance after `changes` are applied over its current values. */
+export function valuesAfterChange(
+  current: { readonly proposedStartAt?: unknown; readonly proposedEndAt?: unknown; readonly expectedAttendance?: unknown },
+  changes: ProposedChanges
+): ImpactValues {
+  const pick = (field: "proposedStartAt" | "proposedEndAt" | "expectedAttendance") =>
+    field in changes ? changes[field] : current[field];
+  return {
+    proposedStartAt: instant(pick("proposedStartAt"), "start"),
+    proposedEndAt: instant(pick("proposedEndAt"), "end"),
+    expectedAttendance: attendance(pick("expectedAttendance")),
   };
 }

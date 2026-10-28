@@ -2,6 +2,7 @@ import { Router, type NextFunction, type RequestHandler, type Response } from "e
 import type { Sql } from "postgres";
 import { authenticate, requireRole, type ActorRequest } from "../auth/actor.js";
 import { alreadyDecidedMessage, validateDecisionBody } from "../domain/changeRequests.js";
+import type { AppliedChangeImpact } from "../repo/changeImpact.js";
 import { decideChangeRequest } from "../repo/decisions.js";
 import { refuse } from "./errors.js";
 import { changeRateLimiter } from "./limiter.js";
@@ -13,6 +14,44 @@ import { changeRateLimiter } from "./limiter.js";
 const COORDINATOR = "EVENT_COORDINATOR";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const PATH = "/api/v1/change-requests/:id/decision";
+
+/**
+ * S3 — what an approval's response says about the arrangements (AC1–AC4): each confirmed booking
+ * and reservation, the registration count, and each flag set. Staff ids and who reserved
+ * equipment stay out: they are for the notification service, not the screen.
+ */
+export function impactBody(impact: AppliedChangeImpact) {
+  const bookingById = new Map(impact.bookings.map((booking) => [booking.id, booking]));
+  const reservationById = new Map(impact.reservations.map((reservation) => [reservation.id, reservation]));
+  return {
+    bookings: impact.bookings.map(({ id, reference, venueName, startsAt, endsAt }) => ({ id, reference, venueName, startsAt, endsAt })),
+    reservations: impact.reservations.map(({ id, equipmentTypeName, reservedQuantity, startsAt, endsAt }) => ({
+      id,
+      equipmentTypeName,
+      reservedQuantity,
+      startsAt,
+      endsAt,
+    })),
+    activeRegistrations: impact.activeRegistrations,
+    flags: [
+      ...impact.bookingFlags.map((flag) => {
+        const booking = bookingById.get(flag.bookingId)!;
+        return { arrangement: "BOOKING" as const, id: booking.id, reference: booking.reference, name: booking.venueName, flag: flag.flag, reason: flag.reason };
+      }),
+      ...impact.reservationFlags.map((flag) => {
+        const reservation = reservationById.get(flag.reservationId)!;
+        return {
+          arrangement: "EQUIPMENT" as const,
+          id: reservation.id,
+          reference: reservation.id,
+          name: reservation.equipmentTypeName,
+          flag: flag.flag,
+          reason: flag.reason,
+        };
+      }),
+    ],
+  };
+}
 
 function notFound(res: Response) {
   refuse(res, 404, "CHANGE_REQUEST_NOT_FOUND", "No change request with that id exists.");
@@ -38,7 +77,11 @@ export function decisionsRouter(sql: Sql, limiter: RequestHandler = changeRateLi
       );
 
       if (outcome.ok) {
-        return void res.status(200).json({ changeRequest: outcome.request, ...(outcome.event ? { event: outcome.event } : {}) });
+        return void res.status(200).json({
+          changeRequest: outcome.request,
+          ...(outcome.event ? { event: outcome.event } : {}),
+          ...(outcome.impact ? { impact: impactBody(outcome.impact) } : {}),
+        });
       }
       switch (outcome.code) {
         case "NOT_FOUND":

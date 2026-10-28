@@ -7,7 +7,7 @@ import { EVENT_STATUS_LABELS, type EventStatus } from "@connectsphere/contracts"
  *
  * `transitionEvent` (api/transitionEvent.ts) is the only code that applies a
  * row of this table, and the only code that writes an event's status. Later
- * stories (F3 cancellation, S2, U1's reject once CQ-08 is answered) add rows
+ * stories (F3 cancellation, S2, S3, U1's reject once CQ-08 is answered) add rows
  * here rather than writing status themselves.
  */
 export type EventAction =
@@ -20,7 +20,8 @@ export type EventAction =
   | "CONFIRM_ARRANGEMENTS"
   | "APPROVE_SAFETY"
   | "REQUEST_SAFETY_CHANGES"
-  | "COMPLETE";
+  | "COMPLETE"
+  | "RECONSIDER_AFTER_CHANGE";
 
 export interface TransitionRule {
   readonly from: readonly EventStatus[];
@@ -49,6 +50,11 @@ const TRANSITIONS: Record<EventAction, TransitionRule> = {
   // completes, and only once its end has passed (checked where the transition
   // is applied, in transitionEvent).
   COMPLETE: { from: ["CONFIRMED"], to: "COMPLETED" },
+  // Week 9 answer W9-22 — an approved material change to a Confirmed event
+  // returns it to Planning; it is confirmed again only after F5 and a new
+  // safety check (U1). S3 applies it when it approves a change request; every
+  // significant field counts as material. No other status moves (S3 AC6).
+  RECONSIDER_AFTER_CHANGE: { from: ["CONFIRMED"], to: "PLANNING" },
 };
 
 export function transitionRule(action: EventAction): TransitionRule {

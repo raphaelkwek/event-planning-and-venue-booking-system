@@ -121,6 +121,7 @@ const EXPECTED: Record<EventAction, { from: EventStatus[]; to: EventStatus }> = 
   APPROVE_SAFETY: { from: ["SAFETY_REVIEW"], to: "CONFIRMED" },
   REQUEST_SAFETY_CHANGES: { from: ["SAFETY_REVIEW"], to: "PLANNING" },
   COMPLETE: { from: ["CONFIRMED"], to: "COMPLETED" },
+  RECONSIDER_AFTER_CHANGE: { from: ["CONFIRMED"], to: "PLANNING" },
 };
 
 describe("every status against every action (F1)", () => {
@@ -182,6 +183,31 @@ describe("Safety Review, Confirmed and Completed (F1, CR-06)", () => {
     expect(result.permitted).toBe(false);
     if (result.permitted) throw new Error("expected a refusal");
     expect(result.message).toBe("This event is Approved and cannot move to Completed.");
+  });
+});
+
+describe("an approved change to a Confirmed event (S3, Week 9 W9-22)", () => {
+  it("returns a Confirmed event to Planning", () => {
+    expect(evaluateTransition("CONFIRMED", "RECONSIDER_AFTER_CHANGE")).toEqual({
+      permitted: true,
+      from: "CONFIRMED",
+      to: "PLANNING",
+      action: "RECONSIDER_AFTER_CHANGE",
+    });
+  });
+
+  it("leaves every other status alone, Safety Review included (AC6)", () => {
+    for (const status of EVENT_STATUSES.filter((s) => s !== "CONFIRMED")) {
+      expect(evaluateTransition(status, "RECONSIDER_AFTER_CHANGE").permitted).toBe(false);
+    }
+  });
+
+  it("is the only way back from Confirmed other than completion", () => {
+    const actions = Object.keys(EXPECTED) as EventAction[];
+    expect(actions.filter((action) => transitionRule(action).from.includes("CONFIRMED"))).toEqual([
+      "COMPLETE",
+      "RECONSIDER_AFTER_CHANGE",
+    ]);
   });
 });
 

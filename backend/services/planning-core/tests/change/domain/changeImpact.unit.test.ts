@@ -4,6 +4,7 @@ import {
   type ImpactBooking,
   type ImpactReservation,
   type ImpactValues,
+  valuesAfterChange,
 } from "../../../src/modules/change/domain/changeImpact.js";
 import { formatPeriod } from "../../../src/modules/change/domain/formatPeriod.js";
 
@@ -216,5 +217,42 @@ describe("assessChangeImpact", () => {
   it("handles no arrangements and counts no registrations", () => {
     const out = assessChangeImpact({ bookings: [], reservations: [], after: after(), changedFields: ["proposedStartAt", "expectedAttendance"] });
     expect(out).toEqual({ bookings: [], reservations: [], activeRegistrations: 0, bookingFlags: [], reservationFlags: [] });
+  });
+});
+
+describe("valuesAfterChange (S3)", () => {
+  const current = {
+    proposedStartAt: "2026-12-02T06:00:00.000Z",
+    proposedEndAt: "2026-12-02T10:00:00.000Z",
+    expectedAttendance: 80,
+  };
+
+  it("keeps the current values a change leaves alone", () => {
+    expect(valuesAfterChange(current, { venueRequirements: "Stage with a lectern" })).toEqual(current);
+  });
+
+  it("takes the changed values over the current ones", () => {
+    expect(valuesAfterChange(current, { proposedStartAt: "2026-12-02T07:00:00.000Z", expectedAttendance: 150 })).toEqual({
+      ...current,
+      proposedStartAt: "2026-12-02T07:00:00.000Z",
+      expectedAttendance: 150,
+    });
+  });
+
+  it("writes every instant as ISO-8601, however it arrives, and attendance as a number", () => {
+    expect(
+      valuesAfterChange(
+        { proposedStartAt: new Date("2026-12-02T06:00:00Z"), proposedEndAt: Date.parse("2026-12-02T10:00:00Z"), expectedAttendance: "80" },
+        { proposedStartAt: "2026-12-02T15:00:00+08:00" }
+      )
+    ).toEqual({ proposedStartAt: "2026-12-02T07:00:00.000Z", proposedEndAt: "2026-12-02T10:00:00.000Z", expectedAttendance: 80 });
+  });
+
+  it("refuses an event left without a start, an end or an attendance", () => {
+    expect(() => valuesAfterChange({ ...current, proposedStartAt: null }, {})).toThrow(/start/);
+    expect(() => valuesAfterChange(current, { proposedEndAt: "not a date" })).toThrow(/end/);
+    expect(() => valuesAfterChange(current, { proposedEndAt: true })).toThrow(/end/);
+    expect(() => valuesAfterChange({ ...current, expectedAttendance: null }, {})).toThrow(/attendance/);
+    expect(() => valuesAfterChange(current, { expectedAttendance: "many" })).toThrow(/attendance/);
   });
 });
