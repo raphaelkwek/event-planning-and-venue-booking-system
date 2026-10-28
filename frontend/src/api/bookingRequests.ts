@@ -103,7 +103,8 @@ export interface EventBooking {
   status: "HELD" | "CONFIRMED" | "RELEASED";
   requiresReconfirmation: boolean;
   releaseReason: string | null;
-  disruptions: { blockId: string; reasonType: string; description: string; startsAt: string; endsAt: string }[];
+  /** An active block over the booking; its end is null when the block has none (I5). */
+  disruptions: { blockId: string; reasonType: string; description: string; startsAt: string; endsAt: string | null }[];
   /** H3-T10: the bookings and holds the venue's new setup or turnaround time makes it overlap. */
   overlaps: string[];
   replacements: { id: string; reference: string; status: BookingRequestStatus; venueName: string }[];

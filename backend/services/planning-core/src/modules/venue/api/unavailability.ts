@@ -163,7 +163,7 @@ export function unavailabilityRouter(sql: Sql) {
       if (!venue) return;
       const period = readPeriod(req.query as Record<string, unknown>);
       if (!period.ok) return refuse(res, 400, "VALIDATION_FAILED", INVALID, period.fields);
-      const items = await disruptedBy(sql, venue.id, new Date(period.startsAt), new Date(period.endsAt));
+      const items = await disruptedBy(sql, venue.id, new Date(period.startsAt), period.endsAt === null ? null : new Date(period.endsAt));
       res.json({ items: await presentDisrupted(sql, items, req.actor!.userId) });
     } catch (error) {
       next(error);
@@ -184,12 +184,12 @@ export function unavailabilityRouter(sql: Sql) {
         const block = await insertBlock(tx, {
           venueId: venue.id,
           startsAt: new Date(read.block.startsAt),
-          endsAt: new Date(read.block.endsAt),
+          endsAt: read.block.endsAt === null ? null : new Date(read.block.endsAt),
           reasonType: read.block.reasonType,
           description: read.block.description,
           actorUserId: actor.userId,
         });
-        const disrupted = await disruptedBy(tx, venue.id, new Date(block.startsAt), new Date(block.endsAt));
+        const disrupted = await disruptedBy(tx, venue.id, new Date(block.startsAt), block.endsAt === null ? null : new Date(block.endsAt));
         await flagDisruptions(tx, block.id, disrupted, actor.userId);
         const events = await eventsOf(sql, disrupted.map((d) => d.eventId), actor.userId);
         await tellCoordinators(tx, req, "venue-booking.booking-disrupted", block, venue, disrupted, events, {
