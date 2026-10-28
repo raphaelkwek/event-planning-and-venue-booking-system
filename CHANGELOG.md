@@ -4,6 +4,45 @@
 
 ---
 
+# S3: flag the arrangements an approved change affects (SPM-59)
+
+**Timestamp:** 2026-10-28T12:00+08:00 (SGT)
+**Author:** Raphael, via Claude
+**Scope:** planning-core (change, venue, equipment, event modules), contracts, notification service,
+web app; migrations venue/0018 and equipment/0009.
+
+**Deploy:** run `npm run migrate -- venue` (0018) and `npm run migrate -- equipment` (0009) before
+deploying planning-core, and deploy the notification service with it.
+
+## Added
+
+- Approving a change request (S2) now assesses the event's confirmed bookings and reservations in
+  the same transaction: a booking whose period no longer matches the event is Requires
+  Reconfirmation, a booking whose layout holds fewer than the new attendance is Unsuitable, and a
+  reservation whose period no longer matches is Flagged for review. Nothing is moved or released.
+  If flagging fails, the approval is not made.
+- The approval's response carries `impact`: the bookings, reservations, registration count (0
+  until EN-13) and the flags set.
+- A Confirmed event returns to Planning when a change to it is approved (Week 9 answer W9-22),
+  through the new transition `RECONSIDER_AFTER_CHANGE`.
+- `GET /api/v1/events/{id}/arrangement-flags`: outstanding flags with their reasons, for the owner,
+  the assigned coordinator and Event Coordinators.
+- `change-request.arrangements-flagged` message; Venue Staff of the booked venue and the Technical
+  Support member who reserved are notified.
+- Screens: "Affected arrangements" after an approval, and "Outstanding flags" on the event.
+
+## Changed
+
+- F5 refuses confirmation while a booking is Unsuitable or a reservation is Flagged for review
+  (F5-T16 now runs).
+
+## Not yet
+
+- Clearing a flag, notifying attendees (needs EN-13), and G2's preview, which will reuse the same
+  assessment.
+
+---
+
 # Stories I3 to I6 for the Week 9 changes to Done stories; CQ-03 decided by the team
 
 **Timestamp:** 2026-10-24T12:00+08:00 (SGT)
