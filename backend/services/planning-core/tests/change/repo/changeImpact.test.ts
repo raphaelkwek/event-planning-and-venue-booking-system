@@ -5,7 +5,8 @@ import { testDb } from "../../support/testDb.js";
 import { seedEvent } from "../../support/seedEvent.js";
 import { EVENT_END, EVENT_START } from "../../support/eventDates.js";
 import { cleanVenueFixtures } from "../../support/venueFixtures.js";
-import { cleanLineFixtures, createBulkType, insertLineDirect } from "../../support/lineFixtures.js";
+import { cleanLineFixtures } from "../../support/lineFixtures.js";
+import { confirmedBooking, newVenue, reservedChairs } from "../../support/s3Fixtures.js";
 
 // AC11 needs the venue module's flag writer to fail on demand; every other test uses the real one.
 vi.mock("../../../src/modules/venue/index.js", async (importOriginal) => {
@@ -16,7 +17,6 @@ vi.mock("../../../src/modules/venue/index.js", async (importOriginal) => {
 const { flagBookings } = await import("../../../src/modules/venue/index.js");
 const { insertChangeRequest } = await import("../../../src/modules/change/repo/changeRequests.js");
 const { decideChangeRequest } = await import("../../../src/modules/change/repo/decisions.js");
-const { reserveLine } = await import("../../../src/modules/equipment/repo/reservations.js");
 
 /**
  * S3 against real Postgres (CI's throwaway database, never the shared one): an approval flags the
@@ -55,36 +55,6 @@ afterAll(async () => {
 const LECTERN = { layout: null, facilities: null, notes: "Stage with a lectern" };
 const hourLater = (iso: string) => new Date(Date.parse(iso) + 3_600_000).toISOString();
 
-async function newVenue(name: string, layout: string, capacity: number) {
-  const unique = `${name} ${randomUUID().slice(0, 8)}`;
-  const [row] = await sql<{ id: string }[]>`
-    insert into venue.venues (name, building, max_capacity, layouts, operating_hours, created_by, updated_by)
-    values (${unique}, 'S3 Test Building', ${capacity}, ${sql.json([{ name: layout, capacity }])}, ${sql.json({})}, ${STAFF}, ${STAFF})
-    returning id
-  `;
-  await sql`insert into venue.venue_staff (venue_id, user_id, created_by) values (${row!.id}, ${STAFF}, ${STAFF})`;
-  return { id: row!.id, name: unique };
-}
-
-/** A confirmed booking for exactly the event's period, from an approved request in `layout`. */
-async function confirmedBooking(venueId: string, eventId: string, reference: string, layout: string) {
-  const [slot] = await sql<{ id: string }[]>`
-    insert into venue.venue_slots (venue_id, event_id, reference, starts_at, ends_at, status, created_by, updated_by)
-    values (${venueId}, ${eventId}, ${reference}, ${EVENT_START}, ${EVENT_END}, 'CONFIRMED', ${STAFF}, ${STAFF})
-    returning id
-  `;
-  await sql`
-    insert into venue.booking_requests (
-      event_id, venue_id, starts_at, ends_at, layout, expected_attendance, event_starts_at, event_ends_at,
-      event_attendance, differs_from_event, requested_by, status, decided_by, decided_at, booking_id
-    ) values (
-      ${eventId}, ${venueId}, ${EVENT_START}, ${EVENT_END}, ${layout}, 80, ${EVENT_START}, ${EVENT_END}, 80, false,
-      ${C1}, 'APPROVED', ${STAFF}, now(), ${slot!.id}
-    )
-  `;
-  return slot!.id;
-}
-
 /**
  * FX-S3 in short: an event in `status` (14:00–18:00, 150 attending) assigned to C1, confirmed
  * bookings B1 (Theatre 100) and B2 (Hall 200), a reservation R1 by TS, and a pending request.
@@ -95,19 +65,14 @@ async function fixture(status: EventStatus, changes: Record<string, unknown>) {
   const [row] = await sql<{ reference: string }[]>`select reference from event.events where id = ${eventId}`;
   const event = { id: eventId, reference: row!.reference };
 
-  const v1 = await newVenue("S3 Venue One", "Theatre", 100);
-  const v2 = await newVenue("S3 Venue Two", "Hall", 200);
+  const v1 = await newVenue(sql, STAFF, "S3 Venue One", "Theatre", 100);
+  const v2 = await newVenue(sql, STAFF, "S3 Venue Two", "Hall", 200);
   const suffix = randomUUID().slice(0, 6);
-  const b1 = await confirmedBooking(v1.id, eventId, `BKR-S3A${suffix}`, "Theatre");
-  const b2 = await confirmedBooking(v2.id, eventId, `BKR-S3B${suffix}`, "Hall");
-
-  const chairs = await createBulkType(sql, TS, `S3 Chairs ${suffix}`, 20);
-  const lineId = await insertLineDirect(sql, { event, equipmentTypeId: chairs.id, requestedBy: C1, status: "CONFIRMED", quantity: 4 });
-  const reserved = await sql.begin((tx) =>
-    reserveLine(tx, lineId, { quantity: null, partial: false }, { userId: TS, role: "TECH_SUPPORT_STAFF" })
-  );
-  if (!reserved.ok) throw new Error(`fixture reserve failed: ${reserved.code}`);
-  const r1 = reserved.reservation.id;
+  const booking = (venueId: string, reference: string, layout: string) =>
+    confirmedBooking(sql, { staffId: STAFF, requestedBy: C1, venueId, eventId, reference, layout });
+  const b1 = await booking(v1.id, `BKR-S3A${suffix}`, "Theatre");
+  const b2 = await booking(v2.id, `BKR-S3B${suffix}`, "Hall");
+  const { chairs, reservationId: r1 } = await reservedChairs(sql, { event, requestedBy: C1, reservedBy: TS, quantity: 4, suffix });
 
   const current: Record<string, unknown> = { proposedStartAt: EVENT_START, proposedEndAt: EVENT_END, expectedAttendance: 150, venueRequirements: null };
   const request = await sql.begin((tx) =>

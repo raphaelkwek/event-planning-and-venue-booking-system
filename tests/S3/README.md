@@ -41,7 +41,7 @@ with only authentication stubbed. The browser case S3-T13 covers what the API ca
 - `GET /api/v1/events/{id}/arrangement-flags`: owner, assigned coordinator and Event Coordinators; 404 `EVENT_NOT_FOUND` for anyone else.
 - `POST /api/v1/events/{id}/confirmation` (F5): 422 `ARRANGEMENTS_NOT_READY` while a flag exists.
 - Flags: `REQUIRES_RECONFIRMATION` ("Requires Reconfirmation"), `UNSUITABLE` ("Unsuitable"), `FLAGGED_FOR_REVIEW` ("Flagged for review").
-- Reasons: `The booking is for <period>, but the event is now <period>.` (reservation: `The reservation is for <period>, but the event is now <period>.`)
+- Reasons: `The booking is for <period>, but the event is now <period>.` (reservation: `The reservation is for <period>, but the event is now <period>.`), with each period in Singapore time, as `formatPeriod` writes it (`D 14:00`–`D 18:00` UTC on 2 December 2026 reads `Wednesday 2 December 2026 22:00 to Thursday 3 December 2026 02:00`)
   and `Expected attendance is now 150, but <venue> holds 100 in the Theatre layout.`
 - Status transition `RECONSIDER_AFTER_CHANGE`: `CONFIRMED` → `PLANNING`.
 - Outbox message `change-request.arrangements-flagged`, written only when something was flagged.
@@ -54,7 +54,7 @@ FX-S3 is FX-S2 (`tests/S2/README.md`) with the following, reusing the seeded acc
   (`coordinator2@connectsphere.test`, an Event Coordinator not assigned), O2 (`organiser2@connectsphere.test`, owns nothing here), VS
   (`venuestaff@connectsphere.test`, Venue Staff of V1 and V2) and T (`techsupport@connectsphere.test`).
 - Event E: owned by O, assigned to C, proposed `D 14:00`–`D 18:00` UTC, expected attendance 80, status Planning unless a card says
-  otherwise ("a fresh FX-S3 whose E is Confirmed" is built by confirming through F5 first). D is sixty days ahead, as
+  otherwise ("a fresh FX-S3 whose E is Confirmed" is seeded directly as Confirmed: no route reaches Confirmed yet, since F5 ends in Safety Review). D is sixty days ahead, as
   `tests/support/eventDates.ts`. Times in a card are written `D hh:mm`.
 - Venue V1 `Venue One`: layout "Theatre", capacity 100. Venue V2 `Venue Two`: layout "Hall", capacity 200.
 - Confirmed bookings B1 at V1 and B2 at V2, each for exactly E's period, each from an approved booking request for E in that venue's

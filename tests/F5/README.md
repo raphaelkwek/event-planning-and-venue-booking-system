@@ -2,8 +2,7 @@
 
 Twenty-one cases, written from the story (SPM-109, revision 4 with CR-03 and CR-06) on 20 Oct 2026,
 before the code. T1 to T20 are API-level procedures: HTTP requests with authentication stubbed,
-against a migrated throwaway Postgres, automated one test per card. T16 is `Blocked` until S3 can set
-an unsuitable flag. T21 is the signed-in browser walk-through, done by hand. Design:
+against a migrated throwaway Postgres, automated one test per card. T21 is the signed-in browser walk-through, done by hand. Design:
 `documentation/superpowers/specs/2026-10-20-f5-confirm-arrangements-design.md`.
 
 | Acceptance criterion | Cases |
