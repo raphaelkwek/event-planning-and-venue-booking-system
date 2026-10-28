@@ -141,9 +141,11 @@ describe("GET /api/v1/events/:id/arrangement-flags (S3 AC8)", () => {
     expect(other.status).toBe(404);
     expect(other.body.error.code).toBe("EVENT_NOT_FOUND");
     expect(unknown.status).toBe(404);
-    expect(unknown.body).toEqual(other.body);
+    // Each response has its own correlation id, so compare the code and message.
+    const otherError = { code: other.body.error.code, message: other.body.error.message };
+    expect(unknown.body.error).toMatchObject(otherError);
     expect(malformed.status).toBe(404);
-    expect(malformed.body).toEqual(other.body);
+    expect(malformed.body.error).toMatchObject(otherError);
   });
 
   it("answers 404 to Venue Staff, whose access scope covers no event", async () => {

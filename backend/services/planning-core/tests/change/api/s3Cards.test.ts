@@ -395,7 +395,9 @@ describe("S3 cards: reconsidering the arrangements an approved change affects", 
     asC();
     const unknown = await readFlags(randomUUID());
     expect(unknown.status).toBe(404);
-    expect(unknown.body).toEqual(other.body);
+    // Each response has its own correlation id, so compare the code and message.
+    const otherError = { code: other.body.error.code, message: other.body.error.message };
+    expect(unknown.body.error).toMatchObject(otherError);
   });
 
   it("S3-T9 F5 confirmation is refused, naming each flag", async () => {
