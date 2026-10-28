@@ -62,15 +62,16 @@ delete from venue.outbox where message_key in (
 delete from venue.holds
   where venue_id in (select id from test_owned_venues) or event_id in (select id from test_owned_events);
 
--- S3's record of which approved change flagged which booking, at those venues or for the
--- seeded organisers' events. Before the slots it points at. Skipped where migration
--- venue/0018 isn't applied yet.
+-- S3's record of which approved change flagged which booking, hold or request, at those
+-- venues or for the seeded organisers' events. Before the slots and requests it points at.
+-- Skipped where migration venue/0018 isn't applied yet.
 do $$
 begin
   if to_regclass('venue.arrangement_flags') is not null then
     delete from venue.arrangement_flags
       where event_id in (select id from test_owned_events)
-         or slot_id in (select id from venue.venue_slots where venue_id in (select id from test_owned_venues));
+         or slot_id in (select id from venue.venue_slots where venue_id in (select id from test_owned_venues))
+         or booking_request_id in (select id from venue.booking_requests where venue_id in (select id from test_owned_venues));
   end if;
 end $$;
 

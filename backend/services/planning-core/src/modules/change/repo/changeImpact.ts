@@ -9,7 +9,7 @@ import { writeOutbox } from "../events/outbox.js";
 /**
  * S3 (SPM-59) — applies an approved change's impact on the event's
  * arrangements, inside the approval's transaction: reads the confirmed
- * bookings and reservations, assesses them against the event's new values
+ * bookings, held holds, pending booking requests and reservations, assesses them against the event's new values
  * (AC1–AC5), stores each flag through the owning module, returns a Confirmed
  * event to Planning (AC7, Week 9 W9-22) and writes one
  * `change-request.arrangements-flagged` message when anything was flagged
@@ -64,7 +64,14 @@ export async function flagArrangementsForChange(
         changeRequestId,
         bookings: impact.bookingFlags.map((flag) => {
           const booking = bookingById.get(flag.bookingId)!;
-          return { reference: booking.reference, venueName: booking.venueName, flag: flag.flag, reason: flag.reason, staffIds: booking.staffIds };
+          return {
+            arrangement: booking.arrangement,
+            reference: booking.reference,
+            venueName: booking.venueName,
+            flag: flag.flag,
+            reason: flag.reason,
+            staffIds: booking.staffIds,
+          };
         }),
         reservations: impact.reservationFlags.map((flag) => {
           const reservation = reservationById.get(flag.reservationId)!;

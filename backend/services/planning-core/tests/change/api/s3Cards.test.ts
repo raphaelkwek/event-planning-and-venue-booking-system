@@ -6,7 +6,7 @@ import { notificationsFor } from "../../../../notification/src/domain/recipients
 import { testDb } from "../../support/testDb.js";
 import { actorsWithPrefix, cleanLineFixtures } from "../../support/lineFixtures.js";
 import { cleanVenueFixtures } from "../../support/venueFixtures.js";
-import { confirmedBooking, newVenue, reservedChairs } from "../../support/s3Fixtures.js";
+import { confirmedBooking, newVenue, pendingRequest, reservedChairs } from "../../support/s3Fixtures.js";
 import { seedEvent } from "../../support/seedEvent.js";
 import { EVENT_END, EVENT_START } from "../../support/eventDates.js";
 import { formatPeriod } from "../../../src/modules/change/domain/formatPeriod.js";
@@ -17,7 +17,7 @@ import { formatPeriod } from "../../../src/modules/change/domain/formatPeriod.js
 // tests use (tests/support/s3Fixtures.ts). S3-T9 reads F5's confirmation route. S3-T10 passes the
 // stored message through the notification service's recipient rule, as the S2 and F5 card tests do.
 // S3-T11 forces the venue module's flag writer to fail, the mocking approach of
-// tests/change/repo/changeImpact.test.ts.
+// tests/change/repo/changeImpact.test.ts. S3-T14 approves a booking request through M1's real route.
 vi.mock("../../../src/shared/auth/verifyJwt.js", () => ({
   verifyJwt: (req: { auth?: { supabaseUserId?: string } }, _res: unknown, next: () => void) => {
     req.auth = { supabaseUserId: "s3-card-subject" };
@@ -36,6 +36,12 @@ vi.mock("../../../src/modules/event/auth/identity.js", async () => {
   );
   return { ...actual, resolveCurrentUser: vi.fn() };
 });
+vi.mock("../../../src/modules/venue/auth/identity.js", async () => {
+  const actual = await vi.importActual<typeof import("../../../src/modules/venue/auth/identity.js")>(
+    "../../../src/modules/venue/auth/identity.js",
+  );
+  return { ...actual, resolveCurrentUser: vi.fn() };
+});
 vi.mock("../../../src/modules/venue/index.js", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../../src/modules/venue/index.js")>();
   return { ...actual, flagBookings: vi.fn(actual.flagBookings) };
@@ -43,6 +49,7 @@ vi.mock("../../../src/modules/venue/index.js", async (importOriginal) => {
 
 const { resolveCurrentUser: resolveChangeUser } = await import("../../../src/modules/change/auth/identity.js");
 const { resolveCurrentUser: resolveEventUser } = await import("../../../src/modules/event/auth/identity.js");
+const { resolveCurrentUser: resolveVenueUser } = await import("../../../src/modules/venue/auth/identity.js");
 const { flagBookings } = await import("../../../src/modules/venue/index.js");
 const { app } = await import("../../../src/app.js");
 
@@ -57,11 +64,13 @@ function signedInAs(userId: string, role: Role) {
   const user = { id: userId, email: "s3@connectsphere.test", role };
   vi.mocked(resolveChangeUser).mockResolvedValue(user);
   vi.mocked(resolveEventUser).mockResolvedValue(user);
+  vi.mocked(resolveVenueUser).mockResolvedValue(user);
 }
 const asO = () => signedInAs(A.org, "EVENT_ORGANISER");
 const asO2 = () => signedInAs(O2, "EVENT_ORGANISER");
 const asC = () => signedInAs(A.c1, "EVENT_COORDINATOR");
 const asC2 = () => signedInAs(A.c2, "EVENT_COORDINATOR");
+const asVS = () => signedInAs(A.vs, "VENUE_STAFF");
 
 /** "D hh:mm" of the cards: UTC on day D, sixty days ahead (tests/support/eventDates.ts). */
 const D = EVENT_START.slice(0, 10);
@@ -143,8 +152,8 @@ const confirm = (eventId: string) => request(app).post(`/api/v1/events/${eventId
 
 /** The bookings of E as stored: status, period and both flag columns. */
 const slots = (eventId: string) =>
-  sql<{ id: string; status: string; starts_at: Date; ends_at: Date; requires_reconfirmation: boolean; unsuitable: boolean }[]>`
-    select id, status, starts_at, ends_at, requires_reconfirmation, unsuitable
+  sql<{ id: string; status: string; starts_at: Date; ends_at: Date; requires_reconfirmation: boolean; period_mismatch: boolean; unsuitable: boolean }[]>`
+    select id, status, starts_at, ends_at, requires_reconfirmation, period_mismatch, unsuitable
     from venue.venue_slots where event_id = ${eventId} order by reference`;
 const slotOf = async (eventId: string, slotId: string) => (await slots(eventId)).find((s) => s.id === slotId)!;
 const reservationOf = async (id: string) =>
@@ -253,7 +262,8 @@ describe("S3 cards: reconsidering the arrangements an approved change affects", 
     for (const id of [fx.b1.id, fx.b2.id]) {
       const stored = await slotOf(fx.event.id, id);
       expect(stored.status).toBe("CONFIRMED");
-      expect(stored.requires_reconfirmation).toBe(true);
+      // S3's own Requires Reconfirmation column, which I2 and H3 do not clear.
+      expect(stored.period_mismatch).toBe(true);
       expect(stored.starts_at.toISOString()).toBe(at("14:00"));
       expect(stored.ends_at.toISOString()).toBe(at("18:00"));
     }
@@ -292,7 +302,7 @@ describe("S3 cards: reconsidering the arrangements an approved change affects", 
     expect(listed.body.flags).toEqual([expect.objectContaining(booking(fx, "b1", "UNSUITABLE", reason))]);
     // Still confirmed, period unchanged; no period flag since the dates did not change; R1 carries none.
     const stored = await slotOf(fx.event.id, fx.b1.id);
-    expect(stored).toMatchObject({ status: "CONFIRMED", unsuitable: true, requires_reconfirmation: false });
+    expect(stored).toMatchObject({ status: "CONFIRMED", unsuitable: true, period_mismatch: false, requires_reconfirmation: false });
     expect(stored.starts_at.toISOString()).toBe(at("14:00"));
     expect(stored.ends_at.toISOString()).toBe(at("18:00"));
     expect((await reservationOf(fx.r1.id)).flagged_for_review).toBe(false);
@@ -310,7 +320,7 @@ describe("S3 cards: reconsidering the arrangements an approved change affects", 
     expect(listed.status).toBe(200);
     expect(listed.body.flags).toHaveLength(1);
     expect(listed.body.flags[0]).toMatchObject({ arrangement: "BOOKING", id: fx.b1.id, flag: "UNSUITABLE" });
-    expect(await slotOf(fx.event.id, fx.b2.id)).toMatchObject({ status: "CONFIRMED", unsuitable: false, requires_reconfirmation: false });
+    expect(await slotOf(fx.event.id, fx.b2.id)).toMatchObject({ status: "CONFIRMED", unsuitable: false, period_mismatch: false });
     expect((await reservationOf(fx.r1.id)).flagged_for_review).toBe(false);
   });
 
@@ -510,7 +520,9 @@ describe("S3 cards: reconsidering the arrangements an approved change affects", 
     expect(await historyCount(fx.event.id, "FIELD_CHANGE")).toBe(0);
     expect(await historyCount(fx.event.id, "STATUS_CHANGE")).toBe(0);
     expect(await statusMessageCount(fx.event.id)).toBe(0);
-    expect((await slots(fx.event.id)).every((s) => !s.requires_reconfirmation && !s.unsuitable && s.status === "CONFIRMED")).toBe(true);
+    expect(
+      (await slots(fx.event.id)).every((s) => !s.requires_reconfirmation && !s.period_mismatch && !s.unsuitable && s.status === "CONFIRMED"),
+    ).toBe(true);
     expect(await reservationOf(fx.r1.id)).toMatchObject({ flagged_for_review: false, status: "RESERVED" });
     expect(await flagRowCounts(fx.event.id)).toEqual({ venue: 0, equipment: 0 });
     expect(await outboxOfType(fx.event.id, "change-request.approved")).toHaveLength(0);
@@ -539,5 +551,61 @@ describe("S3 cards: reconsidering the arrangements an approved change affects", 
     expect(opened.body.status).toBe("PLANNING");
     expect(await outboxOfType(fx.event.id, "change-request.arrangements-flagged")).toHaveLength(0);
     expect(await flagRowCounts(fx.event.id)).toEqual({ venue: 0, equipment: 0 });
+  });
+
+  it("S3-T14 a pending request flagged at approval stays flagged once M1 confirms it", async () => {
+    const fx = await fixture(DATE_MOVED);
+    // A third venue, so the request's period does not collide with B1 or B2 when M1 books it.
+    const v3 = await newVenue(sql, A.vs, "Venue Three", "Theatre", 100);
+    const pending = await pendingRequest(sql, { requestedBy: A.c1, venueId: v3.id, eventId: fx.event.id, layout: "Theatre" });
+    const reason = `The booking request is for ${WAS}, but the event is now ${NOW_FROM_15}.`;
+
+    const approved = await decide(fx.cr);
+
+    expect(approved.status).toBe(200);
+    expect(approved.body.impact.bookings).toContainEqual(
+      expect.objectContaining({ arrangement: "BOOKING_REQUEST", id: pending.id, reference: pending.reference, venueName: v3.name }),
+    );
+    expect(approved.body.impact.flags).toContainEqual({
+      arrangement: "BOOKING_REQUEST",
+      id: pending.id,
+      reference: pending.reference,
+      name: v3.name,
+      flag: "REQUIRES_RECONFIRMATION",
+      reason,
+    });
+
+    // M1: Venue Staff approve the request for the old period, which confirms a booking.
+    asVS();
+    const confirmedByM1 = await request(app).post(`/api/v1/booking-requests/${pending.id}/approve`).set(bearer).send();
+    expect(confirmedByM1.status).toBe(200);
+    const [decided] = await sql<{ status: string; booking_id: string }[]>`
+      select status, booking_id from venue.booking_requests where id = ${pending.id}`;
+    expect(decided!.status).toBe("APPROVED");
+    expect(await slotOf(fx.event.id, decided!.booking_id)).toMatchObject({ status: "CONFIRMED", period_mismatch: true });
+
+    // The booking carries the flag and its reason, and F5 still refuses, naming it.
+    asC();
+    const listed = await readFlags(fx.event.id);
+    expect(listed.status).toBe(200);
+    expect(listed.body.flags).toContainEqual(
+      expect.objectContaining({
+        arrangement: "BOOKING",
+        id: decided!.booking_id,
+        reference: pending.reference,
+        name: v3.name,
+        flag: "REQUIRES_RECONFIRMATION",
+        reason,
+      }),
+    );
+    expect((listed.body.flags as FlagView[]).some((f) => f.arrangement === "BOOKING_REQUEST")).toBe(false);
+    const refused = await confirm(fx.event.id);
+    expect(refused.status).toBe(422);
+    expect(refused.body.error.details.flags).toContainEqual({
+      arrangement: "BOOKING",
+      reference: pending.reference,
+      name: v3.name,
+      flag: "REQUIRES_RECONFIRMATION",
+    });
   });
 });

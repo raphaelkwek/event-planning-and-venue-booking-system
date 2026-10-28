@@ -410,6 +410,15 @@ describe("parseCloudEvent: change-request.arrangements-flagged (S3)", () => {
     expect(message.data).toEqual(flagged);
   });
 
+  it("accepts a flagged hold or pending booking request, and refuses another kind of arrangement", () => {
+    for (const arrangement of ["BOOKING", "HOLD", "BOOKING_REQUEST"]) {
+      const data = { ...flagged, bookings: [{ ...flagged.bookings[0]!, arrangement }] };
+      expect(parseCloudEvent(exampleMessage("change-request.arrangements-flagged", data)).data).toEqual(data);
+    }
+    const equipment = { ...flagged, bookings: [{ ...flagged.bookings[0]!, arrangement: "EQUIPMENT" }] };
+    expect(() => parseCloudEvent(exampleMessage("change-request.arrangements-flagged", equipment))).toThrow(/arrangement/);
+  });
+
   it("accepts one that flags only reservations", () => {
     const data = { ...flagged, bookings: [], returnedToPlanning: false };
     expect(parseCloudEvent(exampleMessage("change-request.arrangements-flagged", data)).data).toEqual(data);

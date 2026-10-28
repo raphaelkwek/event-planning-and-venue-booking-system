@@ -93,8 +93,9 @@ const eventState = async (id: string) =>
   (await sql<{ status: string; version: number; start: Date }[]>`
     select status, version, proposed_start_at as start from event.events where id = ${id}`)[0]!;
 const slotFlags = (eventId: string) =>
-  sql<{ id: string; requires_reconfirmation: boolean; unsuitable: boolean; starts_at: Date; status: string }[]>`
-    select id, requires_reconfirmation, unsuitable, starts_at, status from venue.venue_slots where event_id = ${eventId} order by reference`;
+  sql<{ id: string; requires_reconfirmation: boolean; period_mismatch: boolean; unsuitable: boolean; starts_at: Date; status: string }[]>`
+    select id, requires_reconfirmation, period_mismatch, unsuitable, starts_at, status
+    from venue.venue_slots where event_id = ${eventId} order by reference`;
 const reservationFlag = async (id: string) =>
   (await sql<{ flagged_for_review: boolean; status: string }[]>`
     select flagged_for_review, status from equipment.reservations where id = ${id}`)[0]!;
@@ -134,7 +135,8 @@ describe("decideChangeRequest flags the affected arrangements (S3)", () => {
 
     // AC2/AC3: flagged, but nothing moved or released.
     const slots = await slotFlags(fx.event.id);
-    expect(slots.every((s) => s.requires_reconfirmation && !s.unsuitable && s.status === "CONFIRMED")).toBe(true);
+    // S3's own column; I2's and H3's is left alone.
+    expect(slots.every((s) => s.period_mismatch && !s.requires_reconfirmation && !s.unsuitable && s.status === "CONFIRMED")).toBe(true);
     expect(slots.every((s) => s.starts_at.toISOString() === new Date(EVENT_START).toISOString())).toBe(true);
     expect(await reservationFlag(fx.r1)).toEqual({ flagged_for_review: true, status: "RESERVED" });
     expect(await flagRows(fx.event.id)).toEqual({ venue: 2, equipment: 1 });
@@ -165,6 +167,16 @@ describe("decideChangeRequest flags the affected arrangements (S3)", () => {
     ]);
     expect(outcome.ok && outcome.impact!.reservationFlags).toEqual([]);
     expect(await flagRows(fx.event.id)).toEqual({ venue: 1, equipment: 0 });
+  });
+
+  it("approves a change to an event with no expected attendance, skipping the capacity rule", async () => {
+    const fx = await fixture("PLANNING", { venueRequirements: LECTERN });
+    await sql`update event.events set expected_attendance = null where id = ${fx.event.id}`;
+
+    const outcome = await approve(fx.request.id);
+
+    expect(outcome.ok && outcome.impact).toMatchObject({ bookingFlags: [], reservationFlags: [] });
+    expect(await flagRows(fx.event.id)).toEqual({ venue: 0, equipment: 0 });
   });
 
   it("lists the arrangements but flags nothing, and writes no flag message, for a descriptive change", async () => {
@@ -246,7 +258,7 @@ describe("a failure while flagging (S3 AC11)", () => {
     expect(stored).toEqual({ status: "PENDING", decided_by: null, decided_at: null });
     expect(await eventState(fx.event.id)).toEqual(before);
     expect(Number((await sql`select count(*) from event.event_history where event_id = ${fx.event.id}`)[0]!.count)).toBe(0);
-    expect((await slotFlags(fx.event.id)).every((s) => !s.requires_reconfirmation && !s.unsuitable)).toBe(true);
+    expect((await slotFlags(fx.event.id)).every((s) => !s.requires_reconfirmation && !s.period_mismatch && !s.unsuitable)).toBe(true);
     expect(await reservationFlag(fx.r1)).toEqual({ flagged_for_review: false, status: "RESERVED" });
     expect(await flagRows(fx.event.id)).toEqual({ venue: 0, equipment: 0 });
     expect(await changeOutbox(fx.event.id)).toEqual([]);

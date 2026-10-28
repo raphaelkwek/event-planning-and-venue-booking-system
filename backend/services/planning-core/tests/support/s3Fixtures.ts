@@ -58,3 +58,21 @@ export async function reservedChairs(
   if (!reserved.ok) throw new Error(`fixture reserve failed: ${reserved.code}`);
   return { chairs, lineId, reservationId: reserved.reservation.id };
 }
+
+/** A pending booking request (L1) for exactly the event's period in `layout`, attendance 80, raised by `requestedBy`. */
+export async function pendingRequest(
+  sql: Sql,
+  options: { requestedBy: string; venueId: string; eventId: string; layout: string }
+): Promise<{ id: string; reference: string }> {
+  const { requestedBy, venueId, eventId, layout } = options;
+  const [row] = await sql<{ id: string; reference: string }[]>`
+    insert into venue.booking_requests (
+      event_id, venue_id, starts_at, ends_at, layout, expected_attendance, event_starts_at, event_ends_at,
+      event_attendance, differs_from_event, requested_by
+    ) values (
+      ${eventId}, ${venueId}, ${EVENT_START}, ${EVENT_END}, ${layout}, 80, ${EVENT_START}, ${EVENT_END}, 80, false, ${requestedBy}
+    )
+    returning id, reference
+  `;
+  return row!;
+}

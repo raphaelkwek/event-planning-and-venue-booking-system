@@ -273,11 +273,14 @@ export async function venueStaffIds(db: Db, venueId: string): Promise<string[]> 
   return rows.map((row) => row.user_id);
 }
 
-/** CR-02 (L5): a booking a request may replace is one of the event's confirmed bookings flagged Requires Reconfirmation. */
+/**
+ * CR-02 (L5): a booking a request may replace is one of the event's confirmed bookings flagged
+ * Requires Reconfirmation, by I2 or H3, or by S3 when an approved change moved the event.
+ */
 export async function isReplaceableBooking(db: Db, slotId: string, eventId: string): Promise<boolean> {
   const rows = await db`
     select 1 from venue.venue_slots
-    where id = ${slotId} and event_id = ${eventId} and status = 'CONFIRMED' and requires_reconfirmation
+    where id = ${slotId} and event_id = ${eventId} and status = 'CONFIRMED' and (requires_reconfirmation or period_mismatch)
   `;
   return rows.length === 1;
 }

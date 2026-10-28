@@ -15,6 +15,7 @@ import {
   releaseReplacedBooking,
   type OverlappingBooking,
 } from "../repo/bookingDecisions.js";
+import { carryRequestFlagsToBooking } from "../repo/arrangementFlags.js";
 import { findBookingRequest, lockBookingRequest, type BookingRequest } from "../repo/bookingRequests.js";
 import { confirmHeldSlotForRequest, HeldSlotNotHeldError, releaseHeldSlotForRequest } from "../repo/holds.js";
 import { insertVenueSlot } from "../repo/slots.js";
@@ -142,6 +143,9 @@ export function bookingDecisionsRouter(sql: Sql) {
             }
           }
 
+          // S3: a request flagged by an approved change keeps its flags as a confirmed booking,
+          // so F5 still refuses until the coordinator re-arranges it.
+          await carryRequestFlagsToBooking(tx, locked.id, bookingId);
           await approveBookingRequest(tx, locked.id, actor.userId, bookingId);
           const approved = (await findBookingRequest(tx, locked.id))!;
           await writeVenueOutbox(tx, {

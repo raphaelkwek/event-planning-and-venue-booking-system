@@ -16,15 +16,23 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const PATH = "/api/v1/change-requests/:id/decision";
 
 /**
- * S3 — what an approval's response says about the arrangements (AC1–AC4): each confirmed booking
- * and reservation, the registration count, and each flag set. Staff ids and who reserved
- * equipment stay out: they are for the notification service, not the screen.
+ * S3 — what an approval's response says about the arrangements (AC1–AC4): each confirmed booking,
+ * held hold, pending booking request and reservation, the registration count, and each flag set.
+ * Staff ids and who reserved equipment stay out: they are for the notification service, not the
+ * screen.
  */
 export function impactBody(impact: AppliedChangeImpact) {
   const bookingById = new Map(impact.bookings.map((booking) => [booking.id, booking]));
   const reservationById = new Map(impact.reservations.map((reservation) => [reservation.id, reservation]));
   return {
-    bookings: impact.bookings.map(({ id, reference, venueName, startsAt, endsAt }) => ({ id, reference, venueName, startsAt, endsAt })),
+    bookings: impact.bookings.map(({ arrangement, id, reference, venueName, startsAt, endsAt }) => ({
+      arrangement,
+      id,
+      reference,
+      venueName,
+      startsAt,
+      endsAt,
+    })),
     reservations: impact.reservations.map(({ id, equipmentTypeName, reservedQuantity, startsAt, endsAt }) => ({
       id,
       equipmentTypeName,
@@ -36,7 +44,7 @@ export function impactBody(impact: AppliedChangeImpact) {
     flags: [
       ...impact.bookingFlags.map((flag) => {
         const booking = bookingById.get(flag.bookingId)!;
-        return { arrangement: "BOOKING" as const, id: booking.id, reference: booking.reference, name: booking.venueName, flag: flag.flag, reason: flag.reason };
+        return { arrangement: booking.arrangement, id: booking.id, reference: booking.reference, name: booking.venueName, flag: flag.flag, reason: flag.reason };
       }),
       ...impact.reservationFlags.map((flag) => {
         const reservation = reservationById.get(flag.reservationId)!;

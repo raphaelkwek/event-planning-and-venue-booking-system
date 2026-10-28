@@ -16,7 +16,7 @@ import { changeRateLimiter } from "./limiter.js";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export interface ArrangementFlagEntry {
-  arrangement: "BOOKING" | "EQUIPMENT";
+  arrangement: "BOOKING" | "HOLD" | "BOOKING_REQUEST" | "EQUIPMENT";
   id: string;
   reference: string;
   name: string;
@@ -25,7 +25,7 @@ export interface ArrangementFlagEntry {
   flaggedAt: string;
 }
 
-/** Booking flags first, then equipment, each in the order read. A reservation's reference is its id. */
+/** Venue flags (bookings, holds, booking requests) first, then equipment, each in the order read. A reservation's reference is its id. */
 export function flagsBody(
   bookings: readonly OutstandingBookingFlag[],
   reservations: readonly OutstandingReservationFlag[]
@@ -33,8 +33,8 @@ export function flagsBody(
   return {
     flags: [
       ...bookings.map((b): ArrangementFlagEntry => ({
-        arrangement: "BOOKING",
-        id: b.bookingId,
+        arrangement: b.arrangement,
+        id: b.id,
         reference: b.reference,
         name: b.venueName,
         flag: b.flag,

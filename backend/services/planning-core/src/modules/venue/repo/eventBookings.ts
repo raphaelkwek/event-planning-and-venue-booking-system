@@ -61,7 +61,8 @@ export async function listBookingsForEvent(db: Db, eventId: string): Promise<Eve
     }[]
   >`
     select s.id, s.reference, s.venue_id, v.name as venue_name, s.starts_at, s.ends_at, s.status,
-           s.requires_reconfirmation, s.release_reason,
+           -- I2's and H3's flag, or S3's when an approved change moved the event (period_mismatch).
+           (s.requires_reconfirmation or s.period_mismatch) as requires_reconfirmation, s.release_reason,
            coalesce((
              select json_agg(json_build_object(
                       'blockId', b.id, 'reasonType', b.reason_type, 'description', b.description,

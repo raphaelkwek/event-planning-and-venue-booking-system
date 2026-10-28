@@ -4,8 +4,9 @@ import { flagsBody } from "../../../src/modules/change/api/arrangementFlags.js";
 // S3 (AC8) — the shape of the flags list; no database needed.
 
 describe("flagsBody", () => {
-  const booking = (reference: string, flag: "REQUIRES_RECONFIRMATION" | "UNSUITABLE") => ({
-    bookingId: `id-${reference}-${flag}`,
+  const booking = (reference: string, flag: "REQUIRES_RECONFIRMATION" | "UNSUITABLE", arrangement: "BOOKING" | "HOLD" | "BOOKING_REQUEST" = "BOOKING") => ({
+    arrangement,
+    id: `id-${reference}-${flag}`,
     reference,
     venueName: "Venue One",
     flag,
@@ -20,11 +21,15 @@ describe("flagsBody", () => {
     flaggedAt: "2026-10-28T01:00:01.000Z",
   };
 
-  it("lists bookings first, then equipment, each in the order given", () => {
-    const body = flagsBody([booking("BKR-2", "UNSUITABLE"), booking("BKR-1", "REQUIRES_RECONFIRMATION")], [reservation]);
+  it("lists venue arrangements first, then equipment, each in the order given", () => {
+    const body = flagsBody(
+      [booking("BKR-2", "UNSUITABLE"), booking("BKR-1", "REQUIRES_RECONFIRMATION", "BOOKING_REQUEST"), booking("BKR-3", "UNSUITABLE", "HOLD")],
+      [reservation]
+    );
     expect(body.flags.map((f) => [f.arrangement, f.reference, f.flag])).toEqual([
       ["BOOKING", "BKR-2", "UNSUITABLE"],
-      ["BOOKING", "BKR-1", "REQUIRES_RECONFIRMATION"],
+      ["BOOKING_REQUEST", "BKR-1", "REQUIRES_RECONFIRMATION"],
+      ["HOLD", "BKR-3", "UNSUITABLE"],
       ["EQUIPMENT", "r1", "FLAGGED_FOR_REVIEW"],
     ]);
   });

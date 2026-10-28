@@ -12,6 +12,7 @@ import { formatPeriod } from "../../../src/modules/change/domain/formatPeriod.js
 // The API cards (tests/S3) check the same rules end to end.
 
 const booking = (over: Partial<ImpactBooking> = {}): ImpactBooking => ({
+  arrangement: "BOOKING",
   id: "B1",
   reference: "BKR-000001",
   venueId: "V1",
@@ -63,6 +64,7 @@ describe("assessChangeImpact", () => {
     expect(out.bookingFlags).toEqual([
       {
         bookingId: "B1",
+        arrangement: "BOOKING",
         flag: "REQUIRES_RECONFIRMATION",
         reason,
         details: {
@@ -90,7 +92,7 @@ describe("assessChangeImpact", () => {
   });
 
   it("returns every arrangement, unchanged and in order, flagged or not", () => {
-    const b = [booking({ id: "B1" }), booking({ id: "B2", startsAt: after().proposedStartAt })];
+    const b = [booking({ id: "B1" }), booking({ id: "B2", startsAt: after().proposedStartAt! })];
     const r = [reservation({ id: "R1" }), reservation({ id: "R2" })];
     const out = assessChangeImpact({ bookings: b, reservations: r, after: after(), changedFields: ["proposedStartAt"] });
     expect(out.bookings).toEqual(b);
@@ -140,6 +142,7 @@ describe("assessChangeImpact", () => {
     expect(out.bookingFlags).toEqual([
       {
         bookingId: "B1",
+        arrangement: "BOOKING",
         flag: "UNSUITABLE",
         reason: "Expected attendance is now 150, but Venue One holds 100 in the Theatre layout.",
         details: { expectedAttendance: 150, capacity: 100, layout: "Theatre" },
@@ -214,6 +217,41 @@ describe("assessChangeImpact", () => {
     expect(out.bookings).toHaveLength(1);
   });
 
+  it("names a hold or a booking request in its reasons, and says which it flagged", () => {
+    const out = assessChangeImpact({
+      bookings: [booking({ id: "H1", arrangement: "HOLD" }), booking({ id: "Q1", arrangement: "BOOKING_REQUEST" })],
+      reservations: [],
+      after: after({ expectedAttendance: 150 }),
+      changedFields: ["proposedStartAt", "expectedAttendance"],
+    });
+    expect(out.bookingFlags.map((f) => [f.bookingId, f.arrangement, f.flag, f.reason])).toEqual([
+      ["H1", "HOLD", "REQUIRES_RECONFIRMATION", expect.stringMatching(/^The hold is for Wednesday 2 December 2026, 14:00–18:00, /)],
+      ["H1", "HOLD", "UNSUITABLE", "Expected attendance is now 150, but Venue One holds 100 in the Theatre layout."],
+      ["Q1", "BOOKING_REQUEST", "REQUIRES_RECONFIRMATION", expect.stringMatching(/^The booking request is for /)],
+      ["Q1", "BOOKING_REQUEST", "UNSUITABLE", "Expected attendance is now 150, but Venue One holds 100 in the Theatre layout."],
+    ]);
+  });
+
+  it("skips the period rule when the event has no start or end, and the capacity rule when it has no attendance", () => {
+    for (const missing of [{ proposedStartAt: null }, { proposedEndAt: null }]) {
+      const out = assessChangeImpact({
+        bookings: [booking()],
+        reservations: [reservation()],
+        after: after(missing),
+        changedFields: ["proposedStartAt", "proposedEndAt"],
+      });
+      expect(out.bookingFlags).toEqual([]);
+      expect(out.reservationFlags).toEqual([]);
+    }
+    const out = assessChangeImpact({
+      bookings: [booking({ layoutCapacity: 1 })],
+      reservations: [],
+      after: after({ expectedAttendance: null }),
+      changedFields: ["expectedAttendance", "proposedStartAt"],
+    });
+    expect(out.bookingFlags.map((f) => f.flag)).toEqual(["REQUIRES_RECONFIRMATION"]);
+  });
+
   it("handles no arrangements and counts no registrations", () => {
     const out = assessChangeImpact({ bookings: [], reservations: [], after: after(), changedFields: ["proposedStartAt", "expectedAttendance"] });
     expect(out).toEqual({ bookings: [], reservations: [], activeRegistrations: 0, bookingFlags: [], reservationFlags: [] });
@@ -248,11 +286,12 @@ describe("valuesAfterChange (S3)", () => {
     ).toEqual({ proposedStartAt: "2026-12-02T07:00:00.000Z", proposedEndAt: "2026-12-02T10:00:00.000Z", expectedAttendance: 80 });
   });
 
-  it("refuses an event left without a start, an end or an attendance", () => {
-    expect(() => valuesAfterChange({ ...current, proposedStartAt: null }, {})).toThrow(/start/);
-    expect(() => valuesAfterChange(current, { proposedEndAt: "not a date" })).toThrow(/end/);
-    expect(() => valuesAfterChange(current, { proposedEndAt: true })).toThrow(/end/);
-    expect(() => valuesAfterChange({ ...current, expectedAttendance: null }, {})).toThrow(/attendance/);
-    expect(() => valuesAfterChange(current, { expectedAttendance: "many" })).toThrow(/attendance/);
+  it("gives null for a start, an end or an attendance the event is left without, so its rule is skipped", () => {
+    expect(valuesAfterChange({ ...current, proposedStartAt: null }, {})).toEqual({ ...current, proposedStartAt: null });
+    expect(valuesAfterChange(current, { proposedEndAt: "not a date" })).toEqual({ ...current, proposedEndAt: null });
+    expect(valuesAfterChange(current, { proposedEndAt: true })).toEqual({ ...current, proposedEndAt: null });
+    expect(valuesAfterChange({ ...current, expectedAttendance: null }, {})).toEqual({ ...current, expectedAttendance: null });
+    expect(valuesAfterChange(current, { expectedAttendance: "many" })).toEqual({ ...current, expectedAttendance: null });
+    expect(valuesAfterChange({}, {})).toEqual({ proposedStartAt: null, proposedEndAt: null, expectedAttendance: null });
   });
 });

@@ -329,6 +329,17 @@ describe("notificationsFor", () => {
       );
     });
 
+    it("names a flagged hold or pending booking request as such", () => {
+      const venueOnly = (arrangement: string) => ({
+        ...flagged,
+        bookings: [{ ...flagged.bookings[1]!, arrangement }],
+        reservations: [],
+      });
+      expect(notes(venueOnly("HOLD"))[0]!.message).toMatch(/^Hold BKR-000002 at Lecture Hall B for /);
+      expect(notes(venueOnly("BOOKING_REQUEST"))[0]!.message).toMatch(/^Booking request BKR-000002 at Lecture Hall B for /);
+      expect(notes(venueOnly("BOOKING"))[0]!.message).toMatch(/^Booking BKR-000002 at Lecture Hall B for /);
+    });
+
     it("notifies nobody for a list that is empty", () => {
       expect(notes({ ...flagged, bookings: [], reservations: [] })).toEqual([]);
     });

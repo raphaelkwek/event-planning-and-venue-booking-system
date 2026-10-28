@@ -33,7 +33,7 @@ export const changeRequestRejectedPayloadSchema = z.object({ ...decided, reason:
 
 /**
  * S3 — an approved change flagged some of the event's arrangements (AC2–AC4).
- * One entry per flag: a booking can appear twice, once Requires Reconfirmation
+ * One entry per flag: a booking, hold or pending request can appear twice, once Requires Reconfirmation
  * and once Unsuitable. It carries who looks after each arrangement, the
  * venue's staff and the member of Technical Support who reserved it, so the
  * notification service tells them without reading another module (AC10).
@@ -47,6 +47,8 @@ export const changeRequestArrangementsFlaggedPayloadSchema = z
     changeRequestId: z.string().uuid(),
     bookings: z.array(
       z.object({
+        /** A confirmed booking, a held hold or a pending booking request; a booking when absent. */
+        arrangement: z.enum(["BOOKING", "HOLD", "BOOKING_REQUEST"]).optional(),
         reference: z.string().min(1),
         venueName: z.string().min(1),
         flag: z.enum(["REQUIRES_RECONFIRMATION", "UNSUITABLE"]),
