@@ -46,9 +46,11 @@ const reply = (body: unknown, status = 200) => new Response(JSON.stringify(body)
 let stored: unknown[];
 let onDecision: (body: Record<string, unknown>) => Response;
 let flagsResponse: () => Response;
+let impactResponse: () => Response;
 const fetchMock = vi.fn(async (path: string, init?: RequestInit) => {
   const url = new URL(path, "http://app.test");
   if (url.pathname === "/event/api/v1/change-requests/c1/decision") return onDecision(JSON.parse(init!.body as string));
+  if (url.pathname === "/event/api/v1/change-requests/c1/impact") return impactResponse();
   if (url.pathname === `/event/api/v1/events/${EVENT_ID}/change-requests`) return reply({ items: stored });
   if (url.pathname === `/event/api/v1/events/${EVENT_ID}/arrangement-flags`) return flagsResponse();
   if (url.pathname.includes("/notifications")) return reply({ items: [], unreadCount: 0, nextCursor: null });
@@ -70,6 +72,7 @@ beforeEach(() => {
   stored = [pending];
   onDecision = () => reply({ changeRequest: approved });
   flagsResponse = () => reply({ flags: [] });
+  impactResponse = () => reply({ impact: { bookings: [], reservations: [], activeRegistrations: 0, flags: [] } });
   vi.stubGlobal("fetch", fetchMock);
 });
 afterEach(() => {
@@ -334,5 +337,82 @@ describe("the Outstanding flags section", () => {
     await screen.findByText(/Change approved on/);
     await waitFor(() => expect(fetchMock.mock.calls.some(([path]) => String(path).includes("arrangement-flags"))).toBe(true));
     expect(screen.queryByText("Outstanding flags")).toBeNull();
+  });
+});
+
+/** G2 — the preview of what approving a pending change would affect. */
+const impactCalls = () => fetchMock.mock.calls.filter(([path]) => String(path).endsWith("/impact"));
+const ALREADY_DECIDED = { error: { code: "CHANGE_REQUEST_ALREADY_DECIDED", message: "Already decided.", correlationId: null } };
+
+describe("the preview of a pending change", () => {
+  it("lists each arrangement with the flags approval would set and their reasons, above the actions", async () => {
+    impactResponse = () => reply({ impact });
+    asCoordinator();
+    const heading = await screen.findByText("If this change is approved");
+    expect(screen.getByText(/BKG-000001, Grand Theatre/)).toBeTruthy();
+    expect(screen.getByText(/BKG-000002, Main Hall/)).toBeTruthy();
+    expect(screen.getByText(/Projector, quantity 2/)).toBeTruthy();
+    expect(screen.getAllByText("Requires reconfirmation")).toHaveLength(3);
+    expect(screen.getByText("Unsuitable")).toBeTruthy();
+    expect(screen.getByText("Flagged for review")).toBeTruthy();
+    expect(screen.getByText(/Expected attendance is now 150, but Grand Theatre holds 100/)).toBeTruthy();
+    expect(screen.getByText("Registrations: 0")).toBeTruthy();
+    expect(screen.queryByText("Affected arrangements")).toBeNull();
+    const approve = screen.getByRole("button", { name: "Approve change" });
+    expect(heading.compareDocumentPosition(approve) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(posts()).toHaveLength(0);
+  });
+
+  it("uses the conditional wording when nothing would be affected", async () => {
+    asCoordinator();
+    expect(await screen.findByText("No venue bookings or equipment reservations would be affected.")).toBeTruthy();
+    expect(screen.queryByText("No venue bookings or equipment reservations are affected.")).toBeNull();
+  });
+
+  it("is hidden, and never requested, for a decided request", async () => {
+    stored = [approved];
+    asCoordinator();
+    await screen.findByText(/Change approved on/);
+    expect(screen.queryByText("If this change is approved")).toBeNull();
+    expect(impactCalls()).toHaveLength(0);
+  });
+
+  it("is hidden when the request was decided meanwhile (409)", async () => {
+    impactResponse = () => reply(ALREADY_DECIDED, 409);
+    asCoordinator();
+    await screen.findByRole("button", { name: "Approve change" });
+    await waitFor(() => expect(impactCalls()).toHaveLength(1));
+    await waitFor(() => expect(screen.queryByText(/Loading what this change would affect/)).toBeNull());
+    expect(screen.queryByText("If this change is approved")).toBeNull();
+    expect(screen.queryByText(/couldn't be loaded/)).toBeNull();
+  });
+
+  it("is hidden on 404", async () => {
+    impactResponse = () => reply({ error: { code: "CHANGE_REQUEST_NOT_FOUND", message: "Not found", correlationId: null } }, 404);
+    asCoordinator();
+    await screen.findByRole("button", { name: "Approve change" });
+    await waitFor(() => expect(screen.queryByText(/Loading what this change would affect/)).toBeNull());
+    expect(screen.queryByText("If this change is approved")).toBeNull();
+  });
+
+  it("says so when it can't be loaded, and leaves the decision available", async () => {
+    impactResponse = () => reply({ error: { code: "INTERNAL", message: "boom", correlationId: null } }, 500);
+    asCoordinator();
+    expect(await screen.findByText("What this change would affect couldn't be loaded.")).toBeTruthy();
+    expect(button("Approve change")).toBeTruthy();
+  });
+
+  it("disappears once the request is decided", async () => {
+    impactResponse = () => reply({ impact });
+    asCoordinator();
+    await screen.findByText("If this change is approved");
+    fireEvent.click(await screen.findByRole("button", { name: "Reject change" }));
+    const dialog = await screen.findByRole("dialog");
+    fireEvent.change(within(dialog).getByLabelText("Reason"), { target: { value: "No larger hall" } });
+    onDecision = () => reply({ changeRequest: rejected });
+    stored = [rejected];
+    fireEvent.click(within(dialog).getByRole("button", { name: "Confirm rejection" }));
+    await screen.findByText(/Change rejected on /);
+    expect(screen.queryByText("If this change is approved")).toBeNull();
   });
 });

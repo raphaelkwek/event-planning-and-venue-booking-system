@@ -25,13 +25,46 @@ import { formatInstant, STATUS_APPEARANCE, STATUS_LABELS } from "../shared/statu
 import { StatusHistory } from "../components/StatusHistory.js";
 import { Refusal } from "../components/Refusal.js";
 import { canEditDetails } from "../shared/eventDetails.js";
-import { listChangeRequests, type ChangeImpact, type ChangeRequest } from "../api/changeRequests.js";
+import { getChangeImpact, listChangeRequests, type ChangeImpact, type ChangeRequest } from "../api/changeRequests.js";
 import { ChangeDecisionActions, DecidedChangeNotice } from "../components/ChangeDecision.js";
 import { PendingChangeNotice } from "../components/PendingChangeNotice.js";
 import { EquipmentRequirementsView, VenueRequirementsView } from "../components/Requirements.js";
 import { ChangeImpactView } from "../components/ChangeImpactView.js";
 import { OutstandingFlags } from "../components/OutstandingFlags.js";
 import { ConfirmArrangementsAction } from "../components/ConfirmArrangements.js";
+
+/** G2 — what approving the pending change would affect, read-only; hidden once the request is decided or not visible to this user. */
+function ChangeImpactPreview({ token, requestId }: { token: string; requestId: string }) {
+  const [state, setState] = useState<{ status: "loading" } | { status: "error" } | { status: "hidden" } | { status: "ready"; impact: ChangeImpact }>({ status: "loading" });
+  useEffect(() => {
+    let current = true;
+    setState({ status: "loading" });
+    getChangeImpact(token, requestId).then(
+      (result) => {
+        if (current) setState(result?.impact ? { status: "ready", impact: result.impact } : { status: "hidden" });
+      },
+      (caught) => {
+        if (!current) return;
+        const gone = caught instanceof ApiError && (caught.status === 409 || caught.status === 404);
+        setState({ status: gone ? "hidden" : "error" });
+      }
+    );
+    return () => {
+      current = false;
+    };
+  }, [token, requestId]);
+
+  if (state.status === "hidden") return null;
+  if (state.status === "loading") return <p role="status" style={{ color: "#626F86", fontSize: 13 }}>Loading what this change would affect…</p>;
+  if (state.status === "error") return <p role="status" style={{ color: "#626F86", fontSize: 13 }}>What this change would affect couldn't be loaded.</p>;
+  return (
+    <ChangeImpactView
+      impact={state.impact}
+      heading="If this change is approved"
+      emptyText="No venue bookings or equipment reservations would be affected."
+    />
+  );
+}
 
 /**
  * D1, D2, D4, D5 — the coordinator's review screen.
@@ -193,6 +226,7 @@ export function ReviewDetail() {
         {pendingChange && (
           <section role="region" aria-label="Pending change">
             <PendingChangeNotice request={pendingChange} />
+            <ChangeImpactPreview key={pendingChange.id} token={session.token} requestId={pendingChange.id} />
             {event.assignedCoordinatorId === session.userId && (
               <div style={{ marginBottom: 16, marginTop: -8 }}>
                 <ChangeDecisionActions request={pendingChange} token={session.token} onDecided={(result) => {

@@ -73,6 +73,11 @@ export function decideChangeRequest(token: string, id: string, body: ChangeDecis
   return request<{ changeRequest: ChangeRequest; event?: unknown; impact?: ChangeImpact }>(`${EVENT}/change-requests/${id}/decision`, { method: "POST", token, body });
 }
 
+/** G2 — what approving a pending request would affect and flag; nothing is changed. 409 once the request is decided. */
+export function getChangeImpact(token: string, requestId: string) {
+  return request<{ impact: ChangeImpact }>(`${EVENT}/change-requests/${requestId}/impact`, { token });
+}
+
 /** S3 — one outstanding flag on an event's arrangements. */
 export interface OutstandingFlag extends ImpactFlag {
   flaggedAt: string;
