@@ -30,7 +30,10 @@ decide for me.
 - **F5** readiness (`change/domain/readiness.ts`) already names the three flags and refuses confirmation
   for any of them. It reads them through `venueArrangementsForEvent` and `equipmentArrangementsForEvent`,
   which today return only I2's `REQUIRES_RECONFIRMATION`. So AC9 needs only those two reads extended.
-- **Venue:** `venue_slots` (status HELD/CONFIRMED, `requires_reconfirmation` from I2). A confirmed
+- **Venue:** `venue_slots` (status HELD/CONFIRMED, `requires_reconfirmation` from I2, which I2 and H3 also clear when
+  their own block or buffer conflict goes). An L3 hold places a HELD slot; converting it into a booking request (L1) keeps
+  that slot HELD under the request's reference, and M1 approving the request confirms the same slot in place. A request not
+  converted from a hold gets a new CONFIRMED slot from M1. A confirmed
   booking's layout and attendance are on the booking request whose `booking_id` is the slot (M1).
   A venue's `layouts` jsonb holds each layout's name and capacity.
 - **Equipment:** `equipment.reservations` (status RESERVED, `starts_at`/`ends_at`, `reserved_by`).
@@ -46,18 +49,29 @@ decide for me.
    in `change/domain/changeImpact.ts` decides every flag and its reason. S3 applies its result; G2 will
    call the same function read-only on the review screen.
 3. **The rules.**
-   - Period (AC2, AC3): only when `proposedStartAt` or `proposedEndAt` changed. A CONFIRMED booking or a
-     RESERVED reservation whose period is not exactly the event's new start to end is flagged
-     (`REQUIRES_RECONFIRMATION` / `FLAGGED_FOR_REVIEW`).
-   - Capacity (AC4): only when `expectedAttendance` changed. A CONFIRMED booking whose layout capacity
-     (from its booking request's layout in the venue's `layouts`; the venue's `max_capacity` if it has
-     none) is below the new attendance is flagged `UNSUITABLE`, recording both numbers.
+   - Period (AC2, AC3): only when `proposedStartAt` or `proposedEndAt` changed. A CONFIRMED booking, a HELD
+     hold, a PENDING booking request or a RESERVED reservation whose period is not exactly the event's new
+     start to end is flagged (`REQUIRES_RECONFIRMATION` / `FLAGGED_FOR_REVIEW`). The comparison is exact, so a
+     booking or reservation deliberately for a different window (a request that `differs_from_event`, an
+     equipment line's own required window) is flagged on any time change; the coordinator judges it.
+   - Capacity (AC4): only when `expectedAttendance` changed. A booking, hold or pending request whose layout
+     capacity (the request's layout, matched to the venue's `layouts` ignoring case and surrounding spaces;
+     the venue's `max_capacity`, naming no layout, if there is no match) is below the new attendance is
+     flagged `UNSUITABLE`, recording both numbers.
+   - A rule whose input the event no longer has (no start, end or attendance) is skipped, not an error.
    - Venue requirements, equipment required and equipment requirements are free text or yes/no, so they
      are listed (AC1) but not flagged automatically. The coordinator judges them.
-   - Held holds and pending requests are not flagged: F5 already refuses confirmation while they exist.
-   - Each booking is assessed alone (AC5); an already-flagged arrangement gets the new reason added.
-4. **Storage.** Venue migration 0018: `venue_slots.unsuitable boolean not null default false`, and
-   `venue.arrangement_flags` (slot, event, change request, flag, reason text, details jsonb, flagged_at).
+   - Held holds and pending requests are flagged too: F5 refuses while they exist, but either can become a
+     CONFIRMED booking for the old period afterwards (M1), which would then pass F5 unflagged. A request
+     converted from a hold whose slot is still HELD is assessed once, as the hold.
+   - Each arrangement is assessed alone (AC5); an already-flagged arrangement gets the new reason added.
+4. **Storage.** Venue migration 0018: `period_mismatch` and `unsuitable` (boolean, not null, default false) on
+   both `venue_slots` and `booking_requests`, and `venue.arrangement_flags` (slot or booking request, exactly
+   one; event, change request, flag, reason text, details jsonb, flagged_at). S3's Requires Reconfirmation is
+   `period_mismatch`, not I2's `requires_reconfirmation`, which I2 and H3 reset from their own records; F5
+   reads either as one `REQUIRES_RECONFIRMATION`. A hold's flags are on its slot, which M1 confirms in place.
+   When M1 approves a flagged request it copies the request's columns and flag rows to the confirmed slot
+   (`carryRequestFlagsToBooking`, venue module), so the booking stays flagged.
    Equipment migration 0009: `reservations.flagged_for_review boolean not null default false`, and
    `equipment.reservation_flags` (same shape). The booleans are what F5 reads; the rows say why (AC8).
    Each module writes only its own schema, through a function exported from its `index.ts`.
@@ -77,8 +91,8 @@ decide for me.
 
 | Route | Who | What |
 |---|---|---|
-| `POST /api/v1/change-requests/{id}/decision` (S2) | assigned coordinator | An approval's 200 now also returns `impact`: the bookings, reservations, registration count, and the flags set. |
-| `GET /api/v1/events/{id}/arrangement-flags` (new, change module) | owner, assigned coordinator, Event Coordinators | Every outstanding flag: arrangement, reference, venue or equipment name, flag, reason. 404 for anyone else (as S1). |
+| `POST /api/v1/change-requests/{id}/decision` (S2) | assigned coordinator | An approval's 200 now also returns `impact`: the bookings, holds and pending requests (each with its `arrangement`: `BOOKING`, `HOLD`, `BOOKING_REQUEST`), reservations, registration count, and the flags set. |
+| `GET /api/v1/events/{id}/arrangement-flags` (new, change module) | owner, assigned coordinator, Event Coordinators | Every flag F5 would refuse on (AC8, AC9): arrangement, reference, venue or equipment name, flag, reason; each arrangement and flag once, with the newest reason. A Requires Reconfirmation set by I2 or H3 has the reason "The venue's availability changed after this booking was made; Venue Staff must reconfirm it." 404 for anyone else (as S1). |
 
 Screens: after approving, the coordinator sees the impact list. The event page shows an "Outstanding
 flags" panel to the three roles in AC8.
@@ -104,8 +118,11 @@ period, a pending change request CR on E.
 | S3-T11 | 11 | Flagging forced to fail: request still Pending, event unchanged, no flags |
 | S3-T12 | 1–4 | A change to descriptive-only significant fields (venue requirements) lists arrangements and flags none |
 | S3-T13 | all | Browser walkthrough (manual) |
+| S3-T14 | 2, 9 | A request pending at approval is flagged; M1 then confirms it and the booking stays flagged, so F5 refuses |
 
 ## 6. Out of scope
 
-Clearing a flag, notifying attendees (needs EN-13), G2's review-screen preview (next story, reuses §3.2),
-and flagging holds or pending requests.
+Clearing a flag, notifying attendees (needs EN-13), and G2's review-screen preview (next story, reuses §3.2).
+U1's safety approval (`APPROVE_SAFETY`, Safety Review → Confirmed) is not built yet: a change approved during
+Safety Review leaves the event there (AC6) with its flags, so when U1 applies that transition it must refuse
+while any arrangement flag is outstanding, as F5 does.
