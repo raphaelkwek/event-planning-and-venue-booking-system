@@ -838,6 +838,46 @@ paths:
         "429": { $ref: "#/components/responses/RateLimitExceeded" }
         "503": { $ref: "#/components/responses/IdentityUnavailable" }
 
+  /api/v1/events/{id}/arrangement-flags:
+    parameters:
+      - $ref: "#/components/parameters/RecordId"
+    get:
+      tags: [Change requests]
+      summary: The flags still outstanding on an event's arrangements (S3)
+      description: |
+        The event's owning organiser, its assigned coordinator and Event Coordinators (AC8). Anyone
+        else, including an organiser who does not own the event, gets the same 404 as for an event
+        that does not exist. Lists each flagged venue booking first, then each flagged equipment
+        reservation, saying which arrangement and why. A flag stops being outstanding when its booking
+        is released or no longer held or confirmed, or its reservation is released.
+      operationId: listArrangementFlags
+      responses:
+        "200":
+          description: The outstanding flags; empty when there are none.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [flags]
+                properties:
+                  flags:
+                    type: array
+                    items:
+                      type: object
+                      required: [arrangement, id, reference, name, flag, reason, flaggedAt]
+                      properties:
+                        arrangement: { type: string, enum: [BOOKING, EQUIPMENT] }
+                        id: { type: string, format: uuid, description: "The booking's or the reservation's id." }
+                        reference: { type: string, description: "The booking reference; for a reservation, its id." }
+                        name: { type: string, description: "The venue's name, or the equipment type's." }
+                        flag: { type: string, enum: [REQUIRES_RECONFIRMATION, UNSUITABLE, FLAGGED_FOR_REVIEW] }
+                        reason: { type: string }
+                        flaggedAt: { type: string, format: date-time }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "429": { $ref: "#/components/responses/RateLimitExceeded" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
   /api/v1/change-requests/{id}/decision:
     parameters:
       - $ref: "#/components/parameters/RecordId"
@@ -3564,7 +3604,7 @@ components:
             required: [arrangement, id, reference, name, flag, reason]
             properties:
               arrangement: { type: string, enum: [BOOKING, EQUIPMENT] }
-              id: { type: string, format: uuid, description: The booking's or the reservation's id. }
+              id: { type: string, format: uuid, description: "The booking's or the reservation's id." }
               reference: { type: string, description: "The booking's reference; for equipment, the reservation's id." }
               name: { type: string, description: "The venue's name, or the equipment type's name." }
               flag: { type: string, enum: [REQUIRES_RECONFIRMATION, UNSUITABLE, FLAGGED_FOR_REVIEW] }

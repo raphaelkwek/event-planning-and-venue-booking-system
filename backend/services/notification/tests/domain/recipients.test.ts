@@ -271,6 +271,69 @@ describe("notificationsFor", () => {
     expect(note!.message).toBe("Your change request for EVT-2026-0042 “Freshmen Orientation” was rejected. Reason: The hall is booked.");
   });
 
+  describe("S3: tell the staff concerned that an approved change flagged their arrangement", () => {
+    const venueStaff = "00000000-0000-0000-0000-000000000005";
+    const otherVenueStaff = "00000000-0000-0000-0000-000000000006";
+    const techSupport = "00000000-0000-0000-0000-000000000007";
+    const flagged = {
+      changeRequestId: "0b5f7a3e-1c2d-4e5f-8a9b-0c1d2e3f4a5b",
+      returnedToPlanning: false,
+      bookings: [
+        {
+          reference: "BKR-000001",
+          venueName: "Lee Kong Chian Auditorium",
+          flag: "REQUIRES_RECONFIRMATION",
+          reason: "The event now starts at 15:00, but the booking starts at 14:00.",
+          staffIds: [venueStaff, otherVenueStaff],
+        },
+        {
+          reference: "BKR-000002",
+          venueName: "Lecture Hall B",
+          flag: "UNSUITABLE",
+          reason: "The event now expects 150 people, but the Theatre layout holds 100.",
+          staffIds: [venueStaff],
+        },
+      ],
+      reservations: [
+        {
+          equipmentTypeName: "Projectors",
+          flag: "FLAGGED_FOR_REVIEW",
+          reason: "The event now starts at 15:00, but the reservation starts at 14:00.",
+          reservedBy: techSupport,
+        },
+      ],
+    };
+    const notes = (data: Record<string, unknown> = flagged) => notificationsFor(message("change-request.arrangements-flagged", data));
+
+    it("notifies each booking's venue staff, once per flag, and the member who reserved each reservation", () => {
+      expect(notes().map((note) => [note.recipientUserId, note.relatedReference])).toEqual([
+        [venueStaff, null],
+        [otherVenueStaff, null],
+        [venueStaff, null],
+        [techSupport, null],
+      ]);
+      expect(notes().every((note) => note.notificationType === "change-request.arrangements-flagged" && note.eventId === eventId)).toBe(true);
+    });
+
+    it("tells Venue Staff which booking needs attention and why", () => {
+      expect(notes().map((note) => note.message).slice(0, 3)).toEqual([
+        "Booking BKR-000001 at Lee Kong Chian Auditorium for EVT-2026-0042 “Freshmen Orientation” needs attention after an approved change: The event now starts at 15:00, but the booking starts at 14:00.",
+        "Booking BKR-000001 at Lee Kong Chian Auditorium for EVT-2026-0042 “Freshmen Orientation” needs attention after an approved change: The event now starts at 15:00, but the booking starts at 14:00.",
+        "Booking BKR-000002 at Lecture Hall B for EVT-2026-0042 “Freshmen Orientation” needs attention after an approved change: The event now expects 150 people, but the Theatre layout holds 100.",
+      ]);
+    });
+
+    it("tells the reserver to review the reservation and release it if no longer needed", () => {
+      expect(notes()[3]!.message).toBe(
+        "The Projectors reservation for EVT-2026-0042 “Freshmen Orientation” is flagged for review after an approved change: The event now starts at 15:00, but the reservation starts at 14:00. Release it if it is no longer needed.",
+      );
+    });
+
+    it("notifies nobody for a list that is empty", () => {
+      expect(notes({ ...flagged, bookings: [], reservations: [] })).toEqual([]);
+    });
+  });
+
   it("notifies nobody for a message type it has no rule for", () => {
     expect(notificationsFor(message("event.something-new", {}))).toEqual([]);
   });
