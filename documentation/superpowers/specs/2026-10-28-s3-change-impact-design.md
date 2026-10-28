@@ -65,7 +65,7 @@ decide for me.
      CONFIRMED booking for the old period afterwards (M1), which would then pass F5 unflagged. A request
      converted from a hold whose slot is still HELD is assessed once, as the hold.
    - Each arrangement is assessed alone (AC5); an already-flagged arrangement gets the new reason added.
-4. **Storage.** Venue migration 0018: `period_mismatch` and `unsuitable` (boolean, not null, default false) on
+4. **Storage.** Venue migration 0019: `period_mismatch` and `unsuitable` (boolean, not null, default false) on
    both `venue_slots` and `booking_requests`, and `venue.arrangement_flags` (slot or booking request, exactly
    one; event, change request, flag, reason text, details jsonb, flagged_at). S3's Requires Reconfirmation is
    `period_mismatch`, not I2's `requires_reconfirmation`, which I2 and H3 reset from their own records; F5

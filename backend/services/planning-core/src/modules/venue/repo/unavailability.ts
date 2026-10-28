@@ -17,7 +17,8 @@ export interface Block {
   id: string;
   venueId: string;
   startsAt: string;
-  endsAt: string;
+  /** Null for a block with no end, which lasts until Venue Staff remove it (I5). */
+  endsAt: string | null;
   reasonType: UnavailabilityReasonType;
   description: string;
   status: UnavailabilityBlockStatus;
@@ -30,7 +31,7 @@ export interface Block {
 export interface NewBlock {
   venueId: string;
   startsAt: Date;
-  endsAt: Date;
+  endsAt: Date | null;
   reasonType: UnavailabilityReasonType;
   description: string;
   actorUserId: string;
@@ -54,7 +55,7 @@ interface BlockRow {
   id: string;
   venue_id: string;
   starts_at: Date;
-  ends_at: Date;
+  ends_at: Date | null;
   reason_type: UnavailabilityReasonType;
   description: string;
   status: UnavailabilityBlockStatus;
@@ -69,7 +70,7 @@ function toBlock(row: BlockRow): Block {
     id: row.id,
     venueId: row.venue_id,
     startsAt: row.starts_at.toISOString(),
-    endsAt: row.ends_at.toISOString(),
+    endsAt: row.ends_at?.toISOString() ?? null,
     reasonType: row.reason_type,
     description: row.description,
     status: row.status,
@@ -119,9 +120,10 @@ export async function listActiveBlocks(db: Db, venueId: string): Promise<Block[]
  * What a block from `startsAt` to `endsAt` would disrupt at the venue: confirmed
  * bookings and holds whose occupied period it overlaps (CR-01), and pending
  * requests whose period it overlaps, soonest overlap first. `&&` on `[)` ranges,
- * so what only touches the block is left alone.
+ * so what only touches the block is left alone. With no end (I5) the block runs
+ * from its start for ever, so it disrupts whatever ends after it starts.
  */
-export async function disruptedBy(db: Db, venueId: string, startsAt: Date, endsAt: Date): Promise<Disrupted[]> {
+export async function disruptedBy(db: Db, venueId: string, startsAt: Date, endsAt: Date | null): Promise<Disrupted[]> {
   const rows = await db<
     { kind: DisruptedKind; id: string; reference: string; event_id: string; requested_by: string | null; overlap_from: Date; overlap_until: Date }[]
   >`

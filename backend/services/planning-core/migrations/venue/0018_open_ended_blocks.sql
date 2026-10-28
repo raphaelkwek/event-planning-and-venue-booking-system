@@ -1,0 +1,13 @@
+-- I5 (W9-49, decision D-01): Venue Staff may record unavailability with no end. It
+-- lasts until they remove it (I2), which already removes a block by status.
+--
+-- A block's ends_at becomes optional. Nothing else changes: `period` is generated
+-- as tstzrange(starts_at, ends_at, '[)'), and a range with no upper bound runs from
+-- its start for ever, so every `period && ...` the calendar, search, requests,
+-- holds, approvals and I2's review already make answers correctly for it. The
+-- check that the end is after the start passes for a null end, so an end that is
+-- given is still held to it. Every existing block keeps its end.
+--
+-- Only the venue module reads this table, and it reads a null end from this change on.
+-- squawk-ignore ban-drop-not-null
+alter table venue.unavailability_blocks alter column ends_at drop not null;

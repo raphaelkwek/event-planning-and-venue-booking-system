@@ -15,7 +15,8 @@ export interface BookingDisruption {
   reasonType: UnavailabilityReasonType;
   description: string;
   startsAt: string;
-  endsAt: string;
+  /** Null for a block with no end (I5). */
+  endsAt: string | null;
 }
 
 export interface ReplacementRequest {
@@ -55,7 +56,7 @@ export async function listBookingsForEvent(db: Db, eventId: string): Promise<Eve
       status: VenueSlotStatus;
       requires_reconfirmation: boolean;
       release_reason: string | null;
-      disruptions: { blockId: string; reasonType: UnavailabilityReasonType; description: string; startsAt: string; endsAt: string }[];
+      disruptions: { blockId: string; reasonType: UnavailabilityReasonType; description: string; startsAt: string; endsAt: string | null }[];
       overlaps: string[];
       replacements: ReplacementRequest[];
     }[]
@@ -114,7 +115,11 @@ export async function listBookingsForEvent(db: Db, eventId: string): Promise<Eve
     requiresReconfirmation: row.requires_reconfirmation,
     releaseReason: row.release_reason,
     // json_build_object writes timestamps in the session's zone; normalise them to UTC instants.
-    disruptions: row.disruptions.map((d) => ({ ...d, startsAt: new Date(d.startsAt).toISOString(), endsAt: new Date(d.endsAt).toISOString() })),
+    disruptions: row.disruptions.map((d) => ({
+      ...d,
+      startsAt: new Date(d.startsAt).toISOString(),
+      endsAt: d.endsAt === null ? null : new Date(d.endsAt).toISOString(),
+    })),
     overlaps: row.overlaps,
     replacements: row.replacements,
   }));

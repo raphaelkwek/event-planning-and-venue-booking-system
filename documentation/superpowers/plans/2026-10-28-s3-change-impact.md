@@ -47,7 +47,7 @@ Rules (spec §3.3): time changed (`proposedStartAt` or `proposedEndAt` in `chang
 
 ### Task 3: Migrations and flag writers
 
-- `PC/migrations/venue/0018_arrangement_flags.sql`: `alter table venue.venue_slots add column unsuitable boolean not null default false;` and `create table venue.arrangement_flags (id uuid pk default gen_random_uuid(), slot_id uuid not null references venue.venue_slots(id), event_id uuid not null, change_request_id uuid not null, flag text not null check (flag in ('REQUIRES_RECONFIRMATION','UNSUITABLE')), reason text not null check (length(btrim(reason)) > 0), details jsonb not null, flagged_at timestamptz not null default now())` with an index on `(event_id)`. No validate migration needed (new table, default column).
+- `PC/migrations/venue/0019_arrangement_flags.sql`: `alter table venue.venue_slots add column unsuitable boolean not null default false;` and `create table venue.arrangement_flags (id uuid pk default gen_random_uuid(), slot_id uuid not null references venue.venue_slots(id), event_id uuid not null, change_request_id uuid not null, flag text not null check (flag in ('REQUIRES_RECONFIRMATION','UNSUITABLE')), reason text not null check (length(btrim(reason)) > 0), details jsonb not null, flagged_at timestamptz not null default now())` with an index on `(event_id)`. No validate migration needed (new table, default column).
 - `PC/migrations/equipment/0009_reservation_flags.sql`: `reservations.flagged_for_review boolean not null default false` and `equipment.reservation_flags` (same shape, `reservation_id` references `equipment.reservations`, flag only `FLAGGED_FOR_REVIEW`).
 - Squawk both, as the previous migrations were (see CI's migration lint step in `.github/workflows`).
 - Venue repo `PC/src/modules/venue/repo/arrangementFlags.ts`:
@@ -85,4 +85,4 @@ Rules (spec §3.3): time changed (`proposedStartAt` or `proposedEndAt` in `chang
 
 ### Task 8: Traceability, changelog, PR, results
 
-`sprint-4.csv` rows with exact test names. CHANGELOG at the top: run `npm run migrate -- venue` (0018) and `npm run migrate -- equipment` (0009) before deploying planning-core; deploy the notification service with it. Root gate; push; PR against `main` with the card table; Claude Code line last. When CI is green, record card results (S3-T13 Not Executed until the shared DB is migrated).
+`sprint-4.csv` rows with exact test names. CHANGELOG at the top: run `npm run migrate -- venue` (0019) and `npm run migrate -- equipment` (0009) before deploying planning-core; deploy the notification service with it. Root gate; push; PR against `main` with the card table; Claude Code line last. When CI is green, record card results (S3-T13 Not Executed until the shared DB is migrated).
