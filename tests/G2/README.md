@@ -65,11 +65,11 @@ and a pending change request raised as in S1-T13 that changes the start time and
 
 ## Isolated automated setup and execution
 
-A clean throwaway Postgres with every migration applied (including `venue/0018` and `equipment/0009`), authentication stubbed: the
+A clean throwaway Postgres with every migration applied (including `venue/0019` and `equipment/0009`), authentication stubbed: the
 signed-in user is whichever actor a step names. Never the shared database (EN-06). Run one card with
 
 `npm test -w @connectsphere/planning-core -- tests/change/api/g2Cards.test.ts -t 'G2-Tn '`
 
 and G2-T1 with `npm test -w @connectsphere/web -- tests/significantFields.test.ts`. G2-T8 is done by hand in the app, following
-`tests/README.md`; migrations must be applied, including `venue/0018` and `equipment/0009`. Integration cards fail locally until the
+`tests/README.md`; migrations must be applied, including `venue/0019` and `equipment/0009`. Integration cards fail locally until the
 team migrates the shared database after merge; that is expected.
