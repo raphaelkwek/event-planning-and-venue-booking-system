@@ -960,6 +960,47 @@ paths:
         "429": { $ref: "#/components/responses/RateLimitExceeded" }
         "503": { $ref: "#/components/responses/IdentityUnavailable" }
 
+  /api/v1/change-requests/{id}/impact:
+    parameters:
+      - $ref: "#/components/parameters/RecordId"
+    get:
+      tags: [Change requests]
+      summary: Preview the arrangements approving a pending change request would affect (G2)
+      description: |
+        The event's owning organiser, its assigned coordinator and Event Coordinators, as for reading
+        the request (S1). Anyone else, including an organiser who does not own the event, gets the same
+        404 as for a request that does not exist. For a Pending request, runs S3's assessment over the
+        event's current values with the request's proposed values laid over them and answers in S3's
+        `impact` shape: the confirmed venue bookings, held holds, pending booking requests and equipment
+        reservations, the active registration count (0 until the registration service exists), and the
+        flags approval *would* set, with their reasons. Nothing is stored or locked: the read runs in a
+        read-only transaction, so no booking, reservation, flag, request, event or message changes, and
+        no decision is held up. A decided request has no preview (409).
+      operationId: previewChangeImpact
+      responses:
+        "200":
+          description: What approving the request would do to the event's arrangements.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [impact]
+                properties:
+                  impact: { $ref: "#/components/schemas/ChangeImpact" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "404":
+          description: No change request with that id exists (`CHANGE_REQUEST_NOT_FOUND`), or its event is outside the caller's scope.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "409":
+          description: "`CHANGE_REQUEST_ALREADY_DECIDED`: the request is Approved or Rejected; `details` has the decision's `status` and `decidedAt`."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "429": { $ref: "#/components/responses/RateLimitExceeded" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
   /api/v1/events/{id}/confirmation:
     parameters:
       - $ref: "#/components/parameters/RecordId"
@@ -3572,6 +3613,7 @@ components:
       type: object
       description: |
         S3 — the event's arrangements an approved change was assessed against, and the flags it set.
+        G2's preview of a pending request uses the same shape, `flags` being the ones approval would set.
         `flags` lists venue flags (bookings, holds, booking requests) first, then reservation flags; a
         venue arrangement can carry two flags.
       required: [bookings, reservations, activeRegistrations, flags]

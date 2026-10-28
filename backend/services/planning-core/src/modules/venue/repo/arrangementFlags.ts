@@ -87,8 +87,16 @@ type ArrangementRow = {
  * a hold whose slot is still HELD is left out: the hold's slot stands for it,
  * and M1 confirms that slot. Bookings first, then holds, then requests, each
  * soonest first. The caller has already locked the event.
+ *
+ * G2 — `{ lock: false }` reads the same rows without locking them, for a
+ * preview that writes nothing and must not block a decision.
  */
-export async function bookingsForImpact(tx: TransactionSql, eventId: string): Promise<ImpactBookingRow[]> {
+export async function bookingsForImpact(
+  tx: TransactionSql,
+  eventId: string,
+  options: { lock?: boolean } = {}
+): Promise<ImpactBookingRow[]> {
+  const lock = options.lock ?? true;
   const requests = await tx<ArrangementRow[]>`
     select 'BOOKING_REQUEST' as arrangement, r.id, r.reference, r.venue_id, v.name as venue_name, r.starts_at, r.ends_at,
            lc.name as layout, coalesce(lc.capacity, v.max_capacity) as layout_capacity
@@ -106,7 +114,7 @@ export async function bookingsForImpact(tx: TransactionSql, eventId: string): Pr
         where h.converted_request_id = r.id and hs.status = 'HELD'
       )
     order by r.starts_at, r.reference
-    for update of r
+    ${lock ? tx`for update of r` : tx``}
   `;
 
   // A confirmed slot's layout is on the request M1 approved for it; a held slot's on the
@@ -132,7 +140,7 @@ export async function bookingsForImpact(tx: TransactionSql, eventId: string): Pr
     ) lc on true
     where s.event_id = ${eventId} and s.status in ('HELD', 'CONFIRMED')
     order by s.status = 'HELD', s.starts_at, s.reference
-    for update of s
+    ${lock ? tx`for update of s` : tx``}
   `;
 
   const rows = [...slots, ...requests];

@@ -1,15 +1,8 @@
 import type { EventStatus } from "../api/types.js";
 import type { ArrangementFlag, FlaggedArrangement, SignificantField } from "../api/changeRequests.js";
 
-/** Mirrors `SIGNIFICANT_FIELD_LABELS` in backend/packages/contracts. */
-export const SIGNIFICANT_FIELD_LABELS: Record<SignificantField, string> = {
-  proposedStartAt: "start",
-  proposedEndAt: "end",
-  expectedAttendance: "expected attendance",
-  venueRequirements: "venue requirements",
-  equipmentRequired: "whether equipment is required",
-  equipmentRequirements: "equipment requirements",
-};
+/** G2 (AC1) — each significant field's label, from the one list in @connectsphere/contracts. */
+export { SIGNIFICANT_FIELD_LABELS } from "@connectsphere/contracts";
 
 /** S1: a change can be requested from Submitted until the event is Completed, Cancelled or Rejected. */
 const CHANGEABLE: readonly EventStatus[] = [

@@ -2,7 +2,7 @@ import type { TransactionSql } from "postgres";
 import { KAFKA_TOPICS, SIGNIFICANT_EVENT_FIELDS, type ErrorField, type Role, type SignificantEventField } from "@connectsphere/contracts";
 import { applyApprovedChange, checkProposedChange, findEventForChange, type ProposedChanges } from "../../event/index.js";
 import { resolveAccessScope } from "../../identity/index.js";
-import { cannotApproveMessage, isChangeable, staleFields } from "../domain/changeRequests.js";
+import { cannotApproveMessage, isChangeable, proposedChanges, staleFields } from "../domain/changeRequests.js";
 import { writeOutbox } from "../events/outbox.js";
 import { flagArrangementsForChange, type AppliedChangeImpact } from "./changeImpact.js";
 import { lockRequest, recordDecision, type ChangeRequestRecord } from "./changeRequests.js";
@@ -51,8 +51,7 @@ export async function decideChangeRequest(
   if (!event) return { ok: false, code: "NOT_FOUND" };
   if (event.assignedCoordinatorId !== actor.userId) return { ok: false, code: "NOT_ASSIGNED" };
 
-  const changes: ProposedChanges = {};
-  for (const field of request.fields) changes[field.fieldName] = field.proposedValue;
+  const changes: ProposedChanges = proposedChanges(request.fields);
 
   // One instant for the decision and the history rows it writes.
   const at = new Date();

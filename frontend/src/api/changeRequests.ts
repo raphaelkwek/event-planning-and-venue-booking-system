@@ -1,15 +1,10 @@
+import type { SignificantEventField } from "@connectsphere/contracts";
 import { request } from "./client.js";
 
 const EVENT = "/event/api/v1";
 
-/** Mirrors `SIGNIFICANT_EVENT_FIELDS` in backend/packages/contracts. */
-export type SignificantField =
-  | "proposedStartAt"
-  | "proposedEndAt"
-  | "expectedAttendance"
-  | "venueRequirements"
-  | "equipmentRequired"
-  | "equipmentRequirements";
+/** G2 (AC1) — the one list of significant fields, `SIGNIFICANT_EVENT_FIELDS` in @connectsphere/contracts. */
+export type SignificantField = SignificantEventField;
 
 export interface ChangeRequestField {
   fieldName: SignificantField;
