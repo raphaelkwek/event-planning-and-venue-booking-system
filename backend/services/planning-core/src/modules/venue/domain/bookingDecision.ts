@@ -44,8 +44,11 @@ export function readRejection(
   return fields.length > 0 ? { ok: false, fields } : { ok: true, reason, suggestion };
 }
 
-/** A period in Singapore time, where the venues are: one day, or both ends when it crosses midnight. */
-export function singaporePeriod(from: string, until: string): string {
+/**
+ * A period in Singapore time, where the venues are: one day, or both ends when it crosses midnight.
+ * With no end (I5, an open-ended block) it names only the start, and says so.
+ */
+export function singaporePeriod(from: string, until: string | null): string {
   const parts = (iso: string) => {
     const p = new Intl.DateTimeFormat("en-GB", {
       timeZone: CALENDAR_TIME_ZONE,
@@ -61,6 +64,7 @@ export function singaporePeriod(from: string, until: string): string {
     return { day: `${part("weekday")} ${part("day")} ${part("month")} ${part("year")}`, time: `${part("hour")}:${part("minute")}` };
   };
   const start = parts(from);
+  if (until === null) return `from ${start.day}, ${start.time}, open-ended`;
   const end = parts(until);
   return start.day === end.day ? `${start.day}, ${start.time}–${end.time}` : `${start.day} ${start.time} to ${end.day} ${end.time}`;
 }
@@ -100,7 +104,8 @@ export interface UnavailablePeriod {
   reasonType: UnavailabilityReasonType;
   description: string;
   startsAt: string;
-  endsAt: string;
+  /** Null for a block with no end (I5). */
+  endsAt: string | null;
 }
 
 /** M1-T5: names each period of recorded unavailability the approval overlaps, with its type and reason. */

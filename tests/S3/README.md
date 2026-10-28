@@ -86,11 +86,11 @@ as in S1-T13 that changes the start time and sets expected attendance to 150.
 
 ## Isolated automated setup and execution
 
-A clean throwaway Postgres with every migration applied (including `venue/0018` and `equipment/0009`), authentication stubbed: the
+A clean throwaway Postgres with every migration applied (including `venue/0019` and `equipment/0009`), authentication stubbed: the
 signed-in user is whichever actor a step names. Never the shared database (EN-06). Run one card with
 
 `npm test -w @connectsphere/planning-core -- tests/change/api/s3Cards.test.ts -t 'S3-Tn '`
 
 (the trailing space matters, so `S3-T1 ` does not match `S3-T10 `). S3-T13 is done by hand in the app, following `tests/README.md`; the
-`.env` needs the `KAFKA_*` settings and migrations must be applied, including `venue/0018` and `equipment/0009`. Integration cards
+`.env` needs the `KAFKA_*` settings and migrations must be applied, including `venue/0019` and `equipment/0009`. Integration cards
 fail locally until the team migrates the shared database after merge; that is expected.

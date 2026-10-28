@@ -9,9 +9,9 @@
 **Timestamp:** 2026-10-28T12:00+08:00 (SGT)
 **Author:** Raphael, via Claude
 **Scope:** planning-core (change, venue, equipment, event modules), contracts, notification service,
-web app; migrations venue/0018 and equipment/0009.
+web app; migrations venue/0019 and equipment/0009.
 
-**Deploy:** run `npm run migrate -- venue` (0018) and `npm run migrate -- equipment` (0009) before
+**Deploy:** run `npm run migrate -- venue` (0019) and `npm run migrate -- equipment` (0009) before
 deploying planning-core, and deploy the notification service with it.
 
 ## Added
@@ -49,6 +49,77 @@ deploying planning-core, and deploy the notification service with it.
 
 ---
 
+# I5: Record a block with no end
+
+**Timestamp:** 2026-10-24T03:48+08:00 (SGT)
+**Author:** Seann, via Claude
+**Scope:** I5 (SPM-195, Sprint 4), the customer's Week 9 answer W9-49 and decision D-01. Stacked on I4.
+- planning-core, venue module: migration `0018_open_ended_blocks.sql`; the block's repos, the
+  review and the record route; the calendar's query and presenter; the refusal wording
+  (`singaporePeriod`, `readBlock`, `readPeriod`).
+- `contracts` and notification: `blockEndsAt` is a required, nullable date-time on the two
+  disruption messages. **Needs a second owner's review.**
+- OpenAPI: the block, its input, the impact query and the calendar's `openEnded`.
+- web: the Unavailability form, list and dialogs, the availability calendar, and the event's
+  bookings.
+- `tests/I5/` (README and eight cards, all executed) and `sprint-3.csv`.
+**Reason:** the customer gave two answers about open-ended blocks. By D-01 the later one counts:
+Venue Staff "can set temporary unavailability with end dates or leave it open-ended until
+operational issues are resolved and lifted" (W9-49), over "it should not be open-ended" (W9-41).
+
+## Added
+
+- **A block's end is optional.** Leave both end fields empty (or send no `endsAt`) for a block
+  that lasts until Venue Staff remove it. An end that is given must still be after the start.
+- **Nothing else needed a special case.** A block's `period` is generated from its start and end;
+  with no end it has no upper bound, so every overlap the calendar, search, booking requests,
+  holds (I4), approvals and I2's review make answers for it. It disrupts and flags whatever ends
+  after it starts, and refuses requests and holds for any later period.
+- **The calendar shows it from its start on every later day,** labelled open-ended. Messages name
+  it "from <start>, open-ended", and the coordinator is told the venue is unavailable "until Venue
+  Staff lift it".
+
+## Changed
+
+- I2's end was mandatory, and its cards (I2-T2, I2-T3) and tests said so. An end that is left out
+  is now valid; the I2 integration and web tests that asserted it was required were updated. I2's
+  records are not edited.
+
+## Not done, on purpose
+
+- Nothing ends an open-ended block except Venue Staff removing it (I2). There's no reminder.
+
+---
+
+# I4: A block refuses a hold over its period
+
+**Timestamp:** 2026-10-24T03:15+08:00 (SGT)
+**Author:** Seann, via Claude
+**Scope:** I4 (SPM-194, Sprint 4), the customer's Week 9 answer W9-41.
+- planning-core, venue module: `api/holds.ts` (request and place), `domain/unavailability.ts`
+  (`holdBlockedMessage`).
+- OpenAPI: the two hold routes' 409 responses.
+- `tests/I4/` (README and seven cards, all executed) and `sprint-3.csv`.
+**Reason:** a venue marked unavailable should stop new holds as well as new booking requests. I2
+already refused booking requests over a block.
+
+## Added
+
+- **A hold over an active block is refused with `VENUE_UNAVAILABLE`, and nothing is stored.** It
+  applies when the coordinator requests the hold and again when Venue Staff place it, because a
+  block can be recorded in between. The message names each block, its period and its reason type.
+- The hold's **occupied period** is compared (CR-01): the venue's setup and turnaround time count,
+  and periods that only touch don't overlap.
+- Placing now takes the venue's row lock before the hold's, as every booking change at a venue
+  does (implementation.md §4.6, rule 1), so it is decided against a block recorded at the same moment.
+
+## Not done, on purpose
+
+- **A hold that is only Requested isn't flagged by a block.** It reserves nothing and has no slot,
+  so there is nothing to disrupt; it stays Requested and placing it is refused. A hold already
+  placed is flagged Requires Reconfirmation by I2, unchanged.
+- **Open-ended blocks** (I5) are the next story; this one checks blocks with an end.
+- **Converting a hold** into a booking request already refused a request over a block (I2), unchanged.
 # Stories I3 to I6 for the Week 9 changes to Done stories; CQ-03 decided by the team
 
 **Timestamp:** 2026-10-24T12:00+08:00 (SGT)

@@ -80,7 +80,8 @@ function detail(period: CommittedPeriod, timeZone: string): string {
     case "TURNAROUND":
       return `${reference} · occupied`;
     case "UNAVAILABLE":
-      return period.description ?? "";
+      // I5: a block with no end runs from its start on every later day.
+      return `${period.description ?? ""}${period.openEnded ? " · open-ended" : ""}`;
     case "OUTSIDE_HOURS":
       return span(period, timeZone) === "00:00–24:00" ? "Closed all day" : "";
   }

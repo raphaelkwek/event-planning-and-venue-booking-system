@@ -97,7 +97,8 @@ const disruptionFields = {
   /** A booking's or hold's event's assigned coordinator; a request's requesting coordinator. */
   coordinatorId: z.string().uuid(),
   blockStartsAt: z.string().datetime(),
-  blockEndsAt: z.string().datetime(),
+  /** Null for a block with no end, which lasts until Venue Staff remove it (I5). */
+  blockEndsAt: z.string().datetime().nullable(),
   reasonType: z.enum(UNAVAILABILITY_REASON_TYPES),
   description: z.string().min(1),
   /** The Venue Staff member who recorded or removed the block, and when. */
