@@ -50,8 +50,10 @@ export function ReviewDetail() {
   const [proposals, setProposals] = useState<ReassignmentProposal[]>([]);
   const [changeRequests, setChangeRequests] = useState<ChangeRequest[]>([]);
   const [changesFailed, setChangesFailed] = useState(false);
-  // S3: the impact returned by an approval made on this screen; the approval refreshes the page, so it is kept here.
-  const [impact, setImpact] = useState<ChangeImpact | null>(null);
+  // S3: the impact returned by an approval made on this screen, with the change request it decided; the
+  // approval refreshes the page, so it is kept here. It is shown only while that request is still the
+  // latest decided one and no other change is pending, so a later change never shows a stale impact.
+  const [impact, setImpact] = useState<{ requestId: string; impact: ChangeImpact } | null>(null);
   const [loadError, setLoadError] = useState<unknown>(null);
   const [actionError, setActionError] = useState<unknown>(null);
   const [loading, setLoading] = useState(true);
@@ -194,7 +196,7 @@ export function ReviewDetail() {
             {event.assignedCoordinatorId === session.userId && (
               <div style={{ marginBottom: 16, marginTop: -8 }}>
                 <ChangeDecisionActions request={pendingChange} token={session.token} onDecided={(result) => {
-                    setImpact(result ?? null);
+                    setImpact(result ? { requestId: pendingChange.id, impact: result } : null);
                     void load();
                   }} />
               </div>
@@ -202,7 +204,7 @@ export function ReviewDetail() {
           </section>
         )}
         {!pendingChange && latestDecided && <DecidedChangeNotice request={latestDecided} />}
-        {!pendingChange && impact && <ChangeImpactView impact={impact} />}
+        {!pendingChange && impact && latestDecided?.id === impact.requestId && <ChangeImpactView impact={impact.impact} />}
 
         <Detail label="Purpose" value={event.purpose} />
         <Detail label="Description" value={event.description} />

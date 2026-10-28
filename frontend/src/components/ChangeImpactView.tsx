@@ -1,20 +1,20 @@
 import Lozenge from "@atlaskit/lozenge";
-import type { ChangeImpact } from "../api/changeRequests.js";
-import { FLAG_LABELS } from "../shared/changeRequests.js";
+import type { ChangeImpact, FlaggedArrangement } from "../api/changeRequests.js";
+import { ARRANGEMENT_LABELS, FLAG_LABELS } from "../shared/changeRequests.js";
 import { formatInstant } from "../shared/status.js";
 
-/** S3 — the arrangements an approved change was assessed against, with any flag set on each. */
+/** S3 — the arrangements an approved change was assessed against (bookings, holds, booking requests, reservations), with any flag set on each. */
 export function ChangeImpactView({ impact }: { impact: ChangeImpact }) {
-  const flagsOf = (arrangement: "BOOKING" | "EQUIPMENT", id: string) =>
+  const flagsOf = (arrangement: FlaggedArrangement, id: string) =>
     impact.flags.filter((flag) => flag.arrangement === arrangement && flag.id === id);
 
   const empty = impact.bookings.length === 0 && impact.reservations.length === 0;
   const rows: { key: string; title: string; period: string; flags: ReturnType<typeof flagsOf> }[] = [
     ...impact.bookings.map((b) => ({
       key: `b-${b.id}`,
-      title: `Booking ${b.reference}, ${b.venueName}`,
+      title: `${ARRANGEMENT_LABELS[b.arrangement]} ${b.reference}, ${b.venueName}`,
       period: `${formatInstant(b.startsAt)} to ${formatInstant(b.endsAt)}`,
-      flags: flagsOf("BOOKING", b.id),
+      flags: flagsOf(b.arrangement, b.id),
     })),
     ...impact.reservations.map((r) => ({
       key: `r-${r.id}`,

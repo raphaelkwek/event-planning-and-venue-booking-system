@@ -53,8 +53,11 @@ export type ChangeDecision = { decision: "APPROVE" } | { decision: "REJECT"; rea
 
 export type ArrangementFlag = "REQUIRES_RECONFIRMATION" | "UNSUITABLE" | "FLAGGED_FOR_REVIEW";
 
+/** A confirmed booking, a held hold or a pending booking request at a venue, or an equipment reservation. */
+export type FlaggedArrangement = "BOOKING" | "HOLD" | "BOOKING_REQUEST" | "EQUIPMENT";
+
 export interface ImpactFlag {
-  arrangement: "BOOKING" | "EQUIPMENT";
+  arrangement: FlaggedArrangement;
   id: string;
   reference: string;
   name: string;
@@ -64,7 +67,7 @@ export interface ImpactFlag {
 
 /** S3 — mirrors `ChangeImpact` in documentation/api/planning-core.openapi.yaml. */
 export interface ChangeImpact {
-  bookings: { id: string; reference: string; venueName: string; startsAt: string; endsAt: string }[];
+  bookings: { arrangement: "BOOKING" | "HOLD" | "BOOKING_REQUEST"; id: string; reference: string; venueName: string; startsAt: string; endsAt: string }[];
   reservations: { id: string; equipmentTypeName: string; reservedQuantity: number; startsAt: string; endsAt: string }[];
   activeRegistrations: number;
   flags: ImpactFlag[];

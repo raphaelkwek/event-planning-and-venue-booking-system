@@ -3,7 +3,7 @@ import Lozenge from "@atlaskit/lozenge";
 import { useSignedIn } from "../auth/SessionContext.js";
 import { ApiError } from "../api/client.js";
 import { listArrangementFlags, type OutstandingFlag } from "../api/changeRequests.js";
-import { FLAG_LABELS } from "../shared/changeRequests.js";
+import { ARRANGEMENT_LABELS, FLAG_LABELS } from "../shared/changeRequests.js";
 import { Refusal } from "./Refusal.js";
 
 /**
@@ -42,9 +42,12 @@ export function OutstandingFlags({ eventId, refreshKey }: { eventId: string; ref
       {flags && flags.length > 0 && (
         <ul style={{ paddingLeft: 0, listStyle: "none" }}>
           {flags.map((flag) => (
-            <li key={`${flag.id}-${flag.flag}`} style={{ borderTop: "1px solid #DFE1E6", padding: "8px 0", fontSize: 13 }}>
+            <li
+              key={`${flag.arrangement}-${flag.id}-${flag.flag}-${flag.flaggedAt}`}
+              style={{ borderTop: "1px solid #DFE1E6", padding: "8px 0", fontSize: 13 }}
+            >
               <strong>
-                {flag.arrangement === "BOOKING" ? "Booking" : "Equipment"} {flag.reference}, {flag.name}
+                {ARRANGEMENT_LABELS[flag.arrangement]} {flag.reference}, {flag.name}
               </strong>{" "}
               <Lozenge appearance={flag.flag === "UNSUITABLE" ? "removed" : "moved"}>{FLAG_LABELS[flag.flag]}</Lozenge>
               <div>{flag.reason}</div>

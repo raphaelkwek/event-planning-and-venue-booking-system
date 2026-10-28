@@ -211,10 +211,12 @@ describe("the organiser's page", () => {
 const B1 = "b1000000-0000-4000-8000-000000000001";
 const B2 = "b2000000-0000-4000-8000-000000000002";
 const R1 = "r1000000-0000-4000-8000-000000000001";
+const Q1 = "q1000000-0000-4000-8000-000000000001";
 const impact = {
   bookings: [
-    { id: B1, reference: "BKG-000001", venueName: "Grand Theatre", startsAt: "2026-12-02T06:00:00.000Z", endsAt: "2026-12-02T10:00:00.000Z" },
-    { id: B2, reference: "BKG-000002", venueName: "Main Hall", startsAt: "2026-12-02T06:00:00.000Z", endsAt: "2026-12-02T10:00:00.000Z" },
+    { arrangement: "BOOKING", id: B1, reference: "BKG-000001", venueName: "Grand Theatre", startsAt: "2026-12-02T06:00:00.000Z", endsAt: "2026-12-02T10:00:00.000Z" },
+    { arrangement: "BOOKING", id: B2, reference: "BKG-000002", venueName: "Main Hall", startsAt: "2026-12-02T06:00:00.000Z", endsAt: "2026-12-02T10:00:00.000Z" },
+    { arrangement: "BOOKING_REQUEST", id: Q1, reference: "BKR-000003", venueName: "Lecture Hall C", startsAt: "2026-12-02T06:00:00.000Z", endsAt: "2026-12-02T10:00:00.000Z" },
   ],
   reservations: [{ id: R1, equipmentTypeName: "Projector", reservedQuantity: 2, startsAt: "2026-12-02T06:00:00.000Z", endsAt: "2026-12-02T10:00:00.000Z" }],
   activeRegistrations: 0,
@@ -222,6 +224,7 @@ const impact = {
     { arrangement: "BOOKING", id: B1, reference: "BKG-000001", name: "Grand Theatre", flag: "REQUIRES_RECONFIRMATION", reason: "The event's period changed." },
     { arrangement: "BOOKING", id: B1, reference: "BKG-000001", name: "Grand Theatre", flag: "UNSUITABLE", reason: "Expected attendance is now 150, but Grand Theatre holds 100 in the Theatre layout." },
     { arrangement: "BOOKING", id: B2, reference: "BKG-000002", name: "Main Hall", flag: "REQUIRES_RECONFIRMATION", reason: "The event's period changed." },
+    { arrangement: "BOOKING_REQUEST", id: Q1, reference: "BKR-000003", name: "Lecture Hall C", flag: "REQUIRES_RECONFIRMATION", reason: "The booking request's period changed." },
     { arrangement: "EQUIPMENT", id: R1, reference: R1, name: "Projector", flag: "FLAGGED_FOR_REVIEW", reason: "The event's period changed; check the equipment is still free." },
   ],
 };
@@ -241,8 +244,9 @@ describe("the impact of an approval", () => {
     expect(await screen.findByText("Affected arrangements")).toBeTruthy();
     expect(screen.getByText(/BKG-000001, Grand Theatre/)).toBeTruthy();
     expect(screen.getByText(/BKG-000002, Main Hall/)).toBeTruthy();
+    expect(screen.getByText("Booking request BKR-000003, Lecture Hall C")).toBeTruthy();
     expect(screen.getByText(/Projector, quantity 2/)).toBeTruthy();
-    expect(screen.getAllByText("Requires reconfirmation")).toHaveLength(2);
+    expect(screen.getAllByText("Requires reconfirmation")).toHaveLength(3);
     expect(screen.getByText("Unsuitable")).toBeTruthy();
     expect(screen.getByText("Flagged for review")).toBeTruthy();
     expect(screen.getByText(/Expected attendance is now 150, but Grand Theatre holds 100/)).toBeTruthy();
@@ -256,6 +260,28 @@ describe("the impact of an approval", () => {
     await approve();
     expect(await screen.findByText("No venue bookings or equipment reservations are affected.")).toBeTruthy();
     expect(screen.getByText("Registrations: 3")).toBeTruthy();
+  });
+
+  it("does not show an approval's impact once a later change request has been decided", async () => {
+    onDecision = () => reply({ changeRequest: approved, impact });
+    asCoordinator();
+    fireEvent.click(await screen.findByRole("button", { name: "Approve change" }));
+    // By the time the page reloads, the organiser has raised another change and it has been decided.
+    stored = [approved, { ...rejected, id: "c2", decidedAt: "2026-10-19T02:00:00.000Z" }];
+    fireEvent.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Confirm approval" }));
+    await screen.findByText(/Change rejected on /);
+    expect(screen.queryByText("Affected arrangements")).toBeNull();
+  });
+
+  it("does not show an approval's impact while a new change request is pending", async () => {
+    onDecision = () => reply({ changeRequest: approved, impact });
+    asCoordinator();
+    fireEvent.click(await screen.findByRole("button", { name: "Approve change" }));
+    stored = [approved, { ...pending, id: "c2", requestedAt: "2026-10-19T02:00:00.000Z" }];
+    fireEvent.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Confirm approval" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(await screen.findByRole("region", { name: "Pending change" })).toBeTruthy();
+    expect(screen.queryByText("Affected arrangements")).toBeNull();
   });
 
   it("shows no impact section after a rejection", async () => {
@@ -281,6 +307,7 @@ describe("the Outstanding flags section", () => {
     expect(await screen.findByText("Outstanding flags")).toBeTruthy();
     expect(screen.getByText("Equipment " + R1 + ", Projector")).toBeTruthy();
     expect(screen.getAllByText(/Booking BKG-000001, Grand Theatre/)).toHaveLength(2);
+    expect(screen.getByText("Booking request BKR-000003, Lecture Hall C")).toBeTruthy();
     expect(screen.getByText("Unsuitable")).toBeTruthy();
     expect(screen.getByText(/holds 100 in the Theatre layout/)).toBeTruthy();
   });
