@@ -441,6 +441,25 @@ describe("I2: tell the coordinator when a block disrupts, or stops disrupting, t
     );
   });
 
+  it("says a block with no end lasts until Venue Staff lift it, and that its removal ended it (I5-T8)", () => {
+    const openEnded = { ...disrupted, blockStartsAt: "2026-12-02T05:00:00.000Z", blockEndsAt: null };
+    expect(notificationsFor(message("venue-booking.booking-disrupted", openEnded))).toEqual(
+      one(
+        "venue-booking.booking-disrupted",
+        "Lee Kong Chian Auditorium is unavailable from Wednesday 2 December 2026, 13:00 until Venue Staff lift it " +
+          "(Maintenance: Stage rigging inspection), which disrupts booking BKR-000001 for EVT-2026-0042 “Freshmen Orientation”. " +
+          "The booking requires reconfirmation, and alternative arrangements are required.",
+      ),
+    );
+    expect(notificationsFor(message("venue-booking.disruption-cleared", { ...openEnded, stillDisrupted: false }))).toEqual(
+      one(
+        "venue-booking.disruption-cleared",
+        "The open-ended unavailability of Lee Kong Chian Auditorium from Wednesday 2 December 2026, 13:00 " +
+          "(Maintenance: Stage rigging inspection) was removed. Booking BKR-000001 for EVT-2026-0042 “Freshmen Orientation” no longer requires reconfirmation.",
+      ),
+    );
+  });
+
   it("says the venue's setup and turnaround time keep the flag, when no other block does (H3-T14)", () => {
     const still = (stillCause: string) =>
       notificationsFor(message("venue-booking.disruption-cleared", { ...disrupted, stillDisrupted: true, stillCause }))[0]!.message;

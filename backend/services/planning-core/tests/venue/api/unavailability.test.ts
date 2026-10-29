@@ -186,7 +186,7 @@ describe("POST /api/v1/venues/:id/unavailability (I2)", () => {
     expect((await list(venueId)).body.items.map((b: { id: string }) => b.id)).toEqual([res.body.block.id]);
   });
 
-  it("refuses a block missing any field, naming each, and creates nothing (I2-T2)", async () => {
+  it("refuses a block missing any field but the end, naming each, and creates nothing (I2-T2; the end became optional with I5)", async () => {
     const venueId = await newVenue("I2 Auditorium");
     signedInAs("VENUE_STAFF", STAFF);
 
@@ -194,7 +194,7 @@ describe("POST /api/v1/venues/:id/unavailability (I2)", () => {
 
     expect(res.status).toBe(400);
     expect(res.body.error.code).toBe("VALIDATION_FAILED");
-    expect(res.body.error.fields.map((f: { field: string }) => f.field)).toEqual(["startsAt", "endsAt", "reasonType", "description"]);
+    expect(res.body.error.fields.map((f: { field: string }) => f.field)).toEqual(["startsAt", "reasonType", "description"]);
     expect(await blockCount(venueId)).toBe(0);
   });
 

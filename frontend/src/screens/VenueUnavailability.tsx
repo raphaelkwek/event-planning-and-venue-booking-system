@@ -40,18 +40,22 @@ const KIND_LABELS: Record<Disrupted["kind"], [one: string, many: string]> = {
   REQUEST: ["booking request", "booking requests"],
 };
 
-/** The block as entered, or the message under each field that is wrong (I2-T2, I2-T3). */
+/**
+ * The block as entered, or the message under each field that is wrong (I2-T2, I2-T3). Leaving both end
+ * fields empty records a block with no end, which lasts until Venue Staff remove it (I5).
+ */
 function check(form: Form): { input: BlockInput } | { errors: Partial<Record<"startsAt" | "endsAt" | "reasonType" | "description", string>> } {
   const errors: Partial<Record<"startsAt" | "endsAt" | "reasonType" | "description", string>> = {};
   const startsAt = form.startDate && form.startTime ? fromInputs(form.startDate, form.startTime) : null;
   const endsAt = form.endDate && form.endTime ? fromInputs(form.endDate, form.endTime) : null;
   if (!startsAt) errors.startsAt = "Enter the start date and time.";
-  if (!endsAt) errors.endsAt = "Enter the end date and time.";
-  else if (startsAt && Date.parse(endsAt) <= Date.parse(startsAt)) errors.endsAt = "The end must be after the start.";
+  if (!endsAt && (form.endDate || form.endTime)) {
+    errors.endsAt = "Enter both the end date and the end time, or leave both empty for a block with no end.";
+  } else if (endsAt && startsAt && Date.parse(endsAt) <= Date.parse(startsAt)) errors.endsAt = "The end must be after the start.";
   if (!form.reasonType) errors.reasonType = "Choose a reason type.";
   if (form.description.trim() === "") errors.description = "Enter a description.";
   if (Object.keys(errors).length > 0) return { errors };
-  return { input: { startsAt: startsAt!, endsAt: endsAt!, reasonType: form.reasonType as ReasonType, description: form.description.trim() } };
+  return { input: { startsAt: startsAt!, endsAt, reasonType: form.reasonType as ReasonType, description: form.description.trim() } };
 }
 
 /** "1 booking now requires reconfirmation." or "2 bookings and 1 booking request now require reconfirmation." */
@@ -212,6 +216,9 @@ export function VenueUnavailability() {
           <Labelled id="block-end-time" label="End time">
             <input id="block-end-time" type="time" value={form.endTime} onChange={(e) => set("endTime")(e.currentTarget.value)} style={input} />
           </Labelled>
+          <p style={{ flexBasis: "100%", margin: "-8px 0 0", fontSize: 12, color: "#626F86" }}>
+            Leave both end fields empty for a block with no end: it lasts until you remove it.
+          </p>
           <Labelled id="block-reason" label="Reason type" error={errors.reasonType}>
             <select id="block-reason" value={form.reasonType} onChange={(e) => set("reasonType")(e.currentTarget.value)} style={input}>
               <option value="">Choose…</option>
