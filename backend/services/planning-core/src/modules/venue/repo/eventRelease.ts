@@ -21,13 +21,11 @@ export interface ReleasedArrangements {
 }
 
 /**
- * Releases the event's confirmed bookings and live holds, and withdraws its
- * pending requests, giving back any period a converted hold still holds. Call
- * inside F4's cancellation transaction. Each venue's row lock is taken first,
- * in a fixed order, as every booking change at a venue does (§4.6 rule 1), so
- * no approval or block at those venues interleaves.
+ * Locks the row of every venue where the event has a live arrangement, in a fixed order, as every booking
+ * change at a venue does (§4.6 rule 1). F4 calls this before it reads the arrangements `for share`, so its
+ * locks are taken venue first, then slot, the same order as M1's approval and I2's block.
  */
-export async function releaseVenueArrangementsForEvent(tx: TransactionSql, eventId: string, actorUserId: string): Promise<ReleasedArrangements> {
+export async function lockVenuesForEvent(tx: TransactionSql, eventId: string): Promise<void> {
   const venues = await tx<{ venue_id: string }[]>`
     select venue_id from venue.venue_slots where event_id = ${eventId} and status in ('HELD', 'CONFIRMED')
     union
@@ -37,6 +35,17 @@ export async function releaseVenueArrangementsForEvent(tx: TransactionSql, event
     order by venue_id
   `;
   for (const { venue_id } of venues) await lockVenue(tx, venue_id);
+}
+
+/**
+ * Releases the event's confirmed bookings and live holds, and withdraws its
+ * pending requests, giving back any period a converted hold still holds. Call
+ * inside F4's cancellation transaction. Each venue's row lock is taken first,
+ * in a fixed order, as every booking change at a venue does (§4.6 rule 1), so
+ * no approval or block at those venues interleaves.
+ */
+export async function releaseVenueArrangementsForEvent(tx: TransactionSql, eventId: string, actorUserId: string): Promise<ReleasedArrangements> {
+  await lockVenuesForEvent(tx, eventId);
 
   const holds = await releaseHoldsForEvent(tx, eventId, actorUserId);
 
