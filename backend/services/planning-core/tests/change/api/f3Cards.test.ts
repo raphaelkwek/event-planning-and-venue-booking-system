@@ -108,7 +108,7 @@ async function fixture() {
     .set(bearer)
     .send({ reason: "More guests", changes: { expectedAttendance: 160 } });
   expect(raised.status).toBe(201);
-  return { event, v1, b1: { id: b1!.id, reference }, chairs, l1, l2, cr: raised.body.changeRequest.id as string };
+  return { event, v1, b1: { id: b1!.id, reference }, chairs, l1, l2, cr: raised.body.id as string };
 }
 
 /** Everything a refusal must leave as it was: the event, its history, slots, lines, reservations, requests and messages. */
