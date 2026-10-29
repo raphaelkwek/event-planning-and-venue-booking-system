@@ -30,6 +30,7 @@ import { ChangeDecisionActions, DecidedChangeNotice } from "../components/Change
 import { PendingChangeNotice } from "../components/PendingChangeNotice.js";
 import { EquipmentRequirementsView, VenueRequirementsView } from "../components/Requirements.js";
 import { ConfirmArrangementsAction } from "../components/ConfirmArrangements.js";
+import { CancelEventAction, CancelledNotice, canCancelEvent } from "../components/CancelEvent.js";
 
 /**
  * D1, D2, D4, D5 — the coordinator's review screen.
@@ -183,6 +184,8 @@ export function ReviewDetail() {
           </div>
         )}
 
+        <CancelledNotice event={event} />
+
         {changesFailed && <p role="status" style={{ color: "#626F86", fontSize: 13 }}>Change requests couldn't be loaded.</p>}
         {pendingChange && (
           <section role="region" aria-label="Pending change">
@@ -275,6 +278,13 @@ export function ReviewDetail() {
         {event.assignedCoordinatorId === session.userId && (event.status === "APPROVED" || event.status === "PLANNING") && (
           <div style={{ marginTop: 12 }}>
             <ConfirmArrangementsAction eventId={event.id} token={session.token} onConfirmed={() => void load()} />
+          </div>
+        )}
+
+        {/* F3 — the assigned coordinator, until the event is Completed, Rejected or Cancelled. */}
+        {canCancelEvent(event, session) && (
+          <div style={{ marginTop: 12 }}>
+            <CancelEventAction eventId={event.id} token={session.token} onCancelled={() => void load()} />
           </div>
         )}
 

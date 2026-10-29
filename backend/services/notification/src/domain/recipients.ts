@@ -248,6 +248,7 @@ const RULES: Record<string, Rule> = {
   // F5: the owner, the Venue Staff of each booked venue (once per booking), and each Technical
   // Support Staff member who reserved equipment (once, listing what they reserved).
   "event.arrangements-confirmed": (d, event) => arrangementsConfirmed(d as unknown as ArrangementsConfirmed, event),
+  "event.cancelled": (d, event) => eventCancelled(d as unknown as EventCancelled, event),
 };
 
 /** F5's message data, as its contract (`eventArrangementsConfirmedPayloadSchema`) validated it. */
@@ -275,6 +276,47 @@ function arrangementsConfirmed(d: ArrangementsConfirmed, event: string): Array<[
     notices.push([reserver, `${event} has confirmed its arrangements, including the equipment you reserved: ${reserved}. ${inReview}`]);
   }
   return notices;
+}
+
+/** F3's message data, as its contract (`eventCancelledPayloadSchema`) validated it. */
+interface EventCancelled {
+  ownerId: string;
+  assignedCoordinatorId: string | null;
+  reason: string;
+  bookings: { reference: string; venueName: string; startsAt: string; endsAt: string; staffIds: string[] }[];
+  reservations: { equipmentTypeName: string; reservedQuantity: number; reservedBy: string }[];
+}
+
+/**
+ * F3 AC6 — the owner, the assigned coordinator, the Venue Staff of each booked venue and whoever reserved
+ * each reservation, each told once about all of theirs. Someone with two roles on the event gets the first
+ * notice that names them.
+ */
+function eventCancelled(d: EventCancelled, event: string): Array<[string, string]> {
+  const cancelled = `${event} has been cancelled. Reason: ${d.reason}`;
+  const notices = new Map<string, string>();
+  const tell = (recipient: string, text: string) => {
+    if (!notices.has(recipient)) notices.set(recipient, text);
+  };
+  tell(d.ownerId, `Your event ${cancelled}`);
+  if (d.assignedCoordinatorId) tell(d.assignedCoordinatorId, `The event ${cancelled}`);
+  const staff = [...new Set(d.bookings.flatMap((booking) => booking.staffIds))];
+  for (const staffId of staff) {
+    const booked = d.bookings
+      .filter((booking) => booking.staffIds.includes(staffId))
+      .map((booking) => `booking ${booking.reference} at ${booking.venueName}, ${period(booking.startsAt, booking.endsAt)}`)
+      .join("; ");
+    tell(staffId, `${cancelled} It had ${booked}.`);
+  }
+  const reservers = [...new Set(d.reservations.map((reservation) => reservation.reservedBy))];
+  for (const reserver of reservers) {
+    const reserved = d.reservations
+      .filter((reservation) => reservation.reservedBy === reserver)
+      .map((reservation) => `${reservation.equipmentTypeName} × ${reservation.reservedQuantity}`)
+      .join(", ");
+    tell(reserver, `${cancelled} It had the equipment you reserved: ${reserved}.`);
+  }
+  return [...notices];
 }
 
 /** The notifications a message raises; none for a type no story asks to notify about. */

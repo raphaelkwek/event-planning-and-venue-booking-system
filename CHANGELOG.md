@@ -4,6 +4,31 @@
 
 ---
 
+# F3: Cancel an event
+
+**Timestamp:** 2026-10-29T19:10+08:00 (SGT)
+**Author:** Raphael, via Claude
+**Scope:** F3 (SPM-29, Sprint 4) and the customer's Week 9 answer W9-07. F4 (SPM-111) is stacked on this branch and adds the releases to
+the same transaction; the two should merge together (Gate B: "cancellation is one command with F4").
+- planning-core, event module: migrations `0012_event_cancellation.sql` and `0013_validate_event_cancellation.sql` (the reason, canceller and
+  time, tied to the Cancelled status by a check). F1's table gains `CANCEL` (every status but Completed, Rejected and Cancelled → Cancelled).
+  `cancelEventRecord` applies it and writes `event.cancelled`. The event detail returns `cancellationReason`, `cancelledBy` and `cancelledAt`.
+  Numbered 0012 because E4 and E5 (open) take 0010 and 0011.
+- planning-core, change module: `POST /api/v1/events/{id}/cancellation` (owner or assigned coordinator, mandatory reason), one transaction
+  that locks the pending change request and then the event, as S2 does. Migrations `0004_close_on_cancellation.sql` and
+  `0005_validate_close_on_cancellation.sql` add the `CLOSED` change-request status and `closed_reason` (W9-07).
+- planning-core, equipment module: recording request lines and reserving a line are refused for a cancelled event (409 `EVENT_CANCELLED`),
+  checked with the event locked `for share` inside the write.
+- contracts: `event.cancelled`, and the error codes `EVENT_CANCELLED` and `CANCELLATION_FAILED`.
+- notification: `event.cancelled` tells the owner, the coordinator, each booked venue's Venue Staff and each reserver, once each.
+- web: **Cancel event** for the owner and the assigned coordinator, with the reason in a confirmation dialog; a Cancelled banner with the
+  reason and date; a closed change request shown as closed.
+- Tests: `tests/F3/` (F3-T1 to F3-T9), `tests/change/api/f3Cards.test.ts`, `frontend/tests/cancelEvent.test.tsx`; tests that put an event in
+  Cancelled directly now record a reason (`setStatusDirect`).
+- **Deploy order:** migrate event (0012, 0013) and change (0004, 0005) before deploying planning-core; deploy the notification service with it.
+
+---
+
 # I5: Record a block with no end
 
 **Timestamp:** 2026-10-24T03:48+08:00 (SGT)

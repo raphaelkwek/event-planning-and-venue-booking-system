@@ -91,6 +91,24 @@ const EXAMPLE_DATA: Record<EventMessageType, Record<string, unknown>> = {
       },
     ],
   },
+  "event.cancelled": {
+    ...ref,
+    ownerId: organiser,
+    assignedCoordinatorId: coordinator,
+    reason: "The speaker withdrew.",
+    cancelledBy: organiser,
+    cancelledAt: at,
+    bookings: [
+      {
+        reference: "BKR-000042",
+        venueName: "Lee Kong Chian Auditorium",
+        startsAt: "2026-12-02T06:00:00.000Z",
+        endsAt: "2026-12-02T10:00:00.000Z",
+        staffIds: ["00000000-0000-0000-0000-000000000003"],
+      },
+    ],
+    reservations: [{ equipmentTypeName: "Folding Chairs", reservedQuantity: 40, reservedBy: "00000000-0000-0000-0000-000000000004" }],
+  },
   "event.status-changed": {
     eventId,
     ownerId: organiser,
@@ -157,6 +175,16 @@ describe("parseCloudEvent: an example message for every event type", () => {
   it("refuses an arrangements confirmation with no booking (F5 needs at least one)", () => {
     const data = { ...EXAMPLE_DATA["event.arrangements-confirmed"], bookings: [] };
     expect(() => parseCloudEvent(exampleMessage("event.arrangements-confirmed", data))).toThrow(/bookings/);
+  });
+
+  it("accepts a cancellation of an unassigned event with nothing booked or reserved (F3)", () => {
+    const data = { ...EXAMPLE_DATA["event.cancelled"], assignedCoordinatorId: null, bookings: [], reservations: [] };
+    expect(parseCloudEvent(exampleMessage("event.cancelled", data)).data).toMatchObject({ assignedCoordinatorId: null });
+  });
+
+  it("refuses a cancellation with no reason (F3 AC2)", () => {
+    const data = { ...EXAMPLE_DATA["event.cancelled"], reason: "" };
+    expect(() => parseCloudEvent(exampleMessage("event.cancelled", data))).toThrow(/reason/);
   });
 
   it("refuses a type it has no schema for, naming the type", () => {

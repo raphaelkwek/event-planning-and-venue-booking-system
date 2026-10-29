@@ -123,6 +123,38 @@ export const eventArrangementsConfirmedPayloadSchema = z.object({
 });
 
 /**
+ * F3 — the event was cancelled, with its reason. It names everyone F3 notifies:
+ * the owner, the assigned coordinator, the Venue Staff of each booked venue and
+ * whoever reserved each reservation. With F4, each booking and reservation
+ * listed has been released in the same transaction. A cancelled draft has no
+ * reference and nobody else to tell, so it writes no message.
+ */
+export const eventCancelledPayloadSchema = z.object({
+  ...eventRef,
+  ownerId: z.string().uuid(),
+  assignedCoordinatorId: z.string().uuid().nullable(),
+  reason: z.string().min(1),
+  cancelledBy: z.string().uuid(),
+  cancelledAt: z.string().datetime(),
+  bookings: z.array(
+    z.object({
+      reference: z.string().min(1),
+      venueName: z.string().min(1),
+      startsAt: z.string().datetime(),
+      endsAt: z.string().datetime(),
+      staffIds: z.array(z.string().uuid()),
+    })
+  ),
+  reservations: z.array(
+    z.object({
+      equipmentTypeName: z.string().min(1),
+      reservedQuantity: z.number().int().positive(),
+      reservedBy: z.string().uuid(),
+    })
+  ),
+});
+
+/**
  * EN-11 — every change of an event's status, whatever caused it. The event
  * module writes it in `transitionEvent`, the one path that changes a status,
  * so a consumer that cares about a status (the completion workflow cares about
@@ -169,6 +201,7 @@ export const EVENT_PAYLOAD_SCHEMAS = {
   "event.reassignment-accepted": eventReassignmentAcceptedPayloadSchema,
   "event.reassignment-declined": eventReassignmentDeclinedPayloadSchema,
   "event.arrangements-confirmed": eventArrangementsConfirmedPayloadSchema,
+  "event.cancelled": eventCancelledPayloadSchema,
   "event.status-changed": eventStatusChangedPayloadSchema,
   "event.schedule-changed": eventScheduleChangedPayloadSchema,
 } as const;

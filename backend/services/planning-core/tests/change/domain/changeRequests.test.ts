@@ -183,6 +183,12 @@ describe("alreadyDecidedMessage (S2)", () => {
     );
     expect(alreadyDecidedMessage("REJECTED", "2026-12-01T10:00:00.000Z")).toContain(DECISION_LABELS.REJECTED);
   });
+
+  it("says a closed request was closed because its event was cancelled (F3, W9-07)", () => {
+    expect(alreadyDecidedMessage("CLOSED", "2026-12-01T10:00:00.000Z")).toBe(
+      "This change request was closed on 2026-12-01T10:00:00.000Z because the event was cancelled."
+    );
+  });
 });
 
 describe("staleFields (S2)", () => {

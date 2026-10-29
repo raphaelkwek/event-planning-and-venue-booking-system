@@ -7,7 +7,7 @@ import { EVENT_STATUS_LABELS, type EventStatus } from "@connectsphere/contracts"
  *
  * `transitionEvent` (api/transitionEvent.ts) is the only code that applies a
  * row of this table, and the only code that writes an event's status. Later
- * stories (F3 cancellation, S2, U1's reject once CQ-08 is answered) add rows
+ * stories (S2, U1's reject once CQ-08 is answered) add rows
  * here rather than writing status themselves.
  */
 export type EventAction =
@@ -20,7 +20,8 @@ export type EventAction =
   | "CONFIRM_ARRANGEMENTS"
   | "APPROVE_SAFETY"
   | "REQUEST_SAFETY_CHANGES"
-  | "COMPLETE";
+  | "COMPLETE"
+  | "CANCEL";
 
 export interface TransitionRule {
   readonly from: readonly EventStatus[];
@@ -49,6 +50,23 @@ const TRANSITIONS: Record<EventAction, TransitionRule> = {
   // completes, and only once its end has passed (checked where the transition
   // is applied, in transitionEvent).
   COMPLETE: { from: ["CONFIRMED"], to: "COMPLETED" },
+  // F3 — the owning organiser or the assigned coordinator cancels, at any point
+  // before the event is Completed, Rejected or Cancelled (AC1), a draft too. The
+  // reason, user and time are set in the same statement, and F4 releases the
+  // event's arrangements in the same transaction.
+  CANCEL: {
+    from: [
+      "DRAFT",
+      "SUBMITTED",
+      "UNDER_REVIEW",
+      "AWAITING_CLARIFICATION",
+      "APPROVED",
+      "PLANNING",
+      "SAFETY_REVIEW",
+      "CONFIRMED",
+    ],
+    to: "CANCELLED",
+  },
 };
 
 export function transitionRule(action: EventAction): TransitionRule {

@@ -125,6 +125,16 @@ export function DecidedChangeNotice({ request }: { request: ChangeRequest }) {
   const when = request.decidedAt ? new Date(request.decidedAt).toLocaleDateString() : "";
   const fields = request.fields.map((field) => SIGNIFICANT_FIELD_LABELS[field.fieldName]).join(", ");
   const approved = request.status === "APPROVED";
+  if (request.status === "CLOSED") {
+    return (
+      <div style={{ marginBottom: 16 }}>
+        <SectionMessage appearance="information" title="Change request closed">
+          <p style={{ margin: 0 }}>Closed on {when}, without a decision: {request.closedReason ?? ""}</p>
+          <p style={{ marginBottom: 0, fontSize: 12 }}>Requested: {fields}</p>
+        </SectionMessage>
+      </div>
+    );
+  }
   return (
     <div style={{ marginBottom: 16 }}>
       <SectionMessage appearance={approved ? "success" : "error"} title={approved ? "Change approved" : "Change rejected"}>

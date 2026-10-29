@@ -44,6 +44,10 @@ export interface EventRow extends EventFields {
   decidedBy: string | null;
   decidedAt: string | null;
   rejectionReason: string | null;
+  /** F3: why, by whom and when the event was cancelled; null unless it is Cancelled. */
+  cancellationReason: string | null;
+  cancelledBy: string | null;
+  cancelledAt: string | null;
   assignedCoordinatorId: string | null;
   /** G1: free text, such as a name, email and phone number. */
   contactDetails: string | null;
@@ -76,6 +80,9 @@ export interface RawEvent {
   decided_by: string | null;
   decided_at: Date | null;
   rejection_reason: string | null;
+  cancellation_reason: string | null;
+  cancelled_by: string | null;
+  cancelled_at: Date | null;
   assigned_coordinator_id: string | null;
   contact_details: string | null;
   version: number;
@@ -107,6 +114,9 @@ export function toEvent(row: RawEvent): EventRow {
     decidedBy: row.decided_by,
     decidedAt: row.decided_at?.toISOString() ?? null,
     rejectionReason: row.rejection_reason,
+    cancellationReason: row.cancellation_reason ?? null,
+    cancelledBy: row.cancelled_by ?? null,
+    cancelledAt: row.cancelled_at?.toISOString() ?? null,
     assignedCoordinatorId: row.assigned_coordinator_id ?? null,
     contactDetails: row.contact_details ?? null,
     version: row.version,
@@ -337,6 +347,11 @@ export function decisionColumns(
   rejectionReason: string | null
 ): Fragment {
   return tx`decided_by = ${deciderId}, decided_at = now(), rejection_reason = ${rejectionReason},`;
+}
+
+/** F3 — why, by whom and when the event was cancelled (AC3). */
+export function cancellationColumns(tx: TransactionSql, cancelledBy: string, reason: string): Fragment {
+  return tx`cancellation_reason = ${reason}, cancelled_by = ${cancelledBy}, cancelled_at = now(),`;
 }
 
 /** D1 — the coordinator who opened the request, and when. */
