@@ -197,7 +197,9 @@ const RULES: Record<string, Rule> = {
     [
       d.coordinatorId!,
       `${blockedPeriod(d)}, which disrupts ${disruptedThing(d.kind!)} ${d.reference} for ${event}. ` +
-        `The ${d.kind === "REQUEST" ? "request" : d.kind === "HOLD" ? "hold" : "booking"} requires reconfirmation, and alternative arrangements are required.`,
+        `The ${d.kind === "REQUEST" ? "request" : d.kind === "HOLD" ? "hold" : "booking"} requires reconfirmation, and alternative arrangements are required.` +
+        // I3, W9-51: only the coordinator is told now; the organiser and attendees when a replacement or change is approved.
+        ((d.eventReturnedToPlanning as unknown) === true ? ` ${event} has returned to Planning and must be confirmed again.` : ""),
     ],
   ],
   // I2: the block was removed; the flag clears unless other unavailability, or H3-T14 the venue's

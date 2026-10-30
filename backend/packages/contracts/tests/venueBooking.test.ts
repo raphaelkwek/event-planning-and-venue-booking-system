@@ -167,6 +167,14 @@ describe("venue-booking.booking-disrupted and venue-booking.disruption-cleared (
     }
   });
 
+  it("says, when it did, that the block returned the Confirmed event to Planning (I3-T4)", () => {
+    const returned = { ...disrupted, eventReturnedToPlanning: true };
+    expect(parseCloudEvent(message("venue-booking.booking-disrupted", returned)).data).toEqual(returned);
+    expect(() =>
+      parseCloudEvent(message("venue-booking.booking-disrupted", { ...disrupted, eventReturnedToPlanning: "yes" })),
+    ).toThrow(/eventReturnedToPlanning/);
+  });
+
   it("accepts a block with no end, carrying a null end, but not a missing or malformed one (I5-T8)", () => {
     for (const type of ["venue-booking.booking-disrupted", "venue-booking.disruption-cleared"]) {
       const data = { ...(type.endsWith("cleared") ? cleared : disrupted), blockEndsAt: null };

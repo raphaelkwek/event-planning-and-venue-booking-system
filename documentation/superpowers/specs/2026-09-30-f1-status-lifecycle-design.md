@@ -233,3 +233,9 @@ already removes every request owned by the seeded organisers, so it cleans up to
   `Promise.all` tests, which can pass without contention.
 - **§4's before-code card confirmation was waived for F1** by the team (decision recorded in §4);
   `main` is now branch-protected (SPM-115), so every F1 change merges through a reviewed PR.
+- **I3 (Week 9, W9-50) added `VENUE_BLOCKED`, Confirmed → Planning.** An unavailability block (I2)
+  over a confirmed booking of a Confirmed event returns it to Planning, never to Cancelled, with
+  the Venue Staff member as the actor. The event module's `returnBlockedEventsToPlanning()` applies
+  it inside the block's transaction, through `transitionEvent()`. It locks the events after the
+  venue row and before the bookings, F5's order. From Planning the event passes F5 and the safety
+  check (U1) again. This also closes §5's first point for one route into Planning.

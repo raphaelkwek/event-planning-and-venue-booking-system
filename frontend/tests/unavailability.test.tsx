@@ -29,7 +29,7 @@ function block(overrides: Record<string, unknown> = {}) {
 }
 
 const DISRUPTED = [
-  { kind: "BOOKING", reference: "BKR-000001", eventReference: "EVT-000123", overlapFrom: "2026-12-02T08:00:00.000Z", overlapUntil: "2026-12-02T10:00:00.000Z" },
+  { kind: "BOOKING", reference: "BKR-000001", eventReference: "EVT-000123", overlapFrom: "2026-12-02T08:00:00.000Z", overlapUntil: "2026-12-02T10:00:00.000Z", returnsEventToPlanning: false },
 ];
 
 type Fn = (...args: unknown[]) => Promise<unknown>;
@@ -174,6 +174,44 @@ describe("recording unavailability (I2)", () => {
     expect(text(row)).toContain("Wednesday 2 December 2026, 16:00–19:00");
     expect(text(row)).toContain("Maintenance");
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  });
+
+  it("says beforehand which Confirmed events will return to Planning, and afterwards that they have (I3-T1)", async () => {
+    const returning = [
+      { ...DISRUPTED[0]!, returnsEventToPlanning: true },
+      { ...DISRUPTED[0]!, reference: "BKR-000002", returnsEventToPlanning: true },
+      { ...DISRUPTED[0]!, reference: "BKR-000003", eventReference: "EVT-000124", returnsEventToPlanning: false },
+    ];
+    reviewBlock.mockResolvedValueOnce({ items: returning });
+    recordBlock.mockResolvedValueOnce({ block: block(), disrupted: returning });
+    await openScreen();
+    fill(WHOLE);
+    fireEvent.click(screen.getByRole("button", { name: "Review" }));
+
+    const dialog = await screen.findByRole("dialog");
+    expect(text(dialog)).toContain("EVT-000123 is Confirmed and will return to Planning, to be confirmed again. It won't be cancelled.");
+    expect(text(dialog)).not.toContain("EVT-000124 is Confirmed");
+    fireEvent.click(within(dialog).getByRole("button", { name: "Record unavailability" }));
+
+    expect(await screen.findByText("Unavailability recorded. 3 bookings now require reconfirmation. EVT-000123 has returned to Planning.")).toBeTruthy();
+  });
+
+  it("names several returning events together", async () => {
+    const two = [
+      { ...DISRUPTED[0]!, returnsEventToPlanning: true },
+      { ...DISRUPTED[0]!, reference: "BKR-000003", eventReference: "EVT-000124", returnsEventToPlanning: true },
+    ];
+    reviewBlock.mockResolvedValueOnce({ items: two });
+    recordBlock.mockResolvedValueOnce({ block: block(), disrupted: two });
+    await openScreen();
+    fill(WHOLE);
+    fireEvent.click(screen.getByRole("button", { name: "Review" }));
+
+    const dialog = await screen.findByRole("dialog");
+    expect(text(dialog)).toContain("EVT-000123 and EVT-000124 are Confirmed and will return to Planning, to be confirmed again. They won't be cancelled.");
+    fireEvent.click(within(dialog).getByRole("button", { name: "Record unavailability" }));
+
+    expect(await screen.findByText(/EVT-000123 and EVT-000124 have returned to Planning\.$/)).toBeTruthy();
   });
 
   it("says when nothing is disrupted (I2-T1)", async () => {
