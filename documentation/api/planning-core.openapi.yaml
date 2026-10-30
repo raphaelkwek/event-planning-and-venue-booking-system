@@ -3189,6 +3189,19 @@ components:
         eventReference:
           type: [string, "null"]
           description: On BOOKING, SETUP and TURNAROUND. Null if the event can no longer be found.
+        bufferOverlaps:
+          type: array
+          description: |
+            I6: only on a BOOKING whose booking, hold or pending request is flagged Requires
+            Reconfirmation by a change of the venue's setup or turnaround time (H3). Each live
+            arrangement it now overlaps, by reference and its event's reference, soonest first. Gone
+            once the conflict is cleared.
+          items:
+            type: object
+            required: [reference, eventReference]
+            properties:
+              reference: { type: string }
+              eventReference: { type: [string, "null"] }
         reasonType:
           type: string
           enum: [MAINTENANCE, EQUIPMENT_FAILURE, RENOVATION, SAFETY, OTHER]

@@ -3,7 +3,7 @@ import { rateLimit } from "express-rate-limit";
 import type { Sql } from "postgres";
 import { findEventReferences } from "../../event/index.js";
 import { authenticate, requireRole, type ActorRequest } from "../auth/actor.js";
-import { assembleCalendar, CALENDAR_TIME_ZONE, calendarDays, readCalendarRange } from "../domain/availabilityCalendar.js";
+import { assembleCalendar, CALENDAR_TIME_ZONE, calendarDays, calendarEventIds, readCalendarRange } from "../domain/availabilityCalendar.js";
 import { readAvailability } from "../repo/availability.js";
 import { findVenue } from "../repo/venues.js";
 import { refuse } from "./errors.js";
@@ -52,7 +52,7 @@ export function availabilityRouter(sql: Sql) {
       }
 
       const rows = await readAvailability(sql, venue.id, calendarDays(range.range.dates, venue.operatingHours));
-      const eventIds = [...new Set(rows.flatMap((row) => (row.eventId ? [row.eventId] : [])))];
+      const eventIds = calendarEventIds(rows);
       const references = await findEventReferences(sql, eventIds);
 
       res.json({
