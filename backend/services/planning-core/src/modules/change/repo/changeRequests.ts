@@ -20,13 +20,15 @@ export interface ChangeRequestRecord {
   id: string;
   eventId: string;
   eventReference: string;
-  status: "PENDING" | "APPROVED" | "REJECTED";
+  status: "PENDING" | "APPROVED" | "REJECTED" | "CLOSED";
   reason: string;
   requestedBy: string;
   requestedAt: string;
   decidedBy: string | null;
   decidedAt: string | null;
   rejectionReason: string | null;
+  /** F3: why the request was closed without a decision; null unless it is Closed. */
+  closedReason: string | null;
   fields: ChangeRequestFieldRecord[];
 }
 
@@ -56,6 +58,7 @@ interface RequestRow {
   decided_by: string | null;
   decided_at: Date | null;
   rejection_reason: string | null;
+  closed_reason: string | null;
 }
 
 interface FieldRow {
@@ -93,6 +96,7 @@ async function withFields(db: Db, rows: RequestRow[]): Promise<ChangeRequestReco
     decidedBy: row.decided_by,
     decidedAt: row.decided_at ? row.decided_at.toISOString() : null,
     rejectionReason: row.rejection_reason,
+    closedReason: row.closed_reason,
     fields: fieldRows
       .filter((field) => field.request_id === row.id && isSignificantEventField(field.field_name))
       .sort(
@@ -127,7 +131,7 @@ export async function insertChangeRequest(
         insert into change.change_requests (event_id, event_reference, requested_by, reason, created_by, updated_by)
         values (${input.event.id}, ${input.event.reference}, ${input.actorId}, ${input.reason}, ${input.actorId}, ${input.actorId})
         returning id, event_id, event_reference, status, reason, requested_by, requested_at,
-      decided_by, decided_at, rejection_reason
+      decided_by, decided_at, rejection_reason, closed_reason
       `
     );
     row = inserted[0]!;
@@ -152,7 +156,7 @@ export async function insertChangeRequest(
 export async function findPendingForEvent(db: Db, eventId: string): Promise<ChangeRequestRecord | null> {
   const rows = await db<RequestRow[]>`
     select id, event_id, event_reference, status, reason, requested_by, requested_at,
-      decided_by, decided_at, rejection_reason
+      decided_by, decided_at, rejection_reason, closed_reason
     from change.change_requests
     where event_id = ${eventId} and status = 'PENDING'
   `;
@@ -163,7 +167,7 @@ export async function findPendingForEvent(db: Db, eventId: string): Promise<Chan
 export async function listForEvent(db: Db, eventId: string): Promise<ChangeRequestRecord[]> {
   const rows = await db<RequestRow[]>`
     select id, event_id, event_reference, status, reason, requested_by, requested_at,
-      decided_by, decided_at, rejection_reason
+      decided_by, decided_at, rejection_reason, closed_reason
     from change.change_requests
     where event_id = ${eventId}
     order by requested_at desc, id
@@ -175,7 +179,7 @@ export async function listForEvent(db: Db, eventId: string): Promise<ChangeReque
 export async function lockRequest(tx: TransactionSql, id: string): Promise<ChangeRequestRecord | null> {
   const rows = await tx<RequestRow[]>`
     select id, event_id, event_reference, status, reason, requested_by, requested_at,
-      decided_by, decided_at, rejection_reason
+      decided_by, decided_at, rejection_reason, closed_reason
     from change.change_requests
     where id = ${id}
     for update
@@ -195,7 +199,41 @@ export async function recordDecision(
         rejection_reason = ${decision.reason}, updated_at = now(), updated_by = ${decision.actorId}
     where id = ${id}
     returning id, event_id, event_reference, status, reason, requested_by, requested_at,
-      decided_by, decided_at, rejection_reason
+      decided_by, decided_at, rejection_reason, closed_reason
   `;
   return (await withFields(tx, rows))[0]!;
+}
+
+/** F3 (W9-07) — why a request still pending when its event was cancelled was closed. */
+export const CLOSED_BY_CANCELLATION = "The event was cancelled.";
+
+/**
+ * F3 — locks the event's pending request, if there is one, until the transaction ends. The cancellation
+ * calls this before it locks the event, because S2 locks the request and then the event: taking them in
+ * the same order means a decision and a cancellation wait for each other instead of deadlocking.
+ */
+export async function lockPendingForEvent(tx: TransactionSql, eventId: string): Promise<void> {
+  await tx`select id from change.change_requests where event_id = ${eventId} and status = 'PENDING' for update`;
+}
+
+/**
+ * F3 (W9-07) — closes the event's pending request, if there is one, recording who closed it, when, and
+ * why. Call inside the cancellation's transaction, after `lockPendingForEvent` and the event's lock. A
+ * decision that got the request first has committed by then and left nothing pending; one that came
+ * later finds the request Closed.
+ */
+export async function closePendingForCancelledEvent(
+  tx: TransactionSql,
+  eventId: string,
+  actorId: string
+): Promise<ChangeRequestRecord | null> {
+  const rows = await tx<RequestRow[]>`
+    update change.change_requests
+    set status = 'CLOSED', decided_by = ${actorId}, decided_at = clock_timestamp(),
+        closed_reason = ${CLOSED_BY_CANCELLATION}, updated_at = now(), updated_by = ${actorId}
+    where event_id = ${eventId} and status = 'PENDING'
+    returning id, event_id, event_reference, status, reason, requested_by, requested_at,
+      decided_by, decided_at, rejection_reason, closed_reason
+  `;
+  return (await withFields(tx, rows))[0] ?? null;
 }

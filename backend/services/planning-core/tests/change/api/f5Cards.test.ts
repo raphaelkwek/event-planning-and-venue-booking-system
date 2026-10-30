@@ -5,7 +5,7 @@ import { KAFKA_TOPICS, parseCloudEvent, type EventStatus } from "@connectsphere/
 import { notificationsFor } from "../../../../notification/src/domain/recipients.js";
 import { testDb } from "../../support/testDb.js";
 import { actorsWithPrefix, cleanLineFixtures, createBulkType, insertLineDirect } from "../../support/lineFixtures.js";
-import { seedEvent } from "../../support/seedEvent.js";
+import { seedEvent, setStatusDirect } from "../../support/seedEvent.js";
 import { EVENT_END, EVENT_START } from "../../support/eventDates.js";
 import { disruptedBy, flagDisruptions, insertBlock } from "../../../src/modules/venue/repo/unavailability.js";
 
@@ -272,7 +272,7 @@ describe("F5 cards (tests/F5)", () => {
       // Built Approved, so Q1's route can reserve the line, then moved to the status under test
       // directly: most of these statuses can't be reached through a story yet, or not from Approved.
       const { event } = await fixture();
-      await sql`update event.events set status = ${status} where id = ${event.id}`;
+      await setStatusDirect(sql, event.id, status);
       const response = await refusedLeavingNothing(event.id, 409, "STATUS_TRANSITION_NOT_PERMITTED");
       expect(response.body.error.message).toBe(`This event is ${label} and cannot move to Safety Review.`);
     }

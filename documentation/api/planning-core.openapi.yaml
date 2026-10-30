@@ -1171,6 +1171,70 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
 
+  /api/v1/events/{id}/cancellation:
+    parameters:
+      - $ref: "#/components/parameters/RecordId"
+    post:
+      tags: [Decisions]
+      summary: Cancel an event (F3)
+      description: |
+        The owning organiser or the assigned coordinator, at any point before the event is Completed,
+        Rejected or Cancelled. A reason is mandatory. In one transaction the event becomes Cancelled
+        with the reason, user and time recorded and a history entry; a change request still pending
+        is Closed (W9-07); and the owner, the coordinator, each booked venue's Venue Staff and each
+        reserver are notified (`event.cancelled`). Any failure rolls all of it back. A refusal stores nothing.
+      operationId: cancelEvent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason: { type: string, minLength: 1, maxLength: 1000, description: Trimmed; must not be blank. }
+      responses:
+        "200":
+          description: The event, now Cancelled, and the change request it closed, if any.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [event, closedChangeRequest]
+                properties:
+                  event: { $ref: "#/components/schemas/CancelledEvent" }
+                  closedChangeRequest:
+                    oneOf:
+                      - $ref: "#/components/schemas/ChangeRequest"
+                      - type: "null"
+        "400":
+          description: "`VALIDATION_FAILED`: no reason, a blank one, or one over 1,000 characters (field `reason`). Nothing is changed."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403":
+          description: "`ROLE_NOT_AUTHORISED`: not an Event Organiser or Event Coordinator, or neither the owner nor the assigned coordinator."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "404":
+          description: "`EVENT_NOT_FOUND`: no event with that id, or it is outside the caller's scope (A3)."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "409":
+          description: "`STATUS_TRANSITION_NOT_PERMITTED`: the event is Completed, Rejected or already Cancelled. The message names its status."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "429": { $ref: "#/components/responses/RateLimitExceeded" }
+        "500":
+          description: "`CANCELLATION_FAILED`: something failed, so the whole cancellation was rolled back. The event keeps its status."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+
   /api/v1/venues:
     get:
       tags: [Venues]
@@ -1765,6 +1829,11 @@ paths:
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: "`EVENT_CANCELLED`: the event has been cancelled, so no equipment can be requested for it (F3)."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
         "429": { $ref: "#/components/responses/RateLimitExceeded" }
         "503": { $ref: "#/components/responses/IdentityUnavailable" }
 
@@ -1933,7 +2002,7 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
         "409":
-          description: "`LINE_NOT_RESERVABLE` (the message names the status), `PARTIAL_NOT_CONFIRMED`, or `INSUFFICIENT_EQUIPMENT` with `details.available` and `details.shortfall`."
+          description: "`LINE_NOT_RESERVABLE` (the message names the status), `PARTIAL_NOT_CONFIRMED`, `INSUFFICIENT_EQUIPMENT` with `details.available` and `details.shortfall`, or `EVENT_CANCELLED` when the event has been cancelled (F3)."
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
@@ -2936,6 +3005,8 @@ components:
         - STATUS_NOT_ASSIGNABLE
         - EVENT_NOT_ASSIGNED
         - REASSIGNMENT_RETIRED
+        - EVENT_CANCELLED
+        - CANCELLATION_FAILED
 
     ErrorEnvelope:
       type: object
@@ -3107,7 +3178,7 @@ components:
       allOf:
         - $ref: "#/components/schemas/RequestFields"
         - type: object
-          required: [id, reference, ownerId, name, status, submittedAt, lastSavedAt, reviewingCoordinatorId, reviewStartedAt, decidedBy, decidedAt, rejectionReason, assignedCoordinatorId, contactDetails, version]
+          required: [id, reference, ownerId, name, status, submittedAt, lastSavedAt, reviewingCoordinatorId, reviewStartedAt, decidedBy, decidedAt, rejectionReason, cancellationReason, cancelledBy, cancelledAt, assignedCoordinatorId, contactDetails, version]
           properties:
             id: { type: string, format: uuid }
             reference: { type: [string, "null"], description: Null until submitted (C3). }
@@ -3121,6 +3192,9 @@ components:
             decidedBy: { type: [string, "null"], format: uuid }
             decidedAt: { type: [string, "null"], format: date-time }
             rejectionReason: { type: [string, "null"] }
+            cancellationReason: { type: [string, "null"], description: "F3: why the event was cancelled; null unless Cancelled." }
+            cancelledBy: { type: [string, "null"], format: uuid, description: "F3: who cancelled it; null unless Cancelled." }
+            cancelledAt: { type: [string, "null"], format: date-time, description: "F3: when it was cancelled; null unless Cancelled." }
             assignedCoordinatorId: { type: [string, "null"], format: uuid }
             contactDetails: { type: [string, "null"], description: "Free text, such as a name, email and phone number (G1)." }
             version: { type: integer, minimum: 1, description: "Raised by every change to the event. Send it back in If-Match to edit (G1)." }
@@ -3785,18 +3859,19 @@ components:
 
     ChangeRequest:
       type: object
-      required: [id, eventId, eventReference, status, reason, requestedBy, requestedAt, decidedBy, decidedAt, rejectionReason, fields]
+      required: [id, eventId, eventReference, status, reason, requestedBy, requestedAt, decidedBy, decidedAt, rejectionReason, closedReason, fields]
       properties:
         id: { type: string, format: uuid }
         eventId: { type: string, format: uuid }
         eventReference: { type: string }
-        status: { type: string, enum: [PENDING, APPROVED, REJECTED] }
+        status: { type: string, enum: [PENDING, APPROVED, REJECTED, CLOSED], description: "CLOSED: still pending when its event was cancelled (F3, W9-07); it can no longer be decided." }
         reason: { type: string }
         requestedBy: { type: string, format: uuid }
         requestedAt: { type: string, format: date-time }
-        decidedBy: { type: [string, "null"], format: uuid, description: The deciding coordinator; null while Pending. }
+        decidedBy: { type: [string, "null"], format: uuid, description: "The deciding coordinator, or for a Closed request whoever cancelled the event; null while Pending." }
         decidedAt: { type: [string, "null"], format: date-time, description: null while Pending. }
         rejectionReason: { type: [string, "null"], description: The coordinator's reason when Rejected; otherwise null. }
+        closedReason: { type: [string, "null"], description: "F3: why it was closed without a decision; null unless Closed." }
         fields:
           type: array
           items: { $ref: "#/components/schemas/ChangeRequestField" }
@@ -3811,6 +3886,18 @@ components:
         previousStatus: { type: string, enum: [APPROVED, PLANNING] }
         confirmedBy: { type: string, format: uuid, description: The assigned coordinator who confirmed. }
         confirmedAt: { type: string, format: date-time, description: The history entry's time. }
+
+    CancelledEvent:
+      type: object
+      required: [id, reference, status, previousStatus, cancellationReason, cancelledBy, cancelledAt]
+      properties:
+        id: { type: string, format: uuid }
+        reference: { type: [string, "null"], description: Null for a cancelled draft. }
+        status: { type: string, enum: [CANCELLED] }
+        previousStatus: { $ref: "#/components/schemas/EventStatus" }
+        cancellationReason: { type: string }
+        cancelledBy: { type: string, format: uuid, description: The owner or assigned coordinator who cancelled. }
+        cancelledAt: { type: string, format: date-time }
 
     BookingRequestInput:
       type: object

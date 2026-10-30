@@ -162,5 +162,13 @@ export {
 } from "./api/confirmArrangements.js";
 /** I3 — a block over confirmed bookings returns their Confirmed events to Planning. */
 export { blockReturnsToPlanning, returnBlockedEventsToPlanning } from "./api/venueBlocked.js";
+/** F3 — the change module checks who may cancel and frees the arrangements, then cancels the event through these. */
+export {
+  cancellationRefusal,
+  cancelEventRecord,
+  type CancellationNotice,
+  type CancelEventOutcome,
+  type CancelledEvent,
+} from "./api/cancelEvent.js";
 /** EN-11 — the completion workflow's step: complete one event if its end has passed (ADR-0009). */
 export { completeEventIfDue, type CompletionAttempt } from "./jobs/completeEvents.js";

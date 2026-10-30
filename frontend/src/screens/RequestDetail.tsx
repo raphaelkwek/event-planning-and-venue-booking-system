@@ -24,6 +24,7 @@ import { DecidedChangeNotice } from "../components/ChangeDecision.js";
 import { PendingChangeNotice } from "../components/PendingChangeNotice.js";
 import { isChangeable } from "../shared/changeRequests.js";
 import { EquipmentRequirementsView, VenueRequirementsView } from "../components/Requirements.js";
+import { CancelEventAction, CancelledNotice, canCancelEvent } from "../components/CancelEvent.js";
 
 /**
  * The organiser's view of one request: its current status (F2), the
@@ -162,6 +163,8 @@ export function RequestDetail() {
           </div>
         )}
 
+        <CancelledNotice event={event} />
+
         {changesFailed && <p role="status" style={{ color: "#626F86", fontSize: 13 }}>Change requests couldn't be loaded.</p>}
         {pendingChange && <PendingChangeNotice request={pendingChange} />}
         {!pendingChange && latestDecided && <DecidedChangeNotice request={latestDecided} />}
@@ -270,6 +273,13 @@ export function RequestDetail() {
       <aside style={{ flex: 1, borderLeft: "1px solid #DFE1E6", paddingLeft: 24 }}>
         <h3 style={{ marginTop: 0 }}>Status</h3>
         <Lozenge appearance={STATUS_APPEARANCE[event.status]}>{STATUS_LABELS[event.status]}</Lozenge>
+
+        {/* F3 — the owner, until the event is Completed, Rejected or Cancelled. */}
+        {canCancelEvent(event, session) && (
+          <div style={{ marginTop: 12 }}>
+            <CancelEventAction eventId={event.id} token={session.token} onCancelled={() => void load()} />
+          </div>
+        )}
 
         <dl style={{ fontSize: 13 }}>
           <Meta label="Submitted" value={formatInstant(event.submittedAt)} />

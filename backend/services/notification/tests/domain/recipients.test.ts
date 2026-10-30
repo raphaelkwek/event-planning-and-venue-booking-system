@@ -660,3 +660,75 @@ describe("F5: tells the owner, each booked venue's staff and each reserver that 
     expect(recipients).toEqual([organiser, venueStaff, otherVenueStaff]);
   });
 });
+
+describe("event.cancelled (F3 AC6)", () => {
+  const venueStaff = "00000000-0000-0000-0000-000000000005";
+  const otherVenueStaff = "00000000-0000-0000-0000-000000000006";
+  const techSupport = "00000000-0000-0000-0000-000000000007";
+  const cancelled = {
+    ownerId: organiser,
+    assignedCoordinatorId: coordinator,
+    reason: "The speaker withdrew.",
+    cancelledBy: organiser,
+    cancelledAt: at,
+    bookings: [
+      {
+        reference: "BKR-000001",
+        venueName: "Lee Kong Chian Auditorium",
+        startsAt: "2026-12-02T06:00:00.000Z",
+        endsAt: "2026-12-02T10:00:00.000Z",
+        staffIds: [venueStaff, otherVenueStaff],
+      },
+      {
+        reference: "BKR-000002",
+        venueName: "Seminar Room 2-1",
+        startsAt: "2026-12-02T06:00:00.000Z",
+        endsAt: "2026-12-02T10:00:00.000Z",
+        staffIds: [venueStaff],
+      },
+    ],
+    reservations: [
+      { equipmentTypeName: "Folding Chairs", reservedQuantity: 40, reservedBy: techSupport },
+      { equipmentTypeName: "Projectors", reservedQuantity: 2, reservedBy: techSupport },
+    ],
+  };
+  const notes = (data: Record<string, unknown> = cancelled) => notificationsFor(message("event.cancelled", data));
+  const textFor = (recipient: string) => notes().filter((note) => note.recipientUserId === recipient).map((note) => note.message);
+  const name = "EVT-2026-0042 “Freshmen Orientation” has been cancelled. Reason: The speaker withdrew.";
+
+  it("notifies the owner, the coordinator, each venue's staff and each reserver, once each", () => {
+    expect(notes().map((note) => note.recipientUserId)).toEqual([organiser, coordinator, venueStaff, otherVenueStaff, techSupport]);
+    expect(notes().every((note) => note.notificationType === "event.cancelled" && note.eventId === eventId)).toBe(true);
+  });
+
+  it("gives the owner and the coordinator the reason", () => {
+    expect(textFor(organiser)).toEqual([`Your event ${name}`]);
+    expect(textFor(coordinator)).toEqual([`The event ${name}`]);
+  });
+
+  it("tells each Venue Staff member every booking of theirs, in one notice", () => {
+    expect(textFor(venueStaff)).toEqual([
+      `${name} It had booking BKR-000001 at Lee Kong Chian Auditorium, Wednesday 2 December 2026, 14:00–18:00; ` +
+        "booking BKR-000002 at Seminar Room 2-1, Wednesday 2 December 2026, 14:00–18:00.",
+    ]);
+    expect(textFor(otherVenueStaff)).toEqual([
+      `${name} It had booking BKR-000001 at Lee Kong Chian Auditorium, Wednesday 2 December 2026, 14:00–18:00.`,
+    ]);
+  });
+
+  it("tells each reserver the equipment they reserved", () => {
+    expect(textFor(techSupport)).toEqual([`${name} It had the equipment you reserved: Folding Chairs × 40, Projectors × 2.`]);
+  });
+
+  it("notifies only the owner when there is no coordinator and nothing booked or reserved", () => {
+    const recipients = notes({ ...cancelled, assignedCoordinatorId: null, bookings: [], reservations: [] }).map((note) => note.recipientUserId);
+    expect(recipients).toEqual([organiser]);
+  });
+
+  it("tells someone with two roles on the event once, as their first role", () => {
+    const recipients = notes({ ...cancelled, assignedCoordinatorId: organiser, bookings: [], reservations: [] }).map(
+      (note) => note.recipientUserId,
+    );
+    expect(recipients).toEqual([organiser]);
+  });
+});
