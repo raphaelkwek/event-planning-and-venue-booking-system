@@ -506,3 +506,106 @@ describe("POST /api/v1/events/:id/reassignment (E4)", () => {
     expect((await assignments(event.id)).filter((a) => a.is_active)).toHaveLength(1);
   });
 });
+
+describe("GET /api/v1/assignments, the Lead's overview (E5)", () => {
+  const overview = (coordinatorId?: string) =>
+    request(app).get("/api/v1/assignments").query(coordinatorId ? { coordinatorId } : {}).set(bearer);
+  const history = (eventId: string) => request(app).get(`/api/v1/events/${eventId}/assignments`).set(bearer);
+
+  async function scene() {
+    const first = await submitted("First symposium");
+    const second = await submitted("Second symposium");
+    const waiting = await submitted("Waiting symposium");
+    const rejected = await submitted("Rejected symposium");
+    signedInAs(LEAD, "EVENT_COORDINATOR_LEAD");
+    await assign(first.id, COORDINATOR);
+    await assign(second.id, OTHER_COORDINATOR);
+    await assign(rejected.id, COORDINATOR);
+    await sql`update event.events set status = 'REJECTED' where id = ${rejected.id}`;
+    await sql`update event.events set status = 'UNDER_REVIEW' where id = ${first.id}`;
+    return { first, second, waiting, rejected };
+  }
+
+  it("lists every active event with its status and coordinator, or none, leaving out closed events (E5-T1)", async () => {
+    const { first, second, waiting, rejected } = await scene();
+
+    const res = await overview();
+
+    expect(res.status).toBe(200);
+    const ours = new Map(res.body.items.map((item: { id: string }) => [item.id, item]));
+    expect(ours.get(first.id)).toEqual({ id: first.id, reference: first.reference, name: "First symposium", status: "UNDER_REVIEW", assignedCoordinatorId: COORDINATOR });
+    expect(ours.get(second.id)).toMatchObject({ status: "SUBMITTED", assignedCoordinatorId: OTHER_COORDINATOR });
+    expect(ours.get(waiting.id)).toMatchObject({ status: "SUBMITTED", assignedCoordinatorId: null });
+    expect(ours.has(rejected.id)).toBe(false);
+  });
+
+  it("counts each active coordinator's active events, the closed one left out (E5-T2)", async () => {
+    await scene();
+
+    const res = await overview();
+
+    const byId = new Map(res.body.coordinators.map((c: { id: string }) => [c.id, c]));
+    expect(byId.get(COORDINATOR)).toMatchObject({ displayName: "E3 Coordinator", activeAssignments: 1 });
+    expect(byId.get(OTHER_COORDINATOR)).toMatchObject({ activeAssignments: 1 });
+    expect(byId.has(RETIRED_COORDINATOR)).toBe(false);
+  });
+
+  it("filters the events to one coordinator's, keeping every coordinator's count (E5-T2)", async () => {
+    const { first, second, waiting } = await scene();
+
+    const res = await overview(COORDINATOR);
+
+    const ids = res.body.items.map((item: { id: string }) => item.id);
+    expect(ids).toContain(first.id);
+    expect(ids).not.toContain(second.id);
+    expect(ids).not.toContain(waiting.id);
+    expect(res.body.coordinators.map((c: { id: string }) => c.id)).toContain(OTHER_COORDINATOR);
+    expect((await overview("not-a-uuid")).status).toBe(400);
+  });
+
+  it("gives an event's assignments, oldest first, with who made each and when it started and ended (E5-T3)", async () => {
+    const event = await submitted();
+    signedInAs(LEAD, "EVENT_COORDINATOR_LEAD");
+    await assign(event.id, COORDINATOR);
+    await request(app).post(`/api/v1/events/${event.id}/reassignment`).set(bearer).send({ coordinatorId: OTHER_COORDINATOR });
+
+    const res = await history(event.id);
+
+    expect(res.status).toBe(200);
+    expect(res.body.items).toEqual([
+      { coordinatorId: COORDINATOR, assignedBy: LEAD, rule: "LEAD", assignedAt: expect.any(String), endedAt: expect.any(String) },
+      { coordinatorId: OTHER_COORDINATOR, assignedBy: LEAD, rule: "LEAD", assignedAt: expect.any(String), endedAt: null },
+    ]);
+    expect(Date.parse(res.body.items[0].endedAt)).toBeLessThanOrEqual(Date.parse(res.body.items[1].assignedAt) + 1000);
+  });
+
+  it("says no one made an assignment E1 made automatically", async () => {
+    const event = await submitted();
+    await sql`
+      insert into event.assignments (event_id, coordinator_id, assignment_rule, created_by, updated_by)
+      values (${event.id}, ${COORDINATOR}, 'ROUND_ROBIN_STUB', ${ORGANISER}, ${ORGANISER})
+    `;
+    signedInAs(LEAD, "EVENT_COORDINATOR_LEAD");
+
+    const [entry] = (await history(event.id)).body.items;
+
+    expect(entry).toMatchObject({ coordinatorId: COORDINATOR, rule: "ROUND_ROBIN_STUB", assignedBy: null });
+  });
+
+  it("is the Lead's alone, and answers 404 for an unknown event (E5-T4, A2)", async () => {
+    const event = await submitted();
+    for (const [userId, role] of [
+      [COORDINATOR, "EVENT_COORDINATOR"],
+      [ORGANISER, "EVENT_ORGANISER"],
+      [STAFF, "VENUE_STAFF"],
+      [STAFF, "TECH_SUPPORT_STAFF"],
+      [STAFF, "ATTENDEE"],
+    ]) {
+      signedInAs(userId!, role!);
+      expect((await overview()).status, role).toBe(403);
+      expect((await history(event.id)).status, role).toBe(403);
+    }
+    signedInAs(LEAD, "EVENT_COORDINATOR_LEAD");
+    expect((await history("00000000-0000-0000-0000-0000000000ff")).status).toBe(404);
+  });
+});

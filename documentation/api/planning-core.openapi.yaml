@@ -846,6 +846,71 @@ paths:
         "429": { $ref: "#/components/responses/RateLimitExceeded" }
         "503": { $ref: "#/components/responses/IdentityUnavailable" }
 
+  /api/v1/assignments:
+    get:
+      tags: [Assignment]
+      summary: The Lead's overview of active events and coordinators' load (E5)
+      description: |
+        Event Coordinator Lead only. Every submitted event that is not Completed, Cancelled or
+        Rejected, oldest submission first, with its status and its active coordinator or none; with
+        `coordinatorId`, only that coordinator's. Every active coordinator is listed with their
+        number of active assigned events, whatever the filter.
+      operationId: listAssignmentOverview
+      parameters:
+        - name: coordinatorId
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: The overview.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, coordinators]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/OverviewEvent" }
+                  coordinators:
+                    type: array
+                    items: { $ref: "#/components/schemas/CoordinatorLoad" }
+        "400": { $ref: "#/components/responses/ValidationFailed" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "429": { $ref: "#/components/responses/RateLimitExceeded" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
+  /api/v1/events/{id}/assignments:
+    parameters:
+      - $ref: "#/components/parameters/RecordId"
+    get:
+      tags: [Assignment]
+      summary: An event's assignment history (E5)
+      description: |
+        Event Coordinator Lead only. Every assignment the event has had, oldest first: the
+        coordinator, who made it (null for one E1 made automatically on submission), its rule, and
+        when it began and ended (null while current).
+      operationId: listAssignmentHistory
+      responses:
+        "200":
+          description: The history.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/AssignmentHistoryEntry" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "429": { $ref: "#/components/responses/RateLimitExceeded" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
   /api/v1/coordinators:
     get:
       tags: [Assignment]
@@ -3098,6 +3163,24 @@ components:
         expectedAttendance: { type: [integer, "null"] }
         submittedAt: { type: [string, "null"], format: date-time }
         status: { type: string }
+    OverviewEvent:
+      type: object
+      required: [id, reference, name, status, assignedCoordinatorId]
+      properties:
+        id: { type: string, format: uuid }
+        reference: { type: [string, "null"] }
+        name: { type: string }
+        status: { type: string }
+        assignedCoordinatorId: { type: [string, "null"], format: uuid, description: "Null when the event is unassigned." }
+    AssignmentHistoryEntry:
+      type: object
+      required: [coordinatorId, assignedBy, rule, assignedAt, endedAt]
+      properties:
+        coordinatorId: { type: string, format: uuid }
+        assignedBy: { type: [string, "null"], format: uuid, description: "The Lead who made it; null for one E1 made automatically." }
+        rule: { type: string, description: "`LEAD`, or `ROUND_ROBIN_STUB` for an assignment E1 made." }
+        assignedAt: { type: string, format: date-time }
+        endedAt: { type: [string, "null"], format: date-time }
     CoordinatorLoad:
       type: object
       required: [id, displayName, email, activeAssignments]
