@@ -201,15 +201,6 @@ export function listReassignmentProposals(token: string, eventId: string) {
   });
 }
 
-/** E2 — the active coordinator proposes handing the event to a nominee. */
-export function proposeReassignment(token: string, eventId: string, nomineeId: string) {
-  return request<ReassignmentProposal>(`${EVENT}/events/${eventId}/reassignment-proposals`, {
-    method: "POST",
-    token,
-    body: { nomineeId },
-  });
-}
-
 /** E2 — the nominee accepts, becoming the active coordinator. */
 export function acceptReassignment(token: string, eventId: string) {
   return request<ReassignmentProposal>(`${EVENT}/events/${eventId}/reassignment-proposals/accept`, {

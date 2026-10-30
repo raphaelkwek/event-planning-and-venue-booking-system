@@ -4,6 +4,180 @@
 
 ---
 
+# E5: The Lead oversees every active event, coordinators' load and assignment history
+
+**Timestamp:** 2026-10-28T00:29+08:00 (SGT)
+**Author:** Seann, via Claude
+**Scope:** E5 (SPM-178, Sprint 4), CR-05, and the Week 9 answers W9-30, W9-37 and W9-57. Stacked
+on E4.
+- **planning-core, event module:**
+  - `GET /api/v1/assignments`;
+  - `GET /api/v1/events/:id/assignments`;
+  - `listActiveEvents()` and `listAssignmentHistory()`.
+- **Cerbos:** the Lead may `view_assignments`.
+- **OpenAPI:** both routes and their schemas.
+- **Web:** the "Assignments" screen, and the history on the Lead's assignment page.
+- **Cases:** `tests/E5/` (README and four cards, all executed) and `sprint-3.csv`.
+
+**Reason:** CR-05 gives the Lead an overview of the workload. Week 9: Leads see all unassigned and
+assigned requests and the active assignments, system-wide (W9-37), and several Leads may each see
+everything (W9-30, W9-57).
+
+## Added
+
+- **The overview:** every submitted event not Completed, Cancelled or Rejected, oldest first, with
+  its status and its coordinator, or "Unassigned".
+  - Each active coordinator is shown with their number of active events.
+  - A filter shows one coordinator's events and keeps every coordinator's count; the server
+    applies it.
+  - A coordinator who has since left is still named.
+- **An event's assignment history,** oldest first: each assignment's coordinator, who made it and
+  its start and end, with "Current" for the active one. An assignment that E1 made automatically
+  on submission shows as made "Automatically on submission (E1)".
+- **No other role** sees the screen or the routes (A2).
+
+## Not done, on purpose
+
+- **Drafts aren't listed:** they haven't been submitted, so they aren't events in the workflow yet.
+
+---
+
+# E4: The Lead reassigns an event, and coordinator-to-coordinator reassignment is retired
+
+**Timestamp:** 2026-10-27T20:51+08:00 (SGT)
+**Author:** Seann, via Claude
+**Scope:** E4 (SPM-177, Sprint 4), CR-05, the Week 9 answers W9-20, W9-34, W9-58 and W9-59, and
+Sprint 4 item W9-FX-5 (retire E2). Stacked on E3.
+- **planning-core, event module:**
+  - `POST /api/v1/events/:id/reassignment` in `api/leadAssignments.ts`;
+  - E2's propose route, now refused;
+  - `closePendingProposal()`;
+  - event migrations `0010` and `0011`, which add `CLOSED` to the proposal statuses (applied to
+    the shared project).
+- **Removed:** the configured coordinator pool (`config.ts`, `EVENT_COORDINATOR_POOL`) and the
+  propose-only code.
+- **`contracts`:** the `event.coordinator-reassigned` message and two error codes,
+  `EVENT_NOT_ASSIGNED` and `REASSIGNMENT_RETIRED`. **Needs a second owner's review.**
+- **Notification:** the rule that tells all three people of a reassignment.
+- **Cerbos:** the Lead may `reassign`, and the E2 proposal rule is removed.
+- **OpenAPI:** the new route, the retired one (410), and `CLOSED`.
+- **Web:** Reassign on the Lead's assignment page; "Propose reassignment" is removed.
+- **Cases:** `tests/E4/` (README and eight cards, all executed) and `sprint-3.csv`.
+
+**Reason:** CR-05 lets the Lead reassign events. The Week 9 answers make the Lead the only route
+(W9-59), with immediate effect and no acceptance (W9-34, W9-58), at any point before the event is
+closed (W9-20). That retires E2's peer proposals (W9-FX-5).
+
+## Added
+
+- **Reassigning:** the Lead chooses another active coordinator, and the change takes effect at
+  once.
+  - The outgoing assignment is closed with its end time and kept. The new one records the
+    coordinator, the Lead and the time.
+  - From then on only the new coordinator passes the checks for the assigned coordinator, such as
+    G1's edits.
+  - The event's version rises, so no stale copy is served.
+  - The outgoing coordinator, the new coordinator and the organiser are told, and the organiser
+    sees the new point of contact.
+- **Refused:**
+  - a Completed, Cancelled or Rejected event;
+  - an event with no coordinator, which should be assigned instead (E3);
+  - the coordinator already assigned, with no history written;
+  - anyone but an active Event Coordinator;
+  - every role but the Lead.
+
+  When two Leads reassign the same event at once, only one succeeds.
+
+## Changed
+
+- **E2's proposals are retired.**
+  - Proposing returns 410, "Coordinators no longer propose reassignments: the Event Coordinator
+    Lead reassigns events", and stores nothing.
+  - The web app no longer offers it.
+  - A proposal made before the retirement can still be accepted or declined, until the Lead
+    reassigns the event; that closes it, unaccepted, as `CLOSED`.
+- **E2's integration tests:**
+  - the propose tests are replaced by one asserting the refusal;
+  - the accept and decline tests start from a proposal stored in SQL.
+- **The FX-REASSIGNMENT-PENDING fixture** now uses the new FX-PROPOSAL statement
+  (`tests/E4/README.md`).
+- **Regression:**
+  - The event, identity and boundary suites pass (587).
+  - The runner passes E3 and T2, except the superseded cases below.
+  - Superseded by E3 or E4, and not rerun: E2's cases, and T2-T18 (a coordinator told of a new
+    proposal). Their cards and records are not edited.
+
+---
+
+# E3: The Event Coordinator Lead assigns requests from the unassigned queue
+
+**Timestamp:** 2026-10-27T20:04+08:00 (SGT)
+**Author:** Seann, via Claude
+**Scope:** E3 (SPM-176, Sprint 4), CR-05 and the customer's Week 9 answers W9-35 and W9-60. Design:
+`documentation/superpowers/specs/2026-10-27-e3-e5-lead-assignment-design.md`.
+- A new role, `EVENT_COORDINATOR_LEAD`:
+  - in `contracts` (`ROLES`), with three error codes. **Needs a second owner's review.**
+  - in identity: migrations `0003` and `0004` widen the role checks. Seed `0004` and
+    `seed:auth` add `lead@connectsphere.test`. Both are applied to the shared project.
+  - in the access scope: the Lead sees every event.
+  - in Cerbos (`view`, `assign`) and in the web app.
+- planning-core, event module: submission, the review queue, opening an event, and the new
+  `api/leadAssignments.ts` with its repo functions. The identity module adds
+  `listActiveCoordinators()`.
+- notification: the organiser is told who their coordinator is. `event.coordinator-assigned`
+  gains optional `coordinatorName`, `ownerId` and `assignedBy`.
+- OpenAPI: three routes and their schemas. Web: the unassigned queue and the assignment page.
+- `tests/E3/` (README and eight cards, all executed) and `sprint-3.csv`.
+
+**Reason:** CR-05 replaced automatic assignment with a Lead who assigns each request. Week 9
+confirmed that coordinators can't claim an unassigned request, the Lead coordinates no event
+(W9-35), and only Leads see the queue (W9-60).
+
+## Added
+
+- **The unassigned queue:** every submitted event with no coordinator that is still in the
+  workflow, oldest submission first. Only the Lead reaches it.
+- **Assigning:** the Lead chooses an active Event Coordinator, each shown with their number of
+  active events. The assignment is made under the event's row lock. It refuses:
+  - anyone else;
+  - a second assignment, naming the coordinator already assigned (E4 will reassign);
+  - a Draft, Completed, Cancelled or Rejected event.
+
+  When two Leads assign at once, one wins. The coordinator is told, and so is the organiser, who
+  learns their point of contact.
+- **Coordinators** no longer see unassigned requests in their review queue, and opening one
+  doesn't claim it for review.
+
+## Fixed
+
+- **Found by E3-T4:** the event's ETag is its version, and assigning didn't change it. A browser
+  that had read the event before the assignment was answered 304 and kept showing no
+  coordinator. An assignment now raises the event's version.
+
+## Changed
+
+- **Submission no longer assigns a coordinator:** E1's round robin is removed. Its configured pool
+  stays only for E2's nominee check, which E4 retires.
+- **Event tests** that need an assigned coordinator assign one in SQL (`tests/support/assignment.ts`).
+- **The shared fixtures:**
+  - FX-SUBMITTED is now unassigned.
+  - FX-ASSIGNED, new, is a statement that assigns as the Lead would and notifies no one, so the
+    T2 cases' notification counts still hold.
+  - FX-UNDER-REVIEW starts from FX-ASSIGNED.
+- **Regression:**
+  - The planning-core suites pass: event and identity 561, and venue, change, race and equipment
+    1,092.
+  - The runner passes A1, A3, C3, D1, D4 and T2. D1 and A3-T5 now assign their requests in the
+    local specs.
+  - Superseded by E3, so not rerun: E1's cases, B1-T4 (a new request in the coordinator's queue),
+    and T2-T1 and T2-T6 (a coordinator told on submission). Their cards and records are not edited.
+  - B1-T1 fails on a selector that S1's "Request a change" button had already broken, unrelated
+    to E3.
+
+## Not done, on purpose
+
+- **A4:** whether coordinators may see events not assigned to them waits on CQ-11.
+- **E4 and E5** (reassigning and the overview) follow on stacked branches.
 # I6: The availability calendar flags buffer-change overlaps
 
 **Timestamp:** 2026-10-24T15:14+08:00 (SGT)

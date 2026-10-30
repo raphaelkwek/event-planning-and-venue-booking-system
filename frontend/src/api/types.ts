@@ -3,7 +3,8 @@ export type Role =
   | "EVENT_COORDINATOR"
   | "VENUE_STAFF"
   | "TECH_SUPPORT_STAFF"
-  | "ATTENDEE";
+  | "ATTENDEE"
+  | "EVENT_COORDINATOR_LEAD";
 
 export type EventStatus =
   | "DRAFT"

@@ -6,7 +6,7 @@ import { accessScopeRouter } from "./api/accessScope.js";
 import { usersMeRouter } from "./api/usersMe.js";
 import { usersRouter } from "./api/users.js";
 import { identityRateLimiter, loginRateLimiter } from "./api/limiter.js";
-import { findRoleForUser, findUserBySupabaseId } from "./repo/users.js";
+import { findRoleForUser, findUserBySupabaseId, listActiveUsersWithRole } from "./repo/users.js";
 
 /**
  * The identity module's public interface (ADR-0004). Other modules import this
@@ -47,3 +47,14 @@ export async function lookUpCaller(sql: Sql, supabaseUserId: string): Promise<Ca
 
 /** A3 — the access-scope rule a module's repo layer applies for a role and resource. */
 export { resolveAccessScope } from "./domain/accessScope.js";
+
+/** E3, E5: who may be assigned an event — the active Event Coordinators, named. */
+export interface ActiveCoordinator {
+  id: string;
+  displayName: string | null;
+  email: string;
+}
+
+export function listActiveCoordinators(sql: Sql): Promise<ActiveCoordinator[]> {
+  return listActiveUsersWithRole(sql, "EVENT_COORDINATOR");
+}

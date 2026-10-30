@@ -155,8 +155,18 @@ const RULES: Record<string, Rule> = {
   // B1 asks for the coordinator assigned on submission to hear that a request
   // awaits review. event.submitted does not name that coordinator; this
   // message, written in the same transaction, does (E1).
+  // E3: since the Lead assigns, the message also names the owner, who learns their point of contact.
   "event.coordinator-assigned": (d, event) => [
     [d.coordinatorId!, `Event request ${event} has been assigned to you and is awaiting your review.`],
+    ...(d.ownerId
+      ? [[d.ownerId, `Your event request ${event} has been assigned to ${d.coordinatorName}, who is now your point of contact.`] as [string, string]]
+      : []),
+  ],
+  // E4: the Lead's reassignment takes effect at once; the outgoing coordinator, the new one and the owner are told.
+  "event.coordinator-reassigned": (d, event) => [
+    [d.previousCoordinatorId!, `Event request ${event} has been reassigned to ${d.coordinatorName}. You are no longer its coordinator.`],
+    [d.coordinatorId!, `Event request ${event} has been reassigned to you.`],
+    [d.ownerId!, `Your event request ${event} has been reassigned to ${d.coordinatorName}, who is now your point of contact.`],
   ],
   "event.clarification-requested": (d, event) => [
     [d.ownerId!, `Clarification is required on your event request ${event}.`],
