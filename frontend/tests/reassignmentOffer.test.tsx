@@ -81,10 +81,11 @@ afterEach(() => {
 });
 
 describe("offering a reassignment", () => {
-  it("offers it while the request is still under review", async () => {
+  it("does not offer it even while the request is under review: E4 retired it, and the Lead reassigns (E4-T6)", async () => {
     render(<App />);
 
-    expect(await screen.findByRole("button", { name: "Propose reassignment" })).toBeTruthy();
+    await screen.findByRole("heading", { name: "Annual Research Symposium" });
+    expect(screen.queryByRole("button", { name: "Propose reassignment" })).toBeNull();
   });
 
   it("does not offer it once the request has been rejected", async () => {

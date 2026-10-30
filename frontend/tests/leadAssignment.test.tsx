@@ -1,0 +1,322 @@
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { ApiError } from "../src/api/client.js";
+
+/**
+ * E3 — the Event Coordinator Lead's unassigned queue, and assigning a request
+ * to an active Event Coordinator. The Lead has only its own functions (A2).
+ */
+
+const EVENT_ID = "event-1";
+
+const QUEUE = {
+  items: [
+    {
+      id: EVENT_ID,
+      reference: "EVT-000123",
+      name: "Annual Research Symposium",
+      proposedStartAt: "2026-12-02T06:00:00.000Z",
+      proposedEndAt: "2026-12-02T10:00:00.000Z",
+      expectedAttendance: 150,
+      submittedAt: "2026-10-27T01:15:00.000Z",
+      status: "SUBMITTED",
+    },
+    {
+      id: "event-2",
+      reference: "EVT-000124",
+      name: "Alumni Networking Night",
+      proposedStartAt: "2026-12-04T10:00:00.000Z",
+      proposedEndAt: "2026-12-04T13:00:00.000Z",
+      expectedAttendance: 80,
+      submittedAt: "2026-10-27T01:16:00.000Z",
+      status: "SUBMITTED",
+    },
+  ],
+};
+
+const COORDINATORS = {
+  items: [
+    { id: "coordinator-1", displayName: "Coordinator One", email: "coordinator@connectsphere.test", activeAssignments: 3 },
+    { id: "coordinator-2", displayName: "Coordinator Two", email: "coordinator2@connectsphere.test", activeAssignments: 0 },
+  ],
+};
+
+const EVENT = {
+  id: EVENT_ID,
+  reference: "EVT-000123",
+  ownerId: "organiser-id",
+  name: "Annual Research Symposium",
+  purpose: "Share faculty research",
+  description: "A one-day symposium.",
+  proposedStartAt: "2026-12-02T06:00:00.000Z",
+  proposedEndAt: "2026-12-02T10:00:00.000Z",
+  expectedAttendance: 150,
+  status: "SUBMITTED",
+  submittedAt: "2026-10-27T01:15:00.000Z",
+  assignedCoordinatorId: null,
+};
+
+type Fn = (...args: unknown[]) => Promise<unknown>;
+const listUnassigned = vi.fn<Parameters<Fn>, ReturnType<Fn>>(async () => QUEUE);
+const listCoordinators = vi.fn<Parameters<Fn>, ReturnType<Fn>>(async () => COORDINATORS);
+const assignCoordinator = vi.fn<Parameters<Fn>, ReturnType<Fn>>(async () => ({
+  eventId: EVENT_ID,
+  coordinatorId: "coordinator-2",
+  assignedBy: "lead-id",
+  assignedAt: "2026-10-27T02:00:00.000Z",
+}));
+const reassignCoordinator = vi.fn<Parameters<Fn>, ReturnType<Fn>>(async () => ({
+  eventId: EVENT_ID,
+  coordinatorId: "coordinator-2",
+  previousCoordinatorId: "coordinator-1",
+  reassignedBy: "lead-id",
+  reassignedAt: "2026-10-27T03:00:00.000Z",
+}));
+const OVERVIEW = {
+  items: [
+    { id: EVENT_ID, reference: "EVT-000123", name: "Annual Research Symposium", status: "UNDER_REVIEW", assignedCoordinatorId: "coordinator-1" },
+    { id: "event-2", reference: "EVT-000124", name: "Alumni Networking Night", status: "SUBMITTED", assignedCoordinatorId: "coordinator-2" },
+    { id: "event-3", reference: "EVT-000125", name: "Guest Lecture", status: "SUBMITTED", assignedCoordinatorId: null },
+  ],
+  coordinators: COORDINATORS.items,
+};
+const listAssignments = vi.fn<Parameters<Fn>, ReturnType<Fn>>(async () => OVERVIEW);
+const listAssignmentHistory = vi.fn<Parameters<Fn>, ReturnType<Fn>>(async () => ({ items: [] }));
+const openEvent = vi.fn<Parameters<Fn>, ReturnType<Fn>>(async () => EVENT);
+
+vi.mock("../src/api/assignments.js", () => ({
+  listUnassigned: (...args: unknown[]) => listUnassigned(...args),
+  listCoordinators: (...args: unknown[]) => listCoordinators(...args),
+  assignCoordinator: (...args: unknown[]) => assignCoordinator(...args),
+  reassignCoordinator: (...args: unknown[]) => reassignCoordinator(...args),
+  listAssignments: (...args: unknown[]) => listAssignments(...args),
+  listAssignmentHistory: (...args: unknown[]) => listAssignmentHistory(...args),
+}));
+
+vi.mock("../src/api/events.js", async () => {
+  const actual = await vi.importActual<typeof import("../src/api/events.js")>("../src/api/events.js");
+  return { ...actual, openEvent: (...args: unknown[]) => openEvent(...args) };
+});
+
+const PEOPLE: Record<string, string> = {
+  "organiser-id": "Organiser One",
+  "lead-id": "Lead One",
+  "coordinator-1": "Coordinator One",
+  "coordinator-2": "Coordinator Two",
+};
+vi.mock("../src/api/users.js", () => ({
+  lookupUsers: vi.fn(async (_token: string, ids: string[]) =>
+    ids.filter((id) => PEOPLE[id]).map((id) => ({ id, displayName: PEOPLE[id], email: `${id}@connectsphere.test` })),
+  ),
+}));
+
+const { App } = await import("../src/App.js");
+
+function signInAs(role: string, path = "/") {
+  sessionStorage.setItem(
+    "connectsphere.session",
+    JSON.stringify({ userId: "lead-id", email: "lead@connectsphere.test", role, token: "token", lastLoginAt: "2026-10-27T01:00:00.000Z" }),
+  );
+  window.location.hash = `#${path}`;
+}
+
+afterEach(() => {
+  cleanup();
+  sessionStorage.clear();
+  vi.clearAllMocks();
+});
+
+const text = (element: HTMLElement) => element.textContent!.replace(/\s+/g, " ").trim();
+const navLinks = () => within(screen.getByRole("navigation")).getAllByRole("link").map((link) => link.textContent);
+
+describe("the Event Coordinator Lead (E3-T8, A2)", () => {
+  it("is named in the header, lands on the unassigned queue, and is offered none of the coordinator's functions", async () => {
+    signInAs("EVENT_COORDINATOR_LEAD");
+    render(<App />);
+
+    expect(await screen.findByRole("heading", { name: "Unassigned requests" })).toBeTruthy();
+    expect(screen.getByText(/Event Coordinator Lead/)).toBeTruthy();
+    const links = navLinks();
+    expect(links).toContain("Unassigned");
+    for (const coordinators of ["Review queue", "All events", "Find a venue", "Venues"]) expect(links).not.toContain(coordinators);
+  });
+
+  it("isn't offered to a coordinator, who cannot open the queue", async () => {
+    signInAs("EVENT_COORDINATOR", "/assignments/unassigned");
+    render(<App />);
+
+    await screen.findByRole("button", { name: "Sign out" });
+    expect(navLinks()).not.toContain("Unassigned");
+    expect(screen.queryByRole("heading", { name: "Unassigned requests" })).toBeNull();
+    expect(listUnassigned).not.toHaveBeenCalled();
+  });
+});
+
+describe("the unassigned queue (E3-T2)", () => {
+  it("lists each request's reference, name, proposed date and times, attendance and submission, in the server's order", async () => {
+    signInAs("EVENT_COORDINATOR_LEAD", "/assignments/unassigned");
+    render(<App />);
+
+    const table = await screen.findByRole("table", { name: "Unassigned requests" });
+    const rows = within(table).getAllByRole("row").slice(1).map(text);
+    expect(rows[0]).toContain("EVT-000123");
+    for (const part of ["Annual Research Symposium", "Wednesday 2 December 2026, 14:00–18:00", "150", "Tuesday 27 October 2026, 09:15"]) {
+      expect(rows[0], part).toContain(part);
+    }
+    expect(rows[1]).toContain("EVT-000124");
+  });
+
+  it("says when nothing is waiting", async () => {
+    listUnassigned.mockResolvedValueOnce({ items: [] });
+    signInAs("EVENT_COORDINATOR_LEAD", "/assignments/unassigned");
+    render(<App />);
+    expect(await screen.findByText("No requests are waiting to be assigned.")).toBeTruthy();
+  });
+});
+
+describe("assigning a request (E3-T3, E3-T4)", () => {
+  async function openRequest() {
+    signInAs("EVENT_COORDINATOR_LEAD", "/assignments/unassigned");
+    render(<App />);
+    fireEvent.click(await screen.findByRole("link", { name: "EVT-000123" }));
+    return screen.findByRole("heading", { name: "Annual Research Symposium" });
+  }
+
+  it("shows the request's basic information and that it is unassigned", async () => {
+    await openRequest();
+    const page = text(document.body);
+    for (const part of ["EVT-000123", "Share faculty research", "Wednesday 2 December 2026, 14:00–18:00", "150", "Organiser One", "Unassigned"]) {
+      expect(page, part).toContain(part);
+    }
+  });
+
+  it("offers the active coordinators with their load, and assigns the one chosen", async () => {
+    await openRequest();
+    const select = (await screen.findByLabelText("Coordinator")) as HTMLSelectElement;
+    expect([...select.options].map((o) => o.textContent)).toEqual(["Choose a coordinator", "Coordinator One (3 active)", "Coordinator Two (0 active)"]);
+
+    fireEvent.change(select, { target: { value: "coordinator-2" } });
+    fireEvent.click(screen.getByRole("button", { name: "Assign" }));
+
+    await waitFor(() => expect(assignCoordinator).toHaveBeenCalledWith("token", EVENT_ID, "coordinator-2"));
+    expect(await screen.findByText("Assigned to Coordinator Two.")).toBeTruthy();
+  });
+
+  it("asks for a coordinator before assigning", async () => {
+    await openRequest();
+    fireEvent.click(await screen.findByRole("button", { name: "Assign" }));
+    expect(await screen.findByText("Choose a coordinator to assign.")).toBeTruthy();
+    expect(assignCoordinator).not.toHaveBeenCalled();
+  });
+
+  it("shows the server's refusal, such as a request another Lead has just assigned", async () => {
+    assignCoordinator.mockRejectedValueOnce(
+      new ApiError(409, {
+        code: "ALREADY_ASSIGNED",
+        message: "This event is already assigned to Coordinator One. Reassign it instead.",
+        correlationId: null,
+      }),
+    );
+    await openRequest();
+    fireEvent.change(await screen.findByLabelText("Coordinator"), { target: { value: "coordinator-2" } });
+    fireEvent.click(screen.getByRole("button", { name: "Assign" }));
+    expect(await screen.findByText("This event is already assigned to Coordinator One. Reassign it instead.")).toBeTruthy();
+  });
+});
+
+describe("reassigning an event (E4-T1)", () => {
+  async function openAssigned() {
+    openEvent.mockResolvedValue({ ...EVENT, status: "UNDER_REVIEW", assignedCoordinatorId: "coordinator-1" });
+    signInAs("EVENT_COORDINATOR_LEAD", `/assignments/${EVENT_ID}`);
+    render(<App />);
+    await screen.findByRole("heading", { name: "Annual Research Symposium" });
+  }
+
+  afterEach(() => openEvent.mockResolvedValue(EVENT));
+
+  it("shows the current coordinator and offers only the others, then reassigns at once", async () => {
+    await openAssigned();
+    expect(text(document.body)).toContain("Coordinator One");
+    expect(screen.queryByRole("button", { name: "Assign" })).toBeNull();
+    const select = (await screen.findByLabelText("New coordinator")) as HTMLSelectElement;
+    expect([...select.options].map((o) => o.textContent)).toEqual(["Choose a coordinator", "Coordinator Two (0 active)"]);
+
+    fireEvent.change(select, { target: { value: "coordinator-2" } });
+    fireEvent.click(screen.getByRole("button", { name: "Reassign" }));
+
+    await waitFor(() => expect(reassignCoordinator).toHaveBeenCalledWith("token", EVENT_ID, "coordinator-2"));
+    expect(await screen.findByText("Reassigned to Coordinator Two. They are now the event's coordinator.")).toBeTruthy();
+  });
+
+  it("shows the server's refusal", async () => {
+    reassignCoordinator.mockRejectedValueOnce(
+      new ApiError(409, { code: "STATUS_NOT_ASSIGNABLE", message: "This event is Completed and cannot be assigned.", correlationId: null }),
+    );
+    await openAssigned();
+    fireEvent.change(await screen.findByLabelText("New coordinator"), { target: { value: "coordinator-2" } });
+    fireEvent.click(screen.getByRole("button", { name: "Reassign" }));
+    expect(await screen.findByText("This event is Completed and cannot be assigned.")).toBeTruthy();
+  });
+});
+
+describe("the Lead's overview (E5-T1, E5-T2)", () => {
+  it("lists every active event with its status and coordinator, or Unassigned, and each coordinator's load", async () => {
+    signInAs("EVENT_COORDINATOR_LEAD", "/assignments");
+    render(<App />);
+
+    const table = await screen.findByRole("table", { name: "Active events" });
+    await waitFor(() => expect(text(table)).toContain("Coordinator One"));
+    const rows = within(table).getAllByRole("row").slice(1).map(text);
+    expect(rows[0]).toContain("EVT-000123");
+    expect(rows[0]).toContain("Under Review");
+    expect(rows[0]).toContain("Coordinator One");
+    expect(rows[2]).toContain("Unassigned");
+    const load = screen.getByRole("list", { name: "Coordinators' active events" });
+    expect(within(load).getAllByRole("listitem").map(text)).toEqual(["Coordinator One: 3 active", "Coordinator Two: 0 active"]);
+    expect(navLinks()).toContain("Assignments");
+  });
+
+  it("asks the server for one coordinator's events, and for all again", async () => {
+    signInAs("EVENT_COORDINATOR_LEAD", "/assignments");
+    render(<App />);
+    const filter = (await screen.findByLabelText("Coordinator")) as HTMLSelectElement;
+
+    fireEvent.change(filter, { target: { value: "coordinator-1" } });
+    await waitFor(() => expect(listAssignments).toHaveBeenLastCalledWith("token", "coordinator-1"));
+    fireEvent.change(filter, { target: { value: "" } });
+    await waitFor(() => expect(listAssignments).toHaveBeenLastCalledWith("token", undefined));
+  });
+
+  it("isn't offered to a coordinator", async () => {
+    signInAs("EVENT_COORDINATOR", "/assignments");
+    render(<App />);
+    await screen.findByRole("button", { name: "Sign out" });
+    expect(navLinks()).not.toContain("Assignments");
+    expect(listAssignments).not.toHaveBeenCalled();
+  });
+});
+
+describe("an event's assignment history (E5-T3)", () => {
+  it("lists each assignment's coordinator, who made it, and its start and end, oldest first", async () => {
+    listAssignmentHistory.mockResolvedValueOnce({
+      items: [
+        { coordinatorId: "coordinator-1", assignedBy: "lead-id", rule: "LEAD", assignedAt: "2026-10-27T02:00:00.000Z", endedAt: "2026-10-27T03:00:00.000Z" },
+        { coordinatorId: "coordinator-2", assignedBy: null, rule: "ROUND_ROBIN_STUB", assignedAt: "2026-10-27T03:00:00.000Z", endedAt: null },
+      ],
+    });
+    openEvent.mockResolvedValueOnce({ ...EVENT, status: "UNDER_REVIEW", assignedCoordinatorId: "coordinator-2" });
+    signInAs("EVENT_COORDINATOR_LEAD", `/assignments/${EVENT_ID}`);
+    render(<App />);
+
+    const table = await screen.findByRole("table", { name: "Assignment history" });
+    await waitFor(() => expect(text(table)).toContain("Lead One"));
+    const rows = within(table)
+      .getAllByRole("row")
+      .slice(1)
+      .map((row) => within(row).getAllByRole("cell").map(text));
+    expect(rows).toEqual([
+      ["Coordinator One", "Lead One", "Tuesday 27 October 2026, 10:00", "Tuesday 27 October 2026, 11:00"],
+      ["Coordinator Two", "Automatically on submission (E1)", "Tuesday 27 October 2026, 11:00", "Current"],
+    ]);
+  });
+});

@@ -30,3 +30,6 @@ principals:
   other_attendee:
     id: att-2
     roles: [ATTENDEE]
+  lead:                 # an Event Coordinator Lead (E3 to E5); coordinates no event
+    id: lead-1
+    roles: [EVENT_COORDINATOR_LEAD]

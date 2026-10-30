@@ -70,6 +70,15 @@ export const bookingRequestApprovedPayloadSchema = z.object({
   bookingId: z.string().uuid(),
   /** CR-02: the disrupted booking the approval released, if the request replaced one. */
   replacedBookingId: z.string().uuid().nullable(),
+  /**
+   * EN-13: the layout the booking was confirmed for, and that layout's capacity
+   * as the venue held it at approval. The registration service builds the
+   * event's seats from these, so it never calls Venue (ADR-0005). Optional so
+   * approvals published before EN-13 still parse; the registration service
+   * builds no seats for one that lacks them.
+   */
+  layout: z.string().min(1).optional(),
+  layoutCapacity: z.number().int().positive().optional(),
 });
 
 /** M2: the request is Rejected, with its reason and any suggested alternative. */
@@ -106,8 +115,15 @@ const disruptionFields = {
   actedAt: z.string().datetime(),
 };
 
-/** I2: a block was recorded over this booking, hold or request, which now requires reconfirmation. */
-export const bookingDisruptedPayloadSchema = z.object(disruptionFields);
+/**
+ * I2: a block was recorded over this booking, hold or request, which now requires reconfirmation.
+ * I3: `eventReturnedToPlanning` is true when the block returned the Confirmed event to Planning;
+ * otherwise it is left out.
+ */
+export const bookingDisruptedPayloadSchema = z.object({
+  ...disruptionFields,
+  eventReturnedToPlanning: z.boolean().optional(),
+});
 
 /** Why a flag stays when a block is removed: another active block (I2), or the venue's setup and turnaround time (H3). */
 export const STILL_FLAGGED_CAUSES = ["UNAVAILABILITY", "BUFFER_CONFLICT"] as const;

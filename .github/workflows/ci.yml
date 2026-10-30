@@ -67,6 +67,7 @@ jobs:
           path: |
             backend/services/planning-core/coverage/
             backend/services/notification/coverage/
+            backend/services/registration/coverage/
             backend/packages/contracts/coverage/
             backend/packages/kafka/coverage/
             frontend/coverage/
@@ -140,6 +141,9 @@ jobs:
 
       - name: Integration tests (notification)
         run: npm test -w @connectsphere/notification
+
+      - name: Integration tests (registration)
+        run: npm test -w @connectsphere/registration
 
   # EN-06.3 (SPM-172). Rules and the reasons for the ones turned off are in
   # .squawk.toml. Only the migrations a pull request adds or changes are linted:
@@ -216,7 +220,7 @@ jobs:
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
-          for ws in backend/services/planning-core backend/services/notification; do
+          for ws in backend/services/planning-core backend/services/notification backend/services/registration; do
             mapfile -t changed < <(git diff --name-only --diff-filter=AMR "$BASE_SHA"...HEAD -- ":(glob)$ws/src/**/domain/**/*.ts" | sed "s|^$ws/||")
             if [ "${#changed[@]}" -eq 0 ]; then
               echo "$ws: no domain code changed."
@@ -238,4 +242,5 @@ jobs:
           path: |
             backend/services/planning-core/reports/mutation/
             backend/services/notification/reports/mutation/
+            backend/services/registration/reports/mutation/
           if-no-files-found: ignore

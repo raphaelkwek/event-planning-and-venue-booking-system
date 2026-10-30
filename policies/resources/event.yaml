@@ -57,10 +57,18 @@ resourcePolicy:
       effect: EFFECT_ALLOW
       derivedRoles: [owner]
 
-    - name: E2-only-the-assigned-coordinator-proposes
-      actions: [propose_reassignment]
+    # E3, E5 (CR-05): the Lead opens any event to assign and oversee it, and
+    # coordinates none (W9-35).
+    - name: E3-E5-the-lead-views-every-event-and-its-assignments
+      actions: [view, view_assignments]
       effect: EFFECT_ALLOW
-      derivedRoles: [assigned_coordinator]
+      roles: [EVENT_COORDINATOR_LEAD]
+
+    # E4 (W9-59): the Lead is the only route to a reassignment; E2's proposals are retired.
+    - name: E3-E4-only-the-lead-assigns-and-reassigns
+      actions: [assign, reassign]
+      effect: EFFECT_ALLOW
+      roles: [EVENT_COORDINATOR_LEAD]
 
     - name: E2-only-the-nominee-accepts-or-declines
       actions: [respond_to_reassignment]

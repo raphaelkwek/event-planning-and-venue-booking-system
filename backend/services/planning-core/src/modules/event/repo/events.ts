@@ -298,7 +298,8 @@ export async function listReviewQueue(
   const rows = await sql<RawEvent[]>`
     select e.*, a.coordinator_id as assigned_coordinator_id
     from event.events e
-    left join event.assignments a on a.event_id = e.id and a.is_active
+    -- E3: an unassigned request waits in the Lead's queue, not here.
+    join event.assignments a on a.event_id = e.id and a.is_active
     where e.status in ${sql(statuses as string[])} and e.decided_at is null
     order by e.submitted_at asc
   `;
