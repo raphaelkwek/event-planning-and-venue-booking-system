@@ -2,7 +2,7 @@ import { Router, type NextFunction, type Response } from "express";
 import type { Sql } from "postgres";
 import { findEventForPlanning, findEventReferences, type EventPlanningView } from "../../event/index.js";
 import { authenticate, requireRole, type ActorRequest } from "../auth/actor.js";
-import { notPendingMessage } from "../domain/bookingRequest.js";
+import { layoutCapacityAt, notPendingMessage } from "../domain/bookingRequest.js";
 import { bookingConflictMessage, NOT_VENUE_STAFF, readRejection, unavailableMessage } from "../domain/bookingDecision.js";
 import { VenueSlotConflictError } from "../domain/slotConflict.js";
 import { writeVenueOutbox } from "../events/outbox.js";
@@ -43,6 +43,15 @@ class ApprovalOverlapError extends Error {
     super("The approval's booking overlaps another.");
     this.name = "ApprovalOverlapError";
   }
+}
+
+/**
+ * EN-13: what the registration service builds seats from, read from the venue's own layouts inside
+ * the approval's transaction. Left out when the venue no longer offers the layout, so no seats are built from a guess.
+ */
+function seatBasis(layouts: readonly { name: string; capacity: number }[], layout: string) {
+  const capacity = layoutCapacityAt(layouts, layout);
+  return capacity === null ? {} : { layout, layoutCapacity: capacity };
 }
 
 /** What both decision messages carry: the request, its event, and the coordinator and owner to tell. */
@@ -107,7 +116,8 @@ export function bookingDecisionsRouter(sql: Sql) {
           // flags a pending request (implementation.md §4.6, rule 1). The other order
           // deadlocks against a block recorded at the same moment.
           // H3 (CR-01): the booking copies the venue's setup and turnaround time as it stands now.
-          const { setupMinutes, turnaroundMinutes } = (await lockVenue(tx, request.venueId))!;
+          const lockedVenue = (await lockVenue(tx, request.venueId))!;
+          const { setupMinutes, turnaroundMinutes } = lockedVenue;
           const locked = (await lockBookingRequest(tx, request.id))!;
           if (locked.status !== "PENDING") return { code: "NOT_PENDING", locked } as const;
           const blocks = await activeBlocksOverlapping(tx, locked.venueId, startsAt, endsAt, setupMinutes, turnaroundMinutes);
@@ -149,7 +159,7 @@ export function bookingDecisionsRouter(sql: Sql) {
             aggregateId: approved.id,
             actor,
             correlationId: req.header("x-correlation-id") ?? null,
-            payload: { ...decided(approved, event), bookingId, replacedBookingId },
+            payload: { ...decided(approved, event), bookingId, replacedBookingId, ...seatBasis(lockedVenue.layouts, approved.layout) },
           });
           return { code: "APPROVED", approved } as const;
         })

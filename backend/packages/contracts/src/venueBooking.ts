@@ -70,6 +70,15 @@ export const bookingRequestApprovedPayloadSchema = z.object({
   bookingId: z.string().uuid(),
   /** CR-02: the disrupted booking the approval released, if the request replaced one. */
   replacedBookingId: z.string().uuid().nullable(),
+  /**
+   * EN-13: the layout the booking was confirmed for, and that layout's capacity
+   * as the venue held it at approval. The registration service builds the
+   * event's seats from these, so it never calls Venue (ADR-0005). Optional so
+   * approvals published before EN-13 still parse; the registration service
+   * builds no seats for one that lacks them.
+   */
+  layout: z.string().min(1).optional(),
+  layoutCapacity: z.number().int().positive().optional(),
 });
 
 /** M2: the request is Rejected, with its reason and any suggested alternative. */

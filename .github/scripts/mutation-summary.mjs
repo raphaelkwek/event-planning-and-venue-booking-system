@@ -7,6 +7,7 @@ import { existsSync, readFileSync } from "node:fs";
 const WORKSPACES = [
   ["planning-core", "backend/services/planning-core"],
   ["notification", "backend/services/notification"],
+  ["registration", "backend/services/registration"],
 ];
 const CAUGHT = new Set(["Killed", "Timeout"]);
 const COUNTED = new Set(["Killed", "Timeout", "Survived", "NoCoverage"]);

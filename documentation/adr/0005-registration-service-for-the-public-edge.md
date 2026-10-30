@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2026-10-01
-**Owner:** whoever takes EN-13 (SPM-131), not yet assigned. The owner presents this in the Week 13 Q&A.
+**Owner:** Yichen (EN-13, SPM-131), who presents this in the Week 13 Q&A.
 **Approval:** team decision, reported 1 Oct 2026. See the gate log in `documentation/proposals/2026-10-01-target-architecture-and-jira-plan.md` §8.
 
 ## Context
@@ -41,3 +41,15 @@ R2 and R7 also contradict each other (CQ-01). R7 allows a VIP add "even when no 
 **What a reviewer should watch for:** a registration path that reads capacity and then writes, or any read of a cached ceiling on the write path.
 
 **Implemented by:** EN-13 (SPM-131). Proved by EN-18 (load tests) and EN-20 (chaos experiment 6).
+
+## Implementation notes (EN-13, 30 Oct 2026)
+
+What was decided while building it, where it differs from the text above:
+
+- **Its own database is its own schema.** The team has one hosted Supabase project, so the service owns the `registration` schema and its own migrations folder (`backend/services/registration/migrations`), as notification does. A separate database is a deployment change (EN-10), not a code change.
+- **Seats come from `venue-booking.request-approved`, not a `booking.confirmed` message.** No such message existed. The approval message gained two optional fields, `layout` and `layoutCapacity`, filled by the venue module from its own layouts in the approval's transaction. They are optional so approvals published earlier still parse; the registration service builds no seats from one that lacks them, and logs a warning. A reviewed `contracts` change.
+- **One approval, one booking's seats.** Seat numbers run from 1 within a booking, so an event with several venues (CQ-04) has the total of its bookings. When an approval replaces a booking (CR-02), the replaced booking's free seats are retired.
+- **The VIP pool starts empty.** Every seat is created `PUBLIC`; `setVipSeats` moves free seats. Nothing yet calls it: the organiser's control is R7's.
+- **No retry or dead-letter topic yet.** A message that fails validation is logged and skipped. A database failure throws, and the consumer gets the message again. The inbox makes that safe.
+- **The attendee PWA shell is not part of this change.** See ADR-0014.
+
