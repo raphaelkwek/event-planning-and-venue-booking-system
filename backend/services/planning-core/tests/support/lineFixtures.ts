@@ -146,6 +146,9 @@ export async function cleanLineFixtures(sql: Sql, owners: string[], typeCreators
   await sql`delete from equipment.outbox where message_key in (select id::text from (${lines}) l)`;
   await sql`delete from equipment.request_line_history where line_id in (${lines})`;
   const reservationIds = sql`select id from equipment.reservations where request_line_id in (${lines})`;
+  // S3's flags reference reservations, so they go first.
+  await sql`delete from equipment.reservation_flags where reservation_id in (
+    select id from equipment.reservations where equipment_type_id in (${types}) or request_line_id in (${lines}))`;
   await sql`delete from equipment.unit_reservations where reservation_id in (${reservationIds})`;
   await sql`delete from equipment.bulk_reservations where reservation_id in (${reservationIds})`;
   await sql`delete from equipment.unit_reservations where unit_id in (select id from equipment.equipment_units where equipment_type_id in (${types}))`;

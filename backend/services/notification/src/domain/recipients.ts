@@ -260,7 +260,32 @@ const RULES: Record<string, Rule> = {
   // F5: the owner, the Venue Staff of each booked venue (once per booking), and each Technical
   // Support Staff member who reserved equipment (once, listing what they reserved).
   "event.arrangements-confirmed": (d, event) => arrangementsConfirmed(d as unknown as ArrangementsConfirmed, event),
+  // S3 (AC10): an approved change flagged arrangements; the Venue Staff of each flagged booking, hold
+  // or pending request and the member who reserved each flagged reservation are told. One notice per flag.
+  "change-request.arrangements-flagged": (d, event) => arrangementsFlagged(d as unknown as ArrangementsFlagged, event),
 };
+
+/** S3's message data, as its contract (`changeRequestArrangementsFlaggedPayloadSchema`) validated it. */
+interface ArrangementsFlagged {
+  bookings: { arrangement?: "BOOKING" | "HOLD" | "BOOKING_REQUEST"; reference: string; venueName: string; reason: string; staffIds: string[] }[];
+  reservations: { equipmentTypeName: string; reason: string; reservedBy: string }[];
+}
+
+function arrangementsFlagged(d: ArrangementsFlagged, event: string): Array<[string, string]> {
+  const notices: Array<[string, string]> = [];
+  for (const booking of d.bookings) {
+    const what = booking.arrangement === "HOLD" ? "Hold" : booking.arrangement === "BOOKING_REQUEST" ? "Booking request" : "Booking";
+    const text = `${what} ${booking.reference} at ${booking.venueName} for ${event} needs attention after an approved change: ${booking.reason}`;
+    for (const staffId of booking.staffIds) notices.push([staffId, text]);
+  }
+  for (const reservation of d.reservations) {
+    notices.push([
+      reservation.reservedBy,
+      `The ${reservation.equipmentTypeName} reservation for ${event} is flagged for review after an approved change: ${reservation.reason} Release it if it is no longer needed.`,
+    ]);
+  }
+  return notices;
+}
 
 /** F5's message data, as its contract (`eventArrangementsConfirmedPayloadSchema`) validated it. */
 interface ArrangementsConfirmed {

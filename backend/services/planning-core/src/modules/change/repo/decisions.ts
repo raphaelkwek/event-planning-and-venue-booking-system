@@ -4,12 +4,17 @@ import { applyApprovedChange, checkProposedChange, findEventForChange, type Prop
 import { resolveAccessScope } from "../../identity/index.js";
 import { cannotApproveMessage, isChangeable, staleFields } from "../domain/changeRequests.js";
 import { writeOutbox } from "../events/outbox.js";
+import { flagArrangementsForChange, type AppliedChangeImpact } from "./changeImpact.js";
 import { lockRequest, recordDecision, type ChangeRequestRecord } from "./changeRequests.js";
 
 /**
  * S2 — the assigned coordinator's decision. The request is locked first, then the event, and
  * nothing is written until every check has passed; a refusal returns without having written
  * anything, so the caller's transaction commits an empty change.
+ *
+ * S3 — an approval also flags the arrangements the change affects and returns a Confirmed event
+ * to Planning, in the same transaction: if flagging throws, the change, the decision and every
+ * flag roll back together (AC11).
  */
 
 export type Decision = { decision: "APPROVE" } | { decision: "REJECT"; reason: string };
@@ -18,7 +23,7 @@ export type Decision = { decision: "APPROVE" } | { decision: "REJECT"; reason: s
 export type DecidedEvent = { id: string } & Partial<Record<SignificantEventField, unknown>>;
 
 export type DecisionOutcome =
-  | { ok: true; request: ChangeRequestRecord; event?: DecidedEvent }
+  | { ok: true; request: ChangeRequestRecord; event?: DecidedEvent; impact?: AppliedChangeImpact }
   | { ok: false; code: "NOT_FOUND" }
   | { ok: false; code: "NOT_ASSIGNED" }
   | { ok: false; code: "ALREADY_DECIDED"; status: "APPROVED" | "REJECTED"; decidedAt: string }
@@ -53,6 +58,7 @@ export async function decideChangeRequest(
   const at = new Date();
   let decided: ChangeRequestRecord;
   let applied: DecidedEvent | undefined;
+  let impact: AppliedChangeImpact | undefined;
   if (decision.decision === "REJECT") {
     decided = await recordDecision(tx, request.id, { status: "REJECTED", actorId: actor.userId, reason: decision.reason, at });
   } else {
@@ -79,6 +85,7 @@ export async function decideChangeRequest(
       };
     }
     await applyApprovedChange(tx, event, changes, actor, at);
+    impact = await flagArrangementsForChange(tx, { ...event, reference: request.eventReference }, request.id, changes, actor);
     decided = await recordDecision(tx, request.id, { status: "APPROVED", actorId: actor.userId, reason: null, at });
     const values: DecidedEvent = { id: event.id };
     for (const field of SIGNIFICANT_EVENT_FIELDS) values[field] = field in changes ? changes[field] : event.current[field];
@@ -104,5 +111,5 @@ export async function decideChangeRequest(
     correlationId: actor.correlationId ?? null,
     payload: decision.decision === "APPROVE" ? common : { ...common, reason: decision.reason },
   });
-  return applied ? { ok: true, request: decided, event: applied } : { ok: true, request: decided };
+  return applied ? { ok: true, request: decided, event: applied, impact } : { ok: true, request: decided };
 }

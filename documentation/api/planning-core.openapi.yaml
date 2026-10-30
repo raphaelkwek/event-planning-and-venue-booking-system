@@ -1047,6 +1047,50 @@ paths:
         "429": { $ref: "#/components/responses/RateLimitExceeded" }
         "503": { $ref: "#/components/responses/IdentityUnavailable" }
 
+  /api/v1/events/{id}/arrangement-flags:
+    parameters:
+      - $ref: "#/components/parameters/RecordId"
+    get:
+      tags: [Change requests]
+      summary: The flags still outstanding on an event's arrangements (S3)
+      description: |
+        The event's owning organiser, its assigned coordinator and Event Coordinators (AC8). Anyone
+        else, including an organiser who does not own the event, gets the same 404 as for an event
+        that does not exist. Lists every flag that holds back F5's confirmation (AC9): each flagged
+        venue booking, hold and pending booking request first, then each flagged equipment
+        reservation, saying which arrangement and why, oldest first. An arrangement carries each flag
+        once, with the newest reason. A Requires Reconfirmation set by unavailability (I2) or the
+        venue's setup and turnaround (H3) is listed with a general reason. A flag stops being
+        outstanding when its booking or hold is released, its request decided or withdrawn, or its
+        reservation released. A pending request's flags move to the booking M1 confirms from it.
+      operationId: listArrangementFlags
+      responses:
+        "200":
+          description: The outstanding flags; empty when there are none.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [flags]
+                properties:
+                  flags:
+                    type: array
+                    items:
+                      type: object
+                      required: [arrangement, id, reference, name, flag, reason, flaggedAt]
+                      properties:
+                        arrangement: { type: string, enum: [BOOKING, HOLD, BOOKING_REQUEST, EQUIPMENT] }
+                        id: { type: string, format: uuid, description: "The booking's, hold's, booking request's or reservation's id." }
+                        reference: { type: string, description: "The booking's, hold's or request's reference; for a reservation, its id." }
+                        name: { type: string, description: "The venue's name, or the equipment type's." }
+                        flag: { type: string, enum: [REQUIRES_RECONFIRMATION, UNSUITABLE, FLAGGED_FOR_REVIEW] }
+                        reason: { type: string }
+                        flaggedAt: { type: string, format: date-time }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "429": { $ref: "#/components/responses/RateLimitExceeded" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
   /api/v1/change-requests/{id}/decision:
     parameters:
       - $ref: "#/components/parameters/RecordId"
@@ -1061,6 +1105,16 @@ paths:
         version. Rejecting needs a reason and leaves the event untouched. The requesting organiser is
         notified of either outcome. Approval is refused when the event changed since the request was
         made (each such field is named `changes.<field>`). A refused decision stores nothing.
+
+        S3: in the same transaction an approval assesses the event's confirmed venue bookings, held
+        holds, pending booking requests and equipment reservations against the new values. One whose
+        period is not exactly the event's new period is flagged (`REQUIRES_RECONFIRMATION` /
+        `FLAGGED_FOR_REVIEW`); a venue arrangement whose layout holds fewer than the new expected
+        attendance is flagged `UNSUITABLE`. A flagged request's flags carry over to the booking M1
+        confirms from it. Nothing is moved or
+        released. A Confirmed event returns to Planning (`RECONSIDER_AFTER_CHANGE`); any other status is
+        left alone. The venue's staff and the member of Technical Support who reserved the equipment are
+        notified. If flagging fails, the change, the decision and every flag are rolled back (500).
       operationId: decideChangeRequest
       requestBody:
         required: true
@@ -1069,7 +1123,7 @@ paths:
             schema: { $ref: "#/components/schemas/ChangeRequestDecision" }
       responses:
         "200":
-          description: The decided request, and on approval the event's significant values after the change.
+          description: The decided request, and on approval the event's significant values after the change and its impact on the arrangements.
           content:
             application/json:
               schema:
@@ -1089,6 +1143,10 @@ paths:
                       venueRequirements: { description: "The venue requirements after the change, or null." }
                       equipmentRequired: { type: [boolean, "null"] }
                       equipmentRequirements: { description: "The equipment requirements after the change, or null." }
+                  impact:
+                    description: Present on approval only (S3).
+                    allOf:
+                      - $ref: "#/components/schemas/ChangeImpact"
         "400": { $ref: "#/components/responses/ValidationFailed" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
@@ -3800,6 +3858,56 @@ components:
         fields:
           type: array
           items: { $ref: "#/components/schemas/ChangeRequestField" }
+
+    ChangeImpact:
+      type: object
+      description: |
+        S3 — the event's arrangements an approved change was assessed against, and the flags it set.
+        `flags` lists venue flags (bookings, holds, booking requests) first, then reservation flags; a
+        venue arrangement can carry two flags.
+      required: [bookings, reservations, activeRegistrations, flags]
+      properties:
+        bookings:
+          type: array
+          description: Every confirmed venue booking, held hold and pending booking request of the event, in that order.
+          items:
+            type: object
+            required: [arrangement, id, reference, venueName, startsAt, endsAt]
+            properties:
+              arrangement: { type: string, enum: [BOOKING, HOLD, BOOKING_REQUEST] }
+              id: { type: string, format: uuid, description: "The slot's id for a booking or hold; the request's id for a booking request." }
+              reference: { type: string }
+              venueName: { type: string }
+              startsAt: { type: string, format: date-time }
+              endsAt: { type: string, format: date-time }
+        reservations:
+          type: array
+          description: Every active equipment reservation of the event.
+          items:
+            type: object
+            required: [id, equipmentTypeName, reservedQuantity, startsAt, endsAt]
+            properties:
+              id: { type: string, format: uuid }
+              equipmentTypeName: { type: string }
+              reservedQuantity: { type: integer, minimum: 1 }
+              startsAt: { type: string, format: date-time }
+              endsAt: { type: string, format: date-time }
+        activeRegistrations:
+          type: integer
+          minimum: 0
+          description: Always 0 until the registration service (EN-13) exists.
+        flags:
+          type: array
+          items:
+            type: object
+            required: [arrangement, id, reference, name, flag, reason]
+            properties:
+              arrangement: { type: string, enum: [BOOKING, HOLD, BOOKING_REQUEST, EQUIPMENT] }
+              id: { type: string, format: uuid, description: "The booking's, hold's, booking request's or reservation's id." }
+              reference: { type: string, description: "The booking's, hold's or request's reference; for equipment, the reservation's id." }
+              name: { type: string, description: "The venue's name, or the equipment type's name." }
+              flag: { type: string, enum: [REQUIRES_RECONFIRMATION, UNSUITABLE, FLAGGED_FOR_REVIEW] }
+              reason: { type: string, description: "Why, e.g. `Expected attendance is now 150, but Venue One holds 100 in the Theatre layout.`" }
 
     ConfirmedArrangements:
       type: object

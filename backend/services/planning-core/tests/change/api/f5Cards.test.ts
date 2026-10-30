@@ -44,7 +44,7 @@ vi.mock("../../../src/modules/equipment/index.js", async () => {
 
 const { resolveCurrentUser: resolveChangeUser } = await import("../../../src/modules/change/auth/identity.js");
 const { resolveCurrentUser: resolveEquipmentUser } = await import("../../../src/modules/equipment/auth/identity.js");
-const { venueArrangementsForEvent } = await import("../../../src/modules/venue/index.js");
+const { venueArrangementsForEvent, flagBookings } = await import("../../../src/modules/venue/index.js");
 const { equipmentArrangementsForEvent } = await import("../../../src/modules/equipment/index.js");
 const { app } = await import("../../../src/app.js");
 
@@ -189,6 +189,7 @@ async function clean() {
   const venues = sql`select id from venue.venues where created_by = ${A.vs}`;
   await sql`delete from venue.block_disruptions where block_id in (select id from venue.unavailability_blocks where venue_id in (${venues}))`;
   await sql`delete from venue.unavailability_blocks where venue_id in (${venues})`;
+  await sql`delete from venue.arrangement_flags where slot_id in (select id from venue.venue_slots where venue_id in (${venues}))`;
   await sql`delete from venue.booking_requests where venue_id in (${venues})`;
   await sql`delete from venue.venue_slots where venue_id in (${venues})`;
   await sql`delete from venue.venue_staff where venue_id in (${venues})`;
@@ -402,7 +403,25 @@ describe("F5 cards (tests/F5)", () => {
     expect((await state(event.id)).slots).toEqual([{ id: b1!.id, status: "CONFIRMED", requires_reconfirmation: true }]);
   });
 
-  it.skip("F5-T16 a booking flagged unsuitable (S3) is refused — Blocked: S3 stores no unsuitable flag yet", () => {});
+  it("F5-T16 a booking flagged unsuitable (S3) is refused, naming the flag", async () => {
+    const { event, b1, v1 } = await fixture();
+    // The flag S3 sets when an approved attendance change exceeds the layout's capacity.
+    await sql.begin((tx) =>
+      flagBookings(tx, event.id, randomUUID(), [
+        { bookingId: b1!.id, flag: "UNSUITABLE", reason: `Expected attendance is now 250, but ${v1.name} holds 200 in the Theatre layout.`, details: {} },
+      ]),
+    );
+    const response = await refusedLeavingNothing(event.id, 422, "ARRANGEMENTS_NOT_READY");
+    expect(response.body.error.message).toBe(
+      `This event can't be confirmed yet. Outstanding flags: booking ${b1!.reference} at ${v1.name} is flagged unsuitable.`,
+    );
+    expect(response.body.error.details.flags).toEqual([
+      { arrangement: "BOOKING", reference: b1!.reference, name: v1.name, flag: "UNSUITABLE" },
+    ]);
+    expect((await state(event.id)).slots).toEqual([{ id: b1!.id, status: "CONFIRMED", requires_reconfirmation: false }]);
+    const [stored] = await sql`select unsuitable from venue.venue_slots where id = ${b1!.id}`;
+    expect(stored!.unsuitable).toBe(true);
+  });
 
   it("F5-T17 readiness is read live: a reservation released just before is seen", async () => {
     const { event, l1, chairs } = await fixture();

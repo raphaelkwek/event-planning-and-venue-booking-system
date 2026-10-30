@@ -1,5 +1,6 @@
 import { Router } from "express";
 import type { Sql } from "postgres";
+import { arrangementFlagsRouter } from "./api/arrangementFlags.js";
 import { changeRequestsRouter } from "./api/changeRequests.js";
 import { confirmationsRouter } from "./api/confirmations.js";
 import { decisionsRouter } from "./api/decisions.js";
@@ -24,5 +25,6 @@ export function changeRouter(sql: Sql): Router {
   router.use(changeRequestsRouter(sql, limiter));
   router.use(decisionsRouter(sql, limiter));
   router.use(confirmationsRouter(sql, limiter));
+  router.use(arrangementFlagsRouter(sql, limiter));
   return router;
 }

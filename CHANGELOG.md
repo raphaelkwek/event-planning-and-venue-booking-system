@@ -4,6 +4,51 @@
 
 ---
 
+# S3: flag the arrangements an approved change affects (SPM-59)
+
+**Timestamp:** 2026-10-28T12:00+08:00 (SGT)
+**Author:** Raphael, via Claude
+**Scope:** planning-core (change, venue, equipment, event modules), contracts, notification service,
+web app; migrations venue/0019 and equipment/0009.
+
+**Deploy:** run `npm run migrate -- venue` (0019) and `npm run migrate -- equipment` (0009) before
+deploying planning-core, and deploy the notification service with it.
+
+## Added
+
+- Approving a change request (S2) now assesses the event's confirmed bookings, held holds, pending
+  booking requests and reservations in the same transaction: a venue arrangement whose period no
+  longer matches the event is Requires Reconfirmation, one whose layout holds fewer than the new
+  attendance is Unsuitable, and a reservation whose period no longer matches is Flagged for review.
+  Nothing is moved or released. If flagging fails, the approval is not made.
+- A flagged pending request keeps its flags when Venue Staff approve it (M1): the confirmed
+  booking carries them. S3's Requires Reconfirmation is its own column (`period_mismatch`), so
+  removing an unavailability block (I2) or a buffer conflict (H3) does not clear it.
+- The approval's response carries `impact`: the bookings, holds and requests (each naming its
+  `arrangement`), reservations, registration count (0 until EN-13) and the flags set.
+- A Confirmed event returns to Planning when a change to it is approved (Week 9 answer W9-22),
+  through the new transition `RECONSIDER_AFTER_CHANGE`.
+- `GET /api/v1/events/{id}/arrangement-flags`: every flag F5 would refuse on, with its reason
+  (I2's and H3's Requires Reconfirmation with a general one), for the owner, the assigned
+  coordinator and Event Coordinators.
+- `change-request.arrangements-flagged` message; Venue Staff of the booked venue and the Technical
+  Support member who reserved are notified.
+- Screens: "Affected arrangements" after an approval, and "Outstanding flags" on the event.
+
+## Changed
+
+- F5 refuses confirmation while a booking, hold or request is Unsuitable or a reservation is
+  Flagged for review (F5-T16 now runs).
+- A booking S3 flagged Requires Reconfirmation can be replaced through L5 (CR-02), and shows as
+  requiring reconfirmation in the event's bookings, as one I2 flagged does.
+
+## Not yet
+
+- Clearing a flag, notifying attendees (needs EN-13), and G2's preview, which will reuse the same
+  assessment.
+
+---
+
 # EN-13: The registration service and its seat inventory
 
 **Timestamp:** 2026-10-30T13:20+08:00 (SGT)

@@ -7,7 +7,7 @@ import { EVENT_STATUS_LABELS, type EventStatus } from "@connectsphere/contracts"
  *
  * `transitionEvent` (api/transitionEvent.ts) is the only code that applies a
  * row of this table, and the only code that writes an event's status. Later
- * stories (F3 cancellation, S2, U1's reject once CQ-08 is answered) add rows
+ * stories (F3 cancellation, S2, S3, U1's reject once CQ-08 is answered) add rows
  * here rather than writing status themselves.
  */
 export type EventAction =
@@ -21,7 +21,8 @@ export type EventAction =
   | "APPROVE_SAFETY"
   | "REQUEST_SAFETY_CHANGES"
   | "VENUE_BLOCKED"
-  | "COMPLETE";
+  | "COMPLETE"
+  | "RECONSIDER_AFTER_CHANGE";
 
 export interface TransitionRule {
   readonly from: readonly EventStatus[];
@@ -39,6 +40,10 @@ const TRANSITIONS: Record<EventAction, TransitionRule> = {
   // Since CR-06 that leads to Safety Review, not straight to Confirmed.
   CONFIRM_ARRANGEMENTS: { from: ["APPROVED", "PLANNING"], to: "SAFETY_REVIEW" },
   // U1 — only the Safety Officer's approval makes an event Confirmed (CR-06).
+  // S3: a change approved while the event is in Safety Review leaves it there
+  // (AC6) but may flag its arrangements. When U1 applies this transition it must
+  // refuse while any arrangement flag is outstanding (the venue and equipment
+  // reads F5 uses), or a flagged event would become Confirmed.
   APPROVE_SAFETY: { from: ["SAFETY_REVIEW"], to: "CONFIRMED" },
   // U1 — a request for changes sends the event back to Planning, from where it
   // passes F5 and the safety check again. Rejecting the safety arrangement has
@@ -53,6 +58,11 @@ const TRANSITIONS: Record<EventAction, TransitionRule> = {
   // completes, and only once its end has passed (checked where the transition
   // is applied, in transitionEvent).
   COMPLETE: { from: ["CONFIRMED"], to: "COMPLETED" },
+  // Week 9 answer W9-22 — an approved material change to a Confirmed event
+  // returns it to Planning; it is confirmed again only after F5 and a new
+  // safety check (U1). S3 applies it when it approves a change request; every
+  // significant field counts as material. No other status moves (S3 AC6).
+  RECONSIDER_AFTER_CHANGE: { from: ["CONFIRMED"], to: "PLANNING" },
 };
 
 export function transitionRule(action: EventAction): TransitionRule {

@@ -82,6 +82,7 @@ export async function confirmArrangements(
   if (refusal) return { ok: false, code: "STATUS_NOT_PERMITTED", message: refusal };
 
   const { venue, lines } = await readArrangements(tx, event.id);
+  // Each booking's and line's flags (I2's and S3's) are part of what is assessed (AC7).
   const readiness = assessReadiness({
     equipmentRequired: event.current.equipmentRequired ?? null,
     bookings: venue.bookings,

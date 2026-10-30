@@ -15,6 +15,7 @@ import {
 } from "../api/events.js";
 import type { Clarification, EventRecord, ReassignmentProposal } from "../api/types.js";
 import { formatInstant, STATUS_APPEARANCE, STATUS_LABELS } from "../shared/status.js";
+import { OutstandingFlags } from "../components/OutstandingFlags.js";
 import { StatusHistory } from "../components/StatusHistory.js";
 import { Refusal } from "../components/Refusal.js";
 import { canEditDetails } from "../shared/eventDetails.js";
@@ -194,6 +195,7 @@ export function RequestDetail() {
           value={event.registrationRequired ? "Yes" : "No"}
         />
 
+        <OutstandingFlags eventId={event.id} refreshKey={event.status} />
         <StatusHistory eventId={event.id} refreshKey={event.status} />
         <h3 style={{ marginTop: 32 }}>Clarifications</h3>
         {clarifications.length === 0 && <p>None requested.</p>}
