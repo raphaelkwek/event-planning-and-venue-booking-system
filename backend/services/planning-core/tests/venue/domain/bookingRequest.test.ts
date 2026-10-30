@@ -8,6 +8,7 @@ import {
   isDuplicatePending,
   JUSTIFICATION_MESSAGE,
   layoutAt,
+  layoutCapacityAt,
   notBookableMessage,
   notPendingMessage,
   notSuitableMessage,
@@ -163,6 +164,23 @@ describe("layoutAt", () => {
   it("finds the venue's layout ignoring case, in the venue's spelling (L1-T14)", () => {
     expect(layoutAt(layouts, "classroom")).toBe("Classroom");
     expect(layoutAt(layouts, "Boardroom")).toBeNull();
+  });
+});
+
+describe("layoutCapacityAt", () => {
+  const layouts = [
+    { name: "Theatre", capacity: 300 },
+    { name: "Classroom", capacity: 120 },
+  ];
+
+  it("gives the capacity of the layout asked for, ignoring case (EN-13)", () => {
+    expect(layoutCapacityAt(layouts, "classroom")).toBe(120);
+    expect(layoutCapacityAt(layouts, "THEATRE")).toBe(300);
+  });
+
+  it("gives null when the venue has no such layout, so no seats are built from a guess (EN-13)", () => {
+    expect(layoutCapacityAt(layouts, "Boardroom")).toBeNull();
+    expect(layoutCapacityAt([], "Theatre")).toBeNull();
   });
 });
 

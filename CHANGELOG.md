@@ -4,6 +4,63 @@
 
 ---
 
+# EN-13: The registration service and its seat inventory
+
+**Timestamp:** 2026-10-30T13:20+08:00 (SGT)
+**Author:** Yichen, via Claude
+**Scope:** EN-13 (SPM-131, Sprint 4), ADR-0005. It unblocks R2 to R7, EN-18 and EN-20. R3 and R6 wait on
+it, and on R2.
+- **Registration service** (`backend/services/registration`, new):
+  - a Kafka consumer, `seat-builder`, on `connectsphere.venue-booking.v1`;
+  - the `registration` schema: `seats` and the inbox `consumed_messages`;
+  - `claimSeat`, `createSeats`, `retireFreeSeatsOfBooking`, `setVipSeats` and `seatCounts`;
+  - `/healthz` and `/readyz` on `REGISTRATION_PORT` (8092).
+- **contracts:** `venue-booking.request-approved` gains optional `layout` and `layoutCapacity`.
+- **planning-core, venue module:** M1's approval fills them from the venue's own layouts, in the
+  approval's transaction. New `layoutCapacityAt`.
+- **Wiring:** `migrate.ts` (`all`, and `migrate:registration`), the root `dev`, CI (integration,
+  coverage and mutation), `.env.example`.
+- **Docs:** `implementation.md` §2 and §4.6 rewritten, ADR-0005's implementation notes, and
+  `tests/EN-13/` (README and nine cards).
+
+**Reason:** R2 needs the capacity check and the registration to be atomic (ADR-0005). One row per seat,
+claimed with `FOR UPDATE SKIP LOCKED`, gives that without a counter and without a call to Venue.
+
+## Added
+
+- **Seats from an approval:** an approval that names a layout capacity gives its event that many seats,
+  numbered from 1. An event with two venues has the total (CQ-04). A message delivered twice builds them
+  once.
+- **The claim:** one statement picks the lowest-numbered free seat in a pool and takes it. A full pool
+  returns nothing, and R2 turns that into the waitlist offer.
+- **Pools:** `PUBLIC` and `VIP`. Every seat starts `PUBLIC`, and `setVipSeats` moves free seats only.
+- **CR-02:** an approval that replaces a booking retires that booking's free seats. A held seat stays.
+
+## Decided
+
+- **Seats are built from `venue-booking.request-approved`,** not a `booking.confirmed` message, which
+  never existed. The two fields are optional, so approvals published before this still parse. The
+  registration service builds no seats from one without them.
+- **No retry or dead-letter topic yet.** An invalid message is logged and skipped, and a database
+  failure is retried by the consumer. They come with R2's outbox.
+
+## Not done
+
+- **The attendee PWA shell** (Jira's fourth criterion) is not in this change. It ships in its own pull
+  request, and blocks neither R2, R3 nor R6.
+
+## Verified
+
+- **The migration is applied to the shared Supabase database** (30 Oct 2026, by Yichen). `0001` is now
+  fixed: a change goes in `0002`. The 38 registration tests, race included, pass against it and leave
+  no rows behind.
+- 38 registration tests, 27 venue-approval tests and 143 contracts tests pass on a throwaway Postgres.
+  The race (500 attendees, 100 seats) gives exactly 100, and with `skip locked` removed it gives 326.
+- The domain code scores 96.9% under mutation testing (the floor is 80), lint, the module boundaries,
+  squawk, typecheck and build are clean. The unit coverage floors pass.
+
+---
+
 # E5: The Lead oversees every active event, coordinators' load and assignment history
 
 **Timestamp:** 2026-10-28T00:29+08:00 (SGT)

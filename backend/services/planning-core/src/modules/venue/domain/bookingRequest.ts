@@ -141,6 +141,11 @@ export function layoutAt(layouts: readonly { name: string }[], layout: string): 
   return layouts.find((l) => l.name.toLowerCase() === layout.toLowerCase())?.name ?? null;
 }
 
+/** The capacity of the venue's layout asked for, ignoring case; null when the venue has no such layout (EN-13). */
+export function layoutCapacityAt(layouts: readonly { name: string; capacity: number }[], layout: string): number | null {
+  return layouts.find((l) => l.name.toLowerCase() === layout.toLowerCase())?.capacity ?? null;
+}
+
 export type Difference =
   | { field: "startsAt" | "endsAt"; event: string; requested: string }
   | { field: "expectedAttendance"; event: number; requested: number };
