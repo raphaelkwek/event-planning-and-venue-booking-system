@@ -1180,9 +1180,13 @@ paths:
       description: |
         The owning organiser or the assigned coordinator, at any point before the event is Completed,
         Rejected or Cancelled. A reason is mandatory. In one transaction the event becomes Cancelled
-        with the reason, user and time recorded and a history entry; a change request still pending
-        is Closed (W9-07); and the owner, the coordinator, each booked venue's Venue Staff and each
-        reserver are notified (`event.cancelled`). Any failure rolls all of it back. A refusal stores nothing.
+        with the reason, user and time recorded and a history entry; its confirmed bookings and holds
+        are Released and its pending venue requests Withdrawn, and its equipment reservations are
+        Released, each recording "event cancelled", the user and the time (F4); a change request still
+        pending is Closed (W9-07); and the owner, the coordinator, each booked venue's Venue Staff and
+        each reserver are notified (`event.cancelled`). Any failure rolls all of it back, so nothing is
+        left partly released. A refusal stores nothing. Registrations are not released yet: the
+        registration service (EN-13) does not exist, so `released.registrations` is always 0.
       operationId: cancelEvent
       requestBody:
         required: true
@@ -1200,9 +1204,10 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [event, closedChangeRequest]
+                required: [event, closedChangeRequest, released]
                 properties:
                   event: { $ref: "#/components/schemas/CancelledEvent" }
+                  released: { $ref: "#/components/schemas/ReleasedOnCancellation" }
                   closedChangeRequest:
                     oneOf:
                       - $ref: "#/components/schemas/ChangeRequest"
@@ -3898,6 +3903,25 @@ components:
         cancellationReason: { type: string }
         cancelledBy: { type: string, format: uuid, description: The owner or assigned coordinator who cancelled. }
         cancelledAt: { type: string, format: date-time }
+
+    ReleasedOnCancellation:
+      description: "F4: what the cancellation released. References in the order released."
+      type: object
+      required: [bookings, holds, requests, reservations, registrations]
+      properties:
+        bookings: { type: array, items: { type: string }, description: Confirmed bookings now Released. }
+        holds: { type: array, items: { type: string }, description: Requested or placed holds now Released. }
+        requests: { type: array, items: { type: string }, description: Pending booking requests now Withdrawn. }
+        reservations:
+          type: array
+          items:
+            type: object
+            required: [reservationId, equipmentTypeName, reservedQuantity]
+            properties:
+              reservationId: { type: string, format: uuid }
+              equipmentTypeName: { type: string }
+              reservedQuantity: { type: integer, minimum: 1 }
+        registrations: { type: integer, enum: [0], description: "Always 0 until the registration service (EN-13) exists." }
 
     BookingRequestInput:
       type: object

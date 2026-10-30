@@ -318,7 +318,7 @@ function eventCancelled(d: EventCancelled, event: string): Array<[string, string
       .filter((booking) => booking.staffIds.includes(staffId))
       .map((booking) => `booking ${booking.reference} at ${booking.venueName}, ${period(booking.startsAt, booking.endsAt)}`)
       .join("; ");
-    tell(staffId, `${cancelled} It had ${booked}.`);
+    tell(staffId, `${cancelled} Released: ${booked}.`);
   }
   const reservers = [...new Set(d.reservations.map((reservation) => reservation.reservedBy))];
   for (const reserver of reservers) {
@@ -326,7 +326,7 @@ function eventCancelled(d: EventCancelled, event: string): Array<[string, string
       .filter((reservation) => reservation.reservedBy === reserver)
       .map((reservation) => `${reservation.equipmentTypeName} × ${reservation.reservedQuantity}`)
       .join(", ");
-    tell(reserver, `${cancelled} It had the equipment you reserved: ${reserved}.`);
+    tell(reserver, `${cancelled} The equipment you reserved has been released: ${reserved}.`);
   }
   return [...notices];
 }

@@ -706,18 +706,18 @@ describe("event.cancelled (F3 AC6)", () => {
     expect(textFor(coordinator)).toEqual([`The event ${name}`]);
   });
 
-  it("tells each Venue Staff member every booking of theirs, in one notice", () => {
+  it("tells each Venue Staff member every booking of theirs that was released, in one notice (F4)", () => {
     expect(textFor(venueStaff)).toEqual([
-      `${name} It had booking BKR-000001 at Lee Kong Chian Auditorium, Wednesday 2 December 2026, 14:00–18:00; ` +
+      `${name} Released: booking BKR-000001 at Lee Kong Chian Auditorium, Wednesday 2 December 2026, 14:00–18:00; ` +
         "booking BKR-000002 at Seminar Room 2-1, Wednesday 2 December 2026, 14:00–18:00.",
     ]);
     expect(textFor(otherVenueStaff)).toEqual([
-      `${name} It had booking BKR-000001 at Lee Kong Chian Auditorium, Wednesday 2 December 2026, 14:00–18:00.`,
+      `${name} Released: booking BKR-000001 at Lee Kong Chian Auditorium, Wednesday 2 December 2026, 14:00–18:00.`,
     ]);
   });
 
-  it("tells each reserver the equipment they reserved", () => {
-    expect(textFor(techSupport)).toEqual([`${name} It had the equipment you reserved: Folding Chairs × 40, Projectors × 2.`]);
+  it("tells each reserver the equipment they reserved was released (F4)", () => {
+    expect(textFor(techSupport)).toEqual([`${name} The equipment you reserved has been released: Folding Chairs × 40, Projectors × 2.`]);
   });
 
   it("notifies only the owner when there is no coordinator and nothing booked or reserved", () => {

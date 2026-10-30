@@ -4,6 +4,24 @@
 
 ---
 
+# F4: Release the arrangements of a cancelled event
+
+**Timestamp:** 2026-10-29T19:30+08:00 (SGT)
+**Author:** Raphael, via Claude
+**Scope:** F4 (SPM-111, Sprint 4). Stacked on F3; merge the two together.
+- planning-core, change module: F3's cancellation now releases the event's bookings and holds, withdraws its pending venue requests and
+  releases its equipment reservations in the same transaction, through L4's `releaseVenueArrangementsForEvent` and Q2's
+  `releaseEventReservations`, each recording `event cancelled`, the user and the time. Any failure rolls the whole cancellation back
+  (500 `CANCELLATION_FAILED`). The response's `released` lists what was released; `registrations` is 0 until EN-13.
+- planning-core, venue module: `lockVenuesForEvent`, so the cancellation locks venues before it reads their slots (venue, then slot, as M1).
+- notification: the cancellation notices say the bookings and equipment were released.
+- web: the cancellation dialog says what will be released.
+- Tests: `tests/F4/` (F4-T1 to F4-T8), `tests/change/api/f4Cards.test.ts`.
+- Not yet: registrations, attendee notices and ADR-0009's CancelEvent workflow, which wait for EN-13.
+- No migration of its own; deploy with F3.
+
+---
+
 # F3: Cancel an event
 
 **Timestamp:** 2026-10-29T19:10+08:00 (SGT)
