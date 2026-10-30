@@ -31,6 +31,8 @@ export interface Disrupted {
   eventReference: string | null;
   overlapFrom: string;
   overlapUntil: string;
+  /** I3: the event is Confirmed and this disrupts its confirmed booking, so it returns (or would return) to Planning. */
+  returnsEventToPlanning: boolean;
 }
 
 export interface BlockInput {

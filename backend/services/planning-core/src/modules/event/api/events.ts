@@ -112,7 +112,8 @@ export function eventsRouter(sql: Sql) {
     }
 
     // G1: the version an edit must send back in If-Match (ADR-0015).
-    if (role !== "EVENT_COORDINATOR" || event.status !== "SUBMITTED") {
+    // E3: an unassigned request is the Lead's to assign; a coordinator opening it does not claim it.
+    if (role !== "EVENT_COORDINATOR" || event.status !== "SUBMITTED" || !event.assignedCoordinatorId) {
       res.set("ETag", etag(event.version)).status(200).json(event);
       return;
     }

@@ -106,6 +106,18 @@ describe("venue-booking.request-approved and venue-booking.request-rejected (M1,
     expect(parseCloudEvent(message("venue-booking.request-approved", replacing)).data).toEqual(replacing);
   });
 
+  it("accepts an approval with or without the layout the registration service builds seats from (EN-13)", () => {
+    const seated = { ...approved, layout: "Theatre", layoutCapacity: 300 };
+    expect(parseCloudEvent(message("venue-booking.request-approved", seated)).data).toEqual(seated);
+    expect(parseCloudEvent(message("venue-booking.request-approved", approved)).data).toEqual(approved);
+  });
+
+  it("refuses a layout capacity that is not a positive whole number, or a blank layout (EN-13)", () => {
+    for (const bad of [{ layoutCapacity: 0 }, { layoutCapacity: -5 }, { layoutCapacity: 12.5 }, { layoutCapacity: "300" }, { layout: "" }]) {
+      expect(() => parseCloudEvent(message("venue-booking.request-approved", { ...approved, layout: "Theatre", layoutCapacity: 300, ...bad }))).toThrow();
+    }
+  });
+
   it("accepts a rejection with its reason, and with or without a suggested alternative (M2-T5)", () => {
     expect(parseCloudEvent(message("venue-booking.request-rejected", rejected)).data).toEqual(rejected);
     const bare = { ...rejected, suggestion: null };
@@ -165,6 +177,14 @@ describe("venue-booking.booking-disrupted and venue-booking.disruption-cleared (
       const data = { ...disrupted, kind };
       expect(parseCloudEvent(message("venue-booking.booking-disrupted", data)).data, kind).toEqual(data);
     }
+  });
+
+  it("says, when it did, that the block returned the Confirmed event to Planning (I3-T4)", () => {
+    const returned = { ...disrupted, eventReturnedToPlanning: true };
+    expect(parseCloudEvent(message("venue-booking.booking-disrupted", returned)).data).toEqual(returned);
+    expect(() =>
+      parseCloudEvent(message("venue-booking.booking-disrupted", { ...disrupted, eventReturnedToPlanning: "yes" })),
+    ).toThrow(/eventReturnedToPlanning/);
   });
 
   it("accepts a block with no end, carrying a null end, but not a missing or malformed one (I5-T8)", () => {

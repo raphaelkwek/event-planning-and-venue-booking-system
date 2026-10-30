@@ -45,6 +45,17 @@ export async function findUsersByIds(sql: Sql, ids: string[]): Promise<UserSumma
   return rows.map((row) => ({ id: row.id, displayName: row.display_name, email: row.email }));
 }
 
+/** E3: the active users holding `role`, by display name, then email. */
+export async function listActiveUsersWithRole(sql: Sql, role: string): Promise<UserSummaryRow[]> {
+  const rows = await sql<{ id: string; display_name: string | null; email: string }[]>`
+    select u.id, u.display_name, u.email
+    from identity.users u join identity.user_roles r on r.user_id = u.id
+    where r.role = ${role} and u.is_active
+    order by coalesce(u.display_name, u.email), u.email
+  `;
+  return rows.map((row) => ({ id: row.id, displayName: row.display_name, email: row.email }));
+}
+
 export async function findRoleForUser(sql: Sql, userId: string): Promise<string | null> {
   const rows = await sql<{ role: string }[]>`
     select role from identity.user_roles

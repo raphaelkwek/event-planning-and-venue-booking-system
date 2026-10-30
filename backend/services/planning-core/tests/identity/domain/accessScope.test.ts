@@ -47,3 +47,14 @@ describe("resolveAccessScope", () => {
     expect(resolveAccessScope("EVENT_COORDINATOR", USER_ID, "invoices" as never)).toEqual({ scopeType: "NONE" });
   });
 });
+
+describe("resolveAccessScope for the Event Coordinator Lead (E5)", () => {
+  it("gives the Lead every event, to oversee and assign", () => {
+    expect(resolveAccessScope("EVENT_COORDINATOR_LEAD", USER_ID, "events")).toEqual({ scopeType: "ALL" });
+  });
+
+  it("gives the Lead no venue bookings or equipment requests", () => {
+    expect(resolveAccessScope("EVENT_COORDINATOR_LEAD", USER_ID, "venue_bookings")).toEqual({ scopeType: "NONE" });
+    expect(resolveAccessScope("EVENT_COORDINATOR_LEAD", USER_ID, "equipment_requests")).toEqual({ scopeType: "NONE" });
+  });
+});

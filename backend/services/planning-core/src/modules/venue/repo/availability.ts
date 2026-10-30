@@ -15,6 +15,10 @@ import { CALENDAR_TIME_ZONE, type CalendarDay, type CalendarRow } from "../domai
  *
  * Free time is opening hours minus every slot and block. A booking or block
  * outside opening hours is still listed, beside the outside-hours period.
+ *
+ * I6 — a booking, hold or pending request in an uncleared H3 conflict carries
+ * the arrangements it overlaps with the venue's times, as the event's bookings
+ * name them (repo/eventBookings.ts): only those still live.
  */
 
 interface Row {
@@ -24,6 +28,7 @@ interface Row {
   event_id: string | null;
   reason_type: CalendarRow["reasonType"];
   description: string | null;
+  buffer_overlaps: CalendarRow["bufferOverlaps"] | null;
   /** I5: a block with no end. */
   open_ended: boolean;
   starts_at: Date;
@@ -41,6 +46,18 @@ export async function readAvailability(sql: Sql, venueId: string, days: readonly
                                  (d.date + d."closesAt") at time zone ${CALENDAR_TIME_ZONE}) end as open
       from jsonb_to_recordset(${sql.json(days as never)}::jsonb) as d(date date, "opensAt" time, "closesAt" time)
     ),
+    -- I6: per booking, hold or request, what the venue's times make it overlap.
+    overlap as (
+      select coalesce(c.slot_id, c.booking_request_id) as item_id,
+             json_agg(json_build_object('reference', coalesce(os.reference, orq.reference),
+                                        'eventId', coalesce(os.event_id, orq.event_id))
+                      order by coalesce(os.starts_at, orq.starts_at), coalesce(os.reference, orq.reference)) as overlaps
+      from venue.buffer_conflicts c
+      left join venue.venue_slots os on os.id = c.other_slot_id and os.status in ('HELD', 'CONFIRMED')
+      left join venue.booking_requests orq on orq.id = c.other_booking_request_id and orq.status = 'PENDING'
+      where c.venue_id = ${venueId} and c.cleared_at is null and (os.id is not null or orq.id is not null)
+      group by 1
+    ),
     slot as (
       -- L3: a slot is shown Held while a placed hold owns it. Any other HELD
       -- slot is a pending request: a converted hold's (shown here, so its
@@ -49,46 +66,49 @@ export async function readAvailability(sql: Sql, venueId: string, days: readonly
              case when s.status <> 'HELD' then s.status
                   when exists (select 1 from venue.holds h where h.slot_id = s.id and h.status = 'HELD') then 'HELD'
                   else 'PENDING' end as status,
-             s.event_id, s.starts_at, s.ends_at, s.period, s.blocked_period
+             s.id, s.event_id, s.starts_at, s.ends_at, s.period, s.blocked_period
       from day
       join venue.venue_slots s
         on s.venue_id = ${venueId} and s.status in ('HELD', 'CONFIRMED') and s.blocked_period && day.span
     ),
     committed as (
       select date, 'SETUP'::text as kind, status as slot_status, event_id, null::text as reason_type,
-             null::text as description, false as open_ended, tstzrange(lower(blocked_period), starts_at) * span as part
+             null::text as description, null::json as buffer_overlaps, false as open_ended,
+             tstzrange(lower(blocked_period), starts_at) * span as part
       from slot
       union all
-      select date, 'BOOKING', status, event_id, null, null, false, period * span from slot
+      select date, 'BOOKING', status, event_id, null, null, overlap.overlaps, false, period * span
+      from slot left join overlap on overlap.item_id = slot.id
       union all
-      select date, 'TURNAROUND', status, event_id, null, null, false, tstzrange(ends_at, upper(blocked_period)) * span from slot
+      select date, 'TURNAROUND', status, event_id, null, null, null, false, tstzrange(ends_at, upper(blocked_period)) * span from slot
       union all
       -- L1: a pending booking request. It reserves nothing, so several may overlap,
       -- but it is shown, so a coordinator sees the period is already asked for.
-      select day.date, 'BOOKING', 'PENDING', r.event_id, null, null, false, r.period * day.span
+      select day.date, 'BOOKING', 'PENDING', r.event_id, null, null, overlap.overlaps, false, r.period * day.span
       from day
       join venue.booking_requests r
         on r.venue_id = ${venueId} and r.status = 'PENDING' and r.period && day.span
+      left join overlap on overlap.item_id = r.id
       -- A request converted from a hold is already shown, by the hold's slot.
       where not exists (select 1 from venue.holds h where h.converted_request_id = r.id)
       union all
       -- I5: a block with no end has no upper bound, so it runs from its start to the end of every later day.
-      select day.date, 'UNAVAILABLE', null, null, b.reason_type, b.description, b.ends_at is null, b.period * day.span
+      select day.date, 'UNAVAILABLE', null, null, b.reason_type, b.description, null, b.ends_at is null, b.period * day.span
       from day
       join venue.unavailability_blocks b
         on b.venue_id = ${venueId} and b.status = 'ACTIVE' and b.period && day.span
       union all
-      select date, 'OUTSIDE_HOURS', null, null, null, null, false, unnest(tstzmultirange(span) - tstzmultirange(open)) from day
+      select date, 'OUTSIDE_HOURS', null, null, null, null, null, false, unnest(tstzmultirange(span) - tstzmultirange(open)) from day
     ),
     free as (
       select day.date, 'FREE'::text as kind, null::text as slot_status, null::uuid as event_id, null::text as reason_type,
-             null::text as description, false as open_ended,
+             null::text as description, null::json as buffer_overlaps, false as open_ended,
              unnest(tstzmultirange(day.open) - coalesce(
                (select range_agg(c.part) from committed c where c.date = day.date and c.kind <> 'OUTSIDE_HOURS'),
                '{}'::tstzmultirange)) as part
       from day
     )
-    select to_char(date, 'YYYY-MM-DD') as date, kind, slot_status, event_id, reason_type, description, open_ended,
+    select to_char(date, 'YYYY-MM-DD') as date, kind, slot_status, event_id, reason_type, description, buffer_overlaps, open_ended,
            lower(part) as starts_at, upper(part) as ends_at
     from (select * from committed union all select * from free) as period
     where not isempty(part)
@@ -103,6 +123,7 @@ export async function readAvailability(sql: Sql, venueId: string, days: readonly
     eventId: row.event_id,
     reasonType: row.reason_type,
     description: row.description,
+    bufferOverlaps: row.buffer_overlaps ?? [],
     openEnded: row.open_ended,
   }));
 }

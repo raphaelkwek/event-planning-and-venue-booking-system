@@ -1,30 +1,24 @@
 import { Router, type Response } from "express";
 import type { Sql } from "postgres";
 import { KAFKA_TOPICS } from "@connectsphere/contracts";
-import { eventConfig } from "../config.js";
 import { authenticate, requireRole, type ActorRequest } from "../auth/actor.js";
-import { canProposeReassignment, isSelfNomination } from "../domain/assignment.js";
+import { REASSIGNMENT_RETIRED } from "../domain/assignment.js";
 import { findEventInScope } from "../repo/events.js";
 import {
   closeActiveAssignment,
   findActiveAssignment,
   findPendingProposal,
   insertAssignment,
-  insertProposal,
   listProposals,
   resolveProposalAccept,
   resolveProposalDecline,
 } from "../repo/assignments.js";
 import { writeOutbox } from "../events/outbox.js";
-import { proposalBodySchema } from "./schemas.js";
 import { refuse } from "./errors.js";
 
-/** Postgres unique_violation — the same kind of code implementation.md §4.6 translates for `23P01`. */
-const UNIQUE_VIOLATION = "23505";
-
 /**
- * E2 — propose reassignment of an event's coordinator, and the nominee's
- * accept/decline. E1's own assignment is made in submitEvent.ts; this only
+ * E2 — the nominee's accept/decline of a reassignment proposal made before E4
+ * retired proposing (the Lead reassigns, api/leadAssignments.ts). This only
  * ever acts on an assignment that already exists.
  */
 export function reassignmentsRouter(sql: Sql) {
@@ -45,123 +39,14 @@ export function reassignmentsRouter(sql: Sql) {
     }
   );
 
+  // E4 retires E2's peer flow (W9-FX-5, W9-59): only the Lead reassigns. A
+  // proposal made before the retirement may still be accepted or declined below.
   router.post(
     "/api/v1/events/:id/reassignment-proposals",
     ...authenticate,
     requireRole("EVENT_COORDINATOR"),
-    async (req: ActorRequest, res) => {
-      const { userId, role, scope } = req.actor!;
-      const parsed = proposalBodySchema.safeParse(req.body);
-      const nomineeId = parsed.success ? parsed.data.nomineeId : null;
-
-      if (typeof nomineeId !== "string" || nomineeId.trim().length === 0) {
-        refuse(res, 400, "VALIDATION_FAILED", "A nominee is required to propose reassignment.", {
-          fields: [{ field: "nomineeId", message: "A nominee is required." }],
-        });
-        return;
-      }
-
-      const event = await findEventInScope(sql, req.params.id, scope, userId);
-      if (!event) {
-        refuse(res, 404, "EVENT_NOT_FOUND", "No event with that reference is available to you.");
-        return;
-      }
-
-      // E2 — reassignment proposals are permitted only for events not yet
-      // Completed, Cancelled, or Rejected.
-      if (!canProposeReassignment(event.status)) {
-        refuse(
-          res,
-          409,
-          "REASSIGNMENT_NOT_PERMITTED",
-          `Reassignment is not permitted while this event is ${event.status}.`
-        );
-        return;
-      }
-
-      const active = await findActiveAssignment(sql, event.id);
-      if (!active || active.coordinatorId !== userId) {
-        // Only the coordinator currently assigned to this event may propose
-        // handing it off — that is what "outgoing coordinator" means.
-        refuse(
-          res,
-          403,
-          "ROLE_NOT_AUTHORISED",
-          "Only the coordinator currently assigned to this event may propose reassignment."
-        );
-        return;
-      }
-
-      // TODO(E2): blocked by Identity's coordinator-role-check endpoint, same
-      // as E1's pool — nominee eligibility is checked against configuration.
-      if (!eventConfig.coordinatorPool.includes(nomineeId)) {
-        refuse(
-          res,
-          422,
-          "NOMINEE_NOT_ELIGIBLE",
-          "The nominee does not hold the Coordinator role and cannot be nominated."
-        );
-        return;
-      }
-
-      // E2 — proposing reassignment to the coordinator already assigned is
-      // refused before any write, so it creates no history entry.
-      if (isSelfNomination(active.coordinatorId, nomineeId)) {
-        refuse(
-          res,
-          422,
-          "SELF_NOMINATION_NOT_PERMITTED",
-          "This coordinator is already assigned to the event."
-        );
-        return;
-      }
-
-      try {
-        const proposal = await sql.begin(async (tx) => {
-          const created = await insertProposal(tx, {
-            eventId: event.id,
-            outgoingCoordinatorId: userId,
-            nomineeId,
-            actorId: userId,
-          });
-
-          await writeOutbox(tx, {
-            topic: KAFKA_TOPICS.event,
-            messageType: "event.reassignment-proposed",
-            aggregateId: event.id,
-            actor: { userId, role },
-            correlationId: req.header("x-correlation-id") ?? null,
-            payload: {
-              eventId: event.id,
-              eventReference: event.reference!,
-              eventName: event.name,
-              proposalId: created.id,
-              outgoingCoordinatorId: created.outgoingCoordinatorId,
-              nomineeCoordinatorId: created.nomineeCoordinatorId,
-              proposedAt: created.proposedAt,
-            },
-          });
-
-          return created;
-        });
-
-        res.status(201).json(proposal);
-      } catch (error) {
-        if ((error as { code?: string }).code === UNIQUE_VIOLATION) {
-          // E2 — only one pending proposal per event; name the pending nominee.
-          const pending = await findPendingProposal(sql, event.id);
-          refuse(
-            res,
-            409,
-            "REASSIGNMENT_ALREADY_PENDING",
-            pending
-              ? `A reassignment proposal to nominee ${pending.nomineeCoordinatorId} is already pending for this event.`
-              : "A reassignment proposal is already pending for this event."
-          );
-          return;
-        }
-        throw error;
-      }
+    (_req: ActorRequest, res) => {
+      refuse(res, 410, "REASSIGNMENT_RETIRED", REASSIGNMENT_RETIRED);
     }
   );
 

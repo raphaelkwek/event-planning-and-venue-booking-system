@@ -9,6 +9,8 @@ export const ROLES = [
   "VENUE_STAFF",
   "TECH_SUPPORT_STAFF",
   "ATTENDEE",
+  // E3 to E5 (CR-05): assigns, reassigns and oversees coordinators; coordinates no event (W9-35).
+  "EVENT_COORDINATOR_LEAD",
 ] as const;
 export type Role = (typeof ROLES)[number];
 

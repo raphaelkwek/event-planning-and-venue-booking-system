@@ -3,6 +3,7 @@ import type { Sql, TransactionSql } from "postgres";
 import type { AccessScope, EventStatus } from "@connectsphere/contracts";
 import { draftsRouter } from "./api/drafts.js";
 import { eventsRouter } from "./api/events.js";
+import { leadAssignmentsRouter } from "./api/leadAssignments.js";
 import { clarificationsRouter } from "./api/clarifications.js";
 import { decisionsRouter } from "./api/decisions.js";
 import { reassignmentsRouter } from "./api/reassignments.js";
@@ -28,6 +29,7 @@ export function eventRouter(sql: Sql): Router {
   router.use(clarificationsRouter(sql));
   router.use(decisionsRouter(sql));
   router.use(reassignmentsRouter(sql));
+  router.use(leadAssignmentsRouter(sql));
   router.use(eventDetailsRouter(sql));
   router.use(statusHistoryRouter(sql));
   // Last, so that its `/api/v1/events/:id` cannot shadow a more specific path above.
@@ -158,6 +160,8 @@ export {
   type ConfirmArrangementsOutcome,
   type ConfirmedArrangements,
 } from "./api/confirmArrangements.js";
+/** I3 — a block over confirmed bookings returns their Confirmed events to Planning. */
+export { blockReturnsToPlanning, returnBlockedEventsToPlanning } from "./api/venueBlocked.js";
 /** F3 — the change module checks who may cancel and frees the arrangements, then cancels the event through these. */
 export {
   cancellationRefusal,
