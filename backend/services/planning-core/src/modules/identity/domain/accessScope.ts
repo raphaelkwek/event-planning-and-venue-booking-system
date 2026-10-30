@@ -12,7 +12,9 @@ export function resolveAccessScope(role: Role, userId: string, resource: Resourc
     switch (role) {
       case "EVENT_ORGANISER":
         return { scopeType: "OWNED_BY_USER", userId };
+      // E5: the Lead, like a coordinator, sees every event, to oversee every assignment.
       case "EVENT_COORDINATOR":
+      case "EVENT_COORDINATOR_LEAD":
         return { scopeType: "ALL" };
       case "ATTENDEE":
         return { scopeType: "PUBLISHED_OPEN_REGISTRATION" };

@@ -2,6 +2,7 @@ import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { randomUUID } from "node:crypto";
 import request from "supertest";
 import { testDb } from "../../support/testDb.js";
+import { assignForTest } from "../../support/assignment.js";
 import { EVENT_END, EVENT_START } from "../../support/eventDates.js";
 import { deleteSeededEvents, seedEvent } from "../../support/seedEvent.js";
 
@@ -11,7 +12,8 @@ const COORDINATOR = randomUUID();
 const OTHER_COORDINATOR = randomUUID();
 const FUTURE = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
-process.env.EVENT_COORDINATOR_POOL = COORDINATOR;
+/** E3: submission assigns no one, so each test assigns as the Lead would. */
+const POOL_COORDINATOR = COORDINATOR;
 
 vi.mock("../../../src/shared/auth/verifyJwt.js", () => ({
   verifyJwt: (req: { auth?: { supabaseUserId?: string } }, _res: unknown, next: () => void) => {
@@ -84,6 +86,7 @@ describe("F2 - current status and status history", () => {
   it("shows the organiser the status and every change on their own event, oldest first (AC1, AC2, AC4)", async () => {
     signedInAs(ORGANISER, "EVENT_ORGANISER");
     const created = await request(app).post("/api/v1/events").set(bearer).send(validRequest);
+    await assignForTest(sql, created.body, POOL_COORDINATOR);
     signedInAs(COORDINATOR, "EVENT_COORDINATOR");
     await request(app).get(`/api/v1/events/${created.body.id}`).set(bearer);
     await request(app).post(`/api/v1/events/${created.body.id}/approve`).set(bearer).send();
@@ -127,6 +130,7 @@ describe("F2 - current status and status history", () => {
   it("returns exactly one entry for an event with one history entry (boundary)", async () => {
     signedInAs(ORGANISER, "EVENT_ORGANISER");
     const created = await request(app).post("/api/v1/events").set(bearer).send(validRequest);
+    await assignForTest(sql, created.body, POOL_COORDINATOR);
 
     const history = await request(app).get(`/api/v1/events/${created.body.id}/status-history`).set(bearer);
 
@@ -144,6 +148,7 @@ describe("F2 - current status and status history", () => {
     async (coordinatorId) => {
       signedInAs(ORGANISER, "EVENT_ORGANISER");
       const created = await request(app).post("/api/v1/events").set(bearer).send(validRequest);
+      await assignForTest(sql, created.body, POOL_COORDINATOR);
 
       signedInAs(coordinatorId, "EVENT_COORDINATOR");
       const history = await request(app).get(`/api/v1/events/${created.body.id}/status-history`).set(bearer);

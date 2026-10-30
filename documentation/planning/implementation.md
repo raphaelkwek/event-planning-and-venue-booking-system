@@ -6,7 +6,7 @@
 >
 > | Section | What still reflects the old design | ADR | Rewrite owner |
 > |---|---|---|---|
-> | §4.6 | Registration capacity counters | ADR-0005 (seat rows) | EN-13 |
+> | §4.6 | ~~Registration capacity counters~~ Rewritten for seat rows on 30 Oct 2026 (EN-13) | ADR-0005 (seat rows) | EN-13, done |
 > | §6 | Authorisation | ADR-0010 (Cerbos and RLS) | EN-07 |
 > | §9 | Logs written to a Kafka topic per service | ADR-0013 (OpenTelemetry, Grafana Loki) | EN-08 |
 >
@@ -33,7 +33,7 @@
 
 ## 2. Repository layout
 
-Staff-facing code is **one deployable, `planning-core`**, made of modules (ADR-0004). Notification is a separate service (EN-04.3, ADR-0008), and Registration will be one when EN-13 builds it (ADR-0005).
+Staff-facing code is **one deployable, `planning-core`**, made of modules (ADR-0004). Notification (EN-04.3, ADR-0008) and Registration (EN-13, ADR-0005) are separate services.
 
 ```
 /frontend                   SPA (all roles)
@@ -56,7 +56,9 @@ Staff-facing code is **one deployable, `planning-core`**, made of modules (ADR-0
       /tests/<module>       unit and integration tests for that module
       /scripts              the schema boundary check
       .dependency-cruiser.mjs  the import boundary check
-    /registration           EN-13, not built yet
+    /registration           EN-13: Kafka consumer that builds an event's seats from venue-booking.request-approved,
+                            the seat claim (FOR UPDATE SKIP LOCKED), its own schema, migrations/ and
+                            /healthz, /readyz on REGISTRATION_PORT; R2 to R7 add its routes
     /notification           EN-04.3: Kafka consumer, inbox, retry and DLQ, T2's recipient rules;
                             T2: the read and mark-as-read API (who is calling: identity's /users/me);
                             its own schema, migrations/ and /healthz, /readyz on NOTIFICATION_PORT
@@ -419,21 +421,29 @@ Steps 1 to 3 run in one transaction at `READ COMMITTED`. The row lock is what ma
 
 **P1's implementation decision (CQ-02, SPM-157).** On 8 October 2026 the user selected **peak concurrent use** and authorized implementation. The decision and its provenance are recorded in `documentation/clarifications.md`, and P1's acceptance criteria cite it. Bulk availability subtracts the peak of combined reservations and unavailability inside the requested window. Individually tracked units must be free for the whole window and are excluded once if both reserved and unavailable. An original customer statement/source has not been supplied.
 
-**Registration capacity** (R2, R7) — the ceiling is read **synchronously from the Venue Service at the moment of registration**, never from a cached figure:
+**Registration capacity** (R2, R7) — rewritten by EN-13 for ADR-0005. Capacity is **the number of seat rows**. There is no counter, no call to Venue and no cached ceiling on the write path.
 
-1. Call Venue for the current layout capacity of the event's confirmed booking. If Venue is unreachable or the event has no confirmed booking, refuse (`503` / `422`) — do not fall back to a stored value.
-2. Apply the atomic conditional update against `registration.capacity_counters`, passing the freshly read ceiling:
+- **Seats.** `registration.seats` has one row per place, built from the `venue-booking.request-approved` message (M1). The message carries `layout` and `layoutCapacity`, which the venue module reads from the venue's own layouts inside the approval's transaction, so Registration never asks Venue for a ceiling. A booking's seats are numbered 1 to its capacity. An event with several venues (CQ-04) has the total of its bookings' seats. An approval without those fields (published before EN-13, or for a layout the venue no longer offers) builds no seats.
+- **Claiming.** `claimSeat` in `repo/seats.ts` is one statement, so the check and the claim cannot be separated:
 
 ```sql
-update registration.capacity_counters
-   set registered = registered + 1
- where event_id = $id and (registered + manually_added) < $ceiling
- returning *;
+update registration.seats set status = 'CLAIMED', claimed_by = $attendee, claimed_at = now()
+where id = (
+  select id from registration.seats
+  where event_id = $event and pool = $pool and status = 'FREE'
+  order by seat_no, id limit 1
+  for update skip locked
+)
+returning id, seat_no, booking_id;
 ```
 
-Zero rows returned means full; offer the waitlist (R6).
+  `skip locked` means attendees racing for seats lock different rows instead of queueing behind one counter. Zero rows returned means the pool is full: refuse naming capacity, and offer the waitlist (R6). Never read a count and then write.
+- **Pools.** Seats are `PUBLIC` or `VIP`. Every seat starts `PUBLIC`; `setVipSeats` moves **free** seats between the pools, never one an attendee holds, and reports a `shortfall` when too few are free. R7 decides how a manual addition above capacity (D-01) is recorded.
+- **Replaced bookings (CR-02).** When an approval replaces a booking, the replaced booking's free seats are `RETIRED`. A seat an attendee holds stays theirs.
+- **Duplicate messages.** `registration.consumed_messages` is the inbox (§3.5): the message id and the seats are written in one transaction, so a redelivery builds nothing twice.
+- **Not built yet.** Shrinking seats when a venue's capacity falls goes through the workflow in ADR-0009, before the Venue change commits. The registration outbox, retry and dead-letter topics, and the registration and waitlist tables arrive with R2 and R6.
 
-`capacity_counters.cached_ceiling` may exist **for display only** — the browse list and the places-remaining badge may read it. The write path must never trust it. Rationale: Venue Staff can reduce a layout's capacity at any time, and an over-admitted attendee cannot be un-invited, whereas a refused registration is recoverable. Venue also publishes `venue.layout-capacity.changed`, which Registration consumes to refresh the cached figure and to flag an event that is now over-subscribed for manual handling (the customer confirmed capacity reductions are resolved manually, not automatically).
+What a reviewer watches for, from ADR-0005: a registration path that reads capacity and then writes, or any read of a cached ceiling on the write path.
 
 ### 4.7 Transactions and isolation
 

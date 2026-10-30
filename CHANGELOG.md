@@ -47,6 +47,330 @@ the same transaction; the two should merge together (Gate B: "cancellation is on
 
 ---
 
+# EN-13: The registration service and its seat inventory
+
+**Timestamp:** 2026-10-30T13:20+08:00 (SGT)
+**Author:** Yichen, via Claude
+**Scope:** EN-13 (SPM-131, Sprint 4), ADR-0005. It unblocks R2 to R7, EN-18 and EN-20. R3 and R6 wait on
+it, and on R2.
+- **Registration service** (`backend/services/registration`, new):
+  - a Kafka consumer, `seat-builder`, on `connectsphere.venue-booking.v1`;
+  - the `registration` schema: `seats` and the inbox `consumed_messages`;
+  - `claimSeat`, `createSeats`, `retireFreeSeatsOfBooking`, `setVipSeats` and `seatCounts`;
+  - `/healthz` and `/readyz` on `REGISTRATION_PORT` (8092).
+- **contracts:** `venue-booking.request-approved` gains optional `layout` and `layoutCapacity`.
+- **planning-core, venue module:** M1's approval fills them from the venue's own layouts, in the
+  approval's transaction. New `layoutCapacityAt`.
+- **Wiring:** `migrate.ts` (`all`, and `migrate:registration`), the root `dev`, CI (integration,
+  coverage and mutation), `.env.example`.
+- **Docs:** `implementation.md` §2 and §4.6 rewritten, ADR-0005's implementation notes, and
+  `tests/EN-13/` (README and nine cards).
+
+**Reason:** R2 needs the capacity check and the registration to be atomic (ADR-0005). One row per seat,
+claimed with `FOR UPDATE SKIP LOCKED`, gives that without a counter and without a call to Venue.
+
+## Added
+
+- **Seats from an approval:** an approval that names a layout capacity gives its event that many seats,
+  numbered from 1. An event with two venues has the total (CQ-04). A message delivered twice builds them
+  once.
+- **The claim:** one statement picks the lowest-numbered free seat in a pool and takes it. A full pool
+  returns nothing, and R2 turns that into the waitlist offer.
+- **Pools:** `PUBLIC` and `VIP`. Every seat starts `PUBLIC`, and `setVipSeats` moves free seats only.
+- **CR-02:** an approval that replaces a booking retires that booking's free seats. A held seat stays.
+
+## Decided
+
+- **Seats are built from `venue-booking.request-approved`,** not a `booking.confirmed` message, which
+  never existed. The two fields are optional, so approvals published before this still parse. The
+  registration service builds no seats from one without them.
+- **No retry or dead-letter topic yet.** An invalid message is logged and skipped, and a database
+  failure is retried by the consumer. They come with R2's outbox.
+
+## Not done
+
+- **The attendee PWA shell** (Jira's fourth criterion) is not in this change. It ships in its own pull
+  request, and blocks neither R2, R3 nor R6.
+
+## Verified
+
+- **The migration is applied to the shared Supabase database** (30 Oct 2026, by Yichen). `0001` is now
+  fixed: a change goes in `0002`. The 38 registration tests, race included, pass against it and leave
+  no rows behind.
+- 38 registration tests, 27 venue-approval tests and 143 contracts tests pass on a throwaway Postgres.
+  The race (500 attendees, 100 seats) gives exactly 100, and with `skip locked` removed it gives 326.
+- The domain code scores 96.9% under mutation testing (the floor is 80), lint, the module boundaries,
+  squawk, typecheck and build are clean. The unit coverage floors pass.
+
+---
+
+# E5: The Lead oversees every active event, coordinators' load and assignment history
+
+**Timestamp:** 2026-10-28T00:29+08:00 (SGT)
+**Author:** Seann, via Claude
+**Scope:** E5 (SPM-178, Sprint 4), CR-05, and the Week 9 answers W9-30, W9-37 and W9-57. Stacked
+on E4.
+- **planning-core, event module:**
+  - `GET /api/v1/assignments`;
+  - `GET /api/v1/events/:id/assignments`;
+  - `listActiveEvents()` and `listAssignmentHistory()`.
+- **Cerbos:** the Lead may `view_assignments`.
+- **OpenAPI:** both routes and their schemas.
+- **Web:** the "Assignments" screen, and the history on the Lead's assignment page.
+- **Cases:** `tests/E5/` (README and four cards, all executed) and `sprint-3.csv`.
+
+**Reason:** CR-05 gives the Lead an overview of the workload. Week 9: Leads see all unassigned and
+assigned requests and the active assignments, system-wide (W9-37), and several Leads may each see
+everything (W9-30, W9-57).
+
+## Added
+
+- **The overview:** every submitted event not Completed, Cancelled or Rejected, oldest first, with
+  its status and its coordinator, or "Unassigned".
+  - Each active coordinator is shown with their number of active events.
+  - A filter shows one coordinator's events and keeps every coordinator's count; the server
+    applies it.
+  - A coordinator who has since left is still named.
+- **An event's assignment history,** oldest first: each assignment's coordinator, who made it and
+  its start and end, with "Current" for the active one. An assignment that E1 made automatically
+  on submission shows as made "Automatically on submission (E1)".
+- **No other role** sees the screen or the routes (A2).
+
+## Not done, on purpose
+
+- **Drafts aren't listed:** they haven't been submitted, so they aren't events in the workflow yet.
+
+---
+
+# E4: The Lead reassigns an event, and coordinator-to-coordinator reassignment is retired
+
+**Timestamp:** 2026-10-27T20:51+08:00 (SGT)
+**Author:** Seann, via Claude
+**Scope:** E4 (SPM-177, Sprint 4), CR-05, the Week 9 answers W9-20, W9-34, W9-58 and W9-59, and
+Sprint 4 item W9-FX-5 (retire E2). Stacked on E3.
+- **planning-core, event module:**
+  - `POST /api/v1/events/:id/reassignment` in `api/leadAssignments.ts`;
+  - E2's propose route, now refused;
+  - `closePendingProposal()`;
+  - event migrations `0010` and `0011`, which add `CLOSED` to the proposal statuses (applied to
+    the shared project).
+- **Removed:** the configured coordinator pool (`config.ts`, `EVENT_COORDINATOR_POOL`) and the
+  propose-only code.
+- **`contracts`:** the `event.coordinator-reassigned` message and two error codes,
+  `EVENT_NOT_ASSIGNED` and `REASSIGNMENT_RETIRED`. **Needs a second owner's review.**
+- **Notification:** the rule that tells all three people of a reassignment.
+- **Cerbos:** the Lead may `reassign`, and the E2 proposal rule is removed.
+- **OpenAPI:** the new route, the retired one (410), and `CLOSED`.
+- **Web:** Reassign on the Lead's assignment page; "Propose reassignment" is removed.
+- **Cases:** `tests/E4/` (README and eight cards, all executed) and `sprint-3.csv`.
+
+**Reason:** CR-05 lets the Lead reassign events. The Week 9 answers make the Lead the only route
+(W9-59), with immediate effect and no acceptance (W9-34, W9-58), at any point before the event is
+closed (W9-20). That retires E2's peer proposals (W9-FX-5).
+
+## Added
+
+- **Reassigning:** the Lead chooses another active coordinator, and the change takes effect at
+  once.
+  - The outgoing assignment is closed with its end time and kept. The new one records the
+    coordinator, the Lead and the time.
+  - From then on only the new coordinator passes the checks for the assigned coordinator, such as
+    G1's edits.
+  - The event's version rises, so no stale copy is served.
+  - The outgoing coordinator, the new coordinator and the organiser are told, and the organiser
+    sees the new point of contact.
+- **Refused:**
+  - a Completed, Cancelled or Rejected event;
+  - an event with no coordinator, which should be assigned instead (E3);
+  - the coordinator already assigned, with no history written;
+  - anyone but an active Event Coordinator;
+  - every role but the Lead.
+
+  When two Leads reassign the same event at once, only one succeeds.
+
+## Changed
+
+- **E2's proposals are retired.**
+  - Proposing returns 410, "Coordinators no longer propose reassignments: the Event Coordinator
+    Lead reassigns events", and stores nothing.
+  - The web app no longer offers it.
+  - A proposal made before the retirement can still be accepted or declined, until the Lead
+    reassigns the event; that closes it, unaccepted, as `CLOSED`.
+- **E2's integration tests:**
+  - the propose tests are replaced by one asserting the refusal;
+  - the accept and decline tests start from a proposal stored in SQL.
+- **The FX-REASSIGNMENT-PENDING fixture** now uses the new FX-PROPOSAL statement
+  (`tests/E4/README.md`).
+- **Regression:**
+  - The event, identity and boundary suites pass (587).
+  - The runner passes E3 and T2, except the superseded cases below.
+  - Superseded by E3 or E4, and not rerun: E2's cases, and T2-T18 (a coordinator told of a new
+    proposal). Their cards and records are not edited.
+
+---
+
+# E3: The Event Coordinator Lead assigns requests from the unassigned queue
+
+**Timestamp:** 2026-10-27T20:04+08:00 (SGT)
+**Author:** Seann, via Claude
+**Scope:** E3 (SPM-176, Sprint 4), CR-05 and the customer's Week 9 answers W9-35 and W9-60. Design:
+`documentation/superpowers/specs/2026-10-27-e3-e5-lead-assignment-design.md`.
+- A new role, `EVENT_COORDINATOR_LEAD`:
+  - in `contracts` (`ROLES`), with three error codes. **Needs a second owner's review.**
+  - in identity: migrations `0003` and `0004` widen the role checks. Seed `0004` and
+    `seed:auth` add `lead@connectsphere.test`. Both are applied to the shared project.
+  - in the access scope: the Lead sees every event.
+  - in Cerbos (`view`, `assign`) and in the web app.
+- planning-core, event module: submission, the review queue, opening an event, and the new
+  `api/leadAssignments.ts` with its repo functions. The identity module adds
+  `listActiveCoordinators()`.
+- notification: the organiser is told who their coordinator is. `event.coordinator-assigned`
+  gains optional `coordinatorName`, `ownerId` and `assignedBy`.
+- OpenAPI: three routes and their schemas. Web: the unassigned queue and the assignment page.
+- `tests/E3/` (README and eight cards, all executed) and `sprint-3.csv`.
+
+**Reason:** CR-05 replaced automatic assignment with a Lead who assigns each request. Week 9
+confirmed that coordinators can't claim an unassigned request, the Lead coordinates no event
+(W9-35), and only Leads see the queue (W9-60).
+
+## Added
+
+- **The unassigned queue:** every submitted event with no coordinator that is still in the
+  workflow, oldest submission first. Only the Lead reaches it.
+- **Assigning:** the Lead chooses an active Event Coordinator, each shown with their number of
+  active events. The assignment is made under the event's row lock. It refuses:
+  - anyone else;
+  - a second assignment, naming the coordinator already assigned (E4 will reassign);
+  - a Draft, Completed, Cancelled or Rejected event.
+
+  When two Leads assign at once, one wins. The coordinator is told, and so is the organiser, who
+  learns their point of contact.
+- **Coordinators** no longer see unassigned requests in their review queue, and opening one
+  doesn't claim it for review.
+
+## Fixed
+
+- **Found by E3-T4:** the event's ETag is its version, and assigning didn't change it. A browser
+  that had read the event before the assignment was answered 304 and kept showing no
+  coordinator. An assignment now raises the event's version.
+
+## Changed
+
+- **Submission no longer assigns a coordinator:** E1's round robin is removed. Its configured pool
+  stays only for E2's nominee check, which E4 retires.
+- **Event tests** that need an assigned coordinator assign one in SQL (`tests/support/assignment.ts`).
+- **The shared fixtures:**
+  - FX-SUBMITTED is now unassigned.
+  - FX-ASSIGNED, new, is a statement that assigns as the Lead would and notifies no one, so the
+    T2 cases' notification counts still hold.
+  - FX-UNDER-REVIEW starts from FX-ASSIGNED.
+- **Regression:**
+  - The planning-core suites pass: event and identity 561, and venue, change, race and equipment
+    1,092.
+  - The runner passes A1, A3, C3, D1, D4 and T2. D1 and A3-T5 now assign their requests in the
+    local specs.
+  - Superseded by E3, so not rerun: E1's cases, B1-T4 (a new request in the coordinator's queue),
+    and T2-T1 and T2-T6 (a coordinator told on submission). Their cards and records are not edited.
+  - B1-T1 fails on a selector that S1's "Request a change" button had already broken, unrelated
+    to E3.
+
+## Not done, on purpose
+
+- **A4:** whether coordinators may see events not assigned to them waits on CQ-11.
+- **E4 and E5** (reassigning and the overview) follow on stacked branches.
+# I6: The availability calendar flags buffer-change overlaps
+
+**Timestamp:** 2026-10-24T15:14+08:00 (SGT)
+**Author:** Seann, via Claude
+**Scope:** I6 (SPM-196, Sprint 4), the customer's Week 9 answer W9-46 (W9-FX-4).
+- planning-core, venue module: the calendar's query (`repo/availability.ts`), its presenter
+  (`domain/availabilityCalendar.ts`) and route.
+- OpenAPI: `CommittedPeriod.bufferOverlaps`.
+- web: the availability calendar.
+- `tests/I6/` (README and five cards, all executed) and `sprint-3.csv`.
+
+**Reason:** H3 shows Venue Staff the conflicts a change of setup or turnaround time causes, and
+tells the coordinators. The customer also wants the calendar to flag the overlapping periods:
+"Venue Staff see identified conflicts upon setting buffers, the calendar flags overlapping
+periods, and affected Coordinators receive notifications" (W9-46).
+
+## Added
+
+- **A flagged arrangement says so on the calendar.** Each confirmed booking, hold or pending
+  request in an uncleared H3 conflict reads "Requires reconfirmation: overlaps BKR-… (EVT-…) with
+  the venue's setup and turnaround time". The row is tinted and bordered in red, unlike unflagged
+  rows. Each arrangement is named with its event's reference, so it can be found on the same
+  calendar.
+- **Only live arrangements are named,** as on the event's bookings (H3-T10): a booking since
+  released, or a request since decided, drops out.
+- **A cleared conflict is gone the next time the calendar loads.** Every internal role sees the
+  flag; attendees still can't open the calendar (I1).
+
+## Not done, on purpose
+
+- The flag is H3's only. A booking flagged by an unavailability block (I2) isn't marked this way:
+  the block is its own row on the calendar.
+- The flag is on the booking's row, not repeated on its setup and turnaround rows.
+
+---
+
+# I3: A block returns a Confirmed event to Planning
+
+**Timestamp:** 2026-10-24T10:40+08:00 (SGT)
+**Author:** Seann, via Claude
+**Scope:** I3 (SPM-193, Sprint 4), the customer's Week 9 answers W9-43, W9-50 and W9-51 (W9-FX-1).
+- planning-core, event module: F1's status machine gains `VENUE_BLOCKED`. There is a new public
+  `returnBlockedEventsToPlanning()` and `blockReturnsToPlanning()` (`api/venueBlocked.ts`), and
+  `lockEventStatuses()` in the status repo.
+- planning-core, venue module: I2's record route and review (`api/unavailability.ts`).
+- `contracts` and notification: an optional `eventReturnedToPlanning` on
+  `venue-booking.booking-disrupted`, and the coordinator's sentence. **Needs a second owner's
+  review.**
+- OpenAPI: the record route and `DisruptedItem.returnsEventToPlanning`.
+- web: the Unavailability review and its confirmation.
+- The F1 design spec, §6; `tests/I3/` (README and seven cards, all executed); `sprint-3.csv`.
+
+**Reason:** I2 left the event's status alone whatever it was. The customer answered that a
+Confirmed event whose venue becomes unavailable "should revert to Planning review. The event itself
+is preserve and not automatically cancelled" (W9-50). They also said the coordinator is told at once
+and the organiser and attendees only when replacement arrangements or changes are confirmed (W9-51).
+
+## Added
+
+- **Confirmed → Planning when a block lands on a confirmed booking.** Recording a block over a
+  confirmed booking of a Confirmed event moves the event to Planning, never to Cancelled. The
+  status history names the Venue Staff member, with `VENUE_BLOCKED` as the triggering action, and
+  `event.status-changed` is published. An event in any other status is unchanged, as are blocks
+  that touch only its holds or pending requests. Nothing is released, and its other bookings keep
+  their status and flags.
+- **Lock order.** The events are locked (`for update`, in id order) after the venue row and before
+  the bookings are flagged. That is F5's order (event, then bookings), so a block and a
+  confirmation can't deadlock. A block waits for any transaction holding the event, then acts on
+  the status it finds.
+- **Venue Staff see it first.** The review says "EVT-… is Confirmed and will return to Planning, to
+  be confirmed again. It won't be cancelled." Afterwards the notice says it has returned. Each
+  review and response item carries `returnsEventToPlanning`.
+- **The coordinator's notification** adds "EVT-… has returned to Planning and must be confirmed
+  again." The organiser is not told now. They are told when the replacement is approved (M1's
+  existing notice).
+- **The event confirms again through F5,** refused while the booking is flagged and accepted once
+  it is replaced, into Safety Review.
+
+## Changed
+
+- I2's review and record responses have a new required field, `returnsEventToPlanning`. I2's
+  integration tests that compare the items exactly now include it. I2's cards and records are not
+  edited: their events were Approved, and still are.
+
+## Not done, on purpose
+
+- **Attendees** are notified with the organiser (W9-51), but registration (R2) isn't built.
+- **U1 isn't built,** so I3-T6 stops at Safety Review.
+- **The event's status history screen** shows From, To, By and When, not the triggering action.
+  `VENUE_BLOCKED` is stored and returned by the history API; I3-T1 reads it in the database.
+
+---
+
 # I5: Record a block with no end
 
 **Timestamp:** 2026-10-24T03:48+08:00 (SGT)

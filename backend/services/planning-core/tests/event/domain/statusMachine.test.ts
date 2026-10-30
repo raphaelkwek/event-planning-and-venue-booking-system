@@ -120,6 +120,7 @@ const EXPECTED: Record<EventAction, { from: EventStatus[]; to: EventStatus }> = 
   CONFIRM_ARRANGEMENTS: { from: ["APPROVED", "PLANNING"], to: "SAFETY_REVIEW" },
   APPROVE_SAFETY: { from: ["SAFETY_REVIEW"], to: "CONFIRMED" },
   REQUEST_SAFETY_CHANGES: { from: ["SAFETY_REVIEW"], to: "PLANNING" },
+  VENUE_BLOCKED: { from: ["CONFIRMED"], to: "PLANNING" },
   COMPLETE: { from: ["CONFIRMED"], to: "COMPLETED" },
   CANCEL: {
     from: ["DRAFT", "SUBMITTED", "UNDER_REVIEW", "AWAITING_CLARIFICATION", "APPROVED", "PLANNING", "SAFETY_REVIEW", "CONFIRMED"],
@@ -175,6 +176,24 @@ describe("Safety Review, Confirmed and Completed (F1, CR-06)", () => {
           transitionRule(action).from.includes("SAFETY_REVIEW") && transitionRule(action).to === "REJECTED"
       )
     ).toEqual([]);
+  });
+
+  it("leaves Confirmed only by completing, by cancelling (F3), or for Planning when its venue is blocked (I3)", () => {
+    expect(actions.filter((action) => transitionRule(action).from.includes("CONFIRMED"))).toEqual([
+      "VENUE_BLOCKED",
+      "COMPLETE",
+      "CANCEL",
+    ]);
+    expect(transitionRule("VENUE_BLOCKED").to).toBe("PLANNING");
+  });
+
+  it("never cancels an event whose venue is blocked (I3, W9-50)", () => {
+    expect(evaluateTransition("CONFIRMED", "VENUE_BLOCKED")).toEqual({
+      permitted: true,
+      from: "CONFIRMED",
+      to: "PLANNING",
+      action: "VENUE_BLOCKED",
+    });
   });
 
   it("completes only a Confirmed event", () => {

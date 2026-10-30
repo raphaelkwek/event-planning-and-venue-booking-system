@@ -36,6 +36,41 @@ describe("notificationsFor", () => {
     ]);
   });
 
+  it("E3: tells the coordinator the Lead assigned, and the owner who their point of contact now is", () => {
+    const notes = notificationsFor(
+      message("event.coordinator-assigned", {
+        coordinatorId: coordinator,
+        coordinatorName: "Coordinator Two",
+        ownerId: organiser,
+        assignedBy: "00000000-0000-0000-0000-000000000009",
+        assignmentRule: "LEAD",
+        assignedAt: at,
+      }),
+    );
+    expect(notes.map((n) => [n.recipientUserId, n.message])).toEqual([
+      [coordinator, "Event request EVT-2026-0042 “Freshmen Orientation” has been assigned to you and is awaiting your review."],
+      [organiser, "Your event request EVT-2026-0042 “Freshmen Orientation” has been assigned to Coordinator Two, who is now your point of contact."],
+    ]);
+  });
+
+  it("E4: tells the outgoing coordinator, the new coordinator and the owner of a Lead's reassignment", () => {
+    const notes = notificationsFor(
+      message("event.coordinator-reassigned", {
+        previousCoordinatorId: "00000000-0000-0000-0000-000000000008",
+        coordinatorId: coordinator,
+        coordinatorName: "Coordinator One",
+        ownerId: organiser,
+        reassignedBy: "00000000-0000-0000-0000-000000000009",
+        reassignedAt: at,
+      }),
+    );
+    expect(notes.map((n) => [n.recipientUserId, n.message])).toEqual([
+      ["00000000-0000-0000-0000-000000000008", "Event request EVT-2026-0042 “Freshmen Orientation” has been reassigned to Coordinator One. You are no longer its coordinator."],
+      [coordinator, "Event request EVT-2026-0042 “Freshmen Orientation” has been reassigned to you."],
+      [organiser, "Your event request EVT-2026-0042 “Freshmen Orientation” has been reassigned to Coordinator One, who is now your point of contact."],
+    ]);
+  });
+
   it("B1: notifies nobody on submission itself, because the coordinator is named only by the assignment message", () => {
     expect(
       notificationsFor(
@@ -406,6 +441,19 @@ describe("I2: tell the coordinator when a block disrupts, or stops disrupting, t
           "and alternative arrangements are required.",
       ),
     );
+  });
+
+  it("says the event has returned to Planning when the block returned it, and tells only the coordinator (I3-T4, W9-51)", () => {
+    const notes = notificationsFor(message("venue-booking.booking-disrupted", { ...disrupted, eventReturnedToPlanning: true }));
+    expect(notes.map((n) => n.recipientUserId)).toEqual([coordinator]);
+    expect(notes[0]!.message).toMatch(
+      /The booking requires reconfirmation, and alternative arrangements are required\. EVT-2026-0042 “Freshmen Orientation” has returned to Planning and must be confirmed again\.$/,
+    );
+    const [unchanged] = notificationsFor(message("venue-booking.booking-disrupted", { ...disrupted, eventReturnedToPlanning: false }));
+    expect(unchanged!.message).not.toContain("Planning");
+    // The organiser and attendees are told when a replacement or change is approved, not now (W9-51).
+    const statusChanged = { eventId: disrupted.blockId, ownerId: organiser, previousStatus: "CONFIRMED", newStatus: "PLANNING", action: "VENUE_BLOCKED" };
+    expect(notificationsFor(message("event.status-changed", statusChanged))).toEqual([]);
   });
 
   it("names a pending request as a booking request, and a hold as a hold (I2-T9)", () => {
