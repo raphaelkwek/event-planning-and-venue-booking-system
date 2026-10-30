@@ -33,6 +33,7 @@ import { EquipmentRequest } from "./screens/EquipmentRequest.js";
 import { EquipmentRequests } from "./screens/EquipmentRequests.js";
 import { UnassignedQueue } from "./screens/UnassignedQueue.js";
 import { AssignmentDetail } from "./screens/AssignmentDetail.js";
+import { AssignmentsOverview } from "./screens/AssignmentsOverview.js";
 
 const ROLE_LABELS: Record<Role, string> = {
   EVENT_ORGANISER: "Event Organiser",
@@ -172,6 +173,13 @@ const ROUTES: {
     element: <UnassignedQueue />,
     roles: ["EVENT_COORDINATOR_LEAD"],
     nav: { label: "Unassigned", to: "/assignments/unassigned" },
+  },
+  // E5: the Lead oversees every active event, each coordinator's load and each event's assignment history.
+  {
+    path: "/assignments",
+    element: <AssignmentsOverview />,
+    roles: ["EVENT_COORDINATOR_LEAD"],
+    nav: { label: "Assignments", to: "/assignments" },
   },
   { path: "/assignments/:eventId", element: <AssignmentDetail />, roles: ["EVENT_COORDINATOR_LEAD"] },
   // T2: every role reads its own notifications.

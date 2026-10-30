@@ -4,19 +4,31 @@ import Button from "@atlaskit/button/new";
 import Lozenge from "@atlaskit/lozenge";
 import SectionMessage from "@atlaskit/section-message";
 import { useSignedIn } from "../auth/SessionContext.js";
-import { assignCoordinator, listCoordinators, type Coordinator } from "../api/assignments.js";
+import {
+  assignCoordinator,
+  listAssignmentHistory,
+  listCoordinators,
+  reassignCoordinator,
+  type AssignmentHistoryEntry,
+  type Coordinator,
+} from "../api/assignments.js";
 import { openEvent } from "../api/events.js";
-import type { EventRecord } from "../api/types.js";
+import type { EventRecord, EventStatus } from "../api/types.js";
 import { useUserNames } from "../shared/useUserNames.js";
 import { formatMoment, formatPeriod } from "../shared/singaporeTime.js";
 import { STATUS_APPEARANCE, STATUS_LABELS } from "../shared/status.js";
 import { Refusal } from "../components/Refusal.js";
 
 const coordinatorName = (c: Coordinator) => c.displayName ?? c.email;
+const cell = { padding: "6px 8px", borderBottom: "1px solid #DFE1E6", textAlign: "left" as const, verticalAlign: "top" as const };
+
+/** No coordinator is assigned to, or moved from, an event that is a draft or has left the workflow (E3, E4). */
+const CLOSED: EventStatus[] = ["DRAFT", "COMPLETED", "CANCELLED", "REJECTED"];
 
 /**
- * E3 — the Lead opens a request and sees its basic information, then assigns
- * it to one active Event Coordinator. Opening it here never claims it for review.
+ * E3, E4, E5 — the Lead opens a request and sees its basic information, then assigns
+ * it to one active Event Coordinator, or reassigns it to another at once, and
+ * reads its assignment history. Opening it here never claims it for review.
  */
 export function AssignmentDetail() {
   const session = useSignedIn();
@@ -29,13 +41,26 @@ export function AssignmentDetail() {
   const [missing, setMissing] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const nameOf = useUserNames(session.token, [event?.ownerId, event?.assignedCoordinatorId]);
+  const [history, setHistory] = useState<AssignmentHistoryEntry[]>([]);
+  const nameOf = useUserNames(session.token, [
+    event?.ownerId,
+    event?.assignedCoordinatorId,
+    ...history.flatMap((entry) => [entry.coordinatorId, entry.assignedBy]),
+  ]);
+
+  const loadHistory = () =>
+    listAssignmentHistory(session.token, eventId!)
+      .then((page) => setHistory(page.items))
+      .catch(setLoadError);
 
   useEffect(() => {
     openEvent(session.token, eventId!).then(setEvent).catch(setLoadError);
     listCoordinators(session.token)
       .then((page) => setCoordinators(page.items))
       .catch(setLoadError);
+    void loadHistory();
+    // loadHistory reads only the token and the event id, both listed.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session.token, eventId]);
 
   async function onAssign(e: FormEvent) {
@@ -49,10 +74,17 @@ export function AssignmentDetail() {
     setMissing(false);
     setBusy(true);
     try {
-      const assignment = await assignCoordinator(session.token, eventId!, chosen);
-      const who = coordinators.find((c) => c.id === assignment.coordinatorId);
-      setNotice(`Assigned to ${who ? coordinatorName(who) : "the coordinator"}.`);
-      setEvent((current) => (current ? { ...current, assignedCoordinatorId: assignment.coordinatorId } : current));
+      // E4: an event with a coordinator is reassigned, at once; one without is assigned (E3).
+      const reassigning = Boolean(event?.assignedCoordinatorId);
+      const result = reassigning
+        ? await reassignCoordinator(session.token, eventId!, chosen)
+        : await assignCoordinator(session.token, eventId!, chosen);
+      const who = coordinators.find((c) => c.id === result.coordinatorId);
+      const name = who ? coordinatorName(who) : "the coordinator";
+      setNotice(reassigning ? `Reassigned to ${name}. They are now the event's coordinator.` : `Assigned to ${name}.`);
+      setEvent((current) => (current ? { ...current, assignedCoordinatorId: result.coordinatorId } : current));
+      setChosen("");
+      void loadHistory();
     } catch (error) {
       setActionError(error);
     } finally {
@@ -98,29 +130,61 @@ export function AssignmentDetail() {
         </div>
       )}
 
-      {!assignedTo && (
+      {!CLOSED.includes(event.status) && (
         <form onSubmit={(e) => void onAssign(e)} style={{ marginTop: 24 }}>
-          <h3>Assign a coordinator</h3>
+          <h3>{assignedTo ? "Reassign to another coordinator" : "Assign a coordinator"}</h3>
+          {assignedTo && (
+            <p>The new coordinator takes over at once, with no acceptance; the current one no longer coordinates the event.</p>
+          )}
           <label htmlFor="assign-coordinator" style={{ display: "block", marginBottom: 4 }}>
-            Coordinator
+            {assignedTo ? "New coordinator" : "Coordinator"}
           </label>
           <select id="assign-coordinator" value={chosen} onChange={(e) => setChosen(e.target.value)}>
             <option value="">Choose a coordinator</option>
-            {coordinators.map((c) => (
-              <option key={c.id} value={c.id}>
-                {`${coordinatorName(c)} (${c.activeAssignments} active)`}
-              </option>
-            ))}
+            {coordinators
+              .filter((c) => c.id !== assignedTo)
+              .map((c) => (
+                <option key={c.id} value={c.id}>
+                  {`${coordinatorName(c)} (${c.activeAssignments} active)`}
+                </option>
+              ))}
           </select>
           {missing && <p style={{ color: "#AE2E24" }}>Choose a coordinator to assign.</p>}
           <div style={{ marginTop: 12 }}>
             <Button type="submit" appearance="primary" isDisabled={busy}>
-              Assign
+              {assignedTo ? "Reassign" : "Assign"}
             </Button>
           </div>
         </form>
       )}
       <Refusal error={actionError} />
+
+      <h3 style={{ marginTop: 32 }}>Assignment history</h3>
+      {history.length === 0 ? (
+        <p>No coordinator has been assigned yet.</p>
+      ) : (
+        <table aria-label="Assignment history" style={{ borderCollapse: "collapse", width: "100%" }}>
+          <thead>
+            <tr>
+              {["Coordinator", "Assigned by", "From", "Until"].map((heading) => (
+                <th key={heading} style={cell}>
+                  {heading}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {history.map((entry) => (
+              <tr key={`${entry.coordinatorId}-${entry.assignedAt}`}>
+                <td style={cell}>{nameOf(entry.coordinatorId)}</td>
+                <td style={cell}>{entry.assignedBy ? nameOf(entry.assignedBy) : "Automatically on submission (E1)"}</td>
+                <td style={cell}>{formatMoment(entry.assignedAt)}</td>
+                <td style={cell}>{entry.endedAt ? formatMoment(entry.endedAt) : "Current"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
     </div>
   );
 }

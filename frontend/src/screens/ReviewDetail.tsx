@@ -3,7 +3,6 @@ import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import Button from "@atlaskit/button/new";
 import Lozenge from "@atlaskit/lozenge";
 import TextArea from "@atlaskit/textarea";
-import Textfield from "@atlaskit/textfield";
 import SectionMessage from "@atlaskit/section-message";
 import Modal, { ModalBody, ModalFooter, ModalHeader, ModalTitle, ModalTransition } from "@atlaskit/modal-dialog";
 import { useSignedIn } from "../auth/SessionContext.js";
@@ -15,7 +14,6 @@ import {
   listClarifications,
   listReassignmentProposals,
   openEvent,
-  proposeReassignment,
   rejectEvent,
   requestClarification,
 } from "../api/events.js";
@@ -60,9 +58,6 @@ export function ReviewDetail() {
   // dialog, where the reason is entered, not on the page behind it.
   const [rejectError, setRejectError] = useState<unknown>(null);
 
-  const [proposing, setProposing] = useState(false);
-  const [nomineeId, setNomineeId] = useState("");
-  const [proposeError, setProposeError] = useState<unknown>(null);
 
   const pendingProposal = proposals.find((proposal) => proposal.status === "PENDING") ?? null;
   const nameOf = useUserNames(session.token, [
@@ -307,23 +302,6 @@ export function ReviewDetail() {
           >
             Reject
           </Button>
-          {/* E2 — a peer action to Approve/Reject: the active coordinator can
-              hand the event off, as long as no proposal is already pending. */}
-          {/* Not offered at all once a decision is recorded: reassignment is
-              permitted only while the request is still open (E2-T7), so showing
-              it disabled would promise something that can never happen. */}
-          {!pendingProposal && !decided && event.assignedCoordinatorId === session.userId && (
-            <Button
-              isDisabled={busy}
-              onClick={() => {
-                setProposeError(null);
-                setNomineeId("");
-                setProposing(true);
-              }}
-            >
-              Propose reassignment
-            </Button>
-          )}
         </div>
 
         {/* E2 — the pending state and the nominee's accept/decline, shown
@@ -361,45 +339,6 @@ export function ReviewDetail() {
       {/* implementation.md §7.1: an irreversible action confirms, and the
           mandatory reason lives in that modal. */}
       <ModalTransition>
-        {proposing && (
-          <Modal onClose={() => setProposing(false)}>
-            <ModalHeader>
-              <ModalTitle>Propose reassignment</ModalTitle>
-            </ModalHeader>
-            <ModalBody>
-              <p>
-                The nominee keeps no coordinator actions on this event until they accept. You
-                remain the active coordinator until then.
-              </p>
-              <div style={{ marginBottom: 12 }}>
-                <Refusal error={proposeError} />
-              </div>
-              <label style={{ fontSize: 12, fontWeight: 600 }}>Nominee's user id</label>
-              <Textfield
-                value={nomineeId}
-                onChange={(e) => setNomineeId((e.target as HTMLInputElement).value)}
-              />
-            </ModalBody>
-            <ModalFooter>
-              <Button appearance="subtle" onClick={() => setProposing(false)}>
-                Cancel
-              </Button>
-              <Button
-                appearance="primary"
-                isDisabled={busy}
-                onClick={async () => {
-                  const ok = await run(
-                    () => proposeReassignment(session.token, event.id, nomineeId.trim()),
-                    setProposeError
-                  );
-                  if (ok) setProposing(false);
-                }}
-              >
-                Send proposal
-              </Button>
-            </ModalFooter>
-          </Modal>
-        )}
         {rejecting && (
           <Modal onClose={() => setRejecting(false)}>
             <ModalHeader>

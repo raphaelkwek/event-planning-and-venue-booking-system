@@ -7,7 +7,7 @@ tests:
     input:
       principals: [organiser, other_organiser, assigned_coordinator, other_coordinator, nominee, venue_manager, other_venue_staff, tech_support, attendee, other_attendee, lead]
       resources: [event_open]
-      actions: [create, update_draft, submit_draft, view, view_history, view_clarifications, view_reassignments, review, request_clarification, approve, reject, respond_to_clarification, propose_reassignment, respond_to_reassignment, cancel, confirm, decide_change, update_details, preview_change_impact, reconsider_arrangements, request_change, assign]
+      actions: [create, update_draft, submit_draft, view, view_history, view_clarifications, view_reassignments, review, request_clarification, approve, reject, respond_to_clarification, propose_reassignment, respond_to_reassignment, cancel, confirm, decide_change, update_details, preview_change_impact, reconsider_arrangements, request_change, assign, reassign, view_assignments]
     expected:
       - principal: organiser # the owner
         resource: event_open
@@ -37,7 +37,6 @@ tests:
           request_clarification: EFFECT_ALLOW # D2
           approve: EFFECT_ALLOW # D4
           reject: EFFECT_ALLOW # D5
-          propose_reassignment: EFFECT_ALLOW # E2: only the assigned coordinator
           cancel: EFFECT_ALLOW # F3
           confirm: EFFECT_ALLOW # F5
           decide_change: EFFECT_ALLOW # S2
@@ -96,6 +95,8 @@ tests:
         actions:
           view: EFFECT_ALLOW # E3, E5
           assign: EFFECT_ALLOW # E3
+          reassign: EFFECT_ALLOW # E4: the only route to a reassignment (W9-59)
+          view_assignments: EFFECT_ALLOW # E5: the overview and each event's assignment history
 
   - name: Attendees can't open an event that isn't open for registration (R1, A3)
     input:

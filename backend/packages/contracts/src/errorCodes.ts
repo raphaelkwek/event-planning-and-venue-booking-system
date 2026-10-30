@@ -65,6 +65,9 @@ export const ERROR_CODES = [
   "NOT_AN_ACTIVE_COORDINATOR",
   "ALREADY_ASSIGNED",
   "STATUS_NOT_ASSIGNABLE",
+  // E4: the Lead reassigns only an event that has a coordinator; E2's proposals are retired.
+  "EVENT_NOT_ASSIGNED",
+  "REASSIGNMENT_RETIRED",
 ] as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[number];

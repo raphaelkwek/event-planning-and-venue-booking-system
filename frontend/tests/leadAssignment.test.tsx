@@ -65,12 +65,32 @@ const assignCoordinator = vi.fn<Parameters<Fn>, ReturnType<Fn>>(async () => ({
   assignedBy: "lead-id",
   assignedAt: "2026-10-27T02:00:00.000Z",
 }));
+const reassignCoordinator = vi.fn<Parameters<Fn>, ReturnType<Fn>>(async () => ({
+  eventId: EVENT_ID,
+  coordinatorId: "coordinator-2",
+  previousCoordinatorId: "coordinator-1",
+  reassignedBy: "lead-id",
+  reassignedAt: "2026-10-27T03:00:00.000Z",
+}));
+const OVERVIEW = {
+  items: [
+    { id: EVENT_ID, reference: "EVT-000123", name: "Annual Research Symposium", status: "UNDER_REVIEW", assignedCoordinatorId: "coordinator-1" },
+    { id: "event-2", reference: "EVT-000124", name: "Alumni Networking Night", status: "SUBMITTED", assignedCoordinatorId: "coordinator-2" },
+    { id: "event-3", reference: "EVT-000125", name: "Guest Lecture", status: "SUBMITTED", assignedCoordinatorId: null },
+  ],
+  coordinators: COORDINATORS.items,
+};
+const listAssignments = vi.fn<Parameters<Fn>, ReturnType<Fn>>(async () => OVERVIEW);
+const listAssignmentHistory = vi.fn<Parameters<Fn>, ReturnType<Fn>>(async () => ({ items: [] }));
 const openEvent = vi.fn<Parameters<Fn>, ReturnType<Fn>>(async () => EVENT);
 
 vi.mock("../src/api/assignments.js", () => ({
   listUnassigned: (...args: unknown[]) => listUnassigned(...args),
   listCoordinators: (...args: unknown[]) => listCoordinators(...args),
   assignCoordinator: (...args: unknown[]) => assignCoordinator(...args),
+  reassignCoordinator: (...args: unknown[]) => reassignCoordinator(...args),
+  listAssignments: (...args: unknown[]) => listAssignments(...args),
+  listAssignmentHistory: (...args: unknown[]) => listAssignmentHistory(...args),
 }));
 
 vi.mock("../src/api/events.js", async () => {
@@ -78,8 +98,16 @@ vi.mock("../src/api/events.js", async () => {
   return { ...actual, openEvent: (...args: unknown[]) => openEvent(...args) };
 });
 
+const PEOPLE: Record<string, string> = {
+  "organiser-id": "Organiser One",
+  "lead-id": "Lead One",
+  "coordinator-1": "Coordinator One",
+  "coordinator-2": "Coordinator Two",
+};
 vi.mock("../src/api/users.js", () => ({
-  lookupUsers: vi.fn(async () => [{ id: "organiser-id", displayName: "Organiser One", email: "organiser@connectsphere.test" }]),
+  lookupUsers: vi.fn(async (_token: string, ids: string[]) =>
+    ids.filter((id) => PEOPLE[id]).map((id) => ({ id, displayName: PEOPLE[id], email: `${id}@connectsphere.test` })),
+  ),
 }));
 
 const { App } = await import("../src/App.js");
@@ -193,5 +221,102 @@ describe("assigning a request (E3-T3, E3-T4)", () => {
     fireEvent.change(await screen.findByLabelText("Coordinator"), { target: { value: "coordinator-2" } });
     fireEvent.click(screen.getByRole("button", { name: "Assign" }));
     expect(await screen.findByText("This event is already assigned to Coordinator One. Reassign it instead.")).toBeTruthy();
+  });
+});
+
+describe("reassigning an event (E4-T1)", () => {
+  async function openAssigned() {
+    openEvent.mockResolvedValue({ ...EVENT, status: "UNDER_REVIEW", assignedCoordinatorId: "coordinator-1" });
+    signInAs("EVENT_COORDINATOR_LEAD", `/assignments/${EVENT_ID}`);
+    render(<App />);
+    await screen.findByRole("heading", { name: "Annual Research Symposium" });
+  }
+
+  afterEach(() => openEvent.mockResolvedValue(EVENT));
+
+  it("shows the current coordinator and offers only the others, then reassigns at once", async () => {
+    await openAssigned();
+    expect(text(document.body)).toContain("Coordinator One");
+    expect(screen.queryByRole("button", { name: "Assign" })).toBeNull();
+    const select = (await screen.findByLabelText("New coordinator")) as HTMLSelectElement;
+    expect([...select.options].map((o) => o.textContent)).toEqual(["Choose a coordinator", "Coordinator Two (0 active)"]);
+
+    fireEvent.change(select, { target: { value: "coordinator-2" } });
+    fireEvent.click(screen.getByRole("button", { name: "Reassign" }));
+
+    await waitFor(() => expect(reassignCoordinator).toHaveBeenCalledWith("token", EVENT_ID, "coordinator-2"));
+    expect(await screen.findByText("Reassigned to Coordinator Two. They are now the event's coordinator.")).toBeTruthy();
+  });
+
+  it("shows the server's refusal", async () => {
+    reassignCoordinator.mockRejectedValueOnce(
+      new ApiError(409, { code: "STATUS_NOT_ASSIGNABLE", message: "This event is Completed and cannot be assigned.", correlationId: null }),
+    );
+    await openAssigned();
+    fireEvent.change(await screen.findByLabelText("New coordinator"), { target: { value: "coordinator-2" } });
+    fireEvent.click(screen.getByRole("button", { name: "Reassign" }));
+    expect(await screen.findByText("This event is Completed and cannot be assigned.")).toBeTruthy();
+  });
+});
+
+describe("the Lead's overview (E5-T1, E5-T2)", () => {
+  it("lists every active event with its status and coordinator, or Unassigned, and each coordinator's load", async () => {
+    signInAs("EVENT_COORDINATOR_LEAD", "/assignments");
+    render(<App />);
+
+    const table = await screen.findByRole("table", { name: "Active events" });
+    await waitFor(() => expect(text(table)).toContain("Coordinator One"));
+    const rows = within(table).getAllByRole("row").slice(1).map(text);
+    expect(rows[0]).toContain("EVT-000123");
+    expect(rows[0]).toContain("Under Review");
+    expect(rows[0]).toContain("Coordinator One");
+    expect(rows[2]).toContain("Unassigned");
+    const load = screen.getByRole("list", { name: "Coordinators' active events" });
+    expect(within(load).getAllByRole("listitem").map(text)).toEqual(["Coordinator One: 3 active", "Coordinator Two: 0 active"]);
+    expect(navLinks()).toContain("Assignments");
+  });
+
+  it("asks the server for one coordinator's events, and for all again", async () => {
+    signInAs("EVENT_COORDINATOR_LEAD", "/assignments");
+    render(<App />);
+    const filter = (await screen.findByLabelText("Coordinator")) as HTMLSelectElement;
+
+    fireEvent.change(filter, { target: { value: "coordinator-1" } });
+    await waitFor(() => expect(listAssignments).toHaveBeenLastCalledWith("token", "coordinator-1"));
+    fireEvent.change(filter, { target: { value: "" } });
+    await waitFor(() => expect(listAssignments).toHaveBeenLastCalledWith("token", undefined));
+  });
+
+  it("isn't offered to a coordinator", async () => {
+    signInAs("EVENT_COORDINATOR", "/assignments");
+    render(<App />);
+    await screen.findByRole("button", { name: "Sign out" });
+    expect(navLinks()).not.toContain("Assignments");
+    expect(listAssignments).not.toHaveBeenCalled();
+  });
+});
+
+describe("an event's assignment history (E5-T3)", () => {
+  it("lists each assignment's coordinator, who made it, and its start and end, oldest first", async () => {
+    listAssignmentHistory.mockResolvedValueOnce({
+      items: [
+        { coordinatorId: "coordinator-1", assignedBy: "lead-id", rule: "LEAD", assignedAt: "2026-10-27T02:00:00.000Z", endedAt: "2026-10-27T03:00:00.000Z" },
+        { coordinatorId: "coordinator-2", assignedBy: null, rule: "ROUND_ROBIN_STUB", assignedAt: "2026-10-27T03:00:00.000Z", endedAt: null },
+      ],
+    });
+    openEvent.mockResolvedValueOnce({ ...EVENT, status: "UNDER_REVIEW", assignedCoordinatorId: "coordinator-2" });
+    signInAs("EVENT_COORDINATOR_LEAD", `/assignments/${EVENT_ID}`);
+    render(<App />);
+
+    const table = await screen.findByRole("table", { name: "Assignment history" });
+    await waitFor(() => expect(text(table)).toContain("Lead One"));
+    const rows = within(table)
+      .getAllByRole("row")
+      .slice(1)
+      .map((row) => within(row).getAllByRole("cell").map(text));
+    expect(rows).toEqual([
+      ["Coordinator One", "Lead One", "Tuesday 27 October 2026, 10:00", "Tuesday 27 October 2026, 11:00"],
+      ["Coordinator Two", "Automatically on submission (E1)", "Tuesday 27 October 2026, 11:00", "Current"],
+    ]);
   });
 });
