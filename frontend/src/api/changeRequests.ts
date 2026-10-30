@@ -1,15 +1,10 @@
+import type { SignificantEventField } from "@connectsphere/contracts";
 import { request } from "./client.js";
 
 const EVENT = "/event/api/v1";
 
-/** Mirrors `SIGNIFICANT_EVENT_FIELDS` in backend/packages/contracts. */
-export type SignificantField =
-  | "proposedStartAt"
-  | "proposedEndAt"
-  | "expectedAttendance"
-  | "venueRequirements"
-  | "equipmentRequired"
-  | "equipmentRequirements";
+/** G2 (AC1) — the one list of significant fields, `SIGNIFICANT_EVENT_FIELDS` in @connectsphere/contracts. */
+export type SignificantField = SignificantEventField;
 
 export interface ChangeRequestField {
   fieldName: SignificantField;
@@ -76,6 +71,11 @@ export interface ChangeImpact {
 /** S2 — only the event's assigned coordinator may decide; an approval also returns the changed event and (S3) its impact. */
 export function decideChangeRequest(token: string, id: string, body: ChangeDecision) {
   return request<{ changeRequest: ChangeRequest; event?: unknown; impact?: ChangeImpact }>(`${EVENT}/change-requests/${id}/decision`, { method: "POST", token, body });
+}
+
+/** G2 — what approving a pending request would affect and flag; nothing is changed. 409 once the request is decided. */
+export function getChangeImpact(token: string, requestId: string) {
+  return request<{ impact: ChangeImpact }>(`${EVENT}/change-requests/${requestId}/impact`, { token });
 }
 
 /** S3 — one outstanding flag on an event's arrangements. */

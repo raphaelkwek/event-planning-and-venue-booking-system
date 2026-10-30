@@ -44,8 +44,16 @@ export interface OutstandingReservationFlag {
  * The event's RESERVED reservations, soonest first, locked `for update`
  * inside the approval's transaction so nothing changes them between the
  * assessment and the flags. The caller has already locked the event.
+ *
+ * G2 — `{ lock: false }` reads them without locking, for a preview that
+ * writes nothing and must not block a decision.
  */
-export async function reservationsForImpact(tx: TransactionSql, eventId: string): Promise<ImpactReservationRow[]> {
+export async function reservationsForImpact(
+  tx: TransactionSql,
+  eventId: string,
+  options: { lock?: boolean } = {}
+): Promise<ImpactReservationRow[]> {
+  const lock = options.lock ?? true;
   const rows = await tx<
     { id: string; request_line_id: string; type_name: string; reserved_quantity: number; starts_at: Date; ends_at: Date; reserved_by: string }[]
   >`
@@ -54,7 +62,7 @@ export async function reservationsForImpact(tx: TransactionSql, eventId: string)
     join equipment.equipment_types t on t.id = r.equipment_type_id
     where r.event_id = ${eventId} and r.status = 'RESERVED'
     order by r.starts_at, t.name, r.id
-    for update of r
+    ${lock ? tx`for update of r` : tx``}
   `;
   return rows.map((row) => ({
     id: row.id,

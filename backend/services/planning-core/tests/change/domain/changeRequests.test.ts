@@ -12,6 +12,7 @@ import {
   staleFields,
   cannotApproveMessage,
   DECISION_LABELS,
+  proposedChanges,
 } from "../../../src/modules/change/domain/changeRequests.js";
 
 describe("isChangeable (AC1)", () => {
@@ -234,5 +235,20 @@ describe("staleFields (S2)", () => {
 describe("cannotApproveMessage (S2)", () => {
   it("names the status by its label and says rejection is still possible", () => {
     expect(cannotApproveMessage("CANCELLED")).toBe("The event is Cancelled, so the change can't be approved. You can still reject it.");
+  });
+});
+
+describe("proposedChanges (S2, G2)", () => {
+  it("gives each field's proposed value under its name, keeping a proposed null", () => {
+    expect(
+      proposedChanges([
+        { fieldName: "proposedStartAt", currentValue: "2026-12-02T06:00:00.000Z", proposedValue: "2026-12-02T07:00:00.000Z" },
+        { fieldName: "venueRequirements", currentValue: { notes: "Lectern" }, proposedValue: null },
+      ])
+    ).toEqual({ proposedStartAt: "2026-12-02T07:00:00.000Z", venueRequirements: null });
+  });
+
+  it("gives no changes for no fields", () => {
+    expect(proposedChanges([])).toEqual({});
   });
 });
