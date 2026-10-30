@@ -3,6 +3,7 @@ import {
   assembleCalendar,
   CALENDAR_TIME_ZONE,
   calendarDays,
+  calendarEventIds,
   MAX_CALENDAR_DAYS,
   readCalendarRange,
   type CalendarRow,
@@ -142,6 +143,7 @@ describe("assembleCalendar", () => {
       eventId: null,
       reasonType: null,
       description: null,
+      bufferOverlaps: [],
       ...extra,
     };
   }
@@ -175,6 +177,49 @@ describe("assembleCalendar", () => {
     expect(day!.committed[0]).toMatchObject({ kind: "BOOKING", bookingStatus: "PENDING", eventReference: "EVT-000101" });
   });
 
+  it("names what a change of the venue's times makes a booking overlap, with each one's event reference (I6-T1)", () => {
+    const [day] = assembleCalendar(
+      [MON],
+      [
+        row("BOOKING", "10:00", "12:00", {
+          slotStatus: "CONFIRMED",
+          eventId: symposium,
+          bufferOverlaps: [
+            { reference: "BKR-000002", eventId: alumni },
+            { reference: "BKR-000003", eventId: "e0000000-0000-0000-0000-0000000000ff" },
+          ],
+        }),
+      ],
+      references,
+    );
+    expect(day!.committed[0]).toEqual({
+      kind: "BOOKING",
+      startsAt: "2026-12-07T02:00:00.000Z",
+      endsAt: "2026-12-07T04:00:00.000Z",
+      bookingStatus: "CONFIRMED",
+      eventReference: "EVT-000101",
+      bufferOverlaps: [
+        { reference: "BKR-000002", eventReference: "EVT-000102" },
+        { reference: "BKR-000003", eventReference: null },
+      ],
+    });
+  });
+
+  it("says nothing of overlaps on a booking with none (I6-T3)", () => {
+    const [day] = assembleCalendar([MON], [row("BOOKING", "10:00", "12:00", { slotStatus: "CONFIRMED", eventId: symposium })], references);
+    expect(day!.committed[0]).not.toHaveProperty("bufferOverlaps");
+  });
+
+  it("lists the overlapped arrangements' events among those whose references are needed", () => {
+    expect(
+      calendarEventIds([
+        row("BOOKING", "10:00", "12:00", { slotStatus: "CONFIRMED", eventId: symposium, bufferOverlaps: [{ reference: "BKR-000002", eventId: alumni }] }),
+        row("BOOKING", "14:00", "16:00", { slotStatus: "CONFIRMED", eventId: symposium }),
+        row("UNAVAILABLE", "18:00", "20:00", { reasonType: "MAINTENANCE", description: "Lift repair" }),
+      ]),
+    ).toEqual([symposium, alumni]);
+  });
+
   it("leaves the reference empty when the event can no longer be found", () => {
     const [day] = assembleCalendar(
       [MON],
@@ -202,6 +247,23 @@ describe("assembleCalendar", () => {
         reasonType: "MAINTENANCE",
         description: "Stage lighting rewiring",
       },
+    ]);
+  });
+
+  it("labels a block with no end as open-ended, and no other period (I5-T5)", () => {
+    const [day] = assembleCalendar(
+      [MON],
+      [
+        row("UNAVAILABLE", "13:00", "24:00", { reasonType: "MAINTENANCE", description: "Roof leak repair", openEnded: true }),
+        row("UNAVAILABLE", "09:00", "10:00", { reasonType: "SAFETY", description: "Fire drill", openEnded: false }),
+        row("UNAVAILABLE", "11:00", "12:00", { reasonType: "OTHER", description: "Exams" }),
+      ],
+      references,
+    );
+    expect(day!.committed.map((p) => [p.description, p.openEnded])).toEqual([
+      ["Fire drill", undefined],
+      ["Exams", undefined],
+      ["Roof leak repair", true],
     ]);
   });
 

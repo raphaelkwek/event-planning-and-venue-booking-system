@@ -2029,7 +2029,21 @@ paths:
         included (CR-01). Each one's coordinator is told, through `venue-booking.booking-disrupted`,
         that alternative arrangements are required (CR-02). The venue row is locked first, as M1's
         approval does, so a block and an approval never interleave. From then on the period is
-        unavailable on the calendar and in search, and new requests over it are refused.
+        unavailable on the calendar and in search, and new requests and holds over it are refused.
+
+        I5 (Week 9 answer W9-49, decision D-01): `endsAt` may be left out, null or empty. The block then
+        has no end and lasts from its start until Venue Staff remove it. It disrupts, and flags, whatever
+        ends after it starts, refuses requests and holds for any later period, and shows on the
+        calendar from its start on every later day, labelled `openEnded`. An end that is given must
+        still be later than the start.
+
+        I3: a Confirmed event whose confirmed booking the block disrupts returns to Planning, never
+        to Cancelled (W9-50). The status history records the change by the Venue Staff member, with
+        `VENUE_BLOCKED` as the triggering action, and `event.status-changed` is published. The
+        coordinator's message carries `eventReturnedToPlanning: true`; the organiser isn't told
+        until a replacement or change is approved (W9-51). The events are locked after the venue
+        row and before the bookings are flagged, in F5's order. An event in any other status is
+        left as it is.
       operationId: recordVenueUnavailability
       requestBody:
         required: true
@@ -2081,7 +2095,7 @@ paths:
       operationId: reviewVenueUnavailability
       parameters:
         - { name: startsAt, in: query, required: true, schema: { type: string, format: date-time }, description: "With its offset." }
-        - { name: endsAt, in: query, required: true, schema: { type: string, format: date-time } }
+        - { name: endsAt, in: query, required: false, schema: { type: string, format: date-time }, description: "Left out for a block with no end (I5): it would disrupt whatever ends after the start." }
       responses:
         "200":
           description: What it would disrupt; empty when nothing.
@@ -2447,7 +2461,13 @@ paths:
         choosing how many minutes before the expiry to be reminded (at least 1). The hold is stored
         Requested with an `HLD-` reference and reserves nothing until Venue Staff place it (the
         customer's Week 9 answer, CQ-06). An event has at most one Requested or Held hold per venue
-        (CR-03). Limited to 120 requests a minute per address until the gateway applies limits.
+        (CR-03).
+
+        I4 (Week 9 answer W9-41): refused with `VENUE_UNAVAILABLE`, storing nothing, when the hold's
+        occupied period (with the venue's setup and turnaround, H3) overlaps an active block (I2). The
+        message names each block, its period and its reason type. Periods that merely touch don't overlap.
+
+        Limited to 120 requests a minute per address until the gateway applies limits.
       operationId: requestHold
       requestBody:
         required: true
@@ -2473,7 +2493,7 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
         "409":
-          description: "`EVENT_NOT_HOLDABLE` (the message names the event's status), or `HOLD_DUPLICATE` (the message names the event's existing hold at the venue)."
+          description: "`EVENT_NOT_HOLDABLE` (the message names the event's status), `HOLD_DUPLICATE` (the message names the event's existing hold at the venue), or `VENUE_UNAVAILABLE` (I4: an active block overlaps the hold's occupied period; the message names each block, its period and its reason type)."
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
@@ -2587,6 +2607,11 @@ paths:
         as a HELD slot: the exclusion constraint refuses it when the occupied period (with the venue's
         setup and turnaround, H3) overlaps another hold or confirmed booking at the venue, so the hold
         placed first keeps the period. A refused placement changes nothing; the hold stays Requested.
+
+        I4 (W9-41): placing is also refused with `VENUE_UNAVAILABLE` when an active block, recorded since
+        the hold was requested, overlaps its occupied period. The check runs under the venue row lock
+        I2 takes to record a block, so the two happen one after the other: the placement is refused, or
+        the hold it placed is flagged by the block.
       operationId: placeHold
       requestBody:
         required: true
@@ -2612,7 +2637,7 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
         "409":
-          description: "`HOLD_NOT_REQUESTED` (the message names the hold's status), `EVENT_NOT_HOLDABLE`, or `VENUE_SLOT_CONFLICT` (the message names each overlapped hold or booking and its period)."
+          description: "`HOLD_NOT_REQUESTED` (the message names the hold's status), `EVENT_NOT_HOLDABLE`, `VENUE_SLOT_CONFLICT` (the message names each overlapped hold or booking and its period), or `VENUE_UNAVAILABLE` (I4: an active block overlaps the occupied period; the message names each block)."
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
@@ -3416,11 +3441,25 @@ components:
         eventReference:
           type: [string, "null"]
           description: On BOOKING, SETUP and TURNAROUND. Null if the event can no longer be found.
+        bufferOverlaps:
+          type: array
+          description: |
+            I6: only on a BOOKING whose booking, hold or pending request is flagged Requires
+            Reconfirmation by a change of the venue's setup or turnaround time (H3). Each live
+            arrangement it now overlaps, by reference and its event's reference, soonest first. Gone
+            once the conflict is cleared.
+          items:
+            type: object
+            required: [reference, eventReference]
+            properties:
+              reference: { type: string }
+              eventReference: { type: [string, "null"] }
         reasonType:
           type: string
           enum: [MAINTENANCE, EQUIPMENT_FAILURE, RENOVATION, SAFETY, OTHER]
           description: On UNAVAILABLE.
         description: { type: string, description: "On UNAVAILABLE, the recorded reason." }
+        openEnded: { type: boolean, enum: [true], description: "On UNAVAILABLE, present only for a block with no end (I5). It runs from its start to the end of the day, and on every later day." }
     FreePeriod:
       type: object
       required: [startsAt, endsAt]
@@ -3912,7 +3951,7 @@ components:
               reasonType: { type: string, enum: [MAINTENANCE, EQUIPMENT_FAILURE, RENOVATION, SAFETY, OTHER] }
               description: { type: string }
               startsAt: { type: string, format: date-time }
-              endsAt: { type: string, format: date-time }
+              endsAt: { type: [string, "null"], format: date-time, description: "Null for a block with no end (I5)." }
         overlaps:
           type: array
           description: "H3-T10, H3-T11: the live bookings, holds and pending requests the venue's current setup and turnaround time make it overlap, soonest first."
@@ -3930,10 +3969,10 @@ components:
               venueName: { type: string }
     UnavailabilityBlockInput:
       type: object
-      required: [startsAt, endsAt, reasonType, description]
+      required: [startsAt, reasonType, description]
       properties:
         startsAt: { type: string, format: date-time, description: "With its offset." }
-        endsAt: { type: string, format: date-time, description: "After the start." }
+        endsAt: { type: [string, "null"], format: date-time, description: "After the start. Optional (I5): leave it out, or send null or an empty string, for a block with no end, which lasts until Venue Staff remove it." }
         reasonType: { type: string, enum: [MAINTENANCE, EQUIPMENT_FAILURE, RENOVATION, SAFETY, OTHER], description: "CR-02's reasons." }
         description: { type: string, minLength: 1, maxLength: 1000, description: "At least one character that isn't whitespace." }
     UnavailabilityBlock:
@@ -3943,7 +3982,7 @@ components:
         id: { type: string, format: uuid }
         venueId: { type: string, format: uuid }
         startsAt: { type: string, format: date-time }
-        endsAt: { type: string, format: date-time }
+        endsAt: { type: [string, "null"], format: date-time, description: "Null for a block with no end (I5), which stays Active until it is removed." }
         reasonType: { type: string, enum: [MAINTENANCE, EQUIPMENT_FAILURE, RENOVATION, SAFETY, OTHER] }
         description: { type: string }
         status: { type: string, enum: [ACTIVE, REMOVED] }
@@ -3953,13 +3992,16 @@ components:
         removedAt: { type: [string, "null"], format: date-time }
     DisruptedItem:
       type: object
-      required: [kind, reference, eventReference, overlapFrom, overlapUntil]
+      required: [kind, reference, eventReference, overlapFrom, overlapUntil, returnsEventToPlanning]
       properties:
         kind: { type: string, enum: [BOOKING, HOLD, REQUEST] }
         reference: { type: string, description: "The booking's, hold's or request's own reference." }
         eventReference: { type: [string, "null"] }
         overlapFrom: { type: string, format: date-time, description: "Where the block meets the booking's occupied period, or the request's period." }
         overlapUntil: { type: string, format: date-time }
+        returnsEventToPlanning:
+          type: boolean
+          description: "I3: the event is Confirmed and a confirmed booking of it is disrupted, so the block returns (in the review: would return) the event to Planning."
     ClearedDisruption:
       type: object
       required: [kind, reference, eventReference, stillDisrupted]

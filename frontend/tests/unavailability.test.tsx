@@ -29,7 +29,7 @@ function block(overrides: Record<string, unknown> = {}) {
 }
 
 const DISRUPTED = [
-  { kind: "BOOKING", reference: "BKR-000001", eventReference: "EVT-000123", overlapFrom: "2026-12-02T08:00:00.000Z", overlapUntil: "2026-12-02T10:00:00.000Z" },
+  { kind: "BOOKING", reference: "BKR-000001", eventReference: "EVT-000123", overlapFrom: "2026-12-02T08:00:00.000Z", overlapUntil: "2026-12-02T10:00:00.000Z", returnsEventToPlanning: false },
 ];
 
 type Fn = (...args: unknown[]) => Promise<unknown>;
@@ -131,7 +131,7 @@ describe("recording unavailability (I2)", () => {
   it("names every missing field, and a description of only spaces, without reviewing anything (I2-T2)", async () => {
     await openScreen();
     fireEvent.click(screen.getByRole("button", { name: "Review" }));
-    for (const message of ["Enter the start date and time.", "Enter the end date and time.", "Choose a reason type.", "Enter a description."]) {
+    for (const message of ["Enter the start date and time.", "Choose a reason type.", "Enter a description."]) {
       expect(screen.getByText(message), message).toBeTruthy();
     }
     fill({ ...WHOLE, reason: "", Description: "   " });
@@ -176,6 +176,44 @@ describe("recording unavailability (I2)", () => {
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   });
 
+  it("says beforehand which Confirmed events will return to Planning, and afterwards that they have (I3-T1)", async () => {
+    const returning = [
+      { ...DISRUPTED[0]!, returnsEventToPlanning: true },
+      { ...DISRUPTED[0]!, reference: "BKR-000002", returnsEventToPlanning: true },
+      { ...DISRUPTED[0]!, reference: "BKR-000003", eventReference: "EVT-000124", returnsEventToPlanning: false },
+    ];
+    reviewBlock.mockResolvedValueOnce({ items: returning });
+    recordBlock.mockResolvedValueOnce({ block: block(), disrupted: returning });
+    await openScreen();
+    fill(WHOLE);
+    fireEvent.click(screen.getByRole("button", { name: "Review" }));
+
+    const dialog = await screen.findByRole("dialog");
+    expect(text(dialog)).toContain("EVT-000123 is Confirmed and will return to Planning, to be confirmed again. It won't be cancelled.");
+    expect(text(dialog)).not.toContain("EVT-000124 is Confirmed");
+    fireEvent.click(within(dialog).getByRole("button", { name: "Record unavailability" }));
+
+    expect(await screen.findByText("Unavailability recorded. 3 bookings now require reconfirmation. EVT-000123 has returned to Planning.")).toBeTruthy();
+  });
+
+  it("names several returning events together", async () => {
+    const two = [
+      { ...DISRUPTED[0]!, returnsEventToPlanning: true },
+      { ...DISRUPTED[0]!, reference: "BKR-000003", eventReference: "EVT-000124", returnsEventToPlanning: true },
+    ];
+    reviewBlock.mockResolvedValueOnce({ items: two });
+    recordBlock.mockResolvedValueOnce({ block: block(), disrupted: two });
+    await openScreen();
+    fill(WHOLE);
+    fireEvent.click(screen.getByRole("button", { name: "Review" }));
+
+    const dialog = await screen.findByRole("dialog");
+    expect(text(dialog)).toContain("EVT-000123 and EVT-000124 are Confirmed and will return to Planning, to be confirmed again. They won't be cancelled.");
+    fireEvent.click(within(dialog).getByRole("button", { name: "Record unavailability" }));
+
+    expect(await screen.findByText(/EVT-000123 and EVT-000124 have returned to Planning\.$/)).toBeTruthy();
+  });
+
   it("says when nothing is disrupted (I2-T1)", async () => {
     reviewBlock.mockResolvedValueOnce({ items: [] });
     recordBlock.mockResolvedValueOnce({ block: block(), disrupted: [] });
@@ -198,6 +236,62 @@ describe("recording unavailability (I2)", () => {
     const dialog = await screen.findByRole("dialog");
     fireEvent.click(within(dialog).getByRole("button", { name: "Record unavailability" }));
     expect(await within(dialog).findByText(/could not be recorded/)).toBeTruthy();
+  });
+});
+
+describe("a block with no end (I5)", () => {
+  const NO_END = { ...WHOLE, "End date": "", "End time": "" };
+  const openEnded = block({ endsAt: null });
+
+  it("says an empty end means no end, and doesn't ask for one (I5-T1)", async () => {
+    await openScreen();
+    expect(screen.getByText("Leave both end fields empty for a block with no end: it lasts until you remove it.")).toBeTruthy();
+    fill({ ...NO_END, Description: "   " });
+    fireEvent.click(screen.getByRole("button", { name: "Review" }));
+    expect(screen.queryByText(/Enter the end/)).toBeNull();
+  });
+
+  it("reviews and records it with no end, naming it open-ended in the dialog and the list (I5-T1)", async () => {
+    recordBlock.mockResolvedValueOnce({ block: openEnded, disrupted: [] });
+    reviewBlock.mockResolvedValueOnce({ items: [] });
+    await openScreen();
+    fill(NO_END);
+    fireEvent.click(screen.getByRole("button", { name: "Review" }));
+
+    const dialog = await screen.findByRole("dialog");
+    expect(reviewBlock).toHaveBeenCalledWith("token", VENUE_ID, "2026-12-02T16:00:00+08:00", null);
+    expect(text(dialog)).toContain("from Wednesday 2 December 2026, 16:00, open-ended");
+
+    listBlocks.mockResolvedValueOnce({ items: [block({ endsAt: null, startsAt: "2026-12-02T08:00:00.000Z" })] });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Record unavailability" }));
+
+    expect(await screen.findByText("Unavailability recorded.")).toBeTruthy();
+    expect(recordBlock).toHaveBeenCalledWith("token", VENUE_ID, {
+      startsAt: "2026-12-02T16:00:00+08:00",
+      endsAt: null,
+      reasonType: "MAINTENANCE",
+      description: "Stage rigging inspection",
+    });
+    const row = await screen.findByRole("row", { name: /Stage rigging inspection/ });
+    expect(text(row)).toContain("from Wednesday 2 December 2026, 16:00, open-ended");
+  });
+
+  it("asks for both end fields, or neither, when only one is filled (I5-T2)", async () => {
+    await openScreen();
+    for (const half of [{ ...NO_END, "End date": "2026-12-02" }, { ...NO_END, "End time": "19:00" }]) {
+      fill(half);
+      fireEvent.click(screen.getByRole("button", { name: "Review" }));
+      expect(screen.getByText("Enter both the end date and the end time, or leave both empty for a block with no end.")).toBeTruthy();
+    }
+    expect(reviewBlock).not.toHaveBeenCalled();
+  });
+
+  it("names it open-ended when it is removed (I5-T7)", async () => {
+    listBlocks.mockResolvedValueOnce({ items: [openEnded] });
+    await openScreen();
+    const row = await screen.findByRole("row", { name: /Stage rigging inspection/ });
+    fireEvent.click(within(row).getByRole("button", { name: "Remove" }));
+    expect(text(await screen.findByRole("dialog"))).toContain("from Wednesday 2 December 2026, 16:00, open-ended");
   });
 });
 

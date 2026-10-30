@@ -178,6 +178,266 @@ confirmed that coordinators can't claim an unassigned request, the Lead coordina
 
 - **A4:** whether coordinators may see events not assigned to them waits on CQ-11.
 - **E4 and E5** (reassigning and the overview) follow on stacked branches.
+# I6: The availability calendar flags buffer-change overlaps
+
+**Timestamp:** 2026-10-24T15:14+08:00 (SGT)
+**Author:** Seann, via Claude
+**Scope:** I6 (SPM-196, Sprint 4), the customer's Week 9 answer W9-46 (W9-FX-4).
+- planning-core, venue module: the calendar's query (`repo/availability.ts`), its presenter
+  (`domain/availabilityCalendar.ts`) and route.
+- OpenAPI: `CommittedPeriod.bufferOverlaps`.
+- web: the availability calendar.
+- `tests/I6/` (README and five cards, all executed) and `sprint-3.csv`.
+
+**Reason:** H3 shows Venue Staff the conflicts a change of setup or turnaround time causes, and
+tells the coordinators. The customer also wants the calendar to flag the overlapping periods:
+"Venue Staff see identified conflicts upon setting buffers, the calendar flags overlapping
+periods, and affected Coordinators receive notifications" (W9-46).
+
+## Added
+
+- **A flagged arrangement says so on the calendar.** Each confirmed booking, hold or pending
+  request in an uncleared H3 conflict reads "Requires reconfirmation: overlaps BKR-… (EVT-…) with
+  the venue's setup and turnaround time". The row is tinted and bordered in red, unlike unflagged
+  rows. Each arrangement is named with its event's reference, so it can be found on the same
+  calendar.
+- **Only live arrangements are named,** as on the event's bookings (H3-T10): a booking since
+  released, or a request since decided, drops out.
+- **A cleared conflict is gone the next time the calendar loads.** Every internal role sees the
+  flag; attendees still can't open the calendar (I1).
+
+## Not done, on purpose
+
+- The flag is H3's only. A booking flagged by an unavailability block (I2) isn't marked this way:
+  the block is its own row on the calendar.
+- The flag is on the booking's row, not repeated on its setup and turnaround rows.
+
+---
+
+# I3: A block returns a Confirmed event to Planning
+
+**Timestamp:** 2026-10-24T10:40+08:00 (SGT)
+**Author:** Seann, via Claude
+**Scope:** I3 (SPM-193, Sprint 4), the customer's Week 9 answers W9-43, W9-50 and W9-51 (W9-FX-1).
+- planning-core, event module: F1's status machine gains `VENUE_BLOCKED`. There is a new public
+  `returnBlockedEventsToPlanning()` and `blockReturnsToPlanning()` (`api/venueBlocked.ts`), and
+  `lockEventStatuses()` in the status repo.
+- planning-core, venue module: I2's record route and review (`api/unavailability.ts`).
+- `contracts` and notification: an optional `eventReturnedToPlanning` on
+  `venue-booking.booking-disrupted`, and the coordinator's sentence. **Needs a second owner's
+  review.**
+- OpenAPI: the record route and `DisruptedItem.returnsEventToPlanning`.
+- web: the Unavailability review and its confirmation.
+- The F1 design spec, §6; `tests/I3/` (README and seven cards, all executed); `sprint-3.csv`.
+
+**Reason:** I2 left the event's status alone whatever it was. The customer answered that a
+Confirmed event whose venue becomes unavailable "should revert to Planning review. The event itself
+is preserve and not automatically cancelled" (W9-50). They also said the coordinator is told at once
+and the organiser and attendees only when replacement arrangements or changes are confirmed (W9-51).
+
+## Added
+
+- **Confirmed → Planning when a block lands on a confirmed booking.** Recording a block over a
+  confirmed booking of a Confirmed event moves the event to Planning, never to Cancelled. The
+  status history names the Venue Staff member, with `VENUE_BLOCKED` as the triggering action, and
+  `event.status-changed` is published. An event in any other status is unchanged, as are blocks
+  that touch only its holds or pending requests. Nothing is released, and its other bookings keep
+  their status and flags.
+- **Lock order.** The events are locked (`for update`, in id order) after the venue row and before
+  the bookings are flagged. That is F5's order (event, then bookings), so a block and a
+  confirmation can't deadlock. A block waits for any transaction holding the event, then acts on
+  the status it finds.
+- **Venue Staff see it first.** The review says "EVT-… is Confirmed and will return to Planning, to
+  be confirmed again. It won't be cancelled." Afterwards the notice says it has returned. Each
+  review and response item carries `returnsEventToPlanning`.
+- **The coordinator's notification** adds "EVT-… has returned to Planning and must be confirmed
+  again." The organiser is not told now. They are told when the replacement is approved (M1's
+  existing notice).
+- **The event confirms again through F5,** refused while the booking is flagged and accepted once
+  it is replaced, into Safety Review.
+
+## Changed
+
+- I2's review and record responses have a new required field, `returnsEventToPlanning`. I2's
+  integration tests that compare the items exactly now include it. I2's cards and records are not
+  edited: their events were Approved, and still are.
+
+## Not done, on purpose
+
+- **Attendees** are notified with the organiser (W9-51), but registration (R2) isn't built.
+- **U1 isn't built,** so I3-T6 stops at Safety Review.
+- **The event's status history screen** shows From, To, By and When, not the triggering action.
+  `VENUE_BLOCKED` is stored and returned by the history API; I3-T1 reads it in the database.
+
+---
+
+# I5: Record a block with no end
+
+**Timestamp:** 2026-10-24T03:48+08:00 (SGT)
+**Author:** Seann, via Claude
+**Scope:** I5 (SPM-195, Sprint 4), the customer's Week 9 answer W9-49 and decision D-01. Stacked on I4.
+- planning-core, venue module: migration `0018_open_ended_blocks.sql`; the block's repos, the
+  review and the record route; the calendar's query and presenter; the refusal wording
+  (`singaporePeriod`, `readBlock`, `readPeriod`).
+- `contracts` and notification: `blockEndsAt` is a required, nullable date-time on the two
+  disruption messages. **Needs a second owner's review.**
+- OpenAPI: the block, its input, the impact query and the calendar's `openEnded`.
+- web: the Unavailability form, list and dialogs, the availability calendar, and the event's
+  bookings.
+- `tests/I5/` (README and eight cards, all executed) and `sprint-3.csv`.
+**Reason:** the customer gave two answers about open-ended blocks. By D-01 the later one counts:
+Venue Staff "can set temporary unavailability with end dates or leave it open-ended until
+operational issues are resolved and lifted" (W9-49), over "it should not be open-ended" (W9-41).
+
+## Added
+
+- **A block's end is optional.** Leave both end fields empty (or send no `endsAt`) for a block
+  that lasts until Venue Staff remove it. An end that is given must still be after the start.
+- **Nothing else needed a special case.** A block's `period` is generated from its start and end;
+  with no end it has no upper bound, so every overlap the calendar, search, booking requests,
+  holds (I4), approvals and I2's review make answers for it. It disrupts and flags whatever ends
+  after it starts, and refuses requests and holds for any later period.
+- **The calendar shows it from its start on every later day,** labelled open-ended. Messages name
+  it "from <start>, open-ended", and the coordinator is told the venue is unavailable "until Venue
+  Staff lift it".
+
+## Changed
+
+- I2's end was mandatory, and its cards (I2-T2, I2-T3) and tests said so. An end that is left out
+  is now valid; the I2 integration and web tests that asserted it was required were updated. I2's
+  records are not edited.
+
+## Not done, on purpose
+
+- Nothing ends an open-ended block except Venue Staff removing it (I2). There's no reminder.
+
+---
+
+# I4: A block refuses a hold over its period
+
+**Timestamp:** 2026-10-24T03:15+08:00 (SGT)
+**Author:** Seann, via Claude
+**Scope:** I4 (SPM-194, Sprint 4), the customer's Week 9 answer W9-41.
+- planning-core, venue module: `api/holds.ts` (request and place), `domain/unavailability.ts`
+  (`holdBlockedMessage`).
+- OpenAPI: the two hold routes' 409 responses.
+- `tests/I4/` (README and seven cards, all executed) and `sprint-3.csv`.
+**Reason:** a venue marked unavailable should stop new holds as well as new booking requests. I2
+already refused booking requests over a block.
+
+## Added
+
+- **A hold over an active block is refused with `VENUE_UNAVAILABLE`, and nothing is stored.** It
+  applies when the coordinator requests the hold and again when Venue Staff place it, because a
+  block can be recorded in between. The message names each block, its period and its reason type.
+- The hold's **occupied period** is compared (CR-01): the venue's setup and turnaround time count,
+  and periods that only touch don't overlap.
+- Placing now takes the venue's row lock before the hold's, as every booking change at a venue
+  does (implementation.md §4.6, rule 1), so it is decided against a block recorded at the same moment.
+
+## Not done, on purpose
+
+- **A hold that is only Requested isn't flagged by a block.** It reserves nothing and has no slot,
+  so there is nothing to disrupt; it stays Requested and placing it is refused. A hold already
+  placed is flagged Requires Reconfirmation by I2, unchanged.
+- **Open-ended blocks** (I5) are the next story; this one checks blocks with an end.
+- **Converting a hold** into a booking request already refused a request over a block (I2), unchanged.
+# Stories I3 to I6 for the Week 9 changes to Done stories; CQ-03 decided by the team
+
+**Timestamp:** 2026-10-24T12:00+08:00 (SGT)
+**Author:** Seann, via Claude
+**Scope:** documentation only; no code changes.
+- `documentation/final user stories.md`, revision 5: new stories I3, I4, I5 and I6; R2 gains the
+  D-01 rule for places remaining; the notes on A3, F1, H3, I1, I2 and L3 name the new stories.
+- `documentation/clarifications.md`: CQ-03's team decision; the W9-FX items name the story that
+  carries each.
+- `documentation/planning/plan.md` §9 and `documentation/sprint allocation.csv`: A4, E3, E4, E5,
+  U1 and I3 to I6 join Sprint 4.
+
+**Reason:** the course's guide to managing changes (Week 7). A new requirement on a Done story is
+a new user story with its own criteria and estimate (scenario 2); a criterion the story missed
+would reopen it (scenario 1). None of W9-FX-1 to W9-FX-5 is a missed criterion.
+
+## Added
+
+- **I3:** a block over a Confirmed event's booking returns the event to Planning (W9-FX-1).
+- **I4:** a block refuses new holds over its period (W9-FX-2).
+- **I5:** a block may have no end, until Venue Staff remove it (W9-FX-3, D-01).
+- **I6:** the availability calendar flags the overlaps a change of setup or turnaround time
+  creates (W9-FX-4).
+
+## Changed
+
+- **R2:** when manual additions take an event above capacity, places remaining is zero, never
+  negative (D-01).
+- **W9-FX-5 stays in E4,** which already retires E2's peer reassignment, because E4 is not yet
+  Done.
+
+## Decided
+
+- **CQ-03:** the team accepts that a notification becomes visible within about 10 seconds of its
+  action (ADR-0008, ADR-0013, EN-17). It was never put to the customer. T2's criteria promise no
+  delivery time, so they are unchanged.
+
+## Not done, on purpose
+
+- **No story points.** I3 to I6, and the not-yet-Done stories revised on 23 Oct, are estimated at
+  the team's planning poker (PX-02).
+- **Jira is not yet updated.** The PO reviews this revision first.
+
+---
+
+# Clarifications: the customer's Week 9 answers
+
+**Timestamp:** 2026-10-23T12:42+08:00 (SGT)
+**Author:** Seann, via Claude
+**Scope:** documentation only; no code changes.
+- `documentation/clarifications.md`: the Week 9 session in the customer's words (W9-01 to W9-66),
+  answers to CQ-01 and CQ-04 to CQ-10, decision D-01, new questions CQ-11 and CQ-12, and the
+  Sprint 4 items W9-FX-1 to W9-FX-5.
+- `documentation/final user stories.md`, revision 5: A4, E4, F3, R2, R7, S3 and U1 revised; notes
+  on Done stories E2, F1, F5, H3, I1, I2, L3 and L6.
+- `tests/L4/`: L4-T10, L4-T11 and the README cite the answers to CQ-05 and CQ-04.
+
+**Reason:** the answers were in a spreadsheet, not in the repo. A story's criteria may change only
+after its answer is recorded in `clarifications.md`.
+
+## Changed
+
+- **Registration capacity (R2, R7):** with several venues, it is the total of their layout
+  capacities (CQ-04).
+- **Manual additions (R7):** may go above capacity, at the organiser's or coordinator's decision
+  (CQ-01, D-01). Previously refused.
+- **Reassignment (A4, E4):** only the Lead assigns and reassigns. Coordinator-to-coordinator
+  reassignment (E2) is retired when E4 ships (CQ-07).
+- **Safety check (U1):**
+  - approval marks the check passed, then the coordinator marks the event Confirmed;
+  - rejecting returns the event to Planning, like request changes (CQ-08);
+  - no new venue fields for emergency access (CQ-10).
+- **Material change to a Confirmed event (S3):** it returns to Planning and needs F5 and the
+  safety check again.
+- **Cancellation (F3):** it closes any pending change request for the event.
+
+## Decided
+
+- **D-01:** where the customer's answers conflict, the latest one wins. So blocks may be
+  open-ended (W9-49 over W9-41), and organisers may add attendees above capacity (W9-28 over R7).
+
+## Not done, on purpose
+
+- **Done stories keep their criteria.** Their changes are new Sprint 4 items, W9-FX-1 to W9-FX-5,
+  for the PO to create in Jira:
+  - I2: a disrupted Confirmed event returns to Planning;
+  - I2 and L3: blocks refuse new holds;
+  - I2: blocks may be open-ended;
+  - H3 and I1: the calendar flags buffer conflicts;
+  - E2: retired.
+- **Still open:**
+  - CQ-03 (notification speed);
+  - CQ-11 (may coordinators view other events read-only?);
+  - CQ-12 (must a buffered period fit inside operating hours?).
+- **The session's date isn't known.** The Jira items for the answered questions (SPM-156,
+  SPM-184 to SPM-190) are still to close.
 
 ---
 

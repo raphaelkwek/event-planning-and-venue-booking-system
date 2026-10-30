@@ -53,24 +53,26 @@ function equipmentLineMessage(d: Record<string, unknown>, event: string): string
   return text;
 }
 
-/** A period in Singapore time, where the venues are: one day, or both ends when it crosses midnight. */
+/** An instant in Singapore time, where the venues are: its day, "Wednesday 2 December 2026", and its time, "13:00". */
+function singaporeParts(iso: string): { day: string; time: string } {
+  const p = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Singapore",
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(new Date(iso));
+  const part = (type: string) => p.find((x) => x.type === type)!.value;
+  return { day: `${part("weekday")} ${part("day")} ${part("month")} ${part("year")}`, time: `${part("hour")}:${part("minute")}` };
+}
+
+/** A period in Singapore time: one day, or both ends when it crosses midnight. */
 function period(startsAt: string, endsAt: string): string {
-  const parts = (iso: string) => {
-    const p = new Intl.DateTimeFormat("en-GB", {
-      timeZone: "Asia/Singapore",
-      weekday: "long",
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      hourCycle: "h23",
-    }).formatToParts(new Date(iso));
-    const part = (type: string) => p.find((x) => x.type === type)!.value;
-    return { day: `${part("weekday")} ${part("day")} ${part("month")} ${part("year")}`, time: `${part("hour")}:${part("minute")}` };
-  };
-  const start = parts(startsAt);
-  const end = parts(endsAt);
+  const start = singaporeParts(startsAt);
+  const end = singaporeParts(endsAt);
   return start.day === end.day ? `${start.day}, ${start.time}–${end.time}` : `${start.day} ${start.time} to ${end.day} ${end.time}`;
 }
 
@@ -112,15 +114,41 @@ function capitalised(text: string): string {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
-/** I2: the block's period in Singapore time, with its reason type and description. */
-function blockPeriodAndReason(d: Record<string, string>): string {
+/** The block's reason type and description, as "(Maintenance: Stage rigging inspection)". */
+function blockReason(d: Record<string, string>): string {
   // The message was validated against its contract, which allows only CR-02's five reason types.
   const reason = UNAVAILABILITY_REASON_LABELS[d.reasonType as UnavailabilityReasonType];
-  return `${period(d.blockStartsAt!, d.blockEndsAt!)} (${reason}: ${d.description})`;
+  return `(${reason}: ${d.description})`;
 }
 
+/** I5: a block with no end carries a null end, and lasts until Venue Staff remove it. The contract requires the field. */
+function hasNoEnd(d: Record<string, string>): boolean {
+  return d.blockEndsAt === null;
+}
+
+/** The day and time of an instant in Singapore time, as "Wednesday 2 December 2026, 13:00". */
+function startOf(iso: string): string {
+  const { day, time } = singaporeParts(iso);
+  return `${day}, ${time}`;
+}
+
+/** I2: the block's period in Singapore time, with its reason type and description. */
+function blockPeriodAndReason(d: Record<string, string>): string {
+  return `${period(d.blockStartsAt!, d.blockEndsAt!)} ${blockReason(d)}`;
+}
+
+/** I2, I5: what the venue's unavailability is, for the disruption message. */
 function blockedPeriod(d: Record<string, string>): string {
-  return `${d.venueName} is unavailable on ${blockPeriodAndReason(d)}`;
+  return hasNoEnd(d)
+    ? `${d.venueName} is unavailable from ${startOf(d.blockStartsAt!)} until Venue Staff lift it ${blockReason(d)}`
+    : `${d.venueName} is unavailable on ${blockPeriodAndReason(d)}`;
+}
+
+/** I2, I5: which unavailability was removed, for the cleared message. */
+function removedBlock(d: Record<string, string>): string {
+  return hasNoEnd(d)
+    ? `The open-ended unavailability of ${d.venueName} from ${startOf(d.blockStartsAt!)} ${blockReason(d)} was removed.`
+    : `The unavailability of ${d.venueName} on ${blockPeriodAndReason(d)} was removed.`;
 }
 
 const RULES: Record<string, Rule> = {
@@ -179,7 +207,9 @@ const RULES: Record<string, Rule> = {
     [
       d.coordinatorId!,
       `${blockedPeriod(d)}, which disrupts ${disruptedThing(d.kind!)} ${d.reference} for ${event}. ` +
-        `The ${d.kind === "REQUEST" ? "request" : d.kind === "HOLD" ? "hold" : "booking"} requires reconfirmation, and alternative arrangements are required.`,
+        `The ${d.kind === "REQUEST" ? "request" : d.kind === "HOLD" ? "hold" : "booking"} requires reconfirmation, and alternative arrangements are required.` +
+        // I3, W9-51: only the coordinator is told now; the organiser and attendees when a replacement or change is approved.
+        ((d.eventReturnedToPlanning as unknown) === true ? ` ${event} has returned to Planning and must be confirmed again.` : ""),
     ],
   ],
   // I2: the block was removed; the flag clears unless other unavailability, or H3-T14 the venue's
@@ -191,7 +221,7 @@ const RULES: Record<string, Rule> = {
       : d.stillCause === "BUFFER_CONFLICT"
         ? `${thing} still requires reconfirmation: with the venue's setup and turnaround time it still overlaps another booking, hold or request.`
         : `${thing} still requires reconfirmation: other unavailability still overlaps it.`;
-    return [[d.coordinatorId!, `The unavailability of ${d.venueName} on ${blockPeriodAndReason(d)} was removed. ${outcome}`]];
+    return [[d.coordinatorId!, `${removedBlock(d)} ${outcome}`]];
   },
   // L6: the holding coordinator is reminded before the hold expires, and told when it has.
   // hold-placed and hold-expiry-changed have no rule: they only drive the expiry workflow.

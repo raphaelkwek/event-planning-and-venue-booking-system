@@ -114,6 +114,41 @@ describe("a venue's availability calendar", () => {
     expect(CALENDAR_APPEARANCE.HELD).not.toBe(CALENDAR_APPEARANCE.CONFIRMED);
   });
 
+  it("flags a booking the venue's new times make overlap, naming each arrangement and its event, apart from unflagged ones (I6-T1, I6-T3)", async () => {
+    vi.mocked(getVenueAvailability).mockResolvedValueOnce({
+      venueId: VENUE_ID,
+      timeZone: "Asia/Singapore",
+      from: "2026-12-07",
+      to: "2026-12-07",
+      days: [{
+        date: "2026-12-07",
+        committed: [
+          {
+            kind: "BOOKING",
+            ...period(7, "10:00", "12:00"),
+            bookingStatus: "CONFIRMED",
+            eventReference: "EVT-000101",
+            bufferOverlaps: [
+              { reference: "BKR-000002", eventReference: "EVT-000102" },
+              { reference: "HLD-000003", eventReference: null },
+            ],
+          },
+          { kind: "BOOKING", ...period(7, "16:00", "18:00"), bookingStatus: "CONFIRMED", eventReference: "EVT-000104" },
+        ],
+        free: [],
+      }],
+    });
+
+    await openCalendar();
+
+    expect(rows("Monday 7 December 2026", "Committed")).toEqual([
+      "10:00–12:00 Confirmed EVT-000101 Requires reconfirmation: overlaps BKR-000002 (EVT-000102) and HLD-000003 (unknown event) with the venue's setup and turnaround time",
+      "16:00–18:00 Confirmed EVT-000104",
+    ]);
+    const [flagged, plain] = within(within(day("Monday 7 December 2026")).getByRole("list", { name: "Committed" })).getAllByRole("listitem");
+    expect(flagged!.style.background).not.toBe(plain!.style.background);
+  });
+
   it("labels a pending request as pending, in a different colour from a confirmed booking (I1 AC3)", async () => {
     await openCalendar();
     expect(rows("Monday 7 December 2026", "Committed")).toContain("14:00–16:00 Pending EVT-000102");
@@ -123,6 +158,28 @@ describe("a venue's availability calendar", () => {
   it("shows a block with its type and reason, ending at 24:00 (I1 AC4)", async () => {
     await openCalendar();
     expect(rows("Monday 7 December 2026", "Committed")).toContain("18:00–24:00 Renovation Seat replacement");
+  });
+
+  it("labels a block with no end as open-ended, on the days it runs through (I5-T5)", async () => {
+    const open = (date: string, d: number, from: string) => ({
+      date,
+      committed: [{ kind: "UNAVAILABLE", ...period(d, from, "24:00"), reasonType: "MAINTENANCE", description: "Roof leak repair", openEnded: true }],
+      free: [],
+    });
+    vi.mocked(getVenueAvailability).mockResolvedValueOnce({
+      venueId: VENUE_ID,
+      timeZone: "Asia/Singapore",
+      from: "2026-12-07",
+      to: "2026-12-08",
+      days: [open("2026-12-07", 7, "13:00"), open("2026-12-08", 8, "00:00")],
+    } as never);
+    signInAs("EVENT_COORDINATOR");
+    render(<App />);
+    await screen.findByRole("region", { name: "Monday 7 December 2026" });
+
+    expect(rows("Monday 7 December 2026", "Committed")).toEqual(["13:00–24:00 Maintenance Roof leak repair · open-ended"]);
+    expect(rows("Tuesday 8 December 2026", "Committed")).toEqual(["00:00–24:00 Maintenance Roof leak repair · open-ended"]);
+    // A block with an end carries no such label: see the test above, "18:00–24:00 Renovation Seat replacement".
   });
 
   it("marks setup and turnaround as occupied, apart from the event (I1 AC5)", async () => {

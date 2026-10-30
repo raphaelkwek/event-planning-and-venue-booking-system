@@ -186,7 +186,7 @@ describe("POST /api/v1/venues/:id/unavailability (I2)", () => {
     expect((await list(venueId)).body.items.map((b: { id: string }) => b.id)).toEqual([res.body.block.id]);
   });
 
-  it("refuses a block missing any field, naming each, and creates nothing (I2-T2)", async () => {
+  it("refuses a block missing any field but the end, naming each, and creates nothing (I2-T2; the end became optional with I5)", async () => {
     const venueId = await newVenue("I2 Auditorium");
     signedInAs("VENUE_STAFF", STAFF);
 
@@ -194,7 +194,7 @@ describe("POST /api/v1/venues/:id/unavailability (I2)", () => {
 
     expect(res.status).toBe(400);
     expect(res.body.error.code).toBe("VALIDATION_FAILED");
-    expect(res.body.error.fields.map((f: { field: string }) => f.field)).toEqual(["startsAt", "endsAt", "reasonType", "description"]);
+    expect(res.body.error.fields.map((f: { field: string }) => f.field)).toEqual(["startsAt", "reasonType", "description"]);
     expect(await blockCount(venueId)).toBe(0);
   });
 
@@ -228,6 +228,7 @@ describe("POST /api/v1/venues/:id/unavailability (I2)", () => {
         eventReference: event.reference,
         overlapFrom: utc("16:00"),
         overlapUntil: utc("18:00"),
+        returnsEventToPlanning: false,
       },
     ]);
     expect(await slotFlag(booking.bookingId)).toBe(true);
@@ -371,7 +372,7 @@ describe("GET /api/v1/venues/:id/unavailability/impact (I2-T4, I2-T5)", () => {
 
     expect(res.status).toBe(200);
     expect(res.body.items).toEqual([
-      { kind: "BOOKING", reference: booking.reference, eventReference: event.reference, overlapFrom: utc("16:00"), overlapUntil: utc("18:00") },
+      { kind: "BOOKING", reference: booking.reference, eventReference: event.reference, overlapFrom: utc("16:00"), overlapUntil: utc("18:00"), returnsEventToPlanning: false },
     ]);
     expect((await impact(venueId, at("18:00"), at("19:00"))).body.items).toEqual([]);
     expect(await blockCount(venueId)).toBe(0);
@@ -384,7 +385,7 @@ describe("GET /api/v1/venues/:id/unavailability/impact (I2-T4, I2-T5)", () => {
     signedInAs("VENUE_STAFF", STAFF);
 
     expect((await impact(venueId, at("12:30"), at("13:30"))).body.items).toEqual([
-      { kind: "BOOKING", reference: other.reference, eventReference: other.eventReference, overlapFrom: utc("12:30"), overlapUntil: utc("12:45") },
+      { kind: "BOOKING", reference: other.reference, eventReference: other.eventReference, overlapFrom: utc("12:30"), overlapUntil: utc("12:45"), returnsEventToPlanning: false },
     ]);
     expect((await impact(venueId, at("12:45"), at("13:30"))).body.items).toEqual([]);
   });

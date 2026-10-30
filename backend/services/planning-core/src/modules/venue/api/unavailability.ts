@@ -1,7 +1,12 @@
 import { Router, type NextFunction, type RequestHandler, type Response } from "express";
 import { rateLimit } from "express-rate-limit";
 import type { Sql, TransactionSql } from "postgres";
-import { findEventForPlanning, type EventPlanningView } from "../../event/index.js";
+import {
+  blockReturnsToPlanning,
+  findEventForPlanning,
+  returnBlockedEventsToPlanning,
+  type EventPlanningView,
+} from "../../event/index.js";
 import { authenticate, requireRole, type ActorRequest } from "../auth/actor.js";
 import { NOT_VENUE_STAFF, readBlock, readPeriod } from "../domain/unavailability.js";
 import { writeVenueOutbox } from "../events/outbox.js";
@@ -32,6 +37,10 @@ import { refuse } from "./errors.js";
  * the coordinator is told alternative arrangements are required (CR-02), which
  * L5 provides. Recording a block takes the venue row lock first, as M1's
  * approval does (implementation.md §4.6, rule 1), so the two never interleave.
+ *
+ * I3 — a Confirmed event whose confirmed booking the block disrupts returns to
+ * Planning (W9-50), and its coordinator's message says so. The events are
+ * locked after the venue row and before the bookings are flagged, F5's order.
  */
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -96,6 +105,7 @@ async function tellCoordinators(
   items: readonly (Disrupted | ClearedDisruption)[],
   events: Map<string, EventPlanningView>,
   acted: { by: string; at: string },
+  returned: ReadonlySet<string> = new Set(),
 ): Promise<void> {
   for (const item of items) {
     const event = events.get(item.eventId);
@@ -123,20 +133,31 @@ async function tellCoordinators(
         actedBy: acted.by,
         actedAt: acted.at,
         ...("stillDisrupted" in item ? { stillDisrupted: item.stillDisrupted, stillCause: item.stillCause } : {}),
+        ...(returned.has(event.id) ? { eventReturnedToPlanning: true } : {}),
       },
     });
   }
 }
 
-/** What a block disrupts, as Venue Staff are shown it: with the event's reference (I2-T4). */
-async function presentDisrupted(sql: Sql, items: readonly Disrupted[], callerId: string) {
+/** I3: the events whose confirmed bookings a block disrupts; those that are Confirmed return to Planning. */
+const bookedEventIds = (items: readonly Disrupted[]) => items.filter((d) => d.kind === "BOOKING").map((d) => d.eventId);
+
+/**
+ * What a block disrupts, as Venue Staff are shown it: with the event's reference
+ * (I2-T4), and whether the event returns to Planning (I3). Recording passes the
+ * events it returned; the review works it out from their status now.
+ */
+async function presentDisrupted(sql: Sql, items: readonly Disrupted[], callerId: string, returned?: ReadonlySet<string>) {
   const events = await eventsOf(sql, items.map((d) => d.eventId), callerId);
+  const returning =
+    returned ?? new Set(bookedEventIds(items).filter((id) => events.has(id) && blockReturnsToPlanning(events.get(id)!.status)));
   return items.map((d) => ({
     kind: d.kind,
     reference: d.reference,
     eventReference: events.get(d.eventId)?.reference ?? null,
     overlapFrom: d.overlapFrom,
     overlapUntil: d.overlapUntil,
+    returnsEventToPlanning: returning.has(d.eventId),
   }));
 }
 
@@ -163,7 +184,7 @@ export function unavailabilityRouter(sql: Sql) {
       if (!venue) return;
       const period = readPeriod(req.query as Record<string, unknown>);
       if (!period.ok) return refuse(res, 400, "VALIDATION_FAILED", INVALID, period.fields);
-      const items = await disruptedBy(sql, venue.id, new Date(period.startsAt), new Date(period.endsAt));
+      const items = await disruptedBy(sql, venue.id, new Date(period.startsAt), period.endsAt === null ? null : new Date(period.endsAt));
       res.json({ items: await presentDisrupted(sql, items, req.actor!.userId) });
     } catch (error) {
       next(error);
@@ -179,27 +200,36 @@ export function unavailabilityRouter(sql: Sql) {
       if (!read.ok) return refuse(res, 400, "VALIDATION_FAILED", INVALID, read.fields);
       const actor = req.actor!;
 
-      const { block, disrupted } = await sql.begin(async (tx) => {
+      const correlationId = req.header("x-correlation-id") ?? null;
+      const { block, disrupted, returned } = await sql.begin(async (tx) => {
         await lockVenue(tx, venue.id);
         const block = await insertBlock(tx, {
           venueId: venue.id,
           startsAt: new Date(read.block.startsAt),
-          endsAt: new Date(read.block.endsAt),
+          endsAt: read.block.endsAt === null ? null : new Date(read.block.endsAt),
           reasonType: read.block.reasonType,
           description: read.block.description,
           actorUserId: actor.userId,
         });
-        const disrupted = await disruptedBy(tx, venue.id, new Date(block.startsAt), new Date(block.endsAt));
+        const disrupted = await disruptedBy(tx, venue.id, new Date(block.startsAt), block.endsAt === null ? null : new Date(block.endsAt));
+        const returned = await returnBlockedEventsToPlanning(tx, bookedEventIds(disrupted), { ...actor, correlationId });
         await flagDisruptions(tx, block.id, disrupted, actor.userId);
         const events = await eventsOf(sql, disrupted.map((d) => d.eventId), actor.userId);
-        await tellCoordinators(tx, req, "venue-booking.booking-disrupted", block, venue, disrupted, events, {
-          by: block.createdBy,
-          at: block.createdAt,
-        });
-        return { block, disrupted };
+        await tellCoordinators(
+          tx,
+          req,
+          "venue-booking.booking-disrupted",
+          block,
+          venue,
+          disrupted,
+          events,
+          { by: block.createdBy, at: block.createdAt },
+          returned,
+        );
+        return { block, disrupted, returned };
       });
 
-      res.status(201).json({ block, disrupted: await presentDisrupted(sql, disrupted, actor.userId) });
+      res.status(201).json({ block, disrupted: await presentDisrupted(sql, disrupted, actor.userId, returned) });
     } catch (error) {
       next(error);
     }
