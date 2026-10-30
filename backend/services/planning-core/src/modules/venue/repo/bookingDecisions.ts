@@ -24,7 +24,8 @@ export interface OverlappingBlock {
   reasonType: UnavailabilityReasonType;
   description: string;
   startsAt: string;
-  endsAt: string;
+  /** Null for a block with no end (I5). */
+  endsAt: string | null;
 }
 
 /**
@@ -40,7 +41,7 @@ export async function activeBlocksOverlapping(
   setupMinutes: number,
   turnaroundMinutes: number,
 ): Promise<OverlappingBlock[]> {
-  const rows = await tx<{ id: string; reason_type: UnavailabilityReasonType; description: string; starts_at: Date; ends_at: Date }[]>`
+  const rows = await tx<{ id: string; reason_type: UnavailabilityReasonType; description: string; starts_at: Date; ends_at: Date | null }[]>`
     select id, reason_type, description, starts_at, ends_at from venue.unavailability_blocks
     where venue_id = ${venueId} and status = 'ACTIVE'
       and period && venue.occupied_period(${startsAt}::timestamptz, ${endsAt}::timestamptz, ${setupMinutes}::int, ${turnaroundMinutes}::int)
@@ -51,7 +52,7 @@ export async function activeBlocksOverlapping(
     reasonType: row.reason_type,
     description: row.description,
     startsAt: row.starts_at.toISOString(),
-    endsAt: row.ends_at.toISOString(),
+    endsAt: row.ends_at?.toISOString() ?? null,
   }));
 }
 

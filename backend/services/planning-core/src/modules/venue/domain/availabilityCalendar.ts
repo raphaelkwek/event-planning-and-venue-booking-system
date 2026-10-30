@@ -93,6 +93,8 @@ export interface CalendarRow {
   description: string | null;
   /** I6: the live arrangements an uncleared H3 conflict says this booking, hold or request overlaps; otherwise empty. */
   bufferOverlaps: { reference: string; eventId: string }[];
+  /** A block with no end (I5), shown from its start on every later day. */
+  openEnded?: boolean;
 }
 
 /** An arrangement a booking overlaps with the venue's setup and turnaround time (I6), by reference and its event's. */
@@ -113,6 +115,8 @@ export interface CommittedPeriod {
   /** Unavailability blocks (I2). */
   reasonType?: UnavailabilityReasonType;
   description?: string;
+  /** Present, true, only on a block with no end (I5): it lasts until Venue Staff remove it. */
+  openEnded?: true;
 }
 
 export interface CalendarDayView {
@@ -145,7 +149,9 @@ function committedPeriod(row: CalendarRow, references: ReadonlyMap<string, strin
         : {}),
     };
   }
-  if (row.reasonType) return { ...period, reasonType: row.reasonType, description: row.description! };
+  if (row.reasonType) {
+    return { ...period, reasonType: row.reasonType, description: row.description!, ...(row.openEnded ? { openEnded: true as const } : {}) };
+  }
   return period;
 }
 

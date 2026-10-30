@@ -13,7 +13,8 @@ export interface Block {
   id: string;
   venueId: string;
   startsAt: string;
-  endsAt: string;
+  /** Null for a block with no end, which lasts until Venue Staff remove it (I5). */
+  endsAt: string | null;
   reasonType: ReasonType;
   description: string;
   status: "ACTIVE" | "REMOVED";
@@ -30,11 +31,14 @@ export interface Disrupted {
   eventReference: string | null;
   overlapFrom: string;
   overlapUntil: string;
+  /** I3: the event is Confirmed and this disrupts its confirmed booking, so it returns (or would return) to Planning. */
+  returnsEventToPlanning: boolean;
 }
 
 export interface BlockInput {
   startsAt: string;
-  endsAt: string;
+  /** Null for a block with no end (I5). */
+  endsAt: string | null;
   reasonType: ReasonType;
   description: string;
 }
@@ -44,11 +48,10 @@ export function listBlocks(token: string, venueId: string) {
 }
 
 /** What a block over the period would disrupt. Records nothing. */
-export function reviewBlock(token: string, venueId: string, startsAt: string, endsAt: string) {
-  return request<{ items: Disrupted[] }>(
-    `${VENUE}/venues/${venueId}/unavailability/impact?${new URLSearchParams({ startsAt, endsAt })}`,
-    { token },
-  );
+export function reviewBlock(token: string, venueId: string, startsAt: string, endsAt: string | null) {
+  // A block with no end (I5) sends no end.
+  const query = new URLSearchParams(endsAt === null ? { startsAt } : { startsAt, endsAt });
+  return request<{ items: Disrupted[] }>(`${VENUE}/venues/${venueId}/unavailability/impact?${query}`, { token });
 }
 
 export function recordBlock(token: string, venueId: string, body: BlockInput) {

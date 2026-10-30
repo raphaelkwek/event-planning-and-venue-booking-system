@@ -97,7 +97,8 @@ const disruptionFields = {
   /** A booking's or hold's event's assigned coordinator; a request's requesting coordinator. */
   coordinatorId: z.string().uuid(),
   blockStartsAt: z.string().datetime(),
-  blockEndsAt: z.string().datetime(),
+  /** Null for a block with no end, which lasts until Venue Staff remove it (I5). */
+  blockEndsAt: z.string().datetime().nullable(),
   reasonType: z.enum(UNAVAILABILITY_REASON_TYPES),
   description: z.string().min(1),
   /** The Venue Staff member who recorded or removed the block, and when. */
@@ -105,8 +106,15 @@ const disruptionFields = {
   actedAt: z.string().datetime(),
 };
 
-/** I2: a block was recorded over this booking, hold or request, which now requires reconfirmation. */
-export const bookingDisruptedPayloadSchema = z.object(disruptionFields);
+/**
+ * I2: a block was recorded over this booking, hold or request, which now requires reconfirmation.
+ * I3: `eventReturnedToPlanning` is true when the block returned the Confirmed event to Planning;
+ * otherwise it is left out.
+ */
+export const bookingDisruptedPayloadSchema = z.object({
+  ...disruptionFields,
+  eventReturnedToPlanning: z.boolean().optional(),
+});
 
 /** Why a flag stays when a block is removed: another active block (I2), or the venue's setup and turnaround time (H3). */
 export const STILL_FLAGGED_CAUSES = ["UNAVAILABILITY", "BUFFER_CONFLICT"] as const;

@@ -250,6 +250,23 @@ describe("assembleCalendar", () => {
     ]);
   });
 
+  it("labels a block with no end as open-ended, and no other period (I5-T5)", () => {
+    const [day] = assembleCalendar(
+      [MON],
+      [
+        row("UNAVAILABLE", "13:00", "24:00", { reasonType: "MAINTENANCE", description: "Roof leak repair", openEnded: true }),
+        row("UNAVAILABLE", "09:00", "10:00", { reasonType: "SAFETY", description: "Fire drill", openEnded: false }),
+        row("UNAVAILABLE", "11:00", "12:00", { reasonType: "OTHER", description: "Exams" }),
+      ],
+      references,
+    );
+    expect(day!.committed.map((p) => [p.description, p.openEnded])).toEqual([
+      ["Fire drill", undefined],
+      ["Exams", undefined],
+      ["Roof leak repair", true],
+    ]);
+  });
+
   it("orders periods that start together: outside hours, then setup, the event, turnaround and blocks", () => {
     const booking = { slotStatus: "CONFIRMED" as const, eventId: symposium };
     const [day] = assembleCalendar(

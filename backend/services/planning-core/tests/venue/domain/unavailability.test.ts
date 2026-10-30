@@ -3,6 +3,7 @@ import {
   NOT_VENUE_STAFF,
   readBlock,
   readPeriod,
+  holdBlockedMessage,
   requestBlockedMessage,
 } from "../../../src/modules/venue/domain/unavailability.js";
 
@@ -34,12 +35,32 @@ describe("readBlock (I2-T1, I2-T2, I2-T3)", () => {
     }
   });
 
-  it("names every missing field", () => {
+  it("reads a block with no end as open-ended, whether the end is left out, null or empty (I5-T1)", () => {
+    const withoutEnd: Record<string, unknown> = { ...valid };
+    delete withoutEnd.endsAt;
+    for (const body of [withoutEnd, { ...withoutEnd, endsAt: null }, { ...withoutEnd, endsAt: "" }, { ...withoutEnd, endsAt: "   " }]) {
+      expect(readBlock(body)).toEqual({
+        ok: true,
+        block: { startsAt: "2026-12-09T01:00:00.000Z", endsAt: null, reasonType: "MAINTENANCE", description: "Annual rigging inspection" },
+      });
+    }
+  });
+
+  it("refuses an end that is given but isn't a date and time with an offset, saying how to leave it out (I5-T2)", () => {
+    const refused = {
+      ok: false,
+      fields: [{ field: "endsAt", message: "Enter the end as a date and time with its offset, or leave it out for a block with no end." }],
+    };
+    expect(readBlock({ ...valid, endsAt: "tomorrow" })).toEqual(refused);
+    expect(readBlock({ ...valid, endsAt: 5 })).toEqual(refused);
+    expect(readBlock({ ...valid, endsAt: "2026-12-09T13:00" })).toEqual(refused);
+  });
+
+  it("names every missing field, the end not being one of them", () => {
     expect(readBlock({})).toEqual({
       ok: false,
       fields: [
         { field: "startsAt", message: "Enter the start date and time." },
-        { field: "endsAt", message: "Enter the end date and time." },
         { field: "reasonType", message: "Choose a reason type." },
         { field: "description", message: "Enter a description." },
       ],
@@ -81,6 +102,14 @@ describe("readBlock (I2-T1, I2-T2, I2-T3)", () => {
   });
 });
 
+describe("readPeriod with no end (I5-T3)", () => {
+  it("reads a review of an open-ended block, the end being left out, null or empty", () => {
+    for (const query of [{ startsAt: valid.startsAt }, { startsAt: valid.startsAt, endsAt: "" }, { startsAt: valid.startsAt, endsAt: null }]) {
+      expect(readPeriod(query)).toEqual({ ok: true, startsAt: "2026-12-09T01:00:00.000Z", endsAt: null });
+    }
+  });
+});
+
 describe("readPeriod (I2-T4)", () => {
   it("reads the period a review asks about, or names what's wrong with it", () => {
     expect(readPeriod({ startsAt: valid.startsAt, endsAt: valid.endsAt })).toEqual({
@@ -90,10 +119,11 @@ describe("readPeriod (I2-T4)", () => {
     });
     expect(readPeriod({})).toEqual({
       ok: false,
-      fields: [
-        { field: "startsAt", message: "Enter the start date and time." },
-        { field: "endsAt", message: "Enter the end date and time." },
-      ],
+      fields: [{ field: "startsAt", message: "Enter the start date and time." }],
+    });
+    expect(readPeriod({ startsAt: valid.startsAt, endsAt: "later" })).toEqual({
+      ok: false,
+      fields: [{ field: "endsAt", message: "Enter the end as a date and time with its offset, or leave it out for a block with no end." }],
     });
     expect(readPeriod({ startsAt: valid.endsAt, endsAt: valid.startsAt })).toEqual({
       ok: false,
@@ -116,6 +146,45 @@ describe("requestBlockedMessage (I2-T10)", () => {
 
   it("names several", () => {
     const message = requestBlockedMessage("Hall", [
+      { reasonType: "SAFETY", description: "Fire drill", startsAt: "2026-12-09T01:00:00.000Z", endsAt: "2026-12-09T02:00:00.000Z" },
+      { reasonType: "OTHER", description: "Exams", startsAt: "2026-12-09T03:00:00.000Z", endsAt: "2026-12-09T04:00:00.000Z" },
+    ]);
+    expect(message).toContain("Safety concern, “Fire drill” (Wednesday 9 December 2026, 09:00–10:00) and Other operational reason, “Exams” (");
+  });
+});
+
+describe("refusals over a block with no end (I5-T4)", () => {
+  const openEnded = { reasonType: "MAINTENANCE" as const, description: "Roof leak repair", startsAt: "2026-12-02T05:00:00.000Z", endsAt: null };
+
+  it("name its start and that it is open-ended, for a request and for a hold", () => {
+    expect(requestBlockedMessage("Hall", [openEnded])).toBe(
+      "Hall is unavailable for Maintenance, “Roof leak repair” (from Wednesday 2 December 2026, 13:00, open-ended), " +
+        "so it can't be requested for this period. Choose another time or venue.",
+    );
+    expect(holdBlockedMessage("Hall", [openEnded])).toContain("(from Wednesday 2 December 2026, 13:00, open-ended)");
+    expect(holdBlockedMessage("Hall", [openEnded], "HLD-000007")).toContain("(from Wednesday 2 December 2026, 13:00, open-ended), so HLD-000007 can't be placed");
+  });
+});
+
+describe("holdBlockedMessage (I4-T1, I4-T2)", () => {
+  const maintenance = { reasonType: "MAINTENANCE" as const, description: "Annual rigging inspection", startsAt: "2026-12-09T01:00:00.000Z", endsAt: "2026-12-09T05:00:00.000Z" };
+
+  it("says a hold can't be requested over the block, naming its reason type, description and period", () => {
+    expect(holdBlockedMessage("Lee Kong Chian Auditorium", [maintenance])).toBe(
+      "Lee Kong Chian Auditorium is unavailable for Maintenance, “Annual rigging inspection” (Wednesday 9 December 2026, 09:00–13:00), " +
+        "so a hold can't be requested for this period. Choose another time or venue.",
+    );
+  });
+
+  it("says the named hold can't be placed, and stays Requested", () => {
+    expect(holdBlockedMessage("Lee Kong Chian Auditorium", [maintenance], "HLD-000007")).toBe(
+      "Lee Kong Chian Auditorium is unavailable for Maintenance, “Annual rigging inspection” (Wednesday 9 December 2026, 09:00–13:00), " +
+        "so HLD-000007 can't be placed for this period. It stays Requested.",
+    );
+  });
+
+  it("names several blocks", () => {
+    const message = holdBlockedMessage("Hall", [
       { reasonType: "SAFETY", description: "Fire drill", startsAt: "2026-12-09T01:00:00.000Z", endsAt: "2026-12-09T02:00:00.000Z" },
       { reasonType: "OTHER", description: "Exams", startsAt: "2026-12-09T03:00:00.000Z", endsAt: "2026-12-09T04:00:00.000Z" },
     ]);

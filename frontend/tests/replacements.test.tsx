@@ -186,6 +186,23 @@ describe("the event's bookings (L5-T1, L5-T2)", () => {
     expect(within(row).getByRole("button", { name: "Find a replacement" })).toBeTruthy();
   });
 
+  it("says a disrupting block has no end, naming where it starts (I5)", async () => {
+    listEventBookingRequests.mockResolvedValueOnce({
+      event: EVENT,
+      items: [],
+      bookings: [
+        booking({
+          disruptions: [{ blockId: "block-1", reasonType: "MAINTENANCE", description: "Roof leak repair", startsAt: "2026-12-02T05:00:00.000Z", endsAt: null }],
+        }),
+      ],
+    });
+    signInAs(ASSIGNED, "EVENT_COORDINATOR", `/events/${EVENT_ID}/venue-requests`);
+    render(<App />);
+    const row = within(await bookingsTable()).getByRole("row", { name: /BKR-000001/ });
+    expect(text(row)).toContain("Unavailable: Maintenance, “Roof leak repair”, from Wednesday 2 December 2026, 13:00, open-ended");
+    expect(within(row).getByRole("button", { name: "Find a replacement" })).toBeTruthy();
+  });
+
   it("lists a booking's replacement requests with their status", async () => {
     listEventBookingRequests.mockResolvedValueOnce({
       event: EVENT,

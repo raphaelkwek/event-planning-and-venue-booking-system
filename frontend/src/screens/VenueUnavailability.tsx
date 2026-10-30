@@ -40,18 +40,22 @@ const KIND_LABELS: Record<Disrupted["kind"], [one: string, many: string]> = {
   REQUEST: ["booking request", "booking requests"],
 };
 
-/** The block as entered, or the message under each field that is wrong (I2-T2, I2-T3). */
+/**
+ * The block as entered, or the message under each field that is wrong (I2-T2, I2-T3). Leaving both end
+ * fields empty records a block with no end, which lasts until Venue Staff remove it (I5).
+ */
 function check(form: Form): { input: BlockInput } | { errors: Partial<Record<"startsAt" | "endsAt" | "reasonType" | "description", string>> } {
   const errors: Partial<Record<"startsAt" | "endsAt" | "reasonType" | "description", string>> = {};
   const startsAt = form.startDate && form.startTime ? fromInputs(form.startDate, form.startTime) : null;
   const endsAt = form.endDate && form.endTime ? fromInputs(form.endDate, form.endTime) : null;
   if (!startsAt) errors.startsAt = "Enter the start date and time.";
-  if (!endsAt) errors.endsAt = "Enter the end date and time.";
-  else if (startsAt && Date.parse(endsAt) <= Date.parse(startsAt)) errors.endsAt = "The end must be after the start.";
+  if (!endsAt && (form.endDate || form.endTime)) {
+    errors.endsAt = "Enter both the end date and the end time, or leave both empty for a block with no end.";
+  } else if (endsAt && startsAt && Date.parse(endsAt) <= Date.parse(startsAt)) errors.endsAt = "The end must be after the start.";
   if (!form.reasonType) errors.reasonType = "Choose a reason type.";
   if (form.description.trim() === "") errors.description = "Enter a description.";
   if (Object.keys(errors).length > 0) return { errors };
-  return { input: { startsAt: startsAt!, endsAt: endsAt!, reasonType: form.reasonType as ReasonType, description: form.description.trim() } };
+  return { input: { startsAt: startsAt!, endsAt, reasonType: form.reasonType as ReasonType, description: form.description.trim() } };
 }
 
 /** "1 booking now requires reconfirmation." or "2 bookings and 1 booking request now require reconfirmation." */
@@ -63,6 +67,28 @@ function flaggedSentence(disrupted: readonly Disrupted[]): string {
     .map(([kind, n]) => `${n} ${KIND_LABELS[kind][n === 1 ? 0 : 1]}`);
   const listed = counts.length === 1 ? counts[0] : `${counts.slice(0, -1).join(", ")} and ${counts[counts.length - 1]}`;
   return ` ${listed} now ${disrupted.length === 1 ? "requires" : "require"} reconfirmation.`;
+}
+
+/** I3: the references of the Confirmed events the block returns to Planning, each once, joined with "and". */
+function returningEvents(disrupted: readonly Disrupted[]): string | null {
+  const refs = [...new Set(disrupted.filter((d) => d.returnsEventToPlanning).map((d) => d.eventReference ?? "An event"))];
+  if (refs.length === 0) return null;
+  return refs.length === 1 ? refs[0]! : `${refs.slice(0, -1).join(", ")} and ${refs[refs.length - 1]}`;
+}
+
+/** In the review, before recording: "EVT-000123 is Confirmed and will return to Planning, …" (W9-50). */
+function willReturnSentence(disrupted: readonly Disrupted[]): string | null {
+  const events = returningEvents(disrupted);
+  if (!events) return null;
+  const several = events.includes(" and ");
+  return `${events} ${several ? "are" : "is"} Confirmed and will return to Planning, to be confirmed again. ${several ? "They" : "It"} won't be cancelled.`;
+}
+
+/** After recording: " EVT-000123 has returned to Planning." */
+function returnedSentence(disrupted: readonly Disrupted[]): string {
+  const events = returningEvents(disrupted);
+  if (!events) return "";
+  return ` ${events} ${events.includes(" and ") ? "have" : "has"} returned to Planning.`;
 }
 
 function describe(d: Disrupted): string {
@@ -125,7 +151,7 @@ export function VenueUnavailability() {
     setActionError(null);
     try {
       const { disrupted } = await recordBlock(session.token, id!, reviewing.input);
-      setNotice(`Unavailability recorded.${flaggedSentence(disrupted)}`);
+      setNotice(`Unavailability recorded.${flaggedSentence(disrupted)}${returnedSentence(disrupted)}`);
       setReviewing(null);
       setForm(EMPTY);
       await load();
@@ -190,6 +216,9 @@ export function VenueUnavailability() {
           <Labelled id="block-end-time" label="End time">
             <input id="block-end-time" type="time" value={form.endTime} onChange={(e) => set("endTime")(e.currentTarget.value)} style={input} />
           </Labelled>
+          <p style={{ flexBasis: "100%", margin: "-8px 0 0", fontSize: 12, color: "#626F86" }}>
+            Leave both end fields empty for a block with no end: it lasts until you remove it.
+          </p>
           <Labelled id="block-reason" label="Reason type" error={errors.reasonType}>
             <select id="block-reason" value={form.reasonType} onChange={(e) => set("reasonType")(e.currentTarget.value)} style={input}>
               <option value="">Choose…</option>
@@ -282,6 +311,7 @@ export function VenueUnavailability() {
                       <li key={`${d.kind}-${d.reference}`}>{describe(d)}</li>
                     ))}
                   </ul>
+                  {willReturnSentence(reviewing.disrupted) && <p>{willReturnSentence(reviewing.disrupted)}</p>}
                 </>
               )}
               <Refusal error={actionError} />

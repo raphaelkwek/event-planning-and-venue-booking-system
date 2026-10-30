@@ -72,6 +72,19 @@ export async function updateStatusIf(
   return row ? { event: toEvent(row), previousStatus: row.previous_status } : null;
 }
 
+/**
+ * I3 — locks each event (`for update`) in id order, so two callers locking
+ * overlapping sets never wait on each other in a cycle, and returns each one's
+ * status as it stands under the lock. An event that doesn't exist is left out.
+ */
+export async function lockEventStatuses(tx: TransactionSql, eventIds: readonly string[]): Promise<Map<string, EventStatus>> {
+  if (eventIds.length === 0) return new Map();
+  const rows = await tx<{ id: string; status: EventStatus }[]>`
+    select id, status from event.events where id = any(${[...eventIds]}::uuid[]) order by id for update
+  `;
+  return new Map(rows.map((row) => [row.id, row.status]));
+}
+
 export async function readStatus(tx: TransactionSql, eventId: string): Promise<EventStatus | null> {
   const rows = await tx<{ status: EventStatus }[]>`
     select status from event.events where id = ${eventId}
