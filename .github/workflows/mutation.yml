@@ -35,6 +35,10 @@ jobs:
         if: always()
         run: npm run test:mutation -w @connectsphere/notification
 
+      - name: registration
+        if: always()
+        run: npm run test:mutation -w @connectsphere/registration
+
       - name: Mutation score
         if: always()
         run: node .github/scripts/mutation-summary.mjs >> "$GITHUB_STEP_SUMMARY"
@@ -47,4 +51,5 @@ jobs:
           path: |
             backend/services/planning-core/reports/mutation/
             backend/services/notification/reports/mutation/
+            backend/services/registration/reports/mutation/
           if-no-files-found: ignore

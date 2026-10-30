@@ -1,19 +1,17 @@
 import type { Sql } from "postgres";
 import { KAFKA_TOPICS } from "@connectsphere/contracts";
-import { eventConfig } from "../config.js";
-import { allocateCoordinator } from "../domain/assignment.js";
 import { submissionColumns, type EventFields, type EventRow } from "../repo/events.js";
 import { insertDraft, isOwnedBy } from "../repo/drafts.js";
-import { insertAssignment, saveCursor, takeCursor } from "../repo/assignments.js";
 import { writeOutbox } from "../events/outbox.js";
 import { transitionEvent } from "./transitionEvent.js";
 
 /**
- * B1 + E1 — submission, whether the request was saved as a draft first (C2) or
+ * B1 — submission, whether the request was saved as a draft first (C2) or
  * submitted directly. Everything happens in one transaction: the event, its
- * history entry, the coordinator assignment, and the outbox rows that become
- * notifications. If any part fails none of it happened, and no submission
- * timestamp is recorded (B1's last acceptance criterion).
+ * history entry, and the outbox row that becomes a notification. If any part
+ * fails none of it happened, and no submission timestamp is recorded (B1's
+ * last acceptance criterion). No coordinator is assigned: since E3 the Lead
+ * assigns one from the unassigned queue.
  *
  * A request comes into existence as a Draft, and the SUBMIT transition is the
  * only way out of Draft (F1) — so a direct submission is inserted as a draft
@@ -76,40 +74,8 @@ export async function submitEvent(
       },
     });
 
-    // E1 — assignment is part of submission, not a separate user action.
-    const allocation = allocateCoordinator(eventConfig.coordinatorPool, await takeCursor(tx));
-
-    if (!allocation) {
-      // E1 — with no eligible coordinator the event is still submitted and is
-      // left awaiting assignment rather than refused.
-      return { ok: true as const, event };
-    }
-
-    const assignment = await insertAssignment(
-      tx,
-      event.id,
-      allocation.coordinatorId,
-      allocation.assignmentRule,
-      params.ownerId
-    );
-    await saveCursor(tx, allocation.nextCursor);
-
-    await writeOutbox(tx, {
-      topic: KAFKA_TOPICS.event,
-      messageType: "event.coordinator-assigned",
-      aggregateId: event.id,
-      actor: { userId: null, role: "SYSTEM" },
-      correlationId: params.correlationId,
-      payload: {
-        eventId: event.id,
-        eventReference: event.reference!,
-        eventName: event.name,
-        coordinatorId: assignment.coordinatorId,
-        assignmentRule: assignment.assignmentRule,
-        assignedAt: assignment.assignedAt,
-      },
-    });
-
-    return { ok: true as const, event: { ...event, assignedCoordinatorId: assignment.coordinatorId } };
+    // E3 — no coordinator is assigned here: the request waits in the Lead's
+    // unassigned queue (CR-05, replacing E1's assignment on submission).
+    return { ok: true as const, event };
   });
 }

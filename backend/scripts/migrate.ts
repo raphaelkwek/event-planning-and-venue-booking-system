@@ -12,7 +12,7 @@ import postgres from "postgres";
 //
 // `all` migrates every module and service in this order. CI uses it to build a
 // throwaway database from nothing (EN-06.1), so a new module belongs here too.
-const ALL = ["identity", "event", "venue", "equipment", "change", "notification"] as const;
+const ALL = ["identity", "event", "venue", "equipment", "change", "notification", "registration"] as const;
 
 const LOCK_TIMEOUT = "5s";
 const STATEMENT_TIMEOUT = "60s";

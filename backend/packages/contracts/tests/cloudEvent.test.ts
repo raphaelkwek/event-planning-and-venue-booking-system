@@ -29,6 +29,15 @@ const EXAMPLE_DATA: Record<EventMessageType, Record<string, unknown>> = {
     submittedAt: at,
   },
   "event.coordinator-assigned": { ...ref, coordinatorId: coordinator, assignmentRule: "ROUND_ROBIN", assignedAt: at },
+  "event.coordinator-reassigned": {
+    ...ref,
+    previousCoordinatorId: coordinator,
+    coordinatorId: nominee,
+    coordinatorName: "Coordinator Two",
+    ownerId: organiser,
+    reassignedBy: "00000000-0000-0000-0000-000000000009",
+    reassignedAt: at,
+  },
   "event.clarification-requested": {
     ...ref,
     clarificationId: "11111111-1111-4111-8111-111111111111",
@@ -449,5 +458,25 @@ describe("parseCloudEvent: change-request.arrangements-flagged (S3)", () => {
     expect(() =>
       parseCloudEvent(exampleMessage("change-request.arrangements-flagged", { ...flagged, bookings: [], reservations: [] })),
     ).toThrow(/flag/i);
+  });
+});
+
+describe("parseCloudEvent: a Lead's assignment (E3)", () => {
+  const lead = "00000000-0000-0000-0000-000000000009";
+
+  it("carries the owner, the coordinator's name and the Lead, so both the coordinator and the organiser are told", () => {
+    const data = {
+      ...EXAMPLE_DATA["event.coordinator-assigned"],
+      assignmentRule: "LEAD",
+      coordinatorName: "Coordinator Two",
+      ownerId: organiser,
+      assignedBy: lead,
+    };
+    expect(parseCloudEvent(exampleMessage("event.coordinator-assigned", data)).data).toEqual(data);
+  });
+
+  it("refuses an assignedBy that isn't a user id", () => {
+    const data = { ...EXAMPLE_DATA["event.coordinator-assigned"], assignedBy: "the lead" };
+    expect(() => parseCloudEvent(exampleMessage("event.coordinator-assigned", data))).toThrow(/assignedBy/);
   });
 });

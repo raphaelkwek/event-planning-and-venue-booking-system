@@ -1,6 +1,7 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import request from "supertest";
 import { testDb } from "../../support/testDb.js";
+import { assignForTest } from "../../support/assignment.js";
 import { EVENT_END, EVENT_START } from "../../support/eventDates.js";
 
 const ORGANISER = "a8888888-0000-0000-0000-000000000001";
@@ -9,7 +10,8 @@ const COORDINATOR_B = "a8888888-0000-0000-0000-000000000003";
 const COORDINATOR_C = "a8888888-0000-0000-0000-000000000004";
 const POOL = [COORDINATOR_A, COORDINATOR_B, COORDINATOR_C];
 
-process.env.EVENT_COORDINATOR_POOL = POOL.join(",");
+/** E3: submission assigns no one, so each test assigns as the Lead would. */
+const POOL_COORDINATOR = COORDINATOR_A;
 
 vi.mock("../../../src/shared/auth/verifyJwt.js", () => ({
   verifyJwt: (
@@ -80,18 +82,16 @@ async function cleanUp() {
 async function givenSubmittedEvent() {
   signedInAs(ORGANISER, "EVENT_ORGANISER");
   const created = await request(app).post("/api/v1/events").set(bearer).send(validRequest);
+  await assignForTest(sql, created.body, POOL_COORDINATOR);
   return created.body;
 }
 
-async function givenRejectedEvent() {
-  const event = await givenSubmittedEvent();
-  signedInAs(event.assignedCoordinatorId, "EVENT_COORDINATOR");
-  await request(app).get(`/api/v1/events/${event.id}`).set(bearer);
-  await request(app)
-    .post(`/api/v1/events/${event.id}/reject`)
-    .set(bearer)
-    .send({ reason: "No suitable venue." });
-  return event;
+/** A proposal made before E2 was retired: the FX-PROPOSAL statement (tests/E4/README.md). */
+async function pendingProposal(eventId: string, outgoing: string, nominee: string): Promise<void> {
+  await sql`
+    insert into event.reassignment_proposals (event_id, outgoing_coordinator_id, nominee_coordinator_id, status, created_by, updated_by)
+    values (${eventId}, ${outgoing}, ${nominee}, 'PENDING', ${outgoing}, ${outgoing})
+  `;
 }
 
 beforeEach(async () => {
@@ -105,159 +105,28 @@ afterAll(async () => {
   await sql.end();
 });
 
-describe("POST /api/v1/events/:id/reassignment-proposals (E2)", () => {
-  it("lets the active coordinator propose reassignment to an eligible nominee", async () => {
+/**
+ * E4 retires E2's peer flow (W9-FX-5, W9-59): the Lead alone reassigns. A
+ * coordinator can no longer propose; a proposal made before the retirement can
+ * still be accepted or declined until the Lead reassigns the event, which closes it.
+ */
+describe("POST /api/v1/events/:id/reassignment-proposals is retired (E4)", () => {
+  it("refuses a proposal, saying the Lead reassigns events, and stores nothing (E4-T6)", async () => {
     const event = await givenSubmittedEvent();
-    const active = event.assignedCoordinatorId;
-    const nominee = otherPoolMember(active);
-    signedInAs(active, "EVENT_COORDINATOR");
-
-    const res = await request(app)
-      .post(`/api/v1/events/${event.id}/reassignment-proposals`)
-      .set(bearer)
-      .send({ nomineeId: nominee });
-
-    expect(res.status).toBe(201);
-    expect(res.body).toMatchObject({
-      status: "PENDING",
-      outgoingCoordinatorId: active,
-      nomineeCoordinatorId: nominee,
-    });
-    expect(res.body.proposedAt).toBeTruthy();
-  });
-
-  it("notifies both parties by writing the reassignment-proposed event", async () => {
-    const event = await givenSubmittedEvent();
-    const active = event.assignedCoordinatorId;
-    const nominee = otherPoolMember(active);
-    signedInAs(active, "EVENT_COORDINATOR");
-
-    await request(app)
-      .post(`/api/v1/events/${event.id}/reassignment-proposals`)
-      .set(bearer)
-      .send({ nomineeId: nominee });
-
-    const outbox = await sql`
-      select envelope from event.outbox
-      where message_key = ${event.id} and topic = 'connectsphere.event.v1' and envelope->>'type' = 'event.reassignment-proposed'
-    `;
-    expect(outbox).toHaveLength(1);
-    expect(outbox[0]!.envelope.data).toMatchObject({
-      outgoingCoordinatorId: active,
-      nomineeCoordinatorId: nominee,
-    });
-  });
-
-  it("refuses reassignment once the event has been rejected", async () => {
-    const event = await givenRejectedEvent();
-    const nominee = otherPoolMember(event.assignedCoordinatorId);
     signedInAs(event.assignedCoordinatorId, "EVENT_COORDINATOR");
 
     const res = await request(app)
       .post(`/api/v1/events/${event.id}/reassignment-proposals`)
       .set(bearer)
-      .send({ nomineeId: nominee });
+      .send({ nomineeId: COORDINATOR_B });
 
-    expect(res.status).toBe(409);
-    expect(res.body.error.code).toBe("REASSIGNMENT_NOT_PERMITTED");
-  });
-
-  it("refuses a coordinator who is not the one currently assigned", async () => {
-    const event = await givenSubmittedEvent();
-    const active = event.assignedCoordinatorId;
-    const bystander = otherPoolMember(active);
-    const nominee = otherPoolMember(active, [bystander]);
-    signedInAs(bystander, "EVENT_COORDINATOR");
-
-    const res = await request(app)
-      .post(`/api/v1/events/${event.id}/reassignment-proposals`)
-      .set(bearer)
-      .send({ nomineeId: nominee });
-
-    expect(res.status).toBe(403);
-    expect(res.body.error.code).toBe("ROLE_NOT_AUTHORISED");
-  });
-
-  it("refuses a nominee who does not hold the Coordinator role", async () => {
-    const event = await givenSubmittedEvent();
-    const active = event.assignedCoordinatorId;
-    signedInAs(active, "EVENT_COORDINATOR");
-
-    const res = await request(app)
-      .post(`/api/v1/events/${event.id}/reassignment-proposals`)
-      .set(bearer)
-      .send({ nomineeId: "00000000-0000-0000-0000-000000000000" });
-
-    expect(res.status).toBe(422);
-    expect(res.body.error.code).toBe("NOMINEE_NOT_ELIGIBLE");
-  });
-
-  it("refuses nominating the coordinator already assigned, creating no history entry", async () => {
-    const event = await givenSubmittedEvent();
-    const active = event.assignedCoordinatorId;
-    signedInAs(active, "EVENT_COORDINATOR");
-
-    const res = await request(app)
-      .post(`/api/v1/events/${event.id}/reassignment-proposals`)
-      .set(bearer)
-      .send({ nomineeId: active });
-
-    expect(res.status).toBe(422);
-    expect(res.body.error.code).toBe("SELF_NOMINATION_NOT_PERMITTED");
-    const rows = await sql`
-      select count(*)::int as count from event.reassignment_proposals where event_id = ${event.id}
-    `;
-    expect(rows[0]!.count).toBe(0);
-  });
-
-  it("refuses a second proposal while one is pending, naming the pending nominee", async () => {
-    const event = await givenSubmittedEvent();
-    const active = event.assignedCoordinatorId;
-    const firstNominee = otherPoolMember(active);
-    const secondNominee = otherPoolMember(active, [firstNominee]);
-    signedInAs(active, "EVENT_COORDINATOR");
-
-    await request(app)
-      .post(`/api/v1/events/${event.id}/reassignment-proposals`)
-      .set(bearer)
-      .send({ nomineeId: firstNominee });
-
-    const res = await request(app)
-      .post(`/api/v1/events/${event.id}/reassignment-proposals`)
-      .set(bearer)
-      .send({ nomineeId: secondNominee });
-
-    expect(res.status).toBe(409);
-    expect(res.body.error.code).toBe("REASSIGNMENT_ALREADY_PENDING");
-    expect(res.body.error.message).toContain(firstNominee);
-  });
-
-  it("fires two concurrent proposals for the same event and lets exactly one win", async () => {
-    const event = await givenSubmittedEvent();
-    const active = event.assignedCoordinatorId;
-    const nomineeOne = otherPoolMember(active);
-    const nomineeTwo = otherPoolMember(active, [nomineeOne]);
-    signedInAs(active, "EVENT_COORDINATOR");
-
-    const [first, second] = await Promise.all([
-      request(app)
-        .post(`/api/v1/events/${event.id}/reassignment-proposals`)
-        .set(bearer)
-        .send({ nomineeId: nomineeOne }),
-      request(app)
-        .post(`/api/v1/events/${event.id}/reassignment-proposals`)
-        .set(bearer)
-        .send({ nomineeId: nomineeTwo }),
-    ]);
-
-    const statuses = [first.status, second.status].sort();
-    expect(statuses).toEqual([201, 409]);
-
-    const pending = await sql`
-      select count(*)::int as count from event.reassignment_proposals
-      where event_id = ${event.id} and status = 'PENDING'
-    `;
-    expect(pending[0]!.count).toBe(1);
+    expect(res.status).toBe(410);
+    expect(res.body.error).toMatchObject({
+      code: "REASSIGNMENT_RETIRED",
+      message: "Coordinators no longer propose reassignments: the Event Coordinator Lead reassigns events.",
+    });
+    const [{ n }] = await sql<{ n: number }[]>`select count(*)::int as n from event.reassignment_proposals where event_id = ${event.id}`;
+    expect(n).toBe(0);
   });
 });
 
@@ -266,11 +135,7 @@ describe("POST /api/v1/events/:id/reassignment-proposals/accept (E2)", () => {
     const event = await givenSubmittedEvent();
     const active = event.assignedCoordinatorId;
     const nominee = otherPoolMember(active);
-    signedInAs(active, "EVENT_COORDINATOR");
-    await request(app)
-      .post(`/api/v1/events/${event.id}/reassignment-proposals`)
-      .set(bearer)
-      .send({ nomineeId: nominee });
+    await pendingProposal(event.id, active, nominee);
     return { event, active, nominee };
   }
 
@@ -338,11 +203,7 @@ describe("POST /api/v1/events/:id/reassignment-proposals/decline (E2)", () => {
     const event = await givenSubmittedEvent();
     const active = event.assignedCoordinatorId;
     const nominee = otherPoolMember(active);
-    signedInAs(active, "EVENT_COORDINATOR");
-    await request(app)
-      .post(`/api/v1/events/${event.id}/reassignment-proposals`)
-      .set(bearer)
-      .send({ nomineeId: nominee });
+    await pendingProposal(event.id, active, nominee);
 
     signedInAs(nominee, "EVENT_COORDINATOR");
     const res = await request(app)
@@ -357,32 +218,5 @@ describe("POST /api/v1/events/:id/reassignment-proposals/decline (E2)", () => {
     signedInAs(event.ownerId, "EVENT_ORGANISER");
     const reread = await request(app).get(`/api/v1/events/${event.id}`).set(bearer);
     expect(reread.body.assignedCoordinatorId).toBe(active);
-  });
-
-  it("allows a fresh proposal once the pending one has been declined", async () => {
-    const event = await givenSubmittedEvent();
-    const active = event.assignedCoordinatorId;
-    const firstNominee = otherPoolMember(active);
-    const secondNominee = otherPoolMember(active, [firstNominee]);
-
-    signedInAs(active, "EVENT_COORDINATOR");
-    await request(app)
-      .post(`/api/v1/events/${event.id}/reassignment-proposals`)
-      .set(bearer)
-      .send({ nomineeId: firstNominee });
-
-    signedInAs(firstNominee, "EVENT_COORDINATOR");
-    await request(app)
-      .post(`/api/v1/events/${event.id}/reassignment-proposals/decline`)
-      .set(bearer)
-      .send();
-
-    signedInAs(active, "EVENT_COORDINATOR");
-    const res = await request(app)
-      .post(`/api/v1/events/${event.id}/reassignment-proposals`)
-      .set(bearer)
-      .send({ nomineeId: secondNominee });
-
-    expect(res.status).toBe(201);
   });
 });

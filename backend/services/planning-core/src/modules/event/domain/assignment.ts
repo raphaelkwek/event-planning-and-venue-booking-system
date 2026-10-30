@@ -1,48 +1,22 @@
 import type { EventStatus } from "@connectsphere/contracts";
 
 /**
- * E1 — automatic coordinator assignment.
- *
- * TODO(E1): this is a stub. The real story reads the eligible pool from
- * Identity (active users holding EVENT_COORDINATOR); no such endpoint exists
- * yet, so the pool comes from configuration. The allocation rule itself —
- * round-robin, applied consistently, recorded with the assignment so any
- * outcome can be explained — is what E1 asks for and is implemented here.
+ * E3 — the Event Coordinator Lead assigns each submitted request to one active
+ * Event Coordinator. This replaced E1's automatic round-robin assignment on
+ * submission (CR-05). Assignments E1 made keep their rule in the history.
  */
-export const ASSIGNMENT_RULE = "ROUND_ROBIN_STUB";
+export const LEAD_ASSIGNMENT_RULE = "LEAD";
 
-/** Statuses a request cannot be reassigned from (E2) — it has left the review workflow. */
-const REASSIGNMENT_TERMINAL_STATUSES: readonly EventStatus[] = ["COMPLETED", "CANCELLED", "REJECTED"];
+export const ASSIGNMENT_NOT_ACTIVE_COORDINATOR = "Only an active Event Coordinator can be assigned.";
 
-/** E2 — reassignment proposals are permitted only while the event is still live. */
-export function canProposeReassignment(status: EventStatus): boolean {
-  return !REASSIGNMENT_TERMINAL_STATUSES.includes(status);
+/** A draft hasn't been submitted, and these have left the workflow; nothing else is assignable. */
+const NOT_ASSIGNABLE: readonly EventStatus[] = ["DRAFT", "COMPLETED", "CANCELLED", "REJECTED"];
+
+/** E3, E4 — whether the Lead may assign or reassign an event in `status`. */
+export function canAssign(status: EventStatus): boolean {
+  return !NOT_ASSIGNABLE.includes(status);
 }
 
-/**
- * E2 — proposing reassignment to the coordinator already assigned is refused
- * and creates no new history entry, so this is checked before any write.
- */
-export function isSelfNomination(currentCoordinatorId: string, nomineeId: string): boolean {
-  return currentCoordinatorId === nomineeId;
-}
-
-export interface Allocation {
-  coordinatorId: string;
-  assignmentRule: string;
-  nextCursor: number;
-}
-
-export function allocateCoordinator(pool: readonly string[], cursor: number): Allocation | null {
-  if (pool.length === 0) {
-    return null;
-  }
-
-  const index = ((cursor % pool.length) + pool.length) % pool.length;
-
-  return {
-    coordinatorId: pool[index]!,
-    assignmentRule: ASSIGNMENT_RULE,
-    nextCursor: index + 1,
-  };
-}
+/** E4 retired E2's proposals (W9-FX-5): a coordinator asking to propose one is told who reassigns now. */
+export const REASSIGNMENT_RETIRED =
+  "Coordinators no longer propose reassignments: the Event Coordinator Lead reassigns events.";

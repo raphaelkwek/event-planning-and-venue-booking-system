@@ -1,9 +1,11 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import request from "supertest";
 import { testDb } from "../../support/testDb.js";
+import { assignForTest } from "../../support/assignment.js";
 import { EVENT_END, EVENT_START } from "../../support/eventDates.js";
 
-process.env.EVENT_COORDINATOR_POOL = "a7777777-0000-0000-0000-00000000000a";
+/** E3: submission assigns no one, so each test assigns as the Lead would. */
+const POOL_COORDINATOR = "a7777777-0000-0000-0000-00000000000a";
 
 vi.mock("../../../src/shared/auth/verifyJwt.js", () => ({
   verifyJwt: (
@@ -72,6 +74,7 @@ async function cleanUp() {
 async function givenSubmittedEvent() {
   signedInAs(ORGANISER, "EVENT_ORGANISER");
   const created = await request(app).post("/api/v1/events").set(bearer).send(validRequest);
+  await assignForTest(sql, created.body, POOL_COORDINATOR);
   return created.body;
 }
 

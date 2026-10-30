@@ -65,6 +65,7 @@ The app shows people by display name; database queries and API responses show us
 | `organiser2@connectsphere.test` | Organiser Two | Event Organiser | `00000000-0000-0000-0000-000000000007` |
 | `coordinator@connectsphere.test` | Coordinator One | Event Coordinator | `00000000-0000-0000-0000-000000000002` |
 | `coordinator2@connectsphere.test` | Coordinator Two | Event Coordinator | `00000000-0000-0000-0000-000000000008` |
+| `lead@connectsphere.test` | Lead One | Event Coordinator Lead (E3 to E5) | `00000000-0000-0000-0000-000000000009` |
 | `venuestaff@connectsphere.test` | Venue Staff One | Venue Staff | `00000000-0000-0000-0000-000000000003` |
 | `techsupport@connectsphere.test` | Tech Support One | Technical Support Staff | `00000000-0000-0000-0000-000000000004` |
 | `attendee@connectsphere.test` | Attendee One | Attendee | `00000000-0000-0000-0000-000000000005` |
@@ -111,12 +112,13 @@ address bar (`#/requests/<id>`, `#/drafts/<id>` or `#/review/<id>`), and its **r
 | Name | Steps |
 |---|---|
 | **FX-DRAFT** | Sign in as `organiser@connectsphere.test` → "New request" → enter the Event name only → "Save draft". |
-| **FX-SUBMITTED** | Sign in as `organiser@connectsphere.test` → "New request" → enter the standard request → "Submit request". Do **not** open it as a coordinator. |
-| **FX-UNDER-REVIEW** | FX-SUBMITTED → sign out → sign in as `coordinator@connectsphere.test` → "Review queue" → "Open" on the request. |
+| **FX-SUBMITTED** | Sign in as `organiser@connectsphere.test` → "New request" → enter the standard request → "Submit request". No coordinator is assigned: since E3 it waits in the Lead's unassigned queue. |
+| **FX-ASSIGNED** | FX-SUBMITTED, then the FX-ASSIGNED statement in `tests/E3/README.md`: the request assigned to Coordinator One as the Lead would (E3), notifying no one. Cases that name another coordinator assign that one instead. |
+| **FX-UNDER-REVIEW** | FX-ASSIGNED → sign out → sign in as the assigned coordinator (`coordinator@connectsphere.test` unless the case says otherwise) → "Review queue" → "Open" on the request. |
 | **FX-AWAITING** | FX-UNDER-REVIEW → type `Please confirm the expected attendance.` under "Ask for clarification" → "Send clarification request". |
 | **FX-APPROVED** | FX-UNDER-REVIEW → "Approve". |
 | **FX-REJECTED** | FX-UNDER-REVIEW → "Reject" → reason `No suitable venue is available.` → "Reject request". |
-| **FX-REASSIGNMENT-PENDING** | FX-SUBMITTED → sign out → sign in as whichever of `coordinator@connectsphere.test` / `coordinator2@connectsphere.test` the "Assigned coordinator" field on the request names (E1's round-robin means either may be assigned) → open the request from the review queue → "Propose reassignment" → nominee's user id is the *other* seeded coordinator's id (see the Accounts table) → "Send proposal". Note which account is outgoing and which is the nominee — later steps refer to them by role, not by name. |
+| **FX-REASSIGNMENT-PENDING** | FX-ASSIGNED (Coordinator One), then the FX-PROPOSAL statement in `tests/E4/README.md`: a pending proposal to Coordinator Two, as one made before E4 retired proposing (W9-FX-5). Coordinator One is outgoing and Coordinator Two the nominee. |
 | **FX-VENUE** | Sign in as `venuestaff@connectsphere.test` → "Venues" → "New venue" → enter the standard venue → "Save venue". Note the venue's **id**, the last part of the address bar (`#/venues/<id>/edit`). |
 | **FX-BOOKING** | FX-APPROVED and FX-VENUE, then the FX-BOOKING statement in `tests/L1/README.md`: three more venues, one of them not looked after by `venuestaff@connectsphere.test` and one inactive. Used by the booking request cases (L1, L2). |
 | **FX-CALENDAR** | FX-VENUE, then run the FX-CALENDAR statement in `tests/I1/README.md` with the venue's id. It gives the venue a week of confirmed and held slots and unavailability blocks, 7 to 13 December 2026, and returns each event's **reference**. Used until L1, L3, M1 and I2 can create those rows. |

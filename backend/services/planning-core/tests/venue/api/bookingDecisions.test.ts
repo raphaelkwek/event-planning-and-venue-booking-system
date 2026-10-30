@@ -221,7 +221,37 @@ describe("POST /api/v1/booking-requests/:id/approve (M1)", () => {
       decidedBy: STAFF,
       decidedAt: res.body.decidedAt,
       replacedBookingId: null,
+      layout: "Theatre",
+      layoutCapacity: 300,
     });
+  });
+
+  it("names the layout and its capacity as the venue holds them at approval, so seats can be built from the message alone (EN-13-T1)", async () => {
+    const venueId = await newVenue("M1 Auditorium");
+    const event = await newEvent();
+    const made = await requested(venueId, event);
+    // The venue changes its Theatre layout after the request was raised: approval reads what it holds now.
+    await sql`update venue.venues set layouts = ${sql.json([{ name: "Theatre", capacity: 240 }])} where id = ${venueId}`;
+    signedInAs("VENUE_STAFF", STAFF);
+
+    await approve(made.id);
+
+    const [row] = await outboxFor(made.id, "venue-booking.request-approved");
+    expect(row!.envelope.data).toMatchObject({ layout: "Theatre", layoutCapacity: 240 });
+  });
+
+  it("leaves the layout out when the venue no longer offers the one asked for, so no seats are built from a guess (EN-13-T7)", async () => {
+    const venueId = await newVenue("M1 Auditorium");
+    const event = await newEvent();
+    const made = await requested(venueId, event);
+    await sql`update venue.venues set layouts = ${sql.json([{ name: "Classroom", capacity: 90 }])} where id = ${venueId}`;
+    signedInAs("VENUE_STAFF", STAFF);
+
+    await approve(made.id);
+
+    const [row] = await outboxFor(made.id, "venue-booking.request-approved");
+    expect(row!.envelope.data).not.toHaveProperty("layout");
+    expect(row!.envelope.data).not.toHaveProperty("layoutCapacity");
   });
 
   it("refuses when the period overlaps another event's confirmed booking, naming it; nothing changes (M1-T4)", async () => {

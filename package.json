@@ -8,7 +8,7 @@
     "backend/packages/*"
   ],
   "scripts": {
-    "dev": "concurrently --kill-others-on-fail --names core,notif,web,worker --prefix-colors blue,magenta,green,yellow \"npm run dev -w @connectsphere/planning-core\" \"npm run dev -w @connectsphere/notification\" \"npm run dev -w @connectsphere/web\" \"npm run worker -w @connectsphere/planning-core\"",
+    "dev": "concurrently --kill-others-on-fail --names core,notif,reg,web,worker --prefix-colors blue,magenta,cyan,green,yellow \"npm run dev -w @connectsphere/planning-core\" \"npm run dev -w @connectsphere/notification\" \"npm run dev -w @connectsphere/registration\" \"npm run dev -w @connectsphere/web\" \"npm run worker -w @connectsphere/planning-core\"",
     "kafka:check": "tsx backend/scripts/kafka-check.ts",
     "temporal:check": "node --import tsx backend/scripts/temporal-check.ts",
     "migrate": "tsx backend/scripts/migrate.ts",
@@ -16,6 +16,7 @@
     "migrate:identity": "tsx backend/scripts/migrate.ts identity --seed",
     "migrate:event": "tsx backend/scripts/migrate.ts event",
     "migrate:notification": "tsx backend/scripts/migrate.ts notification",
+    "migrate:registration": "tsx backend/scripts/migrate.ts registration",
     "seed:auth": "tsx backend/services/planning-core/migrations/identity/seed/seed-auth-users.ts",
     "test-cases:reset": "tsx tests/fixtures/reset-test-data.ts",
     "test-cases:run": "playwright test --config tests/playwright.config.ts",

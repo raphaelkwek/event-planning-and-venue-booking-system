@@ -2,13 +2,15 @@ import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { randomUUID } from "node:crypto";
 import request from "supertest";
 import { testDb } from "../../support/testDb.js";
+import { assignForTest } from "../../support/assignment.js";
 import { EVENT_END, EVENT_START } from "../../support/eventDates.js";
 import { deleteSeededEvents } from "../../support/seedEvent.js";
 
 const ORGANISER = randomUUID();
 const COORDINATOR = randomUUID();
 
-process.env.EVENT_COORDINATOR_POOL = COORDINATOR;
+/** E3: submission assigns no one, so each test assigns as the Lead would. */
+const POOL_COORDINATOR = COORDINATOR;
 
 vi.mock("../../../src/shared/auth/verifyJwt.js", () => ({
   verifyJwt: (
@@ -76,6 +78,7 @@ describe("status history (F1)", () => {
   it("records every change on the way to Approved with both statuses, the actor, role, action and time", async () => {
     signedInAs(ORGANISER, "EVENT_ORGANISER");
     const created = await request(app).post("/api/v1/events").set(bearer).send(validRequest);
+    await assignForTest(sql, created.body, POOL_COORDINATOR);
     signedInAs(COORDINATOR, "EVENT_COORDINATOR");
     const opened = await request(app).get(`/api/v1/events/${created.body.id}`).set(bearer);
     const approved = await request(app).post(`/api/v1/events/${created.body.id}/approve`).set(bearer).send();
