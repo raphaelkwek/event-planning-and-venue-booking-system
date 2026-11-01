@@ -55,6 +55,23 @@ export {
   type VenueArrangements,
 } from "./repo/eventArrangements.js";
 
+/**
+ * S3 — the change module reads an event's confirmed bookings, held holds and
+ * pending booking requests when a significant change is approved, flags the
+ * ones it affects (Requires Reconfirmation, Unsuitable), and lists the flags
+ * still outstanding (AC8). Call the first two inside the approval's transaction.
+ */
+export {
+  bookingsForImpact,
+  flagBookings,
+  outstandingBookingFlags,
+  type BookingFlagInput,
+  type BookingFlagKind,
+  type ImpactBookingRow,
+  type OutstandingBookingFlag,
+  type VenueArrangementKind,
+} from "./repo/arrangementFlags.js";
+
 export function venueRouter(sql: Sql): Router {
   const router = Router();
   // Before venuesRouter: "/venues/search" must not be read as "/venues/:id".

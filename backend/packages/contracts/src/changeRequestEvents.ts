@@ -31,11 +31,54 @@ const decided = {
 export const changeRequestApprovedPayloadSchema = z.object(decided);
 export const changeRequestRejectedPayloadSchema = z.object({ ...decided, reason: z.string().min(1) });
 
+/**
+ * S3 — an approved change flagged some of the event's arrangements (AC2–AC4).
+ * One entry per flag: a booking, hold or pending request can appear twice, once Requires Reconfirmation
+ * and once Unsuitable. It carries who looks after each arrangement, the
+ * venue's staff and the member of Technical Support who reserved it, so the
+ * notification service tells them without reading another module (AC10).
+ * Written only when something was flagged.
+ */
+export const changeRequestArrangementsFlaggedPayloadSchema = z
+  .object({
+    eventId: z.string().uuid(),
+    eventReference: z.string(),
+    eventName: z.string(),
+    changeRequestId: z.string().uuid(),
+    bookings: z.array(
+      z.object({
+        /** A confirmed booking, a held hold or a pending booking request; a booking when absent. */
+        arrangement: z.enum(["BOOKING", "HOLD", "BOOKING_REQUEST"]).optional(),
+        reference: z.string().min(1),
+        venueName: z.string().min(1),
+        flag: z.enum(["REQUIRES_RECONFIRMATION", "UNSUITABLE"]),
+        reason: z.string().min(1),
+        staffIds: z.array(z.string().uuid()),
+      })
+    ),
+    reservations: z.array(
+      z.object({
+        equipmentTypeName: z.string().min(1),
+        flag: z.literal("FLAGGED_FOR_REVIEW"),
+        reason: z.string().min(1),
+        reservedBy: z.string().uuid(),
+      })
+    ),
+    /** The event was Confirmed and the change returned it to Planning (Week 9 W9-22). */
+    returnedToPlanning: z.boolean(),
+  })
+  .refine((data) => data.bookings.length + data.reservations.length > 0, {
+    message: "An arrangements-flagged message names at least one flag.",
+  });
+
 export const CHANGE_REQUEST_PAYLOAD_SCHEMAS = {
   "change-request.submitted": changeRequestSubmittedPayloadSchema,
   "change-request.approved": changeRequestApprovedPayloadSchema,
   "change-request.rejected": changeRequestRejectedPayloadSchema,
+  "change-request.arrangements-flagged": changeRequestArrangementsFlaggedPayloadSchema,
 } as const;
+
+export type ChangeRequestArrangementsFlagged = z.infer<typeof changeRequestArrangementsFlaggedPayloadSchema>;
 
 export type ChangeRequestMessageType = keyof typeof CHANGE_REQUEST_PAYLOAD_SCHEMAS;
 
