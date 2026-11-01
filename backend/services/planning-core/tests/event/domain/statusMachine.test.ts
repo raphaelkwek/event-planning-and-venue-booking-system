@@ -122,6 +122,7 @@ const EXPECTED: Record<EventAction, { from: EventStatus[]; to: EventStatus }> = 
   REQUEST_SAFETY_CHANGES: { from: ["SAFETY_REVIEW"], to: "PLANNING" },
   VENUE_BLOCKED: { from: ["CONFIRMED"], to: "PLANNING" },
   COMPLETE: { from: ["CONFIRMED"], to: "COMPLETED" },
+  RECONSIDER_AFTER_CHANGE: { from: ["CONFIRMED"], to: "PLANNING" },
   CANCEL: {
     from: ["DRAFT", "SUBMITTED", "UNDER_REVIEW", "AWAITING_CLARIFICATION", "APPROVED", "PLANNING", "SAFETY_REVIEW", "CONFIRMED"],
     to: "CANCELLED",
@@ -178,10 +179,11 @@ describe("Safety Review, Confirmed and Completed (F1, CR-06)", () => {
     ).toEqual([]);
   });
 
-  it("leaves Confirmed only by completing, by cancelling (F3), or for Planning when its venue is blocked (I3)", () => {
+  it("leaves Confirmed only by completing, or for Planning when its venue is blocked (I3) or a change is approved (S3), or by cancelling (F3)", () => {
     expect(actions.filter((action) => transitionRule(action).from.includes("CONFIRMED"))).toEqual([
       "VENUE_BLOCKED",
       "COMPLETE",
+      "RECONSIDER_AFTER_CHANGE",
       "CANCEL",
     ]);
     expect(transitionRule("VENUE_BLOCKED").to).toBe("PLANNING");
@@ -206,6 +208,33 @@ describe("Safety Review, Confirmed and Completed (F1, CR-06)", () => {
     expect(result.permitted).toBe(false);
     if (result.permitted) throw new Error("expected a refusal");
     expect(result.message).toBe("This event is Approved and cannot move to Completed.");
+  });
+});
+
+describe("an approved change to a Confirmed event (S3, Week 9 W9-22)", () => {
+  it("returns a Confirmed event to Planning", () => {
+    expect(evaluateTransition("CONFIRMED", "RECONSIDER_AFTER_CHANGE")).toEqual({
+      permitted: true,
+      from: "CONFIRMED",
+      to: "PLANNING",
+      action: "RECONSIDER_AFTER_CHANGE",
+    });
+  });
+
+  it("leaves every other status alone, Safety Review included (AC6)", () => {
+    for (const status of EVENT_STATUSES.filter((s) => s !== "CONFIRMED")) {
+      expect(evaluateTransition(status, "RECONSIDER_AFTER_CHANGE").permitted).toBe(false);
+    }
+  });
+
+  it("is, with I3's blocked venue, the only way back from Confirmed other than completion and cancellation", () => {
+    const actions = Object.keys(EXPECTED) as EventAction[];
+    expect(actions.filter((action) => transitionRule(action).from.includes("CONFIRMED"))).toEqual([
+      "VENUE_BLOCKED",
+      "COMPLETE",
+      "RECONSIDER_AFTER_CHANGE",
+      "CANCEL",
+    ]);
   });
 });
 

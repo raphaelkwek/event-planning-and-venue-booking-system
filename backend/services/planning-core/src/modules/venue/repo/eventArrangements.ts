@@ -12,8 +12,13 @@ import type { TransactionSql } from "postgres";
  * it commits (implementation.md §4.7). The caller has already locked the event.
  */
 
-/** I2's flag. S3 adds the unsuitable flag here once it stores one. */
-export type VenueArrangementFlag = "REQUIRES_RECONFIRMATION";
+/**
+ * Requires Reconfirmation, set by I2 and H3 (`requires_reconfirmation`) or by
+ * S3 (`period_mismatch`), reported once whichever set it; and Unsuitable, set
+ * by S3 when an approved change outgrows the layout. Bookings, holds and
+ * pending requests can carry either.
+ */
+export type VenueArrangementFlag = "REQUIRES_RECONFIRMATION" | "UNSUITABLE";
 
 export interface VenueArrangementBooking {
   id: string;
@@ -42,8 +47,10 @@ export interface VenueArrangements {
   requests: VenueArrangementRequest[];
 }
 
-const flagsOf = (requiresReconfirmation: boolean): VenueArrangementFlag[] =>
-  requiresReconfirmation ? ["REQUIRES_RECONFIRMATION"] : [];
+const flagsOf = (row: { requires_reconfirmation: boolean; period_mismatch: boolean; unsuitable: boolean }): VenueArrangementFlag[] => [
+  ...(row.requires_reconfirmation || row.period_mismatch ? (["REQUIRES_RECONFIRMATION"] as const) : []),
+  ...(row.unsuitable ? (["UNSUITABLE"] as const) : []),
+];
 
 export async function venueArrangementsForEvent(tx: TransactionSql, eventId: string): Promise<VenueArrangements> {
   const slots = await tx<
@@ -56,10 +63,12 @@ export async function venueArrangementsForEvent(tx: TransactionSql, eventId: str
       ends_at: Date;
       status: "HELD" | "CONFIRMED";
       requires_reconfirmation: boolean;
+      period_mismatch: boolean;
+      unsuitable: boolean;
     }[]
   >`
     select s.id, s.reference, s.venue_id, v.name as venue_name, s.starts_at, s.ends_at, s.status,
-           s.requires_reconfirmation
+           s.requires_reconfirmation, s.period_mismatch, s.unsuitable
     from venue.venue_slots s join venue.venues v on v.id = s.venue_id
     where s.event_id = ${eventId} and s.status in ('HELD', 'CONFIRMED')
     order by s.starts_at, s.reference
@@ -67,9 +76,19 @@ export async function venueArrangementsForEvent(tx: TransactionSql, eventId: str
   `;
 
   const requests = await tx<
-    { id: string; reference: string; venue_name: string; starts_at: Date; ends_at: Date; requires_reconfirmation: boolean }[]
+    {
+      id: string;
+      reference: string;
+      venue_name: string;
+      starts_at: Date;
+      ends_at: Date;
+      requires_reconfirmation: boolean;
+      period_mismatch: boolean;
+      unsuitable: boolean;
+    }[]
   >`
-    select r.id, r.reference, v.name as venue_name, r.starts_at, r.ends_at, r.requires_reconfirmation
+    select r.id, r.reference, v.name as venue_name, r.starts_at, r.ends_at, r.requires_reconfirmation, r.period_mismatch,
+           r.unsuitable
     from venue.booking_requests r join venue.venues v on v.id = r.venue_id
     where r.event_id = ${eventId} and r.status = 'PENDING'
     order by r.starts_at, r.reference
@@ -95,7 +114,7 @@ export async function venueArrangementsForEvent(tx: TransactionSql, eventId: str
       startsAt: slot.starts_at.toISOString(),
       endsAt: slot.ends_at.toISOString(),
       status: slot.status,
-      flags: flagsOf(slot.requires_reconfirmation),
+      flags: flagsOf(slot),
       staffIds: staff.filter((member) => member.venue_id === slot.venue_id).map((member) => member.user_id),
     })),
     requests: requests.map((request) => ({
@@ -104,7 +123,7 @@ export async function venueArrangementsForEvent(tx: TransactionSql, eventId: str
       venueName: request.venue_name,
       startsAt: request.starts_at.toISOString(),
       endsAt: request.ends_at.toISOString(),
-      flags: flagsOf(request.requires_reconfirmation),
+      flags: flagsOf(request),
     })),
   };
 }

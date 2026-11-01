@@ -9,9 +9,12 @@ import type { EquipmentRequestLineStatus } from "@connectsphere/contracts";
  * Lines and reservations are taken `for share` inside the confirmation's
  * transaction, so a Q1 reservation, a Q2 release or an O2 status change on
  * them waits until the event's status has changed (implementation.md §4.7).
- * The caller has already locked the event. S3 adds the "flagged for review"
- * flag on a reservation here once it stores one.
+ * The caller has already locked the event. A line whose active reservation S3
+ * flagged for review after an approved change carries that flag, which holds
+ * confirmation back (S3 AC9).
  */
+
+export type EquipmentArrangementFlag = "FLAGGED_FOR_REVIEW";
 
 export interface EquipmentArrangementLine {
   id: string;
@@ -28,6 +31,8 @@ export interface EquipmentArrangementLine {
     reservedBy: string;
     reservedTypeName: string;
   } | null;
+  /** FLAGGED_FOR_REVIEW when the active reservation is flagged (S3), else empty. */
+  flags: EquipmentArrangementFlag[];
 }
 
 export async function equipmentArrangementsForEvent(tx: TransactionSql, eventId: string): Promise<EquipmentArrangementLine[]> {
@@ -41,9 +46,18 @@ export async function equipmentArrangementsForEvent(tx: TransactionSql, eventId:
   `;
 
   const reservations = await tx<
-    { id: string; request_line_id: string; requested_quantity: number; reserved_quantity: number; reserved_by: string; type_name: string }[]
+    {
+      id: string;
+      request_line_id: string;
+      requested_quantity: number;
+      reserved_quantity: number;
+      reserved_by: string;
+      type_name: string;
+      flagged_for_review: boolean;
+    }[]
   >`
-    select r.id, r.request_line_id, r.requested_quantity, r.reserved_quantity, r.reserved_by, t.name as type_name
+    select r.id, r.request_line_id, r.requested_quantity, r.reserved_quantity, r.reserved_by, t.name as type_name,
+           r.flagged_for_review
     from equipment.reservations r
     join equipment.equipment_types t on t.id = r.equipment_type_id
     where r.event_id = ${eventId} and r.status = 'RESERVED'
@@ -66,6 +80,7 @@ export async function equipmentArrangementsForEvent(tx: TransactionSql, eventId:
             reservedTypeName: reservation.type_name,
           }
         : null,
+      flags: reservation?.flagged_for_review ? ["FLAGGED_FOR_REVIEW"] : [],
     };
   });
 }

@@ -8,10 +8,9 @@ import { EQUIPMENT_LINE_STATUS_LABELS, type EquipmentRequestLineStatus } from "@
  */
 
 /**
- * The flags that hold confirmation back (AC7). I2 sets Requires Reconfirmation
- * today. S3 will set Unsuitable on a booking and Flagged for review on a
- * reservation; the venue and equipment reads add them when S3 stores them, and
- * this file already names them.
+ * The flags that hold confirmation back (AC7). I2, H3 and S3 set Requires
+ * Reconfirmation; S3 sets Unsuitable on a booking and Flagged for review on a
+ * reservation. The venue and equipment reads report all three.
  */
 export type ArrangementFlag = "REQUIRES_RECONFIRMATION" | "UNSUITABLE" | "FLAGGED_FOR_REVIEW";
 

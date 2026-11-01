@@ -1,5 +1,5 @@
 import type { EventStatus } from "../api/types.js";
-import type { SignificantField } from "../api/changeRequests.js";
+import type { ArrangementFlag, FlaggedArrangement, SignificantField } from "../api/changeRequests.js";
 
 /** Mirrors `SIGNIFICANT_FIELD_LABELS` in backend/packages/contracts. */
 export const SIGNIFICANT_FIELD_LABELS: Record<SignificantField, string> = {
@@ -32,3 +32,18 @@ export function formatChangeValue(field: SignificantField, value: unknown): stri
   if (typeof value === "object") return JSON.stringify(value);
   return String(value);
 }
+
+/** S3: how each arrangement flag reads on the impact list and the Outstanding flags panel. */
+export const FLAG_LABELS: Record<ArrangementFlag, string> = {
+  REQUIRES_RECONFIRMATION: "Requires reconfirmation",
+  UNSUITABLE: "Unsuitable",
+  FLAGGED_FOR_REVIEW: "Flagged for review",
+};
+
+/** S3: how each kind of flagged arrangement is named. */
+export const ARRANGEMENT_LABELS: Record<FlaggedArrangement, string> = {
+  BOOKING: "Booking",
+  HOLD: "Hold",
+  BOOKING_REQUEST: "Booking request",
+  EQUIPMENT: "Equipment",
+};

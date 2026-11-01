@@ -14,7 +14,26 @@ export { EQUIPMENT_OUTBOX_TABLE } from "./events/outbox.js";
 export { releaseEventReservations } from "./repo/releases.js";
 
 /** F5 — the change module reads an event's live equipment arrangements inside its confirmation transaction. */
-export { equipmentArrangementsForEvent, type EquipmentArrangementLine } from "./repo/eventArrangements.js";
+export {
+  equipmentArrangementsForEvent,
+  type EquipmentArrangementFlag,
+  type EquipmentArrangementLine,
+} from "./repo/eventArrangements.js";
+
+/**
+ * S3 — the change module reads an event's active reservations when a
+ * significant change is approved, flags the ones it affects for review, and
+ * lists the flags still outstanding (AC8). Call the first two inside the
+ * approval's transaction.
+ */
+export {
+  flagReservations,
+  outstandingReservationFlags,
+  reservationsForImpact,
+  type ImpactReservationRow,
+  type OutstandingReservationFlag,
+  type ReservationFlagInput,
+} from "./repo/reservationFlags.js";
 
 /**
  * The equipment module's public interface (ADR-0004). Other modules import
