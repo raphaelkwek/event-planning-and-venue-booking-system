@@ -1,3 +1,4 @@
+import { MAX_HEADCOUNT, isWholeBetween } from "../../../shared/limits.js";
 /**
  * B2 — validation applied at submission, whether the request is submitted
  * directly (B1) or from a draft (C2).

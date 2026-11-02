@@ -1,4 +1,5 @@
-import { Router } from "express";
+import { Router, type RequestHandler } from "express";
+import { eventRateLimiter } from "./eventRateLimiter.js";
 import type { Sql } from "postgres";
 import { KAFKA_TOPICS } from "@connectsphere/contracts";
 import { authenticate, requireRole, type ActorRequest } from "../auth/actor.js";
@@ -24,11 +25,11 @@ function hasContent(value: string | null | undefined): value is string {
 /** Thrown inside the response transaction so that the status change rolls back. */
 class NoOpenClarification extends Error {}
 
-export function clarificationsRouter(sql: Sql) {
+export function clarificationsRouter(sql: Sql, limiter: RequestHandler = eventRateLimiter()) {
   const router = Router();
 
   /** Visible to the owning organiser and to Event Coordinators, nobody else. */
-  router.get("/api/v1/events/:id/clarifications", ...authenticate, async (req: ActorRequest, res) => {
+  router.get("/api/v1/events/:id/clarifications", limiter, ...authenticate, async (req: ActorRequest, res) => {
     const { userId, scope } = req.actor!;
 
     const event = await findEventInScope(sql, req.params.id, scope, userId);
@@ -42,7 +43,7 @@ export function clarificationsRouter(sql: Sql) {
 
   router.post(
     "/api/v1/events/:id/clarifications",
-    ...authenticate,
+    limiter, ...authenticate,
     requireRole("EVENT_COORDINATOR"),
     async (req: ActorRequest, res) => {
       const { userId, role, scope } = req.actor!;
@@ -103,7 +104,7 @@ export function clarificationsRouter(sql: Sql) {
 
   router.post(
     "/api/v1/events/:id/clarifications/respond",
-    ...authenticate,
+    limiter, ...authenticate,
     requireRole("EVENT_ORGANISER"),
     async (req: ActorRequest, res) => {
       const { userId, role, scope } = req.actor!;

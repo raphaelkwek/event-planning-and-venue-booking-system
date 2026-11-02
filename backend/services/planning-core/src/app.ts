@@ -1,6 +1,9 @@
+import "./shared/asyncErrors.js";
 import express from "express";
+import helmet from "helmet";
 import { randomUUID } from "node:crypto";
 import { logger } from "./shared/logger.js";
+import { errorHandler } from "./shared/errorHandler.js";
 import { sql } from "./shared/db.js";
 import { healthRouter } from "./shared/health.js";
 import { probeBroker } from "./shared/kafka/client.js";
@@ -18,6 +21,8 @@ import { changeRouter } from "./modules/change/index.js";
  */
 export const app = express();
 
+// The API serves JSON only, so the default helmet headers (and no X-Powered-By) are safe for the SPA, which is served elsewhere.
+app.use(helmet());
 app.use(express.json());
 
 app.use((req, res, next) => {
@@ -26,12 +31,14 @@ app.use((req, res, next) => {
   res.setHeader("x-correlation-id", correlationId);
   const startedAt = Date.now();
   res.on("finish", () => {
-    logger.info("request completed", {
+    const fields = {
       correlationId,
       route: `${req.method} ${req.path}`,
       durationMs: Date.now() - startedAt,
-      outcome: res.statusCode < 400 ? "success" : "refused",
-    });
+    };
+    // A 5xx is our failure, not a refusal: log it as an error.
+    if (res.statusCode >= 500) logger.error("request failed", { ...fields, outcome: "error" });
+    else logger.info("request completed", { ...fields, outcome: res.statusCode < 400 ? "success" : "refused" });
   });
   next();
 });
@@ -42,3 +49,6 @@ app.use(eventRouter(sql));
 app.use(venueRouter(sql));
 app.use(equipmentRouter(sql));
 app.use(changeRouter(sql));
+
+// Last, so that anything a route rejects with or passes to next(error) ends in the envelope.
+app.use(errorHandler);

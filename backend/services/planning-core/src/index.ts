@@ -2,12 +2,15 @@ import { app } from "./app.js";
 import { config } from "./shared/config.js";
 import { sql } from "./shared/db.js";
 import { logger } from "./shared/logger.js";
+import { installProcessGuards } from "./shared/processGuards.js";
 import { kafka, kafkaPublisher } from "./shared/kafka/client.js";
 import { OutboxRelay } from "./shared/outbox-relay.js";
 import { EVENT_OUTBOX_TABLE } from "./modules/event/index.js";
 import { CHANGE_OUTBOX_TABLE } from "./modules/change/index.js";
 import { EQUIPMENT_OUTBOX_TABLE } from "./modules/equipment/index.js";
 import { VENUE_OUTBOX_TABLE } from "./modules/venue/index.js";
+
+installProcessGuards();
 
 const server = app.listen(config.port, () => {
   logger.info(`${config.serviceName} listening on :${config.port}`);

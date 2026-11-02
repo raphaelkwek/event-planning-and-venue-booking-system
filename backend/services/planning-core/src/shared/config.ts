@@ -18,5 +18,7 @@ export const config = {
   serviceName: process.env.PLANNING_CORE_SERVICE_NAME ?? "planning-core",
   logLevel: process.env.LOG_LEVEL ?? "info",
   databaseUrl: required("DATABASE_URL"),
+  /** implementation.md §4.7: a query that runs longer than this is cancelled (0 turns it off). Migrations use their own connection. */
+  dbStatementTimeoutMs: Number(process.env.DB_STATEMENT_TIMEOUT_MS ?? 5000),
   supabaseJwksUrl: required("SUPABASE_JWKS_URL"),
 };

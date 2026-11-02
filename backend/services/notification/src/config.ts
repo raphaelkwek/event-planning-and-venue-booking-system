@@ -12,6 +12,8 @@ export const config = {
   port: Number(process.env.NOTIFICATION_PORT ?? 8091),
   serviceName: "notification",
   databaseUrl: required("DATABASE_URL"),
+  /** implementation.md §4.7: a query that runs longer than this is cancelled (0 turns it off). Migrations use their own connection. */
+  dbStatementTimeoutMs: Number(process.env.DB_STATEMENT_TIMEOUT_MS ?? 5000),
   /** Appended to every consumer group on a laptop, e.g. dev-sk (§3.1); empty when deployed. */
   groupSuffix: process.env.KAFKA_GROUP_SUFFIX?.trim() ?? "",
   /** Where identity answers "who is this token?" (T2): planning-core's GET /api/v1/users/me. */
