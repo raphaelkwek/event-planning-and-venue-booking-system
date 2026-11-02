@@ -18,7 +18,7 @@
 | Item | Content |
 |---|---|
 | Actual Result |  |
-| Status | Blocked |
-| Remarks | Blocked by R5 (the organiser's registration list and totals), which is not built. The withdrawal itself is R4-T1. |
+| Status | Not Executed |
+| Remarks | No longer blocked: R5 is built. Proven at API level by backend/services/registration/tests/api/r5Cards.test.ts › R5-T5 shows a withdrawal in the row and the totals on the next load (R4-T12), which passed in CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41523834657 (commit d7abf51). UI walk-through in Chrome pending at the sprint review. |
 | Executed By |  |
 | Date of Execution |  |

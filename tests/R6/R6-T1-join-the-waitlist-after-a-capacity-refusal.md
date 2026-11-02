@@ -19,6 +19,6 @@
 |---|---|
 | Actual Result |  |
 | Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
+| Remarks | Proven at API level by backend/services/registration/tests/api/r6Cards.test.ts › R6-T1 joins the waitlist after a capacity refusal: the attendee, the event, Waitlisted and the time, which passed in CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41523834657 (commit d7abf51). UI walk-through in Chrome pending at the sprint review. |
 | Executed By |  |
 | Date of Execution |  |

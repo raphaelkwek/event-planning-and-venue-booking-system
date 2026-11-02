@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result |  |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By |  |
-| Date of Execution |  |
+| Actual Result | Another organiser and an unassigned coordinator: 404 EVENT_NOT_FOUND. An attendee: 403 ROLE_NOT_AUTHORISED. The event has no registration. |
+| Status | Pass |
+| Remarks | Automated (API level) · Commit: d7abf51 · Evidence: backend/services/registration/tests/api/r7Cards.test.ts › R7-T3 lets nobody else add an attendee, storing nothing, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41523834657 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

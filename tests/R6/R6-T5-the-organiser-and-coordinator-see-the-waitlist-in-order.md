@@ -19,6 +19,6 @@
 |---|---|
 | Actual Result |  |
 | Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
+| Remarks | Proven at API level by backend/services/registration/tests/api/r6Cards.test.ts › R6-T5 shows the owning organiser and the assigned coordinator the waitlist in the order it was joined, and nobody else, which passed in CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41523834657 (commit d7abf51). UI walk-through in Chrome pending at the sprint review. |
 | Executed By |  |
 | Date of Execution |  |

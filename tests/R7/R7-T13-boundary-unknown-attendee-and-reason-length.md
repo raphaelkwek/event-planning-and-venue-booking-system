@@ -19,6 +19,6 @@
 |---|---|
 | Actual Result |  |
 | Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
+| Remarks | Proven at API level by backend/services/registration/tests/api/r7Cards.test.ts › R7-T13 refuses an email with no attendee account and a reason over 500 characters, and keeps one of 500, which passed in CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41523834657 (commit d7abf51). UI walk-through in Chrome pending at the sprint review. |
 | Executed By |  |
 | Date of Execution |  |

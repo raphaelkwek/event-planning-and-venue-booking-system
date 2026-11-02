@@ -19,6 +19,6 @@
 |---|---|
 | Actual Result |  |
 | Status | Not Executed |
-| Remarks | Covered by r4Cards › R4-T9 writes registration.withdrawn for the attendee's confirmation, naming the event for R6's waitlist, and recipients.test.ts › R4-T9 tells the attendee their withdrawal went through, and nobody else; delivery needs Kafka, not yet run: CI's integration job stops at planning-core's unrelated L3-T17 date failure (fixed by PR #82) before it reaches the registration step (commit d43fab5). UI walk-through in Chrome pending at the sprint review. |
+| Remarks | Covered by r4Cards › R4-T9 writes registration.withdrawn for the attendee's confirmation, naming the event for R6's waitlist, and recipients.test.ts › R4-T9 tells the attendee their withdrawal went through, and nobody else; the waitlist half by r6Cards.test.ts › R6-T6 tells every waitlisted attendee a place opened when someone withdraws, and registers nobody (R4-T9); passed in CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41523834657 (commit d7abf51). Delivery to the Notifications screen needs Kafka. UI walk-through in Chrome pending at the sprint review. |
 | Executed By |  |
 | Date of Execution |  |

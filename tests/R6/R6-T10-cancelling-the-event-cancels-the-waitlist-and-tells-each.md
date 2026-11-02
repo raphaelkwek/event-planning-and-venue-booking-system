@@ -19,6 +19,6 @@
 |---|---|
 | Actual Result |  |
 | Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
+| Remarks | Proven at API level by backend/services/registration/tests/api/r6Cards.test.ts › R6-T10 cancels the active waitlist entries with the event and tells each attendee, which passed in CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41523834657 (commit d7abf51). Delivery to the Notifications screen needs Kafka. UI walk-through in Chrome pending at the sprint review. |
 | Executed By |  |
 | Date of Execution |  |

@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result |  |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By |  |
-| Date of Execution |  |
+| Actual Result | The second join was refused 409 WAITLIST_DUPLICATE; its message and details.waitlistReference name the first entry WL-…; the attendee still has one entry. Two joins at once by another attendee gave one 201 and one 409. |
+| Status | Pass |
+| Remarks | Automated (API level) · Commit: d7abf51 · Evidence: backend/services/registration/tests/api/r6Cards.test.ts › R6-T4 refuses a second waitlist entry, naming the first, even when two arrive at once, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41523834657 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

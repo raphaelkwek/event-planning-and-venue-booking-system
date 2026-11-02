@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result |  |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By |  |
-| Date of Execution |  |
+| Actual Result | 409 REGISTRATION_DUPLICATE; the message and details.registrationReference name the attendee's registration REG-…; the event has no waitlist entry. |
+| Status | Pass |
+| Remarks | Automated (API level) · Commit: d7abf51 · Evidence: backend/services/registration/tests/api/r6Cards.test.ts › R6-T3 refuses to waitlist an attendee who holds a registration, naming it, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41523834657 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

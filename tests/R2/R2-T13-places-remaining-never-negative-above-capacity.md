@@ -18,7 +18,7 @@
 | Item | Content |
 |---|---|
 | Actual Result |  |
-| Status | Blocked |
-| Remarks | Blocked by R7 (manual additions above capacity), which is not built. The rule is proven at domain level: backend/services/registration/tests/domain/registrationRules.test.ts › R2-T13 counts an addition above capacity (R7) against the free seats, and is never negative. |
+| Status | Not Executed |
+| Remarks | No longer blocked: R7 is built. Proven at API level by backend/services/registration/tests/api/r7Cards.test.ts › R7-T12 gives a freed seat to an addition over capacity first (R2-T13) (all four steps) and › R7-T12 gives a freed seat to an addition over capacity first, under concurrent withdrawals, additions and registrations, and at domain level by registrationRules.test.ts and management.test.ts › R2-T13 never shows negative places, and says how far over capacity the event is (D-01); passed in CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41523834657 (commit d7abf51). UI walk-through in Chrome pending at the sprint review. |
 | Executed By |  |
 | Date of Execution |  |
