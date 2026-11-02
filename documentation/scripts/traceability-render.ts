@@ -6,7 +6,7 @@ import type { CriterionEntry, Matrix, StorySummary, TestEntry } from "./traceabi
 
 const RESULT_LABEL: Record<TestEntry["result"], string> = { pass: "pass", fail: "FAIL", skipped: "skipped", "not found": "NOT FOUND" };
 
-const md = (text: string) => text.replace(/\|/g, "\\|").replace(/\r?\n/g, " ");
+const md = (text: string) => text.replace(/[\\|]/g, (char) => `\\${char}`).replace(/\r?\n/g, " ");
 const esc = (text: string) => text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const cardList = (test: TestEntry) => test.cards.map((card) => `${card.id}: ${card.status}`).join("; ");
 const resultText = (test: TestEntry) => RESULT_LABEL[test.result] + (test.result === "not found" || test.note.startsWith("manual") ? ` (${test.note})` : "");

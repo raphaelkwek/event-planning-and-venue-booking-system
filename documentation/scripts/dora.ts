@@ -194,6 +194,9 @@ export function formatDuration(ms: number | null): string {
   return `${(hours / 24).toFixed(1)} days`;
 }
 
+/** A Markdown table cell: backslashes and pipes escaped. */
+const cell = (text: string) => text.replace(/[\\|]/g, (char) => `\\${char}`);
+
 const pct = (rate: number | null) => (rate === null ? "n/a (no merges)" : `${(rate * 100).toFixed(1)}%`);
 
 export function renderDora(result: DoraResult, meta: { repo: string; branch: string; generatedAt: string }): string {
@@ -225,7 +228,7 @@ export function renderDora(result: DoraResult, meta: { repo: string; branch: str
     "",
     "## Failed changes",
     "",
-    ...(c.failed.length === 0 ? ["None in the window."] : ["| PR | Title | Why |", "|---|---|---|", ...c.failed.map((f) => `| #${f.number} | ${f.title.replace(/\|/g, "\\|")} | ${f.why} |`)]),
+    ...(c.failed.length === 0 ? ["None in the window."] : ["| PR | Title | Why |", "|---|---|---|", ...c.failed.map((f) => `| #${f.number} | ${cell(f.title)} | ${f.why} |`)]),
     "",
     "## Incidents",
     "",
@@ -237,7 +240,7 @@ export function renderDora(result: DoraResult, meta: { repo: string; branch: str
     "",
     "| PR | Title | Lead time |",
     "|---|---|---|",
-    ...l.perPr.map((p) => `| #${p.number} | ${p.title.replace(/\|/g, "\\|")} | ${formatDuration(p.ms)} |`),
+    ...l.perPr.map((p) => `| #${p.number} | ${cell(p.title)} | ${formatDuration(p.ms)} |`),
     ...(l.withoutCommits.length > 0 ? ["", `Commits could not be read for: ${l.withoutCommits.map((n) => `#${n}`).join(", ")}.`] : []),
     "",
   ];

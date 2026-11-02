@@ -62,7 +62,7 @@ jobs:
         run: |
           mkdir -p script-results
           status=0
-          for f in documentation/scripts/*.test.ts; do
+          for f in documentation/scripts/confluence-digest.test.ts documentation/scripts/traceability-matrix.test.ts documentation/scripts/dora.test.ts; do
             npx tsx --test --test-reporter=junit --test-reporter-destination="script-results/$(echo "$f" | sed 's#/#__#g').xml" "$f" || status=1
           done
           exit $status
