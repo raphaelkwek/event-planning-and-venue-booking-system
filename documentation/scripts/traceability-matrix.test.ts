@@ -6,6 +6,7 @@ import { join } from "node:path";
 import {
   buildMatrix,
   cardHeadline,
+  eachTitles,
   loadCards,
   loadCriterionRows,
   junitTestFile,
@@ -392,4 +393,19 @@ test("a card status other than the four standard ones is flagged, but Pass (auto
   assert.deepEqual(matrix.stories[0]!.summary.cards, { Pass: 2 });
   assert.match(mismatchAnnotations(matrix)[0]!, /^::warning title=Card status::1 cards/);
   assert.match(renderMarkdown(matrix), /Warning: 1 cards have a Status other than/);
+});
+
+test("eachTitles finds it.each templates, also when the title starts on the next line (EN-22-T2)", () => {
+  const source = 'it.each(files)("replays %s deterministically", async () => {});\nit.each([\n  [1],\n])(\n  "shows it (AC2): %s",\n  () => {},\n);\nit("plain", () => {});';
+  assert.deepEqual(eachTitles(source), ["replays %s deterministically", "shows it (AC2): %s"]);
+});
+
+test("a row naming an it.each template's wording matches the expanded results, but a different wording does not (EN-22-T2)", () => {
+  const report = { testResults: [{ name: `${ROOT}/${FILE_A}`, assertionResults: [
+    { title: "replays a.json deterministically", fullName: "replays a.json deterministically", status: "passed" },
+    { title: "replays b.json deterministically", fullName: "replays b.json deterministically", status: "failed" },
+  ] }] };
+  const templates = () => ["replays %s deterministically"];
+  const matrix = buildMatrix([row("X", "AC1", FILE_A, "replays each history deterministically"), row("X", "AC2", FILE_A, "replays it differently")], parseVitestReport(report, ROOT), [], [], templates);
+  assert.deepEqual(matrix.stories[0]!.criteria.map((c) => c.tests[0]!.result), ["fail", "not found"]);
 });

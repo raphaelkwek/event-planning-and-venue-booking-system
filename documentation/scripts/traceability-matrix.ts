@@ -88,7 +88,7 @@ export interface StorySummary {
 
 export interface Matrix {
   stories: { story: string; criteria: CriterionEntry[]; cards: Card[]; summary: StorySummary }[];
-  totals: Omit<StorySummary, "story" | "cards">;
+  totals: Omit<StorySummary, "story" | "cards" | "nonStandardCards">;
   resultFiles: string[];
   testsWithResults: number;
 }
@@ -354,14 +354,44 @@ function lookupName(file: Map<string, TestResult["status"]>, name: string): Test
   return hits.reduce<TestResult["status"] | undefined>((worst, status) => (!worst || WORST[status] > WORST[worst] ? status : worst), undefined);
 }
 
-function lookup(row: CriterionRow, index: ReturnType<typeof indexResults>, cardsByFile: Map<string, Card>, cardsById: Map<string, Card>): Pick<TestEntry, "result" | "note"> {
+/**
+ * A name that is not an expanded title may still be the template of an `it.each` in the source:
+ * the CSV says "replays each recorded history deterministically" for the test "replays %s
+ * deterministically". Then the results whose titles fit that template stand for the row.
+ */
+function lookupTemplate(file: Map<string, TestResult["status"]>, name: string, templates: string[]): TestResult["status"] | undefined {
+  for (const template of templates) {
+    const pattern = titlePattern(template);
+    if (!pattern || !pattern.test(name)) continue;
+    const hits = [...file].filter(([title]) => pattern.test(title)).map(([, status]) => status);
+    if (hits.length > 0) return hits.reduce((worst, status) => (WORST[status] > WORST[worst] ? status : worst));
+  }
+  return undefined;
+}
+
+const EACH_TITLE = /\.each\b[\s\S]*?\)\(\s*(["'`])((?:\\.|(?!\1)[^\\])*)\1/g;
+
+/** The titles of `it.each` and `test.each` tests in a source file (the template, placeholders intact). */
+export function eachTitles(source: string): string[] {
+  return [...source.matchAll(EACH_TITLE)].map((match) => match[2]!);
+}
+
+interface Lookups {
+  index: ReturnType<typeof indexResults>;
+  cardsByFile: Map<string, Card>;
+  cardsById: Map<string, Card>;
+  templatesOf: (file: string) => string[];
+}
+
+function lookup(row: CriterionRow, { index, cardsByFile, cardsById, templatesOf }: Lookups): Pick<TestEntry, "result" | "note"> {
   if (row.testFile.endsWith(".md")) {
     const card = cardsByFile.get(row.testFile) ?? cardsById.get(row.testName.match(CARD_ID)?.[0] ?? "");
     return card ? { result: cardStatus(card), note: `manual card: ${card.status}` } : { result: "not found", note: "card file does not exist" };
   }
   const file = index.get(row.testFile);
   if (!file) return { result: "not found", note: "file is in no test report" };
-  const status = lookupName(file, norm(row.testName));
+  const name = norm(row.testName);
+  const status = lookupName(file, name) ?? lookupTemplate(file, name, templatesOf(row.testFile));
   return status ? { result: status, note: "" } : { result: "not found", note: "no test with that name in the file" };
 }
 
@@ -390,7 +420,7 @@ function summarise(story: string, criteria: CriterionEntry[], cards: Card[]): St
   };
 }
 
-export function buildMatrix(rows: CriterionRow[], results: TestResult[], cards: Card[], resultFiles: string[] = []): Matrix {
+export function buildMatrix(rows: CriterionRow[], results: TestResult[], cards: Card[], resultFiles: string[] = [], templatesOf: (file: string) => string[] = () => []): Matrix {
   const index = indexResults(results);
   const cardsById = new Map(cards.map((card) => [card.id, card]));
   const cardsByFile = new Map(cards.map((card) => [card.file, card]));
@@ -407,7 +437,7 @@ export function buildMatrix(rows: CriterionRow[], results: TestResult[], cards: 
           row: row.row,
           file: row.testFile,
           name: row.testName,
-          ...lookup(row, index, cardsByFile, cardsById),
+          ...lookup(row, { index, cardsByFile, cardsById, templatesOf }),
           cards: [...new Set(row.testName.match(CARD_ID) ?? [])].flatMap((id) => (cardsById.has(id) ? [{ id, status: cardsById.get(id)!.status }] : [])),
         }));
       return { criterion, tests, state: stateOf(tests) };
@@ -460,7 +490,8 @@ export function main(args: string[] = process.argv.slice(2)) {
   const out = flags(args, "out")[0];
 
   const { results, files } = loadResults(flags(args, "results").map((p) => resolve(root, p)), root);
-  const matrix = buildMatrix(loadCriterionRows(csvDir), results, loadCards(cardsDir, root), files);
+  const templatesOf = (file: string) => (existsSync(resolve(root, file)) ? eachTitles(readFileSync(resolve(root, file), "utf8")) : []);
+  const matrix = buildMatrix(loadCriterionRows(csvDir), results, loadCards(cardsDir, root), files, templatesOf);
 
   if (out) {
     mkdirSync(resolve(root, out), { recursive: true });

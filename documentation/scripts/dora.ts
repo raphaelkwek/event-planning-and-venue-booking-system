@@ -156,7 +156,7 @@ function changeFailureMetrics(input: DoraInput, merges: PullRequest[]): DoraResu
 function restoreMetrics(input: DoraInput): DoraResult["restore"] {
   const ordered = [...latestRunPerSha(input.runs).values()].sort((a, b) => time(a.completedAt) - time(b.completedAt));
   const incidents: Incident[] = [];
-  let open: { startedAt: string; failingRuns: number } | null = null;
+  let open = null as { startedAt: string; failingRuns: number } | null;
   for (const run of ordered) {
     if (run.conclusion === "failure") {
       open = open ? { ...open, failingRuns: open.failingRuns + 1 } : { startedAt: run.completedAt, failingRuns: 1 };
