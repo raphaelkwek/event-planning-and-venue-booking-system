@@ -76,7 +76,7 @@ export function renderResult(r: RunResult): string {
     lines.push(`| p95, all attempts | ${fmt(s.p95AllMs)} ms |`);
     lines.push(`| p95, registered (201) | ${fmt(s.p95RegisteredMs)} ms |`);
     lines.push(`| p95, refused (409) | ${fmt(s.p95RefusedMs)} ms |`);
-    lines.push(`| SLO ${s.sloMs} ms | ${s.sloMet === null ? "not measured" : s.sloMet ? "met at this rate" : "NOT met at this rate"} |`, "");
+    lines.push(`| SLO ${s.sloMs} ms | ${s.sloMet === null ? "not measured" : s.sloMet ? "met at the rate achieved" : "NOT met at the rate achieved"} |`, "");
   }
   if (r.outcomes) {
     const o = r.outcomes;

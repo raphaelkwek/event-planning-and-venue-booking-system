@@ -11,7 +11,7 @@ import { renderResult, runnerInfo, type CpuFigures, type RunResult } from "./rep
  * `tsx load/support/run.ts <smoke|spike|soak|stress>` (EN-18). Boots the registration service on the
  * throwaway Postgres in DATABASE_URL, seeds events through the service's own handlers, runs the k6
  * script in the grafana/k6 image, then reads the database back and checks the invariants. Writes
- * load/out/<scenario>/ (the k6 summary, result.json, result.md, the service's log) and exits 1 if a check failed.
+ * load/out/<scenario>/ (or load/out/$LOAD_OUT_NAME/, so a scenario can be run more than once) (the k6 summary, result.json, result.md, the service's log) and exits 1 if a check failed.
  */
 
 const SCENARIOS = ["smoke", "spike", "soak", "stress"] as const;
@@ -38,7 +38,7 @@ const NOTES = [
 async function main(scenario: Scenario) {
   const databaseUrl = process.env.DATABASE_URL;
   if (!databaseUrl) throw new Error("DATABASE_URL must point at the runner's throwaway Postgres.");
-  const outDir = join(REPO_ROOT, "load/out", scenario);
+  const outDir = join(REPO_ROOT, "load/out", process.env.LOAD_OUT_NAME ?? scenario);
   rmSync(outDir, { recursive: true, force: true });
   mkdirSync(outDir, { recursive: true });
 
