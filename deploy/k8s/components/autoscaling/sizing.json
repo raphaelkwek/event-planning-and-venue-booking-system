@@ -1,6 +1,6 @@
 {
   "inputs": {
-    "cpuMsPerRequest": 2.5,
+    "cpuMsPerRequest": 3.0,
     "peakRequestsPerSecond": 500,
     "cpuRequestMillicores": 500,
     "targetUtilisationPercent": 70,
@@ -11,27 +11,56 @@
   },
   "measurements": [
     {
-      "scenario": "spike",
+      "scenario": "spike-1",
+      "run": "https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41533430275",
+      "cpuMsPerRequest": 1.99
+    },
+    {
+      "scenario": "spike-2",
+      "run": "https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41533430275",
+      "cpuMsPerRequest": 1.996
+    },
+    {
+      "scenario": "spike-3",
+      "run": "https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41533430275",
+      "cpuMsPerRequest": 1.96
+    },
+    {
+      "scenario": "soak",
+      "run": "https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41533430275",
+      "cpuMsPerRequest": 2.431
+    },
+    {
+      "scenario": "stress",
+      "run": "https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41533430275",
+      "cpuMsPerRequest": 2.622
+    },
+    {
+      "scenario": "spike (an earlier run)",
       "run": "https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41530864706",
       "cpuMsPerRequest": 1.762
     },
     {
-      "scenario": "spike",
+      "scenario": "spike (an earlier run)",
       "run": "https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41531666886",
       "cpuMsPerRequest": 2.341
     },
     {
-      "scenario": "soak",
+      "scenario": "soak (an earlier run)",
       "run": "https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41531666886",
       "cpuMsPerRequest": 1.697
     },
     {
-      "scenario": "stress",
+      "scenario": "stress (an earlier run)",
       "run": "https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41531666886",
       "cpuMsPerRequest": 2.023
     }
   ],
   "assumptions": [
     "poolerConnectionLimit is the share of the database pooler's client connections that registration may use. The team's Supabase plan limit is not known here: confirm it, and change this number if it is lower."
+  ],
+  "notes": [
+    "The smoke run's 3.77 ms per request is not used: 400 requests in 10 s is mostly the process warming up, not steady state.",
+    "The planning figure 3.0 ms is the worst measured (2.622, the stress run, whose requests all register) rounded up, as a margin for the variation between runs (1.7 to 2.6 ms) and for the runner not being the production cluster."
   ]
 }

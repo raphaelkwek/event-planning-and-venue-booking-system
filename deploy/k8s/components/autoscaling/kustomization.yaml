@@ -11,8 +11,8 @@
 # What it changes against #75's defaults, and why:
 #  - the CPU request 100m -> 500m, so the HPA's percentage means something: at 100m, 70% is 70m, which one pod
 #    exceeds at about 35 requests a second, so the pods would scale to their maximum at a fraction of the load;
-#  - the CPU limit 500m -> 1000m, because one Node process uses up to one core: at 500m the pod is throttled
-#    at about half the 500 requests a second the stress run held on one core;
+#  - the CPU limit 500m -> 1000m, because one Node process uses up to one core (the stress runs saturated it at
+#    roughly 400 to 500 requests a second): at 500m the pod would be throttled at about half of that;
 #  - the pool size, set explicitly so the connection budget (pods x pool) is visible next to the maximum;
 #  - the scale-up and scale-down behaviour.
 apiVersion: kustomize.config.k8s.io/v1alpha1
@@ -42,7 +42,7 @@ patches:
         value: 2
       - op: replace
         path: /spec/maxReplicas
-        value: 6
+        value: 8
       - op: replace
         path: /spec/metrics/0/resource/target/averageUtilization
         value: 70
