@@ -106,7 +106,7 @@ jobs:
           provenance: false
 
       - name: Smoke check (starts under the manifests' restrictions, answers its health endpoint)
-        run: deploy/ci/smoke-image.sh "${{ matrix.name }}" "${IMAGE}:ci"
+        run: bash deploy/ci/smoke-image.sh "${{ matrix.name }}" "${IMAGE}:ci"
 
       - name: Save the image for the cluster jobs
         if: needs.changes.outputs.deploy == 'true'

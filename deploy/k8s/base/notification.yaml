@@ -1,0 +1,121 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notification
+spec:
+  replicas: 2
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: notification
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: notification
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: notification
+          # Replaced by the overlay's `images` (the commit sha).
+          image: ghcr.io/raphaelkwek/connectsphere-notification:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8091
+          envFrom:
+            - configMapRef:
+                name: connectsphere-config
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef: { name: connectsphere-secrets, key: DATABASE_URL }
+            # No further settings: notification needs the database, Kafka and PLANNING_CORE_URL (the ConfigMap).
+            # Kafka is optional: without these keys the process runs without its
+            # consumer or relay and /readyz reports kafka as not_configured.
+            - name: KAFKA_BROKERS
+              valueFrom:
+                secretKeyRef: { name: connectsphere-secrets, key: KAFKA_BROKERS, optional: true }
+            - name: KAFKA_SASL_USERNAME
+              valueFrom:
+                secretKeyRef: { name: connectsphere-secrets, key: KAFKA_SASL_USERNAME, optional: true }
+            - name: KAFKA_SASL_PASSWORD
+              valueFrom:
+                secretKeyRef: { name: connectsphere-secrets, key: KAFKA_SASL_PASSWORD, optional: true }
+          startupProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 3
+            failureThreshold: 30
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+          # Ready means the database answers (implementation.md section 10). The
+          # broker is reported but not required.
+          readinessProbe:
+            httpGet: { path: /readyz, port: http }
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          resources:
+            requests: { cpu: 100m, memory: 192Mi }
+            limits: { cpu: 500m, memory: 384Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: { sizeLimit: 64Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: notification
+spec:
+  selector:
+    app.kubernetes.io/name: notification
+  ports:
+    - name: http
+      port: 8091
+      targetPort: http
+---
+# EN-18 tunes these numbers; they exist now so the pods scale at all.
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: notification
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: notification
+  minReplicas: 2
+  maxReplicas: 6
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target: { type: Utilization, averageUtilization: 70 }
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: notification
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: notification
