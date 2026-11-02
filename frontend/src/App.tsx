@@ -39,6 +39,7 @@ import { OpenEvents } from "./screens/OpenEvents.js";
 import { OpenEventDetail } from "./screens/OpenEventDetail.js";
 import { MyRegistrations } from "./screens/MyRegistrations.js";
 import { RegistrationSettings } from "./screens/RegistrationSettings.js";
+import { EventRegistrations } from "./screens/EventRegistrations.js";
 
 const ROLE_LABELS: Record<Role, string> = {
   EVENT_ORGANISER: "Event Organiser",
@@ -189,6 +190,8 @@ const ROUTES: {
   { path: "/assignments/:eventId", element: <AssignmentDetail />, roles: ["EVENT_COORDINATOR_LEAD"] },
   // R2, R4: the owning organiser sets the registration window and the withdrawal deadline; the server allows only the owner.
   { path: "/events/:id/registration", element: <RegistrationSettings />, roles: ["EVENT_ORGANISER"] },
+  // R5 to R7: an event's registrations, its waitlist and manual additions; the server admits only the owner and the assigned coordinator.
+  { path: "/events/:id/registrations", element: <EventRegistrations />, roles: ["EVENT_ORGANISER", "EVENT_COORDINATOR"] },
   // R1 to R4: the attendee surface (implementation.md §7.2), served by the registration service.
   {
     path: "/open-events",

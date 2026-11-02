@@ -137,6 +137,10 @@ export function ReviewDetail() {
           {canEditDetails(event, session) && (
             <Button onClick={() => navigate(`/events/${event.id}/details`)}>Edit details</Button>
           )}
+          {/* R5 to R7: the assigned coordinator sees the registrations and may add attendees. */}
+          {event.registrationRequired && event.assignedCoordinatorId === session.userId && (
+            <Button onClick={() => navigate(`/events/${event.id}/registrations`)}>Registrations</Button>
+          )}
         </div>
         <p style={{ marginTop: 0, color: "#626F86" }}>
           {event.reference} · <Link to={`/events/${event.id}/equipment`}>Equipment request</Link>

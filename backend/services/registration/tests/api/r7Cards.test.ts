@@ -207,6 +207,7 @@ describe("POST /api/v1/events/:eventId/manual-registrations (R7)", () => {
   it("R7-T9 lists a manual addition apart from self-registrations, counted in the totals and places remaining", async () => {
     const event = await anEvent(sql, { seats: 3 });
     const [self] = await taken(event.eventId, 1);
+    clock.now = minutes(1);
     await addAs(asOrganiser(OWNER), event.eventId, { attendeeEmail: ATTENDEE_EMAIL, reason: "Guest of honour" });
 
     const list = await listOf(event.eventId);

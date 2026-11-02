@@ -174,3 +174,18 @@ export const REGISTRATION_STATUS_APPEARANCE: Record<keyof typeof REGISTRATION_ST
   WITHDRAWN: "default",
   CANCELLED: "removed",
 };
+
+/** R6: a waitlist entry's status. */
+export const WAITLIST_STATUS_LABELS = {
+  WAITLISTED: "Waitlisted",
+  REGISTERED: "Registered",
+  WITHDRAWN: "Left the waitlist",
+  CANCELLED: "Cancelled",
+} as const;
+
+export const WAITLIST_STATUS_APPEARANCE: Record<keyof typeof WAITLIST_STATUS_LABELS, LozengeAppearance> = {
+  WAITLISTED: "inprogress",
+  REGISTERED: "success",
+  WITHDRAWN: "default",
+  CANCELLED: "removed",
+};

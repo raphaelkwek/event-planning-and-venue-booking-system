@@ -133,6 +133,10 @@ export function RequestDetail() {
           {canEditDetails(event, session) && event.ownerId === session.userId && (
             <Button onClick={() => navigate(`/events/${event.id}/registration`)}>Registration settings</Button>
           )}
+          {/* R5 to R7: who has registered, the waitlist, and adding an attendee by hand. */}
+          {event.registrationRequired && event.ownerId === session.userId && (
+            <Button onClick={() => navigate(`/events/${event.id}/registrations`)}>Registrations</Button>
+          )}
           {canRequestChange && !requestingChange && (
             <Button onClick={() => setRequestingChange(true)}>Request a change</Button>
           )}
