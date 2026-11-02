@@ -145,6 +145,43 @@ jobs:
       - name: Integration tests (registration)
         run: npm test -w @connectsphere/registration
 
+  # EN-17 (SPM-135). The SLO rules are code, so they are tested like code: promtool (from the
+  # prom/prometheus image, which is why this is a CI job) checks the rule files and the Prometheus
+  # config, and runs the unit tests that feed synthetic series to every alert and assert it fires, or
+  # stays quiet. The dashboards must be valid JSON that queries only metrics that exist, and every
+  # alert must have a runbook. Nothing here deploys Prometheus or Grafana.
+  observability:
+    name: Observability (promtool, dashboards, runbooks)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PROMETHEUS_IMAGE: prom/prometheus:v2.55.1
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: promtool check rules
+        run: |
+          docker run --rm -v "$PWD/observability/prometheus:/p:ro" --entrypoint promtool "$PROMETHEUS_IMAGE"             check rules /p/rules/recording.yml /p/rules/alerts.yml
+
+      - name: promtool check config
+        run: |
+          docker run --rm -v "$PWD/observability/prometheus:/p:ro" --entrypoint promtool "$PROMETHEUS_IMAGE"             check config --syntax-only /p/prometheus.yml
+
+      - name: promtool test rules (every alert fires and stays quiet)
+        run: |
+          docker run --rm -v "$PWD/observability/prometheus:/p:ro" -w /p/tests --entrypoint promtool "$PROMETHEUS_IMAGE"             test rules availability.test.yml invariants.test.yml notification_freshness.test.yml             registration_latency.test.yml staff_api_latency.test.yml
+
+      - name: Dashboards are valid JSON on emitted metrics, every alert has a runbook
+        run: npx tsx --test documentation/scripts/check-observability.test.ts
+
   # EN-06.3 (SPM-172). Rules and the reasons for the ones turned off are in
   # .squawk.toml. Only the migrations a pull request adds or changes are linted:
   # merged migrations are never edited (implementation.md §4.8).

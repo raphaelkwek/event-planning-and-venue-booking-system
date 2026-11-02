@@ -61,6 +61,30 @@ security:
   - bearerAuth: []
 
 paths:
+  /metrics:
+    get:
+      tags: [Health]
+      summary: Prometheus metrics (EN-17)
+      description: |
+        Request counts and durations by route pattern, plus the service's own SLI metrics. For the
+        Prometheus scraper only: the gateway must not route it, and in production it answers 404
+        unless `METRICS_TOKEN` is set, in which case it needs `Authorization: Bearer <token>`.
+        Rate-limited to 30 requests a minute per address.
+      operationId: getMetricsPlanningCore
+      security: []
+      responses:
+        "200":
+          description: Prometheus text exposition format.
+          content:
+            text/plain:
+              schema: { type: string }
+        "401":
+          description: A token is required and the one sent is missing or wrong.
+        "404":
+          description: Production, with no `METRICS_TOKEN` set, so the endpoint is off.
+        "429":
+          description: "`RATE_LIMITED`: more than 30 scrapes in a minute from one address."
+
   /healthz:
     get:
       tags: [Health]

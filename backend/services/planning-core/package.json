@@ -19,6 +19,7 @@
   "dependencies": {
     "@connectsphere/contracts": "*",
     "@connectsphere/kafka": "*",
+    "@connectsphere/observability": "*",
     "@temporalio/activity": "1.24.0",
     "@temporalio/client": "1.24.0",
     "@temporalio/worker": "1.24.0",
