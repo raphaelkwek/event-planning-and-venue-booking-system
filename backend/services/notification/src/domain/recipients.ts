@@ -274,6 +274,23 @@ const RULES: Record<string, Rule> = {
   "registration.cancelled": (d, event) => [
     [d.attendeeId!, `${event} has been cancelled, so your registration ${d.registrationReference} is cancelled.`],
   ],
+  // R7: the organiser or coordinator added the attendee by hand; the attendee can withdraw it under R4.
+  "registration.added": (d, event) => [
+    [
+      d.attendeeId!,
+      `${d.addedByName ?? "The event's organiser"} added you to ${event}` +
+        (d.eventStartsAt && d.eventEndsAt ? ` on ${period(d.eventStartsAt, d.eventEndsAt)}` : "") +
+        `. Registration ${d.registrationReference} is confirmed; you can withdraw it from My registrations.`,
+    ],
+  ],
+  // R6: a place opened; the waiting attendee is invited, not registered, and the first to register gets it.
+  "waitlist.place-opened": (d, event) => [
+    [d.attendeeId!, `A place has opened at ${event}. Register now if you still want one: places go to whoever registers first.`],
+  ],
+  // R6: the event was cancelled, so the attendee's place on its waitlist is too.
+  "waitlist.cancelled": (d, event) => [
+    [d.attendeeId!, `${event} has been cancelled, so your place on its waitlist (${d.waitlistReference}) is cancelled.`],
+  ],
   // F5: the owner, the Venue Staff of each booked venue (once per booking), and each Technical
   // Support Staff member who reserved equipment (once, listing what they reserved).
   "event.arrangements-confirmed": (d, event) => arrangementsConfirmed(d as unknown as ArrangementsConfirmed, event),
@@ -343,12 +360,14 @@ export function notificationsFor(message: NotifiableEvent): NewNotification[] {
     eventId: data.eventId!,
     eventReference: data.eventReference!,
     // A booking request's own reference, or a hold's, for the venue-booking messages (L1, L6).
-    // A registration's reference for the registration messages (R2 to R4).
+    // A registration's reference for the registration messages (R2 to R4, R7), a waitlist entry's for R6's.
     relatedReference: message.type.startsWith("venue-booking.")
       ? (data.reference ?? data.holdReference!)
       : message.type.startsWith("registration.")
         ? data.registrationReference!
-        : null,
+        : message.type.startsWith("waitlist.")
+          ? data.waitlistReference!
+          : null,
     message: text,
   }));
 }

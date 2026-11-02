@@ -4,6 +4,7 @@ import { placesRemaining } from "../domain/registrationRules.js";
 import { seatBasisOf } from "../domain/seatPlan.js";
 import { capacityOpensPlaces } from "../domain/waitlistRules.js";
 import { createSeats, lockPlaces, moveClaimedSeats, placeCountsOf, retireFreeSeatsOfBooking, seatUnseated, type Db } from "../repo/seats.js";
+import { findListing } from "../repo/listings.js";
 import { recordVenue, replaceVenue } from "../repo/venues.js";
 import { notifyWaitlist } from "../service/waitlist.js";
 
@@ -86,13 +87,16 @@ export async function handleMessage(value: string | null, deps: { sql: Sql }): P
     });
     const seated = await seatUnseated(tx, approval.eventId);
     const after = await placesOf(tx, approval.eventId);
-    const told = capacityOpensPlaces(before, after)
-      ? await notifyWaitlist(
-          tx,
-          { eventId: approval.eventId, eventReference: approval.eventReference, name: approval.eventName },
-          { placesRemaining: after, at: new Date(approval.decidedAt), actor: { userId: null, role: "SYSTEM" }, correlationId: event.correlationid ?? null },
-        )
-      : 0;
+    let told = 0;
+    if (capacityOpensPlaces(before, after)) {
+      // The notice names the event as attendees know it: the listing, where it has arrived.
+      const listing = await findListing(tx, approval.eventId);
+      told = await notifyWaitlist(
+        tx,
+        { eventId: approval.eventId, eventReference: listing?.eventReference ?? approval.eventReference, name: listing?.name ?? approval.eventName },
+        { placesRemaining: after, at: new Date(approval.decidedAt), actor: { userId: null, role: "SYSTEM" }, correlationId: event.correlationid ?? null },
+      );
+    }
     return { outcome: "built", seats, retired, moved, seated, told } as const;
   });
 }

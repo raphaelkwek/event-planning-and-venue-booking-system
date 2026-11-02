@@ -782,3 +782,62 @@ describe("notificationsFor: the registration messages (R2 to R4)", () => {
     ]);
   });
 });
+
+describe("notificationsFor: the registration list, waitlist and manual additions (R6, R7)", () => {
+  const attendee = "00000000-0000-0000-0000-000000000005";
+  const organiser = "00000000-0000-0000-0000-000000000001";
+  const registration = { registrationId: "77777777-7777-4777-8777-777777777777", registrationReference: "REG-000042", attendeeId: attendee };
+  const entry = { waitlistEntryId: "99999999-9999-4999-8999-999999999999", waitlistReference: "WL-000007", attendeeId: attendee };
+
+  it("R7-T1 tells the added attendee who added them, when the event is, and that it is confirmed", () => {
+    const notes = notificationsFor(
+      message("registration.added", {
+        ...registration,
+        registeredAt: at,
+        eventStartsAt: "2026-12-16T06:00:00.000Z",
+        eventEndsAt: "2026-12-16T10:00:00.000Z",
+        addedBy: organiser,
+        addedByName: "Organiser One",
+        addedOverCapacity: true,
+      }),
+    );
+    expect(notes).toEqual([
+      {
+        ...common,
+        notificationType: "registration.added",
+        recipientUserId: attendee,
+        relatedReference: "REG-000042",
+        message:
+          "Organiser One added you to EVT-2026-0042 “Freshmen Orientation” on Wednesday 16 December 2026, 14:00–18:00. Registration REG-000042 is confirmed; you can withdraw it from My registrations.",
+      },
+    ]);
+  });
+
+  it("R7-T1 says the organiser added them when identity didn't name who, and leaves out a date the event lacks", () => {
+    const [note] = notificationsFor(
+      message("registration.added", { ...registration, registeredAt: at, eventStartsAt: null, eventEndsAt: null, addedBy: organiser, addedByName: null, addedOverCapacity: false }),
+    );
+    expect(note!.message).toBe(
+      "The event's organiser added you to EVT-2026-0042 “Freshmen Orientation”. Registration REG-000042 is confirmed; you can withdraw it from My registrations.",
+    );
+  });
+
+  it("R6-T6 invites each waiting attendee to register when a place opens, naming the entry", () => {
+    const notes = notificationsFor(message("waitlist.place-opened", { ...entry, placesRemaining: 1, openedAt: at }));
+    expect(notes.map((n) => [n.recipientUserId, n.notificationType, n.relatedReference, n.message])).toEqual([
+      [
+        attendee,
+        "waitlist.place-opened",
+        "WL-000007",
+        "A place has opened at EVT-2026-0042 “Freshmen Orientation”. Register now if you still want one: places go to whoever registers first.",
+      ],
+    ]);
+  });
+
+  it("R6-T10 tells a waiting attendee their place on the waitlist is cancelled with the event", () => {
+    const notes = notificationsFor(message("waitlist.cancelled", { ...entry, cancelledAt: at }));
+    expect(notes.map((n) => [n.recipientUserId, n.relatedReference, n.message])).toEqual([
+      [attendee, "WL-000007", "EVT-2026-0042 “Freshmen Orientation” has been cancelled, so your place on its waitlist (WL-000007) is cancelled."],
+    ]);
+  });
+});
