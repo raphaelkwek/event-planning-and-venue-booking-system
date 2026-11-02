@@ -20,8 +20,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | Each of the four requests answered 404 EVENT_NOT_FOUND "No event with that reference is assigned to you." with only the error in the body. E6 stayed Submitted with no reviewer, assigned to C1; nothing else changed. |
+| Status | Pass |
+| Remarks | Commit: a1ceeae, automated (`tests/event/api/a4Cards.test.ts`), on a throwaway Postgres (EN-06) · Evidence: the named test result · Defect: — |
+| Executed By | Shawmya, via Claude |
+| Date of Execution | 2026-11-02 |

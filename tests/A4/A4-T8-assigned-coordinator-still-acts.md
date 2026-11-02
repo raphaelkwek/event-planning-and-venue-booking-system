@@ -20,8 +20,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | D2 201 (E1 Awaiting Clarification), G1 200 (new purpose), O1 201 (a second line), hold release 200 (Released), change decision 200 (Rejected). None was refused. |
+| Status | Pass |
+| Remarks | Commit: a1ceeae, automated (`tests/event/api/a4Cards.test.ts`), on a throwaway Postgres (EN-06) · Evidence: the named test result · Defect: — |
+| Executed By | Shawmya, via Claude |
+| Date of Execution | 2026-11-02 |

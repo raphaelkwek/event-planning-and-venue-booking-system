@@ -20,8 +20,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | All four answered 403 ROLE_NOT_AUTHORISED "Your role is not authorised to use this function."; nothing changed. |
+| Status | Pass |
+| Remarks | Commit: a1ceeae, automated (`tests/event/api/a4Cards.test.ts`), on a throwaway Postgres (EN-06) · Evidence: the named test result · Defect: — |
+| Executed By | Shawmya, via Claude |
+| Date of Execution | 2026-11-02 |

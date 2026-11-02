@@ -20,8 +20,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | C1's list held exactly E1, E2 and E6, each with C1 as assigned coordinator; no field of E3, E4 or E5 appeared. C2's list held exactly E4. |
+| Status | Pass |
+| Remarks | Commit: a1ceeae, automated (`tests/event/api/a4Cards.test.ts`), on a throwaway Postgres (EN-06) · Evidence: the named test result · Defect: — |
+| Executed By | Shawmya, via Claude |
+| Date of Execution | 2026-11-02 |

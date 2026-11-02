@@ -20,8 +20,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | C1's queue held E1 then E6, oldest first, and left out E2, E3 and E4. C2's queue held exactly E4. |
+| Status | Pass |
+| Remarks | Commit: a1ceeae, automated (`tests/event/api/a4Cards.test.ts`), on a throwaway Postgres (EN-06) · Evidence: the named test result · Defect: — |
+| Executed By | Shawmya, via Claude |
+| Date of Execution | 2026-11-02 |

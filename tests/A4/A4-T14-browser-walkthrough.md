@@ -22,6 +22,6 @@
 |---|---|
 | Actual Result | |
 | Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
+| Remarks | Not Executed: the browser walk-through is done by hand against the running app (`npm run dev`), which has not been run for A4 yet. |
 | Executed By | |
 | Date of Execution | |
