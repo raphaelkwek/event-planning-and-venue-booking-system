@@ -24,6 +24,7 @@ export interface AxeViolationRecord {
   help: string;
   helpUrl: string;
   targets: string[];
+  detail: string;
 }
 
 const findingsDir = fileURLToPath(new URL("../../test-results/axe-findings/", import.meta.url));
@@ -52,6 +53,7 @@ export async function checkAccessibility(page: Page, testInfo: TestInfo, screen:
     help: violation.help,
     helpUrl: violation.helpUrl,
     targets: violation.nodes.map((node) => node.target.join(" ")),
+    detail: violation.nodes[0]?.failureSummary ?? "",
   }));
   recordFindings(testInfo, records);
   if (records.length > 0) {
@@ -79,14 +81,6 @@ export async function signOut(page: Page) {
   await expect(page.getByRole("button", { name: "Sign in" })).toBeVisible();
 }
 
-/** A name no other test, retry or run has used, so a journey finds only its own rows. */
-export function uniqueName(prefix: string): string {
-  return `${prefix} ${Date.now().toString(36).toUpperCase()}${Math.floor(Math.random() * 1296)
-    .toString(36)
-    .toUpperCase()
-    .padStart(2, "0")}`;
-}
-
 interface Fixtures {
   a11y: (screen: string) => Promise<void>;
 }
@@ -98,3 +92,4 @@ export const test = base.extend<Fixtures>({
 });
 
 export { expect };
+export { uniqueName } from "./names.js";

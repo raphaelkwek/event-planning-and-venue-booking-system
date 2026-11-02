@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { defineConfig, devices } from "@playwright/test";
 import { FAKE_AUTH_FLAG, FAKE_AUTH_FLAG_VALUE, assertTestHarnessOnly } from "./e2e/support/fake-supabase-auth.js";
+import { ANON_KEY, AUTH_URL, HOST, PORTS, WEB_URL } from "./e2e/support/stack.js";
 
 /**
  * EN-14: the browser tests, run against an ephemeral stack (documentation/evidence/EN-14).
@@ -20,14 +21,16 @@ const DATABASE_URL = process.env.DATABASE_URL ?? "";
 assertTestHarnessOnly({ ...process.env, [FAKE_AUTH_FLAG]: FAKE_AUTH_FLAG_VALUE, DATABASE_URL });
 
 const isCI = Boolean(process.env.CI);
-const host = "127.0.0.1";
-const ports = { auth: 9999, planningCore: 8090, notification: 8091, registration: 8092, web: 4173 };
-const authUrl = `http://${host}:${ports.auth}`;
-const webUrl = `http://${host}:${ports.web}`;
-const anonKey = "connectsphere-e2e-anon-key";
+const host = HOST;
+const ports = PORTS;
+const authUrl = AUTH_URL;
+const webUrl = WEB_URL;
+const anonKey = ANON_KEY;
+/** A second copy of the stack (E2E_PORT_OFFSET) keeps its own logs, results and web build. */
+const suffix = process.env.E2E_PORT_OFFSET ? `-${process.env.E2E_PORT_OFFSET}` : "";
 
 /** Each process's output goes to tests/e2e-logs/<name>.log, uploaded by CI, rather than into the test report. */
-const LOG_DIR = fileURLToPath(new URL("./e2e-logs/", import.meta.url));
+const LOG_DIR = fileURLToPath(new URL(`./e2e-logs${suffix}/`, import.meta.url));
 mkdirSync(LOG_DIR, { recursive: true });
 const logTo = (name: string) => `> "${join(LOG_DIR, `${name}.log`)}" 2>&1`;
 
@@ -48,6 +51,9 @@ const stackEnv: Record<string, string> = {
   LOG_LEVEL: "warn",
 };
 
+/** Its own folder, so the bundle always carries this stack's auth URL. */
+const webBuild = `dist/e2e-${ports.web}`;
+
 const service = (name: string, workspace: string, port: number) => ({
   name,
   command: `npx tsx src/index.ts ${logTo(name)}`,
@@ -63,7 +69,7 @@ const service = (name: string, workspace: string, port: number) => ({
 export default defineConfig({
   testDir: "./e2e",
   testMatch: "**/*.spec.ts",
-  outputDir: "./test-results",
+  outputDir: `./test-results${suffix}`,
   snapshotPathTemplate: "{testDir}/__screenshots__/{testFilePath}/{arg}-{projectName}{ext}",
   fullyParallel: false,
   // One worker: the journeys share the seeded accounts and planning-core's per-address rate
@@ -78,7 +84,7 @@ export default defineConfig({
   },
   reporter: isCI
     ? [["list"], ["github"], ["html", { outputFolder: "playwright-report", open: "never" }], ["json", { outputFile: "test-results/results.json" }]]
-    : [["list"], ["html", { outputFolder: "playwright-report", open: "never" }]],
+    : [["list"], ["html", { outputFolder: `playwright-report${suffix}`, open: "never" }]],
   use: {
     baseURL: webUrl,
     timezoneId: "Asia/Singapore",
@@ -121,7 +127,7 @@ export default defineConfig({
     {
       name: "web",
       // Built here, so the bundle always points at the fake auth server above.
-      command: `npm run build -w @connectsphere/web && npm run preview -w @connectsphere/web -- --host ${host} --port ${ports.web} --strictPort ${logTo("web")}`,
+      command: `npm run build -w @connectsphere/web -- --outDir ${webBuild} && npm run preview -w @connectsphere/web -- --outDir ${webBuild} --host ${host} --port ${ports.web} --strictPort ${logTo("web")}`,
       cwd: "..",
       url: webUrl,
       env: stackEnv,

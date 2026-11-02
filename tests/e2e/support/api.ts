@@ -1,5 +1,6 @@
 import { request as httpRequest } from "node:http";
 import { ACCOUNTS, SEED_PASSWORD, type AccountKey } from "./accounts.js";
+import { ANON_KEY, AUTH_URL, HOST, PORTS } from "./stack.js";
 
 /**
  * Seeds what a journey needs through the services' own APIs, as the user who would do it. It
@@ -7,9 +8,7 @@ import { ACCOUNTS, SEED_PASSWORD, type AccountKey } from "./accounts.js";
  * address, so that seeding never spends the browser's share of planning-core's per-address
  * rate limits.
  */
-const AUTH_URL = "http://127.0.0.1:9999";
-const ANON_KEY = "connectsphere-e2e-anon-key";
-const PLANNING_CORE = { host: "127.0.0.1", port: 8090 };
+const PLANNING_CORE = { host: HOST, port: PORTS.planningCore };
 const SEED_ADDRESS = process.platform === "linux" ? "127.0.0.2" : undefined;
 
 const tokens = new Map<AccountKey, string>();
