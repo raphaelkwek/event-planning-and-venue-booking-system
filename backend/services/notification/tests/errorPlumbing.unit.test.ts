@@ -120,16 +120,22 @@ describe("errorHandler", () => {
 });
 
 describe("installProcessGuards", () => {
-  it("logs an unhandled rejection and an uncaught exception instead of ending the process", () => {
+  it("logs an unhandled rejection and carries on, and logs an uncaught exception and then exits 1", async () => {
     const log = vi.spyOn(logger, "error").mockImplementation(() => undefined);
     const handlers: Record<string, (value: unknown) => void> = {};
-    installProcessGuards({ on: ((event: string, handler: (value: unknown) => void) => (handlers[event] = handler)) as never });
+    const exit = vi.fn();
+    installProcessGuards({ on: ((event: string, handler: (value: unknown) => void) => (handlers[event] = handler)) as never }, exit);
     handlers.unhandledRejection!(new Error("lost"));
     handlers.unhandledRejection!("plain text");
+    await settle();
+    expect(exit).not.toHaveBeenCalled();
     handlers.uncaughtException!(new Error("thrown"));
+    await new Promise((resolve) => setTimeout(resolve, 20));
     expect(log).toHaveBeenCalledWith("unhandled promise rejection", expect.objectContaining({ error: "lost" }));
     expect(log).toHaveBeenCalledWith("unhandled promise rejection", expect.objectContaining({ error: "plain text" }));
     expect(log).toHaveBeenCalledWith("uncaught exception", expect.objectContaining({ error: "thrown" }));
+    expect(exit).toHaveBeenCalledTimes(1);
+    expect(exit).toHaveBeenCalledWith(1);
     log.mockRestore();
   });
 
@@ -137,5 +143,6 @@ describe("installProcessGuards", () => {
     const before = process.listenerCount("unhandledRejection");
     installProcessGuards();
     expect(process.listenerCount("unhandledRejection")).toBe(before + 1);
+    expect(process.listenerCount("uncaughtException")).toBeGreaterThan(0);
   });
 });

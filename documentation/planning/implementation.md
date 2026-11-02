@@ -459,7 +459,7 @@ What a reviewer watches for, from ADR-0005: a registration path that reads capac
 
   There is no HTTP call and no residual window. If an arrangement changes after confirmation, S3 flags the event. The earlier instruction to "re-verify both arrangements inside the writing transaction" contradicted the rule below, and it no longer applies.
 - **Never** hold a transaction open across an HTTP call to another service. Under ADR-0004 there is no exception: cross-module reads inside the core are function calls, and the only remote calls are to the registration and notification services, which never happen inside a core transaction.
-- Statement timeout: 5 s. Connection pool max 10 per service.
+- Statement timeout: 5 s recommended, set with `DB_STATEMENT_TIMEOUT_MS=5000` on the Postgres pools (planning-core, notification, registration). It is off when the variable is unset, because the setting travels as a connection startup parameter and a transaction-mode pooler (Supavisor or pgbouncer, as Supabase uses) may reject it. CI sets 5000 against its own Postgres; turn it on against Supabase only after checking that connections still open. Connection pool max 10 per service.
 
 ### 4.8 Migrations
 

@@ -10,8 +10,8 @@
 **Author:** Joash
 **Scope:** planning-core, notification and registration services, contracts, OpenAPI, dependencies.
 
-**Deploy:** no migration. Set `DB_STATEMENT_TIMEOUT_MS=0` if the Supabase pooler refuses the
-`statement_timeout` startup parameter; `JWT_ISSUER` / `JWT_AUDIENCE` if a stand-in auth server issues
+**Deploy:** no migration. `DB_STATEMENT_TIMEOUT_MS=5000` is recommended but off by default, because a transaction-mode
+pooler may refuse the `statement_timeout` startup parameter; `JWT_ISSUER` / `JWT_AUDIENCE` if a stand-in auth server issues
 tokens with other claims.
 
 ## Fixed
@@ -19,8 +19,8 @@ tokens with other claims.
 - **C1:** a rejected promise in an async route handler no longer ends the process (and, under
   `concurrently --kill-others-on-fail`, the whole dev stack). Express's router layer now passes it to
   a final error handler that answers `500 INTERNAL_ERROR` in the error envelope with a generic
-  message and logs the detail with the correlation id. `unhandledRejection` and `uncaughtException`
-  are logged. Same in the notification and registration services. `INTERNAL_ERROR` joins
+  message and logs the detail with the correlation id. `unhandledRejection` is logged and the process
+  carries on; `uncaughtException` is logged and the process exits with 1. Same in the notification and registration services. `INTERNAL_ERROR` joins
   `ERROR_CODES` and the OpenAPI `ErrorCode` enum.
 - **C1 trigger:** venue and layout capacities, setup and turnaround minutes, expected attendance,
   `reminderLeadMinutes` and equipment quantities are bounded below Postgres's `int` range and refused
@@ -36,7 +36,7 @@ tokens with other claims.
   authentication (120 a minute per address, `RATE_LIMITED`).
 - **L10:** `GET /api/v1/users/me` is limited per verified token subject, with a high per-address
   flood ceiling, so the notification service's calls for every user no longer share one budget.
-- **L8:** a 5 s statement timeout on the Postgres pools (`DB_STATEMENT_TIMEOUT_MS`) and a timeout on
+- **L8:** an opt-in 5 s statement timeout on the Postgres pools (`DB_STATEMENT_TIMEOUT_MS=5000`, off by default, on in CI) and a timeout on
   the Supabase Auth calls (`SUPABASE_AUTH_TIMEOUT_MS`).
 - **L13:** helmet headers and no `X-Powered-By`; `verifyJwt` checks `aud` (`authenticated`) and `iss`
   (`<SUPABASE_URL>/auth/v1`), both overridable.
