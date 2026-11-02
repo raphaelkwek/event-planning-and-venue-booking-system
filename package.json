@@ -26,14 +26,18 @@
     "submission:build": "tsx documentation/scripts/build-submission.ts",
     "test": "npm run test --workspaces --if-present && npm run test:scripts",
     "test:scripts": "tsx --test documentation/scripts/confluence-digest.test.ts",
-    "test:unit": "npm run test:unit --workspaces --if-present && npm run test:scripts",
+    "test:unit": "npm run test:unit --workspaces --if-present && npm run test:scripts && npm run test:harness",
     "test:mutation": "npm run test:mutation --workspaces --if-present",
     "policies:test": "tsx backend/scripts/cerbos.ts compile policies",
     "build": "npm run build --workspaces --if-present",
-    "typecheck": "npm run typecheck --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present && npm run typecheck:harness",
     "lint:boundaries": "npm run lint:boundaries -w @connectsphere/planning-core",
     "lint:api": "redocly lint documentation/api/planning-core.openapi.yaml documentation/api/notification.openapi.yaml documentation/api/registration.openapi.yaml",
-    "lint": "eslint frontend backend tests documentation/scripts eslint.config.js && npm run lint:boundaries && npm run lint:api"
+    "lint": "eslint frontend backend tests load chaos documentation/scripts eslint.config.js && npm run lint:boundaries && npm run lint:api",
+    "typecheck:harness": "tsc -p load/tsconfig.json --noEmit && tsc -p chaos/tsconfig.json --noEmit",
+    "test:harness": "vitest run --config load/vitest.config.ts",
+    "load": "tsx load/support/run.ts",
+    "chaos": "vitest run --config chaos/vitest.config.ts"
   },
   "dependencies": {
     "postgres": "^3.4.4"
