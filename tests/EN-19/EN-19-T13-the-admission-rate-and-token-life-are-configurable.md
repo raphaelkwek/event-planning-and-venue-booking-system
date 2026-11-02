@@ -18,8 +18,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result |  |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By |  |
-| Date of Execution |  |
+| Actual Result | Unset: 100 a second and 300 s; blank values read as unset; both ends of each range were accepted; 0, -1, 1.5, abc and one above the maximum were refused naming the setting; a signing key under 32 characters was refused. |
+| Status | Pass |
+| Remarks | Automated (API level) · Commit: 4ed881d330ebe5af9151561254411ba4a5904d55 · Evidence: backend/services/registration/tests/domain/waitingRoom.test.ts › EN-19-T13 defaults to 100 admissions a second per event and a 300 second token ; EN-19-T13 treats an empty or blank setting as unset ; EN-19-T13 uses valid settings, including both ends of their range ; EN-19-T13 refuses nonsense, naming the setting, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41532885735 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

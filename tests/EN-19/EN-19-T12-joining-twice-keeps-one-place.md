@@ -18,8 +18,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result |  |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By |  |
-| Date of Execution |  |
+| Actual Result | A repeated join returned 200 with the same entry id and position (the first was 201); 20 simultaneous joins by one attendee made exactly one entry (one 201, nineteen 200). |
+| Status | Pass |
+| Remarks | Automated (API level) · Commit: 4ed881d330ebe5af9151561254411ba4a5904d55 · Evidence: backend/services/registration/tests/api/en19Cards.test.ts › EN-19-T12 keeps one place for an attendee who joins repeatedly or concurrently || backend/services/registration/tests/domain/waitingRoom.test.ts › EN-19-T12 keeps the place of an attendee who is waiting or admitted, not of one who is expired or has used it || backend/services/registration/tests/service/waitingRoom.unit.test.ts › EN-19-T12 keeps the place of an attendee who is already waiting, taking no new slot, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41532885735 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

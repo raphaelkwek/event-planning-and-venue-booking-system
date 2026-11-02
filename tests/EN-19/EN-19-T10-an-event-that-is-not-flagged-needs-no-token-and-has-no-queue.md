@@ -18,8 +18,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result |  |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By |  |
-| Date of Execution |  |
+| Actual Result | An unflagged event took a registration without a token (201); joining its waiting room was 409 WAITING_ROOM_NOT_REQUIRED, an unknown event 404, a flagged event before its window 422 REGISTRATION_OUTSIDE_WINDOW, a bad id 400; no entry was stored. |
+| Status | Pass |
+| Remarks | Automated (API level) · Commit: 4ed881d330ebe5af9151561254411ba4a5904d55 · Evidence: backend/services/registration/tests/api/en19Cards.test.ts › EN-19-T10 needs no token for an unflagged event and queues nobody for it || backend/services/registration/tests/domain/refusals.test.ts › EN-19-T10 say an event that is not high-demand has no waiting room || backend/services/registration/tests/service/waitingRoom.unit.test.ts › EN-19-T10 answers not found for an event it does not know, or one that takes no registrations ; EN-19-T10 has no queue for an event that is not high-demand, and writes nothing ; EN-19-T10 will not queue anyone before registration opens or after it closes, naming the state, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41532885735 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

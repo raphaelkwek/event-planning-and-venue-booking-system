@@ -18,8 +18,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result |  |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By |  |
-| Date of Execution |  |
+| Actual Result | A token registered 1 ms before it expired (201), and was refused 403 ADMISSION_EXPIRED at its expiry instant and 1 s after, storing nothing; the status said EXPIRED with no token; joining again made a new place (201). |
+| Status | Pass |
+| Remarks | Automated (API level) · Commit: 4ed881d330ebe5af9151561254411ba4a5904d55 · Evidence: backend/services/registration/tests/api/en19Cards.test.ts › EN-19-T8 accepts a token until it expires, then refuses it with ADMISSION_EXPIRED and lets the attendee join again || backend/services/registration/tests/domain/admissionToken.test.ts › EN-19-T8 accepts a token up to the instant before it expires, and refuses it at that instant and after || backend/services/registration/tests/domain/refusals.test.ts › EN-19-T8 say the attendee's turn has passed and to join again || backend/services/registration/tests/domain/waitingRoom.test.ts › EN-19-T8 waits until the slot, is admitted from it, and is expired once the token's life is over || backend/services/registration/tests/service/waitingRoom.unit.test.ts › EN-19-T8 gives an attendee whose turn expired, or who used it, a new place, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41532885735 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

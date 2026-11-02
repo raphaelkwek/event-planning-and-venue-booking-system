@@ -18,8 +18,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result |  |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By |  |
-| Date of Execution |  |
+| Actual Result | With 1 admission a second: positions 0 (admitted), 1, 2, 3 and waits 0, 1, 2, 3 s at the start; after 2 s the third was admitted and the fourth was position 1, wait 1 s; after 10 s all were admitted; an unknown or malformed id was 404 WAITING_ROOM_ENTRY_NOT_FOUND. |
+| Status | Pass |
+| Remarks | Automated (API level) · Commit: 4ed881d330ebe5af9151561254411ba4a5904d55 · Evidence: backend/services/registration/tests/api/en19Cards.test.ts › EN-19-T7 reports position and estimated wait, falling as time passes || backend/services/registration/tests/domain/waitingRoom.test.ts › EN-19-T7 rounds up to whole seconds and is 0 once the slot has come ; EN-19-T7 is one more than those waiting ahead, and 0 for anyone no longer waiting || backend/services/registration/tests/service/waitingRoom.unit.test.ts › EN-19-T7 gives a new joiner the gate's slot, moves the gate on, and reports position and wait ; EN-19-T7 is null for an id that has no place, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41532885735 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

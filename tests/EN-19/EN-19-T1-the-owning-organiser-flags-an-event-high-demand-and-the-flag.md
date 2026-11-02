@@ -18,8 +18,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result |  |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By |  |
-| Date of Execution |  |
+| Actual Result | planning-core integration run: PUT /high-demand by the owner flagged then unflagged the event (200, new version, ETag), wrote one history entry per change and one event.listing-changed per change carrying highDemand; the same value again wrote nothing. The listing message test and the pure rules passed. |
+| Status | Pass |
+| Remarks | Automated (API level) · Commit: 4ed881d330ebe5af9151561254411ba4a5904d55 · Evidence: backend/services/planning-core/tests/event/api/highDemand.test.ts › EN-19-T1 lets the owning organiser flag and unflag an event, publishing each change on event.listing-changed || backend/services/planning-core/tests/event/domain/highDemand.test.ts › accepts exactly true or false (EN-19-T1) || backend/services/planning-core/tests/event/events/listingChanged.test.ts › EN-19-T1 carries the event's high-demand flag, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41532885735 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

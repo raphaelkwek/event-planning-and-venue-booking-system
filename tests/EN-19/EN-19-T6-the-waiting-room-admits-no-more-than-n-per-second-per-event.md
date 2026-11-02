@@ -18,8 +18,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result |  |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By |  |
-| Date of Execution |  |
+| Actual Result | 500 simultaneous joins on a 50 a second event: 500 places, consecutive slots exactly 20 ms apart, at most 50 in any one-second window, the last 9,980 ms after the first; a second event's first joiner was admitted at once. |
+| Status | Pass |
+| Remarks | Automated (API level) · Commit: 4ed881d330ebe5af9151561254411ba4a5904d55 · Evidence: backend/services/registration/tests/api/en19Cards.test.ts › EN-19-T6 admits at most N per second per event when 500 attendees join at once || backend/services/registration/tests/domain/waitingRoom.test.ts › EN-19-T6 admits the first joiner of an idle gate at once, and moves the gate on by one interval ; EN-19-T6 gives a joiner arriving while others wait the gate's slot, one interval after the last ; EN-19-T6 never admits more than N in any second, however many join at the same instant, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41532885735 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

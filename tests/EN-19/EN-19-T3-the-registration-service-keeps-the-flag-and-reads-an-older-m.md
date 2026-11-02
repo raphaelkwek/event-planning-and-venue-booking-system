@@ -18,8 +18,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result |  |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By |  |
-| Date of Execution |  |
+| Actual Result | The registration listing's high_demand followed each message (true, false, true, then false for a message with no field); the contract accepted a listing with and without the flag and refused a non-boolean. |
+| Status | Pass |
+| Remarks | Automated (API level) · Commit: 4ed881d330ebe5af9151561254411ba4a5904d55 · Evidence: backend/packages/contracts/tests/cloudEvent.test.ts › EN-19-T3 carries the high-demand flag, and reads a listing published before the flag existed as not high-demand || backend/services/registration/tests/consumer/handleListing.test.ts › EN-19-T3 keeps the high-demand flag from each listing, and reads a message without it as not flagged, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41532885735 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

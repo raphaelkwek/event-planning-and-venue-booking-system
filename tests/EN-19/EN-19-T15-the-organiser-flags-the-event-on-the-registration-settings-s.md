@@ -18,8 +18,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result |  |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By |  |
-| Date of Execution |  |
+| Actual Result | jsdom component tests: the high-demand box and its explanation rendered; saving sent highDemand with the version in If-Match; a stale version showed the server's message and was not reported as saved; saving again with a fresh version showed the saved state; a saved flag loaded ticked. |
+| Status | Pass |
+| Remarks | Automated (UI component level, jsdom) · Commit: 4ed881d330ebe5af9151561254411ba4a5904d55 · Evidence: frontend/tests/registrationSettings.test.tsx › EN-19-T15 flags the event high-demand and shows the server's refusal when the version is stale ; EN-19-T15 loads the saved flag, and takes it off with the version the last save returned, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41532885735 · Defect: — · UI walk-through in Chrome pending at the sprint review |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |
