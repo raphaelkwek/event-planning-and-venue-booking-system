@@ -43,6 +43,13 @@ function recordFindings(testInfo: TestInfo, records: AxeViolationRecord[]) {
  * test-results/axe-findings for documentation/evidence/EN-14/axe-findings.md.
  */
 export async function checkAccessibility(page: Page, testInfo: TestInfo, screen: string) {
+  // A dialog or panel still fading in reports its half-faded colours as contrast failures, so
+  // wait until no finite animation is running before axe reads the page (a spinner never ends).
+  await page.waitForFunction(() =>
+    document
+      .getAnimations()
+      .every((animation) => animation.playState !== "running" || animation.effect?.getTiming().iterations === Infinity),
+  );
   const results = await new AxeBuilder({ page }).withTags(AXE_TAGS).analyze();
   const records: AxeViolationRecord[] = results.violations.map((violation) => ({
     test: testInfo.titlePath.slice(1).join(" › "),
