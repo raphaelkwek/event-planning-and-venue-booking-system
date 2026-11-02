@@ -23,3 +23,4 @@
 10049	IGNORE	Storable and Cacheable Content (informational). The web assets are fingerprinted files that are meant to be cached for a year and index.html is no-cache; the API response flagged is the 404 for a path that does not exist. An unauthenticated scan sees no user data, so there is nothing sensitive to be cached.
 10096	IGNORE	Timestamp Disclosure - Unix (low). The one hit is a constant inside a bundled third-party library (1540483477, in 2018), not a server clock or user data.
 10109	IGNORE	Modern Web Application (informational). Says the spider cannot see client-side routes; that is a known limit of this scan, written down in documentation/evidence/EN-21/zap.md, not a weakness.
+10038	FAIL	EXPERIMENT: prove the gate fails the build (reverted in the next commit)
