@@ -236,6 +236,18 @@ jobs:
           path: sbom-image-${{ matrix.name }}.cdx.json
           retention-days: 30
 
+      # The ZAP job starts these three, whatever the scans below find.
+      - name: Save the image for the ZAP job
+        if: matrix.name == 'planning-core' || matrix.name == 'web' || matrix.name == 'migrate'
+        run: docker save "${IMAGE}:ci" | gzip > "image-${{ matrix.name }}.tar.gz"
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: matrix.name == 'planning-core' || matrix.name == 'web' || matrix.name == 'migrate'
+        with:
+          name: image-${{ matrix.name }}
+          path: image-${{ matrix.name }}.tar.gz
+          retention-days: 1
+
       - name: Trivy report (HIGH and CRITICAL)
         run: |
           trivy image "${IMAGE}:ci" --scanners vuln,secret --severity HIGH,CRITICAL \
@@ -272,11 +284,6 @@ jobs:
             echo "::warning::The SARIF upload for ${{ matrix.name }} did not succeed (a fork's token cannot write security events, or code scanning is off)."
             echo "SARIF upload for ${{ matrix.name }} did not succeed." >> "$GITHUB_STEP_SUMMARY"
           fi
-
-      - name: Trivy gate (CRITICAL with a fix)
-        run: |
-          trivy image "${IMAGE}:ci" --scanners vuln,secret --severity CRITICAL --ignore-unfixed \
-            --ignorefile .trivyignore.yaml --skip-db-update --format table --exit-code 1
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()
@@ -347,16 +354,13 @@ jobs:
           if-no-files-found: ignore
           retention-days: 30
 
-      - name: Save the image for the ZAP job
-        if: matrix.name == 'planning-core' || matrix.name == 'web' || matrix.name == 'migrate'
-        run: docker save "${IMAGE}:ci" | gzip > "image-${{ matrix.name }}.tar.gz"
-
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        if: matrix.name == 'planning-core' || matrix.name == 'web' || matrix.name == 'migrate'
-        with:
-          name: image-${{ matrix.name }}
-          path: image-${{ matrix.name }}.tar.gz
-          retention-days: 1
+      # Last on purpose: a CRITICAL finding with a fix fails the job, but only after the report,
+      # the SARIF upload and the signing demonstration have run, so one failure hides nothing.
+      - name: Trivy gate (CRITICAL with a fix)
+        if: success() || failure()
+        run: |
+          trivy image "${IMAGE}:ci" --scanners vuln,secret --severity CRITICAL --ignore-unfixed \
+            --ignorefile .trivyignore.yaml --skip-db-update --format table --exit-code 1
 
   # A passive ZAP baseline scan of the web app (nginx image) and planning-core API, both started
   # from the images this workflow built, against a Postgres built from every migration. The
@@ -364,6 +368,8 @@ jobs:
   zap:
     name: ZAP baseline (web app and planning-core API)
     needs: images
+    # Scan whatever was built even when an image's Trivy gate failed; only a cancelled run stops it.
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
     services:
