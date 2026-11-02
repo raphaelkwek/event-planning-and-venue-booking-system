@@ -84,12 +84,23 @@ runs:
       env:
         IMAGE: ${{ inputs.image }}
         IDENTITY: ${{ inputs.identity }}
+        SBOM: ${{ inputs.sbom-path }}
       run: |
         issuer="https://token.actions.githubusercontent.com"
         cosign verify "$IMAGE" --certificate-identity "$IDENTITY" --certificate-oidc-issuer "$issuer" > /dev/null
         echo "ok: signature verifies for ${IDENTITY}"
-        cosign verify-attestation "$IMAGE" --type cyclonedx --certificate-identity "$IDENTITY" --certificate-oidc-issuer "$issuer" > /dev/null
+        cosign verify-attestation "$IMAGE" --type cyclonedx --certificate-identity "$IDENTITY" --certificate-oidc-issuer "$issuer" > attestation.json
         echo "ok: CycloneDX attestation verifies for ${IDENTITY}"
+        # Read the SBOM back out of the attestation the way documentation/supply-chain.md says to,
+        # and check it is the one that was attested.
+        jq -r '.payload' attestation.json | base64 -d | jq '.predicate' > sbom-from-attestation.json
+        attested="$(jq '.components | length' "$SBOM")"
+        extracted="$(jq '.components | length' sbom-from-attestation.json)"
+        if [ "$attested" != "$extracted" ] || [ "$extracted" = "0" ]; then
+          echo "::error::the SBOM read from the attestation (${extracted} components) is not the one attested (${attested})"
+          exit 1
+        fi
+        echo "ok: the SBOM read back from the attestation has ${extracted} components, as attested"
         # A verifier must refuse anyone else's signature.
         if cosign verify "$IMAGE" --certificate-identity "${IDENTITY}-somebody-else" --certificate-oidc-issuer "$issuer" > /dev/null 2>&1; then
           echo "::error::cosign accepted a wrong identity"
