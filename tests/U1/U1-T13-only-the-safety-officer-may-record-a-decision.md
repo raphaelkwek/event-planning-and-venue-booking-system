@@ -20,8 +20,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | The decision, the queue and the review each returned 403 ROLE_NOT_AUTHORISED for C1, C2, ORG, VS, TS, ATT and LEAD; nothing was written. |
+| Status | Pass |
+| Remarks | Automated (API level) · Commit: 042f2d5 · Evidence: backend/services/planning-core/tests/change/api/u1Cards.test.ts › U1-T13 only the Safety Officer may record a decision, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41475757839 · Defect: — (that run's integration job fails only on tests/race/invariants.test.ts L3-T17, a fixed-date test outside U1; every U1 card passed) |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-02 |

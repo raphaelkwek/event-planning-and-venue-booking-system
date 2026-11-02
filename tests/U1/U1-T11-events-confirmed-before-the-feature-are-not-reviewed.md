@@ -20,8 +20,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | A Confirmed event with no decision was absent from the queue; a decision on it returned 409 STATUS_TRANSITION_NOT_PERMITTED naming Confirmed, and Mark Confirmed was refused the same way; nothing was written. |
+| Status | Pass |
+| Remarks | Automated (API level) · Commit: 042f2d5 · Evidence: backend/services/planning-core/tests/change/api/u1Cards.test.ts › U1-T11 events confirmed before the feature are not reviewed, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41475757839 · Defect: — (that run's integration job fails only on tests/race/invariants.test.ts L3-T17, a fixed-date test outside U1; every U1 card passed) |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-02 |

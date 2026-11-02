@@ -20,8 +20,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | The decision row held SO, the time, REQUEST_CHANGES and the reason; one history entry and one event.status-changed message were written; one event.safety-decision-recorded message named the flagged booking; the notification rule gave one notice each to C1 and ORG, each with the reason and the booking, and none to anyone else. |
+| Status | Pass |
+| Remarks | Automated (API level) · Commit: 042f2d5 · Evidence: backend/services/planning-core/tests/change/api/u1Cards.test.ts › U1-T12 every decision records the officer, time, decision and reason, writes history and notifies, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41475757839 · Defect: — (that run's integration job fails only on tests/race/invariants.test.ts L3-T17, a fixed-date test outside U1; every U1 card passed) |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-02 |

@@ -20,8 +20,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | A request for changes with no reason, with a blank reason, and a rejection with no reason each returned 400 VALIDATION_FAILED naming the reason field; nothing was written. |
+| Status | Pass |
+| Remarks | Automated (API level) · Commit: 042f2d5 · Evidence: backend/services/planning-core/tests/change/api/u1Cards.test.ts › U1-T8 requesting changes or rejecting without a reason is refused, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41475757839 · Defect: — (that run's integration job fails only on tests/race/invariants.test.ts L3-T17, a fixed-date test outside U1; every U1 card passed) |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-02 |
