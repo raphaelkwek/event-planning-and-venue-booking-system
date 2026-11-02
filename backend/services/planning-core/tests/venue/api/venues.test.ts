@@ -142,8 +142,9 @@ describe("POST /api/v1/venues (H1)", () => {
 });
 
 describe("PUT /api/v1/venues/:id (H1)", () => {
-  it("lets any Venue Staff member update a venue, recording only the changed fields with their previous values", async () => {
+  it("lets another Venue Staff member who looks after the venue update it, recording only the changed fields with their previous values", async () => {
     const venue = await createAsStaff();
+    await sql`insert into venue.venue_staff (venue_id, user_id, created_by, updated_by) values (${venue.id}, ${OTHER_STAFF}, ${STAFF}, ${STAFF})`;
     signedInAs(OTHER_STAFF, "VENUE_STAFF");
     const facilities = [...standardVenue().facilities, "Livestream camera"];
     const res = await request(app)
@@ -164,6 +165,22 @@ describe("PUT /api/v1/venues/:id (H1)", () => {
     });
     expect(Object.keys(updated!.changes)).toEqual(expect.arrayContaining(["maxCapacity", "facilities"]));
     expect(Object.keys(updated!.changes)).toHaveLength(2);
+  });
+
+  it("answers 404 to Venue Staff of another venue, and changes nothing, times included (H3 audit fix)", async () => {
+    const venue = await createAsStaff();
+    signedInAs(OTHER_STAFF, "VENUE_STAFF");
+    const res = await request(app)
+      .put(`/api/v1/venues/${venue.id}`)
+      .set(bearer)
+      .send({ ...standardVenue(), name: "Renamed elsewhere", setupMinutes: 60, turnaroundMinutes: 60, isActive: true });
+
+    expect(res.status).toBe(404);
+    expect(res.body.error.code).toBe("VENUE_NOT_FOUND");
+    expect(JSON.stringify(res.body)).not.toContain("flaggedBookings");
+    const [row] = await sql`select name, setup_minutes, turnaround_minutes, updated_by from venue.venues where id = ${venue.id}`;
+    expect(row).toEqual({ name: "H1 Test Auditorium", setup_minutes: 0, turnaround_minutes: 0, updated_by: STAFF });
+    expect(await history(venue.id)).toHaveLength(1);
   });
 
   it("writes no history entry when nothing changed", async () => {
