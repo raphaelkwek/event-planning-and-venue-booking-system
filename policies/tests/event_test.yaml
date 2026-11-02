@@ -5,9 +5,9 @@ description: Who may act on an event request (A2), derived from the stories.
 tests:
   - name: Every role against an event open for registration
     input:
-      principals: [organiser, other_organiser, assigned_coordinator, other_coordinator, nominee, venue_manager, other_venue_staff, tech_support, attendee, other_attendee, lead]
+      principals: [organiser, other_organiser, assigned_coordinator, other_coordinator, nominee, venue_manager, other_venue_staff, tech_support, attendee, other_attendee, lead, safety_officer]
       resources: [event_open]
-      actions: [create, update_draft, submit_draft, view, view_history, view_clarifications, view_reassignments, review, request_clarification, approve, reject, respond_to_clarification, propose_reassignment, respond_to_reassignment, cancel, confirm, decide_change, update_details, preview_change_impact, reconsider_arrangements, request_change, assign, reassign, view_assignments]
+      actions: [create, update_draft, submit_draft, view, view_history, view_clarifications, view_reassignments, review, request_clarification, approve, reject, respond_to_clarification, propose_reassignment, respond_to_reassignment, cancel, confirm, decide_change, update_details, preview_change_impact, reconsider_arrangements, request_change, assign, reassign, view_assignments, view_safety_queue, view_safety_review, decide_safety, mark_confirmed]
     expected:
       - principal: organiser # the owner
         resource: event_open
@@ -43,6 +43,7 @@ tests:
           update_details: EFFECT_ALLOW # G1
           preview_change_impact: EFFECT_ALLOW # G2
           reconsider_arrangements: EFFECT_ALLOW # S3
+          mark_confirmed: EFFECT_ALLOW # U1: only after the Safety Officer approved (checked in the domain)
       - principal: other_coordinator
         resource: event_open
         actions:
@@ -97,6 +98,12 @@ tests:
           assign: EFFECT_ALLOW # E3
           reassign: EFFECT_ALLOW # E4: the only route to a reassignment (W9-59)
           view_assignments: EFFECT_ALLOW # E5: the overview and each event's assignment history
+      - principal: safety_officer # U1: reviews and decides, and acts on nothing else
+        resource: event_open
+        actions:
+          view_safety_queue: EFFECT_ALLOW # U1
+          view_safety_review: EFFECT_ALLOW # U1: the factors to weigh
+          decide_safety: EFFECT_ALLOW # U1: approve, request changes or reject
 
   - name: Attendees can't open an event that isn't open for registration (R1, A3)
     input:

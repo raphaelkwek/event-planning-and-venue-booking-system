@@ -40,6 +40,7 @@ export async function seedEvent(
 export async function deleteSeededEvents(sql: Sql, ownerIds: string[]): Promise<void> {
   const ids = sql`select id from event.events where owner_id in ${sql(ownerIds)}`;
   await sql`delete from event.outbox where message_key in (select id::text from (${ids}) e)`;
+  await sql`delete from event.safety_decisions where event_id in (${ids})`;
   await sql`delete from event.event_history where event_id in (${ids})`;
   await sql`delete from event.assignments where event_id in (${ids})`;
   await sql`delete from event.clarifications where event_id in (${ids})`;

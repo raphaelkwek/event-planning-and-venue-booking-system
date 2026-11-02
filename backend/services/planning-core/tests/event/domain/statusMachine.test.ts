@@ -149,9 +149,10 @@ describe("Safety Review, Confirmed and Completed (F1, CR-06)", () => {
   const actions = Object.keys(EXPECTED) as EventAction[];
 
   it("reaches Safety Review only when F5 confirms the arrangements", () => {
-    expect(actions.filter((action) => transitionRule(action).to === "SAFETY_REVIEW")).toEqual([
-      "CONFIRM_ARRANGEMENTS",
-    ]);
+    // An approval keeps the event in Safety Review (W9-31); it does not enter it.
+    expect(
+      actions.filter((action) => transitionRule(action).to === "SAFETY_REVIEW" && !transitionRule(action).from.includes("SAFETY_REVIEW")),
+    ).toEqual(["CONFIRM_ARRANGEMENTS"]);
   });
 
   it("leaves Safety Review only through the Safety Officer's decisions", () => {

@@ -70,6 +70,18 @@ resourcePolicy:
       effect: EFFECT_ALLOW
       roles: [EVENT_COORDINATOR_LEAD]
 
+    # U1 (CR-06): only the Safety Officer reads the safety queue and review and records the
+    # decision (A2). Mark Confirmed belongs to the event's assigned coordinator (W9-31).
+    - name: U1-the-safety-officer-reviews-and-decides
+      actions: [view_safety_queue, view_safety_review, decide_safety]
+      effect: EFFECT_ALLOW
+      roles: [SAFETY_OFFICER]
+
+    - name: U1-assigned-coordinator-marks-confirmed
+      actions: [mark_confirmed]
+      effect: EFFECT_ALLOW
+      derivedRoles: [assigned_coordinator]
+
     - name: E2-only-the-nominee-accepts-or-declines
       actions: [respond_to_reassignment]
       effect: EFFECT_ALLOW

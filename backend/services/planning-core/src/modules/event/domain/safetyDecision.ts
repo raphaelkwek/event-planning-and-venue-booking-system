@@ -28,15 +28,3 @@ export function markConfirmedRefusal(status: EventStatus, approved: boolean): "S
   if (status !== "SAFETY_REVIEW") return "STATUS";
   return approved ? null : "NOT_PASSED";
 }
-
-/** How a decision reads in the notification and the screen: "requested changes to", "rejected", "approved". */
-export function decisionVerb(decision: SafetyDecisionKind): string {
-  switch (decision) {
-    case "APPROVE":
-      return "approved";
-    case "REQUEST_CHANGES":
-      return "requested changes to";
-    case "REJECT":
-      return "rejected";
-  }
-}
