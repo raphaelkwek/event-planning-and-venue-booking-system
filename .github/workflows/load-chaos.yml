@@ -301,10 +301,19 @@ jobs:
           tar -xzf kubeconform.tar.gz kubeconform
 
       # Strict, and no schema may be skipped: a manifest whose kind has no schema fails, rather than passing
-      # unchecked. The custom resources' schemas come from the Datree CRDs catalog.
+      # unchecked. The Datree CRDs catalog has no Chaos Mesh, so the pinned CRDs are downloaded and converted
+      # (deploy/ci/crd-to-json-schema.py).
       - name: Validate the Chaos Mesh manifests
+        env:
+          CHAOS_MESH_VERSION: v2.7.2
         run: |
+          pip install --quiet pyyaml
+          for kind in podchaos networkchaos; do
+            curl -sSfL -o "chaos-mesh.org_${kind}.yaml" \
+              "https://raw.githubusercontent.com/chaos-mesh/chaos-mesh/${CHAOS_MESH_VERSION}/helm/chaos-mesh/crds/chaos-mesh.org_${kind}.yaml"
+          done
+          python3 deploy/ci/crd-to-json-schema.py chaos-mesh-schemas chaos-mesh.org_podchaos.yaml chaos-mesh.org_networkchaos.yaml
           ./kubeconform -strict -summary -kubernetes-version 1.33.0 \
             -schema-location default \
-            -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \
+            -schema-location "$PWD/chaos-mesh-schemas/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json" \
             deploy/chaos

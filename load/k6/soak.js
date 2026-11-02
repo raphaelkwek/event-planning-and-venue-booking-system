@@ -1,6 +1,6 @@
 import exec from "k6/execution";
 import { sleep } from "k6";
-import { read, register, summaryTo, attendeeToken, withdraw } from "./lib/common.js";
+import { read, register, summaryTo, attendeeToken, withdraw } from "./shared/common.js";
 
 /**
  * EN-18 soak: a steady mixed load, as the architecture's load model has it (section 6): mostly browsing,

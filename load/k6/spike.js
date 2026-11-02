@@ -1,5 +1,5 @@
 import exec from "k6/execution";
-import { register, summaryTo } from "./lib/common.js";
+import { register, summaryTo } from "./shared/common.js";
 
 /**
  * EN-18 spike (and the smoke run on every pull request, with a smaller RATE): a constant arrival rate

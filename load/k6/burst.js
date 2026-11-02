@@ -1,5 +1,5 @@
 import exec from "k6/execution";
-import { register, summaryTo } from "./lib/common.js";
+import { register, summaryTo } from "./shared/common.js";
 
 /**
  * EN-20 experiment 3: a burst of register attempts from distinct attendees, a fixed number of them in

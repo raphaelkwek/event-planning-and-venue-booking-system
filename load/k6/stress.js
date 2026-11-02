@@ -1,6 +1,6 @@
 import exec from "k6/execution";
 import { Counter, Trend } from "k6/metrics";
-import { register, summaryTo } from "./lib/common.js";
+import { register, summaryTo } from "./shared/common.js";
 
 /**
  * EN-18 stress: the arrival rate steps up, holding each step for HOLD seconds, until something gives.
