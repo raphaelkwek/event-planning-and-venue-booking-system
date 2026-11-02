@@ -110,6 +110,7 @@ describe("what attendees are sent (R1-T8, R3)", () => {
     registrationOpensAt: "2026-12-01T01:00:00.000Z",
     registrationClosesAt: "2026-12-10T10:00:00.000Z",
     withdrawalDeadlineAt: null,
+    highDemand: false,
   };
 
   it("an open event: no owner or status, the deadline as the start when none is set, and full at zero places", () => {

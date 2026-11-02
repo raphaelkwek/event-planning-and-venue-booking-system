@@ -1,13 +1,14 @@
 import { Router, type NextFunction, type Request, type RequestHandler, type Response } from "express";
 import type { Sql } from "postgres";
 import { isListed } from "../domain/registrationRules.js";
-import { capacityMessage, deadlineMessage, duplicateMessage, notActiveMessage, windowMessage } from "../domain/refusals.js";
+import { admissionExpiredMessage, admissionRequiredMessage, capacityMessage, deadlineMessage, duplicateMessage, notActiveMessage, windowMessage } from "../domain/refusals.js";
 import { findListing, listingsOf, listOpenListings, type ListingCursor } from "../repo/listings.js";
 import { findRegistrationOfAttendee, listRegistrationsOfAttendee, type Registration, type RegistrationCursor } from "../repo/registrations.js";
 import { placeCountsOf } from "../repo/seats.js";
 import { venuesOf } from "../repo/venues.js";
 import { register } from "../service/register.js";
 import { withdraw } from "../service/withdraw.js";
+import { config } from "../config.js";
 import { attendeeOnly, signedIn, type Authenticator, type CallerRequest } from "./auth.js";
 import { refuse } from "./errors.js";
 import { registrationRateLimiter } from "./limiter.js";
@@ -29,11 +30,21 @@ export interface RouterDeps {
   limiter?: RequestHandler;
   /** The instant rules are judged at; tests fix it to test a boundary at the millisecond. */
   clock?: () => Date;
+  /** EN-19: the key admission tokens are signed with; tests choose their own. */
+  signingKey?: string;
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DEFAULT_LIMIT = 25;
 const MAX_LIMIT = 100;
+/**
+ * What a CDN may keep of the browse API (EN-12, ADR-0011): five seconds, and
+ * a stale copy for thirty more while it fetches a fresh one. Only the published
+ * listing is cached this way; it holds nothing about the caller. Everything else
+ * this service sends is `no-store` (app.ts), and registering always re-checks live.
+ */
+export const BROWSE_CACHE_CONTROL = "public, max-age=5, stale-while-revalidate=30";
+
 const EVENT_NOT_FOUND = "No event open for registration has that id.";
 const REGISTRATION_NOT_FOUND = "No registration with that id is yours.";
 
@@ -85,6 +96,7 @@ export function registrationRouter(deps: RouterDeps): Router {
   const { sql, auth } = deps;
   const limiter = deps.limiter ?? registrationRateLimiter();
   const now = deps.clock ?? (() => new Date());
+  const signingKey = deps.signingKey ?? config.waitingRoom.signingKey;
   const anyone = signedIn(auth);
   const attendee = attendeeOnly(auth);
   const router = Router();
@@ -105,6 +117,7 @@ export function registrationRouter(deps: RouterDeps): Router {
       const page = readPage<ListingCursor>(req, res, (c) => isInstant(c.startsAt) && isUuid(c.eventId));
       if (!page) return;
       const rows = await listOpenListings(sql, now(), page.limit, page.after);
+      res.setHeader("Cache-Control", BROWSE_CACHE_CONTROL);
       const items = rows.slice(0, page.limit);
       const eventIds = items.map((l) => l.eventId);
       const [venues, counts] = await Promise.all([venuesOf(sql, eventIds), placeCountsOf(sql, eventIds)]);
@@ -126,6 +139,7 @@ export function registrationRouter(deps: RouterDeps): Router {
       const listing = UUID.test(eventId) ? await findListing(sql, eventId) : null;
       if (!listing || !isListed(listing, now())) return refuse(res, 404, "EVENT_NOT_FOUND", EVENT_NOT_FOUND);
       const [venues, counts] = await Promise.all([venuesOf(sql, [eventId]), placeCountsOf(sql, [eventId])]);
+      res.setHeader("Cache-Control", BROWSE_CACHE_CONTROL);
       res.json(presentOpenEvent(listing, venues.get(eventId)!, counts.get(eventId)!));
     }),
   );
@@ -147,6 +161,7 @@ export function registrationRouter(deps: RouterDeps): Router {
         attendeeId: req.caller!.id,
         now: now(),
         correlationId: req.header("x-correlation-id") ?? null,
+        admission: { token: req.header("x-admission-token") ?? null, signingKey },
       });
       if (outcome.ok) {
         const [view] = await present([outcome.registration]);
@@ -168,6 +183,12 @@ export function registrationRouter(deps: RouterDeps): Router {
           return refuse(res, 409, "REGISTRATION_FULL", capacityMessage(event!), {
             details: { eventId, placesRemaining: 0, waitlistOffered: true },
           });
+        case "ADMISSION_REQUIRED":
+          return refuse(res, 403, "ADMISSION_REQUIRED", admissionRequiredMessage(event!), { details: { eventId, waitingRoom: true } });
+        case "ADMISSION_EXPIRED":
+          return refuse(res, 403, "ADMISSION_EXPIRED", admissionExpiredMessage(event!), { details: { eventId, waitingRoom: true } });
+        case "WAITING_ROOM_UNAVAILABLE":
+          return refuse(res, 503, "WAITING_ROOM_UNAVAILABLE", "The waiting room is not available right now, so nobody can be admitted. Try again later.");
       }
     }),
   );

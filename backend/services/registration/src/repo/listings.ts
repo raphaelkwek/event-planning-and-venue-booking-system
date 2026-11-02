@@ -21,6 +21,8 @@ export interface Listing {
   registrationOpensAt: string | null;
   registrationClosesAt: string | null;
   withdrawalDeadlineAt: string | null;
+  /** EN-19: registering needs an admission token from the waiting room. */
+  highDemand: boolean;
 }
 
 interface ListingRow {
@@ -36,6 +38,7 @@ interface ListingRow {
   registration_opens_at: Date | null;
   registration_closes_at: Date | null;
   withdrawal_deadline_at: Date | null;
+  high_demand: boolean;
 }
 
 const iso = (value: Date | null) => value?.toISOString() ?? null;
@@ -54,6 +57,7 @@ function toListing(row: ListingRow): Listing {
     registrationOpensAt: iso(row.registration_opens_at),
     registrationClosesAt: iso(row.registration_closes_at),
     withdrawalDeadlineAt: iso(row.withdrawal_deadline_at),
+    highDemand: row.high_demand,
   };
 }
 
@@ -68,11 +72,11 @@ export async function applyListing(db: Db, data: EventListingChanged): Promise<b
   const rows = await sql`
     insert into registration.event_listings (
       event_id, event_reference, name, description, owner_id, status, starts_at, ends_at,
-      registration_required, registration_opens_at, registration_closes_at, withdrawal_deadline_at, source_changed_at
+      registration_required, registration_opens_at, registration_closes_at, withdrawal_deadline_at, high_demand, source_changed_at
     ) values (
       ${data.eventId}, ${data.eventReference}, ${data.eventName}, ${data.description}, ${data.ownerId}, ${data.status},
       ${data.proposedStartAt}, ${data.proposedEndAt}, ${data.registrationRequired}, ${data.registrationOpensAt},
-      ${data.registrationClosesAt}, ${data.withdrawalDeadlineAt}, ${data.changedAt}
+      ${data.registrationClosesAt}, ${data.withdrawalDeadlineAt}, ${data.highDemand}, ${data.changedAt}
     )
     on conflict (event_id) do update set
       event_reference = excluded.event_reference,
@@ -86,6 +90,7 @@ export async function applyListing(db: Db, data: EventListingChanged): Promise<b
       registration_opens_at = excluded.registration_opens_at,
       registration_closes_at = excluded.registration_closes_at,
       withdrawal_deadline_at = excluded.withdrawal_deadline_at,
+      high_demand = excluded.high_demand,
       source_changed_at = excluded.source_changed_at,
       updated_at = now()
     where registration.event_listings.source_changed_at <= excluded.source_changed_at

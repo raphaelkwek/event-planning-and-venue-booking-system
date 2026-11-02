@@ -6,6 +6,7 @@ import { probeBroker } from "./kafka.js";
 import { logger } from "./logger.js";
 import { supabaseAuthenticator } from "./api/identity.js";
 import { registrationRouter } from "./api/routes.js";
+import { waitingRoomRouter } from "./api/waitingRoom.js";
 
 /**
  * The registration service's HTTP side: health (EN-13), and the attendee API
@@ -16,6 +17,7 @@ app.use(express.json());
 
 // The correlation id travels in the response, the log line and any message the request writes (§9).
 // Attendee data is never cached by the browser or a proxy (ADR-0014): logging out leaves nothing to show.
+// The one exception is the published listing in the browse routes, which set their own short public cache for the CDN (EN-12).
 app.use((req, res, next) => {
   const correlationId = req.header("x-correlation-id") ?? randomUUID();
   req.headers["x-correlation-id"] = correlationId;
@@ -35,3 +37,4 @@ app.use((req, res, next) => {
 
 app.use(healthRouter(sql, probeBroker));
 app.use(registrationRouter({ sql, auth: supabaseAuthenticator }));
+app.use(waitingRoomRouter({ sql, auth: supabaseAuthenticator }));

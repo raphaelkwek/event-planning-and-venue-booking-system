@@ -6,6 +6,8 @@ import { handleMessage } from "../../src/consumer/handleApproval.js";
 import { handleListingMessage } from "../../src/consumer/handleListing.js";
 import { CallerRefusedError, IdentityUnavailableError, type Authenticator } from "../../src/api/auth.js";
 import { registrationRouter } from "../../src/api/routes.js";
+import { waitingRoomRouter } from "../../src/api/waitingRoom.js";
+import type { WaitingRoomConfig } from "../../src/service/waitingRoom.js";
 
 /**
  * Test fixtures for R1 to R4, against the real registration schema. Events
@@ -50,6 +52,8 @@ export interface ListingOptions {
   opensAt?: string | null;
   closesAt?: string | null;
   deadline?: string | null;
+  /** EN-19. Left out, the message carries no flag at all, as one published before the flag did. */
+  highDemand?: boolean;
   startsAt?: string;
   endsAt?: string;
   changedAt?: string;
@@ -73,6 +77,7 @@ export function listingMessage(eventId: string, reference: string, o: ListingOpt
       registrationOpensAt: o.opensAt === undefined ? OPENS : o.opensAt,
       registrationClosesAt: o.closesAt === undefined ? CLOSES : o.closesAt,
       withdrawalDeadlineAt: o.deadline === undefined ? DEADLINE : o.deadline,
+      ...(o.highDemand === undefined ? {} : { highDemand: o.highDemand }),
       changedAt: o.changedAt ?? new Date().toISOString(),
     },
     "/connectsphere/planning-core/event",
@@ -165,6 +170,8 @@ export async function cleanUp(sql: Sql): Promise<void> {
   const events = [...created.events];
   const messages = [...created.messages];
   if (events.length) {
+    await sql`delete from registration.waiting_room_entries where event_id in ${sql(events)}`;
+    await sql`delete from registration.waiting_room_gates where event_id in ${sql(events)}`;
     await sql`delete from registration.outbox where message_key in (select id::text from registration.registrations where event_id in ${sql(events)})`;
     await sql`delete from registration.registrations where event_id in ${sql(events)}`;
     await sql`delete from registration.seats where event_id in ${sql(events)}`;
@@ -201,11 +208,15 @@ export const fakeAuth: Authenticator = {
 
 const noLimit: RequestHandler = (_req, _res, next) => next();
 
-/** The attendee API on its own, with the fake identity and a clock the test controls. */
-export function appAt(sql: Sql, clock: { now: Date }) {
+/** EN-19: 50 admissions a second, a token good for a minute, and a key for tests only. */
+export const ROOM: WaitingRoomConfig = { admitPerSecond: 50, tokenTtlSeconds: 60, signingKey: "test-only-waiting-room-key-32-chars-min" };
+
+/** The attendee API and the waiting room on their own, with the fake identity and a clock the test controls. */
+export function appAt(sql: Sql, clock: { now: Date }, room: WaitingRoomConfig = ROOM) {
   const app = express();
   app.use(express.json());
-  app.use(registrationRouter({ sql, auth: fakeAuth, limiter: noLimit, clock: () => clock.now }));
+  app.use(registrationRouter({ sql, auth: fakeAuth, limiter: noLimit, clock: () => clock.now, signingKey: room.signingKey }));
+  app.use(waitingRoomRouter({ sql, auth: fakeAuth, limiter: noLimit, clock: () => clock.now, waitingRoom: room }));
   return app;
 }
 
