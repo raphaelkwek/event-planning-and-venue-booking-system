@@ -97,7 +97,19 @@ jobs:
       - name: Smoke (40 req/s for 10 s, 20 seats)
         run: npx tsx load/support/run.ts smoke
 
-      - name: Spike (500 req/s for 10 s, 100 seats)
+      # Three times, each on a fresh event, because one shared runner's result varies from run to run
+      # and a single run would hide that.
+      - name: Spike (500 req/s for 10 s, 100 seats), run 1 of 3
+        run: npx tsx load/support/run.ts spike
+
+      - name: Spike, run 2 of 3
+        env:
+          LOAD_OUT_NAME: spike-2
+        run: npx tsx load/support/run.ts spike
+
+      - name: Spike, run 3 of 3
+        env:
+          LOAD_OUT_NAME: spike-3
         run: npx tsx load/support/run.ts spike
 
       - name: Upload the k6 summaries, results and service logs
@@ -283,7 +295,7 @@ jobs:
           if-no-files-found: ignore
 
   manifests:
-    name: Manifests (kubeconform, Chaos Mesh)
+    name: Manifests (kubeconform, Chaos Mesh, autoscaling)
     if: github.event.action != 'edited'
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -317,3 +329,14 @@ jobs:
             -schema-location default \
             -schema-location "$PWD/chaos-mesh-schemas/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json" \
             deploy/chaos
+
+      # The tuned autoscaling is a kustomize component. Its base manifests are in pull request #75, which is
+      # not merged, so it is rendered against a copy of them (deploy/k8s/test/autoscaling) and the
+      # result is validated like any overlay. What is rendered is shown, not only checked.
+      - name: Render the autoscaling component and validate the result
+        run: |
+          kubectl kustomize deploy/k8s/test/autoscaling > rendered-autoscaling.yaml
+          ./kubeconform -strict -summary -kubernetes-version 1.33.0 -schema-location default rendered-autoscaling.yaml
+          echo "::group::The HPA and the container resources as rendered"
+          grep -E 'minReplicas|maxReplicas|averageUtilization|cpu: |REGISTRATION_DB_POOL_MAX|stabilizationWindowSeconds' rendered-autoscaling.yaml
+          echo "::endgroup::"

@@ -1,0 +1,37 @@
+{
+  "inputs": {
+    "cpuMsPerRequest": 2.5,
+    "peakRequestsPerSecond": 500,
+    "cpuRequestMillicores": 500,
+    "targetUtilisationPercent": 70,
+    "poolSizePerPod": 5,
+    "poolerConnectionLimit": 100,
+    "minimumForAvailability": 2,
+    "headroomFactor": 1.5
+  },
+  "measurements": [
+    {
+      "scenario": "spike",
+      "run": "https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41530864706",
+      "cpuMsPerRequest": 1.762
+    },
+    {
+      "scenario": "spike",
+      "run": "https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41531666886",
+      "cpuMsPerRequest": 2.341
+    },
+    {
+      "scenario": "soak",
+      "run": "https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41531666886",
+      "cpuMsPerRequest": 1.697
+    },
+    {
+      "scenario": "stress",
+      "run": "https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41531666886",
+      "cpuMsPerRequest": 2.023
+    }
+  ],
+  "assumptions": [
+    "poolerConnectionLimit is the share of the database pooler's client connections that registration may use. The team's Supabase plan limit is not known here: confirm it, and change this number if it is lower."
+  ]
+}
