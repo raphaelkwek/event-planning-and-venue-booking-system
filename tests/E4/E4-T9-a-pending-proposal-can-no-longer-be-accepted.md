@@ -19,8 +19,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | The automated tests performed this card's steps against the real Express app and a migrated Postgres (authentication stubbed). The nominee's accept answered 410 REASSIGNMENT_RETIRED with the message naming E4; Coordinator One's assignment stayed the only one and active, no event.reassignment-accepted message was written and the proposal stayed PENDING. Running migration event/0020 left the proposal CLOSED with resolved_at set and a DECLINED proposal unchanged, and a second run changed nothing. |
+| Status | Pass |
+| Remarks | Automated (API level) · Commit: 2f7c1256a9a2bdb8a767e8ffef0925b869a4ee19 · Evidence: backend/services/planning-core/tests/event/api/reassignments.test.ts › refuses the nominee's accept with 410, pointing to the Lead, and moves nothing (M8); backend/services/planning-core/tests/event/api/auditFixes.test.ts › migration event/0020 closes each pending proposal, unaccepted, and leaves resolved ones as they were (M8), migration event/0020 is idempotent: a second run changes nothing, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41519054822 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

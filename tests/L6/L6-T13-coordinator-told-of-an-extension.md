@@ -19,8 +19,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | The automated tests performed this card's steps. PATCH /api/v1/holds/<H1>/expiry answered 200 and wrote exactly one venue-booking.hold-expiry-changed message carrying the hold id and reference, the venue id and name, the event id and reference, coordinatorId C1, the new expiry, previousExpiresAt and changedBy VS. The notification rules turned that message into one notice to C1 alone, naming the venue, event, period, the new expiry and the old one in Singapore time, and a message with no coordinator notified nobody. |
+| Status | Pass |
+| Remarks | Automated (API level) · Commit: 2f7c1256a9a2bdb8a767e8ffef0925b869a4ee19 · Evidence: backend/services/planning-core/tests/venue/api/l6Cards.test.ts › L6-T13 tells the holding coordinator what the new expiry is, in the message the change writes (W9-40); backend/services/notification/tests/domain/recipients.test.ts › tells the coordinator when Venue Staff move the expiry, naming the old and the new (W9-40), CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41519054822 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |
