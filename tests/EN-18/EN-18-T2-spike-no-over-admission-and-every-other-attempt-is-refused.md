@@ -18,8 +18,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result |  |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By |  |
-| Date of Execution |  |
+| Actual Result | In each of the three spikes every attempt that was not a 201 was a 409 REGISTRATION_FULL (4899, 4901, 4901 of them), with 0 rate-limited, 0 server errors and 0 timeouts; the 201s plus the refusals equal the 4999, 5001, 5001 requests k6 completed; registrations never exceeded 100. |
+| Status | Pass |
+| Remarks | Automated (load and chaos run in CI) · Commit: faf5ebc · Evidence: `.github/workflows/load-chaos.yml` › job `Load (k6 smoke and 500 req/s spike)`, steps `Spike (500 req/s for 10 s, 100 seats), run 1 of 3`, `Spike, run 2 of 3`, `Spike, run 3 of 3`; results in `documentation/evidence/EN-18/spike-1`, `spike-2`, `spike-3`, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41533430275 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

@@ -18,8 +18,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result |  |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
+| Actual Result | Not run. The CancelEvent workflow and the CANCEL_PENDING state are in pull requests #71 and #72 (F3, F4), which are not on this branch, so there is nothing to kill. The Chaos Mesh manifest (deploy/chaos/01-core-pod-kill.yaml) is written and validated by EN-20-T8, not applied. |
+| Status | Blocked |
+| Remarks | Blocked by F3 and F4 (PRs #71, #72) and a staging cluster with Chaos Mesh · Evidence: documentation/evidence/EN-20/1-crash-mid-cancellation.md · Defect: — |
 | Executed By |  |
 | Date of Execution |  |

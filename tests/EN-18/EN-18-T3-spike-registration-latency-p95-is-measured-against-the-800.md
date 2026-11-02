@@ -18,8 +18,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result |  |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By |  |
-| Date of Execution |  |
+| Actual Result | p95 of all attempts 463, 401, 411 ms; of the registered 729, 613, 612 ms; of the refused 425, 377, 376 ms, at 499.7, 499.9, 499.9 req/s achieved. 800 ms met at the rate achieved in all three. A later run of the same code on a slower runner gave p95 712, 798 and 736 ms at about 490 req/s with 52 to 98 iterations dropped (run 41535317066): recorded in the evidence README, not a failure of the card. |
+| Status | Pass |
+| Remarks | Automated (load and chaos run in CI) · Commit: faf5ebc · Evidence: `.github/workflows/load-chaos.yml` › job `Load (k6 smoke and 500 req/s spike)`, steps `Spike (500 req/s for 10 s, 100 seats), run 1 of 3`, `Spike, run 2 of 3`, `Spike, run 3 of 3`; results in `documentation/evidence/EN-18/spike-1`, `spike-2`, `spike-3`, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41533430275 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

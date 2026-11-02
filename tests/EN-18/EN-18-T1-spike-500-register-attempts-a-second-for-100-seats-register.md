@@ -18,8 +18,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result |  |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By |  |
-| Date of Execution |  |
+| Actual Result | Three spikes of 500 req/s for 10 s at a 100-seat event. In each: 100 REGISTERED registrations, 100 CLAIMED seats, 100 distinct attendees in 100 distinct seats, exactly 100 responses with status 201. Rate achieved 499.7, 499.9, 499.9 req/s; k6 dropped 2, 0, 0 iterations, as the result records. |
+| Status | Pass |
+| Remarks | Automated (load and chaos run in CI) · Commit: faf5ebc · Evidence: `.github/workflows/load-chaos.yml` › job `Load (k6 smoke and 500 req/s spike)`, steps `Spike (500 req/s for 10 s, 100 seats), run 1 of 3`, `Spike, run 2 of 3`, `Spike, run 3 of 3`; results in `documentation/evidence/EN-18/spike-1`, `spike-2`, `spike-3`, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41533430275 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

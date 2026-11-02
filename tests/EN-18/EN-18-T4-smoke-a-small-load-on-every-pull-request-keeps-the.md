@@ -18,8 +18,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result |  |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By |  |
-| Date of Execution |  |
+| Actual Result | Smoke: 20 seats, 40 req/s for 10 s. 20 registered, 380 refused REGISTRATION_FULL, no other response, 0 over-admission; p95 6.3 ms (limit 800 ms); 40.0 req/s achieved. |
+| Status | Pass |
+| Remarks | Automated (load and chaos run in CI) · Commit: faf5ebc · Evidence: `.github/workflows/load-chaos.yml` › job `Load (k6 smoke and 500 req/s spike)`, step `Smoke (40 req/s for 10 s, 20 seats)`; `documentation/evidence/EN-18/smoke`, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41533430275 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

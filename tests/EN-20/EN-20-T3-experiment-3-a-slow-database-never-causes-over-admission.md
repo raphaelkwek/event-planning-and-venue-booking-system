@@ -18,8 +18,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result |  |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By |  |
-| Date of Execution |  |
+| Actual Result | With 500 ms of latency on the registration database connection, a 600-attempt burst gave 100 x 201 and 500 x 409 REGISTRATION_FULL, no error; the database held 100 registrations, 100 claimed seats, 100 distinct attendees and seats, 0 unmatched, 100 outbox rows. p95 was 472 ms without the toxic and 15,097 ms with it, so the 800 ms objective was not met under the toxic, as the evidence says. |
+| Status | Pass |
+| Remarks | Automated (load and chaos run in CI) · Commit: faf5ebc · Evidence: `chaos/experiments/03-slow-database.test.ts` › Experiment 3: a slow database never causes over-admission › seats stay exact while every database answer takes 500 ms longer (EN-20-T3), CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41533430275 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

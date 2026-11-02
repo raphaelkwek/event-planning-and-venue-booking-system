@@ -18,8 +18,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result |  |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By |  |
-| Date of Execution |  |
+| Actual Result | The autoscaling unit tests passed (8 in autoscaling.unit.test.ts, 5 in sizing.unit.test.ts): for 3.0 ms of CPU per request (at or above every measured figure), 500 req/s, a 500m request at 70%, the sizing gives 5 pods at the peak, a maximum of 8 within the 16 the connection budget (5 connections a pod, 80% of 100) allows, and a minimum of 2; the component's HPA and pod patches equal them. The Manifests job rendered the component with kubectl kustomize (minReplicas 2, maxReplicas 8, 70%, 500m/1000m, REGISTRATION_DB_POOL_MAX) and kubeconform found 4 resources valid. The evidence README says the HPA was tuned from single-node measurements and was not demonstrated. |
+| Status | Pass |
+| Remarks | Automated (unit tests and manifest validation in CI) · Commit: 477e05c · Evidence: `load/tests/autoscaling.unit.test.ts` and `load/tests/sizing.unit.test.ts` (CI job `Lint, typecheck, build, unit tests`, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41535317499); `.github/workflows/load-chaos.yml` › job `Manifests (kubeconform, Chaos Mesh, autoscaling)`, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41535317066 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

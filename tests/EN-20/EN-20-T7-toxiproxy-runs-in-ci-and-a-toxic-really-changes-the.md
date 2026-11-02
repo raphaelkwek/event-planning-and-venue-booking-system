@@ -18,8 +18,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result |  |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By |  |
-| Date of Execution |  |
+| Actual Result | Through the Toxiproxy proxy, select 1 took longer by at least 500 ms (less 50 ms tolerance) with the 500 ms latency toxic, and was fast again once it was removed; with the proxy disabled the open connection and a new one both failed, and after enabling it a new connection worked. |
+| Status | Pass |
+| Remarks | Automated (load and chaos run in CI) · Commit: faf5ebc · Evidence: `chaos/experiments/00-toxiproxy.test.ts` › Toxiproxy (EN-20-T7) › a 500 ms latency toxic makes a query through the proxy at least 500 ms slower (EN-20-T7); a disabled proxy refuses new connections and drops the open one, and enabling it brings both back (EN-20-T7), CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41533430275 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

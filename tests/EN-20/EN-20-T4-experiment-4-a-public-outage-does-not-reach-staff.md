@@ -18,8 +18,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result |  |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By |  |
-| Date of Execution |  |
+| Actual Result | With the registration process killed, the four staff calls returned 200 with bodies identical to before (p95 3.3 ms during the outage, 4.3 ms before); the three public calls failed with ECONNREFUSED; after the restart browsing answered 200 and the staff calls were unchanged. The browse-from-cache half is not claimed (no CDN). |
+| Status | Pass |
+| Remarks | Automated (load and chaos run in CI) · Commit: faf5ebc · Evidence: `chaos/experiments/04-public-outage.test.ts` › Experiment 4: a public outage does not reach staff › staff functions answer exactly as before while registration is down, and the public routes return when it is back (EN-20-T4), CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41533430275 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

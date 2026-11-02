@@ -18,8 +18,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result |  |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
+| Actual Result | Not run. The ReduceCapacity workflow (ADR-0009) is not built, so there is no capacity reduction to partition. The Chaos Mesh manifest (deploy/chaos/06-core-registration-partition.yaml) is written and validated by EN-20-T8, not applied. |
+| Status | Blocked |
+| Remarks | Blocked by the ReduceCapacity workflow and a staging cluster with Chaos Mesh · Evidence: documentation/evidence/EN-20/6-partition-and-reduced-capacity.md · Defect: — |
 | Executed By |  |
 | Date of Execution |  |
