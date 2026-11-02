@@ -1,0 +1,98 @@
+# EN-21. Signs one container image keylessly, attaches its SBOM as a signed attestation, and
+# verifies both. Keyless means there is no key to keep: cosign asks the workflow's GitHub OIDC
+# token for a short-lived Fulcio certificate that names this workflow, signs, and records the
+# signature in the Rekor transparency log.
+#
+# Two callers use it, so that what runs on a pull request is what runs on main:
+#   - deploy.yml, on a push to main, against the image it has just pushed to GHCR;
+#   - supply-chain.yml, on a pull request, against a throwaway registry on the runner.
+#
+# The calling job needs `id-token: write`. The image must be given by digest, never by tag.
+name: Sign, attest and verify an image
+description: Keyless cosign signature and CycloneDX SBOM attestation for one image, verified afterwards.
+
+inputs:
+  image:
+    description: The image to sign, by digest (registry/name@sha256:...).
+    required: true
+  identity:
+    description: The exact certificate identity the signature must carry (the calling workflow and ref).
+    required: true
+  sbom-path:
+    description: Where to write the CycloneDX SBOM that is generated from the image and attested.
+    required: true
+  require-oidc:
+    description: "true fails the step when the job has no OIDC token (main); false skips with a notice (a pull request from a fork)."
+    default: "true"
+
+runs:
+  using: composite
+  steps:
+    - name: Check the job can ask for an OIDC token
+      id: oidc
+      shell: bash
+      env:
+        REQUIRE: ${{ inputs.require-oidc }}
+      run: |
+        if [ -n "${ACTIONS_ID_TOKEN_REQUEST_URL:-}" ]; then
+          echo "available=true" >> "$GITHUB_OUTPUT"
+        elif [ "$REQUIRE" = "true" ]; then
+          echo "::error::no OIDC token: the job needs 'permissions: id-token: write'"
+          exit 1
+        else
+          echo "::notice::No OIDC token (a pull request from a fork gets none), so nothing is signed here."
+          echo "available=false" >> "$GITHUB_OUTPUT"
+        fi
+
+    - name: Install cosign
+      if: steps.oidc.outputs.available == 'true'
+      uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+      with:
+        cosign-release: v3.1.4
+
+    - name: Make the SBOM of the image as it is in the registry
+      if: steps.oidc.outputs.available == 'true'
+      shell: bash
+      env:
+        IMAGE: ${{ inputs.image }}
+        SBOM: ${{ inputs.sbom-path }}
+      run: |
+        bash .github/scripts/install-supply-chain-tools.sh syft
+        # A registry on the runner speaks plain HTTP.
+        case "$IMAGE" in localhost:*) export SYFT_REGISTRY_INSECURE_USE_HTTP=true ;; esac
+        SYFT_CHECK_FOR_APP_UPDATE=false syft "registry:${IMAGE}" -o "cyclonedx-json=${SBOM}"
+        node -e 'const b=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"));if(b.bomFormat!=="CycloneDX"||!(b.components||[]).length)process.exit(1);console.log("SBOM: CycloneDX "+b.specVersion+", "+b.components.length+" components")' "$SBOM"
+
+    - name: Sign the image
+      if: steps.oidc.outputs.available == 'true'
+      shell: bash
+      env:
+        IMAGE: ${{ inputs.image }}
+      run: cosign sign --yes "$IMAGE"
+
+    - name: Attest the SBOM
+      if: steps.oidc.outputs.available == 'true'
+      shell: bash
+      env:
+        IMAGE: ${{ inputs.image }}
+        SBOM: ${{ inputs.sbom-path }}
+      run: cosign attest --yes --type cyclonedx --predicate "$SBOM" "$IMAGE"
+
+    - name: Verify the signature and the attestation
+      if: steps.oidc.outputs.available == 'true'
+      shell: bash
+      env:
+        IMAGE: ${{ inputs.image }}
+        IDENTITY: ${{ inputs.identity }}
+      run: |
+        issuer="https://token.actions.githubusercontent.com"
+        cosign verify "$IMAGE" --certificate-identity "$IDENTITY" --certificate-oidc-issuer "$issuer" > /dev/null
+        echo "ok: signature verifies for ${IDENTITY}"
+        cosign verify-attestation "$IMAGE" --type cyclonedx --certificate-identity "$IDENTITY" --certificate-oidc-issuer "$issuer" > /dev/null
+        echo "ok: CycloneDX attestation verifies for ${IDENTITY}"
+        # A verifier must refuse anyone else's signature.
+        if cosign verify "$IMAGE" --certificate-identity "${IDENTITY}-somebody-else" --certificate-oidc-issuer "$issuer" > /dev/null 2>&1; then
+          echo "::error::cosign accepted a wrong identity"
+          exit 1
+        fi
+        echo "ok: a wrong identity is refused"

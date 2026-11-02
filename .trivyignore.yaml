@@ -1,0 +1,16 @@
+# EN-21. Findings Trivy is told to accept, each with a reason and a date after which it is reported
+# again. A new finding is never added here to make the build green: fix it, or explain it.
+misconfigurations:
+  # EN-10's Terraform leaves the EKS API endpoint public with the CIDR list open (0.0.0.0/0) until
+  # the team knows the network it will be reached from. deploy/terraform/README.md says to set
+  # endpoint_public_access_cidrs before the first apply; nothing has been applied (no AWS account).
+  - id: AWS-0040
+    paths:
+      - deploy/terraform/modules/eks/main.tf
+    statement: EKS API endpoint is public by design until a team CIDR is known; set endpoint_public_access_cidrs before the first apply.
+    expired_at: 2026-12-31
+  - id: AWS-0041
+    paths:
+      - deploy/terraform/modules/eks/main.tf
+    statement: The CIDR list defaults to 0.0.0.0/0 until a team CIDR is known; set endpoint_public_access_cidrs before the first apply.
+    expired_at: 2026-12-31

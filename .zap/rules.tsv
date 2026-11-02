@@ -1,0 +1,7 @@
+# EN-21. What the ZAP baseline does with each rule, one rule per line:
+#
+#   <rule id><TAB><IGNORE|INFO|WARN|FAIL><TAB><what it is, and for IGNORE why>
+#
+# Rules not listed here WARN: they are reported and do not fail the build. Chosen threshold: the
+# build fails on a FAIL rule only, and no rule is FAIL until the first scan's findings have been
+# read (documentation/evidence/EN-21/zap.md). Every IGNORE needs its reason on the same line.
