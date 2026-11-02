@@ -4,6 +4,56 @@
 
 ---
 
+# A4: coordinators act only on the events assigned to them (CR-05)
+
+**Timestamp:** 2026-11-02T23:59+08:00 (SGT)
+**Author:** Shawmya, via Claude
+**Scope:** contracts (`ASSIGNED_TO_USER` scope), planning-core (identity, event, change, venue,
+equipment modules), Cerbos policies, web app (All events), functional test cases. No migration.
+
+## Changed
+
+- A coordinator's events scope is now `ASSIGNED_TO_USER` (was `ALL`); the Lead keeps `ALL`. The
+  event repo applies it in the query, so every list, read and action that finds an event through
+  the scope sees only the caller's actively assigned, non-draft events. The D1 queue holds only the
+  caller's requests. A reassigned event leaves the previous coordinator at once.
+- Anything outside the scope is not found. Decided with the story owner: CQ-11 is open, and until
+  it is answered a coordinator gets no read-only view of other events. One 404 for "not yours" and
+  "does not exist", worded "No event with that reference is assigned to you." (or "No booking
+  request / hold / equipment request line / change request with that id is on an event assigned to
+  you."), from `notInScopeMessage` in identity's public interface. It meets AC1 without revealing
+  the event (implementation.md §6).
+- The separate 403 assignment checks in F5, S2, O1, L1, L2 and L3 can no longer be reached and are
+  removed, so one rule decides. S2 now checks the scope before the request's status, and a
+  coordinator can no longer read another event's equipment line by id.
+- Cerbos: coordinator rules use `assigned_coordinator`; `release_hold` follows the assignment
+  (as the code does), so `heldById` is gone. The policy suite runs in CI only (no network here).
+- All events: the "Every event" / "Assigned to me" filter is gone, as every row is the
+  coordinator's own.
+
+## Tests
+
+- A4-T1 to A4-T13 automated in `tests/event/api/a4Cards.test.ts`, all passing on a throwaway
+  Postgres. With the old scope, nine of them fail. A4-T14 (browser) and A4-T15 (F3, not on main)
+  are Not Executed.
+- Regression, as the story asks: A3, D1, E4, F5, G1, L1, L2, L3, O1, S2 and S3 tests and cases now
+  expect 404 with A4's message for another coordinator. Browser cases are reset to Not Executed.
+
+## Not done, or to raise
+
+- **S3 AC8** says any Event Coordinator sees an event's flags; A4 overrides that for unassigned
+  coordinators. S3's owner should agree it.
+- **E2's legacy proposals:** the nominee can still accept or decline through the API, but can't
+  open the event page to do it, since it isn't assigned to them yet.
+- **Race:** the scope is checked when the action reads the event. A Lead reassignment committing
+  in the same instant as the old coordinator's action may not stop it. G1 re-checks under lock.
+- **F3/F4** aren't on main; they should look the event up through the scope like the rest.
+- **OpenAPI** 404 descriptions not updated yet. RLS (EN-07.2) follows.
+- `tests/race/invariants.test.ts` L3-T17 hard-codes 2026-11-02 with a 09:00 expiry, so it fails
+  from that evening on, on main too. Not changed here (L3 / EN-02.3).
+
+---
+
 # S3: flag the arrangements an approved change affects (SPM-59)
 
 **Timestamp:** 2026-10-28T12:00+08:00 (SGT)
