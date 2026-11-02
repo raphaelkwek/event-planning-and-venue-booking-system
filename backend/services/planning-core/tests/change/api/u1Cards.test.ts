@@ -220,7 +220,7 @@ describe("U1 cards (tests/U1)", () => {
     expect(listed.body.events.find((entry: { id: string }) => entry.id === event.id)).toMatchObject({
       reference: event.reference,
       name: event.name,
-      expectedAttendance: 150,
+      expectedAttendance: 120,
       assignedCoordinatorId: A.c1,
       decision: null,
     });

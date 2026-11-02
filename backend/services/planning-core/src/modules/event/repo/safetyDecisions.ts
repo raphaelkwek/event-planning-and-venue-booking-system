@@ -109,7 +109,11 @@ export interface SafetyQueueEntry {
   decision: SafetyDecision | null;
 }
 
-/** The events in Safety Review, longest-waiting first, each with the decision already made for its review. */
+/**
+ * The events in Safety Review, longest-waiting first. A review's key is the entry time as the
+ * service reads it (a JavaScript Date, to the millisecond), so the join truncates the stored
+ * microseconds the same way.
+ */
 export async function listSafetyReviewQueue(sql: Sql): Promise<SafetyQueueEntry[]> {
   const rows = await sql<
     {
@@ -135,7 +139,7 @@ export async function listSafetyReviewQueue(sql: Sql): Promise<SafetyQueueEntry[
       order by h.occurred_at desc, h.created_at desc
       limit 1
     ) entered on true
-    left join event.safety_decisions d on d.event_id = e.id and d.review_started_at = entered.occurred_at
+    left join event.safety_decisions d on d.event_id = e.id and d.review_started_at = date_trunc('milliseconds', entered.occurred_at)
     where e.status = 'SAFETY_REVIEW'
     order by entered.occurred_at, e.reference
   `;
