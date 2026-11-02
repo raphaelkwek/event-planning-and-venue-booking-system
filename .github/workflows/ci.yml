@@ -140,9 +140,13 @@ jobs:
         run: npm run test:coverage -w @connectsphere/planning-core
 
       - name: Integration tests (notification)
+        # Runs even when an earlier suite failed, so one failure does not hide the others.
+        if: ${{ !cancelled() }}
         run: npm test -w @connectsphere/notification
 
       - name: Integration tests (registration)
+        # Runs even when an earlier suite failed, so one failure does not hide the others.
+        if: ${{ !cancelled() }}
         run: npm test -w @connectsphere/registration
 
   # EN-06.3 (SPM-172). Rules and the reasons for the ones turned off are in
