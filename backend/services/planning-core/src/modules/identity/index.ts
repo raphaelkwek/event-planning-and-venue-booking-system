@@ -5,6 +5,7 @@ import { authRouter } from "./api/auth.js";
 import { accessScopeRouter } from "./api/accessScope.js";
 import { usersMeRouter } from "./api/usersMe.js";
 import { usersRouter } from "./api/users.js";
+import { attendeesRouter } from "./api/attendees.js";
 import { identityRateLimiter, loginRateLimiter } from "./api/limiter.js";
 import { findRoleForUser, findUserBySupabaseId, listActiveUsersWithRole } from "./repo/users.js";
 
@@ -22,6 +23,8 @@ export function identityRouter(sql: Sql): Router {
   router.use(accessScopeRouter(sql, reads));
   router.use(usersMeRouter(sql, reads));
   router.use(usersRouter(sql, reads));
+  // R7: the registration service finds the attendee an organiser adds by hand.
+  router.use(attendeesRouter(sql, reads));
   return router;
 }
 

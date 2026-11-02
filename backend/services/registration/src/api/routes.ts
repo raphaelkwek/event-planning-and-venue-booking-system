@@ -1,4 +1,4 @@
-import { Router, type NextFunction, type Request, type RequestHandler, type Response } from "express";
+import { Router, type RequestHandler } from "express";
 import type { Sql } from "postgres";
 import { isListed } from "../domain/registrationRules.js";
 import { capacityMessage, deadlineMessage, duplicateMessage, notActiveMessage, windowMessage } from "../domain/refusals.js";
@@ -8,9 +8,13 @@ import { placeCountsOf } from "../repo/seats.js";
 import { venuesOf } from "../repo/venues.js";
 import { register } from "../service/register.js";
 import { withdraw } from "../service/withdraw.js";
-import { attendeeOnly, signedIn, type Authenticator, type CallerRequest } from "./auth.js";
+import { attendeeOnly, signedIn, type Authenticator } from "./auth.js";
+import { planningCoreDirectory, type Directory } from "./directory.js";
 import { refuse } from "./errors.js";
+import { encodeCursor, handle, isInstant, isUuid, readPage, UUID } from "./http.js";
 import { registrationRateLimiter } from "./limiter.js";
+import { managementRouter } from "./managementRoutes.js";
+import { waitlistRouter } from "./waitlistRoutes.js";
 import { presentOpenEvent, presentRegistration } from "./present.js";
 
 /**
@@ -18,7 +22,9 @@ import { presentOpenEvent, presentRegistration } from "./present.js";
  * - GET  /open-events, /open-events/:eventId: browse (R1), any signed-in user;
  * - POST /registrations: register (R2), attendees only;
  * - GET  /registrations, /registrations/:id: my registrations (R3), attendees only, only their own;
- * - POST /registrations/:id/withdrawal: withdraw (R4), attendees only, only their own.
+ * - POST /registrations/:id/withdrawal: withdraw (R4), attendees only, only their own;
+ * - the waitlist (R6, waitlistRoutes.ts) and the organiser's side (R5 to R7,
+ *   managementRoutes.ts), which share this router's limiter and clock.
  * Every route is rate limited before its token is checked.
  */
 
@@ -29,57 +35,12 @@ export interface RouterDeps {
   limiter?: RequestHandler;
   /** The instant rules are judged at; tests fix it to test a boundary at the millisecond. */
   clock?: () => Date;
+  /** Names people for the organiser's lists and finds the attendee they add (R5 to R7); tests pass a fake. */
+  directory?: Directory;
 }
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const DEFAULT_LIMIT = 25;
-const MAX_LIMIT = 100;
 const EVENT_NOT_FOUND = "No event open for registration has that id.";
 const REGISTRATION_NOT_FOUND = "No registration with that id is yours.";
-
-/** Express 4 does not catch a rejected promise from an async handler, so every handler passes its errors on. */
-const handle =
-  (fn: (req: CallerRequest, res: Response) => Promise<unknown>): RequestHandler =>
-  (req: Request, res: Response, next: NextFunction) => {
-    fn(req as CallerRequest, res).catch(next);
-  };
-
-function encodeCursor(cursor: object): string {
-  return Buffer.from(JSON.stringify(cursor)).toString("base64url");
-}
-
-function decodeCursor<T>(text: string, valid: (value: Record<string, unknown>) => boolean): T | null {
-  try {
-    const value = JSON.parse(Buffer.from(text, "base64url").toString("utf8")) as Record<string, unknown>;
-    if (value && typeof value === "object" && valid(value)) return value as T;
-  } catch {
-    // Not a cursor this service issued.
-  }
-  return null;
-}
-
-const isInstant = (value: unknown) => typeof value === "string" && !Number.isNaN(Date.parse(value));
-const isUuid = (value: unknown) => typeof value === "string" && UUID.test(value);
-
-/** The page size and cursor, or the refusal already sent. */
-function readPage<T>(req: Request, res: Response, valid: (value: Record<string, unknown>) => boolean): { limit: number; after: T | null } | null {
-  const limit = req.query.limit === undefined ? DEFAULT_LIMIT : Number(req.query.limit);
-  if (!Number.isInteger(limit) || limit < 1 || limit > MAX_LIMIT) {
-    refuse(res, 400, "VALIDATION_FAILED", `limit must be a whole number from 1 to ${MAX_LIMIT}.`, {
-      fields: [{ field: "limit", message: `Give a whole number from 1 to ${MAX_LIMIT}.` }],
-    });
-    return null;
-  }
-  if (req.query.cursor === undefined) return { limit, after: null };
-  const after = typeof req.query.cursor === "string" ? decodeCursor<T>(req.query.cursor, valid) : null;
-  if (!after) {
-    refuse(res, 400, "VALIDATION_FAILED", "cursor is not one this service issued.", {
-      fields: [{ field: "cursor", message: "Use the nextCursor from a previous page." }],
-    });
-    return null;
-  }
-  return { limit, after };
-}
 
 export function registrationRouter(deps: RouterDeps): Router {
   const { sql, auth } = deps;
@@ -88,6 +49,8 @@ export function registrationRouter(deps: RouterDeps): Router {
   const anyone = signedIn(auth);
   const attendee = attendeeOnly(auth);
   const router = Router();
+  router.use(waitlistRouter({ sql, auth, limiter, now }));
+  router.use(managementRouter({ sql, auth, directory: deps.directory ?? planningCoreDirectory(), limiter, now }));
 
   /** The registrations with their events' listings and venues, as attendees see them. */
   async function present(registrations: Registration[]) {

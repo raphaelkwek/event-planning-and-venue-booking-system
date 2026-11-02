@@ -54,6 +54,7 @@ describe("event.listing-changed", () => {
       eventReference: expect.stringMatching(/^TST-/),
       eventName: "R1 listing",
       ownerId: OWNER,
+      assignedCoordinatorId: null,
       description: "Seeded for a test",
       status: "CONFIRMED",
       proposedStartAt: "2030-02-01T08:00:00.000Z",

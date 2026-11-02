@@ -197,6 +197,39 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "429": { $ref: "#/components/responses/RateLimitExceeded" }
 
+  /api/v1/attendees:
+    get:
+      tags: [Identity]
+      summary: Find the attendee with an email (R7)
+      description: >-
+        Internal staff only. The registration service calls it with the organiser's or
+        coordinator's token to find the attendee they add to an event by hand. Only an active
+        user with the Attendee role is found, ignoring the email's case; anyone else is an empty
+        list. Returns only the fields needed to name someone.
+      operationId: findAttendeeByEmail
+      parameters:
+        - name: email
+          in: query
+          required: true
+          schema: { type: string, format: email, maxLength: 254, examples: ["attendee@connectsphere.test"] }
+      responses:
+        "200":
+          description: The attendee, or an empty list when there is none.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    maxItems: 1
+                    items: { $ref: "#/components/schemas/UserSummary" }
+        "400": { $ref: "#/components/responses/ValidationFailed" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "429": { $ref: "#/components/responses/RateLimitExceeded" }
+
   /api/v1/access-scope/{resource}:
     get:
       tags: [Identity]
@@ -3070,6 +3103,14 @@ components:
         - REGISTRATION_NOT_FOUND
         - REGISTRATION_NOT_ACTIVE
         - WITHDRAWAL_DEADLINE_PASSED
+        - WAITLIST_PLACES_AVAILABLE
+        - WAITLIST_DUPLICATE
+        - WAITLIST_ENTRY_NOT_FOUND
+        - WAITLIST_ENTRY_NOT_ACTIVE
+        - ATTENDEE_NOT_FOUND
+        - REGISTRATION_NO_CONFIRMED_BOOKING
+        - REGISTRATION_OVER_CAPACITY_UNCONFIRMED
+        - REGISTRATION_EVENT_CLOSED
 
     ErrorEnvelope:
       type: object

@@ -14,6 +14,7 @@ import {
   resolveProposalDecline,
 } from "../repo/assignments.js";
 import { writeOutbox } from "../events/outbox.js";
+import { writeListingChanged } from "../events/listing.js";
 import { refuse } from "./errors.js";
 
 /**
@@ -113,6 +114,8 @@ export function reassignmentsRouter(sql: Sql) {
           await closeActiveAssignment(tx, active.id, userId);
         }
         await insertAssignment(tx, event.id, resolved.nomineeCoordinatorId, "REASSIGNMENT_ACCEPTED", userId);
+        // R5, R7: the registration service learns the event's new coordinator.
+        await writeListingChanged(tx, event.id, { userId, role }, req.header("x-correlation-id") ?? null);
       }
 
       await writeOutbox(tx, {

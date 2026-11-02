@@ -141,6 +141,7 @@ const EXAMPLE_DATA: Record<EventMessageType, Record<string, unknown>> = {
   "event.listing-changed": {
     ...ref,
     ownerId: organiser,
+    assignedCoordinatorId: coordinator,
     description: "A week of welcome activities for new students.",
     status: "CONFIRMED",
     proposedStartAt: "2026-11-20T01:00:00.000Z",
@@ -248,6 +249,12 @@ describe("parseCloudEvent: the event's listing (R1 to R4)", () => {
     expect(parseCloudEvent(exampleMessage("event.listing-changed", withDeadline)).data).toEqual(withDeadline);
     const none = { ...listing, registrationRequired: false, registrationOpensAt: null, registrationClosesAt: null };
     expect(parseCloudEvent(exampleMessage("event.listing-changed", none)).data).toEqual(none);
+  });
+
+  it("carries the assigned coordinator (R5, R7), and reads null from a message written before it did", () => {
+    expect(parseCloudEvent(exampleMessage("event.listing-changed", listing)).data).toEqual(listing);
+    expect(parseCloudEvent(exampleMessage("event.listing-changed", without(listing, "assignedCoordinatorId"))).data).toEqual({ ...listing, assignedCoordinatorId: null });
+    expect(() => parseCloudEvent(exampleMessage("event.listing-changed", { ...listing, assignedCoordinatorId: "someone" }))).toThrow(/assignedCoordinatorId/);
   });
 
   it("refuses a listing without its registration settings or its status, which the attendee list filters on", () => {

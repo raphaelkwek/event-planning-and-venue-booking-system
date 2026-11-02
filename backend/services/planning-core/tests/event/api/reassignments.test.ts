@@ -184,6 +184,19 @@ describe("POST /api/v1/events/:id/reassignment-proposals/accept (E2)", () => {
     });
   });
 
+  it("publishes the event's listing with the nominee as its coordinator (R5, R7)", async () => {
+    const { event, nominee } = await givenPendingProposal();
+    signedInAs(nominee, "EVENT_COORDINATOR");
+
+    await request(app).post(`/api/v1/events/${event.id}/reassignment-proposals/accept`).set(bearer).send();
+
+    const listings = await sql<{ envelope: { data: Record<string, unknown> } }[]>`
+      select envelope from event.outbox
+      where message_key = ${event.id} and envelope->>'type' = 'event.listing-changed' order by seq
+    `;
+    expect(listings.at(-1)!.envelope.data).toMatchObject({ eventId: event.id, assignedCoordinatorId: nominee });
+  });
+
   it("refuses a caller who is not the nominee", async () => {
     const { event, active } = await givenPendingProposal();
     signedInAs(active, "EVENT_COORDINATOR");

@@ -29,8 +29,8 @@ export function newTraceparent(): string {
 
 export interface RegistrationMessage {
   messageType: RegistrationMessageType;
-  /** The registration's id: the message key and the envelope's subject (§3.2). */
-  registrationId: string;
+  /** The registration's or waitlist entry's id: the message key and the envelope's subject (§3.2). */
+  subjectId: string;
   actor: { userId: string | null; role: ActorRole };
   correlationId: string | null;
   data: Record<string, unknown>;
@@ -44,7 +44,7 @@ export async function writeRegistrationOutbox(db: Db, message: RegistrationMessa
     id: randomUUID(),
     source: REGISTRATION_SOURCE,
     type: message.messageType,
-    subject: message.registrationId,
+    subject: message.subjectId,
     time: new Date().toISOString(),
     datacontenttype: "application/json",
     ...(message.correlationId ? { correlationid: message.correlationId } : {}),
@@ -54,7 +54,7 @@ export async function writeRegistrationOutbox(db: Db, message: RegistrationMessa
   });
   await sql`
     insert into registration.outbox (topic, message_key, envelope)
-    values (${KAFKA_TOPICS.registration}, ${message.registrationId}, ${sql.json(event as never)})
+    values (${KAFKA_TOPICS.registration}, ${message.subjectId}, ${sql.json(event as never)})
   `;
   return event.id;
 }

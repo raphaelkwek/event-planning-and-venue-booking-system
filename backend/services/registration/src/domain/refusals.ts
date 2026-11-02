@@ -63,3 +63,54 @@ export function deadlineMessage(event: EventLabel, registrationReference: string
 export function notActiveMessage(registrationReference: string, status: RegistrationStatus): string {
   return `Registration ${registrationReference} is ${REGISTRATION_STATUS_LABELS[status]}, so it cannot be withdrawn.`;
 }
+
+/** "1 place" or "3 places". */
+function places(n: number): string {
+  return n === 1 ? "1 place" : `${n} places`;
+}
+
+/** R6: places remain, so the attendee should register instead. */
+export function waitlistPlacesMessage(event: EventLabel, placesRemaining: number): string {
+  return `${eventLabel(event)} still has ${places(placesRemaining)} remaining, so register instead of joining the waitlist.`;
+}
+
+/** R6: a second waiting entry names the first. */
+export function waitlistDuplicateMessage(event: EventLabel, entryReference: string): string {
+  return `You are already on the waitlist for ${eventLabel(event)} (${entryReference}), so no second entry was made.`;
+}
+
+/** R6: an attendee holding a registration can't also wait for one. */
+export function waitlistRegisteredMessage(event: EventLabel, registrationReference: string): string {
+  return `You are already registered for ${eventLabel(event)} (registration ${registrationReference}), so you can't also join its waitlist.`;
+}
+
+/** R6: only a waiting entry can be left; the message says what became of it. */
+export function waitlistNotActiveMessage(entryReference: string, status: "REGISTERED" | "WITHDRAWN" | "CANCELLED"): string {
+  const what = { REGISTERED: "ended when you registered", WITHDRAWN: "was already left", CANCELLED: "was cancelled with the event" }[status];
+  return `Waitlist entry ${entryReference} ${what}, so there is nothing to leave.`;
+}
+
+/** R7: nobody with that email can be added. */
+export function attendeeNotFoundMessage(email: string): string {
+  return `No attendee account has the email ${email}, so nobody was added. Only someone who signs in as an attendee can be added.`;
+}
+
+/** R7: without a confirmed booking there is no capacity yet. */
+export function noBookingMessage(event: EventLabel): string {
+  return `${eventLabel(event)} has no confirmed venue booking, so its capacity is not known yet and nobody can be added.`;
+}
+
+/** R7 (D-01): over capacity, the organiser confirms first. */
+export function overCapacityMessage(event: EventLabel, capacity: number, totalAfter: number): string {
+  return `${eventLabel(event)} has a capacity of ${capacity}. Adding this attendee makes ${totalAfter}, above capacity, so they were not added. Confirm to add them anyway.`;
+}
+
+/** R7: a cancelled, rejected or completed event takes nobody. */
+export function eventClosedMessage(event: EventLabel, statusLabel: string): string {
+  return `${eventLabel(event)} is ${statusLabel}, so nobody can be added to it.`;
+}
+
+/** R7: the attendee already holds a registration, which the refusal names. */
+export function additionDuplicateMessage(event: EventLabel, email: string, registrationReference: string): string {
+  return `${email} already holds registration ${registrationReference} for ${eventLabel(event)}, so they were not added again.`;
+}

@@ -73,3 +73,18 @@ export async function recordSuccessfulLogin(sql: Sql, userId: string, occurredAt
     where id = ${userId}
   `;
 }
+
+/**
+ * R7: the active user holding the Attendee role with this email, ignoring case,
+ * or null. Only an attendee can be added to an event by hand: they must be able
+ * to sign in, see the registration (R3) and withdraw it (R4).
+ */
+export async function findActiveAttendeeByEmail(sql: Sql, email: string): Promise<UserSummaryRow | null> {
+  const rows = await sql<{ id: string; display_name: string | null; email: string }[]>`
+    select u.id, u.display_name, u.email
+    from identity.users u join identity.user_roles r on r.user_id = u.id
+    where lower(u.email) = lower(${email}) and r.role = 'ATTENDEE' and u.is_active
+  `;
+  const row = rows[0];
+  return row ? { id: row.id, displayName: row.display_name, email: row.email } : null;
+}

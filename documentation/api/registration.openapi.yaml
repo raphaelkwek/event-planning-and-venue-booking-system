@@ -3,9 +3,11 @@ info:
   title: ConnectSphere registration service
   version: 0.1.0
   description: |
-    The registration service (ADR-0005) is the public edge for attendees. It serves R1 to R4:
+    The registration service (ADR-0005) is the public edge for attendees. It serves R1 to R7:
     an attendee browses the events open for registration, registers, sees their registrations
-    and withdraws. It never reads planning-core's schema: it keeps its own copy of each event's
+    and withdraws, and waits on a full event's waitlist (R6); the owning organiser and the
+    assigned coordinator see an event's registrations and waitlist (R5, R6) and add attendees by
+    hand (R7). It never reads planning-core's schema: it keeps its own copy of each event's
     published fields and registration settings from planning-core's `event.listing-changed` and
     `event.cancelled` messages, and each event's seats and venues from the venue module's
     `venue-booking.request-approved` (EN-13).
@@ -13,8 +15,10 @@ info:
     **Who is calling.** Every route needs `Authorization: Bearer <Supabase JWT>`. Browsing checks
     the token against Supabase's signing keys only, so it keeps working while planning-core is
     down. Registering, withdrawing and my registrations ask identity (planning-core's
-    `GET /api/v1/users/me`) who the caller is, and only role `ATTENDEE` may use them; if identity
-    cannot be reached they are refused with `503`.
+    `GET /api/v1/users/me`) who the caller is, and only role `ATTENDEE` may use them; the
+    waitlist's attendee routes too. The organiser's routes (R5 to R7) admit any other role, then
+    only the event's owner and assigned coordinator. If identity cannot be reached they are
+    refused with `503`.
 
     **Every route is rate limited** (120 requests a minute per address) before its token is
     checked. Responses carry `Cache-Control: no-store` (ADR-0014) and `X-Correlation-Id`.
@@ -38,6 +42,10 @@ tags:
     description: R1 browse the events open for registration
   - name: Registrations
     description: R2 register, R3 my registrations, R4 withdraw
+  - name: Waitlist
+    description: R6 join, see and leave the waitlist
+  - name: Organiser
+    description: R5 an event's registrations, R6 its waitlist, R7 add an attendee by hand
 
 security:
   - bearerAuth: []
@@ -265,6 +273,254 @@ paths:
         "429": { $ref: "#/components/responses/RateLimited" }
         "503": { $ref: "#/components/responses/IdentityUnavailable" }
 
+  /api/v1/events/{eventId}/waitlist:
+    parameters:
+      - $ref: "#/components/parameters/EventId"
+    post:
+      tags: [Waitlist]
+      summary: Join the event's waitlist (R6)
+      description: |
+        Offered where registering was refused for capacity. Only while the event takes
+        registrations, its window is open and no place remains, never while the attendee holds a
+        registration for it, and once. Joining stores the attendee, the event, status
+        `WAITLISTED` and the time. Promotion is not automatic: when a place opens the attendee is
+        told, and registers through `POST /api/v1/registrations` like anyone else, first come first
+        served; registering ends the entry (status `REGISTERED`). Attendees only.
+      operationId: joinWaitlist
+      responses:
+        "201":
+          description: On the waitlist, with its place in the line.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WaitlistEntry" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/NotAnAttendee" }
+        "404":
+          description: "`EVENT_NOT_FOUND`: no event open for registration has that id."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "409":
+          description: |
+            `WAITLIST_PLACES_AVAILABLE`: places remain, so register instead (`details.placesRemaining`).
+            `REGISTRATION_DUPLICATE`: the attendee holds a registration, which the message and
+            `details.registrationReference` name. `WAITLIST_DUPLICATE`: already waiting; the message
+            and `details.waitlistReference` name the entry.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "422":
+          description: "`REGISTRATION_OUTSIDE_WINDOW`: registration is not open, so there is nothing to wait for."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+    get:
+      tags: [Organiser]
+      summary: The event's waitlist, in order (R6)
+      description: |
+        Every entry in the order it was joined, whatever its status, each waiting one with its place
+        in the line. The owning organiser and the assigned coordinator only; anyone else is answered
+        `404`, as for an unknown event. Names come from identity; if it can't be asked, the list
+        comes back without them and `namesAvailable` is false.
+      operationId: listEventWaitlist
+      parameters:
+        - $ref: "#/components/parameters/StaffLimit"
+        - $ref: "#/components/parameters/Cursor"
+      responses:
+        "200":
+          description: A page of the waitlist.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [event, waiting, items, nextCursor, namesAvailable]
+                properties:
+                  event: { $ref: "#/components/schemas/ManagedEvent" }
+                  waiting: { type: integer, minimum: 0 }
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/ManagedWaitlistEntry" }
+                  nextCursor: { type: [string, "null"] }
+                  namesAvailable: { type: boolean }
+        "400": { $ref: "#/components/responses/ValidationFailed" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/NotStaff" }
+        "404": { $ref: "#/components/responses/NotManaged" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
+  /api/v1/waitlist-entries:
+    get:
+      tags: [Waitlist]
+      summary: My waitlist entries (R6)
+      description: The signed-in attendee's own entries, newest first, whatever their status. Attendees only.
+      operationId: listMyWaitlistEntries
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
+      responses:
+        "200":
+          description: A page of my entries.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, nextCursor]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/WaitlistEntry" }
+                  nextCursor: { type: [string, "null"] }
+        "400": { $ref: "#/components/responses/ValidationFailed" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/NotAnAttendee" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
+  /api/v1/waitlist-entries/{id}/withdrawal:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [Waitlist]
+      summary: Leave the waitlist (R6)
+      description: At any time while waiting. The entry is kept with status `WITHDRAWN`, and later openings don't reach it. Attendees only, their own entries only.
+      operationId: leaveWaitlist
+      responses:
+        "200":
+          description: Left.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WaitlistEntry" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/NotAnAttendee" }
+        "404":
+          description: "`WAITLIST_ENTRY_NOT_FOUND`: no entry with that id is the caller's. Another attendee's answers the same."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "409":
+          description: "`WAITLIST_ENTRY_NOT_ACTIVE`: it is no longer waiting (left, cancelled, or ended by registering); `details.status` says which."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
+  /api/v1/events/{eventId}/registrations:
+    parameters:
+      - $ref: "#/components/parameters/EventId"
+    get:
+      tags: [Organiser]
+      summary: The registrations for an event I manage (R5)
+      description: |
+        Every registration in the order it was made, whatever its status, with the attendee's name,
+        the time and the status; a manual addition (R7) says who added it, why, and whether it went
+        over capacity. The totals count the records in each status, and places remaining is R2's.
+        Waitlist entries are counted apart (`waitlist.waiting`), never as registrations. The owning
+        organiser and the assigned coordinator only; anyone else is answered `404`, as for an
+        unknown event, so they receive no registration data. Names come from identity
+        (`GET /api/v1/users`) when the list is read; if it can't be asked, the list comes back
+        without them and `namesAvailable` is false.
+      operationId: listEventRegistrations
+      parameters:
+        - $ref: "#/components/parameters/StaffLimit"
+        - $ref: "#/components/parameters/Cursor"
+      responses:
+        "200":
+          description: A page of the list, and the totals over all of it.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [event, totals, waitlist, items, nextCursor, namesAvailable]
+                properties:
+                  event: { $ref: "#/components/schemas/ManagedEvent" }
+                  totals: { $ref: "#/components/schemas/RegistrationTotals" }
+                  waitlist:
+                    type: object
+                    required: [waiting]
+                    properties:
+                      waiting: { type: integer, minimum: 0 }
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/ManagedRegistration" }
+                  nextCursor: { type: [string, "null"] }
+                  namesAvailable: { type: boolean }
+        "400": { $ref: "#/components/responses/ValidationFailed" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/NotStaff" }
+        "404": { $ref: "#/components/responses/NotManaged" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
+  /api/v1/events/{eventId}/manual-registrations:
+    parameters:
+      - $ref: "#/components/parameters/EventId"
+    post:
+      tags: [Organiser]
+      summary: Add an attendee by hand (R7)
+      description: |
+        The owning organiser or the assigned coordinator adds the attendee whose account has this
+        email. Allowed when no place remains and after the window closes; refused for a cancelled,
+        rejected or completed event and for one with no confirmed venue booking. A free seat is
+        taken when there is one. With none, the addition is above capacity (D-01): it is saved only
+        with `confirmOverCapacity: true`, records `overCapacity`, and holds no seat until a
+        withdrawal hands it one. The capacity is the total of the confirmed bookings' layout
+        capacities (CQ-04). The attendee is told (`registration.added`) and can withdraw under R4.
+      operationId: addAttendee
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [attendeeEmail]
+              properties:
+                attendeeEmail: { type: string, format: email, maxLength: 254 }
+                reason: { type: [string, "null"], maxLength: 500, description: "Optional; blank means none." }
+                confirmOverCapacity: { type: boolean, default: false }
+      responses:
+        "201":
+          description: Added, with the capacity and the number of attendees it made.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ManagedRegistration"
+                  - type: object
+                    required: [capacity, totalAfter]
+                    properties:
+                      capacity: { type: integer, minimum: 0 }
+                      totalAfter: { type: integer, minimum: 1 }
+        "400": { $ref: "#/components/responses/ValidationFailed" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/NotStaff" }
+        "404": { $ref: "#/components/responses/NotManaged" }
+        "409":
+          description: |
+            `REGISTRATION_DUPLICATE`: the attendee already holds a registration, which the message and
+            `details.registrationReference` name. `REGISTRATION_OVER_CAPACITY_UNCONFIRMED`: no seat is
+            free; `details` gives `capacity`, `registered` and `totalAfter`, to show before confirming.
+            `REGISTRATION_EVENT_CLOSED`: the event is cancelled, rejected or completed.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "422":
+          description: |
+            `ATTENDEE_NOT_FOUND`: no active attendee account has that email.
+            `REGISTRATION_NO_CONFIRMED_BOOKING`: the event has no confirmed venue booking, so its
+            capacity is not known yet.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
 components:
   securitySchemes:
     bearerAuth:
@@ -282,6 +538,15 @@ components:
       in: query
       description: The `nextCursor` of the previous page.
       schema: { type: string }
+    StaffLimit:
+      name: limit
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 100, default: 100 }
+    EventId:
+      name: eventId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
     RegistrationId:
       name: id
       in: path
@@ -306,6 +571,16 @@ components:
           schema: { $ref: "#/components/schemas/ErrorEnvelope" }
     RegistrationNotFound:
       description: "`REGISTRATION_NOT_FOUND`: no registration with that id is the caller's. Another attendee's answers exactly the same."
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+    NotStaff:
+      description: "`ROLE_NOT_AUTHORISED`: attendees don't manage events; `NO_ROLE_ASSIGNED`: the user has no role."
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+    NotManaged:
+      description: "`EVENT_NOT_FOUND`: no event the caller owns or coordinates has that id. An event they don't manage answers exactly the same."
       content:
         application/json:
           schema: { $ref: "#/components/schemas/ErrorEnvelope" }
@@ -380,6 +655,100 @@ components:
       type: string
       enum: [REGISTERED, WITHDRAWN, CANCELLED]
 
+    Person:
+      type: object
+      required: [id, name, email]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: [string, "null"], description: "Their display name, or their email when they have none; null when identity couldn't be asked." }
+        email: { type: [string, "null"] }
+
+    ManagedEvent:
+      type: object
+      required: [eventId, reference, name, status, startsAt]
+      properties:
+        eventId: { type: string, format: uuid }
+        reference: { type: string }
+        name: { type: string }
+        status: { type: string }
+        startsAt: { type: [string, "null"], format: date-time }
+
+    RegistrationTotals:
+      type: object
+      required: [registered, withdrawn, cancelled, manuallyAdded, addedOverCapacity, capacity, placesRemaining, overCapacityBy]
+      properties:
+        registered: { type: integer, minimum: 0 }
+        withdrawn: { type: integer, minimum: 0 }
+        cancelled: { type: integer, minimum: 0 }
+        manuallyAdded: { type: integer, minimum: 0, description: "Registered ones added by hand (R7)." }
+        addedOverCapacity: { type: integer, minimum: 0 }
+        capacity: { type: integer, minimum: 0, description: "The total of the confirmed bookings' layout capacities (CQ-04)." }
+        placesRemaining: { type: integer, minimum: 0, description: "As R1 and R2 count it; never negative (D-01)." }
+        overCapacityBy: { type: integer, minimum: 0 }
+
+    ManagedRegistration:
+      type: object
+      required: [id, reference, attendee, status, registeredAt, withdrawnAt, cancelledAt, manualAddition, holdsSeat]
+      properties:
+        id: { type: string, format: uuid }
+        reference: { type: string, pattern: "^REG-\\d{6}$" }
+        attendee: { $ref: "#/components/schemas/Person" }
+        status: { $ref: "#/components/schemas/RegistrationStatus" }
+        registeredAt: { type: string, format: date-time }
+        withdrawnAt: { type: [string, "null"], format: date-time }
+        cancelledAt: { type: [string, "null"], format: date-time }
+        manualAddition:
+          description: "Null for a self-registration (R7)."
+          type: [object, "null"]
+          required: [addedBy, reason, overCapacity]
+          properties:
+            addedBy: { $ref: "#/components/schemas/Person" }
+            reason: { type: [string, "null"] }
+            overCapacity: { type: boolean }
+        holdsSeat: { type: boolean, description: "False only for an addition above capacity still waiting for a seat." }
+
+    WaitlistStatus:
+      type: string
+      enum: [WAITLISTED, REGISTERED, WITHDRAWN, CANCELLED]
+
+    WaitlistEntry:
+      type: object
+      required: [id, reference, status, position, joinedAt, lastNotifiedAt, registeredAt, withdrawnAt, cancelledAt, event]
+      properties:
+        id: { type: string, format: uuid }
+        reference: { type: string, pattern: "^WL-\\d{6}$" }
+        status: { $ref: "#/components/schemas/WaitlistStatus" }
+        position: { type: [integer, "null"], minimum: 1, description: "Its place in the line while waiting; null once it has stopped." }
+        joinedAt: { type: string, format: date-time }
+        lastNotifiedAt: { type: [string, "null"], format: date-time, description: "When it was last told a place opened." }
+        registeredAt: { type: [string, "null"], format: date-time }
+        withdrawnAt: { type: [string, "null"], format: date-time }
+        cancelledAt: { type: [string, "null"], format: date-time }
+        event:
+          type: object
+          required: [eventId, reference, name, startsAt, endsAt]
+          properties:
+            eventId: { type: string, format: uuid }
+            reference: { type: string }
+            name: { type: string }
+            startsAt: { type: [string, "null"], format: date-time }
+            endsAt: { type: [string, "null"], format: date-time }
+
+    ManagedWaitlistEntry:
+      type: object
+      required: [id, reference, status, position, joinedAt, lastNotifiedAt, registeredAt, withdrawnAt, cancelledAt, attendee]
+      properties:
+        id: { type: string, format: uuid }
+        reference: { type: string, pattern: "^WL-\\d{6}$" }
+        status: { $ref: "#/components/schemas/WaitlistStatus" }
+        position: { type: [integer, "null"], minimum: 1 }
+        joinedAt: { type: string, format: date-time }
+        lastNotifiedAt: { type: [string, "null"], format: date-time }
+        registeredAt: { type: [string, "null"], format: date-time }
+        withdrawnAt: { type: [string, "null"], format: date-time }
+        cancelledAt: { type: [string, "null"], format: date-time }
+        attendee: { $ref: "#/components/schemas/Person" }
+
     Readiness:
       type: object
       required: [status, checks]
@@ -409,6 +778,14 @@ components:
         - REGISTRATION_NOT_FOUND
         - REGISTRATION_NOT_ACTIVE
         - WITHDRAWAL_DEADLINE_PASSED
+        - WAITLIST_PLACES_AVAILABLE
+        - WAITLIST_DUPLICATE
+        - WAITLIST_ENTRY_NOT_FOUND
+        - WAITLIST_ENTRY_NOT_ACTIVE
+        - ATTENDEE_NOT_FOUND
+        - REGISTRATION_NO_CONFIRMED_BOOKING
+        - REGISTRATION_OVER_CAPACITY_UNCONFIRMED
+        - REGISTRATION_EVENT_CLOSED
 
     ErrorEnvelope:
       type: object

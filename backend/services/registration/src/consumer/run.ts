@@ -42,7 +42,7 @@ export async function startConsumers(kafka: Kafka, sql: Sql, groupSuffix: string
     eachMessage: async ({ topic, message }) => {
       const key = message.key ? message.key.toString() : null;
       const outcome = await handleMessage(message.value ? message.value.toString() : null, { sql });
-      if (outcome.outcome === "built") logger.info("seats built", { topic, key, seats: outcome.seats, retired: outcome.retired, moved: outcome.moved });
+      if (outcome.outcome === "built") logger.info("seats built", { topic, key, seats: outcome.seats, retired: outcome.retired, moved: outcome.moved, seated: outcome.seated, told: outcome.told });
       else if (outcome.outcome === "invalid") logger.error("message skipped: it failed validation", { topic, key, error: outcome.error });
       else if (outcome.outcome === "ignored" && outcome.reason === "no-layout-capacity") {
         logger.warn("approval skipped: it names no layout capacity, so no seats were built", { topic, key });
