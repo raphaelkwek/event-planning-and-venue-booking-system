@@ -717,8 +717,8 @@ paths:
       description: |
         Retired by E4 (W9-FX-5, W9-59): the Event Coordinator Lead reassigns events
         (`POST /api/v1/events/{id}/reassignment`). Every proposal is refused with 410 and nothing is
-        stored. A proposal made before the retirement can still be accepted or declined until the
-        Lead reassigns the event, which closes it.
+        stored. A proposal pending at the retirement was closed, unaccepted, by migration
+        event/0020; the Lead's reassignment closes any other.
       operationId: proposeReassignment
       deprecated: true
       responses:
@@ -789,17 +789,22 @@ paths:
       - $ref: "#/components/parameters/RecordId"
     post:
       tags: [Reassignment]
-      summary: Accept the proposal naming me (E2)
+      summary: Accept the proposal naming me (E2, retired by E4)
+      description: |
+        Retired by E4 (W9-FX-5, W9-59): a proposal can no longer take an event from its coordinator
+        without the Lead. Every accept is refused with 410 and nothing changes; the Lead reassigns
+        events (`POST /api/v1/events/{id}/reassignment`). Migration event/0020 closed each proposal
+        that was still pending.
       operationId: acceptReassignment
+      deprecated: true
       responses:
-        "200":
-          description: Accepted; the caller is now the assigned coordinator.
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/ReassignmentProposal" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
-        "404": { $ref: "#/components/responses/NotFound" }
+        "410":
+          description: "`REASSIGNMENT_RETIRED`: coordinators no longer accept reassignment proposals; the Lead reassigns (E4)."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
         "503": { $ref: "#/components/responses/IdentityUnavailable" }
 
   /api/v1/events/{id}/reassignment-proposals/decline:
@@ -2446,8 +2451,11 @@ paths:
         "409":
           description: |
             `BOOKING_REQUEST_NOT_PENDING`, naming the request's status; `VENUE_SLOT_CONFLICT`, naming
-            each overlapping event and its occupied period; or `VENUE_UNAVAILABLE`, naming each period
-            of recorded unavailability with its type and reason.
+            each overlapping event and its occupied period; `VENUE_UNAVAILABLE`, naming each period
+            of recorded unavailability with its type and reason; or `EVENT_NOT_BOOKABLE`, when the
+            event is no longer Approved, Planning, Safety Review or Confirmed (it was Cancelled or
+            Completed since the request was made). The event's status is read again under a share lock,
+            so a booking is never confirmed for an event that is over.
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }

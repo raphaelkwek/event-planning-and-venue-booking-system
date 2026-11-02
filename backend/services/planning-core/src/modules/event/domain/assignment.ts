@@ -20,3 +20,7 @@ export function canAssign(status: EventStatus): boolean {
 /** E4 retired E2's proposals (W9-FX-5): a coordinator asking to propose one is told who reassigns now. */
 export const REASSIGNMENT_RETIRED =
   "Coordinators no longer propose reassignments: the Event Coordinator Lead reassigns events.";
+
+/** E2's accept is retired too (W9-FX-5): a proposal can no longer take an event from its coordinator without the Lead. */
+export const REASSIGNMENT_ACCEPT_RETIRED =
+  "Coordinators no longer accept reassignment proposals: the Event Coordinator Lead reassigns events (E4).";

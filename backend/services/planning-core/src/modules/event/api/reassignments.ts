@@ -2,24 +2,18 @@ import { Router, type Response } from "express";
 import type { Sql } from "postgres";
 import { KAFKA_TOPICS } from "@connectsphere/contracts";
 import { authenticate, requireRole, type ActorRequest } from "../auth/actor.js";
-import { REASSIGNMENT_RETIRED } from "../domain/assignment.js";
+import { REASSIGNMENT_ACCEPT_RETIRED, REASSIGNMENT_RETIRED } from "../domain/assignment.js";
 import { findEventInScope } from "../repo/events.js";
-import {
-  closeActiveAssignment,
-  findActiveAssignment,
-  findPendingProposal,
-  insertAssignment,
-  listProposals,
-  resolveProposalAccept,
-  resolveProposalDecline,
-} from "../repo/assignments.js";
+import { findPendingProposal, listProposals, resolveProposalDecline } from "../repo/assignments.js";
 import { writeOutbox } from "../events/outbox.js";
 import { refuse } from "./errors.js";
 
 /**
- * E2 — the nominee's accept/decline of a reassignment proposal made before E4
- * retired proposing (the Lead reassigns, api/leadAssignments.ts). This only
- * ever acts on an assignment that already exists.
+ * E2 — retired by E4 (W9-FX-5, W9-59): the Lead alone reassigns
+ * (api/leadAssignments.ts). Proposing and accepting are refused with 410; a
+ * proposal still pending at the retirement is closed by migration event/0020, so
+ * nothing is left to accept. The history stays readable, and declining a
+ * proposal changes no assignment.
  */
 export function reassignmentsRouter(sql: Sql) {
   const router = Router();
@@ -39,8 +33,7 @@ export function reassignmentsRouter(sql: Sql) {
     }
   );
 
-  // E4 retires E2's peer flow (W9-FX-5, W9-59): only the Lead reassigns. A
-  // proposal made before the retirement may still be accepted or declined below.
+  // E4 retires E2's peer flow (W9-FX-5, W9-59): only the Lead reassigns.
   router.post(
     "/api/v1/events/:id/reassignment-proposals",
     ...authenticate,
@@ -54,8 +47,8 @@ export function reassignmentsRouter(sql: Sql) {
     "/api/v1/events/:id/reassignment-proposals/accept",
     ...authenticate,
     requireRole("EVENT_COORDINATOR"),
-    async (req: ActorRequest, res) => {
-      await respondToProposal(req, res, sql, "ACCEPTED");
+    (_req: ActorRequest, res) => {
+      refuse(res, 410, "REASSIGNMENT_RETIRED", REASSIGNMENT_ACCEPT_RETIRED);
     }
   );
 
@@ -64,21 +57,16 @@ export function reassignmentsRouter(sql: Sql) {
     ...authenticate,
     requireRole("EVENT_COORDINATOR"),
     async (req: ActorRequest, res) => {
-      await respondToProposal(req, res, sql, "DECLINED");
+      await declineProposal(req, res, sql);
     }
   );
 
   /**
-   * E2 accept/decline share a shape: find the event, find the caller's own
-   * pending proposal for it, resolve it conditionally so a race with the
-   * other outcome (or a second accept) cannot both win, then react.
+   * E2 decline: find the event, find the caller's own pending proposal for it, and
+   * resolve it conditionally so a second decline cannot also win. No proposal can
+   * be pending since migration event/0020 closed them, so this answers 404.
    */
-  async function respondToProposal(
-    req: ActorRequest,
-    res: Response,
-    sql: Sql,
-    outcome: "ACCEPTED" | "DECLINED"
-  ) {
+  async function declineProposal(req: ActorRequest, res: Response, sql: Sql) {
     const { userId, role, scope } = req.actor!;
     const event = await findEventInScope(sql, req.params.id, scope, userId);
     if (!event) {
@@ -98,26 +86,12 @@ export function reassignmentsRouter(sql: Sql) {
     }
 
     const result = await sql.begin(async (tx) => {
-      const resolved =
-        outcome === "ACCEPTED"
-          ? await resolveProposalAccept(tx, { proposalId: pending.id, nomineeId: userId })
-          : await resolveProposalDecline(tx, { proposalId: pending.id, nomineeId: userId });
-
+      const resolved = await resolveProposalDecline(tx, { proposalId: pending.id, nomineeId: userId });
       if (!resolved) return null;
-
-      if (outcome === "ACCEPTED") {
-        // E2 accept — the outgoing assignment is closed and a new active
-        // assignment is created for the nominee, in the same transaction.
-        const active = await findActiveAssignment(tx, event.id);
-        if (active) {
-          await closeActiveAssignment(tx, active.id, userId);
-        }
-        await insertAssignment(tx, event.id, resolved.nomineeCoordinatorId, "REASSIGNMENT_ACCEPTED", userId);
-      }
 
       await writeOutbox(tx, {
         topic: KAFKA_TOPICS.event,
-        messageType: outcome === "ACCEPTED" ? "event.reassignment-accepted" : "event.reassignment-declined",
+        messageType: "event.reassignment-declined",
         aggregateId: event.id,
         actor: { userId, role },
         correlationId: req.header("x-correlation-id") ?? null,
@@ -136,7 +110,7 @@ export function reassignmentsRouter(sql: Sql) {
     });
 
     if (!result) {
-      // Lost a race with the other outcome — nothing for this caller to act on.
+      // Lost a race with another decline or the Lead's reassignment: nothing for this caller to act on.
       refuse(
         res,
         404,

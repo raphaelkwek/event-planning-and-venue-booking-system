@@ -142,6 +142,12 @@ function scopeCondition(sql: Sql | TransactionSql, scope: AccessScope, callerId:
  * which locks the row `for update` (updateStatusIf), waits until the reader's transaction ends,
  * and a reader waits for a change in progress and then sees its result. `lock: "update"` locks it
  * `for update`, for a caller that writes the event.
+ *
+ * Under READ COMMITTED a statement that waits for the lock re-checks only the locked row against
+ * its WHERE clause; the joined assignment keeps the version the statement began with. A Lead's
+ * reassignment (E4) takes this same row lock, so a reader that waited on it would still see the
+ * outgoing coordinator as assigned. With a lock, the active assignment is therefore read again, in
+ * a statement of its own, once the lock is held.
  */
 export async function findEventInScope(
   sql: Sql | TransactionSql,
@@ -158,7 +164,18 @@ export async function findEventInScope(
     where e.id = ${eventId} and ${scopeCondition(sql, scope, callerId)}
     ${options.lock === "update" ? sql`for update of e` : options.lock === "share" ? sql`for share of e` : sql``}
   `;
-  return rows[0] ? toEvent(rows[0]) : null;
+  const row = rows[0];
+  if (!row) return null;
+  if (!options.lock) return toEvent(row);
+  return toEvent({ ...row, assigned_coordinator_id: await activeCoordinatorId(sql, row.id) });
+}
+
+/** The coordinator holding the event's active assignment now, in a fresh statement; null when none does. */
+async function activeCoordinatorId(sql: Sql | TransactionSql, eventId: string): Promise<string | null> {
+  const [row] = await sql<{ coordinator_id: string }[]>`
+    select coordinator_id from event.assignments where event_id = ${eventId} and is_active
+  `;
+  return row?.coordinator_id ?? null;
 }
 
 /**
