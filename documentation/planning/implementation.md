@@ -485,6 +485,8 @@ Forward-only, numbered, one concern per file: `0007_add_venue_slots_exclusion.sq
 
 The `message` is user-facing and must name the specific values the story requires. B2 says "the message names every field that caused the rejection" — that is what `fields[]` is for, and returning only the first is a failed acceptance test.
 
+- **`INTERNAL_ERROR`:** a failure no route expected (a rejected query, a bug) is `500` with `code: "INTERNAL_ERROR"`, a generic `message` and the `correlationId`, and nothing else: no stack, no driver or database text. The detail goes to the log under that correlation id. Every service ends its app with the same final error handler, which also maps a malformed JSON body to `400 VALIDATION_FAILED` and an oversized one to `413`. A route needs no try/catch to get this: the router layer passes a rejected promise to `next(error)`.
+
 - Every request carries `Authorization: Bearer <supabase-jwt>` and `X-Correlation-Id` (the gateway generates one if absent; services propagate it into logs and message envelopes).
 - Lists are paginated: `?limit=` (default 25, max 100) `&cursor=`. Response `{ "items": [...], "nextCursor": "..." | null }`.
 - Dates in JSON are RFC3339 UTC strings. The client localises; the server never does.

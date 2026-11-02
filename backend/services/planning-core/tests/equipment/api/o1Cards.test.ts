@@ -174,7 +174,7 @@ describe("O1 cards: recording lines", () => {
 
   it("O1-T7 refuses quantity 0 and stores nothing", async () => {
     const response = await refusesFieldAndStoresNothing({ eventId: event.id, lines: [line({ quantity: 0, notes: "" })] }, "lines.0.quantity");
-    expect(response.body.error.fields[0].message).toBe("Quantity must be a whole number greater than zero.");
+    expect(response.body.error.fields[0].message).toBe("Quantity must be a whole number from 1 to 1000000.");
   });
 
   it("O1-T8 accepts quantity 1", async () => {
