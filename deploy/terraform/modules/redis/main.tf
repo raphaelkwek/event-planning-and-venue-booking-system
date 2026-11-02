@@ -25,6 +25,15 @@ resource "aws_elasticache_subnet_group" "this" {
   tags       = var.tags
 }
 
+# A parameter group of our own: the default one cannot be edited, and rate limiting
+# should not have to be rebuilt to change a setting later.
+resource "aws_elasticache_parameter_group" "this" {
+  name        = var.name
+  family      = "redis7"
+  description = "Redis parameters for ${var.name}"
+  tags        = var.tags
+}
+
 resource "aws_elasticache_replication_group" "this" {
   replication_group_id = var.name
   description          = "Redis for ConnectSphere rate limits (EN-12)"
@@ -33,7 +42,7 @@ resource "aws_elasticache_replication_group" "this" {
   engine_version       = var.engine_version
   node_type            = var.node_type
   port                 = 6379
-  parameter_group_name = "default.redis7"
+  parameter_group_name = aws_elasticache_parameter_group.this.name
 
   num_cache_clusters         = var.num_cache_clusters
   automatic_failover_enabled = var.num_cache_clusters > 1
