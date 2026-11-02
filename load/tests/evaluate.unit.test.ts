@@ -188,7 +188,7 @@ describe("evaluateStress (EN-18-T6)", () => {
   const RAMP = 5;
 
   function stressSummary(perStep: Array<{ requests: number; failed: number; p95: number }>) {
-    const metrics: K6Summary["metrics"] = { r_201: counter(perStep.reduce((n, s) => n + s.requests - s.failed, 0)) };
+    const metrics: K6Summary["metrics"] = { r_201: counter(perStep.reduce((n, s) => n + s.requests - s.failed, 0)), http_reqs: counter(perStep.reduce((n, s) => n + s.requests, 0)) };
     perStep.forEach((s, i) => {
       metrics[`step_requests{step:s${i}}`] = counter(s.requests);
       metrics[`step_failed{step:s${i}}`] = counter(s.failed);
@@ -243,5 +243,20 @@ describe("evaluateStress (EN-18-T6)", () => {
     expect(bad.checks.some((c) => !c.ok)).toBe(true);
     const mismatch = evaluateStress({ summary: s, tally: tally({ seats: 250_000, claimedSeats: 3400, registered: 3400, distinctAttendees: 3400, distinctSeatsHeld: 3400 }), steps: [100], holdSeconds: HOLD, rampSeconds: RAMP });
     expect(mismatch.checks.find((c) => c.name.startsWith("every 201"))?.ok).toBe(false);
+  });
+
+  it("allows the database to hold more than k6 saw only by the requests k6 lost to timeouts", () => {
+    const s = stressSummary([{ requests: 3500, failed: 0, p95: 40 }]);
+    s.metrics.r_other = counter(2);
+    const run = (registered: number) =>
+      evaluateStress({ summary: s, tally: tally({ seats: 250_000, claimedSeats: registered, registered, distinctAttendees: registered, distinctSeatsHeld: registered }), steps: [100], holdSeconds: HOLD, rampSeconds: RAMP }).checks.find((c) => c.name.startsWith("every 201"))!.ok;
+    expect(run(3500)).toBe(true);
+    expect(run(3502)).toBe(true);
+    expect(run(3503)).toBe(false);
+  });
+
+  it("does not pass a run that sent nothing or registered no one", () => {
+    const empty = evaluateStress({ summary: { metrics: {} }, tally: tally({ seats: 250_000, claimedSeats: 0, registered: 0, distinctAttendees: 0, distinctSeatsHeld: 0 }), steps: [100], holdSeconds: HOLD, rampSeconds: RAMP });
+    expect(empty.checks.find((c) => c.name === "the run measured something")?.ok).toBe(false);
   });
 });

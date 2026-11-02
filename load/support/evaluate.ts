@@ -222,6 +222,8 @@ export function stepResults(summary: K6Summary, steps: number[], holdSeconds: nu
   });
 }
 
+const requestsSent = (summary: K6Summary) => count(summary, "http_reqs");
+
 export function evaluateStress(input: { summary: K6Summary; tally: EventTally; steps: number[]; holdSeconds: number; rampSeconds: number }) {
   const { tally } = input;
   const results = stepResults(input.summary, input.steps, input.holdSeconds, input.rampSeconds);
@@ -235,7 +237,13 @@ export function evaluateStress(input: { summary: K6Summary; tally: EventTally; s
     check("no attendee holds two seats", tally.distinctAttendees === tally.registered, `${tally.distinctAttendees} distinct attendees in ${tally.registered} registrations`),
     check("registrations equal claimed seats", tally.registered === tally.claimedSeats && tally.mismatches === 0, `${tally.registered} registered, ${tally.claimedSeats} claimed, ${tally.mismatches} unmatched`),
     check("no over-admission", tally.registered <= tally.seats, `${tally.registered} registered, ${tally.seats} seats`),
-    check("every 201 k6 saw is a registration in the database", outcomes.registered === tally.registered, `k6 saw ${outcomes.registered}, the database holds ${tally.registered}`),
+    // A request k6 gave up on (a timeout counts as "other") can still commit afterwards, so the database may hold more than k6 saw, but never fewer, and by no more than the requests k6 lost.
+    check(
+      "every 201 k6 saw is a registration in the database",
+      tally.registered >= outcomes.registered && tally.registered - outcomes.registered <= outcomes.otherStatus,
+      `k6 saw ${outcomes.registered}, the database holds ${tally.registered}, ${outcomes.otherStatus} requests were lost to timeouts`,
+    ),
+    check("the run measured something", requestsSent(input.summary) > 0 && tally.registered > 0, `${requestsSent(input.summary)} requests, ${tally.registered} registrations`),
   ];
   return { checks, results, outcomes, sustainable, firstBroken };
 }

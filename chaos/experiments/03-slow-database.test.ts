@@ -92,7 +92,9 @@ describe("Experiment 3: a slow database never causes over-admission", () => {
     writeFileSync(join(OUT, "result.json"), JSON.stringify(result, null, 2));
     console.log(`experiment 3: ${JSON.stringify(result)}`);
 
-    // The pass condition: exact seats, whatever the latency did to the responses.
+    // The pass condition: exact seats, whatever the latency did to the responses. The lower bounds make sure something was registered at all.
+    expect(requests, "k6 completed every attempt").toBe(600);
+    expect(tally.registered, "the burst registered someone").toBeGreaterThan(0);
     expect(tally.registered).toBeLessThanOrEqual(SEATS);
     expect(tally.distinctSeatsHeld).toBe(tally.registered);
     expect(tally.distinctAttendees).toBe(tally.registered);

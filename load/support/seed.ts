@@ -1,4 +1,5 @@
 import postgres, { type Sql } from "postgres";
+import { FAKE_AUTH_FLAG, FAKE_AUTH_FLAG_VALUE, assertTestHarnessOnly } from "./fake-supabase-auth.js";
 import { anEvent } from "../../backend/services/registration/tests/support/fixtures.js";
 
 /**
@@ -16,6 +17,8 @@ export interface SeededEvent {
 }
 
 export function connect(databaseUrl: string, max = 4): Sql {
+  // The one way the harness opens a database, so no run or experiment can write to one that is not on this machine.
+  assertTestHarnessOnly({ ...process.env, [FAKE_AUTH_FLAG]: FAKE_AUTH_FLAG_VALUE, DATABASE_URL: databaseUrl });
   return postgres(databaseUrl, { max, prepare: false, onnotice: () => undefined });
 }
 

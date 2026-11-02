@@ -52,6 +52,8 @@ in which 98% of the attempts are cheap refusals is the easy case. One process do
 - The service's resident memory was 151 MB in the second minute and 154 MB in the last (+1.9%, limit for the check 25%): no leak visible in five minutes.
 - CPU: 87.5 CPU-seconds for 36,000 requests, **2.43 ms per request**, 0.29 cores on average.
 
+**A flaw in this soak, found in review after the run:** the script picks the event and the request kind from the same counter modulo 10, so registrations went only to events 8 and 9 and event-page reads only to events 5 and 6; the other six events had seats and no load beyond the list. The script is left as it ran, so the committed files match it; the load on the registration path is real, spread over two events instead of ten. The fix is `Math.floor(n / 10) % EVENT_IDS.length` in `load/k6/soak.js`, and the next soak should use it.
+
 Five minutes is a check for an obvious leak or error, not the hours the architecture's soak test means; a longer run is the same command with `SOAK_MINUTES` raised.
 
 ## The stress run: stepping the rate up until it breaks

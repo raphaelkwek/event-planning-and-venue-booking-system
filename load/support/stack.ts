@@ -95,17 +95,34 @@ export async function startStack(options: StackOptions): Promise<Stack> {
       env,
       logDir: options.logDir,
     });
-    await waitForUrl(`${registrationUrl}/healthz`, 60_000);
+    try {
+      await waitForUrl(`${registrationUrl}/healthz`, 60_000);
+    } catch (error) {
+      await process_.stop();
+      throw error;
+    }
     return process_;
   };
 
   let restarts = 0;
+  let first: ManagedProcess | null = null;
+  let browseToken: string | null = null;
+  try {
+    first = await launch("");
+    browseToken = fakeAuth ? await signIn(fakeAuth.url, "attendee") : null;
+  } catch (error) {
+    // A start that fails part-way must not leave a process holding the port, or the stub servers listening.
+    await first?.stop();
+    await identity.close();
+    await fakeAuth?.close();
+    throw error;
+  }
   const stack: Stack = {
     registrationUrl,
     identityUrl: identity.url,
     fakeAuthUrl: fakeAuth?.url ?? null,
-    registration: await launch(""),
-    browseToken: fakeAuth ? await signIn(fakeAuth.url, "attendee") : null,
+    registration: first,
+    browseToken,
     async restartRegistration() {
       await stack.registration.stop();
       restarts += 1;
