@@ -184,6 +184,24 @@ export function isDuplicatePending(error: unknown): boolean {
  * other was withdrawn between the refusal and the look-up; the refusal still
  * stands, because the constraint decided.
  */
+/** L5 (audit): the partial unique index allowing one pending replacement per disrupted booking (migration venue/0020). */
+export const ONE_PENDING_REPLACEMENT_INDEX = "booking_requests_one_pending_replacement_idx";
+const UNIQUE_VIOLATION = "23505";
+
+/** True when Postgres refused a second pending replacement for the same disrupted booking. */
+export function isSecondPendingReplacement(error: unknown): boolean {
+  const e = error as { code?: unknown; constraint_name?: unknown } | null | undefined;
+  return e?.code === UNIQUE_VIOLATION && e.constraint_name === ONE_PENDING_REPLACEMENT_INDEX;
+}
+
+/**
+ * L5: names the replacement already pending for the disrupted booking. Another can be requested once
+ * it is withdrawn or rejected (L5 AC5). Null when it was decided between the refusal and the look-up.
+ */
+export function replacementPendingMessage(reference: string | null): string {
+  return `A replacement for this booking is already pending: ${reference ?? "another request"}. Withdraw it, or wait for Venue Staff to decide it, before requesting another.`;
+}
+
 export function duplicateMessage(references: readonly string[]): string {
   const named =
     references.length === 0

@@ -16,6 +16,7 @@ import {
   notPendingMessage,
   notSuitableMessage,
   readBookingRequest,
+  replacementPendingMessage,
   suitabilityRecord,
   type BookingRequestInput,
 } from "../domain/bookingRequest.js";
@@ -26,8 +27,8 @@ import { writeVenueOutbox } from "../events/outbox.js";
 import { activeBlocksOverlapping } from "../repo/bookingDecisions.js";
 import { listBookingsForEvent } from "../repo/eventBookings.js";
 import { conflictsOfRequests, type RequestConflict } from "../repo/requestConflicts.js";
-import { lockVenue } from "../repo/slots.js";
 import {
+  clearFlagsOfRequestEnded,
   DuplicateBookingRequestError,
   findBookingRequest,
   insertBookingRequest,
@@ -35,11 +36,12 @@ import {
   listForEvent,
   listPendingForStaff,
   lockBookingRequest,
+  PendingReplacementError,
   venueStaffIds,
   withdrawBookingRequest,
   type BookingRequest,
 } from "../repo/bookingRequests.js";
-import { findVenue } from "../repo/venues.js";
+import { findVenue, lockVenue } from "../repo/venues.js";
 import { refuse } from "./errors.js";
 
 /**
@@ -99,7 +101,7 @@ class RefusedInTransaction extends Error {
 }
 
 export interface SubmitHooks {
-  /** Runs first in the transaction; a refusal rolls it back (L3: the hold must still be Held). */
+  /** Runs first in the transaction after the venue row lock; a refusal rolls it back (L3: the hold must still be Held). */
   before?: (tx: TransactionSql) => Promise<Refusal | null>;
   /** Runs after the request is stored, in the same transaction (L3: the hold becomes Converted). */
   after?: (tx: TransactionSql, created: BookingRequest) => Promise<void>;
@@ -148,14 +150,24 @@ export async function submitBookingRequest(
 
   try {
     const created = await sql.begin(async (tx) => {
+      // The venue first, before the hook locks a hold (L3's conversion): every path takes the venue row,
+      // then the hold, then the request, then the slot (implementation.md §4.6, lock order). It also
+      // serialises with I2 recording a block. H3: the block is compared with the request's occupied
+      // period, using the times read under the lock.
+      const locked = (await lockVenue(tx, venue.id))!;
       const before = await hooks.before?.(tx);
       if (before) throw new RefusedInTransaction(before);
       if (input.replacesBookingId && !(await isReplaceableBooking(tx, input.replacesBookingId, event.id))) {
         throw new RefusedInTransaction({ status: 422, code: "REPLACEMENT_NOT_VALID", message: REPLACEMENT_NOT_VALID });
       }
-      // Serialize with I2 block creation for both direct requests and hold conversion.
-      await lockVenue(tx, venue.id);
-      const blocks = await activeBlocksOverlapping(tx, venue.id, new Date(input.startsAt), new Date(input.endsAt), 0, 0);
+      const blocks = await activeBlocksOverlapping(
+        tx,
+        venue.id,
+        new Date(input.startsAt),
+        new Date(input.endsAt),
+        locked.setupMinutes,
+        locked.turnaroundMinutes,
+      );
       if (blocks.length > 0) {
         throw new RefusedInTransaction({ status: 409, code: "VENUE_UNAVAILABLE", message: requestBlockedMessage(venue.name, blocks) });
       }
@@ -200,6 +212,9 @@ export async function submitBookingRequest(
     if (error instanceof RefusedInTransaction) return { ok: false, ...error.refusal };
     if (error instanceof DuplicateBookingRequestError) {
       return refused(409, "BOOKING_REQUEST_DUPLICATE", duplicateMessage(error.references));
+    }
+    if (error instanceof PendingReplacementError) {
+      return refused(409, "BOOKING_REQUEST_DUPLICATE", replacementPendingMessage(error.reference));
     }
     throw error;
   }
@@ -308,11 +323,14 @@ export function bookingRequestsRouter(sql: Sql) {
       if (!isAssignedCoordinator(req.actor!.userId, event)) return refuse(res, 403, "ROLE_NOT_AUTHORISED", NOT_ASSIGNED_WITHDRAW);
 
       const outcome = await sql.begin(async (tx) => {
+        // The venue, then the request, then its slot (§4.6): withdrawing clears flags at the venue (M3).
+        await lockVenue(tx, existing.venueId);
         const locked = (await lockBookingRequest(tx, id))!;
         if (locked.status !== "PENDING") return { code: "NOT_PENDING", locked } as const;
         await withdrawBookingRequest(tx, id, req.actor!.userId);
         // L3-T14: a request converted from a hold frees the period the hold took.
         await releaseHeldSlotForRequest(tx, id, req.actor!.userId);
+        await clearFlagsOfRequestEnded(tx, id, req.actor!.userId);
         return { code: "WITHDRAWN", withdrawn: (await findBookingRequest(tx, id))! } as const;
       });
 

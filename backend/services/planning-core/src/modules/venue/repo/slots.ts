@@ -1,6 +1,7 @@
 import type { TransactionSql } from "postgres";
 import type { BlockingSlotStatus, VenueSlotStatus } from "@connectsphere/contracts";
 import { isSlotOverlap, VenueSlotConflictError } from "../domain/slotConflict.js";
+import { expireOverdueHoldsAtVenue } from "./holdExpiry.js";
 
 /**
  * Venue slots and the venue row lock (EN-02.1, ADR-0006, implementation.md
@@ -77,6 +78,17 @@ function toSlot(row: SlotRow): VenueSlot {
  * and whichever runs second sees the other's result. Held until the
  * transaction ends; taking it twice in one transaction is harmless. False when
  * there is no such venue.
+ *
+ * Lock order (L2, audit of 2 Nov 2026; implementation.md §4.6). Every path that
+ * locks more than one of these takes them in this order, so no two can wait on
+ * each other in a cycle:
+ *   1. venue rows (`venue.venues`), ascending id when there are several;
+ *   2. event rows (I3's return to Planning, F5, S3);
+ *   3. holds (`venue.holds`);
+ *   4. booking requests (`venue.booking_requests`);
+ *   5. venue slots (`venue.venue_slots`), then the rows that record why they
+ *      are flagged (block_disruptions, buffer_conflicts).
+ * A path may skip a level, never go back up one.
  */
 export async function lockVenue(tx: TransactionSql, venueId: string): Promise<boolean> {
   const rows = await tx`select id from venue.venues where id = ${venueId} for update`;
@@ -89,7 +101,9 @@ export async function lockVenue(tx: TransactionSql, venueId: string): Promise<bo
  * decides: there is no availability check first, so two simultaneous attempts
  * can't both pass one.
  *
- * It takes the venue row lock before inserting. Without it, two conflicting
+ * It takes the venue row lock before inserting, then expires any of the
+ * venue's Held holds whose expiry has passed (M4), so an overdue hold never
+ * refuses the insert. Without the lock, two conflicting
  * inserts in flight at once can each wait for the other on the constraint, and
  * Postgres aborts one as a deadlock (40P01) instead of an overlap. EN-02.3's
  * race of fifty attempts showed this. With the lock they queue, and each loser
@@ -101,6 +115,8 @@ export async function lockVenue(tx: TransactionSql, venueId: string): Promise<bo
  */
 export async function insertVenueSlot(tx: TransactionSql, slot: NewVenueSlot): Promise<VenueSlot> {
   await lockVenue(tx, slot.venueId);
+  // M4, L6: a hold whose expiry has passed blocks nothing, even when the HoldExpiry workflow hasn't run.
+  await expireOverdueHoldsAtVenue(tx, slot.venueId);
   try {
     const [row] = await tx.savepoint(
       (sp) => sp<SlotRow[]>`
