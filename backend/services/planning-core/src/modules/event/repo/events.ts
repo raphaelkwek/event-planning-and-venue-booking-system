@@ -2,6 +2,7 @@ import type { Sql, TransactionSql } from "postgres";
 import type { Fragment } from "./sqlFragment.js";
 import type { AccessScope, EventStatus } from "@connectsphere/contracts";
 import { isEventId } from "../domain/ids.js";
+import { encodeCursor, type PageCursor } from "../domain/pagination.js";
 import { historyText, type ChangeableEvent, type ProposedChanges } from "../domain/proposedChange.js";
 import { isSignificantEventField, KAFKA_TOPICS, type SignificantEventField } from "@connectsphere/contracts";
 import { recordFieldChanges } from "./eventHistory.js";
@@ -289,20 +290,50 @@ export async function findReferences(sql: Sql, eventIds: readonly string[]): Pro
   return new Map(rows.map((row) => [row.id, row.reference]));
 }
 
-/** C3 — the caller's own requests, filtered by the scope rule (A3). */
+/** C3 — which of the caller's requests to list: all, only the drafts, or only the submitted ones. */
+export type EventListKind = "drafts" | "submitted";
+
+export interface EventsPage {
+  rows: EventRow[];
+  /** What to ask for next; null on the last page. */
+  nextCursor: string | null;
+}
+
+/**
+ * C3, L7 — one page of the caller's requests, filtered by the scope rule (A3) in the query, newest
+ * first (a submitted request by its submission, a draft by its last save), `limit` at a time, from just after `after`. The order is total (time, then id), so
+ * pages neither overlap nor skip. The filter by kind is in the query too, not applied afterwards.
+ */
 export async function listEventsInScope(
   sql: Sql,
   scope: AccessScope,
-  callerId: string
-): Promise<EventRow[]> {
-  const rows = await sql<RawEvent[]>`
-    select e.*, a.coordinator_id as assigned_coordinator_id
+  callerId: string,
+  page: { limit: number; after: PageCursor | null; kind?: EventListKind }
+): Promise<EventsPage> {
+  const kindCondition =
+    page.kind === "drafts"
+      ? sql`e.status = 'DRAFT' and e.owner_id = ${callerId}`
+      : page.kind === "submitted"
+        ? sql`e.status <> 'DRAFT'`
+        : sql`true`;
+  const afterCondition = page.after
+    ? sql`(coalesce(e.submitted_at, e.last_saved_at), e.id) < (${page.after.sortAt}::timestamptz, ${page.after.id}::uuid)`
+    : sql`true`;
+  const rows = await sql<(RawEvent & { listed_at: string })[]>`
+    select e.*, a.coordinator_id as assigned_coordinator_id,
+      to_char(coalesce(e.submitted_at, e.last_saved_at) at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as listed_at
     from event.events e
     left join event.assignments a on a.event_id = e.id and a.is_active
-    where ${scopeCondition(sql, scope, callerId)}
-    order by e.submitted_at desc
+    where ${scopeCondition(sql, scope, callerId)} and ${kindCondition} and ${afterCondition}
+    order by coalesce(e.submitted_at, e.last_saved_at) desc, e.id desc
+    limit ${page.limit + 1}
   `;
-  return rows.map(toEvent);
+  const shown = rows.slice(0, page.limit);
+  const last = shown[shown.length - 1];
+  return {
+    rows: shown.map(toEvent),
+    nextCursor: rows.length > page.limit && last ? encodeCursor({ sortAt: last.listed_at, id: last.id }) : null,
+  };
 }
 
 /**

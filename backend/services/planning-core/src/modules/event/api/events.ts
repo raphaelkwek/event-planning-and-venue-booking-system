@@ -9,7 +9,7 @@ import {
   reviewColumns,
   type EventRow,
 } from "../repo/events.js";
-import { listDraftsForOwner } from "../repo/drafts.js";
+import { decodeCursor, MAX_PAGE_SIZE, readLimit } from "../domain/pagination.js";
 import { QUEUE_STATUSES } from "../domain/statusMachine.js";
 import { submitEvent } from "./submitEvent.js";
 import { transitionEvent } from "./transitionEvent.js";
@@ -130,19 +130,25 @@ export function eventsRouter(sql: Sql) {
   });
 
   router.get("/api/v1/events", ...authenticate, async (req: ActorRequest, res) => {
-    const kind = req.query.kind;
+    const kind = req.query.kind === "drafts" || req.query.kind === "submitted" ? req.query.kind : undefined;
     const { userId, scope } = req.actor!;
 
-    const rows =
-      kind === "drafts"
-        ? await listDraftsForOwner(sql, userId)
-        : await listEventsInScope(sql, scope, userId);
+    // L7: paged as every list is (implementation.md §5).
+    const limit = readLimit(req.query.limit);
+    if (!limit.ok) {
+      return refuse(res, 400, "VALIDATION_FAILED", `limit must be a whole number from 1 to ${MAX_PAGE_SIZE}.`, {
+        fields: [{ field: "limit", message: `Give a whole number from 1 to ${MAX_PAGE_SIZE}.` }],
+      });
+    }
+    const after = typeof req.query.cursor === "string" ? decodeCursor(req.query.cursor) : null;
+    if (req.query.cursor !== undefined && !after) {
+      return refuse(res, 400, "VALIDATION_FAILED", "cursor is not one this service issued.", {
+        fields: [{ field: "cursor", message: "Use the nextCursor from a previous page." }],
+      });
+    }
 
-    const items = (kind === "submitted" ? rows.filter((row) => row.status !== "DRAFT") : rows).map(
-      listItem
-    );
-
-    res.status(200).json({ items, nextCursor: null });
+    const page = await listEventsInScope(sql, scope, userId, { limit: limit.limit, after, kind });
+    res.status(200).json({ items: page.rows.map(listItem), nextCursor: page.nextCursor });
   });
 
   return router;

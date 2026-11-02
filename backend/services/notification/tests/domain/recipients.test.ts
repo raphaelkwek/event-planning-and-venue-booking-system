@@ -636,7 +636,8 @@ describe("L6: tells the holding coordinator a hold is about to expire, and that 
   it("says only the new expiry when the message does not carry the old one, and tells nobody of one written before W9-40", () => {
     const [notice] = notificationsFor(message("venue-booking.hold-expiry-changed", { ...hold, changedBy: coordinator }));
     expect(notice!.message).toBe(`${where} now expires on Tuesday 1 December 2026, 14:00. Venue Staff moved the expiry.`);
-    const { coordinatorId: _omitted, ...beforeW940 } = hold;
+    const beforeW940: Record<string, unknown> = { ...hold };
+    delete beforeW940.coordinatorId;
     expect(notificationsFor(message("venue-booking.hold-expiry-changed", { ...beforeW940, changedBy: coordinator }))).toEqual([]);
   });
 });

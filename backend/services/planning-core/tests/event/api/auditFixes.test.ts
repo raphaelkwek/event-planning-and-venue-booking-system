@@ -359,3 +359,146 @@ describe.runIf(isThrowawayDatabase())("E3, E4: the coordinator is checked as act
     expect(res.body.error.code).toBe("NOT_AN_ACTIVE_COORDINATOR");
   });
 });
+
+describe("L7: GET /api/v1/events is paged (implementation.md section 5)", () => {
+  const list = (query = "") => request(app).get(`/api/v1/events${query}`).set(bearer);
+  const ids = (res: request.Response) => res.body.items.map((item: { id: string }) => item.id);
+
+  /** `count` submitted events, one minute apart, newest last created; returns their ids newest first. */
+  async function submittedEvents(count: number): Promise<string[]> {
+    const created: string[] = [];
+    for (let n = 0; n < count; n += 1) {
+      const id = await seedEvent(sql, { ownerId: OWNER, status: "SUBMITTED", endsAt: new Date(EVENT_END), name: `L7 event ${n}` });
+      await sql`update event.events set submitted_at = now() - ${(count - n) * 60} * interval '1 second' where id = ${id}`;
+      created.push(id);
+    }
+    return created.reverse();
+  }
+
+  async function draft(name: string, savedSecondsAgo: number): Promise<string> {
+    const [row] = await sql<{ id: string }[]>`
+      insert into event.events (owner_id, name, status, last_saved_at, created_by, updated_by)
+      values (${OWNER}, ${name}, 'DRAFT', now() - ${savedSecondsAgo} * interval '1 second', ${OWNER}, ${OWNER})
+      returning id
+    `;
+    return row!.id;
+  }
+
+  /** Follows nextCursor to the end, returning each page's ids. */
+  async function allPages(query: string): Promise<string[][]> {
+    const pages: string[][] = [];
+    let cursor: string | null = null;
+    do {
+      const res = await list(`${query}${cursor ? `&cursor=${cursor}` : ""}`);
+      expect(res.status).toBe(200);
+      pages.push(ids(res));
+      cursor = res.body.nextCursor;
+    } while (cursor && pages.length < 20);
+    return pages;
+  }
+
+  beforeEach(() => signedInAs(OWNER, "EVENT_ORGANISER"));
+
+  it("returns 25 by default with a cursor, and the same shape as before: items and nextCursor", async () => {
+    const created = await submittedEvents(30);
+
+    const res = await list();
+
+    expect(res.status).toBe(200);
+    expect(Object.keys(res.body).sort()).toEqual(["items", "nextCursor"]);
+    expect(ids(res)).toEqual(created.slice(0, 25));
+    expect(typeof res.body.nextCursor).toBe("string");
+    expect(res.body.items[0]).toMatchObject({ kind: "EVENT", status: "SUBMITTED", name: "L7 event 29" });
+  });
+
+  it("returns everything with no cursor when the list fits in one page", async () => {
+    const created = await submittedEvents(3);
+
+    const res = await list();
+
+    expect(ids(res)).toEqual(created);
+    expect(res.body.nextCursor).toBeNull();
+  });
+
+  it("pages through 30 events ten at a time with none repeated and none skipped, newest first", async () => {
+    const created = await submittedEvents(30);
+
+    const pages = await allPages("?limit=10");
+
+    expect(pages.map((page) => page.length)).toEqual([10, 10, 10]);
+    expect(pages.flat()).toEqual(created);
+  });
+
+  it("ends exactly at a page boundary without a phantom empty page", async () => {
+    await submittedEvents(20);
+
+    const pages = await allPages("?limit=10");
+
+    expect(pages.map((page) => page.length)).toEqual([10, 10]);
+  });
+
+  it("neither repeats nor skips events listed at the same instant", async () => {
+    const created = await submittedEvents(7);
+    await sql`update event.events set submitted_at = '2026-11-02T09:00:00Z' where id in ${sql(created)}`;
+
+    const pages = await allPages("?limit=3");
+
+    expect([...pages.flat()].sort()).toEqual([...created].sort());
+    expect(new Set(pages.flat()).size).toBe(7);
+  });
+
+  it("is not thrown by an event submitted while someone is paging: the next page carries on from where it was", async () => {
+    const created = await submittedEvents(6);
+    const first = await list("?limit=3");
+    const newcomer = await seedEvent(sql, { ownerId: OWNER, status: "SUBMITTED", endsAt: new Date(EVENT_END), name: "L7 newcomer" });
+
+    const second = await list(`?limit=3&cursor=${first.body.nextCursor}`);
+
+    expect(ids(first)).toEqual(created.slice(0, 3));
+    expect(ids(second)).toEqual(created.slice(3));
+    expect(ids(second)).not.toContain(newcomer);
+  });
+
+  it("filters by kind in the query, so a page of drafts holds drafts only", async () => {
+    await submittedEvents(4);
+    const older = await draft("L7 older draft", 600);
+    const newer = await draft("L7 newer draft", 300);
+
+    expect((await allPages("?kind=drafts&limit=1")).flat()).toEqual([newer, older]);
+    const submitted = (await allPages("?kind=submitted&limit=3")).flat();
+    expect(submitted).toHaveLength(4);
+    expect(submitted).not.toContain(newer);
+    const everything = (await allPages("?limit=4")).flat();
+    expect(everything).toHaveLength(6);
+  });
+
+  it("lists nobody else's requests on any page (A3)", async () => {
+    await submittedEvents(5);
+    const theirs = await seedEvent(sql, { ownerId: COORDINATOR_A, status: "SUBMITTED", endsAt: new Date(EVENT_END), name: "L7 theirs" });
+    try {
+      const pages = await allPages("?limit=2");
+      expect(pages.flat()).toHaveLength(5);
+      expect(pages.flat()).not.toContain(theirs);
+    } finally {
+      await deleteSeededEvents(sql, [COORDINATOR_A]);
+    }
+  });
+
+  it.each(["0", "101", "-3", "ten", "2.5", ""])("refuses limit=%j with 400 and names the field", async (limit) => {
+    const res = await list(`?limit=${limit}`);
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatchObject({ code: "VALIDATION_FAILED", fields: [{ field: "limit" }] });
+  });
+
+  it("accepts the largest page of 100", async () => {
+    expect((await list("?limit=100")).status).toBe(200);
+  });
+
+  it.each(["garbage", "e30", "bm90LWpzb24"])("refuses cursor=%s, which this service did not issue", async (cursor) => {
+    const res = await list(`?cursor=${cursor}`);
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatchObject({ code: "VALIDATION_FAILED", fields: [{ field: "cursor" }] });
+  });
+});
