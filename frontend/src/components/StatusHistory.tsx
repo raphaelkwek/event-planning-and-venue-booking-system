@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import Lozenge from "@atlaskit/lozenge";
+import Lozenge from "../shared/Lozenge.js";
 import { useSignedIn } from "../auth/SessionContext.js";
 import { getStatusHistory, type StatusHistoryEntry } from "../api/statusHistory.js";
 import { formatInstant, STATUS_APPEARANCE, STATUS_LABELS } from "../shared/status.js";

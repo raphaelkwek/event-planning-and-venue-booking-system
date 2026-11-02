@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Button from "@atlaskit/button/new";
 import DynamicTable from "@atlaskit/dynamic-table";
-import Lozenge from "@atlaskit/lozenge";
+import Lozenge from "../shared/Lozenge.js";
 import { listEquipmentTypes, type EquipmentTypeListItem } from "../api/equipment.js";
 import { useSignedIn } from "../auth/SessionContext.js";
 import { Refusal } from "../components/Refusal.js";
