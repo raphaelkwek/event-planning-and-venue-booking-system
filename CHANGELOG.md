@@ -4,6 +4,40 @@
 
 ---
 
+# EN-15, EN-22: feature flags; traceability matrix and DORA metrics from CI
+
+**Timestamp:** 2026-11-02T23:45+08:00 (SGT)
+**Author:** Joash
+**Scope:** planning-core (shared/flags, change module), contracts, web app, CI workflows,
+documentation scripts. No migration.
+
+## Added
+
+- EN-15: feature flags through OpenFeature with the flagd provider. The source is a flagd at
+  `FLAGD_HOST`, else the committed `flags/flags.flagd.json`, else the defaults in
+  `shared/flags/definitions.ts`. `change-approval` defaults to on. With it off, S2's approve is
+  refused with 403 `FEATURE_DISABLED`; reject still works. `GET /api/v1/feature-flags` (signed in,
+  rate limited) feeds the change-decision screen, which disables Approve. How to add and flip a
+  flag: `documentation/feature-flags.md`.
+- CI runs a real flagd (container, CI only) for one provider test (EN-15-T8).
+- EN-22: `documentation/scripts/traceability-matrix.ts` builds the story, criterion, test, last
+  result matrix (Markdown, HTML, JSON) from the traceability CSVs, the vitest JSON, Playwright JSON
+  and node:test JUnit results, and the cards' statuses. The new `traceability` CI job runs it on
+  every pull request and push to main, writes the summary to the job summary and uploads the matrix.
+  Missing tests, names that do not exist and non-standard card statuses are warnings.
+- EN-22: `documentation/scripts/dora.ts` and the weekly `dora.yml` workflow compute deployment
+  frequency, lead time, change failure rate and time to restore from the GitHub API. Snapshot and
+  dashboard page: `documentation/evidence/EN-22/`.
+- Cards `tests/EN-15/` and `tests/EN-22/`; traceability rows in `sprint-4.csv`.
+
+## Changed
+
+- Every vitest config also writes a JSON report when `CI` is set, and CI uploads them.
+- New error code `FEATURE_DISABLED`.
+
+---
+
+
 # S3: flag the arrangements an approved change affects (SPM-59)
 
 **Timestamp:** 2026-10-28T12:00+08:00 (SGT)
