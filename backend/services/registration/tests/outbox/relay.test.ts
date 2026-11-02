@@ -63,7 +63,7 @@ async function insertRows(n: number, envelope = withdrawn) {
   for (let i = 0; i < n; i++) {
     const key = randomUUID();
     keys.push(key);
-    await sql.unsafe(`insert into ${TABLE} (topic, message_key, envelope) values ($1, $2, $3::jsonb)`, [
+    await sql.unsafe(`insert into ${TABLE} (topic, message_key, envelope) values ($1, $2, $3::text::jsonb)`, [
       "connectsphere.registration.v1",
       key,
       JSON.stringify(envelope(key)),
