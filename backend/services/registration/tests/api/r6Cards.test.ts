@@ -126,7 +126,9 @@ describe("the waitlist (R6)", () => {
     const racing = await Promise.all([joinAs(other, event.eventId), joinAs(other, event.eventId)]);
 
     expect([again.status, again.body.error.code, again.body.error.details.waitlistReference]).toEqual([409, "WAITLIST_DUPLICATE", first.reference]);
+    expect(again.body.error.message).toBe(`You are already on the waitlist for ${event.reference} “R Test Symposium” (${first.reference}), so no second entry was made.`);
     expect(racing.map((r) => r.status).sort()).toEqual([201, 409]);
+    expect(await sql`select id from registration.waitlist_entries where event_id = ${event.eventId} and attendee_id = ${me}`).toHaveLength(1);
     expect(await entriesOf(event.eventId)).toHaveLength(2);
   });
 
@@ -264,10 +266,13 @@ describe("the waitlist (R6)", () => {
 
     clock.now = new Date(Date.parse(CLOSES) + 1);
     const late = await registerAs(me, event.eventId);
-    clock.now = new Date(CLOSES);
-    const atClosing = await registerAs(me, event.eventId);
 
     expect([late.status, late.body.error.code]).toEqual([422, "REGISTRATION_OUTSIDE_WINDOW"]);
+    expect(late.body.error.message).toContain("closed on Thursday 10 December 2026, 18:00");
+    expect(await entryRow(mine.id)).toMatchObject({ status: "WAITLISTED", registration_id: null });
+
+    clock.now = new Date(CLOSES);
+    const atClosing = await registerAs(me, event.eventId);
     expect(atClosing.status).toBe(201);
     expect(await entryRow(mine.id)).toMatchObject({ status: "REGISTERED" });
   });

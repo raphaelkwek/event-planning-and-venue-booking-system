@@ -117,10 +117,9 @@ export function managementRouter(deps: { sql: Sql; auth: Authenticator; director
       const input = readAdditionRequest(req.body);
       if (!input.ok) return refuse(res, 400, "VALIDATION_FAILED", "The addition is not complete.", { fields: input.fields });
       const event = { reference: listing.eventReference, name: listing.name };
-      if (!takesAdditions(listing.status)) {
-        const label = EVENT_STATUS_LABELS[listing.status as EventStatus] ?? listing.status;
-        return refuse(res, 409, "REGISTRATION_EVENT_CLOSED", eventClosedMessage(event, label), { details: { status: listing.status } });
-      }
+      const closed = (status: string) =>
+        refuse(res, 409, "REGISTRATION_EVENT_CLOSED", eventClosedMessage(event, EVENT_STATUS_LABELS[status as EventStatus] ?? status), { details: { status } });
+      if (!takesAdditions(listing.status)) return closed(listing.status);
       const { confirmedBookings } = await capacityOf(sql, listing.eventId);
       if (confirmedBookings === 0) return refuse(res, 422, "REGISTRATION_NO_CONFIRMED_BOOKING", noBookingMessage(event));
 
@@ -154,6 +153,7 @@ export function managementRouter(deps: { sql: Sql; auth: Authenticator; director
         const names = new Map([...adder, [attendee.id, attendee]]);
         return res.status(201).json({ ...presentManagedRegistration(outcome.registration, names), capacity: outcome.preview.capacity, totalAfter: outcome.preview.totalAfter });
       }
+      if (outcome.code === "EVENT_CLOSED") return closed(outcome.status);
       if (outcome.code === "DUPLICATE") {
         return refuse(res, 409, "REGISTRATION_DUPLICATE", additionDuplicateMessage(event, attendee.email, outcome.existing.reference), {
           details: { registrationId: outcome.existing.id, registrationReference: outcome.existing.reference },

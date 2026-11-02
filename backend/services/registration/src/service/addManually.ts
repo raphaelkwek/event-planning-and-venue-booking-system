@@ -1,8 +1,8 @@
 import type { Sql } from "postgres";
 import type { Role, UserSummary } from "@connectsphere/contracts";
-import { additionPreview, type AdditionPreview } from "../domain/management.js";
+import { additionPreview, takesAdditions, type AdditionPreview } from "../domain/management.js";
 import { writeRegistrationOutbox } from "../outbox/write.js";
-import type { Listing } from "../repo/listings.js";
+import { findListing, type Listing } from "../repo/listings.js";
 import {
   DuplicateRegistrationError,
   findActiveRegistration,
@@ -31,6 +31,7 @@ import { closeEntryRegistered } from "../repo/waitlist.js";
 export type AdditionOutcome =
   | { ok: true; registration: Registration; preview: AdditionPreview }
   | { ok: false; code: "DUPLICATE"; existing: Registration }
+  | { ok: false; code: "EVENT_CLOSED"; status: string }
   | { ok: false; code: "OVER_CAPACITY_UNCONFIRMED"; preview: AdditionPreview; registered: number };
 
 export interface AdditionInput {
@@ -49,6 +50,9 @@ export async function addManually(sql: Sql, input: AdditionInput): Promise<Addit
     return await sql.begin(async (tx): Promise<AdditionOutcome> => {
       await lockAttendee(tx, listing.eventId, attendee.id);
       await lockPlaces(tx, listing.eventId, "exclusive");
+      // A cancellation takes the same lock, so this read sees one that committed after the caller's check.
+      const current = await findListing(tx, listing.eventId);
+      if (!current || !takesAdditions(current.status)) return { ok: false, code: "EVENT_CLOSED", status: current?.status ?? listing.status };
       const existing = await findActiveRegistration(tx, listing.eventId, attendee.id);
       if (existing) return { ok: false, code: "DUPLICATE", existing };
 

@@ -86,8 +86,11 @@ insert into registration.event_listings (
 R6 and R7 need a second attendee who signs in, to free a place by withdrawing. The seed
 (`npm run seed:auth`) has one attendee, `attendee@connectsphere.test`. Before those walk-throughs,
 add `attendee2@connectsphere.test` (display name `Attendee Two`, role Attendee, the same password)
-to the seed list in `backend/services/planning-core/migrations/identity/seed/seed-auth-users.ts`
-and run it. This package doesn't change the seed: it touches the shared Supabase project.
+the way Attendee One is seeded: a row in `identity.users` and `identity.user_roles` as
+`backend/services/planning-core/migrations/identity/seed/0001_seed_users.sql` and
+`0003_seed_display_names.sql` do, and an entry in `seed-auth-users.ts` beside them, then run
+`npm run seed:auth`. This package doesn't change the seed: running it touches the shared Supabase
+project.
 
 ## Removing the R5 to R7 fixtures
 
