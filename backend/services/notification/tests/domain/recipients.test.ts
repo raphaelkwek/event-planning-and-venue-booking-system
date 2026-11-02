@@ -610,9 +610,34 @@ describe("L6: tells the holding coordinator a hold is about to expire, and that 
     );
   });
 
-  it("notifies nobody when a hold is placed or its expiry changed", () => {
+  it("notifies nobody when a hold is placed", () => {
     expect(notificationsFor(message("venue-booking.hold-placed", { ...hold, reminderLeadMinutes: 60 }))).toEqual([]);
-    expect(notificationsFor(message("venue-booking.hold-expiry-changed", { ...hold, changedBy: coordinator }))).toEqual([]);
+  });
+
+  it("tells the coordinator when Venue Staff move the expiry, naming the old and the new (W9-40)", () => {
+    expect(
+      notificationsFor(
+        message("venue-booking.hold-expiry-changed", {
+          ...hold,
+          expiresAt: "2026-12-01T10:00:00.000Z",
+          previousExpiresAt: hold.expiresAt,
+          changedBy: coordinator,
+          reminderLeadMinutes: 60,
+        }),
+      ),
+    ).toEqual(
+      one(
+        "venue-booking.hold-expiry-changed",
+        `${where} now expires on Tuesday 1 December 2026, 18:00. Venue Staff moved the expiry from Tuesday 1 December 2026, 14:00.`,
+      ),
+    );
+  });
+
+  it("says only the new expiry when the message does not carry the old one, and tells nobody of one written before W9-40", () => {
+    const [notice] = notificationsFor(message("venue-booking.hold-expiry-changed", { ...hold, changedBy: coordinator }));
+    expect(notice!.message).toBe(`${where} now expires on Tuesday 1 December 2026, 14:00. Venue Staff moved the expiry.`);
+    const { coordinatorId: _omitted, ...beforeW940 } = hold;
+    expect(notificationsFor(message("venue-booking.hold-expiry-changed", { ...beforeW940, changedBy: coordinator }))).toEqual([]);
   });
 });
 

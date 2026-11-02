@@ -528,12 +528,11 @@ export async function changeHoldExpiry(
     actor: { userId: actorUserId, role: "VENUE_STAFF" },
     correlationId,
     payload: {
-      holdId: changed.id,
-      holdReference: changed.reference,
-      venueId: changed.venueId,
-      expiresAt: changed.expiresAt,
+      // What the coordinator is told: the hold, its event and period (W9-40).
+      ...(await holdNoticePayload(tx, changed)),
       reminderLeadMinutes: changed.reminderLeadMinutes,
       changedBy: actorUserId,
+      previousExpiresAt: hold.expiresAt,
     },
   });
   return changed;

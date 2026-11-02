@@ -186,7 +186,7 @@ export async function applyApprovedChange(
   tx: TransactionSql,
   event: { id: string; current: ChangeableEvent },
   changes: ProposedChanges,
-  actor: { userId: string; role: string },
+  actor: { userId: string; role: string; correlationId?: string | null },
   occurredAt?: Date
 ): Promise<void> {
   const fields = Object.keys(changes).filter(isSignificantEventField);
@@ -258,14 +258,15 @@ function writeScheduleChanged(
   tx: TransactionSql,
   eventId: string,
   row: ScheduleChange,
-  actor: { userId: string; role: string }
+  actor: { userId: string; role: string; correlationId?: string | null }
 ): Promise<string> {
   return writeOutbox(tx, {
     topic: KAFKA_TOPICS.event,
     messageType: "event.schedule-changed",
     aggregateId: eventId,
     actor,
-    correlationId: null,
+    // The approval's own correlation id, so the message traces back to the request that made it.
+    correlationId: actor.correlationId ?? null,
     payload: {
       eventId,
       ownerId: row.owner_id,

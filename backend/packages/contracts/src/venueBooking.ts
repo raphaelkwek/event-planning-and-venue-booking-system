@@ -141,9 +141,9 @@ export const disruptionClearedPayloadSchema = z.object({
 });
 
 /**
- * L6 — hold expiry. `hold-placed` and `hold-expiry-changed` are for the hold-expiry
- * workflow's consumer (nobody is notified); `hold-expiring` and `hold-expired`
- * tell the holding coordinator, named in `coordinatorId`.
+ * L6 — hold expiry. `hold-placed` is for the hold-expiry workflow's consumer (nobody is
+ * notified); `hold-expiry-changed` drives the workflow too and also tells the holding coordinator
+ * (W9-40); `hold-expiring` and `hold-expired` tell the holding coordinator, named in `coordinatorId`.
  */
 const holdReference = z.string().regex(/^HLD-\d{6}$/, "holdReference must be HLD- and six digits");
 
@@ -157,7 +157,11 @@ export const holdPlacedPayloadSchema = z.object({
   reminderLeadMinutes: z.number().int().min(1),
 });
 
-/** L6: Venue Staff moved a held hold's expiry; reschedule its reminder and expiry. */
+/**
+ * L6: Venue Staff moved a held hold's expiry; reschedule its reminder and expiry, and tell the
+ * holding coordinator (W9-40: Venue Staff notify the coordinator of such changes). The notice's
+ * fields are optional so a message written before W9-40 is still valid; it notifies nobody.
+ */
 export const holdExpiryChangedPayloadSchema = z.object({
   holdId: z.string().uuid(),
   holdReference,
@@ -166,6 +170,16 @@ export const holdExpiryChangedPayloadSchema = z.object({
   /** The hold's reminder lead, so the workflow can restart the reminder without asking the database. */
   reminderLeadMinutes: z.number().int().min(1),
   changedBy: z.string().uuid(),
+  /** The expiry before the change. */
+  previousExpiresAt: z.string().datetime().nullable().optional(),
+  venueName: z.string().min(1).optional(),
+  eventId: z.string().uuid().optional(),
+  eventReference: z.string().min(1).optional(),
+  eventName: z.string().min(1).optional(),
+  /** The coordinator who requested the hold, who is told. */
+  coordinatorId: z.string().uuid().optional(),
+  startsAt: z.string().datetime().optional(),
+  endsAt: z.string().datetime().optional(),
 });
 
 /** What the reminder and the expiry notice both carry: the hold, its event and period, and who to tell. */

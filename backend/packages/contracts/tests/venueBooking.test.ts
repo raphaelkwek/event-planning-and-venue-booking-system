@@ -279,6 +279,22 @@ describe("L6: hold expiry messages", () => {
     expect(parseCloudEvent(message(type, data)).data).toEqual(data);
   });
 
+  it("hold-expiry-changed carries the notice fields W9-40 needs, and stays valid without them", () => {
+    const withNotice = {
+      ...changed,
+      previousExpiresAt: "2026-12-01T06:00:00.000Z",
+      venueName: "Lee Kong Chian Auditorium",
+      eventId: "00000000-0000-0000-0000-0000000000e1",
+      eventReference: "EVT-000001",
+      eventName: "Freshmen Orientation",
+      coordinatorId: "00000000-0000-0000-0000-0000000000c1",
+      startsAt: "2026-12-02T02:00:00.000Z",
+      endsAt: "2026-12-02T04:00:00.000Z",
+    };
+    expect(parseCloudEvent(message("venue-booking.hold-expiry-changed", withNotice)).data).toEqual(withNotice);
+    expect(parseCloudEvent(message("venue-booking.hold-expiry-changed", changed)).data).toEqual(changed);
+  });
+
   it.each(cases)("refuses %s with any field missing", (type, data) => {
     for (const field of Object.keys(data)) {
       const rest = { ...data };
