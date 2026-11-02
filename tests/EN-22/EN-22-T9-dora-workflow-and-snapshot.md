@@ -18,8 +18,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
+| Actual Result | dora.yml is written (weekly schedule, workflow_dispatch, job summary and artifact, no commit) and the snapshot documentation/evidence/EN-22/dora-2026-11-02.md was generated locally with gh. The workflow itself has not run: a schedule or dispatch needs it on the default branch. |
 | Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
+| Remarks | Commit: 62a261e · Evidence: the committed snapshot · Proven: the snapshot; pending: a first run of the workflow after merge · Defect: — |
 | Executed By | |
 | Date of Execution | |

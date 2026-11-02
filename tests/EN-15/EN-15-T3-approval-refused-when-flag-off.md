@@ -18,8 +18,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | With the flag off, POST decision APPROVE returned 403 FEATURE_DISABLED naming change-approval; the request stayed PENDING and the event's attendance and version were unchanged. |
+| Status | Pass |
+| Remarks | Commit: 62a261e · Evidence: backend/services/planning-core/tests/change/api/en15Cards.test.ts › EN-15-T3 refuses an approval on the server while the flag is off, and changes nothing, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41512676026 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

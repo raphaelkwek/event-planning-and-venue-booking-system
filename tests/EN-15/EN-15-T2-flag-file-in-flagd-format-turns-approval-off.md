@@ -18,8 +18,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | flags.unit.test.ts: a temp flagd-format file with defaultVariant off evaluates false (source 'file'); the committed flags/flags.flagd.json evaluates true; a missing flag or file falls back to the default. |
+| Status | Pass |
+| Remarks | Commit: 62a261e · Evidence: backend/services/planning-core/tests/shared/flags.unit.test.ts › EN-15-T2 tests and the failure fallbacks, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41512676026 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

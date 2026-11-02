@@ -18,8 +18,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | Review page as the assigned coordinator: Approve change enabled with the flag on; disabled with the explanation with it off while Reject change still opens; enabled when the flags call fails. |
+| Status | Pass |
+| Remarks | Commit: 62a261e · Evidence: frontend/tests/featureFlags.test.tsx › EN-15-T7 tests, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41512676026 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

@@ -18,8 +18,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | GET /api/v1/feature-flags: 401 without a token; 200 { flags: { change-approval } } matching the flag, evaluated with the caller's id and role; a tight limiter gives 429 RATE_LIMITED before authentication; an identity failure reaches the error handler. |
+| Status | Pass |
+| Remarks | Commit: 62a261e · Evidence: backend/services/planning-core/tests/change/api/en15Cards.test.ts › EN-15-T6 and change/api/featureFlags.unit.test.ts › EN-15-T6 tests, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41512676026 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

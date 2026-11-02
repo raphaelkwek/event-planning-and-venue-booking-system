@@ -18,8 +18,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | The traceability job ran after the checks and integration jobs, wrote the summary to the job summary, annotated mismatches as warnings, and uploaded the traceability-matrix artifact; it passed although integration was red. |
+| Status | Pass |
+| Remarks | Commit: 62a261e · Evidence: CI job 'Traceability matrix' in https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41512676026, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41512676026 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

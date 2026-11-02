@@ -18,8 +18,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | Playwright and node:test JUnit reports are read when present and their absence is tolerated. Proven on synthetic Playwright JSON: EN-14's e2e job does not exist yet, so a real report has not been read. |
+| Status | Pass |
+| Remarks | Commit: 62a261e · Evidence: documentation/scripts/traceability-matrix.test.ts › EN-22-T6 tests, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41512676026 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

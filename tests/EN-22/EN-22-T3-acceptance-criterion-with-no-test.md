@@ -18,8 +18,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | A row with no test name gives state 'no test' and is counted under noTest, not covered. |
+| Status | Pass |
+| Remarks | Commit: 62a261e · Evidence: documentation/scripts/traceability-matrix.test.ts › a criterion whose row has no test name has no test, and is not covered (EN-22-T3), CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41512676026 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |
