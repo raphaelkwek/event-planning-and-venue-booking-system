@@ -62,8 +62,7 @@ case "$name" in
     echo "ok: $name /readyz -> $ready"
     echo "$ready" | grep -q '"database":"ok"' || fail "$name: /readyz does not report the database as ok"
     echo "$ready" | grep -q '"kafka":"not_configured"' || fail "$name: expected kafka not_configured with no KAFKA_* set"
-    ;;&
-  planning-core)
+    if [ "$name" = planning-core ]; then
     # The same image runs the Temporal worker. With no TEMPORAL_ADDRESS the worker
     # says so and exits 0 (worker.ts), which proves the entrypoint resolves.
     out="$(docker run --rm "${hardening[@]}" "${backend_env[@]}" --entrypoint node "$image" dist/temporal/worker.js)"
@@ -74,6 +73,7 @@ case "$name" in
     docker run --rm "${hardening[@]}" "${backend_env[@]}" --entrypoint node "$image" \
       -e "import('./dist/temporal/workflowBundle.js').then(m=>m.bundleCompletionWorkflows()).then(()=>console.log('workflow bundle ok'))" \
       | tee /dev/stderr | grep -q "workflow bundle ok" || fail "worker could not bundle its workflows"
+    fi
     ;;
   web)
     serve 8080
