@@ -184,9 +184,11 @@ jobs:
           FLAGD_INTEGRATION_HOST: 127.0.0.1
 
       - name: Integration tests (notification)
+        if: always()
         run: npm test -w @connectsphere/notification
 
       - name: Integration tests (registration)
+        if: always()
         run: npm test -w @connectsphere/registration
 
       - name: Upload test results
