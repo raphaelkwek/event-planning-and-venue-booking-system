@@ -121,7 +121,8 @@ test("EN-12-T3 refuses no token, a malformed token, a wrong key, an expired toke
   for (const [name, request] of Object.entries(refusals)) {
     const res = await call(A, path, request);
     assert.equal(res.status, 401, `${name}: ${res.text}`);
-    assert.ok(typeof res.json?.message === "string" && res.json.error === undefined, `${name}: Kong's own refusal, not planning-core's envelope`);
+    // Kong words its refusals as {"message": ...}, or {"exp": "token expired"} for a claim; never the services' {"error": {...}}.
+    assert.ok(res.json !== null && typeof res.json === "object" && res.json.error === undefined, `${name}: Kong's own refusal, not planning-core's envelope`);
     assert.ok(!reachedUpstream(res), `${name}: planning-core was not reached`);
   }
   const ok = await call(A, path, { bearer: await token(ORGANISER) });
