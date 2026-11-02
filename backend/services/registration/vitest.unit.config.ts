@@ -19,11 +19,12 @@ export default defineConfig({
         "src/**/domain/**": { lines: 100, branches: 100, functions: 100, statements: 100 },
         // Elsewhere the seat SQL, the consumer's transaction and the Kafka wiring
         // are covered by integration tests against a database, which CI runs.
-        // These floors sit just under today's unit-only figures (33.3% lines, 68% branches, 20% functions outside domain/, which has its own 100% floor) and should only ever go up.
-        lines: 33,
-        statements: 33,
-        branches: 68,
-        functions: 20,
+        // These floors sit just under today's unit-only figures (58.4% lines, 81.4% branches, 52.3% functions
+        // after R1 to R4; domain/ has its own 100% floor) and should only ever go up.
+        lines: 57,
+        statements: 57,
+        branches: 80,
+        functions: 51,
       },
     },
   },
