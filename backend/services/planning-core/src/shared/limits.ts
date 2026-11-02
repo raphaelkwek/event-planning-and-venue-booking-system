@@ -1,3 +1,5 @@
+import { MAX_VENUE_CAPACITY } from "@connectsphere/contracts";
+
 /**
  * Upper bounds for whole numbers a caller sends that end up in an `int` column.
  * Postgres `int` stops at 2 147 483 647; a larger value raises 22003 from the
@@ -5,8 +7,8 @@
  * real use and far below that limit, so it can be named in the refusal.
  */
 
-/** Seats, capacities and attendance: no venue or event here holds a million people. */
-export const MAX_HEADCOUNT = 1_000_000;
+/** Seats, capacities and attendance: no venue or event here holds a million people. Shared with the approval message (contracts), which the registration service turns into that many seat rows. */
+export const MAX_HEADCOUNT = MAX_VENUE_CAPACITY;
 
 /** Units of one equipment type, held, requested or unavailable. */
 export const MAX_QUANTITY = 1_000_000;

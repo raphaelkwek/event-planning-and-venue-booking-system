@@ -64,6 +64,14 @@ const bookingRequestDecidedFields = {
   decidedAt: z.string().datetime(),
 };
 
+/**
+ * The most people one venue layout may hold, and so the most seats an approval can
+ * ask the registration service to build (`generate_series(1, capacity)`). planning-core
+ * refuses a larger venue or layout capacity or attendance with the same constant,
+ * and the approval message is refused above it, so one message cannot insert millions of rows.
+ */
+export const MAX_VENUE_CAPACITY = 1_000_000;
+
 /** M1: the request is Approved and its booking confirmed. */
 export const bookingRequestApprovedPayloadSchema = z.object({
   ...bookingRequestDecidedFields,
@@ -78,7 +86,7 @@ export const bookingRequestApprovedPayloadSchema = z.object({
    * builds no seats for one that lacks them.
    */
   layout: z.string().min(1).optional(),
-  layoutCapacity: z.number().int().positive().optional(),
+  layoutCapacity: z.number().int().positive().max(MAX_VENUE_CAPACITY).optional(),
 });
 
 /** M2: the request is Rejected, with its reason and any suggested alternative. */

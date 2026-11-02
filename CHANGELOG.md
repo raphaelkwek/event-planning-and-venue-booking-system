@@ -25,6 +25,9 @@ tokens with other claims.
 - **C1 trigger:** venue and layout capacities, setup and turnaround minutes, expected attendance,
   `reminderLeadMinutes` and equipment quantities are bounded below Postgres's `int` range and refused
   with `400 VALIDATION_FAILED` naming the field and the bound.
+- **G4:** the approval message's `layoutCapacity` is at most `MAX_VENUE_CAPACITY` (1 000 000), the
+  constant planning-core uses for venue capacities, so one message cannot make the registration
+  service insert millions of seat rows; an oversized one is skipped as invalid.
 - **H1:** errors no longer reach the caller as an HTML stack trace: a malformed JSON body is
   `400 VALIDATION_FAILED`, an oversized one `413`, and `next(error)` routes in venue, equipment and
   change get the envelope. `/readyz` returns a generic status and logs the database error. A 5xx is
