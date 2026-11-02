@@ -132,7 +132,7 @@ function scopeCondition(sql: Sql | TransactionSql, scope: AccessScope, callerId:
     case "ALL":
       return sql`(e.status <> 'DRAFT' or e.owner_id = ${callerId})`;
     case "ASSIGNED_TO_USER":
-      return sql`exists (
+      return sql`e.status <> 'DRAFT' and exists (
         select 1 from event.assignments mine
         where mine.event_id = e.id and mine.is_active and mine.coordinator_id = ${callerId}
       )`;

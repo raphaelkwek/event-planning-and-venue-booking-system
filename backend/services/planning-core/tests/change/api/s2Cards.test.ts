@@ -277,7 +277,16 @@ describe("S2 cards: deciding a change request", () => {
     const before = await eventState(e1.id);
     const body = { decision: "APPROVE" };
 
-    for (const signIn of [asC2, asOrg, asTs, asVs]) {
+    // A4: another coordinator gets the same 404 as for a change request that isn't there.
+    asC2();
+    const notAssigned = await decide(cr1, body);
+    expect(notAssigned.status).toBe(404);
+    expect(notAssigned.body.error).toMatchObject({
+      code: "CHANGE_REQUEST_NOT_FOUND",
+      message: "No change request with that id is on an event assigned to you.",
+    });
+
+    for (const signIn of [asOrg, asTs, asVs]) {
       signIn();
       const refused = await decide(cr1, body);
       expect(refused.status).toBe(403);
@@ -287,7 +296,7 @@ describe("S2 cards: deciding a change request", () => {
     asC1();
     const unknown = await decide(randomUUID(), body);
     expect(unknown.status).toBe(404);
-    expect(unknown.body.error.code).toBe("CHANGE_REQUEST_NOT_FOUND");
+    expect(unknown.body.error).toMatchObject({ code: "CHANGE_REQUEST_NOT_FOUND", message: notAssigned.body.error.message });
 
     await stillPending(cr1);
     expect(await eventState(e1.id)).toEqual(before);
