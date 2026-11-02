@@ -15,13 +15,14 @@ note() {
   echo "$*" >> "${GITHUB_STEP_SUMMARY:-/dev/null}"
 }
 
-# Loads the images the images job built (docker save tarballs) into the kind cluster.
+# Loads the images the images job built (docker save tarballs, gzip) into the kind cluster.
 load_images() { # <cluster> <name>...
   local cluster="$1"
   shift
   local name
   for name in "$@"; do
-    kind load image-archive "image-${name}.tar.gz" --name "$cluster"
+    docker load -i "image-${name}.tar.gz"
+    kind load docker-image "connectsphere-${name}:ci" --name "$cluster"
   done
 }
 
