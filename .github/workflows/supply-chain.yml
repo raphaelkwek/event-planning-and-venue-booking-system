@@ -18,6 +18,11 @@ on:
 permissions:
   contents: read
 
+# bash with pipefail, so a failing command in front of `| tee` or `| tail` fails the step.
+defaults:
+  run:
+    shell: bash
+
 concurrency:
   group: supply-chain-${{ github.ref }}
   cancel-in-progress: true
@@ -44,10 +49,12 @@ jobs:
       - name: The check refuses a tag (it must fail on this file)
         run: |
           printf 'steps:\n  - uses: actions/checkout@v4\n' > "${RUNNER_TEMP}/tag-pinned.yml"
-          if node .github/scripts/check-action-pins.mjs "${RUNNER_TEMP}/tag-pinned.yml" 2> /dev/null; then
+          if node .github/scripts/check-action-pins.mjs "${RUNNER_TEMP}/tag-pinned.yml" 2> pin-check.err; then
             echo "::error::the pin check accepted an action pinned to a tag"
             exit 1
           fi
+          # It must refuse for the right reason, not because it crashed.
+          grep -q "not a 40-character commit SHA" pin-check.err
           echo "ok: an action pinned to a tag is refused"
 
   sbom-npm:
@@ -418,7 +425,16 @@ jobs:
             -e SUPABASE_JWKS_URL=https://ci.invalid/auth/v1/.well-known/jwks.json connectsphere-planning-core:ci
           docker run -d --name zap-web "${harden[@]}" connectsphere-web:ci
           for url in http://127.0.0.1:8090/readyz http://127.0.0.1:8080/healthz; do
-            for _ in $(seq 1 60); do curl -fsS "$url" > /dev/null 2>&1 && break; sleep 1; done
+            ready=false
+            for _ in $(seq 1 60); do
+              if curl -fsS "$url" > /dev/null 2>&1; then ready=true; break; fi
+              sleep 1
+            done
+            if [ "$ready" != true ]; then
+              echo "::error::$url never answered"
+              docker logs zap-api 2>&1 | tail -20; docker logs zap-web 2>&1 | tail -20
+              exit 1
+            fi
             echo "$url -> $(curl -fsS "$url")"
           done
 

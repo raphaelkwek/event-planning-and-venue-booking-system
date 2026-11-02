@@ -86,6 +86,12 @@ ref, a Fulcio certificate, a Rekor entry):
    commands and flags work end to end; it does not prove the GHCR package settings or permissions on
    main. Those can only be proven by the first push to main.
 
+A signature made by a pull request carries the identity `supply-chain.yml@refs/pull/<number>/merge`. It is
+not a release signature: when you verify an image, always use the exact main identity from the section above,
+never a pattern and never the identity a pull request run printed. The pull request jobs hold `id-token: write`
+so this demonstration can sign; if the Terraform in `deploy/terraform` ever adds a role that trusts GitHub's
+OIDC provider, scope its `sub` to `refs/heads/main` of this repository, not `repo:<owner>/<repo>:*`.
+
 A pull request from a fork gets no OIDC token. The jobs say so and skip signing; the SBOM and scan jobs run
 regardless.
 
@@ -116,12 +122,13 @@ as in the cluster, on a Postgres built from every migration inside the job.
 - The build fails only on a rule set to `FAIL`; warnings are reported and do not fail it. Which rules are FAIL and why is in `documentation/evidence/EN-21/zap.md`.
 - The scan is unauthenticated, so it sees the web app's public shell and the API's refusals, not what a signed-in user can do. An authenticated scan needs a way to sign in on a throwaway stack, which is a separate piece of work.
 - Reports (HTML, JSON, Markdown) and the services' logs are the `zap-report` artifact.
+- The ZAP image is pinned by digest, but `zap-baseline.py` checks for add-on updates over the internet when it starts, and Trivy fetches its vulnerability database on every run. Both are inherent to scanners that need current data; the tools are pinned, their data is not.
 
 ## Changing the pins
 
 - **Actions:** pin to a full commit SHA with the tag in a trailing comment. Resolve a tag with
   `gh api repos/<owner>/<repo>/git/ref/tags/<tag>` (an annotated tag needs one more hop through `git/tags/<sha>`).
-  `node .github/scripts/check-action-pins.mjs` fails on anything else.
+  `node .github/scripts/check-action-pins.mjs` fails on anything else in `supply-chain.yml`, `deploy.yml` (whose image job holds `id-token: write`) and the composite action. The check is a job on the pull request, not a branch protection, so it advises; making it required is a repository setting.
 - **Trivy and syft:** the version and SHA-256 are in `.github/scripts/install-supply-chain-tools.sh`.
   Take the hash from the release's checksums file. They are installed as binaries, not as actions, so
   there is no moving tag to trust: Trivy's own action was compromised in March 2026.

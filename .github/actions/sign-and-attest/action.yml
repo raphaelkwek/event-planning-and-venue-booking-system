@@ -28,6 +28,16 @@ inputs:
 runs:
   using: composite
   steps:
+    - name: Check the image is given by digest
+      shell: bash
+      env:
+        IMAGE: ${{ inputs.image }}
+      run: |
+        case "$IMAGE" in
+          *@sha256:[0-9a-f]*) ;;
+          *) echo "::error::image must be a digest reference (name@sha256:...), got '$IMAGE'"; exit 1 ;;
+        esac
+
     - name: Check the job can ask for an OIDC token
       id: oidc
       shell: bash

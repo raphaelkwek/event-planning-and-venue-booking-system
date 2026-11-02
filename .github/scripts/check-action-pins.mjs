@@ -3,7 +3,8 @@
 //
 //   node .github/scripts/check-action-pins.mjs [file ...]
 //
-// With no arguments it checks the supply-chain workflow and every composite action under
+// With no arguments it checks the supply-chain and deploy workflows (deploy.yml's image job holds
+// id-token: write, so a moved tag there could sign as main) and every composite action under
 // .github/actions. Local actions (./...) and docker:// references pinned by digest are fine.
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
@@ -31,7 +32,7 @@ export function problemWith(ref) {
 }
 
 function defaultFiles() {
-  const files = [".github/workflows/supply-chain.yml"];
+  const files = [".github/workflows/supply-chain.yml", ".github/workflows/deploy.yml"];
   const root = ".github/actions";
   for (const name of readdirSync(root)) {
     const file = join(root, name, "action.yml");
