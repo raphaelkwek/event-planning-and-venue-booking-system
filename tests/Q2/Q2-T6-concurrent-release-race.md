@@ -20,7 +20,7 @@
 | Item | Content |
 |---|---|
 | Actual Result | The automated race ran on CI's throwaway Postgres, fifty simultaneous releases per round for ten rounds, and its assertions passed; they check the expected result above. |
-| Status | Pass (automated, database level) |
-| Remarks | Commit: cc43643b6269cae9c30c54d2cdf6081afb8bf003 · Evidence: backend/services/planning-core/tests/race/invariants.test.ts › Q2-T6, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/38932644480 · Defect: — |
+| Status | Pass |
+| Remarks | Automated (database level) · Commit: cc43643b6269cae9c30c54d2cdf6081afb8bf003 · Evidence: backend/services/planning-core/tests/race/invariants.test.ts › Q2-T6, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/38932644480 · Defect: — |
 | Executed By | Raphael, via automated testing (CI) |
 | Date of Execution | 2026-10-17 |
