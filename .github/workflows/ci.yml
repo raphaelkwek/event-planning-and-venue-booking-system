@@ -208,6 +208,13 @@ jobs:
           UPDATE_SNAPSHOTS: ${{ github.event_name == 'workflow_dispatch' && inputs.update_snapshots && 'all' || 'missing' }}
         run: npx playwright test --config tests/playwright.config.ts --update-snapshots="$UPDATE_SNAPSHOTS"
 
+      - name: Check every journey is tagged with its story and card
+        if: always() && hashFiles('tests/test-results/results.json') != ''
+        run: |
+          node .github/scripts/e2e-tags-check.mjs
+          echo "Journeys tagged @D4:"
+          npx playwright test --config tests/playwright.config.ts --list --grep @D4
+
       - name: Browser test summary
         if: always()
         run: node .github/scripts/e2e-summary.mjs >> "$GITHUB_STEP_SUMMARY"
