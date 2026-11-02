@@ -283,7 +283,7 @@ jobs:
           if-no-files-found: ignore
 
   manifests:
-    name: Manifests (kubeconform: Chaos Mesh)
+    name: Manifests (kubeconform, Chaos Mesh)
     if: github.event.action != 'labeled'
     runs-on: ubuntu-latest
     timeout-minutes: 10
