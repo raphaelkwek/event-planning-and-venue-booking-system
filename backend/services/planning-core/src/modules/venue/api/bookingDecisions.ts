@@ -2,7 +2,7 @@ import { Router, type NextFunction, type Response } from "express";
 import type { Sql } from "postgres";
 import { findEventForPlanning, findEventReferences, type EventPlanningView } from "../../event/index.js";
 import { authenticate, requireRole, type ActorRequest } from "../auth/actor.js";
-import { layoutCapacityAt, notPendingMessage } from "../domain/bookingRequest.js";
+import { eventBookable, layoutCapacityAt, notBookableMessage, notPendingMessage } from "../domain/bookingRequest.js";
 import { bookingConflictMessage, NOT_VENUE_STAFF, readRejection, unavailableMessage } from "../domain/bookingDecision.js";
 import { VenueSlotConflictError } from "../domain/slotConflict.js";
 import { writeVenueOutbox } from "../events/outbox.js";
@@ -119,6 +119,12 @@ export function bookingDecisionsRouter(sql: Sql) {
           // H3 (CR-01): the booking copies the venue's setup and turnaround time as it stands now.
           const lockedVenue = (await lockVenue(tx, request.venueId))!;
           const { setupMinutes, turnaroundMinutes } = lockedVenue;
+          // L4: the event's status is read again under a share lock, so a Completed or Cancelled event
+          // (changed since the request was made) gains no booking, and a cancellation waits for this approval.
+          // The event comes after the venue and before the request in the lock order (implementation.md §4.6).
+          const lockedEvent = await findEventForPlanning(tx, request.eventId, ALL_EVENTS, actor.userId, { lock: "share" });
+          if (!lockedEvent) return { code: "EVENT_GONE" } as const;
+          if (!eventBookable(lockedEvent.status)) return { code: "EVENT_NOT_BOOKABLE", status: lockedEvent.status } as const;
           const locked = (await lockBookingRequest(tx, request.id))!;
           if (locked.status !== "PENDING") return { code: "NOT_PENDING", locked } as const;
           const blocks = await activeBlocksOverlapping(tx, locked.venueId, startsAt, endsAt, setupMinutes, turnaroundMinutes);
@@ -173,6 +179,10 @@ export function bookingDecisionsRouter(sql: Sql) {
         });
 
       switch (outcome.code) {
+        case "EVENT_GONE":
+          return requestNotFound(res);
+        case "EVENT_NOT_BOOKABLE":
+          return refuse(res, 409, "EVENT_NOT_BOOKABLE", notBookableMessage(outcome.status));
         case "NOT_PENDING":
           return refuse(res, 409, "BOOKING_REQUEST_NOT_PENDING", notPendingMessage(request.reference, outcome.locked.status, "approved"));
         case "UNAVAILABLE":
