@@ -105,7 +105,7 @@ const EXAMPLE_DATA: Record<EventMessageType, Record<string, unknown>> = {
     ownerId: organiser,
     previousStatus: "SAFETY_REVIEW",
     newStatus: "CONFIRMED",
-    action: "APPROVE_SAFETY",
+    action: "MARK_CONFIRMED",
     proposedStartAt: "2026-11-20T01:00:00.000Z",
     proposedEndAt: "2026-11-20T09:00:00.000Z",
     changedAt: at,

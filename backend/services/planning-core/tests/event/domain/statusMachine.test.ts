@@ -118,8 +118,10 @@ const EXPECTED: Record<EventAction, { from: EventStatus[]; to: EventStatus }> = 
   APPROVE: { from: ["UNDER_REVIEW", "AWAITING_CLARIFICATION"], to: "APPROVED" },
   REJECT: { from: ["UNDER_REVIEW", "AWAITING_CLARIFICATION"], to: "REJECTED" },
   CONFIRM_ARRANGEMENTS: { from: ["APPROVED", "PLANNING"], to: "SAFETY_REVIEW" },
-  APPROVE_SAFETY: { from: ["SAFETY_REVIEW"], to: "CONFIRMED" },
+  APPROVE_SAFETY: { from: ["SAFETY_REVIEW"], to: "SAFETY_REVIEW" },
   REQUEST_SAFETY_CHANGES: { from: ["SAFETY_REVIEW"], to: "PLANNING" },
+  REJECT_SAFETY_ARRANGEMENT: { from: ["SAFETY_REVIEW"], to: "PLANNING" },
+  MARK_CONFIRMED: { from: ["SAFETY_REVIEW"], to: "CONFIRMED" },
   VENUE_BLOCKED: { from: ["CONFIRMED"], to: "PLANNING" },
   COMPLETE: { from: ["CONFIRMED"], to: "COMPLETED" },
   RECONSIDER_AFTER_CHANGE: { from: ["CONFIRMED"], to: "PLANNING" },
@@ -156,22 +158,21 @@ describe("Safety Review, Confirmed and Completed (F1, CR-06)", () => {
     expect(actions.filter((action) => transitionRule(action).from.includes("SAFETY_REVIEW"))).toEqual([
       "APPROVE_SAFETY",
       "REQUEST_SAFETY_CHANGES",
+      "REJECT_SAFETY_ARRANGEMENT",
+      "MARK_CONFIRMED",
     ]);
   });
 
-  it("reaches Confirmed only through the Safety Officer's approval", () => {
-    expect(actions.filter((action) => transitionRule(action).to === "CONFIRMED")).toEqual([
-      "APPROVE_SAFETY",
-    ]);
+  it("reaches Confirmed only when the coordinator marks a Safety Review event Confirmed (W9-31)", () => {
+    expect(actions.filter((action) => transitionRule(action).to === "CONFIRMED")).toEqual(["MARK_CONFIRMED"]);
   });
 
-  it("has no transition for rejecting the safety arrangement until CQ-08 is answered", () => {
-    expect(
-      actions.filter(
-        (action) =>
-          transitionRule(action).from.includes("SAFETY_REVIEW") && transitionRule(action).to === "REJECTED"
-      )
-    ).toEqual([]);
+  it("keeps an approved event in Safety Review", () => {
+    expect(transitionRule("APPROVE_SAFETY").to).toBe("SAFETY_REVIEW");
+  });
+
+  it("sends a rejected safety arrangement back to Planning, never to Rejected or Cancelled (CQ-08)", () => {
+    expect(transitionRule("REJECT_SAFETY_ARRANGEMENT")).toEqual({ from: ["SAFETY_REVIEW"], to: "PLANNING" });
   });
 
   it("leaves Confirmed only by completing, or for Planning when its venue is blocked (I3) or a change is approved (S3)", () => {

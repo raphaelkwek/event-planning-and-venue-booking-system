@@ -260,10 +260,37 @@ const RULES: Record<string, Rule> = {
   // F5: the owner, the Venue Staff of each booked venue (once per booking), and each Technical
   // Support Staff member who reserved equipment (once, listing what they reserved).
   "event.arrangements-confirmed": (d, event) => arrangementsConfirmed(d as unknown as ArrangementsConfirmed, event),
+  // U1 (CR-06): the Safety Officer's decision; the assigned coordinator and the owning organiser are
+  // told, once each (a coordinator who also owns the event hears once).
+  "event.safety-decision-recorded": (d, event) => safetyDecisionNotices(d as unknown as SafetyDecisionRecorded, event),
   // S3 (AC10): an approved change flagged arrangements; the Venue Staff of each flagged booking, hold
   // or pending request and the member who reserved each flagged reservation are told. One notice per flag.
   "change-request.arrangements-flagged": (d, event) => arrangementsFlagged(d as unknown as ArrangementsFlagged, event),
 };
+
+/** U1's message data, as its contract (`eventSafetyDecisionRecordedPayloadSchema`) validated it. */
+interface SafetyDecisionRecorded {
+  ownerId: string;
+  coordinatorId: string | null;
+  decision: "APPROVE" | "REQUEST_CHANGES" | "REJECT";
+  reason: string | null;
+  flaggedBookingReferences: string[];
+  flaggedEquipment: string[];
+}
+
+function safetyDecisionNotices(d: SafetyDecisionRecorded, event: string): Array<[string, string]> {
+  const reason = d.reason ? ` Reason: ${/[.!?]$/.test(d.reason) ? d.reason : `${d.reason}.`}` : "";
+  const flagged = [...d.flaggedBookingReferences, ...d.flaggedEquipment];
+  const named = flagged.length > 0 ? ` Flagged for review: ${flagged.join(", ")}.` : "";
+  const text =
+    d.decision === "APPROVE"
+      ? `The Safety Officer approved the safety arrangements for ${event}. It stays in Safety Review until its coordinator marks it Confirmed.${reason}`
+      : d.decision === "REQUEST_CHANGES"
+        ? `The Safety Officer requested changes to the safety arrangements for ${event}. It is back in Planning.${reason}${named}`
+        : `The Safety Officer rejected the safety arrangement for ${event}. It is back in Planning, with its venue and equipment arrangements in place to be re-evaluated.${reason}`;
+  const recipients = [...new Set([d.coordinatorId, d.ownerId].filter((id): id is string => id !== null))];
+  return recipients.map((recipient) => [recipient, text]);
+}
 
 /** S3's message data, as its contract (`changeRequestArrangementsFlaggedPayloadSchema`) validated it. */
 interface ArrangementsFlagged {

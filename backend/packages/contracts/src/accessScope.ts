@@ -11,6 +11,8 @@ export const ROLES = [
   "ATTENDEE",
   // E3 to E5 (CR-05): assigns, reassigns and oversees coordinators; coordinates no event (W9-35).
   "EVENT_COORDINATOR_LEAD",
+  // U1 (CR-06): records the operational safety decision on events in Safety Review.
+  "SAFETY_OFFICER",
 ] as const;
 export type Role = (typeof ROLES)[number];
 

@@ -68,6 +68,10 @@ export const ERROR_CODES = [
   // E4: the Lead reassigns only an event that has a coordinator; E2's proposals are retired.
   "EVENT_NOT_ASSIGNED",
   "REASSIGNMENT_RETIRED",
+  // U1: the Safety Officer's decision, and the coordinator's Mark Confirmed that only a passed check allows.
+  "SAFETY_CHECK_NOT_PASSED",
+  "SAFETY_DECISION_ALREADY_RECORDED",
+  "ARRANGEMENT_FLAGS_OUTSTANDING",
 ] as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[number];

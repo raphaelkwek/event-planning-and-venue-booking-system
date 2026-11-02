@@ -142,6 +142,23 @@ export const eventArrangementsConfirmedPayloadSchema = z.object({
 });
 
 /**
+ * U1 — the Safety Officer's decision on an event in Safety Review (CR-06). It names the owner and
+ * the assigned coordinator, whom the decision notifies, and the arrangements a request for changes
+ * flagged.
+ */
+export const eventSafetyDecisionRecordedPayloadSchema = z.object({
+  ...eventRef,
+  ownerId: z.string().uuid(),
+  coordinatorId: z.string().uuid().nullable(),
+  decision: z.enum(["APPROVE", "REQUEST_CHANGES", "REJECT"]),
+  reason: z.string().nullable(),
+  decidedBy: z.string().uuid(),
+  decidedAt: z.string().datetime(),
+  flaggedBookingReferences: z.array(z.string()),
+  flaggedEquipment: z.array(z.string()),
+});
+
+/**
  * EN-11 — every change of an event's status, whatever caused it. The event
  * module writes it in `transitionEvent`, the one path that changes a status,
  * so a consumer that cares about a status (the completion workflow cares about
@@ -189,6 +206,7 @@ export const EVENT_PAYLOAD_SCHEMAS = {
   "event.reassignment-accepted": eventReassignmentAcceptedPayloadSchema,
   "event.reassignment-declined": eventReassignmentDeclinedPayloadSchema,
   "event.arrangements-confirmed": eventArrangementsConfirmedPayloadSchema,
+  "event.safety-decision-recorded": eventSafetyDecisionRecordedPayloadSchema,
   "event.status-changed": eventStatusChangedPayloadSchema,
   "event.schedule-changed": eventScheduleChangedPayloadSchema,
 } as const;

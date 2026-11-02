@@ -7,7 +7,7 @@ import { EVENT_STATUS_LABELS, type EventStatus } from "@connectsphere/contracts"
  *
  * `transitionEvent` (api/transitionEvent.ts) is the only code that applies a
  * row of this table, and the only code that writes an event's status. Later
- * stories (F3 cancellation, S2, S3, U1's reject once CQ-08 is answered) add rows
+ * stories (F3 cancellation, S2, S3) add rows
  * here rather than writing status themselves.
  */
 export type EventAction =
@@ -20,6 +20,8 @@ export type EventAction =
   | "CONFIRM_ARRANGEMENTS"
   | "APPROVE_SAFETY"
   | "REQUEST_SAFETY_CHANGES"
+  | "REJECT_SAFETY_ARRANGEMENT"
+  | "MARK_CONFIRMED"
   | "VENUE_BLOCKED"
   | "COMPLETE"
   | "RECONSIDER_AFTER_CHANGE";
@@ -39,18 +41,21 @@ const TRANSITIONS: Record<EventAction, TransitionRule> = {
   // F5 confirms the arrangements (a confirmed booking, equipment reserved).
   // Since CR-06 that leads to Safety Review, not straight to Confirmed.
   CONFIRM_ARRANGEMENTS: { from: ["APPROVED", "PLANNING"], to: "SAFETY_REVIEW" },
-  // U1 — only the Safety Officer's approval makes an event Confirmed (CR-06).
-  // S3: a change approved while the event is in Safety Review leaves it there
-  // (AC6) but may flag its arrangements. When U1 applies this transition it must
-  // refuse while any arrangement flag is outstanding (the venue and equipment
-  // reads F5 uses), or a flagged event would become Confirmed.
-  APPROVE_SAFETY: { from: ["SAFETY_REVIEW"], to: "CONFIRMED" },
-  // U1 — a request for changes sends the event back to Planning, from where it
-  // passes F5 and the safety check again. Rejecting the safety arrangement has
-  // no row: its outcome waits on the customer's answer to CQ-08.
-  // CR-06 proposes Planning; CQ-08 also asks which stage this returns to, so
-  // the target may change with the customer's answer.
+  // U1 — the Safety Officer's approval records the safety check as passed and the event STAYS
+  // in Safety Review (Week 9 answer, W9-31): the row exists so the approval gets a history entry
+  // and a message through the one guarded path. U1 refuses it while an arrangement flag is
+  // outstanding (S3 may flag an event in Safety Review, AC6), or a flagged event could be
+  // confirmed. Only MARK_CONFIRMED, below, makes the event Confirmed.
+  APPROVE_SAFETY: { from: ["SAFETY_REVIEW"], to: "SAFETY_REVIEW" },
+  // U1 — a request for changes sends the event back to Planning (CQ-08, W9-63), from where it
+  // passes F5 and the safety check again.
   REQUEST_SAFETY_CHANGES: { from: ["SAFETY_REVIEW"], to: "PLANNING" },
+  // U1 — rejecting the safety arrangement also returns the event to Planning (CQ-08, W9-21): the
+  // event is not rejected or cancelled, and its venue and equipment arrangements stay in place.
+  REJECT_SAFETY_ARRANGEMENT: { from: ["SAFETY_REVIEW"], to: "PLANNING" },
+  // U1 — the assigned coordinator marks an event Confirmed after the Safety Officer approved it
+  // (W9-31, W9-25). Whether the check was passed is checked where this is applied.
+  MARK_CONFIRMED: { from: ["SAFETY_REVIEW"], to: "CONFIRMED" },
   // I3 — a block over a confirmed booking returns a Confirmed event to Planning,
   // never to Cancelled (W9-50). From there it passes F5 and the safety check again.
   VENUE_BLOCKED: { from: ["CONFIRMED"], to: "PLANNING" },
