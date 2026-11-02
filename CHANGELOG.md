@@ -4,6 +4,49 @@
 
 ---
 
+# EN-14: Playwright browser tests on an ephemeral CI stack (SPM-132)
+
+**Timestamp:** 2026-11-03T04:05+08:00 (SGT)
+**Author:** Joash
+**Scope:** CI (`e2e` job), `tests/playwright.config.ts`, `tests/e2e/`, the web app (accessibility
+fixes found by axe). No service code and no migration.
+
+## Added
+
+- **An ephemeral stack for every pull request**, in the new `e2e` job: a throwaway `postgres:17` built
+  by `npm run migrate:all`, a fake Supabase Auth server, planning-core, notification, registration, and
+  the web app built and served with `vite preview`. Playwright starts each process and waits for its
+  readiness URL. The job is not a required check.
+- **A fake Supabase Auth server** (`tests/e2e/support/fake-supabase-auth.ts`): the GoTrue password grant,
+  logout, user and JWKS endpoints, issuing ES256 tokens with Supabase's claims for the seeded accounts.
+  It refuses to start without its flag, in production, or beside a database that isn't on the machine,
+  and listens on loopback only. Its unit tests run in the unit job.
+- **83 browser journeys** under `tests/e2e/` (78 story cards recorded Pass from CI run 41513983925), each titled and tagged with its story and card ids
+  (`--grep @D4`); CI fails a journey that isn't tagged. Each journey seeds its own data through the API.
+- **axe** on every screen a journey visits: serious and critical violations fail the test, and every
+  violation is listed in the job summary and `documentation/evidence/EN-14/axe-findings.md`.
+- **Visual snapshots** of six key screens at 360, 768 and 1280 px, against baselines made on CI's Linux
+  runner. A manual run of the CI workflow (`update_snapshots`) remakes them.
+- One retry in CI; traces, videos and screenshots of failures, the HTML report and the stack's logs are
+  uploaded as artifacts. `npm run test-cases:run` and `npm run test:e2e` run the config.
+
+## Fixed (found by axe)
+
+- Unlabelled fields: the event request form (B1), the API console, and the clarification reply's
+  attendance field.
+- Contrast below WCAG AA: the sign-in screen's account links, every red status lozenge (now Atlaskit's
+  bold variant, through `frontend/src/shared/Lozenge.tsx`), and the danger buttons in the remove-line,
+  release-hold and withdraw dialogs (now the warning button, as Reject uses).
+
+## Not yet
+
+- A hosted per-PR preview (the ephemeral stack is the criterion's alternative).
+- Kafka and Temporal aren't in the stack, so notifications, seat building and hold expiry aren't
+  exercised in the browser.
+- Running it locally needs your own throwaway Postgres; see `documentation/evidence/EN-14/README.md`.
+
+---
+
 # S3: flag the arrangements an approved change affects (SPM-59)
 
 **Timestamp:** 2026-10-28T12:00+08:00 (SGT)
