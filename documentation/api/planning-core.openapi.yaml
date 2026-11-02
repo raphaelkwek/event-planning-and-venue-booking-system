@@ -1229,6 +1229,169 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
 
+  /api/v1/safety-reviews:
+    get:
+      tags: [Decisions]
+      summary: The Safety Officer's queue of events in Safety Review (U1)
+      description: |
+        Only the Safety Officer. Every event in Safety Review, longest-waiting first, each with the
+        decision already recorded for its current review (`APPROVE` while its coordinator has yet to mark
+        it Confirmed). Events confirmed before U1 are never listed (the Week 9 answer to U1).
+      operationId: listSafetyReviews
+      responses:
+        "200":
+          description: The queue.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [events]
+                properties:
+                  events:
+                    type: array
+                    items: { $ref: "#/components/schemas/SafetyQueueEntry" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403":
+          description: "`ROLE_NOT_AUTHORISED`: not the Safety Officer."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "429": { $ref: "#/components/responses/RateLimitExceeded" }
+
+  /api/v1/events/{id}/safety-review:
+    parameters:
+      - $ref: "#/components/parameters/RecordId"
+    get:
+      tags: [Decisions]
+      summary: The factors the Safety Officer weighs for one event (U1)
+      description: |
+        Only the Safety Officer, and only for an event in Safety Review. Expected attendance, accessibility
+        needs, each booked venue with its period, booked layout, that layout capacity and the venue
+        capacity and layouts, and each equipment line with its reserved quantity and placement notes.
+        Emergency access, venue restrictions and crowd movement are assessed outside the system and written
+        into the decision reason (CQ-10), so the venue record has no field for them. Also the arrangement
+        flags still outstanding, and the decision already recorded for this review.
+      operationId: getSafetyReview
+      responses:
+        "200":
+          description: The review.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SafetyReview" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403":
+          description: "`ROLE_NOT_AUTHORISED`: not the Safety Officer."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "404":
+          description: "`EVENT_NOT_FOUND`: no event with that id."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "409":
+          description: "`STATUS_TRANSITION_NOT_PERMITTED`: the event is not in Safety Review."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "429": { $ref: "#/components/responses/RateLimitExceeded" }
+
+  /api/v1/events/{id}/safety-decision:
+    parameters:
+      - $ref: "#/components/parameters/RecordId"
+    post:
+      tags: [Decisions]
+      summary: Record the one safety decision on an event in Safety Review (U1)
+      description: |
+        Only the Safety Officer. Approve, request changes or reject; a reason is required for the last two.
+        Approve records the check as passed and the event stays in Safety Review until its assigned
+        coordinator marks it Confirmed. Request changes returns the event to Planning with the changes
+        recorded, and flags the venue bookings (`flagBookingIds`: slot or request ids) and equipment
+        reservations (`flagReservationIds`) it names, using S3 flags. Reject (CQ-08) also returns the event
+        to Planning, recorded as a rejection of the arrangement as a whole: the event is not rejected or
+        cancelled, and its arrangements stay in place. Approval is refused while any arrangement flag is
+        outstanding. The decision records the officer, time and reason, writes the status history entry and
+        notifies the assigned coordinator and the owning organiser. A refusal stores nothing.
+      operationId: recordSafetyDecision
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SafetyDecisionRequest" }
+      responses:
+        "201":
+          description: The decision, and the event status after it.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [decision, event]
+                properties:
+                  decision: { $ref: "#/components/schemas/SafetyDecisionRecord" }
+                  event: { $ref: "#/components/schemas/SafetyEventStatus" }
+        "400":
+          description: "`VALIDATION_FAILED`: no reason where one is required, an unknown decision, or a named arrangement that is not one of the event active arrangements."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403":
+          description: "`ROLE_NOT_AUTHORISED`: not the Safety Officer."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "404":
+          description: "`EVENT_NOT_FOUND`: no event with that id."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "409":
+          description: "`STATUS_TRANSITION_NOT_PERMITTED` (the event is not in Safety Review), `SAFETY_DECISION_ALREADY_RECORDED` (this review has its decision) or `ARRANGEMENT_FLAGS_OUTSTANDING` (approval while flags are outstanding; `details.flags` lists them)."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "429": { $ref: "#/components/responses/RateLimitExceeded" }
+
+  /api/v1/events/{id}/mark-confirmed:
+    parameters:
+      - $ref: "#/components/parameters/RecordId"
+    post:
+      tags: [Decisions]
+      summary: Mark an approved event Confirmed (U1)
+      description: |
+        The Event Coordinator assigned to the event, once the Safety Officer has approved its current
+        review. No body. Refused (409 `SAFETY_CHECK_NOT_PASSED`) without an approval, and while an
+        arrangement flag is outstanding. Moves the event from Safety Review to Confirmed with a history
+        entry. A refusal stores nothing.
+      operationId: markEventConfirmed
+      responses:
+        "200":
+          description: The event, now Confirmed.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [event]
+                properties:
+                  event: { $ref: "#/components/schemas/SafetyEventStatus" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403":
+          description: "`ROLE_NOT_AUTHORISED`: not an Event Coordinator, or not the event assigned one."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "404":
+          description: "`EVENT_NOT_FOUND`: no event with that id."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "409":
+          description: "`SAFETY_CHECK_NOT_PASSED`, `ARRANGEMENT_FLAGS_OUTSTANDING`, or `STATUS_TRANSITION_NOT_PERMITTED` (the event is not in Safety Review)."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "429": { $ref: "#/components/responses/RateLimitExceeded" }
+
   /api/v1/venues:
     get:
       tags: [Venues]
@@ -2994,6 +3157,9 @@ components:
         - STATUS_NOT_ASSIGNABLE
         - EVENT_NOT_ASSIGNED
         - REASSIGNMENT_RETIRED
+        - SAFETY_CHECK_NOT_PASSED
+        - SAFETY_DECISION_ALREADY_RECORDED
+        - ARRANGEMENT_FLAGS_OUTSTANDING
 
     ErrorEnvelope:
       type: object
@@ -3909,6 +4075,131 @@ components:
               flag: { type: string, enum: [REQUIRES_RECONFIRMATION, UNSUITABLE, FLAGGED_FOR_REVIEW] }
               reason: { type: string, description: "Why, e.g. `Expected attendance is now 150, but Venue One holds 100 in the Theatre layout.`" }
 
+    SafetyDecisionRequest:
+      type: object
+      required: [decision]
+      properties:
+        decision: { type: string, enum: [APPROVE, REQUEST_CHANGES, REJECT] }
+        reason:
+          type: [string, "null"]
+          maxLength: 2000
+          description: Required to request changes or reject.
+        flagBookingIds:
+          type: array
+          maxItems: 50
+          items: { type: string, format: uuid }
+          description: Request changes only. The event venue bookings, holds or pending requests to flag for review.
+        flagReservationIds:
+          type: array
+          maxItems: 50
+          items: { type: string, format: uuid }
+          description: Request changes only. The event equipment reservations to flag for review.
+    SafetyDecisionRecord:
+      type: object
+      required: [id, decision, reason, flagged, decidedBy, decidedAt]
+      properties:
+        id: { type: string, format: uuid }
+        decision: { type: string, enum: [APPROVE, REQUEST_CHANGES, REJECT] }
+        reason: { type: [string, "null"] }
+        flagged:
+          type: object
+          required: [bookings, reservations]
+          properties:
+            bookings: { type: array, items: { type: string, format: uuid } }
+            reservations: { type: array, items: { type: string, format: uuid } }
+        decidedBy: { type: string, format: uuid }
+        decidedAt: { type: string, format: date-time }
+    SafetyEventStatus:
+      type: object
+      required: [id, reference, status, previousStatus]
+      properties:
+        id: { type: string, format: uuid }
+        reference: { type: [string, "null"] }
+        status: { type: string }
+        previousStatus: { type: string }
+        confirmedAt: { type: string, format: date-time }
+    SafetyQueueEntry:
+      type: object
+      required: [id, reference, name, expectedAttendance, proposedStartAt, proposedEndAt, assignedCoordinatorId, enteredSafetyReviewAt, decision]
+      properties:
+        id: { type: string, format: uuid }
+        reference: { type: [string, "null"] }
+        name: { type: string }
+        expectedAttendance: { type: [integer, "null"] }
+        proposedStartAt: { type: [string, "null"], format: date-time }
+        proposedEndAt: { type: [string, "null"], format: date-time }
+        assignedCoordinatorId: { type: [string, "null"], format: uuid }
+        enteredSafetyReviewAt: { type: string, format: date-time }
+        decision: { type: [string, "null"], enum: [APPROVE, REQUEST_CHANGES, REJECT, null] }
+    SafetyReview:
+      type: object
+      required: [event, factors, flags, decision]
+      properties:
+        event:
+          type: object
+          required: [id, reference, name, status, assignedCoordinatorId, proposedStartAt, proposedEndAt]
+          properties:
+            id: { type: string, format: uuid }
+            reference: { type: [string, "null"] }
+            name: { type: string }
+            status: { type: string }
+            assignedCoordinatorId: { type: [string, "null"], format: uuid }
+            proposedStartAt: { type: [string, "null"], format: date-time }
+            proposedEndAt: { type: [string, "null"], format: date-time }
+        factors:
+          type: object
+          required: [expectedAttendance, accessibilityNeeds, venues, equipment]
+          properties:
+            expectedAttendance: { type: [integer, "null"] }
+            accessibilityNeeds: { type: [string, "null"] }
+            venues:
+              type: array
+              items:
+                type: object
+                required: [bookingId, reference, status, venueName, startsAt, endsAt, layout, layoutCapacity, venueMaxCapacity, layouts]
+                properties:
+                  bookingId: { type: string, format: uuid, description: "The id to name in `flagBookingIds`." }
+                  reference: { type: string }
+                  status: { type: string, enum: [HELD, CONFIRMED] }
+                  venueName: { type: string }
+                  startsAt: { type: string, format: date-time }
+                  endsAt: { type: string, format: date-time }
+                  layout: { type: [string, "null"] }
+                  layoutCapacity: { type: integer }
+                  venueMaxCapacity: { type: integer }
+                  layouts:
+                    type: array
+                    items:
+                      type: object
+                      required: [name, capacity]
+                      properties:
+                        name: { type: string }
+                        capacity: { type: integer }
+            equipment:
+              type: array
+              items:
+                type: object
+                required: [lineId, equipmentTypeName, quantity, reservationId, reservedQuantity, placementNotes]
+                properties:
+                  lineId: { type: string, format: uuid }
+                  equipmentTypeName: { type: string }
+                  quantity: { type: integer }
+                  reservationId: { type: [string, "null"], format: uuid, description: "The id to name in `flagReservationIds`." }
+                  reservedQuantity: { type: integer }
+                  placementNotes: { type: string }
+        flags:
+          type: array
+          items:
+            type: object
+            required: [what, name, flag]
+            properties:
+              what: { type: string }
+              name: { type: string }
+              flag: { type: string, enum: [REQUIRES_RECONFIRMATION, UNSUITABLE, FLAGGED_FOR_REVIEW] }
+        decision:
+          oneOf:
+            - { $ref: "#/components/schemas/SafetyDecisionRecord" }
+            - { type: "null" }
     ConfirmedArrangements:
       type: object
       required: [id, reference, status, previousStatus, confirmedBy, confirmedAt]

@@ -30,6 +30,7 @@ import { EquipmentRequirementsView, VenueRequirementsView } from "../components/
 import { ChangeImpactView } from "../components/ChangeImpactView.js";
 import { OutstandingFlags } from "../components/OutstandingFlags.js";
 import { ConfirmArrangementsAction } from "../components/ConfirmArrangements.js";
+import { MarkConfirmedAction } from "../components/MarkConfirmed.js";
 
 /**
  * D1, D2, D4, D5 — the coordinator's review screen.
@@ -281,6 +282,13 @@ export function ReviewDetail() {
         {event.assignedCoordinatorId === session.userId && (event.status === "APPROVED" || event.status === "PLANNING") && (
           <div style={{ marginTop: 12 }}>
             <ConfirmArrangementsAction eventId={event.id} token={session.token} onConfirmed={() => void load()} />
+          </div>
+        )}
+
+        {/* U1 — only the assigned coordinator, and only while the event is in Safety Review. */}
+        {event.assignedCoordinatorId === session.userId && event.status === "SAFETY_REVIEW" && (
+          <div style={{ marginTop: 12 }}>
+            <MarkConfirmedAction eventId={event.id} token={session.token} onConfirmed={() => void load()} />
           </div>
         )}
 

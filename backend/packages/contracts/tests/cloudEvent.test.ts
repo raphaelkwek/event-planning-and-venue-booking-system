@@ -100,6 +100,17 @@ const EXAMPLE_DATA: Record<EventMessageType, Record<string, unknown>> = {
       },
     ],
   },
+  "event.safety-decision-recorded": {
+    ...ref,
+    ownerId: organiser,
+    coordinatorId: coordinator,
+    decision: "REQUEST_CHANGES",
+    reason: "Move the chairs away from the east exit",
+    decidedBy: "00000000-0000-0000-0000-000000000010",
+    decidedAt: at,
+    flaggedBookingReferences: ["BKR-000001"],
+    flaggedEquipment: ["Folding Chairs x 40"],
+  },
   "event.status-changed": {
     eventId,
     ownerId: organiser,
