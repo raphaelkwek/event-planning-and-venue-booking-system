@@ -1,10 +1,12 @@
 import express from "express";
 import { randomUUID } from "node:crypto";
+import { config } from "./config.js";
 import { sql } from "./db.js";
 import { healthRouter } from "./health.js";
 import { probeBroker } from "./kafka.js";
 import { logger } from "./logger.js";
 import { supabaseAuthenticator } from "./api/identity.js";
+import { registrationRateLimiter } from "./api/limiter.js";
 import { registrationRouter } from "./api/routes.js";
 
 /**
@@ -34,4 +36,4 @@ app.use((req, res, next) => {
 });
 
 app.use(healthRouter(sql, probeBroker));
-app.use(registrationRouter({ sql, auth: supabaseAuthenticator }));
+app.use(registrationRouter({ sql, auth: supabaseAuthenticator, limiter: registrationRateLimiter(config.rateLimitPerMinute) }));
