@@ -1,5 +1,7 @@
 import { Router, type NextFunction, type RequestHandler, type Response } from "express";
 import type { Sql } from "postgres";
+import type { Role } from "@connectsphere/contracts";
+import { notInScopeMessage } from "../../identity/index.js";
 import { authenticate, requireRole, type ActorRequest } from "../auth/actor.js";
 import { alreadyDecidedMessage, validateDecisionBody } from "../domain/changeRequests.js";
 import type { AppliedChangeImpact } from "../repo/changeImpact.js";
@@ -61,8 +63,8 @@ export function impactBody(impact: AppliedChangeImpact) {
   };
 }
 
-function notFound(res: Response) {
-  refuse(res, 404, "CHANGE_REQUEST_NOT_FOUND", "No change request with that id exists.");
+function notFound(res: Response, role: Role) {
+  refuse(res, 404, "CHANGE_REQUEST_NOT_FOUND", notInScopeMessage(role, "No change request with that id exists.", "change request"));
 }
 
 export function decisionsRouter(sql: Sql, limiter: RequestHandler = changeRateLimiter()) {
@@ -71,7 +73,7 @@ export function decisionsRouter(sql: Sql, limiter: RequestHandler = changeRateLi
   router.post(PATH, limiter, authenticate, requireRole(COORDINATOR), async (req: ActorRequest, res: Response, next: NextFunction) => {
     try {
       const requestId = req.params.id!;
-      if (!UUID.test(requestId)) return notFound(res);
+      if (!UUID.test(requestId)) return notFound(res, req.actor!.role);
       const actor = req.actor!;
 
       const body = validateDecisionBody(req.body);
@@ -93,9 +95,7 @@ export function decisionsRouter(sql: Sql, limiter: RequestHandler = changeRateLi
       }
       switch (outcome.code) {
         case "NOT_FOUND":
-          return notFound(res);
-        case "NOT_ASSIGNED":
-          return void refuse(res, 403, "ROLE_NOT_AUTHORISED", "Only the event's assigned coordinator can decide this change request.");
+          return notFound(res, actor.role);
         case "ALREADY_DECIDED":
           return void refuse(
             res,

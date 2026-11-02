@@ -213,4 +213,3 @@ export const ARRANGEMENTS_UNAVAILABLE_MESSAGE =
   "The venue and equipment arrangements could not be checked, so the event was not confirmed. Nothing was changed. Try again.";
 
 /** AC1 — the refusal for a coordinator who is not the event's assigned one. */
-export const NOT_ASSIGNED_MESSAGE = "Only the event's assigned coordinator can confirm its arrangements.";

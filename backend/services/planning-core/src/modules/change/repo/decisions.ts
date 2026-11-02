@@ -25,7 +25,6 @@ export type DecidedEvent = { id: string } & Partial<Record<SignificantEventField
 export type DecisionOutcome =
   | { ok: true; request: ChangeRequestRecord; event?: DecidedEvent; impact?: AppliedChangeImpact }
   | { ok: false; code: "NOT_FOUND" }
-  | { ok: false; code: "NOT_ASSIGNED" }
   | { ok: false; code: "ALREADY_DECIDED"; status: "APPROVED" | "REJECTED"; decidedAt: string }
   | { ok: false; code: "NO_LONGER_VALID"; message: string; fields: ErrorField[]; status?: string };
 
@@ -41,15 +40,17 @@ export async function decideChangeRequest(
 ): Promise<DecisionOutcome> {
   const request = await lockRequest(tx, requestId);
   if (!request) return { ok: false, code: "NOT_FOUND" };
+
+  // A4: a coordinator's scope is the events assigned to them. A request on any other
+  // event is not found, checked before its status so a refusal reveals nothing of it.
+  const scope = resolveAccessScope(actor.role, actor.userId, "events");
+  const event = await findEventForChange(tx, request.eventId, scope, actor.userId, { lock: decision.decision === "APPROVE" ? "update" : "share" });
+  if (!event) return { ok: false, code: "NOT_FOUND" };
+
   if (request.status !== "PENDING") {
     // The check constraint gives every decided request a decision time.
     return { ok: false, code: "ALREADY_DECIDED", status: request.status, decidedAt: request.decidedAt! };
   }
-
-  const scope = resolveAccessScope(actor.role, actor.userId, "events");
-  const event = await findEventForChange(tx, request.eventId, scope, actor.userId, { lock: decision.decision === "APPROVE" ? "update" : "share" });
-  if (!event) return { ok: false, code: "NOT_FOUND" };
-  if (event.assignedCoordinatorId !== actor.userId) return { ok: false, code: "NOT_ASSIGNED" };
 
   const changes: ProposedChanges = {};
   for (const field of request.fields) changes[field.fieldName] = field.proposedValue;

@@ -6,7 +6,7 @@ import { decisionColumns, findEventInScope } from "../repo/events.js";
 import { writeOutbox } from "../events/outbox.js";
 import { transitionEvent } from "./transitionEvent.js";
 import { rejectionBodySchema } from "./schemas.js";
-import { refuse } from "./errors.js";
+import { eventNotFound, refuse } from "./errors.js";
 
 /**
  * D4, D5 — approving and rejecting an event request.
@@ -16,8 +16,9 @@ import { refuse } from "./errors.js";
  * decision cannot be decided again, and two coordinators deciding at once
  * cannot both succeed. "Cannot be decided twice" holds because the transition
  * table has no way back into Under Review or Awaiting Clarification from a
- * decided status (tested in statusMachine.test.ts). A3 scope is checked once,
- * before the transaction (coordinators have scope ALL). The history entry and the organiser's notification are
+ * decided status (tested in statusMachine.test.ts). The scope is checked once,
+ * before the transaction: a coordinator's is the events assigned to them (A4), so
+ * any other event is not found. The history entry and the organiser's notification are
  * written in the same transaction, so a refusal leaves no trace and a success
  * leaves no half-finished state.
  */
@@ -35,7 +36,7 @@ export function decisionsRouter(sql: Sql) {
 
     const event = await findEventInScope(sql, req.params.id, scope, userId);
     if (!event) {
-      refuse(res, 404, "EVENT_NOT_FOUND", "No event with that reference is available to you.");
+      eventNotFound(res, role);
       return;
     }
 

@@ -14,7 +14,7 @@ import {
   resolveProposalDecline,
 } from "../repo/assignments.js";
 import { writeOutbox } from "../events/outbox.js";
-import { refuse } from "./errors.js";
+import { eventNotFound, refuse } from "./errors.js";
 
 /**
  * E2 — the nominee's accept/decline of a reassignment proposal made before E4
@@ -28,10 +28,10 @@ export function reassignmentsRouter(sql: Sql) {
     "/api/v1/events/:id/reassignment-proposals",
     ...authenticate,
     async (req: ActorRequest, res) => {
-      const { userId, scope } = req.actor!;
+      const { userId, role, scope } = req.actor!;
       const event = await findEventInScope(sql, req.params.id, scope, userId);
       if (!event) {
-        refuse(res, 404, "EVENT_NOT_FOUND", "No event with that reference is available to you.");
+        eventNotFound(res, role);
         return;
       }
 
@@ -80,14 +80,19 @@ export function reassignmentsRouter(sql: Sql) {
     outcome: "ACCEPTED" | "DECLINED"
   ) {
     const { userId, role, scope } = req.actor!;
-    const event = await findEventInScope(sql, req.params.id, scope, userId);
-    if (!event) {
-      refuse(res, 404, "EVENT_NOT_FOUND", "No event with that reference is available to you.");
+    // A4: the nominee of a proposal made before E4 is not assigned the event yet, so it is
+    // outside their scope. They may still answer that proposal, and nobody else learns the
+    // event exists: anyone else gets the same not-found as for an event that isn't there.
+    const inScope = await findEventInScope(sql, req.params.id, scope, userId);
+    const event = inScope ?? (await findEventInScope(sql, req.params.id, { scopeType: "ALL" }, userId));
+    const pending = event ? await findPendingProposal(sql, event.id) : null;
+    const isNominee = pending?.nomineeCoordinatorId === userId;
+    if (!event || (!inScope && !isNominee)) {
+      eventNotFound(res, role);
       return;
     }
 
-    const pending = await findPendingProposal(sql, event.id);
-    if (!pending || pending.nomineeCoordinatorId !== userId) {
+    if (!pending || !isNominee) {
       refuse(
         res,
         404,

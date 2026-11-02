@@ -123,13 +123,19 @@ function jsonOrNull(sql: Sql | TransactionSql, value: unknown) {
  * result the API layer has to remember to hide.
  *
  * Drafts live in this table too, and a draft is visible to its owner alone
- * (C1). So even the coordinator scope, which is every event, stops short of
- * other people's drafts.
+ * (C1). So even the Lead's scope, which is every event, stops short of other
+ * people's drafts. A4: a coordinator's scope is the events actively assigned
+ * to them; a draft is never assigned, and a reassigned event leaves at once.
  */
 function scopeCondition(sql: Sql | TransactionSql, scope: AccessScope, callerId: string) {
   switch (scope.scopeType) {
     case "ALL":
       return sql`(e.status <> 'DRAFT' or e.owner_id = ${callerId})`;
+    case "ASSIGNED_TO_USER":
+      return sql`exists (
+        select 1 from event.assignments mine
+        where mine.event_id = e.id and mine.is_active and mine.coordinator_id = ${callerId}
+      )`;
     case "OWNED_BY_USER":
       return sql`e.owner_id = ${callerId}`;
     default:
@@ -288,18 +294,20 @@ export async function listEventsInScope(
 }
 
 /**
- * D1 — the queue: every event awaiting a decision, oldest submission first.
- * `decided_at is null` is what "has no recorded decision" means.
+ * D1 — the queue: the coordinator's events awaiting a decision, oldest
+ * submission first. `decided_at is null` is what "has no recorded decision" means.
  */
 export async function listReviewQueue(
   sql: Sql,
-  statuses: readonly EventStatus[]
+  statuses: readonly EventStatus[],
+  coordinatorId: string
 ): Promise<EventRow[]> {
   const rows = await sql<RawEvent[]>`
     select e.*, a.coordinator_id as assigned_coordinator_id
     from event.events e
     -- E3: an unassigned request waits in the Lead's queue, not here.
-    join event.assignments a on a.event_id = e.id and a.is_active
+    -- A4: and a request assigned to another coordinator is in theirs.
+    join event.assignments a on a.event_id = e.id and a.is_active and a.coordinator_id = ${coordinatorId}
     where e.status in ${sql(statuses as string[])} and e.decided_at is null
     order by e.submitted_at asc
   `;
