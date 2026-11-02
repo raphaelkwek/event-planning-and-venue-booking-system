@@ -75,6 +75,12 @@ export const ERROR_CODES = [
   "REGISTRATION_NOT_FOUND",
   "REGISTRATION_NOT_ACTIVE",
   "WITHDRAWAL_DEADLINE_PASSED",
+  // EN-19: the waiting room. A high-demand event takes registrations only with an admission token.
+  "ADMISSION_REQUIRED",
+  "ADMISSION_EXPIRED",
+  "WAITING_ROOM_NOT_REQUIRED",
+  "WAITING_ROOM_UNAVAILABLE",
+  "WAITING_ROOM_ENTRY_NOT_FOUND",
 ] as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[number];

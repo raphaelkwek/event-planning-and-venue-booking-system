@@ -557,6 +557,73 @@ paths:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
         "503": { $ref: "#/components/responses/IdentityUnavailable" }
 
+  /api/v1/events/{id}/high-demand:
+    parameters:
+      - $ref: "#/components/parameters/RecordId"
+    put:
+      tags: [Events]
+      summary: Flag an event high-demand, or take the flag off (EN-19)
+      description: |
+        The owning organiser only, while the event is Approved, Planning, Safety Review or
+        Confirmed. A high-demand event makes attendees wait in the registration service's waiting
+        room and register with a short-lived admission token (ADR-0011). The body is
+        exactly `{"highDemand": true}` or `{"highDemand": false}`.
+
+        `If-Match` carries the version from the event's `ETag`, as for G1. The flag, a history
+        entry and the event's `event.listing-changed` message (which carries `highDemand` to the
+        registration service) are written together, or not at all. Sending the value already set
+        stores nothing. Limited to 60 requests a minute per address, before authentication.
+      operationId: setHighDemand
+      parameters:
+        - name: If-Match
+          in: header
+          required: true
+          schema: { type: string }
+          example: '"3"'
+          description: The event's version, as its `ETag` gave it.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/HighDemandFlag" }
+      responses:
+        "200":
+          description: The event as stored, with its new version in `ETag`.
+          headers:
+            ETag: { $ref: "#/components/headers/EventVersion" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Event" }
+        "400": { $ref: "#/components/responses/ValidationFailed" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403":
+          description: "`ROLE_NOT_AUTHORISED`: not an Event Organiser, or not the event's owner."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: "`EVENT_NOT_EDITABLE`: the event isn't Approved, Planning, Safety Review or Confirmed. The message names its status."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "412":
+          description: "`EVENT_VERSION_MISMATCH`: the event changed after the version in `If-Match`. Nothing was stored."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "428":
+          description: "`EVENT_VERSION_REQUIRED`: no `If-Match`."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "429":
+          description: "`RATE_LIMITED`: more than 60 saves in a minute from one address."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
   /api/v1/events/{id}/status:
     parameters:
       - $ref: "#/components/parameters/RecordId"
@@ -3070,6 +3137,11 @@ components:
         - REGISTRATION_NOT_FOUND
         - REGISTRATION_NOT_ACTIVE
         - WITHDRAWAL_DEADLINE_PASSED
+        - ADMISSION_REQUIRED
+        - ADMISSION_EXPIRED
+        - WAITING_ROOM_NOT_REQUIRED
+        - WAITING_ROOM_UNAVAILABLE
+        - WAITING_ROOM_ENTRY_NOT_FOUND
 
     ErrorEnvelope:
       type: object
@@ -3259,6 +3331,15 @@ components:
             contactDetails: { type: [string, "null"], description: "Free text, such as a name, email and phone number (G1)." }
             version: { type: integer, minimum: 1, description: "Raised by every change to the event. Send it back in If-Match to edit (G1)." }
             withdrawalDeadlineAt: { type: [string, "null"], format: date-time, description: "R4: the organiser's withdrawal deadline; null when none is set." }
+            highDemand: { type: boolean, description: "EN-19: attendees queue in the waiting room and register with an admission token." }
+
+    HighDemandFlag:
+      description: "EN-19: the whole body."
+      type: object
+      required: [highDemand]
+      additionalProperties: false
+      properties:
+        highDemand: { type: boolean }
 
     RegistrationSettings:
       description: "R2, R4: all four settings. A field left out is empty."

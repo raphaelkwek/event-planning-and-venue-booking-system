@@ -8,6 +8,7 @@ import { clarificationsRouter } from "./api/clarifications.js";
 import { decisionsRouter } from "./api/decisions.js";
 import { reassignmentsRouter } from "./api/reassignments.js";
 import { eventDetailsRouter } from "./api/eventDetails.js";
+import { highDemandRouter } from "./api/highDemand.js";
 import { registrationSettingsRouter } from "./api/registrationSettings.js";
 import { statusHistoryRouter } from "./api/statusHistory.js";
 import { findEventInScope, findReferences } from "./repo/events.js";
@@ -33,6 +34,7 @@ export function eventRouter(sql: Sql): Router {
   router.use(leadAssignmentsRouter(sql));
   router.use(eventDetailsRouter(sql));
   router.use(registrationSettingsRouter(sql));
+  router.use(highDemandRouter(sql));
   router.use(statusHistoryRouter(sql));
   // Last, so that its `/api/v1/events/:id` cannot shadow a more specific path above.
   router.use(eventsRouter(sql));

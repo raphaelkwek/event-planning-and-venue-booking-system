@@ -20,6 +20,8 @@ export interface EventListing {
   registrationOpensAt: string | null;
   registrationClosesAt: string | null;
   withdrawalDeadlineAt: string | null;
+  /** EN-19: attendees queue in the waiting room and register with an admission token. */
+  highDemand: boolean;
 }
 
 const iso = (value: Date | null) => value?.toISOString() ?? null;
@@ -38,9 +40,10 @@ export async function readListing(tx: TransactionSql, eventId: string): Promise<
     registration_opens_at: Date | null;
     registration_closes_at: Date | null;
     withdrawal_deadline_at: Date | null;
+    high_demand: boolean;
   }[]>`
     select id, reference, name, owner_id, description, status, proposed_start_at, proposed_end_at,
-           registration_required, registration_opens_at, registration_closes_at, withdrawal_deadline_at
+           registration_required, registration_opens_at, registration_closes_at, withdrawal_deadline_at, high_demand
     from event.events
     where id = ${eventId}
   `;
@@ -59,5 +62,6 @@ export async function readListing(tx: TransactionSql, eventId: string): Promise<
     registrationOpensAt: iso(row.registration_opens_at),
     registrationClosesAt: iso(row.registration_closes_at),
     withdrawalDeadlineAt: iso(row.withdrawal_deadline_at),
+    highDemand: row.high_demand,
   };
 }

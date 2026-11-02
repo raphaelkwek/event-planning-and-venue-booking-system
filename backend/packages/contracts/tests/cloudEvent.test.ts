@@ -149,6 +149,7 @@ const EXAMPLE_DATA: Record<EventMessageType, Record<string, unknown>> = {
     registrationOpensAt: "2026-11-01T01:00:00.000Z",
     registrationClosesAt: "2026-11-19T10:00:00.000Z",
     withdrawalDeadlineAt: null,
+    highDemand: false,
     changedAt: at,
   },
 };
@@ -248,6 +249,14 @@ describe("parseCloudEvent: the event's listing (R1 to R4)", () => {
     expect(parseCloudEvent(exampleMessage("event.listing-changed", withDeadline)).data).toEqual(withDeadline);
     const none = { ...listing, registrationRequired: false, registrationOpensAt: null, registrationClosesAt: null };
     expect(parseCloudEvent(exampleMessage("event.listing-changed", none)).data).toEqual(none);
+  });
+
+  it("EN-19-T3 carries the high-demand flag, and reads a listing published before the flag existed as not high-demand", () => {
+    const flagged = { ...listing, highDemand: true };
+    expect(parseCloudEvent(exampleMessage("event.listing-changed", flagged)).data).toEqual(flagged);
+    const older = without(listing, "highDemand");
+    expect(parseCloudEvent(exampleMessage("event.listing-changed", older)).data).toEqual({ ...older, highDemand: false });
+    expect(() => parseCloudEvent(exampleMessage("event.listing-changed", { ...listing, highDemand: "yes" }))).toThrow(/highDemand/);
   });
 
   it("refuses a listing without its registration settings or its status, which the attendee list filters on", () => {
