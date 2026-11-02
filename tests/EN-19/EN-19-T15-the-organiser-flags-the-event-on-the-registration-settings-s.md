@@ -9,7 +9,7 @@
 | Pre-conditions | 1. Dependencies installed (`npm ci`).<br>2. The registration settings screen for an Approved event; the API faked at the fetch boundary. |
 | Test Steps | 1. Run `npm test -w @connectsphere/web`.<br>2. Find the tests named `EN-19-T15` in `frontend/tests/registrationSettings.test.tsx`. |
 | Test Data | Tick the high-demand box and save; the server refuses with a stale version |
-| Expected Result | The box is described as putting attendees in a queue before they can register. Saving sends `highDemand: true` with the version loaded in If-Match, and the screen shows the saved state. A stale version shows the server's message and leaves the box as it was. |
+| Expected Result | The box is described as putting attendees in a queue before they can register. Saving sends `highDemand: true` with the version loaded in If-Match, and the screen shows the saved state. A stale version shows the server's message and is not reported as saved; saving again with the right version works. |
 | Acceptance criterion | An organiser can mark an event high-demand. |
 | Created By | Joash |
 | Date of Creation | 2026-11-03 |

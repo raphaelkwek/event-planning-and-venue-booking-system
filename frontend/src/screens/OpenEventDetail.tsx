@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import Button from "@atlaskit/button/new";
 import SectionMessage from "@atlaskit/section-message";
 import Spinner from "@atlaskit/spinner";
@@ -12,11 +12,14 @@ import { AttendeeRefusal, card, page, Places, space, Terms, Venues, When } from 
  * R1, R2 — one open event's published details, and Register: the screen's one
  * primary action (§7.2). A full event offers no Register action. A refusal is
  * shown in the server's words, naming its cause; for capacity it offers the
- * waitlist, which R6 opens.
+ * waitlist, which R6 opens. A high-demand event (EN-19) has no Register here:
+ * its primary action is joining the waiting room, which registers the
+ * attendee when their turn comes.
  */
 export function OpenEventDetail() {
   const session = useSignedIn();
   const { eventId } = useParams<{ eventId: string }>();
+  const navigate = useNavigate();
   const [event, setEvent] = useState<OpenEvent | null>(null);
   const [loadError, setLoadError] = useState<unknown>(null);
   const [registered, setRegistered] = useState<RegistrationView | null>(null);
@@ -49,6 +52,7 @@ export function OpenEventDetail() {
     }
   }
 
+  const needsWaitingRoom = refusal instanceof ApiError && (refusal.envelope.code === "ADMISSION_REQUIRED" || refusal.envelope.code === "ADMISSION_EXPIRED");
   const waitlistOffered = refusal instanceof ApiError && refusal.envelope.details?.waitlistOffered === true;
 
   return (
@@ -67,7 +71,17 @@ export function OpenEventDetail() {
           <Terms registrationOpensAt={event.registrationOpensAt} registrationClosesAt={event.registrationClosesAt} withdrawalDeadline={event.withdrawalDeadline} />
           <div style={{ display: "flex", flexDirection: "column", gap: space(2), marginTop: space(2) }}>
             <Places placesRemaining={event.placesRemaining} isFull={event.isFull} />
-            {!event.isFull && !registered && (
+            {event.highDemand && !event.isFull && !registered && (
+              <>
+                <p style={{ margin: 0 }}>
+                  This is a high-demand event. You join a queue and are registered automatically when it is your turn.
+                </p>
+                <Button appearance="primary" onClick={() => navigate(`/open-events/${event.eventId}/waiting-room`)} shouldFitContainer>
+                  Join the waiting room
+                </Button>
+              </>
+            )}
+            {!event.highDemand && !event.isFull && !registered && (
               <Button appearance="primary" onClick={() => void onRegister()} isDisabled={busy} shouldFitContainer>
                 Register
               </Button>
@@ -84,6 +98,11 @@ export function OpenEventDetail() {
         </SectionMessage>
       )}
       <AttendeeRefusal error={refusal} title="You were not registered">
+        {needsWaitingRoom && (
+          <Button appearance="primary" onClick={() => navigate(`/open-events/${eventId}/waiting-room`)}>
+            Join the waiting room
+          </Button>
+        )}
         {waitlistOffered && (
           <>
             <Button isDisabled>Join waitlist</Button>

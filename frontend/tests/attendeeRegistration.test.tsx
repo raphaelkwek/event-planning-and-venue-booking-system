@@ -24,6 +24,7 @@ const symposium: OpenEvent = {
   withdrawalDeadline: "2026-12-14T10:00:00.000Z",
   placesRemaining: 3,
   isFull: false,
+  highDemand: false,
 };
 
 const registration = (over: Partial<RegistrationView> = {}): RegistrationView => ({

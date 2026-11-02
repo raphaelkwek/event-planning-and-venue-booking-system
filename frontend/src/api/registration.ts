@@ -28,6 +28,8 @@ export interface OpenEvent {
   withdrawalDeadline: string | null;
   placesRemaining: number;
   isFull: boolean;
+  /** EN-19: attendees queue in the waiting room and register with an admission token. */
+  highDemand: boolean;
 }
 
 export type RegistrationStatus = "REGISTERED" | "WITHDRAWN" | "CANCELLED";
@@ -67,9 +69,40 @@ export function getOpenEvent(token: string, eventId: string) {
   return request<OpenEvent>(`${REGISTRATION}/open-events/${eventId}`, { token });
 }
 
-/** R2 */
-export function registerFor(token: string, eventId: string) {
-  return request<RegistrationView>(`${REGISTRATION}/registrations`, { method: "POST", token, body: { eventId } });
+/** R2. `admissionToken` is the waiting room's, required for a high-demand event (EN-19). */
+export function registerFor(token: string, eventId: string, admissionToken?: string | null) {
+  return request<RegistrationView>(`${REGISTRATION}/registrations`, {
+    method: "POST",
+    token,
+    body: { eventId },
+    ...(admissionToken ? { headers: { "X-Admission-Token": admissionToken } } : {}),
+  });
+}
+
+export type WaitingRoomStatus = "WAITING" | "ADMITTED" | "EXPIRED" | "USED";
+
+/** EN-19: an attendee's place in a high-demand event's waiting room. */
+export interface WaitingRoomPlace {
+  entryId: string;
+  eventId: string;
+  status: WaitingRoomStatus;
+  /** 1 for the next to be admitted; 0 once no longer waiting. */
+  position: number;
+  estimatedWaitSeconds: number;
+  admitAt: string;
+  expiresAt: string;
+  /** Present only while ADMITTED: sent as X-Admission-Token to register. */
+  admissionToken: string | null;
+}
+
+/** EN-19: join the queue (or get the place already held). */
+export function joinWaitingRoom(token: string, eventId: string) {
+  return request<WaitingRoomPlace>(`${REGISTRATION}/waiting-room/entries`, { method: "POST", token, body: { eventId } });
+}
+
+/** EN-19: where a place stands; poll it until ADMITTED. */
+export function getWaitingRoomPlace(token: string, entryId: string) {
+  return request<WaitingRoomPlace>(`${REGISTRATION}/waiting-room/entries/${entryId}`, { token });
 }
 
 /** R3 */
@@ -95,6 +128,16 @@ export function saveRegistrationSettings(token: string, eventId: string, version
     method: "PUT",
     token,
     body: settings,
+    headers: { "If-Match": `"${version}"` },
+  });
+}
+
+/** EN-19: the owning organiser flags the event high-demand, or takes the flag off; refused with 412 if the event changed since `version` was loaded. */
+export function setHighDemand(token: string, eventId: string, version: number, highDemand: boolean) {
+  return request<EventRecord>(`${EVENT}/events/${eventId}/high-demand`, {
+    method: "PUT",
+    token,
+    body: { highDemand },
     headers: { "If-Match": `"${version}"` },
   });
 }

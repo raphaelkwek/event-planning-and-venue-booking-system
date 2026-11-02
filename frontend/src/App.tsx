@@ -39,6 +39,7 @@ import { OpenEvents } from "./screens/OpenEvents.js";
 import { OpenEventDetail } from "./screens/OpenEventDetail.js";
 import { MyRegistrations } from "./screens/MyRegistrations.js";
 import { RegistrationSettings } from "./screens/RegistrationSettings.js";
+import { WaitingRoom } from "./screens/WaitingRoom.js";
 
 const ROLE_LABELS: Record<Role, string> = {
   EVENT_ORGANISER: "Event Organiser",
@@ -197,6 +198,8 @@ const ROUTES: {
     nav: { label: "Events", to: "/open-events" },
   },
   { path: "/open-events/:eventId", element: <OpenEventDetail />, roles: ["ATTENDEE"] },
+  // EN-19: the queue a high-demand event puts attendees in before they can register.
+  { path: "/open-events/:eventId/waiting-room", element: <WaitingRoom />, roles: ["ATTENDEE"] },
   {
     path: "/my-registrations",
     element: <MyRegistrations />,
