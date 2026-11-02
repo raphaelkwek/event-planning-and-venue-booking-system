@@ -213,7 +213,7 @@ jobs:
         run: |
           node .github/scripts/e2e-tags-check.mjs
           echo "Journeys tagged @D4:"
-          npx playwright test --config tests/playwright.config.ts --list --grep @D4
+          npx playwright test --config tests/playwright.config.ts --list --grep @D4 --reporter=list
 
       - name: Browser test summary
         if: always()

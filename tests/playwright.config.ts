@@ -127,7 +127,7 @@ export default defineConfig({
     {
       name: "web",
       // Built here, so the bundle always points at the fake auth server above.
-      command: `npm run build -w @connectsphere/web -- --outDir ${webBuild} && npm run preview -w @connectsphere/web -- --outDir ${webBuild} --host ${host} --port ${ports.web} --strictPort ${logTo("web")}`,
+      command: `npm run build -w @connectsphere/web -- --outDir ${webBuild} && npm run preview -w @connectsphere/web -- --config ../tests/e2e/support/vite-preview.config.ts --outDir ${webBuild} --host ${host} --port ${ports.web} --strictPort ${logTo("web")}`,
       cwd: "..",
       url: webUrl,
       env: stackEnv,

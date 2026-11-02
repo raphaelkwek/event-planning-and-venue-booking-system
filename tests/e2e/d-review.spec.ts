@@ -216,10 +216,9 @@ test.describe("D4 approve", () => {
     await openReview(page, request);
     await page.getByRole("button", { name: "Approve" }).click();
 
-    const decision = page.getByText("This request is Approved").locator("xpath=ancestor::section[1]");
     await expect(page.getByText("This request is Approved")).toBeVisible();
     const [row] = await query<{ decided_at: Date }>("select decided_at from event.events where id = $1", [request.id]);
-    await expect(decision.or(page.locator("main"))).toContainText(`Decided ${await shownAs(page, row!.decided_at.toISOString())} by Coordinator One.`);
+    await expect(page.getByRole("main")).toContainText(`Decided ${await shownAs(page, row!.decided_at.toISOString())} by Coordinator One.`);
     await expect(status(page)).toHaveText("Approved");
     await expect(page.getByRole("button", { name: "Approve" })).toBeDisabled();
     await expect(page.getByRole("button", { name: "Reject" })).toBeDisabled();
