@@ -5,16 +5,16 @@
 #
 # Pull requests run the cheap checks: a smoke run and the 500 req/s spike (about a minute together),
 # the chaos experiments that run in CI, and the manifest validation. The soak and the stress run are
-# long, so they run by hand (workflow_dispatch) or when the pull request is given the `full-load`
-# label. GitHub only offers workflow_dispatch for a workflow that is on the default branch, so until this
-# merges the label is how they are started. Remove and add the label again to rerun them.
+# long, so they run by hand (workflow_dispatch) or while the pull request's title carries `[full-load]`.
+# GitHub only offers workflow_dispatch for a workflow that is on the default branch, so until this
+# merges the title is how they are started: add the marker to start them, edit it out to stop.
 #
 # Not a required check. documentation/reliability.md says what each job proves and what it does not.
 name: Load and chaos
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened, labeled]
+    types: [opened, synchronize, reopened, edited]
     paths:
       - "load/**"
       - "chaos/**"
@@ -42,7 +42,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: load-chaos-${{ github.ref }}-${{ github.event.action == 'labeled' && 'full' || 'pr' }}
+  group: load-chaos-${{ github.ref }}-${{ github.event.action == 'edited' && 'edited' || 'run' }}
   cancel-in-progress: true
 
 env:
@@ -53,7 +53,7 @@ env:
 jobs:
   smoke-and-spike:
     name: Load (k6 smoke and 500 req/s spike)
-    if: github.event.action != 'labeled'
+    if: github.event.action != 'edited'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     services:
@@ -110,7 +110,7 @@ jobs:
 
   soak:
     name: Load (k6 soak)
-    if: (github.event_name == 'workflow_dispatch' && inputs.run_soak) || (github.event_name == 'pull_request' && github.event.action == 'labeled' && github.event.label.name == 'full-load')
+    if: (github.event_name == 'workflow_dispatch' && inputs.run_soak) || (github.event_name == 'pull_request' && contains(github.event.pull_request.title, '[full-load]'))
     runs-on: ubuntu-latest
     timeout-minutes: 30
     services:
@@ -156,7 +156,7 @@ jobs:
 
   stress:
     name: Load (k6 stress, ramp to breaking)
-    if: (github.event_name == 'workflow_dispatch' && inputs.run_stress) || (github.event_name == 'pull_request' && github.event.action == 'labeled' && github.event.label.name == 'full-load')
+    if: (github.event_name == 'workflow_dispatch' && inputs.run_stress) || (github.event_name == 'pull_request' && contains(github.event.pull_request.title, '[full-load]'))
     runs-on: ubuntu-latest
     timeout-minutes: 30
     services:
@@ -200,7 +200,7 @@ jobs:
 
   chaos:
     name: Chaos (Toxiproxy, Redpanda, k6)
-    if: github.event.action != 'labeled'
+    if: github.event.action != 'edited'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     services:
@@ -284,7 +284,7 @@ jobs:
 
   manifests:
     name: Manifests (kubeconform, Chaos Mesh)
-    if: github.event.action != 'labeled'
+    if: github.event.action != 'edited'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
