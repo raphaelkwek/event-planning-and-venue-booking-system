@@ -103,8 +103,8 @@ test.describe("P2 equipment inventory", () => {
     await openEquipmentType(page, type.name);
 
     await page.getByLabel("Quantity", { exact: true }).fill("2");
-    await page.getByLabel("Unavailable from").fill("2026-12-10T09:00");
-    await page.getByLabel("Unavailable until").fill("2026-12-10T09:01");
+    await page.getByLabel("Unavailable from").fill("2030-12-10T09:00");
+    await page.getByLabel("Unavailable until").fill("2030-12-10T09:01");
     await page.getByLabel("Reason", { exact: true }).fill("Battery compartments under repair");
     await page.getByRole("button", { name: "Mark unavailable" }).click();
     await expect(page.getByText("Unavailability recorded.")).toBeVisible();
@@ -115,7 +115,7 @@ test.describe("P2 equipment inventory", () => {
     const entries = page.locator("section[aria-labelledby='unavailability-heading'] li");
     await expect(entries).toHaveCount(1);
     await expect(entries.first()).toHaveText(
-      "2 units · 10 Dec 2026, 9:00 am to 10 Dec 2026, 9:01 am · Battery compartments under repair (active)",
+      "2 units · 10 Dec 2030, 9:00 am to 10 Dec 2030, 9:01 am · Battery compartments under repair (active)",
     );
     await a11y("maintain equipment type, unavailability recorded");
   });
@@ -124,32 +124,32 @@ test.describe("P2 equipment inventory", () => {
     {
       card: "P2-T5",
       title: "marking equipment unavailable without a reason is refused and stores nothing",
-      start: "2026-12-10T09:00",
-      end: "2026-12-12T17:00",
+      start: "2030-12-10T09:00",
+      end: "2030-12-12T17:00",
       reason: "",
       message: "Enter why the equipment is unavailable.",
     },
     {
       card: "P2-T6",
       title: "whitespace does not satisfy the mandatory unavailability reason",
-      start: "2026-12-10T09:00",
-      end: "2026-12-12T17:00",
+      start: "2030-12-10T09:00",
+      end: "2030-12-12T17:00",
       reason: "   ",
       message: "Enter why the equipment is unavailable.",
     },
     {
       card: "P2-T7",
       title: "an unavailability period of zero duration is refused and stores nothing",
-      start: "2026-12-10T09:00",
-      end: "2026-12-10T09:00",
+      start: "2030-12-10T09:00",
+      end: "2030-12-10T09:00",
       reason: "Battery compartments under repair",
       message: "The end of the unavailable period must be later than the start.",
     },
     {
       card: "P2-T8",
       title: "a reversed unavailability period is refused and stores nothing",
-      start: "2026-12-10T17:00",
-      end: "2026-12-10T09:00",
+      start: "2030-12-10T17:00",
+      end: "2030-12-10T09:00",
       reason: "Battery compartments under repair",
       message: "The end of the unavailable period must be later than the start.",
     },
@@ -181,8 +181,8 @@ test.describe("P2 equipment inventory", () => {
 
 test.describe("O1 equipment request", () => {
   test("O1-T26 the coordinator saves lines, edits one and removes one, and technical support see the rest", { tag: ["@O1", "@O1-T26"] }, async ({ page, a11y }) => {
-    // FX-APPROVED for 2 December 2026, 14:00 to 18:00, as the card names it.
-    const event = await approvedRequest({ proposedStartAt: "2026-12-02T06:00:00.000Z", proposedEndAt: "2026-12-02T10:00:00.000Z" });
+    // FX-APPROVED at the card's 14:00 to 18:00, on 2 December 2030 rather than 2026 so it never falls in the past.
+    const event = await approvedRequest({ proposedStartAt: "2030-12-02T06:00:00.000Z", proposedEndAt: "2030-12-02T10:00:00.000Z" });
     const chairs = await createEquipmentType("O1 Folding Chairs", 50);
     const projectors = await createEquipmentType("O1 Projectors", 5);
 
@@ -195,8 +195,8 @@ test.describe("O1 equipment request", () => {
     await a11y("equipment request");
 
     // Step 2: a new line starts with the event's own times.
-    await expect(page.getByLabel("Required from (local time)")).toHaveValue("2026-12-02T14:00");
-    await expect(page.getByLabel("Required to (local time)")).toHaveValue("2026-12-02T18:00");
+    await expect(page.getByLabel("Required from (local time)")).toHaveValue("2030-12-02T14:00");
+    await expect(page.getByLabel("Required to (local time)")).toHaveValue("2030-12-02T18:00");
 
     // Step 3: chairs and a projector line of quantity 0, saved together.
     await page.getByLabel("Equipment type").selectOption({ label: chairs.name });

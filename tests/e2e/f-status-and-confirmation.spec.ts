@@ -151,11 +151,11 @@ test.describe("G1 edit an event's descriptive details", () => {
   });
 
   test("G1-T5 the significant fields are read-only and point to a change request", { tag: ["@G1", "@G1-T5"] }, async ({ page }) => {
-    // The standard request on 2 December 2026, 14:00 to 18:00, as the card names it.
+    // The standard request at the card's 14:00 to 18:00, on 2 December 2030 rather than 2026 so it never falls in the past.
     // Recorded venue and equipment requirements, so there is something to show read-only.
     const event = await approvedRequest({
-      proposedStartAt: "2026-12-02T06:00:00.000Z",
-      proposedEndAt: "2026-12-02T10:00:00.000Z",
+      proposedStartAt: "2030-12-02T06:00:00.000Z",
+      proposedEndAt: "2030-12-02T10:00:00.000Z",
       venueRequirements: { layout: "Theatre", facilities: ["Projector"] },
       equipmentRequired: true,
       equipmentRequirements: [{ equipmentType: "Wireless microphone", quantity: 2 }],
@@ -176,12 +176,12 @@ test.describe("G1 edit an event's descriptive details", () => {
     await expect(locked.getByRole("heading", { name: "Changed only through a change request" })).toBeVisible();
     await expect(locked).toContainText("These can be changed only through a change request, because the arrangements already made depend on them.");
     const [start, end] = await page.evaluate(() => [
-      new Date("2026-12-02T06:00:00.000Z").toLocaleString(),
-      new Date("2026-12-02T10:00:00.000Z").toLocaleString(),
+      new Date("2030-12-02T06:00:00.000Z").toLocaleString(),
+      new Date("2030-12-02T10:00:00.000Z").toLocaleString(),
     ]);
     await expect(locked).toContainText(`${start} to ${end}`);
-    await expect(locked).toContainText("2/12/2026, 2:00:00 pm");
-    await expect(locked).toContainText("2/12/2026, 6:00:00 pm");
+    await expect(locked).toContainText("2/12/2030, 2:00:00 pm");
+    await expect(locked).toContainText("2/12/2030, 6:00:00 pm");
     await expect(locked.getByText("Expected attendance").locator("..")).toContainText("150");
     await expect(locked.getByText("Venue requirements").locator("..")).toContainText("Room layout: Theatre");
     await expect(locked.getByText("Venue requirements").locator("..")).toContainText("Facilities: Projector");
