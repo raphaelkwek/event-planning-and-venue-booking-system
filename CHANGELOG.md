@@ -21,8 +21,8 @@ set it behaves as before. The autoscaling component is not wired into an overlay
 - **EN-18:** a k6 harness (`tsx load/support/run.ts smoke|spike|soak|stress`) that boots the registration service on
   the runner's throwaway Postgres, seeds events through its consumer handlers, runs k6 in the `grafana/k6`
   image and checks the database afterwards. In CI: 500 req/s for 100 seats registered exactly 100 attendees, with 0
-  over-admission and the rest refused `REGISTRATION_FULL`, in all three spike runs (p95 401 to 463 ms at 499.7 to 499.9
-  req/s); a 5-minute soak (36,000 requests, no errors, memory +1.9%); and a stress ramp that broke one process at
+  over-admission and the rest refused `REGISTRATION_FULL`, in every spike run made (eight; p95 for all attempts 260 to 798 ms, the
+  slow end on a slower runner where about 490 req/s were completed); a 5-minute soak (36,000 requests, no errors, memory +1.9%); and a stress ramp that broke one process at
   500 req/s with every invariant intact. Results and run URLs are in `documentation/evidence/EN-18`.
 - **Autoscaling** (`deploy/k8s/components/autoscaling`): the registration HPA's minimum, maximum and CPU target, and the
   pod's CPU request, limit and pool size, worked out from the measured CPU per request, the design peak and the

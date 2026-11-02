@@ -22,11 +22,20 @@ It ran three times in the same job, each on a fresh event.
 In every run, exactly 100 registrations and 100 claimed seats, each a different attendee in a different seat; k6 saw exactly 100 responses with status 201; every other attempt got `409 REGISTRATION_FULL`, with no 429, no 5xx and no timeout; and
 each registration has its confirmation message in the outbox. The runner held the rate in the sense that matters (499.7 to 499.9 req/s completed); the first run dropped two iterations while the process warmed up, so the harness reports "not sustained" for it, strictly.
 
-**The 800 ms objective** (p95 of registration submit latency at 500 req/s) was met at the rate achieved in all three runs. Treat that as "met on this runner, for a 10-second spike in which 98% of the attempts are cheap refusals".
-The 100 attempts that register cost more: their p95 is 612 to 729 ms, close to the limit. Two earlier runs of the same spike on this branch (runs
-[41530864706](https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41530864706) and
-[41531666886](https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41531666886), whose files are not kept here) gave p95 of 260 ms with the rate held, and 685 ms with 42 iterations dropped at 495.7 req/s.
-So across five runs the p95 went from 260 to 685 ms: the objective holds here, with less margin than any single run suggests.
+**The 800 ms objective** (p95 of registration submit latency at 500 req/s) was met at the rate achieved in all three of these runs, on an Intel Xeon Platinum 8573C runner. It is not a comfortable margin, and it depends on the machine GitHub assigns.
+A later run of the same code (run [41535317066](https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41535317066), files not kept here) landed on an AMD EPYC 7763 runner:
+
+| Run (AMD EPYC 7763) | Rate achieved | k6 iterations dropped | p95, all | p95, the 100 registered | Registered |
+|---|---|---|---|---|---|
+| spike (run 1 of 3) | 494.7 req/s | 52 | 712 ms | 989 ms | 100 |
+| spike-2 | 490.1 req/s | 98 | **798 ms** | 937 ms | 100 |
+| spike-3 | 493.4 req/s | 65 | 736 ms | 1,007 ms | 100 |
+
+There the rate was not held (about 490 req/s completed, with iterations dropped), p95 for all attempts was 712 to 798 ms, just inside the objective, and the p95 of the 100 attempts that actually register was 937 to 1,007 ms, over it. The invariant held all the same: exactly 100 registered, 0 over-admission.
+Two earlier runs of the spike (runs [41530864706](https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41530864706) and
+[41531666886](https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41531666886), on AMD EPYC 9V74 runners, files not kept here) gave p95 of 260 ms with the rate held, and 685 ms with 42 iterations dropped at 495.7 req/s.
+**Across the eight spikes made, p95 for all attempts went from 260 to 798 ms.** So the honest statement is: the seat count is exact at 500 req/s every time; the 800 ms objective is met on every run, but on a slower runner by 2 ms, and a 10-second burst
+in which 98% of the attempts are cheap refusals is the easy case. One process does not carry 500 req/s of registrations comfortably, which is what the autoscaling's minimum of two pods is for.
 
 | Smoke (every pull request) | |
 |---|---|

@@ -54,6 +54,21 @@
       "scenario": "stress (an earlier run)",
       "run": "https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41531666886",
       "cpuMsPerRequest": 2.023
+    },
+    {
+      "scenario": "spike (a later run)",
+      "run": "https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41535317066",
+      "cpuMsPerRequest": 2.37
+    },
+    {
+      "scenario": "spike-2 (a later run)",
+      "run": "https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41535317066",
+      "cpuMsPerRequest": 2.39
+    },
+    {
+      "scenario": "spike-3 (a later run)",
+      "run": "https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41535317066",
+      "cpuMsPerRequest": 2.37
     }
   ],
   "assumptions": [
@@ -61,6 +76,6 @@
   ],
   "notes": [
     "The smoke run's 3.77 ms per request is not used: 400 requests in 10 s is mostly the process warming up, not steady state.",
-    "The planning figure 3.0 ms is the worst measured (2.622, the stress run, whose requests all register) rounded up, as a margin for the variation between runs (1.7 to 2.6 ms) and for the runner not being the production cluster."
+    "The planning figure 3.0 ms is the worst measured (2.622, the stress run, whose requests all register) rounded up, as a margin for the variation between runs and runners (1.7 to 2.6 ms) and for the runner not being the production cluster."
   ]
 }

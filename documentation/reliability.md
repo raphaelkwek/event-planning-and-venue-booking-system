@@ -61,8 +61,9 @@ Each write-up in `documentation/evidence/EN-20/` has the same parts: hypothesis,
 - **One registration process saturates one core at roughly 400 to 500 registrations a second.** In the stress run it held 250 req/s and broke at 500 (p95 6 s,
   about 400 a second completed); in an earlier run, on a different CPU model, it held 500 and broke at 750. The cost is 2.0 to 2.6 ms of CPU per registration.
   Two pods are enough for the 500 req/s peak; the autoscaling is sized from the cost per request, not from the ceiling of one.
-- **The 10-second 500 req/s spike meets the 800 ms objective in all five runs made, with p95 from 260 to 685 ms.** That is a short burst in which 98% of attempts are cheap
-  refusals; the margin is smaller than one run suggests, and 500 req/s of successful registrations held for 30 seconds is more than one process carries.
+- **The 10-second 500 req/s spike keeps the seats exact every time, and meets the 800 ms objective only narrowly on a slower runner.** Across eight runs p95 for all attempts ran from 260 to 798 ms
+  (the three runs on a slower AMD EPYC 7763 runner: 712, 798 and 736 ms, with 52 to 98 iterations dropped). It is a short burst in which 98% of attempts are cheap refusals, and the
+  100 attempts that register had p95 of 937 to 1,007 ms on that runner. 500 req/s of successful registrations for 30 seconds is more than one process carries.
 - **A slow database makes the service slow, not wrong.** With 500 ms added to every database answer the seats stayed exact (experiment 3), but p95 was many
   seconds: the service has no per-request time limit and sheds no load, which the design leaves to the gateway (EN-12, not built).
 - **The interim per-address rate limit would throttle every attendee together behind an ingress.** The service keys its limit on the client address and keeps
