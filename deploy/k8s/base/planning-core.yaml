@@ -30,6 +30,7 @@ spec:
           ports:
             - name: http
               containerPort: 8090
+              protocol: TCP
           envFrom:
             - configMapRef:
                 name: connectsphere-config
