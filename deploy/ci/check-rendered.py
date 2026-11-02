@@ -1,6 +1,7 @@
 """EN-10: policy checks on a rendered overlay (kustomize output), beyond schema validity.
 
-Fails if the rendered manifests contain a Secret, or if any workload container is not
+Fails if the planning-core or registration API is not a Rollout with the canary steps
+10%, analyse, 50%, analyse, 100% (EN-16), if the rendered manifests contain a Secret, or if any workload container is not
 hardened and sized: non-root pod, no privilege escalation, read-only root filesystem,
 all capabilities dropped, resource requests and limits, and no :latest image.
 
@@ -12,13 +13,41 @@ import sys
 import yaml
 
 WORKLOADS = ("Deployment", "Rollout", "Job")
+CANARY_APIS = ("planning-core", "registration")
+CANARY_STEPS = ["setWeight:10", "analysis:error-rate-and-p95", "setWeight:50", "analysis:error-rate-and-p95", "setWeight:100"]
+
+
+def step_signature(step: dict) -> str:
+    if "setWeight" in step:
+        return f"setWeight:{step['setWeight']}"
+    if "analysis" in step:
+        return "analysis:" + ",".join(t["templateName"] for t in step["analysis"]["templates"])
+    return "other"
+
+
+def canary_problems(docs: list[dict], path: str) -> list[str]:
+    problems: list[str] = []
+    rollouts = {d["metadata"]["name"]: d for d in docs if d.get("kind") == "Rollout"}
+    for name in CANARY_APIS:
+        if name not in rollouts:
+            problems.append(f"{path}: {name} is not a Rollout")
+            continue
+        steps = [step_signature(s) for s in rollouts[name]["spec"]["strategy"]["canary"]["steps"]]
+        if steps != CANARY_STEPS:
+            problems.append(f"{path}: {name} canary steps are {steps}, expected {CANARY_STEPS}")
+        if any(d.get("kind") == "Deployment" and d["metadata"]["name"] == name for d in docs):
+            problems.append(f"{path}: {name} is still a Deployment as well")
+        for hpa in (d for d in docs if d.get("kind") == "HorizontalPodAutoscaler" and d["metadata"]["name"] == name):
+            if hpa["spec"]["scaleTargetRef"]["kind"] != "Rollout":
+                problems.append(f"{path}: the {name} HorizontalPodAutoscaler does not target the Rollout")
+    return problems
 
 
 def problems_in(path: str) -> list[str]:
     problems: list[str] = []
-    for doc in yaml.safe_load_all(open(path, encoding="utf-8")):
-        if not doc:
-            continue
+    docs = [d for d in yaml.safe_load_all(open(path, encoding="utf-8")) if d]
+    problems.extend(canary_problems(docs, path))
+    for doc in docs:
         kind = doc.get("kind")
         if kind == "Secret":
             problems.append(f"{path}: contains a Secret ({doc['metadata']['name']}); values must come from outside git")
