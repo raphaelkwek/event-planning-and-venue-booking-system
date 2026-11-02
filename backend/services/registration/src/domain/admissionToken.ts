@@ -22,6 +22,8 @@ export interface AdmissionClaims {
 const PREFIX = "v1";
 
 function mac(key: string, payload: string): Buffer {
+  // An empty key is a valid HMAC key, so a token made with one is forgeable by anyone: never sign or accept under it.
+  if (key === "") throw new Error("An admission token needs a signing key.");
   return createHmac("sha256", key).update(`${PREFIX}.${payload}`).digest();
 }
 
@@ -59,6 +61,7 @@ export function verifyAdmission(
   now: Date,
 ): AdmissionCheck {
   if (!token) return { ok: false, reason: "MISSING" };
+  if (key === "") return { ok: false, reason: "BAD_SIGNATURE" };
   const parts = token.split(".");
   if (parts.length !== 3 || parts[0] !== PREFIX || !parts[1] || !parts[2]) return { ok: false, reason: "MALFORMED" };
   const [, payload, signature] = parts as [string, string, string];

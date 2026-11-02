@@ -1,5 +1,6 @@
 import express from "express";
 import { randomUUID } from "node:crypto";
+import { config } from "./config.js";
 import { sql } from "./db.js";
 import { healthRouter } from "./health.js";
 import { probeBroker } from "./kafka.js";
@@ -13,6 +14,7 @@ import { waitingRoomRouter } from "./api/waitingRoom.js";
  * (R1 to R4). src/index.ts starts it listening, the consumers and the relay.
  */
 export const app = express();
+if (config.trustProxyHops > 0) app.set("trust proxy", config.trustProxyHops);
 app.use(express.json());
 
 // The correlation id travels in the response, the log line and any message the request writes (§9).

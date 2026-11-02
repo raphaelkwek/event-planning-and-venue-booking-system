@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { ApiError } from "../src/api/client.js";
 import type { OpenEvent, RegistrationView, WaitingRoomPlace } from "../src/api/registration.js";
-import { POLL_MS, waitText } from "../src/screens/WaitingRoom.js";
+import { POLL_MS, POLL_RETRIES, waitText } from "../src/screens/WaitingRoom.js";
 
 /**
  * EN-19 — the waiting screen on the attendee surface: it joins the queue,
@@ -187,6 +187,49 @@ describe("the waiting screen (EN-19)", () => {
     fireEvent.click(screen.getByRole("button", { name: "Try again" }));
     expect(await screen.findByText("Your position: 3")).toBeTruthy();
     expect(screen.queryByText("The waiting room could not be reached")).toBeNull();
+  });
+
+  it("EN-19-T14 keeps polling through a rate limit or a dropped connection instead of ending the queue", async () => {
+    api.joinWaitingRoom.mockResolvedValue(placeAt({}));
+    api.getWaitingRoomPlace
+      .mockRejectedValueOnce(refusal(429, "RATE_LIMITED", "Too many requests."))
+      .mockRejectedValueOnce(new TypeError("Failed to fetch"))
+      .mockResolvedValueOnce(placeAt({ position: 1, estimatedWaitSeconds: 1 }));
+    signInAsAttendee("#/open-events/e-1/waiting-room");
+    render(<App />);
+    await screen.findByText("Your position: 3");
+
+    await tick(POLL_MS * 3);
+
+    expect(await screen.findByText("Your position: 1")).toBeTruthy();
+    expect(screen.queryByText("The waiting room could not be reached")).toBeNull();
+    expect(api.getWaitingRoomPlace).toHaveBeenCalledTimes(3);
+  });
+
+  it("EN-19-T14 gives up and offers to try again after repeated poll failures, and says so", async () => {
+    api.joinWaitingRoom.mockResolvedValue(placeAt({}));
+    api.getWaitingRoomPlace.mockRejectedValue(refusal(503, "IDENTITY_UNAVAILABLE", "The service is unavailable."));
+    signInAsAttendee("#/open-events/e-1/waiting-room");
+    render(<App />);
+    await screen.findByText("Your position: 3");
+
+    await tick(POLL_MS * 6);
+
+    expect(await screen.findByText("The waiting room could not be reached")).toBeTruthy();
+    expect(api.getWaitingRoomPlace).toHaveBeenCalledTimes(1 + POLL_RETRIES);
+  });
+
+  it("EN-19-T14 offers to try registering again when the registration failed for a reason that may pass", async () => {
+    api.joinWaitingRoom.mockResolvedValue(admitted);
+    api.registerFor.mockRejectedValueOnce(refusal(503, "IDENTITY_UNAVAILABLE", "Who you are could not be checked.")).mockResolvedValueOnce(registration);
+    signInAsAttendee("#/open-events/e-1/waiting-room");
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Try registering again" }));
+
+    expect(await screen.findByText("You are registered")).toBeTruthy();
+    expect(api.registerFor).toHaveBeenCalledTimes(2);
+    expect(api.joinWaitingRoom).toHaveBeenCalledTimes(1);
   });
 
   it("EN-19-T14 says a spent place was used, pointing to the registrations", async () => {

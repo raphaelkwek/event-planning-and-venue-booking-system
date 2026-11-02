@@ -84,6 +84,12 @@ describe("signAdmission and verifyAdmission", () => {
     expect(reason(signedPayload(`{"ent":"${ENTRY}","evt":"${EVENT}","att":"${ATTENDEE}","exp":1e999}`))).toBe("MALFORMED");
   });
 
+  it("EN-19-T5 never signs or accepts under an empty key, which anyone could forge", () => {
+    expect(() => signAdmission(claims, "")).toThrow(/signing key/);
+    const forged = `v1.${Buffer.from(JSON.stringify({ ent: ENTRY, evt: EVENT, att: ATTENDEE, exp: EXPIRES })).toString("base64url")}.${createHmac("sha256", "").update("v1.x").digest().toString("base64url")}`;
+    expect(reason(forged, before, "")).toBe("BAD_SIGNATURE");
+  });
+
   it("checks the binding before the expiry, so an expired token of someone else's is not reported as expired", () => {
     const token = signAdmission(claims, KEY);
     const late = new Date(EXPIRES + 1);

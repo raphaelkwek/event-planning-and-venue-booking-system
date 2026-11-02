@@ -117,11 +117,11 @@ export function registrationRouter(deps: RouterDeps): Router {
       const page = readPage<ListingCursor>(req, res, (c) => isInstant(c.startsAt) && isUuid(c.eventId));
       if (!page) return;
       const rows = await listOpenListings(sql, now(), page.limit, page.after);
-      res.setHeader("Cache-Control", BROWSE_CACHE_CONTROL);
       const items = rows.slice(0, page.limit);
       const eventIds = items.map((l) => l.eventId);
       const [venues, counts] = await Promise.all([venuesOf(sql, eventIds), placeCountsOf(sql, eventIds)]);
       const last = items[items.length - 1];
+      res.setHeader("Cache-Control", BROWSE_CACHE_CONTROL);
       res.json({
         items: items.map((l) => presentOpenEvent(l, venues.get(l.eventId)!, counts.get(l.eventId)!)),
         nextCursor: rows.length > page.limit && last ? encodeCursor({ startsAt: last.startsAt, eventId: last.eventId }) : null,

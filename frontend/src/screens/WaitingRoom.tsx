@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import Button from "@atlaskit/button/new";
 import SectionMessage from "@atlaskit/section-message";
@@ -26,6 +26,8 @@ import { AttendeeRefusal, card, page, space } from "../components/AttendeeParts.
  */
 
 export const POLL_MS = 2000;
+/** A poll that fails for a reason that may pass (a dropped connection, a 429, a 5xx) is tried again this many times before the attendee is told. */
+export const POLL_RETRIES = 3;
 
 /** "about 45 seconds", "about 3 minutes". */
 export function waitText(seconds: number): string {
@@ -46,11 +48,22 @@ export function WaitingRoom() {
   const [registerProblem, setRegisterProblem] = useState<unknown>(null);
   // Bumped to join again: after an expired turn, or to retry after a failed poll.
   const [round, setRound] = useState(0);
+  // The admitted place whose registration failed for a reason that may pass, so it can be tried again while the token lasts.
+  const [admittedPlace, setAdmittedPlace] = useState<WaitingRoomPlace | null>(null);
+  const registerAgain = useRef<(admitted: WaitingRoomPlace) => void>(() => undefined);
+  // The Supabase token is refreshed from time to time; a refresh must not restart the queue, or an
+  // attendee being registered would be put back at the back of it.
+  const tokenRef = useRef(session.token);
+  tokenRef.current = session.token;
 
   useEffect(() => {
     // The event's name is a courtesy: the queue works without it.
-    getOpenEvent(session.token, eventId!).then(setEvent, () => undefined);
-  }, [session.token, eventId]);
+    let current = true;
+    getOpenEvent(tokenRef.current, eventId!).then((found) => current && setEvent(found), () => undefined);
+    return () => {
+      current = false;
+    };
+  }, [eventId]);
 
   const queue = useCallback(() => {
     let stopped = false;
@@ -58,37 +71,51 @@ export function WaitingRoom() {
 
     async function register(admitted: WaitingRoomPlace) {
       try {
-        const done = await registerFor(session.token, eventId!, admitted.admissionToken);
-        if (!stopped) setRegistered(done);
+        const done = await registerFor(tokenRef.current, eventId!, admitted.admissionToken);
+        if (!stopped) {
+          setRegisterProblem(null);
+          setRegistered(done);
+        }
       } catch (error) {
-        if (!stopped) setRegisterProblem(error);
+        if (!stopped) {
+          setRegisterProblem(error);
+          setAdmittedPlace(admitted);
+        }
       }
     }
 
-    async function step(entryId: string | null) {
+    async function step(entryId: string | null, failures: number) {
       try {
-        const next = entryId ? await getWaitingRoomPlace(session.token, entryId) : await joinWaitingRoom(session.token, eventId!);
+        const next = entryId ? await getWaitingRoomPlace(tokenRef.current, entryId) : await joinWaitingRoom(tokenRef.current, eventId!);
         if (stopped) return;
         setPlace(next);
-        if (next.status === "WAITING") timer = setTimeout(() => void step(next.entryId), POLL_MS);
+        if (next.status === "WAITING") timer = setTimeout(() => void step(next.entryId, 0), POLL_MS);
         else if (next.status === "ADMITTED") await register(next);
       } catch (error) {
-        if (!stopped) setProblem(error);
+        if (stopped) return;
+        const mayPass = !(error instanceof ApiError) || error.status === 429 || error.status >= 500;
+        if (entryId && mayPass && failures < POLL_RETRIES) timer = setTimeout(() => void step(entryId, failures + 1), POLL_MS);
+        else setProblem(error);
       }
     }
 
-    void step(null);
+    registerAgain.current = (admitted) => {
+      setRegisterProblem(null);
+      void register(admitted);
+    };
+    void step(null, 0);
     return () => {
       stopped = true;
       clearTimeout(timer);
     };
-  }, [session.token, eventId]);
+  }, [eventId]);
 
   useEffect(() => {
     setPlace(null);
     setProblem(null);
     setRegisterProblem(null);
     setRegistered(null);
+    setAdmittedPlace(null);
     return queue();
   }, [queue, round]);
 
@@ -134,6 +161,15 @@ export function WaitingRoom() {
       )}
       <AttendeeRefusal error={registerProblem} title="You were not registered">
         {expired && <Button onClick={() => setRound((n) => n + 1)}>Join the queue again</Button>}
+        {!expired && admittedPlace && (
+          <Button
+            onClick={() => {
+              registerAgain.current(admittedPlace);
+            }}
+          >
+            Try registering again
+          </Button>
+        )}
       </AttendeeRefusal>
       {place?.status === "EXPIRED" && !registerProblem && (
         <SectionMessage appearance="warning" title="Your turn has passed">
