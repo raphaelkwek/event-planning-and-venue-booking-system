@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | Only the four descriptive fields were editable; the significant fields were shown as text under the locked-section note directing to a change request. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
+| Actual Result | Only the four descriptive fields were editable; the significant fields were shown as text under the locked-section note directing to a change request. Run on CI's throwaway stack, with unique names in place of the card's literal names. The card's 2 December 2026 event was moved to 2 December 2030 (shown 2/12/2030, 2:00:00 pm to 6:00:00 pm), so the journey never falls in the past. |
 | Status | Pass |
-| Remarks | Automated, browser E2E in CI (EN-14). Commit: 6080462 · Evidence: tests/e2e/f-status-and-confirmation.spec.ts › G1-T5 the significant fields are read-only and point to a change request, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41513983925 · Defect: — |
+| Remarks | Automated, browser E2E in CI (EN-14). Commit: b91681d · Evidence: tests/e2e/f-status-and-confirmation.spec.ts › G1-T5 the significant fields are read-only and point to a change request, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41516713095 · Defect: — |
 | Executed By | Joash, via automated testing (CI) |
 | Date of Execution | 2026-11-03 |

@@ -9,7 +9,7 @@ database per pull request, and every database the team has is the shared Supabas
 never touch (EN-06). The stack below gives every pull request the same thing a preview would, the real
 web app against the real services, and throws it away when the job ends.
 
-**Evidence run:** [run 41513983925](https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41513983925) on commit 6080462: 101 test runs passed (83 journeys at 1280 px, 6 visual tests at each of 3 widths), none flaky, no axe violation.
+**Evidence run:** [run 41513983925](https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41513983925) on commit 6080462 (and run [41516713095](https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41516713095) on b91681d after the 2030 date move): 101 test runs passed (83 journeys at 1280 px, 6 visual tests at each of 3 widths), none flaky, no axe violation.
 
 ## The stack
 
@@ -143,7 +143,7 @@ S1-T13, S2-T12 (their notifications need Kafka).
 Their records cite the spec, the exact test name and the run.
 
 **Deviations from the cards, for a reviewer:** names carry a unique suffix; the venue cards' December 2026
-dates move to 2027 (O1-T26 and G1-T5 keep 2 December 2026, so they need new dates after that day); since E3
+dates move to 2027 (O1-T26, G1-T5 and P2-T4 to T8 move from December 2026 to December 2030, same times); since E3
 a coordinator's queue holds only assigned requests, so D1's journeys start from an assigned request; checks
 the cards make in the SQL editor run against the job's own database or the API the screen uses.
 
