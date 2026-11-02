@@ -4,6 +4,7 @@ import { arrangementFlagsRouter } from "./api/arrangementFlags.js";
 import { changeRequestsRouter } from "./api/changeRequests.js";
 import { confirmationsRouter } from "./api/confirmations.js";
 import { decisionsRouter } from "./api/decisions.js";
+import { featureFlagsRouter } from "./api/featureFlags.js";
 import { changeRateLimiter } from "./api/limiter.js";
 
 /** The module's outbox table, for the outbox relay (implementation.md §3.4). */
@@ -26,5 +27,6 @@ export function changeRouter(sql: Sql): Router {
   router.use(decisionsRouter(sql, limiter));
   router.use(confirmationsRouter(sql, limiter));
   router.use(arrangementFlagsRouter(sql, limiter));
+  router.use(featureFlagsRouter(limiter));
   return router;
 }

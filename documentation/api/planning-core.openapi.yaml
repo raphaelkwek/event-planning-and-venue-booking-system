@@ -56,6 +56,8 @@ tags:
     description: P1 equipment availability checks, P2 maintain equipment types, individually tracked units and out-of-service periods (equipment module)
   - name: Change requests
     description: S1 request a change to a submitted event's significant fields (change module)
+  - name: Feature flags
+    description: EN-15 the flags the web app reads (change module)
 
 security:
   - bearerAuth: []
@@ -1115,6 +1117,10 @@ paths:
         released. A Confirmed event returns to Planning (`RECONSIDER_AFTER_CHANGE`); any other status is
         left alone. The venue's staff and the member of Technical Support who reserved the equipment are
         notified. If flagging fails, the change, the decision and every flag are rolled back (500).
+
+        EN-15: while the feature flag `change-approval` is off, an approval is refused with 403
+        `FEATURE_DISABLED` (`details.flag` names it) and nothing is stored. A rejection is still
+        accepted, because it changes nothing on the event.
       operationId: decideChangeRequest
       requestBody:
         required: true
@@ -1149,7 +1155,11 @@ paths:
                       - $ref: "#/components/schemas/ChangeImpact"
         "400": { $ref: "#/components/responses/ValidationFailed" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
-        "403": { $ref: "#/components/responses/Forbidden" }
+        "403":
+          description: Not the event's assigned coordinator (`ROLE_NOT_AUTHORISED`), or an approval while the `change-approval` flag is off (`FEATURE_DISABLED`).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
         "404":
           description: No change request with that id exists (`CHANGE_REQUEST_NOT_FOUND`), or its event is outside the caller's scope.
           content:
@@ -1166,6 +1176,33 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "429": { $ref: "#/components/responses/RateLimitExceeded" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
+  /api/v1/feature-flags:
+    get:
+      tags: [Feature flags]
+      summary: The feature flags, evaluated for the signed-in user (EN-15)
+      description: |
+        Any signed-in role. The web app uses these to hide or disable an action; the server enforces
+        each flag on the action itself, so this response is a convenience and never the control.
+        Rate limited like the other change routes.
+      operationId: getFeatureFlags
+      responses:
+        "200":
+          description: Every flag the application knows, as true (on) or false (off).
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [flags]
+                properties:
+                  flags:
+                    type: object
+                    description: Flag key to its value for this user.
+                    additionalProperties: { type: boolean }
+                    example: { change-approval: true }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
         "429": { $ref: "#/components/responses/RateLimitExceeded" }
         "503": { $ref: "#/components/responses/IdentityUnavailable" }
 
@@ -2972,6 +3009,7 @@ components:
         - CHANGE_REQUEST_NOT_FOUND
         - CHANGE_REQUEST_ALREADY_DECIDED
         - CHANGE_REQUEST_NO_LONGER_VALID
+        - FEATURE_DISABLED
         - EVENT_NOT_BOOKABLE
         - VENUE_INACTIVE
         - BOOKING_REQUEST_DUPLICATE
