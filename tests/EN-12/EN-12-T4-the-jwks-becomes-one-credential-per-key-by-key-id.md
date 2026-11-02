@@ -18,8 +18,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result |  |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By |  |
-| Date of Execution |  |
+| Actual Result | gateway/tests/render.test.mjs passed (6 tests): one credential per JWK by kid with a PEM that verifies the private half's signature; a rotation gave only the new key; keys without a kid, of an unsupported type or duplicated were refused by name; only the credentials differ from the committed file. |
+| Status | Pass |
+| Remarks | Automated (CI integration) · Commit: 0f598810aac420697e6b567bc3e616d7103af24c · Evidence: gateway/tests/render.test.mjs › EN-12-T4 turns each JWKS key into a credential by kid and picks up a rotation, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41529930983 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

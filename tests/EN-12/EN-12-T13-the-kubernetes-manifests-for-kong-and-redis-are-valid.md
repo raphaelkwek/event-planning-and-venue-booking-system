@@ -18,8 +18,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result |  |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By |  |
-| Date of Execution |  |
+| Actual Result | kubectl kustomize rendered gateway/k8s, kubeconform (strict, Kubernetes 1.33.0) reported no invalid resource, and the hardening check passed (8 resources). Nothing was deployed; there is no cluster. |
+| Status | Pass |
+| Remarks | Automated (CI step) · Commit: 0f598810aac420697e6b567bc3e616d7103af24c · Evidence: gateway.yml › Kubernetes manifests › kustomize and kubeconform, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41529930983 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

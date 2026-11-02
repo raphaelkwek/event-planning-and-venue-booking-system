@@ -18,8 +18,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result |  |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By |  |
-| Date of Execution |  |
+| Actual Result | `kong config parse` printed `parse successful` for gateway/kong.yml and for the file rendered from a throwaway JWKS with the echo upstream and low limits (job: Kong configuration). |
+| Status | Pass |
+| Remarks | Automated (CI step) · Commit: 0f598810aac420697e6b567bc3e616d7103af24c · Evidence: gateway.yml › Kong configuration › kong config parse (committed) and kong config parse (rendered), CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41529930983 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

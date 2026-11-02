@@ -18,8 +18,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result |  |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By |  |
-| Date of Execution |  |
+| Actual Result | No token, a malformed token, a forged signature, an expired token and an unknown key id each got 401 from Kong without reaching planning-core (no x-kong-upstream-latency, no service envelope); a valid token got 200, on both Kong instances. |
+| Status | Pass |
+| Remarks | Automated (CI integration) · Commit: 0f598810aac420697e6b567bc3e616d7103af24c · Evidence: gateway/tests/integration/gateway.int.mjs › EN-12-T3 refuses no token, a malformed token, a wrong key, an expired token and an unknown key id, and lets a valid token through, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41529930983 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

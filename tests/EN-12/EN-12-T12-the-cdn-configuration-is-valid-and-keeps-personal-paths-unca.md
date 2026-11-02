@@ -18,8 +18,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result |  |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By |  |
-| Date of Execution |  |
+| Actual Result | gateway/tests/cdn.test.mjs passed (5 tests) and the CDN configuration job ran terraform fmt -check, init -backend=false and validate successfully. Nothing was applied; no CDN is deployed. |
+| Status | Pass |
+| Remarks | Automated (CI step) · Commit: 0f598810aac420697e6b567bc3e616d7103af24c · Evidence: gateway/tests/cdn.test.mjs › EN-12-T12 caches only the browse API and the fingerprinted assets; gateway.yml › CDN configuration › terraform validate, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41529930983 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

@@ -33,7 +33,7 @@ strips the prefix, as the dev server does, so no service needs CORS.
 | `/identity/api/v1/auth` (POST) | planning-core (`public-planning-core` pool) | public | per-address limit |
 | `/identity/api/v1`, `/event/api/v1`, `/venue/api/v1`, `/equipment/api/v1` | planning-core (`staff-planning-core` pool) | staff | `jwt`, per-user limit, `Cache-Control: no-store` |
 | `/notification/api/v1` | notification (`staff-notification` pool) | staff | the same |
-| `/registration/api/v1` (browse, register, withdraw, my registrations, and the waiting room of EN-19) | registration (`public-registration` pool) | public | per-address limit |
+| `/registration/api/v1` (browse, register, withdraw, my registrations, and the waiting room of EN-19: `POST /waiting-room/entries`, `GET /waiting-room/entries/{id}`; `X-Admission-Token` is forwarded as any header) | registration (`public-registration` pool) | public | per-address limit |
 
 - **Only `/api/v1` is routed.** `/healthz`, `/readyz` and any metrics path answer 404 at Kong: probes talk to the
   pods, not to the edge. Each Kong service has `path: /api/v1`, so nothing outside the API is reachable through
@@ -96,7 +96,8 @@ node gateway/scripts/render-config.mjs \
 - A refusal is `429` with a `Retry-After` header (whole seconds). **Deviation from the error envelope
   (implementation.md §5):** Kong writes its own refusals (`401`, `404`, `413`, `429`) as `{"message": "..."}`, not
   `{"error": {"code": ...}}`. The services' envelope is used for everything a service refuses. The web app
-  handles the gateway's by status.
+  handles the gateway's by status (`frontend/src/api/client.ts` maps a 401 or 429 with that body to a friendly
+  message). An expired token is `{"exp": "token expired"}`, the claim-style body Kong's jwt plugin uses.
 - The services keep their own per-address limiters (CodeQL requires a limiter on every route). **Behind Kong,
   every request reaches a service from Kong's address**, so those in-service limiters would count all users
   together. Before the gateway carries real traffic, either set Express's `trust proxy` for the registration,
@@ -179,6 +180,8 @@ be reached directly bypasses the gateway, which is what ADR-0011 tells a reviewe
 | Integration | the `Gateway integration` job of `.github/workflows/gateway.yml` | CI |
 | Terraform | the `CDN configuration` job | CI |
 | Manifests | the `Kubernetes manifests` job, or `kubectl kustomize` locally | `kubectl` |
+
+Evidence and the run it comes from: `documentation/evidence/EN-12/README.md`.
 
 The integration job builds a throwaway Postgres with `npm run migrate:all`, starts a Redis, the fake JWKS
 server (`gateway/ci/fake-jwks.mjs`, adapted from EN-14's fake Supabase Auth; **CI only**, it refuses to start

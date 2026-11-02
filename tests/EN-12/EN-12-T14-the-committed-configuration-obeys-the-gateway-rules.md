@@ -18,8 +18,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result |  |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By |  |
-| Date of Execution |  |
+| Actual Result | gateway/tests/kongConfig.test.mjs passed: staff behind jwt (kid, exp), per-user limit 300, Cache-Control no-store; public behind per-address limit 600; all on Redis; separate pools; only /api/v1 routed; no key in the file; the CI echo services match the real ones. |
+| Status | Pass |
+| Remarks | Automated (CI integration) · Commit: 0f598810aac420697e6b567bc3e616d7103af24c · Evidence: gateway/tests/kongConfig.test.mjs › EN-12-T14 keeps staff behind jwt and per-user limits, public behind per-address limits, all on Redis, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41529930983 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

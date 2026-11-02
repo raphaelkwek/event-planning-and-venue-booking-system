@@ -18,8 +18,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result |  |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By |  |
-| Date of Execution |  |
+| Actual Result | Absent headers were generated (UUID, 00-<32 hex>-<16 hex>-01) and echoed in the response; a valid traceparent kept its trace id and flags with a new span id; four malformed or all-zero values were replaced; a caller's x-correlation-id was kept; staff routes and the real registration service saw and echoed the id. |
+| Status | Pass |
+| Remarks | Automated (CI integration) · Commit: 0f598810aac420697e6b567bc3e616d7103af24c · Evidence: gateway/tests/integration/gateway.int.mjs › EN-12-T10 generates or propagates traceparent and x-correlation-id, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41529930983 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

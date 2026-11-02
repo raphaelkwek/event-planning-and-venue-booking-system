@@ -18,8 +18,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result |  |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By |  |
-| Date of Execution |  |
+| Actual Result | A staff path under /registration was answered 404 by the registration service; /healthz, /readyz, /<prefix>/healthz, /venue/metrics, /nowhere and / were Kong's own 404 on both instances with no service asked; sign-in reached planning-core without a token (400); other identity paths needed one (401); the unauthenticated browse route was refused by the registration service's envelope. gateway/tests/kongConfig.test.mjs passed (7 tests). |
+| Status | Pass |
+| Remarks | Automated (CI integration) · Commit: 0f598810aac420697e6b567bc3e616d7103af24c · Evidence: gateway/tests/integration/gateway.int.mjs › EN-12-T5 keeps staff and public routes apart and exposes no health endpoint, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41529930983 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |
