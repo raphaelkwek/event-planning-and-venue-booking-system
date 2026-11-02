@@ -129,6 +129,10 @@ export function RequestDetail() {
           {canEditDetails(event, session) && (
             <Button onClick={() => navigate(`/events/${event.id}/details`)}>Edit details</Button>
           )}
+          {/* R2, R4: the window and withdrawal deadline are the owning organiser's to set, while details are editable. */}
+          {canEditDetails(event, session) && event.ownerId === session.userId && (
+            <Button onClick={() => navigate(`/events/${event.id}/registration`)}>Registration settings</Button>
+          )}
           {canRequestChange && !requestingChange && (
             <Button onClick={() => setRequestingChange(true)}>Request a change</Button>
           )}

@@ -1,4 +1,4 @@
-import type { ReactElement } from "react";
+import type { ReactElement, ReactNode } from "react";
 import { HashRouter, Link, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import Button from "@atlaskit/button/new";
 import { SessionProvider, useSession } from "./auth/SessionContext.js";
@@ -14,6 +14,7 @@ import { VenueList } from "./screens/VenueList.js";
 import { VenueEditor } from "./screens/VenueEditor.js";
 import { Notifications } from "./screens/Notifications.js";
 import { useUnreadCount } from "./shared/useUnreadCount.js";
+import { ATTENDEE_ACCENT } from "./components/AttendeeParts.js";
 import { VenueDetail } from "./screens/VenueDetail.js";
 import { VenueUnavailability } from "./screens/VenueUnavailability.js";
 import { EventDetailsEditor } from "./screens/EventDetailsEditor.js";
@@ -34,6 +35,10 @@ import { EquipmentRequests } from "./screens/EquipmentRequests.js";
 import { UnassignedQueue } from "./screens/UnassignedQueue.js";
 import { AssignmentDetail } from "./screens/AssignmentDetail.js";
 import { AssignmentsOverview } from "./screens/AssignmentsOverview.js";
+import { OpenEvents } from "./screens/OpenEvents.js";
+import { OpenEventDetail } from "./screens/OpenEventDetail.js";
+import { MyRegistrations } from "./screens/MyRegistrations.js";
+import { RegistrationSettings } from "./screens/RegistrationSettings.js";
 
 const ROLE_LABELS: Record<Role, string> = {
   EVENT_ORGANISER: "Event Organiser",
@@ -182,6 +187,22 @@ const ROUTES: {
     nav: { label: "Assignments", to: "/assignments" },
   },
   { path: "/assignments/:eventId", element: <AssignmentDetail />, roles: ["EVENT_COORDINATOR_LEAD"] },
+  // R2, R4: the owning organiser sets the registration window and the withdrawal deadline; the server allows only the owner.
+  { path: "/events/:id/registration", element: <RegistrationSettings />, roles: ["EVENT_ORGANISER"] },
+  // R1 to R4: the attendee surface (implementation.md §7.2), served by the registration service.
+  {
+    path: "/open-events",
+    element: <OpenEvents />,
+    roles: ["ATTENDEE"],
+    nav: { label: "Events", to: "/open-events" },
+  },
+  { path: "/open-events/:eventId", element: <OpenEventDetail />, roles: ["ATTENDEE"] },
+  {
+    path: "/my-registrations",
+    element: <MyRegistrations />,
+    roles: ["ATTENDEE"],
+    nav: { label: "My registrations", to: "/my-registrations" },
+  },
   // T2: every role reads its own notifications.
   {
     path: "/notifications",
@@ -202,6 +223,7 @@ function landingFor(role: Role): string {
   if (role === "EVENT_COORDINATOR") return "/queue";
   if (role === "TECH_SUPPORT_STAFF") return "/equipment";
   if (role === "EVENT_COORDINATOR_LEAD") return "/assignments/unassigned";
+  if (role === "ATTENDEE") return "/open-events";
   return "/console";
 }
 
@@ -223,6 +245,30 @@ function Shell() {
   }
 
   const permitted = ROUTES.filter((route) => route.nav && route.roles.includes(session.role));
+
+  const routes = (
+    <Routes>
+      <Route path="/" element={<Navigate to={landingFor(session.role)} replace />} />
+      {ROUTES.map((route) => (
+        <Route
+          key={route.path}
+          path={route.path}
+          element={route.roles.includes(session.role) ? route.element : <Navigate to={landingFor(session.role)} replace />}
+        />
+      ))}
+      <Route path="*" element={<Navigate to={landingFor(session.role)} replace />} />
+    </Routes>
+  );
+
+  if (session.role === "ATTENDEE") {
+    // The API console stays reachable by its address, but is not one of the attendee's screens.
+    const attendeeNav = permitted.filter((route) => route.path !== "/console");
+    return (
+      <AttendeeShell email={session.email} unread={unread} nav={attendeeNav.map((r) => r.nav!)} onSignOut={() => void onSignOut()}>
+        {routes}
+      </AttendeeShell>
+    );
+  }
 
   return (
     <div>
@@ -261,25 +307,69 @@ function Shell() {
         </Button>
       </header>
 
-      <main style={{ padding: 24 }}>
-        <Routes>
-          <Route path="/" element={<Navigate to={landingFor(session.role)} replace />} />
-          {ROUTES.map((route) => (
-            <Route
-              key={route.path}
-              path={route.path}
-              element={
-                route.roles.includes(session.role) ? (
-                  route.element
-                ) : (
-                  <Navigate to={landingFor(session.role)} replace />
-                )
-              }
-            />
-          ))}
-          <Route path="*" element={<Navigate to={landingFor(session.role)} replace />} />
-        </Routes>
-      </main>
+      <main style={{ padding: 24 }}>{routes}</main>
+    </div>
+  );
+}
+
+/**
+ * implementation.md §7.2, ADR-0014: attendees get their own surface, not the
+ * staff console's chrome. One column at most 720px wide that fills a phone
+ * (360px and up), a short navigation that wraps, the system font, and one
+ * accent colour.
+ */
+function AttendeeShell(props: {
+  email: string;
+  unread: number | null;
+  nav: { label: string; to: string }[];
+  onSignOut: () => void;
+  children: ReactNode;
+}) {
+  const location = useLocation();
+  return (
+    <div
+      data-testid="attendee-shell"
+      style={{
+        fontFamily: "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
+        background: "#F7F8F9",
+        minHeight: "100vh",
+        color: "#172B4D",
+      }}
+    >
+      <header style={{ background: "#FFFFFF", borderBottom: "1px solid #DCDFE4" }}>
+        <div
+          style={{
+            maxWidth: 720,
+            width: "100%",
+            boxSizing: "border-box",
+            margin: "0 auto",
+            padding: "8px 16px",
+            display: "flex",
+            flexWrap: "wrap",
+            alignItems: "center",
+            gap: 16,
+          }}
+        >
+          <strong style={{ color: ATTENDEE_ACCENT }}>ConnectSphere</strong>
+          <nav aria-label="Attendee" style={{ display: "flex", flexWrap: "wrap", gap: 16, flex: 1 }}>
+            {props.nav.map((item) => (
+              <Link
+                key={item.to}
+                to={item.to}
+                aria-current={location.pathname === item.to ? "page" : undefined}
+                style={{ color: "#172B4D", fontWeight: location.pathname === item.to ? 700 : 400, padding: "8px 0" }}
+              >
+                {item.to === "/notifications" && props.unread ? `${item.label} (${props.unread})` : item.label}
+              </Link>
+            ))}
+          </nav>
+          <span style={{ fontSize: 14, color: "#44546F" }}>{props.email}</span>
+          <Button appearance="subtle" onClick={props.onSignOut}>
+            Sign out
+          </Button>
+        </div>
+      </header>
+      <main style={{ maxWidth: 720, width: "100%", boxSizing: "border-box", margin: "0 auto", padding: 16 }}>{props.children}</main>
     </div>
   );
 }
