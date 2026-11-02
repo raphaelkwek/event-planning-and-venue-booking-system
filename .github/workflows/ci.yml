@@ -11,6 +11,13 @@ on:
   pull_request:
   push:
     branches: [main]
+  # EN-14: run by hand to remake the browser tests' visual baselines on Linux (see the e2e job).
+  workflow_dispatch:
+    inputs:
+      update_snapshots:
+        description: Remake every visual baseline and upload them as the visual-baselines artifact
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -144,6 +151,100 @@ jobs:
 
       - name: Integration tests (registration)
         run: npm test -w @connectsphere/registration
+
+  # EN-14 (SPM-132). Browser tests against an ephemeral stack that lives only as long as this
+  # job: a throwaway Postgres built from every migration, a fake Supabase Auth server, the three
+  # services and the web app (tests/playwright.config.ts starts them). Kafka is left out on
+  # purpose; the services run without it and keep their messages in the outbox. Not a required
+  # check. documentation/evidence/EN-14/README.md explains the stack and the artifacts.
+  e2e:
+    name: Browser tests (Playwright, ephemeral stack)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: connectsphere_e2e
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci -d connectsphere_e2e"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      # The runner's own database: throwaway credentials for a container nobody else can reach.
+      DATABASE_URL: postgres://ci:ci@127.0.0.1:5432/connectsphere_e2e
+    steps:
+      - name: Refuse any database but the runner's own
+        run: |
+          case "$DATABASE_URL" in
+            postgres://*@127.0.0.1:5432/*|postgres://*@localhost:5432/*) echo "DATABASE_URL is the runner's throwaway Postgres." ;;
+            *) echo "::error::DATABASE_URL must point at the runner's own Postgres, never a shared database (EN-06)"; exit 1 ;;
+          esac
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Build the database from the migrations (every module and service, with seeds)
+        run: npm run migrate:all
+
+      - name: Install Chromium for Playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Browser tests
+        env:
+          # A missing baseline is written and its test fails softly; a manual run remakes them all.
+          UPDATE_SNAPSHOTS: ${{ github.event_name == 'workflow_dispatch' && inputs.update_snapshots && 'all' || 'missing' }}
+        run: npx playwright test --config tests/playwright.config.ts --update-snapshots="$UPDATE_SNAPSHOTS"
+
+      - name: Browser test summary
+        if: always()
+        run: node .github/scripts/e2e-summary.mjs >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload the HTML report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: tests/playwright-report/
+          if-no-files-found: ignore
+
+      - name: Upload traces, videos, screenshots and axe findings
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-test-results
+          path: tests/test-results/
+          if-no-files-found: ignore
+
+      - name: Upload the stack's logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-stack-logs
+          path: tests/e2e-logs/
+          if-no-files-found: ignore
+
+      # Download with `gh run download <run-id> -n visual-baselines -D tests/e2e/__screenshots__`
+      # and commit them, so later runs compare against Linux baselines.
+      - name: Upload the visual baselines
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-baselines
+          path: tests/e2e/__screenshots__/
+          if-no-files-found: ignore
 
   # EN-06.3 (SPM-172). Rules and the reasons for the ones turned off are in
   # .squawk.toml. Only the migrations a pull request adds or changes are linted:

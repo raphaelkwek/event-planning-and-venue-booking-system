@@ -1,0 +1,100 @@
+import { mkdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { AxeBuilder } from "@axe-core/playwright";
+import { test as base, expect, type Page, type TestInfo } from "@playwright/test";
+import { ACCOUNTS, SEED_PASSWORD, type AccountKey } from "./accounts.js";
+
+/**
+ * What every journey shares: signing in through the real sign-in screen, an accessibility check
+ * of each screen it visits, and names no other run has used.
+ */
+
+/** WCAG 2.1 A and AA, the level the brief's accessibility requirement is read as. */
+const AXE_TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"];
+const FAILING_IMPACTS = new Set(["serious", "critical"]);
+
+export interface AxeViolationRecord {
+  test: string;
+  project: string;
+  screen: string;
+  url: string;
+  id: string;
+  impact: string | null;
+  help: string;
+  helpUrl: string;
+  targets: string[];
+}
+
+const findingsDir = fileURLToPath(new URL("../../test-results/axe-findings/", import.meta.url));
+
+function recordFindings(testInfo: TestInfo, records: AxeViolationRecord[]) {
+  if (records.length === 0) return;
+  mkdirSync(findingsDir, { recursive: true });
+  const file = `${testInfo.testId}-${testInfo.project.name}-${testInfo.retry}-${Date.now()}.json`;
+  writeFileSync(join(findingsDir, file), JSON.stringify(records, null, 2));
+}
+
+/**
+ * Runs axe on the screen as it is now. Serious and critical violations fail the test; every
+ * violation, whatever its impact, is attached to the report and written to
+ * test-results/axe-findings for documentation/evidence/EN-14/axe-findings.md.
+ */
+export async function checkAccessibility(page: Page, testInfo: TestInfo, screen: string) {
+  const results = await new AxeBuilder({ page }).withTags(AXE_TAGS).analyze();
+  const records: AxeViolationRecord[] = results.violations.map((violation) => ({
+    test: testInfo.titlePath.slice(1).join(" › "),
+    project: testInfo.project.name,
+    screen,
+    url: page.url().replace(/^https?:\/\/[^/]+/, ""),
+    id: violation.id,
+    impact: violation.impact ?? null,
+    help: violation.help,
+    helpUrl: violation.helpUrl,
+    targets: violation.nodes.map((node) => node.target.join(" ")),
+  }));
+  recordFindings(testInfo, records);
+  if (records.length > 0) {
+    await testInfo.attach(`axe ${screen}`, { body: JSON.stringify(records, null, 2), contentType: "application/json" });
+  }
+  const failing = records.filter((record) => record.impact && FAILING_IMPACTS.has(record.impact));
+  expect(
+    failing.map((record) => `${record.impact} ${record.id} (${record.help}) at ${record.targets.join(", ")}`),
+    `serious or critical accessibility violations on ${screen}`,
+  ).toEqual([]);
+}
+
+/** Signs in through the sign-in screen, as a person would, and waits for the signed-in header. */
+export async function signIn(page: Page, key: AccountKey) {
+  const account = ACCOUNTS[key];
+  await page.goto("/");
+  await page.getByLabel("Email").fill(account.email);
+  await page.getByLabel("Password").fill(SEED_PASSWORD);
+  await page.getByRole("button", { name: "Sign in" }).click();
+  await expect(page.getByRole("banner")).toContainText(account.email);
+}
+
+export async function signOut(page: Page) {
+  await page.getByRole("button", { name: "Sign out" }).click();
+  await expect(page.getByRole("button", { name: "Sign in" })).toBeVisible();
+}
+
+/** A name no other test, retry or run has used, so a journey finds only its own rows. */
+export function uniqueName(prefix: string): string {
+  return `${prefix} ${Date.now().toString(36).toUpperCase()}${Math.floor(Math.random() * 1296)
+    .toString(36)
+    .toUpperCase()
+    .padStart(2, "0")}`;
+}
+
+interface Fixtures {
+  a11y: (screen: string) => Promise<void>;
+}
+
+export const test = base.extend<Fixtures>({
+  a11y: async ({ page }, use, testInfo) => {
+    await use((screen) => checkAccessibility(page, testInfo, screen));
+  },
+});
+
+export { expect };
