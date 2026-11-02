@@ -107,7 +107,9 @@ describe("C1: patchExpressLayer", () => {
   function fakeLayer(handle: (...args: unknown[]) => unknown) {
     class Layer {
       handle = handle;
-      handle_request(_req: unknown, _res: unknown, _next: (error?: unknown) => void): void {}
+      handle_request(...args: unknown[]): void {
+        void args;
+      }
     }
     patchExpressLayer(Layer as never);
     patchExpressLayer(Layer as never); // applying it twice must not wrap twice
@@ -142,7 +144,9 @@ describe("C1: patchExpressLayer", () => {
 
   it("skips an error-handling layer on a normal request", () => {
     const next = vi.fn();
-    fakeLayer((_e: unknown, _req: unknown, _res: unknown, _next: unknown) => undefined).handle_request({}, {}, next);
+    // Express tells an error-handling layer by its four declared arguments.
+    const errorLayer = Object.defineProperty(() => undefined, "length", { value: 4 });
+    fakeLayer(errorLayer).handle_request({}, {}, next);
     expect(next).toHaveBeenCalledTimes(1);
     expect(next).toHaveBeenCalledWith();
   });
