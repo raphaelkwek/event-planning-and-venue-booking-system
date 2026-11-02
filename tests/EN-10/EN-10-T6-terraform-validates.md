@@ -18,8 +18,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result |  |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: .github/workflows/deploy.yml › job 'Terraform (fmt, validate, tflint)' · Defect: |
-| Executed By |  |
-| Date of Execution |  |
+| Actual Result | terraform fmt -check, init -backend=false and validate in both environments, and tflint --recursive passed. plan and apply were not run. |
+| Status | Pass |
+| Remarks | Commit: 7f31fe5f8158bc75ca285a38e4ccca713e778a9f · Automated · Evidence: .github/workflows/deploy.yml › job 'Terraform (fmt, validate, tflint)', CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41511260190 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

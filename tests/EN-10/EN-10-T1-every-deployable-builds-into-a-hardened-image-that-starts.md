@@ -18,8 +18,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result |  |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: .github/workflows/deploy.yml › jobs 'Image (planning-core)', 'Image (registration)', 'Image (notification)', 'Image (web)', 'Image (migrate)' · Defect: |
-| Executed By |  |
-| Date of Execution |  |
+| Actual Result | The five Image jobs built, started read-only with capabilities dropped, answered /healthz and /readyz (database ok, kafka not_configured), ran as a non-root uid; the worker entrypoint and workflow bundle, the web SPA fallback and headers, and the migrate run (then a second run applying none) all passed. |
+| Status | Pass |
+| Remarks | Commit: 7f31fe5f8158bc75ca285a38e4ccca713e778a9f · Automated · Evidence: .github/workflows/deploy.yml › jobs 'Image (planning-core)', 'Image (registration)', 'Image (notification)', 'Image (web)', 'Image (migrate)', CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41511260190 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

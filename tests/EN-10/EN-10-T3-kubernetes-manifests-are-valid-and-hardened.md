@@ -18,8 +18,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result |  |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: .github/workflows/deploy.yml › job 'Manifests (kustomize and kubeconform)' · Defect: |
-| Executed By |  |
-| Date of Execution |  |
+| Actual Result | kubectl kustomize rendered all overlays; kubeconform -strict passed with CRD schemas for Rollout, AnalysisTemplate, Application, AppProject and ExternalSecret; check-rendered.py passed (no Secret, hardened and sized containers, canary steps). |
+| Status | Pass |
+| Remarks | Commit: 7f31fe5f8158bc75ca285a38e4ccca713e778a9f · Automated · Evidence: .github/workflows/deploy.yml › job 'Manifests (kustomize and kubeconform)', CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41511260190 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

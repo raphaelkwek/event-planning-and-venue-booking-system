@@ -18,8 +18,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result |  |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: .github/workflows/deploy.yml › job 'Canary promotes a good release and rolls back a bad one (kind)'; deploy/ci/canary-demo.sh · Defect: |
-| Executed By |  |
-| Date of Execution |  |
+| Actual Result | With a stand-in service, the real AnalysisTemplate (10 s measurements) and a minimal Prometheus, version 2 was promoted through 10% and 50% to 100%; two AnalysisRuns Successful; stable template moved from 944ffddf8 to 5cddb84d5c. |
+| Status | Pass |
+| Remarks | Commit: 7f31fe5f8158bc75ca285a38e4ccca713e778a9f · Automated · Evidence: .github/workflows/deploy.yml › job 'Canary promotes a good release and rolls back a bad one (kind)'; deploy/ci/canary-demo.sh, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41511260190 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

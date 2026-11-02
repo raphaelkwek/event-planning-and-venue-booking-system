@@ -18,8 +18,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result |  |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: .github/workflows/deploy.yml › job 'Argo CD syncs the staging overlay (kind)'; kubeconform in job 'Manifests (kustomize and kubeconform)' · Defect: |
-| Executed By |  |
-| Date of Execution |  |
+| Actual Result | Argo CD v2.14.11 synced deploy/k8s/overlays/staging from this public repo at the PR commit: Synced and Healthy with the PreSync migrate hook, and a ConfigMap deleted by hand was recreated. |
+| Status | Pass |
+| Remarks | Commit: 7f31fe5f8158bc75ca285a38e4ccca713e778a9f · Automated · Evidence: .github/workflows/deploy.yml › job 'Argo CD syncs the staging overlay (kind)'; kubeconform in job 'Manifests (kustomize and kubeconform)', CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41511260190 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

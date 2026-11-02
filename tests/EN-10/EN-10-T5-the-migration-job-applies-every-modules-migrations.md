@@ -18,8 +18,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result |  |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: .github/workflows/deploy.yml › jobs 'Image (migrate)' and 'kind smoke deploy (staging overlay)' · Defect: |
-| Executed By |  |
-| Date of Execution |  |
+| Actual Result | Image (migrate) applied all modules to an empty Postgres and a second run applied none; in kind the migrate Job completed before the Rollouts and planning-core then reported database ok. |
+| Status | Pass |
+| Remarks | Commit: 7f31fe5f8158bc75ca285a38e4ccca713e778a9f · Automated · Evidence: .github/workflows/deploy.yml › jobs 'Image (migrate)' and 'kind smoke deploy (staging overlay)', CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41511260190 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

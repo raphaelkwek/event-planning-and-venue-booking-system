@@ -18,8 +18,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result |  |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: .github/workflows/deploy.yml › job 'kind smoke deploy (staging overlay)' · Defect: |
-| Executed By |  |
-| Date of Execution |  |
+| Actual Result | On kind v1.33.1 under the restricted Pod Security Standard: migrate Job complete, planning-core and registration Rollouts Healthy, notification and web rolled out; /readyz of the three backends reported database ok; web fell back to the app shell. NetworkPolicy was enforced (default-deny refused a pod in default; the ingress-nginx allow worked). No Kafka, Supabase or Temporal in the cluster. |
+| Status | Pass |
+| Remarks | Commit: 7f31fe5f8158bc75ca285a38e4ccca713e778a9f · Automated · Evidence: .github/workflows/deploy.yml › job 'kind smoke deploy (staging overlay)', CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41511260190 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

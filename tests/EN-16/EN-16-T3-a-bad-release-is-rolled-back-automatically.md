@@ -18,8 +18,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result |  |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: .github/workflows/deploy.yml › job 'Canary promotes a good release and rolls back a bad one (kind)'; deploy/ci/canary-demo.sh · Defect: |
-| Executed By |  |
-| Date of Execution |  |
+| Actual Result | Version 3 (answers 500, passes health check): error-rate AnalysisRun Failed (2 failed > limit 1), Rollout aborted, stable stayed on version 2, only version 2 pods remained, 20 of 20 requests through the Service returned 200. |
+| Status | Pass |
+| Remarks | Commit: 7f31fe5f8158bc75ca285a38e4ccca713e778a9f · Automated · Evidence: .github/workflows/deploy.yml › job 'Canary promotes a good release and rolls back a bad one (kind)'; deploy/ci/canary-demo.sh, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41511260190 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |
