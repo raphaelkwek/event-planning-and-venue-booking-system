@@ -261,6 +261,20 @@ describe("M1: requests, I2's flags and venue search compare occupied periods wit
     expect(touching.map((v) => v.id)).toContain(venueId);
   });
 
+  it("J1-T18: the window is widened by the venue's own times against a hold taken before they were set", async () => {
+    const venueId = await newVenue("Audit Hall", 30, 30);
+    const event = await newEvent("Audit Gala");
+    await sql`
+      insert into venue.venue_slots (venue_id, event_id, reference, starts_at, ends_at, status, created_by, updated_by)
+      values (${venueId}, ${event.id}, 'HLD-AUDIT-1', ${at("14:00")}, ${at("16:00")}, 'HELD', ${STAFF}, ${STAFF})
+    `;
+    const filters = { q: null, minCapacity: null, location: BUILDING, layout: null, facilities: [], accessibility: [] };
+
+    // 16:00-17:00 widens back to 15:30, into the hold; 16:30-17:30 widens to 16:00, where the hold ends.
+    expect((await searchVenues(sql, { ...filters, from: utc("16:00"), to: utc("17:00") })).map((v) => v.id)).not.toContain(venueId);
+    expect((await searchVenues(sql, { ...filters, from: utc("16:30"), to: utc("17:30") })).map((v) => v.id)).toContain(venueId);
+  });
+
   it("the venue's setup time counts too: a block ending at 10:00 refuses a 10:15 request with 30 minutes' setup", async () => {
     const venueId = await newVenue("Audit Hall", 30, 0);
     const event = await newEvent("Audit Gala");

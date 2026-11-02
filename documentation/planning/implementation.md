@@ -389,6 +389,20 @@ Model holds and confirmed bookings as rows in one table (`venue_slots`) so a sin
 3. **A converted hold stays HELD until decided (L3 → L1).** When L1 turns a hold into a booking request, the slot row keeps status HELD until M1 approves (→ CONFIRMED) or M2 rejects (→ RELEASED). Never release and then re-insert it, because that opens a window in which another hold can take the slot.
 4. **Conflicting inserts queue on a row lock (EN-02.3).** Every slot insert takes the venue row lock first, and every equipment reservation takes its type's row lock. The exclusion constraints still decide. The lock is there because two conflicting inserts in flight at once can each wait for the other on the constraint, and Postgres then aborts one as a **deadlock (`40P01`)** instead of an overlap (`23P01`). The user would get a server error instead of the refusal. EN-02.3's race (ten rounds of fifty attempts) found this; with the locks, every loser meets an already committed winner and is refused cleanly.
 
+**One lock order for the venue module (audit, 2 Nov 2026).** Every path that locks more than one of these rows takes them in this order, and may skip a level but never go back up one:
+
+1. venue rows (`venue.venues`), in ascending id when there are several (M1 approving a replacement at another venue, F4 releasing an event's venues);
+2. event rows (I3 returning a Confirmed event to Planning, F5, S3);
+3. holds;
+4. booking requests;
+5. venue slots, then the rows that record why they are flagged (`block_disruptions`, `buffer_conflicts`).
+
+Before the audit, converting a hold locked the hold and then the venue, F5 read slots before requests while M1 locks a request and then the slot its hold took, and I2 and H3 flagged slots before requests; each pair could deadlock. The order is also written beside `lockVenue` in `repo/slots.ts`. F4's cancellation (PR #72) locks the event and then its venues, while I2 locks the venue and then the events it returns to Planning; that pair still needs a ruling on which comes first.
+
+**Expired holds block nothing, even without the workflow (L6, M4).** The HoldExpiry workflow expires a hold at its expiry when Temporal and Kafka are up. When they aren't, every slot insert expires the venue's overdue holds first, under the venue lock; `PATCH /holds/:id/expiry` expires an overdue hold instead of reviving it; and `npm run jobs:expire-holds` sweeps the rest. All three use the workflow's own step, so the records and the `venue-booking.hold-expired` message are the same, and running twice expires nothing twice.
+
+**A buffer-change flag clears when its cause ends (H3, I6, M3).** When a booking, hold or request ends (released, expired, withdrawn, rejected, or released by a cancellation), the arrangements a change of setup or turnaround time had flagged against it lose Requires Reconfirmation, unless another live overlap or an active I2 block still causes it. The `buffer_conflicts` record stays open: it says the venue's times made the two overlap, and only a later change of times clears it. A record whose other side has ended keeps nothing flagged.
+
 **Equipment availability** (P1, P2, Q1): never over-reserve, **over a period**. The old design kept one `total`/`reserved` counter per equipment type with no time dimension, so it couldn't tell Friday 2–5 pm from Saturday. It's replaced by two mechanisms.
 
 *Serialized units* (a projector, a microphone) are rows in `equipment.equipment_units`. A reservation claims specific units:
