@@ -18,8 +18,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | In each of the five jobs: the SBOM was signed with cosign sign-blob (keyless) and verify-blob accepted it for the workflow identity and refused a wrong one; the image was pushed to the job's local registry and the composite action signed it, attested its CycloneDX SBOM, verified both, read the SBOM back out of the attestation (same component count) and saw a wrong identity refused. Nothing was pushed to GHCR. |
+| Status | Pass |
+| Remarks | Commit: 11d972ed593bf4abc6f26115f75ffd246e071c14 · Automated (CI) · Evidence: .github/workflows/supply-chain.yml › steps 'Sign the SBOM as a blob', 'Verify the SBOM signature', 'Sign, attest and verify an image in a local registry' (.github/actions/sign-and-attest), CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41521790370 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

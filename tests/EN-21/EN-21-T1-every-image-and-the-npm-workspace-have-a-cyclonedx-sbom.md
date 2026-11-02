@@ -18,8 +18,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | The npm workspace SBOM (CycloneDX 1.7, 454 components) and the five image SBOMs (planning-core 3591, registration 298, notification 298, web 1282, migrate 394 components) were generated, each passed the validity check (CycloneDX, at least one library) and was uploaded as an artifact. |
+| Status | Pass |
+| Remarks | Commit: 11d972ed593bf4abc6f26115f75ffd246e071c14 · Automated (CI) · Evidence: .github/workflows/supply-chain.yml › jobs 'SBOM (npm workspace)' and 'Image (<name>) SBOM, Trivy, signing' (steps 'SBOM (CycloneDX, ...)'), CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41521790370 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

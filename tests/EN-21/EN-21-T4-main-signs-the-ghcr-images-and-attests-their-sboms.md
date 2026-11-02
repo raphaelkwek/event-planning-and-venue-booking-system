@@ -18,8 +18,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
+| Actual Result | Not run. The signing step in deploy.yml runs only on a push to main, which has never run this pipeline. Proven on this pull request: the composite action that step calls signed, attested and verified an image in a local registry in all five jobs (EN-21-T5), and the Deploy run on this pull request passed with the step skipped. Not proven: that the repository lets the workflow token write packages and mint an OIDC token on main, and what GHCR does with the signature and attestation (referrers, package visibility). |
 | Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Remarks | Commit: 11d972ed593bf4abc6f26115f75ffd246e071c14 · Evidence: .github/workflows/deploy.yml › 'Sign, attest and verify (cosign, keyless)' (runs only on push to main); the same action ran in https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41521790370 · Defect: — |
+| Executed By |  |
+| Date of Execution |  |

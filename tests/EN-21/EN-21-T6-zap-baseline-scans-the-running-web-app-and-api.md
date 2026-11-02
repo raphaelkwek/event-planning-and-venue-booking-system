@@ -18,8 +18,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | The migrate image built the throwaway database, planning-core (:8090) and the web image (:8080) answered their health endpoints, and zap-baseline.py ran against both with .zap/rules.tsv: web 63 pass, 2 warn rules, 3 ignored, 0 fail; API 64 pass, 3 warn rules, 1 ignored, 0 fail. The zap-report artifact was uploaded. A temporary FAIL rule (commit 27f85bd, reverted) made the job fail, so the gate works (run 41520365688). documentation/evidence/EN-21/zap.md summarises the findings. |
+| Status | Pass |
+| Remarks | Commit: 11d972ed593bf4abc6f26115f75ffd246e071c14 · Automated (CI) · Evidence: .github/workflows/supply-chain.yml › job 'ZAP baseline (web app and planning-core API)'; documentation/evidence/EN-21/zap.md, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41521790370 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

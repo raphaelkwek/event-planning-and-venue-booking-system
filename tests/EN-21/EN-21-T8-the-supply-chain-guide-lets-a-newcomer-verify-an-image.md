@@ -18,8 +18,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
+| Actual Result | Not run against a published image, because none is signed yet. Partly proven: the action's verify step runs the guide's cosign verify and cosign verify-attestation commands with an exact identity, and the jq/base64 extraction of the SBOM from the attestation, on every pull request (EN-21-T5). Not proven: docker buildx imagetools to resolve a tag, cosign tree, and anonymous access to the GHCR package. |
 | Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Remarks | Commit: 11d972ed593bf4abc6f26115f75ffd246e071c14 · Evidence: documentation/supply-chain.md; the extraction and verification commands ran in https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41521790370 · Defect: —. Walk through the guide on a laptop after the first push to main. |
+| Executed By |  |
+| Date of Execution |  |

@@ -18,8 +18,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | All five images were scanned; reports and SARIF (categories trivy-image-<name>) uploaded; the gate passed for all five. The first run failed on all five (CRITICAL with a fix); the Dockerfile fixes in this pull request cleared it (counts in trivy.md). planning-core's CRITICAL zlib has no fix and its CRITICAL zip crate is ignored with a reason until 2026-12-15. |
+| Status | Pass |
+| Remarks | Commit: 11d972ed593bf4abc6f26115f75ffd246e071c14 · Automated (CI) · Evidence: .github/workflows/supply-chain.yml › jobs 'Image (<name>) SBOM, Trivy, signing' (steps 'Trivy report', 'Trivy gate'); documentation/evidence/EN-21/trivy.md, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41521790370 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

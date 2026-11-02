@@ -18,8 +18,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | The report step listed the HIGH findings (two lockfile packages, EKS secrets encryption, three CI-only kind fixtures); no secret was found. The gate passed with the two EKS endpoint findings ignored in .trivyignore.yaml with reason and expiry. The SARIF was accepted by code scanning (category trivy-fs). documentation/evidence/EN-21/trivy.md lists each finding and its disposition. |
+| Status | Pass |
+| Remarks | Commit: 11d972ed593bf4abc6f26115f75ffd246e071c14 · Automated (CI) · Evidence: .github/workflows/supply-chain.yml › job 'Trivy (filesystem: dependencies, IaC, secrets)'; documentation/evidence/EN-21/trivy.md, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41521790370 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |
