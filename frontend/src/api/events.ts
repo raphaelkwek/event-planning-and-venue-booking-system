@@ -201,22 +201,6 @@ export function listReassignmentProposals(token: string, eventId: string) {
   });
 }
 
-/** E2 — the nominee accepts, becoming the active coordinator. */
-export function acceptReassignment(token: string, eventId: string) {
-  return request<ReassignmentProposal>(`${EVENT}/events/${eventId}/reassignment-proposals/accept`, {
-    method: "POST",
-    token,
-  });
-}
-
-/** E2 — the nominee declines; the outgoing coordinator remains active. */
-export function declineReassignment(token: string, eventId: string) {
-  return request<ReassignmentProposal>(`${EVENT}/events/${eventId}/reassignment-proposals/decline`, {
-    method: "POST",
-    token,
-  });
-}
-
 /** G1: the descriptive details an edit can change; null empties an optional one. */
 export interface DetailsChanges {
   purpose?: string;
