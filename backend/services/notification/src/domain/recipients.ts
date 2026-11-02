@@ -257,6 +257,23 @@ const RULES: Record<string, Rule> = {
   "change-request.rejected": (d, event) => [
     [d.ownerId!, `Your change request for ${event} was rejected. Reason: ${d.reason}`],
   ],
+  // R2: the attendee's registration is confirmed, with the event's date and times.
+  "registration.confirmed": (d, event) => [
+    [
+      d.attendeeId!,
+      `Your registration ${d.registrationReference} for ${event}` +
+        (d.eventStartsAt && d.eventEndsAt ? ` on ${period(d.eventStartsAt, d.eventEndsAt)}` : "") +
+        " is confirmed.",
+    ],
+  ],
+  // R4: the attendee is told their withdrawal went through. R6 reads the same message for the waitlist.
+  "registration.withdrawn": (d, event) => [
+    [d.attendeeId!, `You withdrew registration ${d.registrationReference} for ${event}. Your place has been released.`],
+  ],
+  // R3, F4: the event was cancelled, so the attendee's registration is too.
+  "registration.cancelled": (d, event) => [
+    [d.attendeeId!, `${event} has been cancelled, so your registration ${d.registrationReference} is cancelled.`],
+  ],
   // F5: the owner, the Venue Staff of each booked venue (once per booking), and each Technical
   // Support Staff member who reserved equipment (once, listing what they reserved).
   "event.arrangements-confirmed": (d, event) => arrangementsConfirmed(d as unknown as ArrangementsConfirmed, event),
@@ -326,7 +343,12 @@ export function notificationsFor(message: NotifiableEvent): NewNotification[] {
     eventId: data.eventId!,
     eventReference: data.eventReference!,
     // A booking request's own reference, or a hold's, for the venue-booking messages (L1, L6).
-    relatedReference: message.type.startsWith("venue-booking.") ? (data.reference ?? data.holdReference!) : null,
+    // A registration's reference for the registration messages (R2 to R4).
+    relatedReference: message.type.startsWith("venue-booking.")
+      ? (data.reference ?? data.holdReference!)
+      : message.type.startsWith("registration.")
+        ? data.registrationReference!
+        : null,
     message: text,
   }));
 }
