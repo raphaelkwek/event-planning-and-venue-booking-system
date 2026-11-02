@@ -1,0 +1,22 @@
+# EN-20 experiment 4: a public outage does not reach staff.
+# NOT RUN in staging (no cluster). The same hypothesis ran in CI with the registration process killed:
+# documentation/evidence/EN-20/4-public-outage.md.
+#
+# Hypothesis: with every registration pod unavailable for 10 minutes, browsing works from cache (the CDN,
+# EN-12) and every staff function in planning-core is unaffected.
+apiVersion: chaos-mesh.org/v1alpha1
+kind: PodChaos
+metadata:
+  name: exp4-registration-down
+  namespace: connectsphere-staging
+  labels:
+    connectsphere.chaos/experiment: "4"
+spec:
+  action: pod-failure
+  mode: all
+  selector:
+    namespaces:
+      - connectsphere-staging
+    labelSelectors:
+      app.kubernetes.io/name: registration
+  duration: 10m
