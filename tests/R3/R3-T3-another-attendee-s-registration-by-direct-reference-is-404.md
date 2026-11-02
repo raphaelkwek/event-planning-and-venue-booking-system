@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
+| Actual Result |  |
 | Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Remarks | Covered by backend/services/registration/tests/api/r3Cards.test.ts › R3-T3 answers another attendee's registration by id exactly as one that does not exist (API level), not yet run: CI's integration job stops at planning-core's unrelated L3-T17 date failure (fixed by PR #82) before it reaches the registration step (commit d43fab5). UI walk-through in Chrome pending at the sprint review. |
+| Executed By |  |
+| Date of Execution |  |

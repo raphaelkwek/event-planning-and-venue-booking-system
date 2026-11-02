@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result |  |
+| Status | Blocked |
+| Remarks | Blocked by R5 (the organiser's registration list and totals), which is not built. The withdrawal itself is R4-T1. |
+| Executed By |  |
+| Date of Execution |  |

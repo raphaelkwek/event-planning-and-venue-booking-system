@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
+| Actual Result |  |
 | Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Remarks | Automated test written: backend/services/registration/tests/api/r3Cards.test.ts › R3-T7 a staff role has no registrations to list here, and a request without a token is refused (API level); not yet run: CI's integration job stops at planning-core's unrelated L3-T17 date failure (fixed by PR #82) before it reaches the registration step (commit d43fab5). Becomes Pass when that step runs green. |
+| Executed By |  |
+| Date of Execution |  |

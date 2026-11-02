@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result |  |
+| Status | Blocked |
+| Remarks | Blocked by R7 (manual additions above capacity), which is not built. The rule is proven at domain level: backend/services/registration/tests/domain/registrationRules.test.ts › R2-T13 counts an addition above capacity (R7) against the free seats, and is never negative. |
+| Executed By |  |
+| Date of Execution |  |
