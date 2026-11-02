@@ -4,6 +4,43 @@
 
 ---
 
+# Docs: test cards use §8.4's four statuses, and traceability rows point at tests that exist
+
+**Timestamp:** 2026-11-03T04:10+08:00 (SGT)
+**Author:** Joash
+**Scope:** `tests/*/` cards, `documentation/traceability/sprint-1.csv` to `sprint-4.csv`,
+`documentation/scripts/`. No application code.
+
+## Changed
+
+- 127 test cards (F2, J1, J2, K1, L6, O1, O2, Q1, Q2, S1, S2) had a Status such as
+  `Pass (automated, API level)`. implementation.md §8.4 allows `Pass`, `Fail`, `Not Executed` and
+  `Blocked` only, so Status is now `Pass` and the qualifier leads Remarks, for example
+  `Automated (API level) · Commit: …`. Nothing else in those cards changed.
+- 21 traceability rows named a test title that no longer exists. Six E1 rows and nine E2 rows
+  lost their tests when E3 (43cd4b5) and E4 (dde7534) replaced automatic assignment and retired
+  peer reassignment proposals: seven now point at the E3 or E4 test that covers the criterion, and
+  eight carry the marker `SUPERSEDED by E3 (CR-05)` or `SUPERSEDED by E4 (W9-FX-5)` in place of a
+  test name. Six rows had a cut-short or reworded title, or an unquoted comma that split the row
+  into five fields.
+
+## Added
+
+- `documentation/scripts/normalise-card-status.ts` makes the card change and checks it
+  (`--check`), keeping each file's line endings.
+- `documentation/scripts/repoint-traceability-rows.ts` holds the 21 row repairs; it refuses a line
+  that is not as the audit found it.
+- `documentation/scripts/check-traceability.ts` fails when a traceability row has the wrong number
+  of fields or names a test that is not in its file. It runs in `npm run test:scripts`, as do the
+  other two scripts' tests.
+
+## Known gap
+
+- Some cards still cite evidence that cannot be checked today. They are listed in the pull request
+  under "needs the owner's re-run" and were not rewritten.
+
+---
+
 # S3: flag the arrangements an approved change affects (SPM-59)
 
 **Timestamp:** 2026-10-28T12:00+08:00 (SGT)
