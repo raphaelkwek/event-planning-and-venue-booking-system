@@ -205,4 +205,74 @@ the Redis. It never touches the team's Supabase project. Local development does 
 
 ## Waiting room (EN-19)
 
-*(Added with EN-19.)*
+A rush at the moment registration opens is the one real traffic spike (ADR-0011). The gateway's rate
+limits turn a flood away; the waiting room is the fair queue for an event the organiser expects to be
+oversubscribed. Cards: `tests/EN-19/`.
+
+**Flagging an event.** The owning organiser sets `highDemand` on the event (planning-core
+`PUT /api/v1/events/{id}/high-demand`, `If-Match`, on the registration settings screen). It is an event
+column (event migration 0019) and travels on `event.listing-changed`, so the registration service keeps
+its own copy (registration migration 0008). A message published before the flag existed reads as not
+high-demand.
+
+**The queue** (registration service, `/api/v1/waiting-room`, public routes at the gateway):
+
+1. `POST /entries {eventId}` (attendees; identity is asked once, here) gives the attendee a slot.
+2. `GET /entries/{entryId}` returns the status (`WAITING`, `ADMITTED`, `EXPIRED`, `USED`), the queue
+   position, the estimated wait and, only while `ADMITTED`, the admission token. The screen polls it every
+   two seconds. It checks the Supabase token locally and never asks identity, so a thousand attendees
+   polling do not reach planning-core.
+3. `POST /api/v1/registrations` with `X-Admission-Token` registers. For a flagged event it is refused
+   `403 ADMISSION_REQUIRED` without a good token, `403 ADMISSION_EXPIRED` once the token's time is up, and
+   `503 WAITING_ROOM_UNAVAILABLE` if the service has no signing key. A non-flagged event ignores the
+   header and its waiting room answers `409 WAITING_ROOM_NOT_REQUIRED`.
+
+**Why Postgres and not Redis.** The registration service has no Redis (the gateway's Redis stores rate
+limit counters and nothing else), the queue has to be exact (a lost or doubled place is a fairness bug, not
+a cache miss), and a few hundred joins a second is easy for one small row each. Redis would add a
+dependency the service does not have, local development would need it, and CI's integration job would too.
+If the rate ever needs to be far higher than a few hundred a second per event, the gate row is the thing
+to move.
+
+**How the rate is held.** Each event has a gate row with the earliest time its next joiner may be
+admitted. Joining locks that row for a few statements, takes `max(now, gate)` as the attendee's slot and
+moves the gate on by one interval, `ceil(1000 / N)` milliseconds. The attendee is admitted when the clock
+reaches the slot, so admissions are at least one interval apart: N a second per event by construction,
+with no burst beyond one, and no worker process. A poll is a read: the position is the number of slots
+still ahead. Events have gates of their own, so one event's queue does not slow another's.
+
+**The token.** `v1.<payload>.<signature>`: an HMAC-SHA256 under `WAITING_ROOM_SIGNING_KEY` of the entry,
+the event, the attendee and the expiry (the slot plus `WAITING_ROOM_TOKEN_TTL_SECONDS`). The register
+route checks, in this order, that the token is present, well formed, signed by us, for this event, for
+this attendee and not expired (expiry is exclusive). It is spent in the registration's own transaction
+(`consumed_at`), so one admission is one registration; a refusal for capacity or a duplicate leaves it
+unspent, and a spent token is `ADMISSION_REQUIRED` even after a withdrawal. The signing key must be at
+least 32 characters; with none set, flagged events cannot take registrations at all rather than take them
+unchecked. There is no key rotation yet.
+
+**The tested rate.** EN-18 load-tests 500 requests a second overall. Each admitted attendee makes about
+one register call, so `WAITING_ROOM_ADMIT_PER_SECOND` defaults to **100 per event**: five flagged events
+open at once use the 500. It is configurable (1 to 1000). EN-18 has not reported, so 100 is derived from
+its target, not measured; EN-18's result should confirm or lower it. The test (`EN-19-T6`) proves the
+queue never hands out slots closer than 1/N seconds with 500 simultaneous joins; it does not prove the
+service sustains N admitted registrations a second.
+
+**Rate limits.** The waiting-room routes are limited per address before the token is checked: 240 a minute
+in the service (a browser polls about 30 a minute) and 600 a minute at the gateway. Behind the gateway the
+service sees the gateway's address unless `TRUST_PROXY_HOPS` is set to the number of proxies in front of
+it (the gateway, and a load balancer if there is one); set it before real traffic, or all attendees share
+one bucket.
+
+**Known limits.**
+- **Eventual consistency of the flag.** The registration service learns of the flag from a Kafka message.
+  Until it is applied, registrations succeed without a token. Flag the event before registration opens.
+- **No cap on queue length.** A joiner whose slot falls after registration closes is still queued. At 100 a
+  second this needs about 360,000 joins an hour, so it is not a risk for a campus event, but a cap is the
+  next step.
+- **Position is a count of the slots ahead**, one indexed query per poll, not an arithmetic estimate.
+- **Slots use the application's clock**, so an instance whose clock runs ahead delays later joiners by the
+  skew; it cannot let anyone jump the queue.
+- **The status route is protected by an unguessable entry id**, not by an owner check, on purpose (it keeps
+  identity out of the polling path). The token it returns is bound to the attendee, so another attendee
+  who somehow held the id could read a place but not use it.
+
