@@ -163,7 +163,14 @@ export function bookingDecisionsRouter(sql: Sql) {
             aggregateId: approved.id,
             actor,
             correlationId: req.header("x-correlation-id") ?? null,
-            payload: { ...decided(approved, event), bookingId, replacedBookingId, ...seatBasis(lockedVenue.layouts, approved.layout) },
+            // R1: attendees see the venue's location beside its name.
+            payload: {
+              ...decided(approved, event),
+              bookingId,
+              replacedBookingId,
+              ...seatBasis(lockedVenue.layouts, approved.layout),
+              venueLocation: lockedVenue.building,
+            },
           });
           return { code: "APPROVED", approved } as const;
         })

@@ -68,6 +68,13 @@ export const ERROR_CODES = [
   // E4: the Lead reassigns only an event that has a coordinator; E2's proposals are retired.
   "EVENT_NOT_ASSIGNED",
   "REASSIGNMENT_RETIRED",
+  // R2 to R4: the registration service's refusals.
+  "REGISTRATION_FULL",
+  "REGISTRATION_DUPLICATE",
+  "REGISTRATION_OUTSIDE_WINDOW",
+  "REGISTRATION_NOT_FOUND",
+  "REGISTRATION_NOT_ACTIVE",
+  "WITHDRAWAL_DEADLINE_PASSED",
 ] as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[number];
