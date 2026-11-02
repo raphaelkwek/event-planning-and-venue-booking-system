@@ -2,6 +2,24 @@
 #
 #   <rule id><TAB><IGNORE|INFO|WARN|FAIL><TAB><what it is, and for IGNORE why>
 #
-# Rules not listed here WARN: they are reported and do not fail the build. Chosen threshold: the
-# build fails on a FAIL rule only, and no rule is FAIL until the first scan's findings have been
-# read (documentation/evidence/EN-21/zap.md). Every IGNORE needs its reason on the same line.
+# Threshold: the build FAILS only on the rules marked FAIL below. Those are checks the web app and the
+# API pass today, so a change that breaks one is a regression and is stopped. Everything else WARNs:
+# it is reported (job summary, zap-report artifact) and does not fail the build, because the first scan
+# found Medium and Low items that need a decision from the people who own the headers and the API
+# (documentation/evidence/EN-21/zap.md lists each). A rule is IGNOREd only with its reason on the line.
+# The scan is unauthenticated and passive; it never attacks.
+
+# Regression guards: clean on both targets in the first scan.
+10020	FAIL	Anti-clickjacking header missing (X-Frame-Options or frame-ancestors)
+10021	FAIL	X-Content-Type-Options header missing
+10036	FAIL	Server leaks its version in the Server header
+10010	FAIL	Cookie without HttpOnly
+10011	FAIL	Cookie without Secure
+10054	FAIL	Cookie without SameSite
+10098	FAIL	Cross-domain misconfiguration (permissive CORS)
+90022	FAIL	Application error disclosure (stack traces and the like in a response)
+
+# Ignored, each with its reason.
+10049	IGNORE	Storable and Cacheable Content (informational). The web assets are fingerprinted files that are meant to be cached for a year and index.html is no-cache; the API response flagged is the 404 for a path that does not exist. An unauthenticated scan sees no user data, so there is nothing sensitive to be cached.
+10096	IGNORE	Timestamp Disclosure - Unix (low). The one hit is a constant inside a bundled third-party library (1540483477, in 2018), not a server clock or user data.
+10109	IGNORE	Modern Web Application (informational). Says the spider cannot see client-side routes; that is a known limit of this scan, written down in documentation/evidence/EN-21/zap.md, not a weakness.

@@ -1,4 +1,4 @@
-# EN-21 (SPM-150): software supply chain security.
+# EN-21 (SPM-139): software supply chain security.
 #
 # SBOMs (CycloneDX) for the npm workspace and for every image, Trivy over the repository and over
 # every image, a cosign demonstration that needs no push, and a ZAP baseline scan of the running web
@@ -332,10 +332,12 @@ jobs:
         id: local
         run: |
           docker tag "${IMAGE}:ci" "localhost:5000/${IMAGE}:ci"
-          docker push "localhost:5000/${IMAGE}:ci"
-          digest="$(docker inspect --format '{{index .RepoDigests 0}}' "localhost:5000/${IMAGE}:ci")"
-          echo "ref=${digest}" >> "$GITHUB_OUTPUT"
-          echo "pushed ${digest}"
+          docker push "localhost:5000/${IMAGE}:ci" | tee push.log
+          # The digest the registry computed, which is what gets signed.
+          digest="$(awk '/digest: sha256:/ { print $3; exit }' push.log)"
+          case "$digest" in sha256:*) ;; *) echo "::error::could not read the pushed digest"; exit 1 ;; esac
+          echo "ref=localhost:5000/${IMAGE}@${digest}" >> "$GITHUB_OUTPUT"
+          echo "pushed localhost:5000/${IMAGE}@${digest}"
 
       - name: Sign, attest and verify an image in a local registry
         uses: ./.github/actions/sign-and-attest
