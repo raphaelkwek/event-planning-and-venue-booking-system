@@ -20,8 +20,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | Refused naming the outstanding equipment line with the dialog kept open and status Approved; Coordinator Two had no Confirm button; after Technical Support reserved the line, confirmation gave Safety Review and the newest history row Approved→Safety Review by Coordinator One. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
+| Status | Pass |
+| Remarks | Automated, browser E2E in CI (EN-14). Commit: 6080462 · Evidence: tests/e2e/f-status-and-confirmation.spec.ts › F5-T21 the assigned coordinator is refused while equipment is outstanding, then confirms to Safety Review, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41513983925 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

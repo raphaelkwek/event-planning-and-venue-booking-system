@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | The owning organiser saw "Coordinator asked … Please confirm the expected attendance." with "Awaiting your response", and the second coordinator saw the same message under "Clarifications". |
+| Actual Result | The organiser and both coordinators saw the clarification text. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
 | Status | Pass |
-| Remarks | Commit: b0ef6ee (working tree modified) · Evidence: tests/D2/evidence/D2-T5.png · Defect: — |
-| Executed By | Chai Yichen |
-| Date of Execution | 2026-09-20 |
+| Remarks | Automated, browser E2E in CI (EN-14). Commit: 6080462 · Evidence: tests/e2e/d-review.spec.ts › D2-T5 the clarification is visible to the owning organiser and to Event Coordinators, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41513983925 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

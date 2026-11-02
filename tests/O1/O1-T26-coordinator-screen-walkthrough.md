@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | UI walk-through in Chrome pending at the sprint review |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | All seven steps through the UI: lines saved, the invalid quantity refused on its field, one edited, one removed, and Technical Support saw the remaining lines. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
+| Status | Pass |
+| Remarks | Automated, browser E2E in CI (EN-14). Commit: 6080462 · Evidence: tests/e2e/o-equipment.spec.ts › O1-T26 the coordinator saves lines, edits one and removes one, and technical support see the rest, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41513983925 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

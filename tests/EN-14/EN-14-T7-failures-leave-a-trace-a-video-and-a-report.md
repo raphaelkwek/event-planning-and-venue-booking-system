@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | retries is 1 in CI; in run 41512200509 the failing journeys were retried once and left their trace, video and screenshot in playwright-test-results; every run uploads playwright-report and e2e-stack-logs. |
+| Status | Pass |
+| Remarks | Automated, browser E2E in CI (EN-14). Commit: 6080462 · Evidence: tests/playwright.config.ts and the run's artifacts › retries, trace, video, screenshot; playwright-report, playwright-test-results, e2e-stack-logs, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41513983925 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

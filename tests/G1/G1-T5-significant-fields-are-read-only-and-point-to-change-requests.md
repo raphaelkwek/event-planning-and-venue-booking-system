@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | The screen had 4 fields to type into: Purpose, Description, Accessibility notes and Contact details. The section "Changed only through a change request" showed, as text only: "Changed only through a change requestThese can be changed only through a change request, because the arrangements already made depend on them.Date and time12/2/2026, 2:00:00 PM to 12/2/2026, 6:00:00 PMExpected attendance150Venue requirements—Equipment requirementsNone required" |
+| Actual Result | Only the four descriptive fields were editable; the significant fields were shown as text under the locked-section note directing to a change request. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
 | Status | Pass |
-| Remarks | Commit: 21956ca · Evidence: tests/G1/evidence/G1-T5.png · Defect: — |
-| Executed By | Yichen, via automated testing |
-| Date of Execution | 2026-10-14 |
+| Remarks | Automated, browser E2E in CI (EN-14). Commit: 6080462 · Evidence: tests/e2e/f-status-and-confirmation.spec.ts › G1-T5 the significant fields are read-only and point to a change request, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41513983925 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

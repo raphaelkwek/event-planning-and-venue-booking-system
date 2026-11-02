@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | The token verified with jose's jwtVerify against the served JWKS with sub, aud, role, email, iss and session_id as Supabase sets them, ES256; wrong password and unknown email got the same 400; a wrong anon key got 401; /auth/v1/user refused the token after logout and refused a forged one; preflights answered only for the web origin; only the password grant exists. The journeys then signed in against it end to end. |
+| Status | Pass |
+| Remarks | Automated in CI (unit job and e2e job). Commit: 6080462 · Evidence: tests/e2e/support/fake-supabase-auth.test.ts (unit job, npm run test:scripts) › the fake GoTrue endpoints (7 cases), CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41513983925 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

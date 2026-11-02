@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | Both organisers' requests were listed — "Annual Research Symposium" as Approved and "Organiser two's symposium" as Submitted — while the other user's draft "Unfinished idea" was not listed. |
+| Actual Result | "All events" listed both organisers' submitted requests and no draft. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
 | Status | Pass |
-| Remarks | Commit: b0ef6ee (working tree modified) · Evidence: tests/A3/evidence/A3-T4.png · Defect: — |
-| Executed By | Seann Khoo |
-| Date of Execution | 2026-09-20 |
+| Remarks | Automated, browser E2E in CI (EN-14). Commit: 6080462 · Evidence: tests/e2e/a-sign-in-and-access.spec.ts › A3-T4 a coordinator's event list contains every event, whoever owns it, and no drafts, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41513983925 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | "Approve" was disabled, the direct call returned HTTP 409, and the decided time is still Sun Sep 20 2026 15:29:15 GMT+0800 (Singapore Standard Time) — no second approval was written. |
+| Actual Result | A second approval through the API console was refused and the decision time was unchanged. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
 | Status | Pass |
-| Remarks | Commit: b0ef6ee (working tree modified) · Evidence: tests/D4/evidence/D4-T7.png · Defect: — |
-| Executed By | Raphael Kwek |
-| Date of Execution | 2026-09-20 |
+| Remarks | Automated, browser E2E in CI (EN-14). Commit: 6080462 · Evidence: tests/e2e/d-review.spec.ts › D4-T7 a request that already carries a decision cannot be approved again, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41513983925 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

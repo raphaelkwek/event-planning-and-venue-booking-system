@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | axe ran on every screen of the 101 test runs and reported no violation in this run, after the fixes listed in documentation/evidence/EN-14/axe-findings.md; earlier runs of the same journeys failed on each of those violations until fixed. No rule is switched off. |
+| Status | Pass |
+| Remarks | Automated, browser E2E in CI (EN-14). Commit: 6080462 · Evidence: tests/e2e/support/fixtures.ts › checkAccessibility (every journey) › a11y(...) on every screen visited, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41513983925 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

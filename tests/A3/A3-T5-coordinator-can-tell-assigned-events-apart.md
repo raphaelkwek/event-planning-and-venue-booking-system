@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | The queue listed both: "First assigned request" assigned to YOU and "Second assigned request" to Coordinator Two. "Assigned to me" on All events listed only "First assigned request". |
+| Actual Result | The coordinator's assigned event was marked "You" and the other coordinator's was not. (Assignment made by the Lead, since E3 replaced the coordinator pool.) Run on CI's throwaway stack, with unique names in place of the card's literal names. |
 | Status | Pass |
-| Remarks | Commit: b0ef6ee (working tree modified) · Evidence: tests/A3/evidence/A3-T5.png · Defect: — |
-| Executed By | Seann Khoo |
-| Date of Execution | 2026-09-20 |
+| Remarks | Automated, browser E2E in CI (EN-14). Commit: 6080462 · Evidence: tests/e2e/a-sign-in-and-access.spec.ts › A3-T5 a coordinator can tell the events assigned to them from the rest, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41513983925 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

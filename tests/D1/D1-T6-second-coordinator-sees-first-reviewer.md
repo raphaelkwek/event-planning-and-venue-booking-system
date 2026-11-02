@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | The screen said "Already under reviewCoordinator One opened this request first, and remains the recorded reviewer." and the stored reviewing_coordinator_id is still 00000000-0000-0000-0000-000000000002 (Coordinator One). |
+| Actual Result | Coordinator Two saw "Already under review" and "Coordinator One opened this request first"; the stored reviewer stayed Coordinator One. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
 | Status | Pass |
-| Remarks | Commit: b0ef6ee (working tree modified) · Evidence: tests/D1/evidence/D1-T6.png · Defect: — |
-| Executed By | Chai Yichen |
-| Date of Execution | 2026-09-20 |
+| Remarks | Automated, browser E2E in CI (EN-14). Commit: 6080462 · Evidence: tests/e2e/d-review.spec.ts › D1-T6 a second coordinator opening a request under review sees the first reviewer, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41513983925 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | The organiser saw "This request was approvedApproved 9/20/2026, 3:29:12 PM.", and Decision in the side panel reads "9/20/2026, 3:29:12 PM" — the same date and time. |
+| Actual Result | The organiser's request page showed "This request was approved" with the decision date and time. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
 | Status | Pass |
-| Remarks | Commit: b0ef6ee (working tree modified) · Evidence: tests/D4/evidence/D4-T4.png · Defect: — |
-| Executed By | Raphael Kwek |
-| Date of Execution | 2026-09-20 |
+| Remarks | Automated, browser E2E in CI (EN-14). Commit: 6080462 · Evidence: tests/e2e/d-review.spec.ts › D4-T4 the owning organiser sees the approval and its date, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41513983925 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

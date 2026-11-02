@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | Every listed environment was refused and only the exact flag with a loopback database was accepted; the server's URL was http://127.0.0.1:<port>. |
+| Status | Pass |
+| Remarks | Automated in CI (unit job and e2e job). Commit: 6080462 · Evidence: tests/e2e/support/fake-supabase-auth.test.ts (unit job, npm run test:scripts) › assertTestHarnessOnly: allows the harness; refuses without the flag, or with any other value; refuses a shared or remote database, a missing one, and a malformed one; refuses a production process; listens on the loopback address only, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41513983925 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |
