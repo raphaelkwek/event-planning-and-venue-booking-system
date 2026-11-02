@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { AxeBuilder } from "@axe-core/playwright";
 import { test as base, expect, type Page, type TestInfo } from "@playwright/test";
 import { ACCOUNTS, SEED_PASSWORD, type AccountKey } from "./accounts.js";
+import { tokenFor } from "./api.js";
 
 /**
  * What every journey shares: signing in through the real sign-in screen, an accessibility check
@@ -66,13 +67,34 @@ export async function checkAccessibility(page: Page, testInfo: TestInfo, screen:
   ).toEqual([]);
 }
 
-/** Signs in through the sign-in screen, as a person would, and waits for the signed-in header. */
-export async function signIn(page: Page, key: AccountKey) {
+/**
+ * Signs in through the sign-in screen, as a person would, and waits for the signed-in header.
+ * Only A1's journeys use it: identity limits sign-ins to 30 a minute per address, and every
+ * browser sign-in reaches planning-core from the same address through the web app's proxy.
+ */
+export async function signInWithForm(page: Page, key: AccountKey) {
   const account = ACCOUNTS[key];
   await page.goto("/");
   await page.getByLabel("Email").fill(account.email);
   await page.getByLabel("Password").fill(SEED_PASSWORD);
   await page.getByRole("button", { name: "Sign in" }).click();
+  await expect(page.getByRole("banner")).toContainText(account.email);
+}
+
+/**
+ * Starts a journey signed in, without spending identity's sign-in budget: the token comes from
+ * the fake Supabase Auth server, and the session is stored exactly as the web app stores it
+ * after a sign-in (frontend/src/api/session.ts, sessionStorage "connectsphere.session"), then the
+ * app is reloaded so SessionProvider reads it. The session is written once, not by an init
+ * script, so signing out still ends it. A1's journeys sign in through the form instead.
+ */
+export async function signIn(page: Page, key: AccountKey) {
+  const account = ACCOUNTS[key];
+  const token = await tokenFor(key);
+  const session = { userId: account.id, email: account.email, role: account.role, token, lastLoginAt: new Date().toISOString() };
+  await page.goto("/");
+  await page.evaluate((value) => sessionStorage.setItem("connectsphere.session", value), JSON.stringify(session));
+  await page.goto("/");
   await expect(page.getByRole("banner")).toContainText(account.email);
 }
 
