@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | "This request is ApprovedDecided 9/20/2026, 3:29:03 PM by Coordinator One.A request that already carries a decision cannot be decided again." was shown, the status became "Approved", and both Approve and Reject are disabled. |
+| Actual Result | Status became Approved, "Decided <time> by Coordinator One." was shown, and Approve and Reject were disabled. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
 | Status | Pass |
-| Remarks | Commit: b0ef6ee (working tree modified) · Evidence: tests/D4/evidence/D4-T1.png · Defect: — |
-| Executed By | Raphael Kwek |
-| Date of Execution | 2026-09-20 |
+| Remarks | Automated, browser E2E in CI (EN-14). Commit: 6080462 · Evidence: tests/e2e/d-review.spec.ts › D4-T1 the coordinator approves a request under review, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41513983925 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

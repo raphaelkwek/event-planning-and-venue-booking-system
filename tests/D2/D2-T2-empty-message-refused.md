@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | Refused with "VALIDATION_FAILEDA clarification message is required.message: A clarification message is required.HTTP 400 · correlation 34f12e23-d594-4c57-83e6-82a90cf989ad". "Clarifications" still read "None requested.", the status stayed "Under Review", and no clarification row was stored. |
+| Actual Result | Refused with the message-required error; the status stayed Under Review and nothing was stored. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
 | Status | Pass |
-| Remarks | Commit: b0ef6ee (working tree modified) · Evidence: tests/D2/evidence/D2-T2.png · Defect: — |
-| Executed By | Chai Yichen |
-| Date of Execution | 2026-09-20 |
+| Remarks | Automated, browser E2E in CI (EN-14). Commit: 6080462 · Evidence: tests/e2e/d-review.spec.ts › D2-T2 an empty clarification message is refused and nothing is stored, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41513983925 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

@@ -1,0 +1,456 @@
+openapi: 3.1.0
+info:
+  title: ConnectSphere registration service
+  version: 0.1.0
+  description: |
+    The registration service (ADR-0005) is the public edge for attendees. It serves R1 to R4:
+    an attendee browses the events open for registration, registers, sees their registrations
+    and withdraws. It never reads planning-core's schema: it keeps its own copy of each event's
+    published fields and registration settings from planning-core's `event.listing-changed` and
+    `event.cancelled` messages, and each event's seats and venues from the venue module's
+    `venue-booking.request-approved` (EN-13).
+
+    **Who is calling.** Every route needs `Authorization: Bearer <Supabase JWT>`. Browsing checks
+    the token against Supabase's signing keys only, so it keeps working while planning-core is
+    down. Registering, withdrawing and my registrations ask identity (planning-core's
+    `GET /api/v1/users/me`) who the caller is, and only role `ATTENDEE` may use them; if identity
+    cannot be reached they are refused with `503`.
+
+    **Every route is rate limited** (120 requests a minute per address) before its token is
+    checked. Responses carry `Cache-Control: no-store` (ADR-0014) and `X-Correlation-Id`.
+
+    Times are RFC 3339 UTC; refusal messages name them in Singapore time. The web app reaches
+    this service through the `/registration` proxy prefix. `tests/api/openapiRoutes.unit.test.ts`
+    (registration) fails CI if a route exists in the code but not here, or here but not in the code.
+  contact:
+    name: ConnectSphere team (IS212 G1)
+  license:
+    name: Proprietary (IS212 coursework)
+    identifier: LicenseRef-IS212-coursework
+servers:
+  - url: /
+    description: The registration service you are running. Locally that's http://localhost:8092 (`REGISTRATION_PORT`, npm run dev).
+
+tags:
+  - name: Health
+    description: Liveness and readiness probes. They have no 4XX responses, so Redocly's operation-4xx-response warning is expected on these two.
+  - name: Open events
+    description: R1 browse the events open for registration
+  - name: Registrations
+    description: R2 register, R3 my registrations, R4 withdraw
+
+security:
+  - bearerAuth: []
+
+paths:
+  /metrics:
+    get:
+      tags: [Health]
+      summary: Prometheus metrics (EN-17)
+      description: |
+        Request counts and durations by route pattern, plus the service's own SLI metrics (the
+        zero-over-admission gauge). For the Prometheus scraper only: the gateway must not route it,
+        and in production it answers 404 unless `METRICS_TOKEN` is set, in which case it needs
+        `Authorization: Bearer <token>`. Rate-limited to 30 requests a minute per address.
+      operationId: getMetricsRegistration
+      security: []
+      responses:
+        "200":
+          description: Prometheus text exposition format.
+          content:
+            text/plain:
+              schema: { type: string }
+        "401":
+          description: A token is required and the one sent is missing or wrong.
+        "404":
+          description: Production, with no `METRICS_TOKEN` set, so the endpoint is off.
+        "429":
+          description: "`RATE_LIMITED`: more than 30 scrapes in a minute from one address."
+
+  /healthz:
+    get:
+      tags: [Health]
+      summary: Liveness
+      operationId: healthz
+      security: []
+      responses:
+        "200":
+          description: The process is alive.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, service]
+                properties:
+                  status: { type: string, const: ok }
+                  service: { type: string, const: registration }
+
+  /readyz:
+    get:
+      tags: [Health]
+      summary: Readiness
+      description: Ready when the database answers. The broker is reported, not required.
+      operationId: readyz
+      security: []
+      responses:
+        "200":
+          description: Ready.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Readiness" }
+        "503":
+          description: The database does not answer.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Readiness" }
+
+  /api/v1/open-events:
+    get:
+      tags: [Open events]
+      summary: The events open for registration, soonest first (R1)
+      description: |
+        Confirmed events with registration enabled whose registration closing has not passed (at
+        the closing instant itself it has not). An event that has not opened yet is listed too;
+        registering for it is refused naming the window. Each carries only published fields.
+        Any signed-in user.
+      operationId: listOpenEvents
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
+      responses:
+        "200":
+          description: A page of open events.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, nextCursor]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/OpenEvent" }
+                  nextCursor: { type: [string, "null"] }
+        "400": { $ref: "#/components/responses/ValidationFailed" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+
+  /api/v1/open-events/{eventId}:
+    parameters:
+      - name: eventId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Open events]
+      summary: One open event, for its page (R1, R2)
+      operationId: getOpenEvent
+      responses:
+        "200":
+          description: The event.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OpenEvent" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "404":
+          description: "`EVENT_NOT_FOUND`: no event open for registration has that id. An event in any other status, or with registration closed, answers the same."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+
+  /api/v1/registrations:
+    get:
+      tags: [Registrations]
+      summary: My registrations, newest first (R3)
+      description: Every registration of the signed-in attendee, whatever its status. Another attendee's are never listed. Attendees only.
+      operationId: listMyRegistrations
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
+      responses:
+        "200":
+          description: A page of my registrations.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, nextCursor]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/Registration" }
+                  nextCursor: { type: [string, "null"] }
+        "400": { $ref: "#/components/responses/ValidationFailed" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/NotAnAttendee" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+    post:
+      tags: [Registrations]
+      summary: Register for an event (R2)
+      description: |
+        Claims a free seat (`FOR UPDATE SKIP LOCKED`) and stores the registration in one
+        transaction, with its `registration.confirmed` message, so two attendees racing for the
+        last place cannot both get it. Accepted from the opening instant up to and including the
+        closing instant. A refusal stores nothing and leaves places remaining unchanged.
+        Attendees only.
+      operationId: register
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [eventId]
+              additionalProperties: false
+              properties:
+                eventId: { type: string, format: uuid }
+      responses:
+        "201":
+          description: Registered. The place is the attendee's.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Registration" }
+        "400": { $ref: "#/components/responses/ValidationFailed" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/NotAnAttendee" }
+        "404":
+          description: "`EVENT_NOT_FOUND`: no event open for registration has that id (not Confirmed, registration not enabled, cancelled, or unknown)."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "409":
+          description: |
+            `REGISTRATION_FULL`: no places remain; the message names capacity, and
+            `details.waitlistOffered` is true (R6). `REGISTRATION_DUPLICATE`: the attendee is
+            already registered; the message and `details.registrationReference` name it.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "422":
+          description: "`REGISTRATION_OUTSIDE_WINDOW`: before the opening or after the closing; the message names both, and so does `details`."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
+  /api/v1/registrations/{id}:
+    parameters:
+      - $ref: "#/components/parameters/RegistrationId"
+    get:
+      tags: [Registrations]
+      summary: One of my registrations (R3)
+      operationId: getMyRegistration
+      responses:
+        "200":
+          description: The registration.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Registration" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/NotAnAttendee" }
+        "404": { $ref: "#/components/responses/RegistrationNotFound" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
+  /api/v1/registrations/{id}/withdrawal:
+    parameters:
+      - $ref: "#/components/parameters/RegistrationId"
+    post:
+      tags: [Registrations]
+      summary: Withdraw my registration (R4)
+      description: |
+        Only the attendee's own, only while it is Registered, and only up to and including the
+        withdrawal deadline (the organiser's, or the event's start where none is set). The
+        registration becomes Withdrawn with its time and is kept; its seat is freed, so places
+        remaining rises by exactly one; and `registration.withdrawn` is written, which confirms
+        it to the attendee and lets R6 tell the waitlist. Attendees only.
+      operationId: withdraw
+      responses:
+        "200":
+          description: Withdrawn.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Registration" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/NotAnAttendee" }
+        "404": { $ref: "#/components/responses/RegistrationNotFound" }
+        "409":
+          description: "`REGISTRATION_NOT_ACTIVE`: it is Withdrawn or Cancelled; the message names it and its status."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "422":
+          description: "`WITHDRAWAL_DEADLINE_PASSED`: the message names the deadline (or the event's start), and so does `details.withdrawalDeadline`."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    Limit:
+      name: limit
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 100, default: 25 }
+    Cursor:
+      name: cursor
+      in: query
+      description: The `nextCursor` of the previous page.
+      schema: { type: string }
+    RegistrationId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+
+  responses:
+    ValidationFailed:
+      description: "`VALIDATION_FAILED`: `fields` names each field in error."
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+    Unauthenticated:
+      description: "`UNAUTHENTICATED`: no token, or one that is invalid, expired or revoked."
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+    NotAnAttendee:
+      description: "`ROLE_NOT_AUTHORISED`: only attendees register; `NO_ROLE_ASSIGNED`: the user has no role."
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+    RegistrationNotFound:
+      description: "`REGISTRATION_NOT_FOUND`: no registration with that id is the caller's. Another attendee's answers exactly the same."
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+    RateLimited:
+      description: "`RATE_LIMITED`: more than 120 requests in a minute from one address."
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+    IdentityUnavailable:
+      description: "`IDENTITY_UNAVAILABLE`: identity could not be asked who the caller is, so nothing was changed."
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+
+  schemas:
+    Venue:
+      type: object
+      required: [name, location]
+      additionalProperties: false
+      properties:
+        name: { type: string }
+        location: { type: [string, "null"], description: "The venue's building or location; null for a booking approved before R1." }
+
+    OpenEvent:
+      description: "R1: only published fields. No review comments, clarifications, notes, booking or equipment records."
+      type: object
+      required: [eventId, reference, name, description, startsAt, endsAt, venues, registrationOpensAt, registrationClosesAt, withdrawalDeadline, placesRemaining, isFull]
+      additionalProperties: false
+      properties:
+        eventId: { type: string, format: uuid }
+        reference: { type: string }
+        name: { type: string }
+        description: { type: [string, "null"] }
+        startsAt: { type: [string, "null"], format: date-time }
+        endsAt: { type: [string, "null"], format: date-time }
+        venues:
+          type: array
+          items: { $ref: "#/components/schemas/Venue" }
+        registrationOpensAt: { type: [string, "null"], format: date-time }
+        registrationClosesAt: { type: [string, "null"], format: date-time }
+        withdrawalDeadline: { type: [string, "null"], format: date-time, description: "R4: the last instant to withdraw: the organiser's deadline, or the event's start." }
+        placesRemaining: { type: integer, minimum: 0, description: "The layout capacity of the confirmed bookings, less the places taken. Never negative (D-01)." }
+        isFull: { type: boolean }
+
+    Registration:
+      type: object
+      required: [id, reference, status, registeredAt, withdrawnAt, cancelledAt, event]
+      additionalProperties: false
+      properties:
+        id: { type: string, format: uuid }
+        reference: { type: string, pattern: "^REG-\\d{6}$" }
+        status: { $ref: "#/components/schemas/RegistrationStatus" }
+        registeredAt: { type: string, format: date-time }
+        withdrawnAt: { type: [string, "null"], format: date-time }
+        cancelledAt: { type: [string, "null"], format: date-time, description: "When the event was cancelled (R3)." }
+        event:
+          type: object
+          required: [eventId, reference, name, startsAt, endsAt, venues, withdrawalDeadline]
+          additionalProperties: false
+          properties:
+            eventId: { type: string, format: uuid }
+            reference: { type: string }
+            name: { type: string }
+            startsAt: { type: [string, "null"], format: date-time }
+            endsAt: { type: [string, "null"], format: date-time }
+            venues:
+              type: array
+              items: { $ref: "#/components/schemas/Venue" }
+            withdrawalDeadline: { type: [string, "null"], format: date-time }
+
+    RegistrationStatus:
+      type: string
+      enum: [REGISTERED, WITHDRAWN, CANCELLED]
+
+    Readiness:
+      type: object
+      required: [status, checks]
+      properties:
+        status: { type: string, enum: [ready, not_ready] }
+        checks:
+          type: object
+          properties:
+            database: { type: string, enum: [ok, unreachable] }
+            kafka: { type: string, enum: [reachable, unreachable, not_configured] }
+        error: { type: string }
+
+    ErrorCode:
+      type: string
+      description: The codes this service returns, from contracts' ERROR_CODES.
+      enum:
+        - UNAUTHENTICATED
+        - NO_ROLE_ASSIGNED
+        - VALIDATION_FAILED
+        - ROLE_NOT_AUTHORISED
+        - EVENT_NOT_FOUND
+        - IDENTITY_UNAVAILABLE
+        - RATE_LIMITED
+        - REGISTRATION_FULL
+        - REGISTRATION_DUPLICATE
+        - REGISTRATION_OUTSIDE_WINDOW
+        - REGISTRATION_NOT_FOUND
+        - REGISTRATION_NOT_ACTIVE
+        - WITHDRAWAL_DEADLINE_PASSED
+
+    ErrorEnvelope:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message, correlationId]
+          properties:
+            code: { $ref: "#/components/schemas/ErrorCode" }
+            message: { type: string }
+            details: { type: object }
+            fields:
+              type: array
+              items:
+                type: object
+                required: [field, message]
+                properties:
+                  field: { type: string }
+                  message: { type: string }
+            correlationId: { type: [string, "null"] }

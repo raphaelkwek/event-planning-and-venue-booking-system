@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | The queue listed "Awaiting review" (Submitted), "Being reviewed" (Under Review) and "Waiting on organiser" (Awaiting Clarification), and neither decided request. |
+| Actual Result | The queue listed the assigned Submitted and Under Review requests and not the approved or rejected ones. (Requests assigned first, as E3 requires.) Run on CI's throwaway stack, with unique names in place of the card's literal names. |
 | Status | Pass |
-| Remarks | Commit: b0ef6ee (working tree modified) · Evidence: tests/D1/evidence/D1-T1.png · Defect: — |
-| Executed By | Chai Yichen |
-| Date of Execution | 2026-09-20 |
+| Remarks | Automated, browser E2E in CI (EN-14). Commit: 6080462 · Evidence: tests/e2e/d-review.spec.ts › D1-T1 the queue lists every request awaiting a decision, and no decided ones, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41513983925 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

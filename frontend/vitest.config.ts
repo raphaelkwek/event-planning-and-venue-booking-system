@@ -8,6 +8,9 @@ export default defineConfig({
     __SUPABASE_ANON_KEY__: JSON.stringify("test-anon-key"),
   },
   test: {
+    // EN-22: CI also writes a JSON report, which the traceability job reads.
+    reporters: process.env.CI ? ["default", "json"] : ["default"],
+    outputFile: { json: "reports/vitest-unit.json" },
     environment: "jsdom",
     include: ["tests/**/*.test.{ts,tsx}"],
     setupFiles: ["tests/setup.ts"],

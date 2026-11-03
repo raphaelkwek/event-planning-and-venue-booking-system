@@ -10,6 +10,9 @@ import { defineConfig } from "vitest/config";
  */
 export default defineConfig({
   test: {
+    // EN-22: CI also writes a JSON report, which the traceability job reads.
+    reporters: process.env.CI ? ["default", "json"] : ["default"],
+    outputFile: { json: "reports/vitest-unit.json" },
     environment: "node",
     include: ["tests/**/domain/**/*.test.ts", "tests/boundaries/**/*.test.ts", "tests/**/*.unit.test.ts"],
     // EN-11: Temporal's native core (the Rust bridge behind @temporalio/worker and

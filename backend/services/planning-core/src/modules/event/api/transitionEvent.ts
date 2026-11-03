@@ -1,5 +1,6 @@
 import type { TransactionSql } from "postgres";
 import { KAFKA_TOPICS, type EventStatus } from "@connectsphere/contracts";
+import { writeListingChanged } from "../events/listing.js";
 import {
   COMPLETION_NOT_DUE_MESSAGE,
   refusalMessage,
@@ -122,6 +123,10 @@ export async function transitionEvent(
       },
     }
   );
+
+  // R1, R3: the registration service lists only Confirmed events, and marks
+  // registrations Cancelled when the event is.
+  await writeListingChanged(tx, eventId, actor, options.correlationId ?? null);
 
   return { ok: true, event: changed.event, previousStatus: changed.previousStatus };
 }

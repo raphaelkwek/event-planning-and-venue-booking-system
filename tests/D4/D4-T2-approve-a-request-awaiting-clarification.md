@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | A request in Awaiting Clarification was approved: "This request is Approved" appeared and the status became "Approved". |
+| Actual Result | A request Awaiting Clarification was approved and showed Approved. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
 | Status | Pass |
-| Remarks | Commit: b0ef6ee (working tree modified) · Evidence: tests/D4/evidence/D4-T2.png · Defect: — |
-| Executed By | Raphael Kwek |
-| Date of Execution | 2026-09-20 |
+| Remarks | Automated, browser E2E in CI (EN-14). Commit: 6080462 · Evidence: tests/e2e/d-review.spec.ts › D4-T2 a request awaiting clarification can be approved, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41513983925 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |
