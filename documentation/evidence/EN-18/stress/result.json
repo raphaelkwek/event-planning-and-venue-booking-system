@@ -1,0 +1,146 @@
+{
+  "scenario": "stress",
+  "ok": true,
+  "startedAt": "2026-11-02T22:01:44.352Z",
+  "durationSeconds": 251.603,
+  "runner": {
+    "cpuModel": "AMD EPYC 7763 64-Core Processor",
+    "logicalCpus": 4,
+    "memoryGb": 15.6,
+    "node": "v20.20.2",
+    "k6Image": "grafana/k6:1.4.0",
+    "commit": "23358901d9098872e34894c0bb2268089cb2fcad",
+    "runUrl": "https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41533430275"
+  },
+  "config": {
+    "seats": 250000,
+    "steps": "100,250,500,750,1000,1500,2000",
+    "holdSeconds": 30,
+    "rampSeconds": 5,
+    "dbPoolMax": 5
+  },
+  "checks": [
+    {
+      "name": "no seat is held twice",
+      "ok": true,
+      "detail": "82892 distinct seats in 82892 registrations"
+    },
+    {
+      "name": "no attendee holds two seats",
+      "ok": true,
+      "detail": "82892 distinct attendees in 82892 registrations"
+    },
+    {
+      "name": "registrations equal claimed seats",
+      "ok": true,
+      "detail": "82892 registered, 82892 claimed, 0 unmatched"
+    },
+    {
+      "name": "no over-admission",
+      "ok": true,
+      "detail": "82892 registered, 250000 seats"
+    },
+    {
+      "name": "every 201 k6 saw is a registration in the database",
+      "ok": true,
+      "detail": "k6 saw 82892, the database holds 82892"
+    },
+    {
+      "name": "k6 ran to the end",
+      "ok": true,
+      "detail": "k6 exit code 99"
+    }
+  ],
+  "outcomes": {
+    "registered": 82892,
+    "full": 0,
+    "otherConflict": 0,
+    "outsideWindow": 0,
+    "rateLimited": 0,
+    "serverErrors": 0,
+    "otherStatus": 0,
+    "withdrawn": 0,
+    "withdrawFailed": 0,
+    "readsOk": 0,
+    "readsFailed": 0
+  },
+  "steps": [
+    {
+      "step": 0,
+      "targetRate": 100,
+      "requests": 3499,
+      "expectedRequests": 3500,
+      "failed": 0,
+      "p95Ms": 7.099649099999999,
+      "held": true
+    },
+    {
+      "step": 1,
+      "targetRate": 250,
+      "requests": 8374,
+      "expectedRequests": 8375,
+      "failed": 0,
+      "p95Ms": 9.165702999999999,
+      "held": true
+    },
+    {
+      "step": 2,
+      "targetRate": 500,
+      "requests": 14859,
+      "expectedRequests": 16875,
+      "failed": 0,
+      "p95Ms": 6001.336875399999,
+      "held": false
+    },
+    {
+      "step": 3,
+      "targetRate": 750,
+      "requests": 14569,
+      "expectedRequests": 25625,
+      "failed": 0,
+      "p95Ms": 10323.7926678,
+      "held": false
+    },
+    {
+      "step": 4,
+      "targetRate": 1000,
+      "requests": 13848,
+      "expectedRequests": 34375,
+      "failed": 0,
+      "p95Ms": 10295.517043150001,
+      "held": false
+    },
+    {
+      "step": 5,
+      "targetRate": 1500,
+      "requests": 13953,
+      "expectedRequests": 51250,
+      "failed": 0,
+      "p95Ms": 10331.2382286,
+      "held": false
+    },
+    {
+      "step": 6,
+      "targetRate": 2000,
+      "requests": 13790,
+      "expectedRequests": 68750,
+      "failed": 0,
+      "p95Ms": 10190.71775465,
+      "held": false
+    }
+  ],
+  "sustainableRate": 250,
+  "firstBrokenRate": 500,
+  "cpu": {
+    "cpuSeconds": 217.32999999999998,
+    "perRequestMs": 2.62184529266998,
+    "coresUsed": 0.8637814334487267
+  },
+  "notes": [
+    "The registration service ran from source with tsx (as `npm run dev` does), not from the container image. Steady-state CPU should be close; start-up is not.",
+    "Identity was a stand-in that answers from the token (`load/support/identity-stub.ts`). The real hop, planning-core's GET /api/v1/users/me, adds a network call and its own CPU to every register, withdraw and my-registrations request, and is not in these numbers.",
+    "The service's interim 120-requests-a-minute-per-address limit (ADR-0011) was raised for the run: one load generator is one address. The gateway (EN-12) owns rate limiting; it was not under test.",
+    "k6, the service and Postgres shared one runner, so the figures are a floor for what a dedicated machine could do, not the production cluster's.",
+    "Reaching a break is a finding, not a failure: the run fails only if an invariant failed. A step's first five seconds are the ramp up from the step before."
+  ]
+}
