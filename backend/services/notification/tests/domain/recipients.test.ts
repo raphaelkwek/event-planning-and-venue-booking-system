@@ -735,6 +735,100 @@ describe("F5: tells the owner, each booked venue's staff and each reserver that 
   });
 });
 
+describe("notificationsFor: the registration messages (R2 to R4)", () => {
+  const attendee = "00000000-0000-0000-0000-000000000005";
+  const registration = {
+    registrationId: "77777777-7777-4777-8777-777777777777",
+    registrationReference: "REG-000042",
+    attendeeId: attendee,
+  };
+
+  it("R2-T12 tells the attendee their registration is confirmed, naming it and the event's date and times", () => {
+    const notes = notificationsFor(
+      message("registration.confirmed", {
+        ...registration,
+        registeredAt: at,
+        eventStartsAt: "2026-12-16T06:00:00.000Z",
+        eventEndsAt: "2026-12-16T10:00:00.000Z",
+      }),
+    );
+    expect(notes).toEqual([
+      {
+        ...common,
+        notificationType: "registration.confirmed",
+        recipientUserId: attendee,
+        relatedReference: "REG-000042",
+        message: "Your registration REG-000042 for EVT-2026-0042 “Freshmen Orientation” on Wednesday 16 December 2026, 14:00–18:00 is confirmed.",
+      },
+    ]);
+  });
+
+  it("R2-T12 leaves the date out when the event has none recorded", () => {
+    const [note] = notificationsFor(message("registration.confirmed", { ...registration, registeredAt: at, eventStartsAt: null, eventEndsAt: null }));
+    expect(note!.message).toBe("Your registration REG-000042 for EVT-2026-0042 “Freshmen Orientation” is confirmed.");
+  });
+
+  it("R4-T9 tells the attendee their withdrawal went through, and nobody else", () => {
+    const notes = notificationsFor(message("registration.withdrawn", { ...registration, registeredAt: at, withdrawnAt: at }));
+    expect(notes.map((n) => [n.recipientUserId, n.relatedReference, n.message])).toEqual([
+      [attendee, "REG-000042", "You withdrew registration REG-000042 for EVT-2026-0042 “Freshmen Orientation”. Your place has been released."],
+    ]);
+  });
+
+  it("R3-T4 tells the attendee their registration is cancelled with the event", () => {
+    const notes = notificationsFor(message("registration.cancelled", { ...registration, cancelledAt: at }));
+    expect(notes.map((n) => [n.recipientUserId, n.message])).toEqual([
+      [attendee, "EVT-2026-0042 “Freshmen Orientation” has been cancelled, so your registration REG-000042 is cancelled."],
+    ]);
+  });
+});
+
+describe("U1: the Safety Officer's decision", () => {
+  const safetyOfficer = "00000000-0000-0000-0000-000000000010";
+  const decided = (decision: string, extra: Record<string, unknown> = {}) =>
+    notificationsFor(
+      message("event.safety-decision-recorded", {
+        ownerId: organiser,
+        coordinatorId: coordinator,
+        decision,
+        reason: "Move the chairs away from the east exit",
+        decidedBy: safetyOfficer,
+        decidedAt: at,
+        flaggedBookingReferences: [],
+        flaggedEquipment: [],
+        ...extra,
+      }),
+    );
+
+  it("tells the assigned coordinator and the owner of an approval, once each, and nobody else", () => {
+    const notes = decided("APPROVE", { reason: null });
+    expect(notes.map((note) => note.recipientUserId)).toEqual([coordinator, organiser]);
+    expect(notes[0]!.message).toBe(
+      "The Safety Officer approved the safety arrangements for EVT-2026-0042 “Freshmen Orientation”. It stays in Safety Review until its coordinator marks it Confirmed.",
+    );
+    expect(notes.every((note) => note.notificationType === "event.safety-decision-recorded" && note.eventId === eventId)).toBe(true);
+  });
+
+  it("gives the reason and the flagged arrangements of a request for changes", () => {
+    const [note] = decided("REQUEST_CHANGES", { flaggedBookingReferences: ["VB-000001"], flaggedEquipment: ["Folding Chairs × 40"] });
+    expect(note!.message).toBe(
+      "The Safety Officer requested changes to the safety arrangements for EVT-2026-0042 “Freshmen Orientation”. It is back in Planning. Reason: Move the chairs away from the east exit. Flagged for review: VB-000001, Folding Chairs × 40.",
+    );
+  });
+
+  it("describes a rejection as of the arrangement as a whole, leaving the arrangements in place", () => {
+    const [note] = decided("REJECT", { reason: "Unsafe crowd flow." });
+    expect(note!.message).toBe(
+      "The Safety Officer rejected the safety arrangement for EVT-2026-0042 “Freshmen Orientation”. It is back in Planning, with its venue and equipment arrangements in place to be re-evaluated. Reason: Unsafe crowd flow.",
+    );
+  });
+
+  it("tells a coordinator who also owns the event once, and skips a missing coordinator", () => {
+    expect(decided("APPROVE", { coordinatorId: organiser }).map((note) => note.recipientUserId)).toEqual([organiser]);
+    expect(decided("APPROVE", { coordinatorId: null }).map((note) => note.recipientUserId)).toEqual([organiser]);
+  });
+});
+
 describe("event.cancelled (F3 AC6)", () => {
   const venueStaff = "00000000-0000-0000-0000-000000000005";
   const otherVenueStaff = "00000000-0000-0000-0000-000000000006";

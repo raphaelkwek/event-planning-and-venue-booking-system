@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | "Booking request BKR-001370 submitted." was shown, and the list showed "BKR-001370Lee Kong Chian AuditoriumWednesday 2 December 2026, 14:00–18:00Theatre150PendingWithdraw". The database names coordinator@connectsphere.test as requester at 2026-10-19T08:55:25.555Z. |
+| Actual Result | Requested through the UI from All events: the notice, one Pending row with every field, and the requester and time read back through the API. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
 | Status | Pass |
-| Remarks | Commit: 73c1d60 · Evidence: tests/L1/evidence/L1-T1.png · Defect: — |
-| Executed By | Yichen, via automated testing |
-| Date of Execution | 2026-10-19 |
+| Remarks | Automated, browser E2E in CI (EN-14). Commit: 6080462 · Evidence: tests/e2e/l-bookings.spec.ts › L1-T1 the assigned coordinator requests a venue for an Approved event; it is stored Pending with a booking reference, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41513983925 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

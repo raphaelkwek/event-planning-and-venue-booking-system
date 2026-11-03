@@ -8,6 +8,7 @@ import { clarificationsRouter } from "./api/clarifications.js";
 import { decisionsRouter } from "./api/decisions.js";
 import { reassignmentsRouter } from "./api/reassignments.js";
 import { eventDetailsRouter } from "./api/eventDetails.js";
+import { registrationSettingsRouter } from "./api/registrationSettings.js";
 import { statusHistoryRouter } from "./api/statusHistory.js";
 import { findEventInScope, findReferences } from "./repo/events.js";
 import type { ChangeableEvent } from "./domain/proposedChange.js";
@@ -31,6 +32,7 @@ export function eventRouter(sql: Sql): Router {
   router.use(reassignmentsRouter(sql));
   router.use(leadAssignmentsRouter(sql));
   router.use(eventDetailsRouter(sql));
+  router.use(registrationSettingsRouter(sql));
   router.use(statusHistoryRouter(sql));
   // Last, so that its `/api/v1/events/:id` cannot shadow a more specific path above.
   router.use(eventsRouter(sql));
@@ -174,3 +176,27 @@ export {
 export { completeEventIfDue, type CompletionAttempt } from "./jobs/completeEvents.js";
 /** S3 — an approved change returns a Confirmed event to Planning (Week 9 W9-22), with history and its status message. */
 export { returnToPlanningAfterChange } from "./api/returnToPlanning.js";
+
+/**
+ * U1 (CR-06) — the Safety Officer's decision and the coordinator's Mark Confirmed. The change
+ * module checks who may act and reads and flags the arrangements; these apply F1's transitions,
+ * record the decision and write its message, in the caller's transaction.
+ */
+export {
+  markEventConfirmed,
+  recordSafetyDecision,
+  safetyDecisionRefusal,
+  type DecisionInput,
+  type MarkConfirmedOutcome,
+  type RecordDecisionOutcome,
+  type SafetyActor,
+} from "./api/safetyDecision.js";
+export { type SafetyDecisionKind } from "./domain/safetyDecision.js";
+export {
+  currentReviewStartedAt,
+  decisionForReview,
+  listSafetyReviewQueue,
+  type FlaggedArrangements,
+  type SafetyDecisionRecord,
+  type SafetyQueueEntry,
+} from "./repo/safetyDecisions.js";
