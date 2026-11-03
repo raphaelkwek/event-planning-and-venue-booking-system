@@ -438,15 +438,22 @@ jobs:
           shellcheck --version | head -2
           shellcheck -x deploy/oracle/bootstrap.sh deploy/oracle/connectsphere-deploy deploy/oracle/make-deployer-kubeconfig.sh \
             deploy/release/smoke-api.sh deploy/release/smoke-web.sh deploy/ci/kind-k3s.sh deploy/ci/smoke-image.sh \
-            deploy/ci/space-smoke.sh deploy/space/start.sh
+            deploy/ci/space-smoke.sh deploy/space/start.sh deploy/azure/create-vm.sh
 
   # ADR-0016 amendment: the Hugging Face Space image. Built from exactly the Space repository that
   # deploy-space.mjs pushes, then run the way a Space runs it, against the job's throwaway Postgres.
   space-image:
-    name: "Space image (one container: services, Redpanda, Temporal, Cerbos, Caddy on 7860)"
+    name: "Space image, ${{ matrix.arch }} (one container: services, Redpanda, Temporal, Cerbos, Caddy on 7860)"
     needs: changes
     if: needs.changes.outputs.deploy == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.runner }}
+    # amd64 for a Space or any x86 host; arm64 for the Azure Ampere VM, which builds it natively.
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { arch: amd64, runner: ubuntu-latest }
+          - { arch: arm64, runner: ubuntu-24.04-arm }
     timeout-minutes: 40
     services:
       postgres:
@@ -473,6 +480,6 @@ jobs:
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()
         with:
-          name: evidence-space-image
+          name: evidence-space-image-${{ matrix.arch }}
           path: space-evidence.md
           if-no-files-found: ignore

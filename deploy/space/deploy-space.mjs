@@ -70,7 +70,7 @@ export function withPassword(uri, password, key) {
 }
 
 /** The secrets of one environment, ready for the Space. */
-export function loadEnvironment(dir, environment, read = (path) => readFileSync(path, "utf8")) {
+export function loadEnvironment(dir, environment, read = (path) => readFileSync(path, "utf8"), sharedKeys = SHARED_KEYS) {
   if (!ENVIRONMENTS.includes(environment)) throw new DeployError("--env must be staging or production");
   const read1 = (name) => {
     const path = join(dir, name);
@@ -82,7 +82,7 @@ export function loadEnvironment(dir, environment, read = (path) => readFileSync(
     }
     return parseEnvFile(text);
   };
-  const shared = requireKeys(read1("shared.env"), SHARED_KEYS, "shared.env");
+  const shared = requireKeys(read1("shared.env"), sharedKeys, "shared.env");
   const env = requireKeys(read1(`${environment}.env`), ENV_KEYS, `${environment}.env`);
   const supabaseUrl = env.SUPABASE_URL.replace(/\/+$/, "");
   if (!/^https:\/\/[a-z0-9]+\.supabase\.co$/.test(supabaseUrl)) throw new DeployError(`${environment}.env: SUPABASE_URL is not https://<ref>.supabase.co`);
@@ -96,7 +96,8 @@ export function loadEnvironment(dir, environment, read = (path) => readFileSync(
       SUPABASE_ANON_KEY: env.SUPABASE_ANON_KEY,
       SUPABASE_SERVICE_ROLE_KEY: env.SUPABASE_SERVICE_ROLE_KEY,
     },
-    secrets: [shared.HF_TOKEN, shared.VERCEL_TOKEN, env.DB_PASSWORD, encodeURIComponent(env.DB_PASSWORD), env.SUPABASE_SERVICE_ROLE_KEY],
+    supabaseAccessToken: shared.SUPABASE_ACCESS_TOKEN,
+    secrets: [shared.HF_TOKEN, shared.VERCEL_TOKEN, shared.SUPABASE_ACCESS_TOKEN, env.DB_PASSWORD, encodeURIComponent(env.DB_PASSWORD), env.SUPABASE_SERVICE_ROLE_KEY, env.SUPABASE_ANON_KEY],
   };
 }
 
@@ -174,7 +175,7 @@ function parseArgs(argv) {
 
 // ---- the deployment (needs the network, the HF token and the Vercel token) -------------------
 
-function makeLog(mask) {
+export function makeLog(mask) {
   return (...parts) => console.log(mask(parts.join(" ")));
 }
 
@@ -194,7 +195,7 @@ async function hf(token, path, init = {}) {
 }
 
 /** Runs a tool with its output masked; throws with the masked tail when it fails. */
-function run(command, args, { cwd, env, mask, log, allowFailure = false, shell = false }) {
+export function run(command, args, { cwd, env, mask, log, allowFailure = false, shell = false }) {
   const result = spawnSync(command, args, { cwd, env: { ...process.env, ...env }, encoding: "utf8", maxBuffer: 64 * 1024 * 1024, shell });
   const output = mask(`${result.stdout ?? ""}${result.stderr ?? ""}`).trim();
   if (result.status !== 0 && !allowFailure) {
@@ -216,7 +217,7 @@ function vercelCli(log, mask) {
   return join(tools, "node_modules", "vercel", typeof bin === "string" ? bin : bin.vercel ?? bin.vc);
 }
 
-async function deployWeb({ environment, token, apiOrigin, space, log, mask }) {
+export async function deployWeb({ environment, token, apiOrigin, space, log, mask }) {
   const project = environment === "production" ? "connectsphere" : "connectsphere-staging";
   const cli = vercelCli(log, mask);
   const vc = (args, extra = {}) => run(process.execPath, [cli, ...args, "--token", token], { mask, env: { VERCEL_TELEMETRY_DISABLED: "1", ...extra.env }, ...extra });
