@@ -1,5 +1,6 @@
 import type { Kafka } from "kafkajs";
 import { KAFKA_TOPICS } from "@connectsphere/contracts";
+import { kafkaHeaders, withConsumerSpan } from "@connectsphere/telemetry";
 import { logger } from "../shared/logger.js";
 import { consumerGroup, handleCompletionMessage, type CompletionScheduler } from "./completionConsumer.js";
 
@@ -26,11 +27,20 @@ export async function startCompletionConsumer(
   }
 
   await consumer.run({
-    eachMessage: async ({ topic, message }) => {
+    // EN-08: a CONSUMER span that continues the trace in the message's traceparent header.
+    eachMessage: async ({ topic, partition, message }) => {
       const key = message.key?.toString() ?? null;
-      const outcome = await handleCompletionMessage(message.value?.toString() ?? null, scheduler);
-      if (outcome.outcome === "scheduled") logger.info("event completion scheduled", { topic, key, eventId: outcome.eventId });
-      else if (outcome.outcome === "invalid") logger.error("event message skipped: it failed validation", { topic, key, error: outcome.error });
+      const value = message.value?.toString() ?? null;
+      await withConsumerSpan(
+        { topic, group: groupId, partition, offset: message.offset, timestamp: message.timestamp, key, headers: kafkaHeaders(message.headers), value },
+        async () => {
+          const outcome = await handleCompletionMessage(value, scheduler);
+          if (outcome.outcome === "scheduled") logger.info("event completion scheduled", { topic, key, eventId: outcome.eventId });
+          else if (outcome.outcome === "invalid") logger.error("event message skipped: it failed validation", { topic, key, error: outcome.error });
+          return outcome;
+        },
+        (result) => result.outcome,
+      );
     },
   });
 

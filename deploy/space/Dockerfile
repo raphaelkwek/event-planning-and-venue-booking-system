@@ -31,11 +31,11 @@ COPY package.json package-lock.json ./
 COPY frontend/package.json frontend/
 COPY backend backend
 RUN npm ci --ignore-scripts --no-audit --no-fund --include-workspace-root \
-      -w @connectsphere/contracts -w @connectsphere/kafka -w @connectsphere/observability \
+      -w @connectsphere/contracts -w @connectsphere/kafka -w @connectsphere/observability -w @connectsphere/telemetry \
       -w @connectsphere/planning-core -w @connectsphere/registration -w @connectsphere/notification \
- && npm run build -w @connectsphere/contracts -w @connectsphere/kafka -w @connectsphere/observability \
+ && npm run build -w @connectsphere/contracts -w @connectsphere/kafka -w @connectsphere/observability -w @connectsphere/telemetry \
       -w @connectsphere/planning-core -w @connectsphere/registration -w @connectsphere/notification \
- && for p in contracts kafka observability; do \
+ && for p in contracts kafka observability telemetry; do \
       node -e 'const fs=require("fs"),f=process.argv[1],j=JSON.parse(fs.readFileSync(f));j.main="dist/index.js";fs.writeFileSync(f,JSON.stringify(j,null,2))' "backend/packages/$p/package.json"; \
     done \
  && npx --no-install esbuild backend/scripts/migrate.ts --bundle --platform=node --format=esm --target=node20 \

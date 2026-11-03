@@ -10,7 +10,7 @@
 | Test Steps | 1. As C, send `POST /api/v1/change-requests/<CR>/decision` with `{"decision":"APPROVE"}`.<br>2. As VS, send `POST /api/v1/booking-requests/<P>/approve`.<br>3. Read P's booking (`booking_id`) through the venue module's booking read (or the repository).<br>4. As C, send `GET /api/v1/events/<E>/arrangement-flags`.<br>5. As C, send `POST /api/v1/events/<E>/confirmation`.<br>6. Run `npm test -w @connectsphere/planning-core -- tests/change/api/s3Cards.test.ts -t 'S3-T14 '` (or the whole suite) and read the named `S3-T14 ` result. |
 | Test Data | `{"decision":"APPROVE"}`; CR proposes `proposedStartAt` `D 15:00`; P at V3 for `D 14:00`–`D 18:00`. |
 | Expected Result | Step 1 answers HTTP 200; `impact.bookings` includes P with `arrangement` `BOOKING_REQUEST`, and `impact.flags` includes `{arrangement: BOOKING_REQUEST, id: P, reference: P's reference, name: Venue Three, flag: REQUIRES_RECONFIRMATION, reason: "The booking request is for <old period>, but the event is now <new period>."}`. Step 2 answers HTTP 200 and P is Approved. In step 3, P's booking is CONFIRMED for `D 14:00`–`D 18:00` and flagged Requires Reconfirmation. Step 4 lists that booking (`arrangement` `BOOKING`, P's reference, Venue Three) with `REQUIRES_RECONFIRMATION` and the same reason, and no booking-request flag. Step 5 answers HTTP 422 `ARRANGEMENTS_NOT_READY`, and `details.flags` includes `{arrangement: BOOKING, reference: P's reference, name: Venue Three, flag: REQUIRES_RECONFIRMATION}`. |
-| Created By | Raphael, via Claude |
+| Created By | Raphael |
 | Date of Creation | 2026-10-29 |
 
 > **Expected results are checked by the PR reviewer** against S3's acceptance criteria.

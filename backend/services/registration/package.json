@@ -15,6 +15,7 @@
   "dependencies": {
     "@connectsphere/contracts": "*",
     "@connectsphere/kafka": "*",
+    "@connectsphere/telemetry": "*",
     "@connectsphere/observability": "*",
     "cors": "2.8.5",
     "express": "^4.19.2",

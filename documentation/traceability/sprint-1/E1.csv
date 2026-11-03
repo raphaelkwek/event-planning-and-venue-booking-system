@@ -1,7 +1,7 @@
 story_id,acceptance_criterion,test_file,test_name
-E1,"Assignment happens automatically as part of the submission of an event request (B1)",backend/services/planning-core/tests/event/api/submission.test.ts,"assigns a coordinator as part of the submission"
-E1,"Exactly one coordinator is assigned per event",backend/services/planning-core/tests/event/api/submission.test.ts,"gives each event exactly one active assignment"
-E1,"On assignment the assigned coordinator, the allocation rule applied, and the assignment timestamp are recorded",backend/services/planning-core/tests/event/api/submission.test.ts,"records the allocation rule that was applied, so the outcome can be explained"
-E1,"The allocation rule is applied consistently to every event",backend/services/planning-core/tests/event/domain/assignment.test.ts,"assigns each coordinator in turn as the cursor advances"
-E1,"The newly assigned coordinator receives a notification identifying the event",backend/services/planning-core/tests/event/api/submission.test.ts,"notifies the newly assigned coordinator"
-E1,"If no eligible coordinator exists, the event is still submitted and recorded as awaiting assignment",backend/services/planning-core/tests/event/domain/assignment.test.ts,"returns nothing when no eligible coordinator exists, so the event can still be submitted"
+E1,"Assignment happens automatically as part of the submission of an event request (B1)",backend/services/planning-core/tests/event/api/submission.test.ts,SUPERSEDED by E3 (CR-05)
+E1,"Exactly one coordinator is assigned per event",backend/services/planning-core/tests/event/api/leadAssignment.test.ts,"refuses a second assignment, naming the coordinator already assigned (E3-T6)"
+E1,"On assignment the assigned coordinator, the allocation rule applied, and the assignment timestamp are recorded",backend/services/planning-core/tests/event/api/leadAssignment.test.ts,"assigns the coordinator, recording them, the Lead and the time, and the request leaves the queue (E3-T4)"
+E1,"The allocation rule is applied consistently to every event",backend/services/planning-core/tests/event/domain/assignment.test.ts,SUPERSEDED by E3 (CR-05)
+E1,"The newly assigned coordinator receives a notification identifying the event",backend/services/planning-core/tests/event/api/leadAssignment.test.ts,"tells the coordinator and the owner, naming the coordinator, in the same transaction (E3-T4)"
+E1,"If no eligible coordinator exists, the event is still submitted and recorded as awaiting assignment",backend/services/planning-core/tests/event/domain/assignment.test.ts,SUPERSEDED by E3 (CR-05)

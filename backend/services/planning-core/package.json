@@ -19,6 +19,7 @@
   "dependencies": {
     "@connectsphere/contracts": "*",
     "@connectsphere/kafka": "*",
+    "@connectsphere/telemetry": "*",
     "@connectsphere/observability": "*",
     "@grpc/grpc-js": "^1.14.7",
     "@openfeature/core": "^1.12.0",

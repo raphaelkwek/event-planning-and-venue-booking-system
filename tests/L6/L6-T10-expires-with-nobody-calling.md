@@ -20,7 +20,7 @@
 | Item | Content |
 |---|---|
 | Actual Result | The automated test ran the hold-expiry workflow on Temporal's time-skipping test server with nobody calling the API, and its assertions passed; they check the expected result above. |
-| Status | Pass (automated, workflow level) |
-| Remarks | Replay histories for holdExpiry are a follow-up: recording them needs a live Temporal server (see the workflow's FOLLOW-UP note). Commit: f7e4b7073b9607b7db396aea29c36f36bd4a5916 · Evidence: backend/services/planning-core/tests/temporal/holdExpiry.unit.test.ts › L6-T10, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/39463319772 · Defect: — |
+| Status | Pass |
+| Remarks | Automated (workflow level) · Replay histories for holdExpiry are a follow-up: recording them needs a live Temporal server (see the workflow's FOLLOW-UP note). Commit: f7e4b7073b9607b7db396aea29c36f36bd4a5916 · Evidence: backend/services/planning-core/tests/temporal/holdExpiry.unit.test.ts › L6-T10, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/39463319772 · Defect: — |
 | Executed By | Raphael, via automated testing (CI) |
 | Date of Execution | 2026-10-21 |

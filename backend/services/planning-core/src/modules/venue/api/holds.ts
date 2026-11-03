@@ -1,8 +1,8 @@
 import { Router, type NextFunction, type RequestHandler, type Response } from "express";
 import { rateLimit } from "express-rate-limit";
-import type { Sql } from "postgres";
+import type { Sql, TransactionSql } from "postgres";
 import type { Role } from "@connectsphere/contracts";
-import { findEventForPlanning, findEventReferences, type EventPlanningView } from "../../event/index.js";
+import { findEventForChange, findEventForPlanning, findEventReferences, type EventForChange, type EventPlanningView } from "../../event/index.js";
 import { notInScopeMessage, resolveAccessScope } from "../../identity/index.js";
 import { authenticate, requireRole, type ActorRequest } from "../auth/actor.js";
 import { readBookingRequest } from "../domain/bookingRequest.js";
@@ -90,6 +90,16 @@ function findEvent(sql: Sql, eventId: string, req: ActorRequest): Promise<EventP
   return findEventForPlanning(sql, eventId, resolveAccessScope(role, userId, "events"), userId);
 }
 
+/**
+ * A4: the event again inside the write's transaction, under its row lock (`for share`), in the caller's
+ * scope. A Lead's reassignment (E4) or a cancellation (F3) that commits after the check before the
+ * transaction is seen here. The event is locked before any hold (implementation.md §4.6 lock order).
+ */
+function lockEventInScope(tx: TransactionSql, eventId: string, req: ActorRequest): Promise<EventForChange | null> {
+  const { role, userId } = req.actor!;
+  return findEventForChange(tx, eventId, resolveAccessScope(role, userId, "events"), userId, { lock: "share" });
+}
+
 const eventNotFound = (res: Response, role: Role) => refuse(res, 404, "EVENT_NOT_FOUND", notInScopeMessage(role, EVENT_NOT_FOUND));
 const holdNotFound = (res: Response, role: Role) =>
   refuse(res, 404, "HOLD_NOT_FOUND", notInScopeMessage(role, "No hold with that id exists, or you can't see it.", "hold"));
@@ -124,6 +134,12 @@ export function holdsRouter(sql: Sql, limiter: RequestHandler = holdsRateLimit()
         const venue = await lockVenue(tx, input.venueId);
         if (!venue) return { code: "NO_VENUE" } as const;
         if (!venue.isActive) return { code: "INACTIVE", venue } as const;
+        // A4: the event once more, in scope and holdable, under its row lock, after the venue's (§4.6: the
+        // hold's foreign key takes a share lock on the venue row, so the venue comes first). A Lead's
+        // reassignment (E4) or a cancellation (F3) that commits while this waits is seen here.
+        const lockedEvent = await lockEventInScope(tx, event.id, req);
+        if (!lockedEvent) return { code: "NOT_FOUND" } as const;
+        if (!eventHoldable(lockedEvent.status)) return { code: "NOT_HOLDABLE", status: lockedEvent.status } as const;
         const blocks = await activeBlocksOverlapping(
           tx,
           venue.id,
@@ -142,6 +158,10 @@ export function holdsRouter(sql: Sql, limiter: RequestHandler = holdsRateLimit()
       });
 
       switch (outcome.code) {
+        case "NOT_FOUND":
+          return eventNotFound(res, actor.role);
+        case "NOT_HOLDABLE":
+          return refuse(res, 409, "EVENT_NOT_HOLDABLE", notHoldableMessage(outcome.status));
         case "NO_VENUE":
           return refuse(res, 404, "VENUE_NOT_FOUND", "No venue with that id exists.");
         case "INACTIVE":
@@ -306,13 +326,16 @@ export function holdsRouter(sql: Sql, limiter: RequestHandler = holdsRateLimit()
       if (!found) return holdNotFound(res, req.actor!.role);
 
       const outcome = await sql.begin(async (tx) => {
-        // The venue first, then the hold (§4.6): releasing clears flags at the venue (M3).
+        // The venue first, then the event, then the hold (§4.6): releasing clears flags at the venue (M3).
         await lockVenue(tx, found.hold.venueId);
+        // A4: the event, in scope and locked, before the hold.
+        if (!(await lockEventInScope(tx, found.hold.eventId, req))) return { code: "NOT_FOUND" } as const;
         const hold = (await lockHold(tx, found.hold.id))!;
         if (hold.status !== "REQUESTED" && hold.status !== "HELD") return { code: "NOT_RELEASABLE", hold } as const;
         return { code: "RELEASED", hold: await releaseHold(tx, hold, req.actor!.userId) } as const;
       });
 
+      if (outcome.code === "NOT_FOUND") return holdNotFound(res, req.actor!.role);
       if (outcome.code === "NOT_RELEASABLE") {
         return refuse(res, 409, "HOLD_NOT_HELD", notReleasableMessage(outcome.hold.reference, outcome.hold.status));
       }

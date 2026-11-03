@@ -1,9 +1,9 @@
 import "./asyncErrors.js";
 import express from "express";
 import { corsFor, parseAllowedOrigins } from "./cors.js";
-import helmet from "helmet";
-import { randomUUID } from "node:crypto";
+import { httpTelemetry, traceFields } from "@connectsphere/telemetry";
 import { config } from "./config.js";
+import helmet from "helmet";
 import { errorHandler } from "./errorHandler.js";
 import { sql } from "./db.js";
 import { healthRouter } from "./health.js";
@@ -22,6 +22,10 @@ import { registerOverAdmissionGauges } from "./overAdmission.js";
 export const app = express();
 // ADR-0016: the web app is on Vercel, another origin; first, so every answer carries the headers.
 app.use(corsFor(parseAllowedOrigins(process.env.CORS_ALLOWED_ORIGINS)));
+
+// EN-08: first, so every route and every refusal gets a correlation id (the trace id, ADR-0013)
+// and is timed by route pattern (http_request_duration_seconds, the names EN-17's SLOs query).
+app.use(httpTelemetry({ service: config.serviceName }));
 app.use(helmet());
 
 // EN-17: HTTP timings and the zero-over-admission gauge. /metrics is
@@ -33,16 +37,17 @@ app.use(metrics.router);
 
 app.use(express.json());
 
-// The correlation id travels in the response, the log line and any message the request writes (§9).
+// The correlation id (set above: the trace id) travels in the response, the log line and any message the request writes (§9).
 // Attendee data is never cached by the browser or a proxy (ADR-0014): logging out leaves nothing to show.
 app.use((req, res, next) => {
-  const correlationId = req.header("x-correlation-id") ?? randomUUID();
-  req.headers["x-correlation-id"] = correlationId;
-  res.setHeader("x-correlation-id", correlationId);
+  const correlationId = res.getHeader("x-correlation-id") as string;
+  // Taken now, while the request's span is the active one: the 'finish' event may run outside it.
+  const trace = traceFields();
   if (req.path.startsWith("/api/")) res.setHeader("Cache-Control", "no-store");
   const startedAt = Date.now();
   res.on("finish", () => {
     const fields = {
+      ...trace,
       correlationId,
       route: `${req.method} ${req.path}`,
       durationMs: Date.now() - startedAt,

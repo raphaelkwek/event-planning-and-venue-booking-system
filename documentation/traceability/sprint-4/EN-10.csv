@@ -1,8 +1,8 @@
 story_id,acceptance_criterion,test_file,test_name
-EN-10,"Images built in CI only, non-root, multi-stage, no secrets, health endpoint answers",.github/workflows/deploy.yml,"job: Image (planning-core, registration, notification, web, migrate) (EN-10-T1)"
-EN-10,"Images pushed to GHCR from main, tagged with the commit sha",.github/workflows/release.yml,"jobs: Build and Publish, tagged with the commit sha (EN-10-T2; moved from deploy.yml by ADR-0016)"
-EN-10,Kubernetes manifests validated with kubeconform -strict including CRD schemas,.github/workflows/deploy.yml,job: Manifests (kustomize and kubeconform) (EN-10-T3)
-EN-10,Kind smoke deploy of the staging overlay,deploy/ci/kind-deploy.sh,job: kind smoke deploy (staging overlay) (EN-10-T4)
-EN-10,Migration Job using npm run migrate,deploy/ci/smoke-image.sh,job: Image (migrate) (EN-10-T5)
-EN-10,"Terraform for the cluster, network and Redis validated in CI",.github/workflows/deploy.yml,"job: Terraform (fmt, validate, tflint) (EN-10-T6)"
-EN-10,Argo CD syncs staging from the config repo,deploy/ci/argocd-sync.sh,job: Argo CD syncs the staging overlay (kind) (EN-10-T7)
+EN-10,"Images built in CI only, non-root, multi-stage, no secrets, health endpoint answers",tests/EN-10/EN-10-T1-every-deployable-builds-into-a-hardened-image-that-starts.md,EN-10-T1 — Every deployable builds into a hardened image that starts and answers its health endpoint
+EN-10,"Images pushed to GHCR from main, tagged with the commit sha",tests/EN-10/EN-10-T2-main-pushes-the-images-to-ghcr-tagged-with-the-commit.md,"EN-10-T2 — A push to main publishes each image to GHCR, tagged with the commit sha; a pull request publishes nothing"
+EN-10,Kubernetes manifests validated with kubeconform -strict including CRD schemas,tests/EN-10/EN-10-T3-kubernetes-manifests-are-valid-and-hardened.md,"EN-10-T3 — The Kubernetes manifests render and validate strictly, custom resources included, and every workload is hardened"
+EN-10,Kind smoke deploy of the staging overlay,tests/EN-10/EN-10-T4-the-staging-overlay-deploys-on-kind-and-every-service-answers.md,EN-10-T4 — The staging overlay deploys on a kind cluster and every service becomes ready and answers its health endpoint
+EN-10,Migration Job using npm run migrate,tests/EN-10/EN-10-T5-the-migration-job-applies-every-modules-migrations.md,"EN-10-T5 — The migration Job runs `npm run migrate -- all` against the database before the workloads, and a second run applies nothing"
+EN-10,"Terraform for the cluster, network and Redis validated in CI",tests/EN-10/EN-10-T6-terraform-validates.md,"EN-10-T6 — The Terraform for the network, the EKS cluster and Redis is formatted, valid and lint-clean"
+EN-10,Argo CD syncs staging from the config repo,tests/EN-10/EN-10-T7-argo-cd-syncs-the-staging-overlay-from-the-config-repo.md,"EN-10-T7 — Argo CD syncs the staging overlay from this repository, with automated sync and self-heal"

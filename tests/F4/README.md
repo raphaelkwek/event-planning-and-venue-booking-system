@@ -26,7 +26,10 @@ Lock order: the pending change request, then the rows of the event's venues in a
 slots. This is the venue module's order (implementation.md §4.6: venue rows, then event rows, then holds, requests and slots). I2's block
 locks the venue and then the events it returns to Planning, so a block and a cancellation of an event booked at that venue queue on the
 venue instead of deadlocking. The cancellation used to lock the event first; the review of #72 found the deadlock, and
-`f4Cards.test.ts` › `F4 lock order` races the two deterministically.
+`f4Cards.test.ts` › `F4 lock order` races the two deterministically. A hold or request at a venue the cancellation had not
+locked, committed between its venue locks and its event lock, would have had its venue locked after the event; since the follow-up
+review (#91) the cancellation reads the event's venues again once it holds the event and, if it gained one, writes nothing and tries
+again with that venue locked first (up to three attempts, then 409 `CANCELLATION_CONTENDED`).
 
 ## What F4 does not do
 
