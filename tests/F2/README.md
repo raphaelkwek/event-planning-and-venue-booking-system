@@ -5,7 +5,7 @@ Nine cases, written from the story on 12 Oct 2026, before the code.
 | Acceptance criterion | Cases |
 |---|---|
 | The current status is shown on the event detail screen for every user permitted to view the event | F2-T1, F2-T2, F2-T3, F2-T6, F2-T8 |
-| Internal roles (organiser for their own event, assigned coordinator, coordinators generally) see the full status history | F2-T1, F2-T2, F2-T3, F2-T9 |
+| Internal roles (organiser for their own event, assigned coordinator; any other coordinator is refused since A4, F2-T3) see the full status history | F2-T1, F2-T2, F2-T3, F2-T9 |
 | Attendees see the current status only, never the history, review comments or rejection reasons | F2-T4 |
 | History entries are chronological, each showing previous status, new status, acting user's role and timestamp | F2-T5, F2-T6 |
 | History entries cannot be edited or deleted from any screen | F2-T7 |

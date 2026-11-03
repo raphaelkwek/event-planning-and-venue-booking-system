@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | The message was listed with its time and "Awaiting the organiser", the status became "Awaiting Clarification", and the row holds requested_by 00000000-0000-0000-0000-000000000002 at Sun Sep 20 2026 15:27:28 GMT+0800 (Singapore Standard Time). |
+| Actual Result | The clarification was sent, the status became Awaiting Clarification, and the message was stored with its author and time. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
 | Status | Pass |
-| Remarks | Commit: b0ef6ee (working tree modified) · Evidence: tests/D2/evidence/D2-T1.png · Defect: — |
-| Executed By | Chai Yichen |
-| Date of Execution | 2026-09-20 |
+| Remarks | Automated, browser E2E in CI (EN-14). Commit: 6080462 · Evidence: tests/e2e/d-review.spec.ts › D2-T1 the coordinator asks the organiser for clarification, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41513983925 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

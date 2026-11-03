@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | The dialog closed, the status became "Rejected", the reason "No venue can host 150 people on 2 December." and the decision time 9/20/2026, 3:29:25 PM are shown, and both Approve and Reject are disabled. |
+| Actual Result | The dialog closed, status Rejected, the reason and decision time shown, Approve and Reject disabled. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
 | Status | Pass |
-| Remarks | Commit: b0ef6ee (working tree modified) · Evidence: tests/D5/evidence/D5-T1.png · Defect: — |
-| Executed By | Raphael Kwek |
-| Date of Execution | 2026-09-20 |
+| Remarks | Automated, browser E2E in CI (EN-14). Commit: 6080462 · Evidence: tests/e2e/d-review.spec.ts › D5-T1 the coordinator rejects a request under review, giving a reason, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41513983925 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |
