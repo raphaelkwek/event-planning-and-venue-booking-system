@@ -1,0 +1,3 @@
+story_id,acceptance_criterion,test_file,test_name
+Q1,"The reservation is atomic with respect to the availability check: when two reservations for overlapping periods are processed simultaneously and only one unit remains, exactly one succeeds",backend/services/planning-core/tests/race/invariants.test.ts,Q1: exactly one of 50 reservations of the last free projector succeeds
+Q1,"The reservation is atomic with respect to the availability check: when two reservations for overlapping periods are processed simultaneously and only one unit remains, exactly one succeeds",backend/services/planning-core/tests/race/invariants.test.ts,"Q1: exactly one of 50 reservations of the last chair in bulk stock succeeds, and the rest learn they are 1 short"

@@ -6,7 +6,7 @@ curriculum covers automated/scripted testing.
 
 ## Why this differs from `Planning/implementation.md` §8.3
 
-§8.3 assumes automated testing (Vitest, Playwright, `traceability.csv`) as the primary gate. That's
+§8.3 assumes automated testing (Vitest, Playwright, the per-story traceability files, `documentation/traceability/sprint-<n>/<story-id>.csv`) as the primary gate. That's
 ahead of where the curriculum is for Sprint 1 — we haven't covered scripted testing yet, so the
 required, gradable evidence for Sprint 1 is **manual functional test cases**, recorded per feature
 using the professor's test case template. Any automated tests already in the codebase are a bonus
@@ -75,6 +75,6 @@ particular Jira issue structure, so it survives however Jira gets reorganized.
 ## From Sprint 2 onward
 
 Once the curriculum introduces automated/scripted testing, `Planning/implementation.md` §8.1–§8.3
-(Vitest/Playwright, `traceability.csv`, CI-gated merges) take over as the primary DoD, and this
+(Vitest/Playwright, the per-story traceability files, `documentation/traceability/sprint-<n>/<story-id>.csv`, CI-gated merges) take over as the primary DoD, and this
 manual-test-card process either steps back to a supplementary check or is retired — whichever the
 team agrees at that point. This document is Sprint 1-specific by design, not a permanent process.
