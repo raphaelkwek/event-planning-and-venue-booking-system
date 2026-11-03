@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | pdpa.md had a section for each of the eleven obligations. Each stated what the system does and what is missing, and each 'What the system does' carried a file:line citation or began with None. |
+| Status | Pass |
+| Remarks | Automated (document check in CI) · Commit: c3ef046 · Evidence: documentation/scripts/check-docs.test.ts › EN-23-T3 the PDPA note covers every obligation with what the system does and what is missing (ok 3 in the unit job) · CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41609228639 · Four sections (Notification, Correction, Data breach notification, Accountability) gained None or a citation in c3ef046, and the test now checks each statement · Defect: none |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |
