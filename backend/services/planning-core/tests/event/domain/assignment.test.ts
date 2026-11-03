@@ -4,6 +4,8 @@ import {
   ASSIGNMENT_NOT_ACTIVE_COORDINATOR,
   canAssign,
   LEAD_ASSIGNMENT_RULE,
+  REASSIGNMENT_ACCEPT_RETIRED,
+  REASSIGNMENT_DECLINE_RETIRED,
   REASSIGNMENT_RETIRED,
 } from "../../../src/modules/event/domain/assignment.js";
 
@@ -35,5 +37,14 @@ describe("what a Lead's assignment records (E3)", () => {
 describe("E2's proposals, retired by E4 (W9-FX-5)", () => {
   it("are refused, pointing to the Lead", () => {
     expect(REASSIGNMENT_RETIRED).toBe("Coordinators no longer propose reassignments: the Event Coordinator Lead reassigns events.");
+  });
+
+  it("and so are the accept and the decline of one made before", () => {
+    expect(REASSIGNMENT_ACCEPT_RETIRED).toBe(
+      "Coordinators no longer accept reassignment proposals: the Event Coordinator Lead reassigns events (E4).",
+    );
+    expect(REASSIGNMENT_DECLINE_RETIRED).toBe(
+      "Coordinators no longer answer reassignment proposals: none is pending, and the Event Coordinator Lead reassigns events (E4).",
+    );
   });
 });

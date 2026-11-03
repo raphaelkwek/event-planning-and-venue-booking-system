@@ -1,0 +1,27 @@
+# EN-20 experiment 1 (architecture section 7): a crash mid-cancellation leaves no partial release.
+# NOT RUN. It needs F3 and F4 (pull requests #71 and #72) and ADR-0009's CancelEvent workflow, and a staging cluster
+# with Chaos Mesh. Validated with kubeconform only.
+#
+# Hypothesis: the pod running the CancelEvent workflow is killed after the freeze step (the event's
+# registrations are marked CANCEL_PENDING). The workflow resumes on another pod, and the outcome is all or
+# nothing: every registration is Cancelled and every seat retired, or none is.
+#
+# Use: start a cancellation of an event that has registrations. When Temporal's UI shows the workflow past
+# the freeze step, `kubectl apply -f` this file. The next worker pod must pick the workflow up. Delete the
+# object when done: `kubectl delete -f`.
+apiVersion: chaos-mesh.org/v1alpha1
+kind: PodChaos
+metadata:
+  name: exp1-core-worker-kill-mid-cancellation
+  namespace: connectsphere-staging
+  labels:
+    connectsphere.chaos/experiment: "1"
+spec:
+  action: pod-kill
+  mode: one
+  selector:
+    namespaces:
+      - connectsphere-staging
+    labelSelectors:
+      app.kubernetes.io/name: planning-core-worker
+  gracePeriod: 0

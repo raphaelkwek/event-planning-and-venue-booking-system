@@ -2,6 +2,7 @@ import type { Sql, TransactionSql } from "postgres";
 import type { Fragment } from "./sqlFragment.js";
 import type { AccessScope, EventStatus } from "@connectsphere/contracts";
 import { isEventId } from "../domain/ids.js";
+import { encodeCursor, type PageCursor } from "../domain/pagination.js";
 import { historyText, type ChangeableEvent, type ProposedChanges } from "../domain/proposedChange.js";
 import { isSignificantEventField, KAFKA_TOPICS, type SignificantEventField } from "@connectsphere/contracts";
 import { recordFieldChanges } from "./eventHistory.js";
@@ -168,11 +169,14 @@ function scopeCondition(sql: Sql | TransactionSql, scope: AccessScope, callerId:
  * and a reader waits for a change in progress and then sees its result. `lock: "update"` locks it
  * `for update`, for a caller that writes the event.
  *
- * A4: under READ COMMITTED, a statement that waited for the lock re-checks only the locked row
- * against its WHERE clause, so the assignment the coordinator scope tested is the one from before
- * the wait. A Lead's reassignment (E4) takes this same row lock. So with a lock, a coordinator's
- * assignment is checked again, in a statement of its own, once the lock is held: an event the Lead
- * moved to someone else meanwhile is not found, as it would be a moment later.
+ * Under READ COMMITTED a statement that waits for the lock re-checks only the locked row against
+ * its WHERE clause; the joined assignment, and the assignment the coordinator scope tested, keep the
+ * version the statement began with. A Lead's reassignment (E4) takes this same row lock, so a reader
+ * that waited on it would still see the outgoing coordinator as assigned. With a lock, the active
+ * assignment is therefore read again, in a statement of its own, once the lock is held. That one
+ * read serves both needs: the returned event names the coordinator assigned now, and (A4) a
+ * coordinator whose event the Lead moved to someone else meanwhile is not found, as it would be a
+ * moment later.
  */
 export async function findEventInScope(
   sql: Sql | TransactionSql,
@@ -191,19 +195,18 @@ export async function findEventInScope(
   `;
   const row = rows[0];
   if (!row) return null;
-  if (options.lock && scope.scopeType === "ASSIGNED_TO_USER" && !(await isActivelyAssignedTo(sql, row.id, callerId))) {
-    return null;
-  }
-  return toEvent(row);
+  if (!options.lock) return toEvent(row);
+  const assignedCoordinatorId = await activeCoordinatorId(sql, row.id);
+  if (scope.scopeType === "ASSIGNED_TO_USER" && assignedCoordinatorId !== callerId) return null;
+  return toEvent({ ...row, assigned_coordinator_id: assignedCoordinatorId });
 }
 
-/** A4: whether the coordinator holds the event's active assignment now, read in a fresh statement. */
-async function isActivelyAssignedTo(sql: Sql | TransactionSql, eventId: string, coordinatorId: string): Promise<boolean> {
-  const rows = await sql`
-    select 1 from event.assignments
-    where event_id = ${eventId} and is_active and coordinator_id = ${coordinatorId}
+/** The coordinator holding the event's active assignment now, in a fresh statement; null when none does. */
+async function activeCoordinatorId(sql: Sql | TransactionSql, eventId: string): Promise<string | null> {
+  const [row] = await sql<{ coordinator_id: string }[]>`
+    select coordinator_id from event.assignments where event_id = ${eventId} and is_active
   `;
-  return rows.length > 0;
+  return row?.coordinator_id ?? null;
 }
 
 /**
@@ -214,7 +217,7 @@ export async function applyApprovedChange(
   tx: TransactionSql,
   event: { id: string; current: ChangeableEvent },
   changes: ProposedChanges,
-  actor: { userId: string; role: string },
+  actor: { userId: string; role: string; correlationId?: string | null },
   occurredAt?: Date
 ): Promise<void> {
   const fields = Object.keys(changes).filter(isSignificantEventField);
@@ -288,14 +291,15 @@ function writeScheduleChanged(
   tx: TransactionSql,
   eventId: string,
   row: ScheduleChange,
-  actor: { userId: string; role: string }
+  actor: { userId: string; role: string; correlationId?: string | null }
 ): Promise<string> {
   return writeOutbox(tx, {
     topic: KAFKA_TOPICS.event,
     messageType: "event.schedule-changed",
     aggregateId: eventId,
     actor,
-    correlationId: null,
+    // The approval's own correlation id, so the message traces back to the request that made it.
+    correlationId: actor.correlationId ?? null,
     payload: {
       eventId,
       ownerId: row.owner_id,
@@ -318,20 +322,50 @@ export async function findReferences(sql: Sql, eventIds: readonly string[]): Pro
   return new Map(rows.map((row) => [row.id, row.reference]));
 }
 
-/** C3 — the caller's own requests, filtered by the scope rule (A3). */
+/** C3 — which of the caller's requests to list: all, only the drafts, or only the submitted ones. */
+export type EventListKind = "drafts" | "submitted";
+
+export interface EventsPage {
+  rows: EventRow[];
+  /** What to ask for next; null on the last page. */
+  nextCursor: string | null;
+}
+
+/**
+ * C3, L7 — one page of the caller's requests, filtered by the scope rule (A3) in the query, newest
+ * first (a submitted request by its submission, a draft by its last save), `limit` at a time, from just after `after`. The order is total (time, then id), so
+ * pages neither overlap nor skip. The filter by kind is in the query too, not applied afterwards.
+ */
 export async function listEventsInScope(
   sql: Sql,
   scope: AccessScope,
-  callerId: string
-): Promise<EventRow[]> {
-  const rows = await sql<RawEvent[]>`
-    select e.*, a.coordinator_id as assigned_coordinator_id
+  callerId: string,
+  page: { limit: number; after: PageCursor | null; kind?: EventListKind }
+): Promise<EventsPage> {
+  const kindCondition =
+    page.kind === "drafts"
+      ? sql`e.status = 'DRAFT' and e.owner_id = ${callerId}`
+      : page.kind === "submitted"
+        ? sql`e.status <> 'DRAFT'`
+        : sql`true`;
+  const afterCondition = page.after
+    ? sql`(coalesce(e.submitted_at, e.last_saved_at), e.id) < (${page.after.sortAt}::timestamptz, ${page.after.id}::uuid)`
+    : sql`true`;
+  const rows = await sql<(RawEvent & { listed_at: string })[]>`
+    select e.*, a.coordinator_id as assigned_coordinator_id,
+      to_char(coalesce(e.submitted_at, e.last_saved_at) at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as listed_at
     from event.events e
     left join event.assignments a on a.event_id = e.id and a.is_active
-    where ${scopeCondition(sql, scope, callerId)}
-    order by e.submitted_at desc
+    where ${scopeCondition(sql, scope, callerId)} and ${kindCondition} and ${afterCondition}
+    order by coalesce(e.submitted_at, e.last_saved_at) desc, e.id desc
+    limit ${page.limit + 1}
   `;
-  return rows.map(toEvent);
+  const shown = rows.slice(0, page.limit);
+  const last = shown[shown.length - 1];
+  return {
+    rows: shown.map(toEvent),
+    nextCursor: rows.length > page.limit && last ? encodeCursor({ sortAt: last.listed_at, id: last.id }) : null,
+  };
 }
 
 /**

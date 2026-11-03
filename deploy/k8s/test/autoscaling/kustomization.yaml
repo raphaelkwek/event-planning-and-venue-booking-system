@@ -1,0 +1,8 @@
+# Renders the autoscaling component against a copy of #75's registration manifests (see registration-from-pr75.yaml),
+# the way an overlay will. CI runs `kubectl kustomize` on this folder and validates the output with kubeconform.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - registration-from-pr75.yaml
+components:
+  - ../../components/autoscaling

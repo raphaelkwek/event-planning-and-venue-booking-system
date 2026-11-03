@@ -1,0 +1,104 @@
+{
+  "scenario": "soak",
+  "ok": true,
+  "startedAt": "2026-11-02T22:01:44.518Z",
+  "durationSeconds": 300.588,
+  "runner": {
+    "cpuModel": "AMD EPYC 7763 64-Core Processor",
+    "logicalCpus": 4,
+    "memoryGb": 15.6,
+    "node": "v20.20.2",
+    "k6Image": "grafana/k6:1.4.0",
+    "commit": "23358901d9098872e34894c0bb2268089cb2fcad",
+    "runUrl": "https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41533430275"
+  },
+  "config": {
+    "events": 10,
+    "seatsPerEvent": 3000,
+    "rate": 100,
+    "minutes": 5,
+    "dbPoolMax": 5,
+    "mix": "50% browse, 20% event page, 10% my registrations, 20% register then withdraw"
+  },
+  "checks": [
+    {
+      "name": "no 5xx, 429 or timeouts on register",
+      "ok": true,
+      "detail": "429: 0, 5xx: 0, other: 0"
+    },
+    {
+      "name": "every read answered 200",
+      "ok": true,
+      "detail": "24000 reads ok, 0 failed"
+    },
+    {
+      "name": "every withdrawal answered 200",
+      "ok": true,
+      "detail": "6000 withdrawn, 0 failed"
+    },
+    {
+      "name": "every seat claimed has an active registration, and the reverse",
+      "ok": true,
+      "detail": "0 without a match"
+    },
+    {
+      "name": "registrations in the database match the 201s k6 saw",
+      "ok": true,
+      "detail": "0 registered + 6000 withdrawn = 6000, k6 saw 6000"
+    },
+    {
+      "name": "withdrawals in the database match the 200s k6 saw",
+      "ok": true,
+      "detail": "6000 withdrawn rows, k6 saw 6000"
+    },
+    {
+      "name": "register p95 is at most 800 ms",
+      "ok": true,
+      "detail": "p95 8.7 ms"
+    },
+    {
+      "name": "read p95 is at most 400 ms",
+      "ok": true,
+      "detail": "p95 7.5 ms"
+    },
+    {
+      "name": "resident memory grew by at most 25% from minute 1 to the last minute",
+      "ok": true,
+      "detail": "151 MB to 154 MB (1.9%)"
+    },
+    {
+      "name": "k6 ran to the end",
+      "ok": true,
+      "detail": "k6 exit code 0"
+    }
+  ],
+  "outcomes": {
+    "registered": 6000,
+    "full": 0,
+    "otherConflict": 0,
+    "outsideWindow": 0,
+    "rateLimited": 0,
+    "serverErrors": 0,
+    "otherStatus": 0,
+    "withdrawn": 6000,
+    "withdrawFailed": 0,
+    "readsOk": 24000,
+    "readsFailed": 0
+  },
+  "cpu": {
+    "cpuSeconds": 87.53,
+    "perRequestMs": 2.431388888888889,
+    "coresUsed": 0.29119592265825645
+  },
+  "memory": {
+    "firstMb": 151.38616071428572,
+    "lastMb": 154.24665178571428,
+    "growthPercent": 1.8895327405965594
+  },
+  "notes": [
+    "The registration service ran from source with tsx (as `npm run dev` does), not from the container image. Steady-state CPU should be close; start-up is not.",
+    "Identity was a stand-in that answers from the token (`load/support/identity-stub.ts`). The real hop, planning-core's GET /api/v1/users/me, adds a network call and its own CPU to every register, withdraw and my-registrations request, and is not in these numbers.",
+    "The service's interim 120-requests-a-minute-per-address limit (ADR-0011) was raised for the run: one load generator is one address. The gateway (EN-12) owns rate limiting; it was not under test.",
+    "k6, the service and Postgres shared one runner, so the figures are a floor for what a dedicated machine could do, not the production cluster's."
+  ]
+}

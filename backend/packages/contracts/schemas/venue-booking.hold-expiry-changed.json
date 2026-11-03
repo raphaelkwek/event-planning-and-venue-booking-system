@@ -6,6 +6,26 @@
       "format": "uuid",
       "type": "string"
     },
+    "coordinatorId": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "endsAt": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "eventId": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "eventName": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "eventReference": {
+      "minLength": 1,
+      "type": "string"
+    },
     "expiresAt": {
       "format": "date-time",
       "type": "string"
@@ -18,12 +38,31 @@
       "pattern": "^HLD-\\d{6}$",
       "type": "string"
     },
+    "previousExpiresAt": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
     "reminderLeadMinutes": {
       "minimum": 1,
       "type": "integer"
     },
+    "startsAt": {
+      "format": "date-time",
+      "type": "string"
+    },
     "venueId": {
       "format": "uuid",
+      "type": "string"
+    },
+    "venueName": {
+      "minLength": 1,
       "type": "string"
     }
   },
