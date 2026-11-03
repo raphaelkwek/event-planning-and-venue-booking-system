@@ -1,4 +1,5 @@
 import type { Sql, TransactionSql } from "postgres";
+import { otherSideLive } from "./bufferConflicts.js";
 import type { DisruptedKind, StillFlaggedCause, UnavailabilityBlockStatus, UnavailabilityReasonType } from "@connectsphere/contracts";
 
 /**
@@ -46,7 +47,7 @@ export interface Disrupted {
   eventId: string;
   /** A request's requesting coordinator; null for a booking or hold. */
   requestedBy: string | null;
-  /** Where the block's period meets the booking's occupied period (CR-01) or the request's period. */
+  /** Where the block's period meets the booking's, hold's or request's occupied period (CR-01). */
   overlapFrom: string;
   overlapUntil: string;
 }
@@ -118,8 +119,9 @@ export async function listActiveBlocks(db: Db, venueId: string): Promise<Block[]
 
 /**
  * What a block from `startsAt` to `endsAt` would disrupt at the venue: confirmed
- * bookings and holds whose occupied period it overlaps (CR-01), and pending
- * requests whose period it overlaps, soonest overlap first. `&&` on `[)` ranges,
+ * bookings, holds and pending requests whose occupied period it overlaps
+ * (CR-01, H3), soonest overlap first. A slot's occupied period is stored with
+ * the times it was taken with; a request's uses the venue's times now. `&&` on `[)` ranges,
  * so what only touches the block is left alone. With no end (I5) the block runs
  * from its start for ever, so it disrupts whatever ends after it starts.
  */
@@ -134,9 +136,13 @@ export async function disruptedBy(db: Db, venueId: string, startsAt: Date, endsA
       from venue.venue_slots s, block
       where s.venue_id = ${venueId} and s.status in ('HELD', 'CONFIRMED') and s.blocked_period && block.period
       union all
-      select 'REQUEST', r.id, r.reference, r.event_id, r.requested_by, r.period * block.period
-      from venue.booking_requests r, block
-      where r.venue_id = ${venueId} and r.status = 'PENDING' and r.period && block.period
+      -- A request takes no slot, so its occupied period uses the venue's times as they are now (H3).
+      select 'REQUEST', r.id, r.reference, r.event_id, r.requested_by, occupied.period * block.period
+      from venue.booking_requests r
+      join venue.venues v on v.id = r.venue_id
+      cross join lateral (select venue.occupied_period(r.starts_at, r.ends_at, v.setup_minutes, v.turnaround_minutes) as period) occupied,
+      block
+      where r.venue_id = ${venueId} and r.status = 'PENDING' and occupied.period && block.period
     )
     select kind, id, reference, event_id, requested_by, lower(overlap) as overlap_from, upper(overlap) as overlap_until
     from disrupted
@@ -157,16 +163,7 @@ export async function disruptedBy(db: Db, venueId: string, startsAt: Date, endsA
 export async function flagDisruptions(tx: TransactionSql, blockId: string, disrupted: readonly Disrupted[], actorUserId: string): Promise<void> {
   const slotIds = disrupted.filter((d) => d.kind !== "REQUEST").map((d) => d.id);
   const requestIds = disrupted.filter((d) => d.kind === "REQUEST").map((d) => d.id);
-  if (slotIds.length > 0) {
-    await tx`
-      insert into venue.block_disruptions (block_id, slot_id, created_by)
-      select ${blockId}, unnest(${slotIds}::uuid[]), ${actorUserId}
-    `;
-    await tx`
-      update venue.venue_slots set requires_reconfirmation = true, updated_at = now(), updated_by = ${actorUserId}
-      where id = any(${slotIds}::uuid[])
-    `;
-  }
+  // Requests before slots: the lock order every path takes (implementation.md §4.6), so F5 reading them can't deadlock.
   if (requestIds.length > 0) {
     await tx`
       insert into venue.block_disruptions (block_id, booking_request_id, created_by)
@@ -175,6 +172,16 @@ export async function flagDisruptions(tx: TransactionSql, blockId: string, disru
     await tx`
       update venue.booking_requests set requires_reconfirmation = true, updated_at = now(), updated_by = ${actorUserId}
       where id = any(${requestIds}::uuid[])
+    `;
+  }
+  if (slotIds.length > 0) {
+    await tx`
+      insert into venue.block_disruptions (block_id, slot_id, created_by)
+      select ${blockId}, unnest(${slotIds}::uuid[]), ${actorUserId}
+    `;
+    await tx`
+      update venue.venue_slots set requires_reconfirmation = true, updated_at = now(), updated_by = ${actorUserId}
+      where id = any(${slotIds}::uuid[])
     `;
   }
 }
@@ -225,8 +232,9 @@ export async function clearDisruptions(tx: TransactionSql, blockId: string): Pro
                select 1 from venue.block_disruptions o join venue.unavailability_blocks ob on ob.id = o.block_id
                where o.slot_id = s.id and o.block_id <> ${blockId} and ob.status = 'ACTIVE'
              ) then 'UNAVAILABILITY'
-             -- H3-T10: the venue's times still make it overlap another booking, hold or request.
-             when exists (select 1 from venue.buffer_conflicts c where c.slot_id = s.id and c.cleared_at is null) then 'BUFFER_CONFLICT'
+             -- H3-T10: the venue's times still make it overlap another live booking, hold or request (M3).
+             when exists (select 1 from venue.buffer_conflicts c where c.slot_id = s.id and c.cleared_at is null and ${otherSideLive(tx)})
+               then 'BUFFER_CONFLICT'
            end as still_cause
     from venue.block_disruptions d join venue.venue_slots s on s.id = d.slot_id
     where d.block_id = ${blockId} and s.status in ('HELD', 'CONFIRMED')
@@ -238,7 +246,9 @@ export async function clearDisruptions(tx: TransactionSql, blockId: string): Pro
                where o.booking_request_id = r.id and o.block_id <> ${blockId} and ob.status = 'ACTIVE'
              ) then 'UNAVAILABILITY'
              -- H3-T11: the venue's times still make the request overlap another.
-             when exists (select 1 from venue.buffer_conflicts c where c.booking_request_id = r.id and c.cleared_at is null) then 'BUFFER_CONFLICT'
+             when exists (
+               select 1 from venue.buffer_conflicts c where c.booking_request_id = r.id and c.cleared_at is null and ${otherSideLive(tx)}
+             ) then 'BUFFER_CONFLICT'
            end
     from venue.block_disruptions d join venue.booking_requests r on r.id = d.booking_request_id
     where d.block_id = ${blockId} and r.status = 'PENDING'
@@ -246,11 +256,12 @@ export async function clearDisruptions(tx: TransactionSql, blockId: string): Pro
   `;
   const clearSlots = rows.filter((r) => !r.still_cause && r.kind !== "REQUEST").map((r) => r.id);
   const clearRequests = rows.filter((r) => !r.still_cause && r.kind === "REQUEST").map((r) => r.id);
-  if (clearSlots.length > 0) {
-    await tx`update venue.venue_slots set requires_reconfirmation = false, updated_at = now() where id = any(${clearSlots}::uuid[])`;
-  }
+  // Requests before slots, the lock order every path takes (§4.6).
   if (clearRequests.length > 0) {
     await tx`update venue.booking_requests set requires_reconfirmation = false, updated_at = now() where id = any(${clearRequests}::uuid[])`;
+  }
+  if (clearSlots.length > 0) {
+    await tx`update venue.venue_slots set requires_reconfirmation = false, updated_at = now() where id = any(${clearSlots}::uuid[])`;
   }
   return rows.map((row) => ({
     kind: row.kind,

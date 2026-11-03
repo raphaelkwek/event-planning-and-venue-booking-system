@@ -1,5 +1,5 @@
 import { Router, type RequestHandler } from "express";
-import { identityRateLimiter } from "./limiter.js";
+import { IP_FLOOD_LIMIT, identityRateLimiter, subjectRateLimiter } from "./limiter.js";
 import type { Sql } from "postgres";
 import { verifyJwt, type AuthenticatedRequest } from "../../../shared/auth/verifyJwt.js";
 import { findUserBySupabaseId, findRoleForUser } from "../repo/users.js";
@@ -10,10 +10,14 @@ import { findUserBySupabaseId, findRoleForUser } from "../repo/users.js";
  * (plan.md §2) and the access-scope response carries no user id for a role
  * scoped to ALL.
  */
-export function usersMeRouter(sql: Sql, limiter: RequestHandler = identityRateLimiter()) {
+export function usersMeRouter(
+  sql: Sql,
+  limiter: RequestHandler = identityRateLimiter({ limit: IP_FLOOD_LIMIT }),
+  subjectLimiter: RequestHandler = subjectRateLimiter(),
+) {
   const router = Router();
 
-  router.get("/api/v1/users/me", limiter, verifyJwt, async (req: AuthenticatedRequest, res) => {
+  router.get("/api/v1/users/me", limiter, verifyJwt, subjectLimiter, async (req: AuthenticatedRequest, res) => {
     const correlationId = req.header("x-correlation-id") ?? null;
 
     const user = await findUserBySupabaseId(sql, req.auth!.supabaseUserId);

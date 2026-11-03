@@ -138,6 +138,8 @@ jobs:
       # The runner's own database. These are throwaway credentials for a
       # container nobody else can reach, not secrets.
       DATABASE_URL: postgres://ci:ci@127.0.0.1:5432/connectsphere_ci
+      # Off by default; on here so CI proves the 5 s statement timeout is accepted by Postgres (implementation.md 4.7).
+      DB_STATEMENT_TIMEOUT_MS: "5000"
       # Tests replace token checks with stubs, so nothing calls Supabase or Kafka.
       # The services still read these when they load, hence placeholders that
       # cannot reach anything (.invalid, port 1).
@@ -197,6 +199,23 @@ jobs:
       - name: Integration tests (registration)
         if: always()
         run: npm test -w @connectsphere/registration
+
+      # EN-03 (ADR-0007): every hash chain the integration tests wrote must
+      # verify, and the same command must then catch one edited entry, naming
+      # it (EN-03-T14, EN-03-T18). The edit is made on this runner's throwaway
+      # Postgres only; the script refuses any other database.
+      - name: Event store tamper check (EN-03)
+        run: |
+          npm run --silent event-store:verify
+          edited="$(npx tsx backend/services/planning-core/scripts/ci-tamper-event-stream.ts)"
+          echo "Edited $edited."
+          if npm run --silent event-store:verify > verify.log 2>&1; then
+            cat verify.log
+            echo "::error::event-store:verify passed after an entry was edited"
+            exit 1
+          fi
+          cat verify.log
+          grep -F "First broken link: $edited (HASH_MISMATCH)" verify.log
 
       - name: Upload test results
         if: always()

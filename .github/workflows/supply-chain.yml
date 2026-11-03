@@ -1,0 +1,480 @@
+# EN-21 (SPM-139): software supply chain security.
+#
+# SBOMs (CycloneDX) for the npm workspace and for every image, Trivy over the repository and over
+# every image, a cosign demonstration that needs no push, and a ZAP baseline scan of the running web
+# app and planning-core API. Signing the images that reach GHCR happens in deploy.yml on main, right
+# after the push, through the same composite action this workflow runs against a throwaway registry.
+# documentation/supply-chain.md explains what each job proves and how to verify an image yourself.
+#
+# Not a required check. The third-party actions here are pinned by commit SHA, and a job checks it.
+name: Supply chain
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# bash with pipefail, so a failing command in front of `| tee` or `| tail` fails the step.
+defaults:
+  run:
+    shell: bash
+
+concurrency:
+  group: supply-chain-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Trivy fetches its vulnerability database from OCI registries; try the AWS mirror first, since
+  # ghcr.io rate-limits anonymous pulls.
+  TRIVY_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-db:2,ghcr.io/aquasecurity/trivy-db:2
+  TRIVY_SKIP_JAVA_DB_UPDATE: "true"
+  TRIVY_DISABLE_VEX_NOTICE: "true"
+  SYFT_CHECK_FOR_APP_UPDATE: "false"
+
+jobs:
+  pins:
+    name: Actions are pinned by commit SHA
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Every action in this workflow and the composite action is pinned
+        run: node .github/scripts/check-action-pins.mjs
+
+      - name: The check refuses a tag (it must fail on this file)
+        run: |
+          printf 'steps:\n  - uses: actions/checkout@v4\n' > "${RUNNER_TEMP}/tag-pinned.yml"
+          if node .github/scripts/check-action-pins.mjs "${RUNNER_TEMP}/tag-pinned.yml" 2> pin-check.err; then
+            echo "::error::the pin check accepted an action pinned to a tag"
+            exit 1
+          fi
+          # It must refuse for the right reason, not because it crashed.
+          grep -q "not a 40-character commit SHA" pin-check.err
+          echo "ok: an action pinned to a tag is refused"
+
+  sbom-npm:
+    name: SBOM (npm workspace)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Install syft
+        run: bash .github/scripts/install-supply-chain-tools.sh syft
+
+      # `npm sbom` refuses this workspace: Atlaskit's peer ranges ask for React 16 and 17 and the
+      # app runs React 18, so npm reports the tree as invalid. syft reads package-lock.json
+      # instead, which is exactly what `npm ci` installs.
+      - name: SBOM (CycloneDX, from package-lock.json)
+        run: |
+          syft dir:. --source-name connectsphere-npm-workspace --source-version "${GITHUB_SHA}" \
+            -o cyclonedx-json=sbom-npm-workspace.cdx.json
+          node -e '
+            const b = JSON.parse(require("fs").readFileSync("sbom-npm-workspace.cdx.json", "utf8"));
+            const libraries = (b.components || []).filter((c) => c.type === "library");
+            if (b.bomFormat !== "CycloneDX" || libraries.length < 100) { console.error("not a usable SBOM", b.bomFormat, libraries.length); process.exit(1); }
+            const line = `| npm workspace | CycloneDX ${b.specVersion} | ${libraries.length} packages |`;
+            console.log(line);
+            require("fs").appendFileSync(process.env.GITHUB_STEP_SUMMARY, "### SBOMs\n\n| SBOM | Format | Contents |\n|---|---|---|\n" + line + "\n");
+          '
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: sbom-npm-workspace
+          path: sbom-npm-workspace.cdx.json
+          retention-days: 30
+
+  trivy-fs:
+    name: "Trivy (filesystem: dependencies, IaC, secrets)"
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      # Needed to upload the SARIF file to code scanning. A pull request from a fork gets a
+      # read-only token whatever is written here; the upload step says so and the scan still counts.
+      security-events: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Install Trivy
+        run: bash .github/scripts/install-supply-chain-tools.sh trivy
+
+      # One scan, written as JSON; the table and SARIF are converted from it. Dependencies come
+      # from package-lock.json (production only), IaC from the Dockerfiles, deploy/k8s and
+      # deploy/terraform, and secrets from every file in the tree, except deploy/k8s/test: those manifests are
+      # kind fixtures that exist only inside a CI job and are never rendered into an overlay. HIGH and CRITICAL are reported
+      # and do not fail the step.
+      - name: Scan (reports HIGH and CRITICAL)
+        run: |
+          trivy fs . --scanners vuln,misconfig,secret --severity HIGH,CRITICAL \
+            --ignorefile .trivyignore.yaml --skip-dirs node_modules --skip-dirs deploy/k8s/test --format json -o trivy-fs.json
+          trivy convert --format table --severity HIGH,CRITICAL trivy-fs.json | tee trivy-fs.txt
+          # Code scanning fails a pull request's check on any HIGH alert, so on a pull request the SARIF
+          # carries what the gate below fails on (CRITICAL with a fix). On main it carries HIGH too, which
+          # keeps the backlog in the Security tab; documentation/evidence/EN-21/trivy.md records it.
+          if [ "$GITHUB_EVENT_NAME" = pull_request ]; then sarif_flags="--severity CRITICAL --ignore-unfixed"; else sarif_flags="--severity HIGH,CRITICAL"; fi
+          trivy fs . --scanners vuln,misconfig,secret $sarif_flags --ignorefile .trivyignore.yaml             --skip-dirs node_modules --skip-dirs deploy/k8s/test --skip-db-update --format sarif -o trivy-fs.sarif
+          {
+            echo '### Trivy filesystem scan (HIGH and CRITICAL)'
+            echo
+            node -e '
+              const r = JSON.parse(require("fs").readFileSync("trivy-fs.json", "utf8"));
+              const rows = [];
+              for (const x of r.Results || []) {
+                for (const v of x.Vulnerabilities || []) rows.push([v.Severity, "dependency", x.Target, `${v.PkgName}@${v.InstalledVersion} ${v.VulnerabilityID}`, v.FixedVersion ? "fix " + v.FixedVersion : "no fix yet"]);
+                for (const m of x.Misconfigurations || []) rows.push([m.Severity, "misconfiguration", x.Target, `${m.ID} ${m.Title}`, ""]);
+                for (const s of x.Secrets || []) rows.push([s.Severity, "secret", x.Target, s.RuleID, ""]);
+              }
+              console.log("| Severity | Kind | Target | Finding | Fix |\n|---|---|---|---|---|");
+              for (const r of rows) console.log("| " + r.join(" | ") + " |");
+              if (rows.length === 0) console.log("| none | | | | |");
+            '
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # continue-on-error: code scanning has to be on for the repository and the token has to be
+      # allowed to write security events; if either is not true the scan above still stands.
+      - name: Upload SARIF to code scanning
+        if: always() && hashFiles('trivy-fs.sarif') != ''
+        id: sarif
+        continue-on-error: true
+        uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+        with:
+          sarif_file: trivy-fs.sarif
+          category: trivy-fs
+
+      - name: Say plainly whether the SARIF upload worked
+        if: always() && steps.sarif.outcome != 'skipped'
+        run: |
+          if [ "${{ steps.sarif.outcome }}" = "success" ]; then
+            echo "SARIF uploaded to code scanning (category trivy-fs)." | tee -a "$GITHUB_STEP_SUMMARY"
+          else
+            echo "::warning::The SARIF upload did not succeed (a fork's token cannot write security events, or code scanning is off). The scan itself is unaffected."
+            echo "SARIF upload did not succeed: no security-events write access or code scanning is off." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      # The gate: a CRITICAL finding that a newer release fixes fails the build. For a
+      # dependency "fix available" is what --ignore-unfixed means; a misconfiguration has no
+      # such notion, so a CRITICAL one fails unless .trivyignore.yaml explains why it stays.
+      - name: Gate (fails on CRITICAL with a fix available)
+        run: |
+          trivy fs . --scanners vuln,misconfig,secret --severity CRITICAL --ignore-unfixed \
+            --ignorefile .trivyignore.yaml --skip-dirs node_modules --skip-dirs deploy/k8s/test --skip-db-update \
+            --format table --exit-code 1
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: trivy-filesystem
+          path: |
+            trivy-fs.json
+            trivy-fs.txt
+            trivy-fs.sarif
+          if-no-files-found: ignore
+          retention-days: 30
+
+  # Every image: build it as deploy.yml does (the layer cache is shared), then SBOM, Trivy and the
+  # cosign demonstration. Nothing is pushed to GHCR from here.
+  images:
+    name: Image (${{ matrix.name }}) SBOM, Trivy, signing
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      security-events: write
+      # The OIDC token cosign trades for a signing certificate. Not granted to a fork's pull request.
+      id-token: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: planning-core, file: backend/services/planning-core/Dockerfile }
+          - { name: registration, file: backend/services/registration/Dockerfile }
+          - { name: notification, file: backend/services/notification/Dockerfile }
+          - { name: web, file: frontend/Dockerfile }
+          - { name: migrate, file: backend/scripts/Dockerfile }
+    # A registry that lives as long as this job, so a pull request can sign and attest a real image
+    # without pushing to GHCR (CLAUDE.md allows containers in CI only).
+    services:
+      registry:
+        image: registry:2.8.3@sha256:a3d8aaa63ed8681a604f1dea0aa03f100d5895b6a58ace528858a7b332415373
+        ports:
+          - 5000:5000
+    env:
+      IMAGE: connectsphere-${{ matrix.name }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+
+      - name: Build
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
+        with:
+          context: .
+          file: ${{ matrix.file }}
+          load: true
+          build-args: |
+            SUPABASE_URL=${{ vars.SUPABASE_URL }}
+            SUPABASE_ANON_KEY=${{ vars.SUPABASE_ANON_KEY }}
+          tags: ${{ env.IMAGE }}:ci
+          # Read deploy.yml's cache; never write it, so the two workflows cannot disturb each other.
+          cache-from: type=gha,scope=${{ matrix.name }}
+          provenance: false
+
+      - name: Install syft and Trivy
+        run: bash .github/scripts/install-supply-chain-tools.sh syft trivy
+
+      - name: SBOM (CycloneDX, syft)
+        run: |
+          syft "docker:${IMAGE}:ci" --source-name "${IMAGE}" --source-version "${GITHUB_SHA}" \
+            -o "cyclonedx-json=sbom-image-${{ matrix.name }}.cdx.json"
+          node -e '
+            const b = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
+            const os = (b.components || []).filter((c) => c.type === "operating-system").length;
+            const libs = (b.components || []).filter((c) => c.type === "library").length;
+            if (b.bomFormat !== "CycloneDX" || libs < 1) { console.error("not a usable SBOM", b.bomFormat, libs); process.exit(1); }
+            const line = `| ${process.argv[2]} | CycloneDX ${b.specVersion} | ${libs} packages, ${os} operating system |`;
+            console.log(line);
+            require("fs").appendFileSync(process.env.GITHUB_STEP_SUMMARY, line + "\n");
+          ' "sbom-image-${{ matrix.name }}.cdx.json" "${{ matrix.name }}"
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: sbom-image-${{ matrix.name }}
+          path: sbom-image-${{ matrix.name }}.cdx.json
+          retention-days: 30
+
+      # The ZAP job starts these three, whatever the scans below find.
+      - name: Save the image for the ZAP job
+        if: matrix.name == 'planning-core' || matrix.name == 'web' || matrix.name == 'migrate'
+        run: docker save "${IMAGE}:ci" | gzip > "image-${{ matrix.name }}.tar.gz"
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: matrix.name == 'planning-core' || matrix.name == 'web' || matrix.name == 'migrate'
+        with:
+          name: image-${{ matrix.name }}
+          path: image-${{ matrix.name }}.tar.gz
+          retention-days: 1
+
+      - name: Trivy report (HIGH and CRITICAL)
+        run: |
+          trivy image "${IMAGE}:ci" --scanners vuln,secret --severity HIGH,CRITICAL \
+            --ignorefile .trivyignore.yaml --format json -o trivy-image-${{ matrix.name }}.json
+          trivy convert --format table --severity HIGH,CRITICAL trivy-image-${{ matrix.name }}.json | tee trivy-image-${{ matrix.name }}.txt
+          # As for the filesystem scan: the pull request's SARIF matches the gate; main's carries HIGH too.
+          if [ "$GITHUB_EVENT_NAME" = pull_request ]; then sarif_flags="--severity CRITICAL --ignore-unfixed"; else sarif_flags="--severity HIGH,CRITICAL"; fi
+          trivy image "${IMAGE}:ci" --scanners vuln,secret $sarif_flags --ignorefile .trivyignore.yaml             --skip-db-update --format sarif -o trivy-image-${{ matrix.name }}.sarif
+          node -e '
+            const r = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
+            let high = 0, critical = 0, fixable = 0;
+            for (const x of r.Results || []) for (const v of x.Vulnerabilities || []) {
+              if (v.Severity === "CRITICAL") critical += 1; else high += 1;
+              if (v.FixedVersion) fixable += 1;
+            }
+            const line = `| ${process.argv[2]} | ${critical} | ${high} | ${fixable} |`;
+            console.log("CRITICAL " + critical + ", HIGH " + high + ", with a fix " + fixable);
+            require("fs").appendFileSync(process.env.GITHUB_STEP_SUMMARY, "### Trivy: " + process.argv[2] + " image\n\n| Image | CRITICAL | HIGH | With a fix |\n|---|---|---|---|\n" + line + "\n\n");
+          ' trivy-image-${{ matrix.name }}.json "${{ matrix.name }}"
+
+      - name: Upload SARIF to code scanning
+        if: always() && hashFiles(format('trivy-image-{0}.sarif', matrix.name)) != ''
+        id: sarif
+        continue-on-error: true
+        uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+        with:
+          sarif_file: trivy-image-${{ matrix.name }}.sarif
+          category: trivy-image-${{ matrix.name }}
+
+      - name: Say plainly whether the SARIF upload worked
+        if: always() && steps.sarif.outcome != 'skipped'
+        run: |
+          if [ "${{ steps.sarif.outcome }}" = "success" ]; then
+            echo "SARIF for ${{ matrix.name }} uploaded to code scanning." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "::warning::The SARIF upload for ${{ matrix.name }} did not succeed (a fork's token cannot write security events, or code scanning is off)."
+            echo "SARIF upload for ${{ matrix.name }} did not succeed." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: trivy-image-${{ matrix.name }}
+          path: |
+            trivy-image-${{ matrix.name }}.json
+            trivy-image-${{ matrix.name }}.txt
+            trivy-image-${{ matrix.name }}.sarif
+          if-no-files-found: ignore
+          retention-days: 30
+
+      # The pull-request half of the cosign criterion. There is no push to GHCR from a pull
+      # request, so the SBOM is signed as a file and the signature is checked.
+      - name: Install cosign
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+        with:
+          cosign-release: v3.1.4
+
+      - name: Sign the SBOM as a blob (cosign sign-blob, keyless)
+        id: blob
+        run: |
+          if [ -z "${ACTIONS_ID_TOKEN_REQUEST_URL:-}" ]; then
+            echo "::notice::No OIDC token (a pull request from a fork gets none): the SBOM is not signed in this run."
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          cosign sign-blob --yes --bundle "sbom-image-${{ matrix.name }}.cdx.json.bundle" "sbom-image-${{ matrix.name }}.cdx.json"
+          echo "signed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Verify the SBOM signature (cosign verify-blob)
+        if: steps.blob.outputs.signed == 'true'
+        run: |
+          identity="${GITHUB_SERVER_URL}/${GITHUB_WORKFLOW_REF}"
+          issuer="https://token.actions.githubusercontent.com"
+          cosign verify-blob "sbom-image-${{ matrix.name }}.cdx.json" --bundle "sbom-image-${{ matrix.name }}.cdx.json.bundle" \
+            --certificate-identity "${identity}" --certificate-oidc-issuer "${issuer}"
+          if cosign verify-blob "sbom-image-${{ matrix.name }}.cdx.json" --bundle "sbom-image-${{ matrix.name }}.cdx.json.bundle" \
+               --certificate-identity "${identity}-somebody-else" --certificate-oidc-issuer "${issuer}" > /dev/null 2>&1; then
+            echo "::error::cosign accepted a wrong identity"
+            exit 1
+          fi
+          echo "ok: the SBOM signature verifies for ${identity}, and a wrong identity is refused" | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Push the image to the throwaway registry on localhost
+        id: local
+        run: |
+          docker tag "${IMAGE}:ci" "localhost:5000/${IMAGE}:ci"
+          docker push "localhost:5000/${IMAGE}:ci" | tee push.log
+          # The digest the registry computed, which is what gets signed.
+          digest="$(awk '/digest: sha256:/ { print $3; exit }' push.log)"
+          case "$digest" in sha256:*) ;; *) echo "::error::could not read the pushed digest"; exit 1 ;; esac
+          echo "ref=localhost:5000/${IMAGE}@${digest}" >> "$GITHUB_OUTPUT"
+          echo "pushed localhost:5000/${IMAGE}@${digest}"
+
+      - name: Sign, attest and verify an image in a local registry
+        uses: ./.github/actions/sign-and-attest
+        with:
+          image: ${{ steps.local.outputs.ref }}
+          identity: ${{ github.server_url }}/${{ github.workflow_ref }}
+          sbom-path: sbom-attested-${{ matrix.name }}.cdx.json
+          require-oidc: "false"
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: signed-sbom-${{ matrix.name }}
+          path: |
+            sbom-image-${{ matrix.name }}.cdx.json.bundle
+            sbom-attested-${{ matrix.name }}.cdx.json
+          if-no-files-found: ignore
+          retention-days: 30
+
+      # Last on purpose: a CRITICAL finding with a fix fails the job, but only after the report,
+      # the SARIF upload and the signing demonstration have run, so one failure hides nothing.
+      - name: Trivy gate (CRITICAL with a fix)
+        if: success() || failure()
+        run: |
+          trivy image "${IMAGE}:ci" --scanners vuln,secret --severity CRITICAL --ignore-unfixed \
+            --ignorefile .trivyignore.yaml --skip-db-update --format table --exit-code 1
+
+  # A passive ZAP baseline scan of the web app (nginx image) and planning-core API, both started
+  # from the images this workflow built, against a Postgres built from every migration. The
+  # database is the job's own service container; no shared database is reachable from here.
+  zap:
+    name: ZAP baseline (web app and planning-core API)
+    needs: images
+    # Scan whatever was built even when an image's Trivy gate failed; only a cancelled run stops it.
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: connectsphere_zap
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci -d connectsphere_zap"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      DATABASE_URL: postgres://ci:ci@127.0.0.1:5432/connectsphere_zap
+      # ZAP 2.17.0, by digest (the stable tag moves).
+      ZAP_IMAGE: ghcr.io/zaproxy/zaproxy:2.17.0@sha256:030d3df57735dacbb83464854758e674dd9ad01d79d12a129a8e58b1fd384238
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: image-*
+          merge-multiple: true
+
+      - name: Load the images
+        run: |
+          for name in planning-core web migrate; do gunzip -c "image-${name}.tar.gz" | docker load; done
+
+      - name: Build the throwaway database from every migration
+        run: |
+          docker run --rm --network host --read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges \
+            -e "DATABASE_URL=${DATABASE_URL}" -e npm_config_cache=/tmp/.npm connectsphere-migrate:ci | tail -5
+
+      - name: Start the API and the web app (read-only, as in the cluster)
+        run: |
+          harden=(--network host --read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges)
+          # Placeholders, not secrets: the .invalid domain cannot resolve, so no request can leave the runner.
+          docker run -d --name zap-api "${harden[@]}" \
+            -e "DATABASE_URL=${DATABASE_URL}" -e SUPABASE_URL=https://ci.invalid -e SUPABASE_ANON_KEY=ci-placeholder \
+            -e SUPABASE_JWKS_URL=https://ci.invalid/auth/v1/.well-known/jwks.json connectsphere-planning-core:ci
+          docker run -d --name zap-web "${harden[@]}" connectsphere-web:ci
+          for url in http://127.0.0.1:8090/readyz http://127.0.0.1:8080/healthz; do
+            ready=false
+            for _ in $(seq 1 60); do
+              if curl -fsS "$url" > /dev/null 2>&1; then ready=true; break; fi
+              sleep 1
+            done
+            if [ "$ready" != true ]; then
+              echo "::error::$url never answered"
+              docker logs zap-api 2>&1 | tail -20; docker logs zap-web 2>&1 | tail -20
+              exit 1
+            fi
+            echo "$url -> $(curl -fsS "$url")"
+          done
+
+      # Passive: the baseline spiders for a minute and reads what comes back; it sends no attack.
+      # Exit code 1 means a rule that .zap/rules.tsv sets to FAIL fired; warnings do not fail the
+      # job (-I) while the findings are triaged, see documentation/evidence/EN-21/zap.md.
+      - name: ZAP baseline (web app)
+        run: bash .github/scripts/run-zap-baseline.sh web http://127.0.0.1:8080
+
+      - name: ZAP baseline (planning-core API)
+        run: bash .github/scripts/run-zap-baseline.sh api http://127.0.0.1:8090
+
+      - name: Summarise
+        if: always()
+        run: |
+          for target in web api; do
+            if [ -f "zap-out/zap-${target}.md" ]; then
+              echo "### ZAP baseline: ${target}" >> "$GITHUB_STEP_SUMMARY"
+              cat "zap-out/zap-${target}.md" >> "$GITHUB_STEP_SUMMARY"
+            fi
+          done
+
+      - name: Service logs
+        if: always()
+        run: |
+          mkdir -p zap-out
+          docker logs zap-api > zap-out/planning-core.log 2>&1 || true
+          docker logs zap-web > zap-out/web.log 2>&1 || true
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: zap-report
+          path: zap-out/
+          if-no-files-found: ignore
+          retention-days: 30

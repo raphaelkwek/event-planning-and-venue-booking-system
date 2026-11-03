@@ -389,6 +389,20 @@ Model holds and confirmed bookings as rows in one table (`venue_slots`) so a sin
 3. **A converted hold stays HELD until decided (L3 → L1).** When L1 turns a hold into a booking request, the slot row keeps status HELD until M1 approves (→ CONFIRMED) or M2 rejects (→ RELEASED). Never release and then re-insert it, because that opens a window in which another hold can take the slot.
 4. **Conflicting inserts queue on a row lock (EN-02.3).** Every slot insert takes the venue row lock first, and every equipment reservation takes its type's row lock. The exclusion constraints still decide. The lock is there because two conflicting inserts in flight at once can each wait for the other on the constraint, and Postgres then aborts one as a **deadlock (`40P01`)** instead of an overlap (`23P01`). The user would get a server error instead of the refusal. EN-02.3's race (ten rounds of fifty attempts) found this; with the locks, every loser meets an already committed winner and is refused cleanly.
 
+**One lock order for the venue module (audit, 2 Nov 2026).** Every path that locks more than one of these rows takes them in this order, and may skip a level but never go back up one:
+
+1. venue rows (`venue.venues`), in ascending id when there are several (M1 approving a replacement at another venue, F4 releasing an event's venues);
+2. event rows (I3 returning a Confirmed event to Planning, F5, S3);
+3. holds;
+4. booking requests;
+5. venue slots, then the rows that record why they are flagged (`block_disruptions`, `buffer_conflicts`).
+
+Before the audit, converting a hold locked the hold and then the venue, F5 read slots before requests while M1 locks a request and then the slot its hold took, and I2 and H3 flagged slots before requests; each pair could deadlock. The order is also written beside `lockVenue` in `repo/slots.ts`. F4's cancellation (PR #72) is settled the same way: it locks the event's venues, in ascending id, before the event, as I2 locks the venue before the events it returns to Planning, so a cancellation and a block at one of its venues take their locks in the same order and one waits for the other.
+
+**Expired holds block nothing, even without the workflow (L6, M4).** The HoldExpiry workflow expires a hold at its expiry when Temporal and Kafka are up. When they aren't, every slot insert expires the venue's overdue holds first, under the venue lock; `PATCH /holds/:id/expiry` expires an overdue hold instead of reviving it; and `npm run jobs:expire-holds` sweeps the rest. All three use the workflow's own step, so the records and the `venue-booking.hold-expired` message are the same, and running twice expires nothing twice.
+
+**A buffer-change flag clears when its cause ends (H3, I6, M3).** When a booking, hold or request ends (released, expired, withdrawn, rejected, or released by a cancellation), the arrangements a change of setup or turnaround time had flagged against it lose Requires Reconfirmation, unless another live overlap or an active I2 block still causes it. The `buffer_conflicts` record stays open: it says the venue's times made the two overlap, and only a later change of times clears it. A record whose other side has ended keeps nothing flagged.
+
 **Equipment availability** (P1, P2, Q1): never over-reserve, **over a period**. The old design kept one `total`/`reserved` counter per equipment type with no time dimension, so it couldn't tell Friday 2–5 pm from Saturday. It's replaced by two mechanisms.
 
 *Serialized units* (a projector, a microphone) are rows in `equipment.equipment_units`. A reservation claims specific units:
@@ -460,11 +474,25 @@ What a reviewer watches for, from ADR-0005: a registration path that reads capac
 
   There is no HTTP call and no residual window. If an arrangement changes after confirmation, S3 flags the event. The earlier instruction to "re-verify both arrangements inside the writing transaction" contradicted the rule below, and it no longer applies.
 - **Never** hold a transaction open across an HTTP call to another service. Under ADR-0004 there is no exception: cross-module reads inside the core are function calls, and the only remote calls are to the registration and notification services, which never happen inside a core transaction.
-- Statement timeout: 5 s. Connection pool max 10 per service.
+- Statement timeout: 5 s recommended, set with `DB_STATEMENT_TIMEOUT_MS=5000` on the Postgres pools (planning-core, notification, registration). It is off when the variable is unset, because the setting travels as a connection startup parameter and a transaction-mode pooler (Supavisor or pgbouncer, as Supabase uses) may reject it. CI sets 5000 against its own Postgres; turn it on against Supabase only after checking that connections still open. Connection pool max 10 per service.
 
 ### 4.8 Migrations
 
 Forward-only, numbered, one concern per file: `0007_add_venue_slots_exclusion.sql`. Never edit a merged migration. `migrate.ts` applies each file in its own transaction with a 5-second lock timeout and a 60-second statement timeout, so a migration that can't get its lock fails instead of stalling every query behind it. squawk checks new files in CI (§8.1). Seed data (internal staff accounts, venues, equipment types) lives in `/backend/services/<svc>/migrations/seed/` and is idempotent.
+
+### 4.9 The event store (EN-03, ADR-0007)
+
+An event's history (F1's status changes; D3, G1 and S2's field changes) is an append-only stream, `event.event_stream`, built by `migrations/event/0022` and `0023`.
+
+- **One entry per change,** with `version` 1, 2, 3… per event. `unique(aggregate_id, version)` is the optimistic guard: two appends that took the same version can't both be stored.
+- **Hash-chained.** Each entry stores `prev_hash` (64 zeros for version 1) and `hash = sha256(prev_hash || canonical JSON of the entry)`. The canonical form is PostgreSQL's `jsonb` text of the entry's id, aggregateId, version, type, data, actorUserId, actorRole and occurredAt (UTC, microseconds). `event.stream_entry_canonical` in 0022 documents it exactly, and `tests/event/repo/eventStream.test.ts` pins an example.
+- **Append-only.** Triggers refuse `UPDATE`, `DELETE` and `TRUNCATE`, and the app's role keeps only `SELECT` and `INSERT`. Row-level security is EN-07's: `event_stream` still needs its policy.
+
+**Writing.** `appendToStream` (`modules/event/repo/eventStream.ts`) is the one way in, and `recordStatusChange` and `recordFieldChanges` call it. In the caller's transaction it appends each entry (`event.append_to_stream` takes the version and the hash), writes the history projection's row from the stored entry with the same id, and writes the outbox row when the change is published. It takes no lock: call it holding the event's row lock, as every writer does, so the §4.6 order is unchanged. Never insert into `event.event_history` yourself. If you do, a trigger appends the row to the stream in the same statement, so the projection still can't hold an entry the stream lacks.
+
+**Reading.** F2's status history and F5's confirmation time read the stream. `event.event_history` stays as the projection, kept for the tests and queries that read it.
+
+**Checking.** `npm run event-store:verify` recomputes every chain, checks every projection row against its entry, and exits 1 at the first broken link (README). CI runs it after the integration tests, then edits one entry and expects it to fail.
 
 ## 5. HTTP API conventions
 
@@ -485,6 +513,8 @@ Forward-only, numbered, one concern per file: `0007_add_venue_slots_exclusion.sq
 ```
 
 The `message` is user-facing and must name the specific values the story requires. B2 says "the message names every field that caused the rejection" — that is what `fields[]` is for, and returning only the first is a failed acceptance test.
+
+- **`INTERNAL_ERROR`:** a failure no route expected (a rejected query, a bug) is `500` with `code: "INTERNAL_ERROR"`, a generic `message` and the `correlationId`, and nothing else: no stack, no driver or database text. The detail goes to the log under that correlation id. Every service ends its app with the same final error handler, which also maps a malformed JSON body to `400 VALIDATION_FAILED` and an oversized one to `413`. A route needs no try/catch to get this: the router layer passes a rejected promise to `next(error)`.
 
 - Every request carries `Authorization: Bearer <supabase-jwt>` and `X-Correlation-Id` (the gateway generates one if absent; services propagate it into logs and message envelopes).
 - Lists are paginated: `?limit=` (default 25, max 100) `&cursor=`. Response `{ "items": [...], "nextCursor": "..." | null }`.
