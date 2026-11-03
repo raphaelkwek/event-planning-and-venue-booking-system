@@ -42,8 +42,9 @@ creates, the first release, the first Lead in each environment).
 - deploy/oracle/bootstrap.sh installs k3s, cert-manager, Argo CD, the namespaces, the Applications and the gate on
   the VM. It opens 80 and 443 next to 22 and fixes Oracle's iptables REJECT rules, and is safe to run twice.
 - `npm run lead:create` creates an environment's first Event Coordinator Lead with that project's service-role key:
-  Supabase Auth's admin invite (the Lead sets their own password from the email; the script never handles or prints
-  one) and the identity tables. It refuses unless both URLs belong to the project ref you typed.
+  Supabase Auth's admin invite and the identity tables. The invite's link opens a new Set your password screen
+  (`#/set-password`, which password-reset links reach too), so the Lead sets their own password and the script
+  never handles or prints one. It refuses unless both URLs belong to the project ref you typed.
 - CORS from CORS_ALLOWED_ORIGINS in the three services (exact https origins only, nothing changes when it is unset),
   and VITE_API_BASE_URL in the SPA (relative paths stay the default).
 - CI on pull requests: arm64 builds and smoke checks of the five released images; the k3s overlays rendered,

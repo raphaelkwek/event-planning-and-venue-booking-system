@@ -56,9 +56,10 @@ test("DEPLOY-T14 the Lead is invited through Supabase Auth's admin invite, with 
     displayName: "Lead One",
     redirectTo: "https://connectsphere-staging-g9.vercel.app",
   });
-  assert.equal(request.url, `https://${REF}.supabase.co/auth/v1/invite?redirect_to=${encodeURIComponent("https://connectsphere-staging-g9.vercel.app")}`);
+  assert.equal(request.url, `https://${REF}.supabase.co/auth/v1/invite?redirect_to=${encodeURIComponent("https://connectsphere-staging-g9.vercel.app/#/set-password")}`);
   assert.deepEqual(request.body, { email: "lead@example.org", data: { display_name: "Lead One" } });
-  assert.ok(!/password/i.test(JSON.stringify(request)));
+  // No password in what is sent: the link goes to the web app's Set your password screen instead.
+  assert.ok(!/password/i.test(JSON.stringify(request.body)));
   assert.equal(inviteRequest({ supabaseUrl: `https://${REF}.supabase.co`, email: "a@b.co", displayName: "A", redirectTo: null }).url,
     `https://${REF}.supabase.co/auth/v1/invite`);
 });

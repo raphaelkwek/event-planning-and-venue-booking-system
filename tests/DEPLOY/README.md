@@ -21,6 +21,7 @@ tests. No Jira key is assigned yet; the folder is named DEPLOY until one is.
 | An idempotent bootstrap.sh run once on the VM over SSH, opening only 80 and 443 (plus 22). | DEPLOY-T13 | Blocked |
 | Creating the first Lead user in each environment with that environment's service-role key and the identity tables. | DEPLOY-T14 | Blocked |
 | documentation/deploy/README.md is the runbook and Joash's checklist. | DEPLOY-T15 | Blocked |
+| Creating the first Lead user in each environment: the Lead sets their own password from the invite. | DEPLOY-T16 | Not Executed |
 
 **What no card here shows on a pull request:** the Oracle VM, the two Supabase projects, the two Vercel
 projects, Let's Encrypt and the GitHub environments do not exist until Joash creates them

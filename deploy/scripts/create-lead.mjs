@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // ADR-0016. Creates the first Event Coordinator Lead in one environment's own Supabase project.
 // Supabase Auth's admin invite (with that project's service-role key) creates the Auth user and
-// emails the Lead a link, so the Lead sets their own password and this script never sees one.
+// emails the Lead a link to the web app's Set your password screen, so the Lead sets their own
+// password and this script never sees one.
 // The script then inserts the identity user with the EVENT_COORDINATOR_LEAD role
 // (identity.users and identity.user_roles, the tables the identity module and its seeds use).
 // Run it from a laptop, once per environment, after that environment's first release has run
@@ -89,7 +90,8 @@ export function checkProject({ projectRef, supabaseUrl, databaseUrl, serviceRole
  * auth.admin.inviteUserByEmail sends). It carries the email and the display name, never a password.
  */
 export function inviteRequest({ supabaseUrl, email, displayName, redirectTo }) {
-  const query = redirectTo ? `?redirect_to=${encodeURIComponent(redirectTo)}` : "";
+  // The link lands on the web app's Set your password screen (frontend/src/screens/SetPassword.tsx).
+  const query = redirectTo ? `?redirect_to=${encodeURIComponent(`${redirectTo}/#/set-password`)}` : "";
   return {
     url: `${supabaseUrl}/auth/v1/invite${query}`,
     body: { email, data: { display_name: displayName } },
@@ -154,7 +156,7 @@ async function main() {
     console.log(`Lead ready in ${args.projectRef}: ${args.email} (identity user ${userId}).`);
     console.log(
       invited
-        ? "Supabase emailed the Lead an invite; the Lead sets their own password from it (documentation/deploy/README.md, step 7)."
+        ? "Supabase emailed the Lead an invite; its link opens the web app's Set your password screen."
         : "The Auth user already existed, so no invite was sent and nothing about its sign-in changed."
     );
   } finally {

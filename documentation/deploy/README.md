@@ -269,7 +269,7 @@ from your laptop. The script never reads `.env` (that points at the shared proje
 unless both URLs belong to the `--project-ref` you type, and never handles or prints a password:
 
 ```bash
-SUPABASE_URL=https://<staging ref>.supabase.co SUPABASE_SERVICE_ROLE_KEY='<staging service_role key>' MIGRATE_DATABASE_URL='<staging session pooler URI>' npm run lead:create -- --project-ref <staging ref> --email lead@your-domain   --display-name "Lead One" --redirect-to https://connectsphere-staging-….vercel.app
+SUPABASE_URL=https://<staging ref>.supabase.co SUPABASE_SERVICE_ROLE_KEY='<staging service_role key>' MIGRATE_DATABASE_URL='<staging session pooler URI>' npm run lead:create -- --project-ref <staging ref> --email lead@your-domain   --display-name "Lead One" --redirect-to https://connectsphere-staging-….vercel.app   # the web origin
 ```
 
 It invites the Lead through Supabase Auth's admin invite (`POST /auth/v1/invite`, what
@@ -279,23 +279,20 @@ It then inserts the identity user and gives it the `EVENT_COORDINATOR_LEAD` role
 email and nothing changes, and no second invite is sent. Repeat with production's values. Supabase's
 free plan sends only a few emails an hour, which is plenty for this.
 
-**The Lead sets their own password from the invite.** The link signs the Lead in and returns them to
-`--redirect-to` with a session in the address bar (`#access_token=…&type=invite`). That only works if
-step 2's Site URL and Redirect URLs list that origin. ConnectSphere signs in with a password and has
-no screen yet that sets one from an invite. Until it does, the Lead sets it on that page, in the
-browser's developer console. The password is typed into the prompt and goes straight to Supabase:
+**The Lead sets their own password from the invite.** The email's link opens the web app's
+**Set your password** screen (`#/set-password`). The script sets it as the invite's `redirect_to`, so
+step 2's Redirect URLs must allow it: `https://connectsphere-staging-….vercel.app/**` does. The screen
+does the following:
 
-```js
-const token = new URLSearchParams(location.hash.slice(1)).get("access_token");
-await fetch("https://<ref>.supabase.co/auth/v1/user", {
-  method: "PUT",
-  headers: { apikey: "<that environment's anon key>", Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-  body: JSON.stringify({ password: prompt("Choose a password") }),
-}).then((r) => r.status); // 200 means it is set
-```
+- reads the short-lived session Supabase puts in the address bar and removes it from the address bar at once;
+- asks for the new password twice (at least six characters, Supabase's default minimum);
+- sets it with that session (`PUT /auth/v1/user`, the request `supabase.auth.updateUser({ password })` makes);
+- sends the Lead to sign in.
 
-Then sign in on the environment's Vercel URL with the email and that password. Other users are added
-through the app, or the same way with the identity tables.
+If Supabase sends the link back to the site root instead, the app moves it onto the screen. A
+password-reset link (Supabase dashboard → Authentication → Users → **Send password recovery**) lands
+there too. An expired or used link shows a message asking for a new one. Other users are added through
+the app, or the same way with the identity tables.
 
 Without the script: the Lead's own password can also be set by whoever creates them in the Supabase
 dashboard (Authentication → **Add user**, auto-confirm). Copy its UID, then run this in the SQL editor:

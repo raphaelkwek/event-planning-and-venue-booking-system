@@ -3,6 +3,8 @@ import { HashRouter, Link, Navigate, Route, Routes, useLocation, useNavigate } f
 import Button from "@atlaskit/button/new";
 import { SessionProvider, useSession } from "./auth/SessionContext.js";
 import { Login } from "./screens/Login.js";
+import { SetPassword } from "./screens/SetPassword.js";
+import { SET_PASSWORD_PATH } from "./api/password.js";
 import { MyRequests } from "./screens/MyRequests.js";
 import { DraftEditor } from "./screens/DraftEditor.js";
 import { RequestDetail } from "./screens/RequestDetail.js";
@@ -246,6 +248,8 @@ function Shell() {
   const navigate = useNavigate();
   const unread = useUnreadCount(session?.token ?? null, location.pathname);
 
+  // ADR-0016: invite and password-reset links land here, signed in to the app or not.
+  if (location.pathname === SET_PASSWORD_PATH) return <SetPassword />;
   if (!session) return <Login />;
 
   // A1 — signing out leaves nothing behind, including the address of the last
