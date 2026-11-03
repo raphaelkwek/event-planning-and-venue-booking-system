@@ -1,5 +1,5 @@
 import type { Sql, TransactionSql } from "postgres";
-import { findEventForPlanning, type EventPlanningView } from "../../event/index.js";
+import { findEventForChange, type EventForChange } from "../../event/index.js";
 import type { ActorRequest } from "../auth/actor.js";
 import { bufferConflicts } from "../domain/occupancy.js";
 import { writeVenueOutbox } from "../events/outbox.js";
@@ -45,11 +45,12 @@ export async function flagBufferConflicts(
   const newlyFlagged = await recordBufferConflicts(tx, venue.id, conflicts, requestIds, venue, actor.userId);
 
   const flagged: FlaggedBooking[] = [];
-  const events = new Map<string, EventPlanningView | null>();
+  const events = new Map<string, EventForChange | null>();
   // Soonest first, as bufferConflicts orders them; requests may start with a booking.
   const ordered = slots.filter((s) => newlyFlagged.has(s.id)).sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime() || a.reference.localeCompare(b.reference));
   for (const slot of ordered) {
-    if (!events.has(slot.eventId)) events.set(slot.eventId, await findEventForPlanning(sql, slot.eventId, ALL_EVENTS, actor.userId));
+    // The transaction, not the pool: this runs under the venue row lock (L3, audit).
+    if (!events.has(slot.eventId)) events.set(slot.eventId, await findEventForChange(tx, slot.eventId, ALL_EVENTS, actor.userId));
     const event = events.get(slot.eventId) ?? null;
     const overlapsReferences = conflicts.filter((c) => c.slotId === slot.id).map((c) => c.overlapsReference);
     flagged.push({ kind: slot.kind, reference: slot.reference, eventReference: event?.reference ?? null, overlapsReferences });

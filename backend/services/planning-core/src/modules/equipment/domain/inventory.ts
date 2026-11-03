@@ -1,4 +1,5 @@
 import type { EquipmentKind, ErrorCode, ErrorField } from "@connectsphere/contracts";
+import { MAX_QUANTITY, isWholeBetween } from "../../../shared/limits.js";
 
 /** P2's editable equipment-type record. Serialized totals are derived from active labels. */
 export interface EquipmentTypeInput {
@@ -14,7 +15,7 @@ export type EquipmentTypeValidation =
   | { ok: true; equipmentType: EquipmentTypeInput }
   | { ok: false; fields: ErrorField[] };
 
-const WHOLE_ZERO_OR_MORE = (value: number) => Number.isInteger(value) && value >= 0;
+const WHOLE_ZERO_OR_MORE = (value: number) => isWholeBetween(value, 0, MAX_QUANTITY);
 
 /** Validates, trims and de-duplicates the P2 type form without doing I/O. */
 export function validateEquipmentType(input: EquipmentTypeInput): EquipmentTypeValidation {
@@ -40,7 +41,7 @@ export function validateEquipmentType(input: EquipmentTypeInput): EquipmentTypeV
 
   if (input.kind === "BULK") {
     if (input.totalQuantity === null || !WHOLE_ZERO_OR_MORE(input.totalQuantity)) {
-      fields.push({ field: "totalQuantity", message: "Total quantity must be a whole number of zero or greater." });
+      fields.push({ field: "totalQuantity", message: `Total quantity must be a whole number from 0 to ${MAX_QUANTITY}.` });
     }
     if (input.unitLabels.length > 0) {
       fields.push({ field: "unitLabels", message: "Bulk equipment is counted by quantity and cannot have unit labels." });
@@ -81,8 +82,8 @@ export function validateUnavailability(input: UnavailabilityInput, kind: Equipme
 
   if (kind === "BULK") {
     if (input.unitId !== null) fields.push({ field: "unitId", message: "Bulk equipment is marked unavailable by quantity." });
-    if (input.quantity === null || !Number.isInteger(input.quantity) || input.quantity <= 0) {
-      fields.push({ field: "quantity", message: "Unavailable quantity must be a whole number greater than zero." });
+    if (!isWholeBetween(input.quantity, 1, MAX_QUANTITY)) {
+      fields.push({ field: "quantity", message: `Unavailable quantity must be a whole number from 1 to ${MAX_QUANTITY}.` });
     }
   } else {
     if (input.quantity !== null) fields.push({ field: "quantity", message: "A serialized unit is marked unavailable by unit id." });

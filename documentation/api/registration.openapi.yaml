@@ -433,6 +433,7 @@ components:
         - REGISTRATION_NOT_FOUND
         - REGISTRATION_NOT_ACTIVE
         - WITHDRAWAL_DEADLINE_PASSED
+        - INTERNAL_ERROR
 
     ErrorEnvelope:
       type: object

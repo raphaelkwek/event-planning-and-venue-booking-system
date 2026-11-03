@@ -223,7 +223,7 @@ describe("requesting a hold (L3)", () => {
     for (const reminderLeadMinutes of [0, 1.5]) {
       const res = await requestHold(holdBody(event.id, venueId, { reminderLeadMinutes }));
       expect(res.status).toBe(400);
-      expect(res.body.error.fields).toEqual([{ field: "reminderLeadMinutes", message: "Enter a whole number of minutes, at least 1." }]);
+      expect(res.body.error.fields).toEqual([{ field: "reminderLeadMinutes", message: "Enter a whole number of minutes from 1 to 525600." }]);
     }
     expect(await holdCount(event.id)).toBe(0);
     expect((await requestHold(holdBody(event.id, venueId, { reminderLeadMinutes: 1 }))).body.reminderLeadMinutes).toBe(1);

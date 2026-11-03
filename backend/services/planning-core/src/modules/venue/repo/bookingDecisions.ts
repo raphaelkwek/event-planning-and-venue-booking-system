@@ -132,3 +132,9 @@ export async function releaseReplacedBooking(tx: TransactionSql, slotId: string,
   `;
   return rows.length === 1;
 }
+
+/** The venue a slot is at; null when there is no such slot. A slot's venue never changes. */
+export async function slotVenueId(db: Db, slotId: string): Promise<string | null> {
+  const [row] = await db<{ venue_id: string }[]>`select venue_id from venue.venue_slots where id = ${slotId}`;
+  return row?.venue_id ?? null;
+}

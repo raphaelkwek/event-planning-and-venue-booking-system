@@ -46,9 +46,104 @@ after it, follow documentation/supply-chain.md to verify one.
 
 ---
 
+# Venue audit fixes: buffers against blocks, hold expiry fallback, venue-staff scope, stale flags
+
+**Timestamp:** 2026-11-03T03:55+08:00 (SGT)
+**Author:** Joash
+**Scope:** planning-core (venue module), migrations venue/0020 and venue/0021, root `package.json`,
+implementation.md §4.6.
+
+**Deploy:** run `npm run migrate -- venue` (0020, 0021) before deploying planning-core. 0020 fails,
+changing nothing, if a disrupted booking already has two pending replacements; the file gives the
+query that finds them. Schedule `npm run jobs:expire-holds` (every minute is enough) beside
+`jobs:complete-events`.
+
+## Fixed
+
+- H3: `PUT /api/v1/venues/:id` let any Venue Staff member edit any venue, including its setup and
+  turnaround time, which flagged that venue's bookings and notified their coordinators. Only the
+  venue's own Venue Staff can now update it; anyone else gets 404, as for I2, L3 and M1. Creating a
+  venue is unchanged.
+- M1: I2's disrupted-request check, L1's block check and J1's search compared a request's own
+  period with a block. They now compare its occupied period (H3), so a request ending where an
+  open-ended block starts, with turnaround after it, is flagged by I2, refused by L1 and left out
+  of J1, instead of being refused only at approval. J1's window is widened by the venue's own
+  times, which also unblocks J1-T18.
+- M5, L1: placing a hold takes the setup and turnaround time from the venue row it locks, and
+  requesting one checks for blocks and inserts in one transaction under that lock.
+- L3: recording or removing a block, and changing a venue's times, read the events they notify
+  through the transaction instead of the pool, so they can't wait on the pool while holding the
+  venue lock.
+- L2: one lock order for every venue path (venue, event, hold, request, slot), written in
+  implementation.md §4.6. Converting a hold, F5's read of an event's arrangements, and I2's and
+  H3's flagging each took two of these the other way round.
+- M4: an expired hold no longer depends on Temporal and Kafka. Every slot insert expires the
+  venue's overdue holds first, `PATCH /holds/:id/expiry` expires an overdue hold instead of
+  reviving it (409 `HOLD_NOT_HELD`), and the new `npm run jobs:expire-holds` sweeps the rest. All
+  three write the workflow's records and `venue-booking.hold-expired` message.
+- M3: a Requires Reconfirmation flag set by a change of times now clears when the arrangement it
+  overlapped is released, expires, is withdrawn or rejected, or is released by a cancellation,
+  unless another live overlap or an active block still causes it. F5 no longer refuses for good.
+- L5: a disrupted booking can have one pending replacement at a time (migration 0020); a second is
+  refused with 409 `BOOKING_REQUEST_DUPLICATE` naming the first.
+- L9: migration 0021 validates the two checks venue/0011 added NOT VALID.
+
+## Not changed
+
+- M2 (existing slots keep the buffers they were taken with), M6 (a block doesn't flag a hold that
+  is only Requested) and M9 (S3 multi-venue attendance) wait for team or PO rulings.
+- S3's own flags (`period_mismatch`, `unsuitable`, equipment's review flag) are still only set,
+  never re-assessed; that is the change module's and is left to its owner.
+- L6 (audit): another venue's Venue Staff still get 403 on approve or reject; M1-T11 asserts it.
 
 ---
 
+
+---
+
+
+---
+
+# Audit fixes: async route errors, stack-trace leaks, rate limits, timeouts, hardening
+
+**Timestamp:** 2026-11-03T03:45+08:00 (SGT)
+**Author:** Joash
+**Scope:** planning-core, notification and registration services, contracts, OpenAPI, dependencies.
+
+**Deploy:** no migration. `DB_STATEMENT_TIMEOUT_MS=5000` is recommended but off by default, because a transaction-mode
+pooler may refuse the `statement_timeout` startup parameter; `JWT_ISSUER` / `JWT_AUDIENCE` if a stand-in auth server issues
+tokens with other claims.
+
+## Fixed
+
+- **C1:** a rejected promise in an async route handler no longer ends the process (and, under
+  `concurrently --kill-others-on-fail`, the whole dev stack). Express's router layer now passes it to
+  a final error handler that answers `500 INTERNAL_ERROR` in the error envelope with a generic
+  message and logs the detail with the correlation id. `unhandledRejection` is logged and the process
+  carries on; `uncaughtException` is logged and the process exits with 1. Same in the notification and registration services. `INTERNAL_ERROR` joins
+  `ERROR_CODES` and the OpenAPI `ErrorCode` enum.
+- **C1 trigger:** venue and layout capacities, setup and turnaround minutes, expected attendance,
+  `reminderLeadMinutes` and equipment quantities are bounded below Postgres's `int` range and refused
+  with `400 VALIDATION_FAILED` naming the field and the bound.
+- **G4:** the approval message's `layoutCapacity` is at most `MAX_VENUE_CAPACITY` (1 000 000), the
+  constant planning-core uses for venue capacities, so one message cannot make the registration
+  service insert millions of seat rows; an oversized one is skipped as invalid.
+- **H1:** errors no longer reach the caller as an HTML stack trace: a malformed JSON body is
+  `400 VALIDATION_FAILED`, an oversized one `413`, and `next(error)` routes in venue, equipment and
+  change get the envelope. `/readyz` returns a generic status and logs the database error. A 5xx is
+  logged as an error, not as a refusal.
+- **M11:** the event module's routes and the notification routes are rate-limited before
+  authentication (120 a minute per address, `RATE_LIMITED`). The R2/R4 registration-settings route shares the event
+  module's limiter instead of keeping a budget of its own, and the registration service's attendee routes
+  (R1 to R4) and every `/metrics` endpoint (EN-17) keep their own limiter, which already runs before the token check.
+- **L10:** `GET /api/v1/users/me` is limited per verified token subject, with a high per-address
+  flood ceiling, so the notification and registration services' calls for every user no longer share one budget.
+- **L8:** an opt-in 5 s statement timeout on the Postgres pools (`DB_STATEMENT_TIMEOUT_MS=5000`, off by default, on in CI) and a timeout on
+  the Supabase Auth calls (`SUPABASE_AUTH_TIMEOUT_MS`).
+- **L13:** helmet headers and no `X-Powered-By`; `verifyJwt` checks `aud` (`authenticated`) and `iss`
+  (`<SUPABASE_URL>/auth/v1`), both overridable.
+- **M12:** `npm audit fix` without `--force`.
+- The `replay.unit.test.ts` round-trip test passes on a Windows checkout with `core.autocrlf=true`.
 
 ---
 
@@ -176,6 +271,9 @@ documentation scripts. No migration.
 
 - Every vitest config also writes a JSON report when `CI` is set, and CI uploads them.
 - New error code `FEATURE_DISABLED`.
+
+---
+
 # EN-10 and EN-16: container images, Kubernetes, Terraform, GitOps and canary releases (SPM-128, SPM-134)
 
 **Timestamp:** 2026-11-02T23:55+08:00 (SGT)
