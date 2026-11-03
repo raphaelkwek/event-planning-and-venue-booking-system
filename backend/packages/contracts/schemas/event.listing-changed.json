@@ -41,6 +41,10 @@
       "minLength": 1,
       "type": "string"
     },
+    "highDemand": {
+      "default": false,
+      "type": "boolean"
+    },
     "ownerId": {
       "format": "uuid",
       "type": "string"

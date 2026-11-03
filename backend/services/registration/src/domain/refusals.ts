@@ -64,6 +64,21 @@ export function notActiveMessage(registrationReference: string, status: Registra
   return `Registration ${registrationReference} is ${REGISTRATION_STATUS_LABELS[status]}, so it cannot be withdrawn.`;
 }
 
+/** EN-19: a flagged event takes registrations only from an attendee the waiting room has admitted. */
+export function admissionRequiredMessage(event: EventLabel): string {
+  return `${eventLabel(event)} is a high-demand event, so you must join its waiting room and be admitted before you can register. Nothing was changed.`;
+}
+
+/** EN-19: the admission was good once, and its time is up. */
+export function admissionExpiredMessage(event: EventLabel): string {
+  return `Your turn to register for ${eventLabel(event)} has passed. Join the waiting room again for a new place in the queue. Nothing was changed.`;
+}
+
+/** EN-19: there is no queue for an event that is not high-demand. */
+export function waitingRoomNotRequiredMessage(event: EventLabel): string {
+  return `${eventLabel(event)} is not a high-demand event, so it has no waiting room. You can register for it directly.`;
+}
+
 /** "1 place" or "3 places". */
 function places(n: number): string {
   return n === 1 ? "1 place" : `${n} places`;

@@ -9,6 +9,8 @@
  */
 export const ERROR_CODES = [
   "ACCOUNT_DEACTIVATED",
+  "ADMISSION_EXPIRED", // EN-19: the waiting room. A high-demand event takes registrations only with an admission token.
+  "ADMISSION_REQUIRED",
   "ALREADY_ASSIGNED", // E3: the Lead assigns only an active Event Coordinator, once, to a submitted event.
   "ARRANGEMENTS_NOT_READY",
   "ARRANGEMENTS_UNAVAILABLE",
@@ -87,6 +89,9 @@ export const ERROR_CODES = [
   "VENUE_NOT_FOUND",
   "VENUE_SLOT_CONFLICT",
   "VENUE_UNAVAILABLE",
+  "WAITING_ROOM_ENTRY_NOT_FOUND",
+  "WAITING_ROOM_NOT_REQUIRED",
+  "WAITING_ROOM_UNAVAILABLE",
   "WAITLIST_DUPLICATE", // R6: the waitlist.
   "WAITLIST_ENTRY_NOT_ACTIVE",
   "WAITLIST_ENTRY_NOT_FOUND",

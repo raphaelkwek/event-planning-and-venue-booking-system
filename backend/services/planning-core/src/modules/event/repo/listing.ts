@@ -22,6 +22,8 @@ export interface EventListing {
   registrationOpensAt: string | null;
   registrationClosesAt: string | null;
   withdrawalDeadlineAt: string | null;
+  /** EN-19: attendees queue in the waiting room and register with an admission token. */
+  highDemand: boolean;
 }
 
 const iso = (value: Date | null) => value?.toISOString() ?? null;
@@ -41,10 +43,11 @@ export async function readListing(tx: TransactionSql, eventId: string): Promise<
     registration_opens_at: Date | null;
     registration_closes_at: Date | null;
     withdrawal_deadline_at: Date | null;
+    high_demand: boolean;
   }[]>`
     select e.id, e.reference, e.name, e.owner_id, a.coordinator_id as assigned_coordinator_id, e.description, e.status,
            e.proposed_start_at, e.proposed_end_at, e.registration_required, e.registration_opens_at,
-           e.registration_closes_at, e.withdrawal_deadline_at
+           e.registration_closes_at, e.withdrawal_deadline_at, e.high_demand
     from event.events e
     left join event.assignments a on a.event_id = e.id and a.is_active
     where e.id = ${eventId}
@@ -65,5 +68,6 @@ export async function readListing(tx: TransactionSql, eventId: string): Promise<
     registrationOpensAt: iso(row.registration_opens_at),
     registrationClosesAt: iso(row.registration_closes_at),
     withdrawalDeadlineAt: iso(row.withdrawal_deadline_at),
+    highDemand: row.high_demand,
   };
 }

@@ -172,7 +172,8 @@ describe("POST /api/v1/registrations/:id/withdrawal (R4)", () => {
     const again = await registerAs(me, event.eventId);
     expect(again.status).toBe(201);
     expect(again.body.reference).not.toBe(registration.reference);
-    expect((await request(app).get("/api/v1/registrations").set(asAttendee(me))).body.items.map((r: { status: string }) => r.status)).toEqual([
+    expect((await request(app).get("/api/v1/registrations").set(asAttendee(me))).body.items.map((r: { status: string }) => r.status).sort()).toEqual([
+      // Both were made at the fixed test instant, so the list's tie-break (the random id) decides their order.
       "REGISTERED",
       "WITHDRAWN",
     ]);

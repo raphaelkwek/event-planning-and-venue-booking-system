@@ -44,7 +44,24 @@ describe("handleListingMessage", () => {
       registrationOpensAt: "2026-12-01T01:00:00.000Z",
       registrationClosesAt: "2026-12-10T10:00:00.000Z",
       withdrawalDeadlineAt: null,
+      highDemand: false,
     });
+  });
+
+  it("EN-19-T3 keeps the high-demand flag from each listing, and reads a message without it as not flagged", async () => {
+    const eventId = randomUUID();
+    track(eventId);
+
+    await handleListingMessage(listingMessage(eventId, "EVT-000905", { highDemand: true, changedAt: "2026-11-01T00:00:00.000Z" }), { sql });
+    expect((await findListing(sql, eventId))!.highDemand).toBe(true);
+
+    await handleListingMessage(listingMessage(eventId, "EVT-000905", { highDemand: false, changedAt: "2026-11-02T00:00:00.000Z" }), { sql });
+    expect((await findListing(sql, eventId))!.highDemand).toBe(false);
+
+    await handleListingMessage(listingMessage(eventId, "EVT-000905", { highDemand: true, changedAt: "2026-11-03T00:00:00.000Z" }), { sql });
+    // Published before the flag existed: no field at all.
+    await handleListingMessage(listingMessage(eventId, "EVT-000905", { changedAt: "2026-11-04T00:00:00.000Z" }), { sql });
+    expect((await findListing(sql, eventId))!.highDemand).toBe(false);
   });
 
   it("R5, R7 takes a change of coordinator from a newer snapshot, and none from one written before the field", async () => {

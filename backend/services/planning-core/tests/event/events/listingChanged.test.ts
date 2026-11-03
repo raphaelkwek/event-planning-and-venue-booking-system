@@ -63,8 +63,19 @@ describe("event.listing-changed", () => {
       registrationOpensAt: "2030-01-01T01:00:00.000Z",
       registrationClosesAt: "2030-01-31T10:00:00.000Z",
       withdrawalDeadlineAt: null,
+      highDemand: false,
       changedAt: expect.any(String),
     });
+  });
+
+  it("EN-19-T1 carries the event's high-demand flag", async () => {
+    const id = await seedEvent(sql, { ownerId: OWNER, status: "CONFIRMED", endsAt: ENDS });
+    await sql`update event.events set high_demand = true where id = ${id}`;
+
+    await sql.begin((tx) => writeListingChanged(tx, id, coordinator, null));
+
+    const [only] = await listings(id);
+    expect(only!.message.data).toMatchObject({ highDemand: true });
   });
 
   it("is written when an approved change moves the event's times (S2), with the new times (R1-T1)", async () => {

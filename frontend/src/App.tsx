@@ -42,6 +42,7 @@ import { OpenEvents } from "./screens/OpenEvents.js";
 import { OpenEventDetail } from "./screens/OpenEventDetail.js";
 import { MyRegistrations } from "./screens/MyRegistrations.js";
 import { RegistrationSettings } from "./screens/RegistrationSettings.js";
+import { WaitingRoom } from "./screens/WaitingRoom.js";
 import { EventRegistrations } from "./screens/EventRegistrations.js";
 import { SafetyQueue } from "./screens/SafetyQueue.js";
 import { SafetyReviewDetail } from "./screens/SafetyReviewDetail.js";
@@ -207,6 +208,8 @@ const ROUTES: {
     nav: { label: "Events", to: "/open-events" },
   },
   { path: "/open-events/:eventId", element: <OpenEventDetail />, roles: ["ATTENDEE"] },
+  // EN-19: the queue a high-demand event puts attendees in before they can register.
+  { path: "/open-events/:eventId/waiting-room", element: <WaitingRoom />, roles: ["ATTENDEE"] },
   {
     path: "/my-registrations",
     element: <MyRegistrations />,

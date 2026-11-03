@@ -272,6 +272,12 @@ export const eventListingChangedPayloadSchema = z.object({
   registrationClosesAt: z.string().datetime().nullable(),
   /** R4: null when the organiser set none, and withdrawal is then allowed until the event starts. */
   withdrawalDeadlineAt: z.string().datetime().nullable(),
+  /**
+   * EN-19: attendees of a high-demand event queue in the registration service's
+   * waiting room and register with an admission token. A message published
+   * before the flag existed reads as not high-demand.
+   */
+  highDemand: z.boolean().default(false),
   changedAt: z.string().datetime(),
 });
 

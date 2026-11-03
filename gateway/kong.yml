@@ -1,0 +1,259 @@
+# ConnectSphere API gateway: Kong 3.9 (open source), DB-less (EN-12, ADR-0011).
+#
+# This file holds policy only: no key, no secret, no environment-specific address worth hiding.
+# `node gateway/scripts/render-config.mjs` turns it into the file Kong loads:
+#   - it replaces the marker below with one JWT credential per key in the Supabase JWKS;
+#   - it can point the upstreams and Redis at other addresses and lower the limits (CI does).
+# The committed file is valid on its own (`kong config parse`), but without credentials it refuses
+# every staff request. documentation/gateway.md explains the design and what was validated.
+#
+# Routes mirror the prefixes the web app already calls (frontend/src/api, vite.config.ts), so the
+# browser keeps one origin and no service needs CORS. Kong strips the prefix.
+#
+#   /identity /event /venue /equipment  -> planning-core   :8090   STAFF (jwt, per-user limit)
+#   (every route is `/<prefix>/api/v1`, so only the API is reachable; /<prefix>/healthz is not)
+#   /notification                       -> notification    :8091   STAFF (jwt, per-user limit)
+#   /identity/api/v1/auth               -> planning-core   :8090   PUBLIC (per-address limit; sign-in has no token yet)
+#   /registration                       -> registration    :8092   PUBLIC (per-address limit)
+#
+# Nothing routes to /healthz, /readyz or any metrics path: probes talk to the pods, not to the edge.
+#
+# Plugin order at Kong (priority, high first): pre-function 1000000, correlation-id 100001,
+# jwt 1450, rate-limiting 910. So a staff request's user id is read before the token is checked,
+# the token is checked before the limit counts it, and a refused token never uses a user's budget.
+_format_version: "3.0"
+
+consumers:
+  - username: supabase-auth
+    # @@JWT_SECRETS@@
+
+# One upstream per service pool. Staff and public traffic to planning-core use different pools
+# (so one can be scaled, drained or limited without the other).
+upstreams:
+  - name: staff-planning-core
+    targets:
+      - target: planning-core:8090
+  - name: public-planning-core
+    targets:
+      - target: planning-core:8090
+  - name: staff-notification
+    targets:
+      - target: notification:8091
+  - name: public-registration
+    targets:
+      - target: registration:8092
+
+plugins:
+  # x-correlation-id: kept when the caller sent one, otherwise a UUID; echoed in the response.
+  - name: correlation-id
+    config:
+      header_name: x-correlation-id
+      generator: uuid
+      echo_downstream: true
+  # The same 1 MB ceiling the Kubernetes ingress used (#75).
+  - name: request-size-limiting
+    config:
+      allowed_payload_size: 1
+      size_unit: megabytes
+  # W3C traceparent, and the user id the staff limit counts by. One instance for every route, so
+  # no service can be added without it. Kong's `opentelemetry` plugin needs a collector to be
+  # useful and its propagation settings differ between Kong releases, so the header is made here:
+  #   - a valid incoming `traceparent` keeps its trace id and gets a new span id;
+  #   - a missing or malformed one is replaced by a fresh trace (the request id as trace id);
+  #   - the value goes upstream and comes back in the response.
+  # `x-user-id` is always removed from what the client sent. On STAFF services (named staff-*) it is
+  # then set from the token's `sub` (the jwt plugin runs next and refuses a bad token, so the
+  # value is only used for a verified one). The rate limit counts by it. PUBLIC services get none.
+  # Needs KONG_UNTRUSTED_LUA=on (this file is the only Lua; the Admin API is off in DB-less mode).
+  - name: pre-function
+    config:
+      access:
+        - |
+          local cjson = require "cjson.safe"
+          local hex = "[0-9a-f]"
+          local request_id = ngx.var.request_id
+          local pattern = "^00%-(" .. string.rep(hex, 32) .. ")%-" .. string.rep(hex, 16) .. "%-(" .. string.rep(hex, 2) .. ")$"
+          local trace_id, flags = (kong.request.get_header("traceparent") or ""):match(pattern)
+          if trace_id == string.rep("0", 32) then trace_id = nil end
+          if not trace_id then trace_id, flags = request_id, "01" end
+          local span_id = string.sub(request_id, 17, 32)
+          if span_id == string.rep("0", 16) then span_id = "0000000000000001" end
+          local traceparent = "00-" .. trace_id .. "-" .. span_id .. "-" .. flags
+          ngx.req.set_header("traceparent", traceparent)
+          ngx.ctx.cs_traceparent = traceparent
+
+          ngx.req.clear_header("x-user-id")
+          local service = kong.router.get_service()
+          if service and service.name and string.sub(service.name, 1, 6) == "staff-" then
+            local token = (kong.request.get_header("authorization") or ""):match("^[Bb]earer%s+(.+)$")
+            local payload = token and token:match("^[^.]+%.([^.]+)%.")
+            if payload then
+              payload = payload:gsub("%-", "+"):gsub("_", "/")
+              payload = payload .. string.rep("=", (4 - #payload % 4) % 4)
+              local claims = cjson.decode(ngx.decode_base64(payload) or "")
+              if type(claims) == "table" and type(claims.sub) == "string" and claims.sub ~= "" then
+                ngx.req.set_header("x-user-id", claims.sub)
+              end
+            end
+          end
+      header_filter:
+        - |
+          if ngx.ctx.cs_traceparent then
+            kong.response.set_header("traceparent", ngx.ctx.cs_traceparent)
+          end
+
+services:
+  # ---------------------------------------------------------------- STAFF
+  - name: staff-planning-core
+    host: staff-planning-core
+    port: 8090
+    path: /api/v1
+    protocol: http
+    connect_timeout: 5000
+    read_timeout: 30000
+    write_timeout: 30000
+    routes:
+      - name: staff-identity
+        paths: [/identity/api/v1]
+        strip_path: true
+      - name: staff-event
+        paths: [/event/api/v1]
+        strip_path: true
+      - name: staff-venue
+        paths: [/venue/api/v1]
+        strip_path: true
+      - name: staff-equipment
+        paths: [/equipment/api/v1]
+        strip_path: true
+    plugins:
+      - name: jwt
+        config:
+          key_claim_name: kid
+          claims_to_verify: [exp]
+          header_names: [authorization]
+          uri_param_names: []
+          cookie_names: []
+      - name: rate-limiting
+        config:
+          minute: 300
+          limit_by: header
+          header_name: x-user-id
+          policy: redis
+          fault_tolerant: true
+          hide_client_headers: false
+          error_code: 429
+          error_message: Too many requests. Wait a minute and try again.
+          redis:
+            host: redis
+            port: 6379
+            database: 0
+            timeout: 2000
+      - name: response-transformer
+        config:
+          add:
+            headers:
+              - "Cache-Control:no-store"
+
+  - name: staff-notification
+    host: staff-notification
+    port: 8091
+    path: /api/v1
+    protocol: http
+    connect_timeout: 5000
+    read_timeout: 30000
+    write_timeout: 30000
+    routes:
+      - name: staff-notification
+        paths: [/notification/api/v1]
+        strip_path: true
+    plugins:
+      - name: jwt
+        config:
+          key_claim_name: kid
+          claims_to_verify: [exp]
+          header_names: [authorization]
+          uri_param_names: []
+          cookie_names: []
+      - name: rate-limiting
+        config:
+          minute: 300
+          limit_by: header
+          header_name: x-user-id
+          policy: redis
+          fault_tolerant: true
+          hide_client_headers: false
+          error_code: 429
+          error_message: Too many requests. Wait a minute and try again.
+          redis:
+            host: redis
+            port: 6379
+            database: 0
+            timeout: 2000
+      - name: response-transformer
+        config:
+          add:
+            headers:
+              - "Cache-Control:no-store"
+
+  # ---------------------------------------------------------------- PUBLIC
+  # Sign-in and sign-out: no token exists yet at sign-in. The longer path wins over /identity/api/v1
+  # above. Sign-out is under the same prefix; planning-core still refuses it without a token.
+  - name: public-auth
+    host: public-planning-core
+    port: 8090
+    path: /api/v1/auth
+    protocol: http
+    connect_timeout: 5000
+    read_timeout: 30000
+    write_timeout: 30000
+    routes:
+      - name: public-auth
+        paths: [/identity/api/v1/auth]
+        strip_path: true
+        methods: [POST]
+    plugins:
+      - name: rate-limiting
+        config:
+          minute: 600
+          limit_by: ip
+          policy: redis
+          fault_tolerant: true
+          hide_client_headers: false
+          error_code: 429
+          error_message: Too many requests. Wait a minute and try again.
+          redis:
+            host: redis
+            port: 6379
+            database: 0
+            timeout: 2000
+
+  # The attendee API (R1 to R4) and the waiting room (EN-19). No jwt plugin here: the service checks
+  # the token itself, locally against the same JWKS, and the per-address limit counts every request,
+  # including ones with no or a bad token, before the service does any work.
+  - name: public-registration
+    host: public-registration
+    port: 8092
+    path: /api/v1
+    protocol: http
+    connect_timeout: 5000
+    read_timeout: 30000
+    write_timeout: 30000
+    routes:
+      - name: public-registration
+        paths: [/registration/api/v1]
+        strip_path: true
+    plugins:
+      - name: rate-limiting
+        config:
+          minute: 600
+          limit_by: ip
+          policy: redis
+          fault_tolerant: true
+          hide_client_headers: false
+          error_code: 429
+          error_message: Too many requests. Wait a minute and try again.
+          redis:
+            host: redis
+            port: 6379
+            database: 0
+            timeout: 2000

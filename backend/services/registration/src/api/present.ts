@@ -28,6 +28,8 @@ export interface OpenEvent {
   withdrawalDeadline: string | null;
   placesRemaining: number;
   isFull: boolean;
+  /** EN-19: registering needs a place in the waiting room first. */
+  highDemand: boolean;
 }
 
 export function presentOpenEvent(listing: Listing, venues: PublicVenue[], counts: PlaceCounts): OpenEvent {
@@ -45,6 +47,7 @@ export function presentOpenEvent(listing: Listing, venues: PublicVenue[], counts
     withdrawalDeadline: withdrawalDeadline(listing)?.at ?? null,
     placesRemaining: places,
     isFull: places === 0,
+    highDemand: listing.highDemand,
   };
 }
 

@@ -20,8 +20,15 @@ info:
     only the event's owner and assigned coordinator. If identity cannot be reached they are
     refused with `503`.
 
-    **Every route is rate limited** (120 requests a minute per address) before its token is
-    checked. Responses carry `Cache-Control: no-store` (ADR-0014) and `X-Correlation-Id`.
+    **Every route is rate limited** before its token is checked: 120 requests a minute per
+    address, and 240 for the waiting room, which is polled. Responses carry `Cache-Control:
+    no-store` (ADR-0014) and `X-Correlation-Id`, except the two browse routes
+    (`GET /api/v1/open-events` and `/{eventId}`), which carry `public, max-age=5,
+    stale-while-revalidate=30` so a CDN can serve them (EN-12, ADR-0011). They hold published
+    fields only, nothing about the caller.
+
+    **High-demand events (EN-19).** An event whose organiser flagged it high-demand takes
+    registrations only with an admission token from the waiting room (ADR-0011).
 
     Times are RFC 3339 UTC; refusal messages name them in Singapore time. The web app reaches
     this service through the `/registration` proxy prefix. `tests/api/openapiRoutes.unit.test.ts`
@@ -46,6 +53,8 @@ tags:
     description: R6 join, see and leave the waitlist
   - name: Organiser
     description: R5 an event's registrations, R6 its waitlist, R7 add an attendee by hand
+  - name: Waiting room
+    description: EN-19 the queue a high-demand event puts attendees in before they can register
 
 security:
   - bearerAuth: []
@@ -202,7 +211,18 @@ paths:
         last place cannot both get it. Accepted from the opening instant up to and including the
         closing instant. A refusal stores nothing and leaves places remaining unchanged.
         Attendees only.
+
+        **High-demand events (EN-19).** For an event whose organiser flagged it high-demand,
+        `X-Admission-Token` must carry the token the waiting room gave the attendee: signed, for
+        this event and this attendee, not expired, not used. It is spent by the registration it
+        admits. Without a good one the answer is `403` and nothing is stored.
       operationId: register
+      parameters:
+        - name: X-Admission-Token
+          in: header
+          required: false
+          schema: { type: string }
+          description: "EN-19: the admission token from `GET /api/v1/waiting-room/entries/{entryId}`. Required for a high-demand event, ignored for any other."
       requestBody:
         required: true
         content:
@@ -221,7 +241,15 @@ paths:
               schema: { $ref: "#/components/schemas/Registration" }
         "400": { $ref: "#/components/responses/ValidationFailed" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
-        "403": { $ref: "#/components/responses/NotAnAttendee" }
+        "403":
+          description: |
+            `ROLE_NOT_AUTHORISED` or `NO_ROLE_ASSIGNED`: only attendees register. For a high-demand
+            event: `ADMISSION_REQUIRED` (no token, or one that is malformed, forged, for another event
+            or attendee, or already used; `details.waitingRoom` is true) or `ADMISSION_EXPIRED` (the
+            token was good and its time is up: join the waiting room again).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
         "404":
           description: "`EVENT_NOT_FOUND`: no event open for registration has that id (not Confirmed, registration not enabled, cancelled, or unknown)."
           content:
@@ -241,7 +269,11 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
         "429": { $ref: "#/components/responses/RateLimited" }
-        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+        "503":
+          description: "`IDENTITY_UNAVAILABLE`: identity could not be asked who the caller is; or `WAITING_ROOM_UNAVAILABLE`: the event is high-demand and the service has no key to check admission tokens with. Nothing was changed."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
 
   /api/v1/registrations/{id}:
     parameters:
@@ -545,6 +577,103 @@ paths:
         "429": { $ref: "#/components/responses/RateLimited" }
         "503": { $ref: "#/components/responses/IdentityUnavailable" }
 
+  /api/v1/waiting-room/entries:
+    post:
+      tags: [Waiting room]
+      summary: Join the waiting room of a high-demand event (EN-19)
+      description: |
+        Gives the attendee a place in the event's queue: a slot at which they are admitted. The
+        event admits at most N attendees a second (`WAITING_ROOM_ADMIT_PER_SECOND`, default 100),
+        so the slot is the later of now and one admission interval after the previous joiner's.
+        Joining again while waiting or admitted returns the same place (`200`); after the turn has
+        expired, or the token has been used, it makes a new place at the back (`201`). Attendees
+        only. Limited to 240 requests a minute per address, before authentication.
+      operationId: joinWaitingRoom
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [eventId]
+              additionalProperties: false
+              properties:
+                eventId: { type: string, format: uuid }
+      responses:
+        "200":
+          description: The attendee already had a place; it is returned unchanged.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WaitingRoomPlace" }
+        "201":
+          description: A new place.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WaitingRoomPlace" }
+        "400": { $ref: "#/components/responses/ValidationFailed" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/NotAnAttendee" }
+        "404":
+          description: "`EVENT_NOT_FOUND`: no event open for registration has that id."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "409":
+          description: "`WAITING_ROOM_NOT_REQUIRED`: the event is not high-demand, so it has no waiting room; register for it directly."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "422":
+          description: "`REGISTRATION_OUTSIDE_WINDOW`: registration is not open, so there is nothing to queue for."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "429":
+          description: "`RATE_LIMITED`: more than 240 requests in a minute from one address."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "503":
+          description: "`IDENTITY_UNAVAILABLE`, or `WAITING_ROOM_UNAVAILABLE`: the service has no key to sign admission tokens with."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+
+  /api/v1/waiting-room/entries/{entryId}:
+    parameters:
+      - name: entryId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Waiting room]
+      summary: Where a place in the waiting room stands (EN-19)
+      description: |
+        The place's status, queue position and estimated wait, and, while the attendee is admitted,
+        the admission token to send as `X-Admission-Token` when registering. Poll it about every two
+        seconds. It needs only a valid Supabase token (checked locally, so a rush of polling does not
+        reach identity) and the entry id, which only the attendee who joined was given; the token it
+        returns is bound to that attendee. Limited to 240 requests a minute per address, before
+        authentication.
+      operationId: getWaitingRoomPlace
+      responses:
+        "200":
+          description: The place.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WaitingRoomPlace" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "404":
+          description: "`WAITING_ROOM_ENTRY_NOT_FOUND`: there is no place with that id."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "429":
+          description: "`RATE_LIMITED`: more than 240 requests in a minute from one address."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+
 components:
   securitySchemes:
     bearerAuth:
@@ -631,7 +760,7 @@ components:
     OpenEvent:
       description: "R1: only published fields. No review comments, clarifications, notes, booking or equipment records."
       type: object
-      required: [eventId, reference, name, description, startsAt, endsAt, venues, registrationOpensAt, registrationClosesAt, withdrawalDeadline, placesRemaining, isFull]
+      required: [eventId, reference, name, description, startsAt, endsAt, venues, registrationOpensAt, registrationClosesAt, withdrawalDeadline, placesRemaining, isFull, highDemand]
       additionalProperties: false
       properties:
         eventId: { type: string, format: uuid }
@@ -648,6 +777,25 @@ components:
         withdrawalDeadline: { type: [string, "null"], format: date-time, description: "R4: the last instant to withdraw: the organiser's deadline, or the event's start." }
         placesRemaining: { type: integer, minimum: 0, description: "The layout capacity of the confirmed bookings, less the places taken. Never negative (D-01)." }
         isFull: { type: boolean }
+        highDemand: { type: boolean, description: "EN-19: attendees queue in the waiting room and register with an admission token." }
+
+    WaitingRoomPlace:
+      description: "EN-19: an attendee's place in an event's waiting room."
+      type: object
+      required: [entryId, eventId, status, position, estimatedWaitSeconds, admitAt, expiresAt, admissionToken]
+      additionalProperties: false
+      properties:
+        entryId: { type: string, format: uuid }
+        eventId: { type: string, format: uuid }
+        status:
+          type: string
+          enum: [WAITING, ADMITTED, EXPIRED, USED]
+          description: "WAITING until the slot; ADMITTED from the slot until the token expires; EXPIRED after (join again); USED once a registration has spent it."
+        position: { type: integer, minimum: 0, description: "1 for the next to be admitted; 0 once no longer waiting." }
+        estimatedWaitSeconds: { type: integer, minimum: 0, description: "Whole seconds until admission, rounded up; 0 once admitted." }
+        admitAt: { type: string, format: date-time }
+        expiresAt: { type: string, format: date-time, description: "When the admission token stops being accepted: the slot plus the token's life (default 300 s)." }
+        admissionToken: { type: [string, "null"], description: "Present only while ADMITTED." }
 
     Registration:
       type: object
@@ -789,6 +937,8 @@ components:
       type: string
       description: The codes this service returns, from contracts' ERROR_CODES.
       enum:
+        - ADMISSION_EXPIRED
+        - ADMISSION_REQUIRED
         - ATTENDEE_NOT_FOUND
         - EVENT_NOT_FOUND
         - IDENTITY_UNAVAILABLE
@@ -806,6 +956,9 @@ components:
         - ROLE_NOT_AUTHORISED
         - UNAUTHENTICATED
         - VALIDATION_FAILED
+        - WAITING_ROOM_ENTRY_NOT_FOUND
+        - WAITING_ROOM_NOT_REQUIRED
+        - WAITING_ROOM_UNAVAILABLE
         - WAITLIST_DUPLICATE
         - WAITLIST_ENTRY_NOT_ACTIVE
         - WAITLIST_ENTRY_NOT_FOUND

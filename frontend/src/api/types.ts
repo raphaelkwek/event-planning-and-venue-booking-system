@@ -53,6 +53,8 @@ export interface EventRecord {
   registrationClosesAt: string | null;
   /** R4: the organiser's withdrawal deadline; absent from events read before R4. */
   withdrawalDeadlineAt?: string | null;
+  /** EN-19: attendees queue in the waiting room and register with an admission token. */
+  highDemand?: boolean;
   status: EventStatus;
   submittedAt: string | null;
   lastSavedAt: string;
