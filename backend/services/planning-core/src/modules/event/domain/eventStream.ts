@@ -172,7 +172,9 @@ export interface StoreVerification extends ChainSummary {
 
 /** What the command prints, and whether it passes. */
 export function verificationReport(result: StoreVerification): { ok: boolean; lines: string[] } {
-  const lines = [`Checked ${result.entries} stream entries across ${result.events} events.`];
+  const lines = [
+    `Checked ${counted(result.entries, "stream entry", "stream entries")} across ${counted(result.events, "event", "events")}.`,
+  ];
   if (result.brokenLink) {
     const { aggregateId, version, fault, reason } = result.brokenLink;
     lines.push(`First broken link: event ${aggregateId} version ${version} (${fault}): ${reason}.`);
@@ -190,4 +192,8 @@ export function verificationReport(result: StoreVerification): { ok: boolean; li
     lines.push("Every history row matches its stream entry.");
   }
   return { ok: !result.brokenLink && !result.projectionMismatch, lines };
+}
+
+function counted(n: number, one: string, many: string): string {
+  return `${n} ${n === 1 ? one : many}`;
 }

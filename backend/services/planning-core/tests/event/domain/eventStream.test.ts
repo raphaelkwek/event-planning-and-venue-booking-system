@@ -220,6 +220,11 @@ describe("what the command prints", () => {
     });
   });
 
+  it("says entry and event for one of each, and entries and events for none", () => {
+    expect(verificationReport({ ...intact, entries: 1, events: 1 }).lines[0]).toBe("Checked 1 stream entry across 1 event.");
+    expect(verificationReport({ ...intact, entries: 0, events: 0 }).lines[0]).toBe("Checked 0 stream entries across 0 events.");
+  });
+
   it("fails on a broken link, naming the event, the version, the fault and why", () => {
     const report = verificationReport({
       ...intact,
