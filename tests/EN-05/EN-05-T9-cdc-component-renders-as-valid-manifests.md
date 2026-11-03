@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | kubectl kustomize rendered deploy/k8s/test/cdc; kubeconform -strict (Kubernetes 1.33.0) passed all 3 objects (a ConfigMap, a Deployment and a PersistentVolumeClaim: 3 valid, 0 invalid); check-cdc-rendered.py confirmed one replica with the Recreate strategy, host network with ClusterFirstWithHostNet, a non-root pod, a container with no privilege escalation, a read-only root filesystem, all capabilities dropped, requests and limits, a tagged image, ENABLE_DEBEZIUM_SCRIPTING=true, no Secret, every credential a secretKeyRef, and the ConfigMap and claim the volumes name rendered. This does not show the pod runs on the Oracle node or reaches Supabase. |
+| Status | Pass |
+| Remarks | Automated (CI job) · Commit: c4325fb · Evidence: deploy/ci/check-cdc-rendered.py and the kubeconform step, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41614891360 job "CDC component manifests (kustomize, kubeconform)" · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

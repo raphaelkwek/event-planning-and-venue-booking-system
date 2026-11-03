@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | realSchemas.test.ts made each change to the real committed schemas and the checker accepted it with no findings: (a) no change; (b) the same fields in another order, and the generated text is identical; (c) a new optional note; (d) approvedBy made optional; (e) ARCHIVED added to newStatus; (f) reason's minLength 2 lowered to 1; (g) approvedBy given a nullable alternative. A message type absent from the base was accepted and listed as new. The table-driven tests accept a further 17 compatible changes. |
+| Status | Pass |
+| Remarks | Automated (unit test, CI) · Commit: c4325fb · Evidence: backend/packages/contracts/tests/compat/realSchemas.test.ts › EN-05-T3 (a) no change at all … EN-05-T3 a message type that is not in the previous version is accepted and listed as new; backend/packages/contracts/tests/compat/schemaCompat.test.ts › EN-05-T3 accepts: <case>; CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41614891360 (job Lint, typecheck, build, unit tests) · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

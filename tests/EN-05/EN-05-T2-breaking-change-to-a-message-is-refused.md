@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | realSchemas.test.ts made each change to the real committed schemas and the checker refused it with the message type's field and the rule: (a) removing approvedBy: $.approvedBy property-removed; (b) retyping approvedAt: $.approvedAt type-changed; (c) the new required note: $.note property-now-required; (d) coordinatorName required: $.coordinatorName property-now-required; (e) a status removed from previousStatus: $.previousStatus values-narrowed; (f) reason's minLength 1 to 2: $.reason length-tightened; (g) event.rejected removed: message-removed; (h) an unknown keyword: unsupported-keyword, worded "cannot be checked". A change to approvedAt reported no other path. The table-driven tests refuse a further 19 incompatible changes the same way. |
+| Status | Pass |
+| Remarks | Automated (unit test, CI) · Commit: c4325fb · Evidence: backend/packages/contracts/tests/compat/realSchemas.test.ts › EN-05-T2 (a) removing the required field approvedBy … EN-05-T2 (h) a keyword the checker does not understand is refused as one it cannot check; backend/packages/contracts/tests/compat/schemaCompat.test.ts › EN-05-T2 refuses: <case>; CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41614891360 (job Lint, typecheck, build, unit tests) · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |
