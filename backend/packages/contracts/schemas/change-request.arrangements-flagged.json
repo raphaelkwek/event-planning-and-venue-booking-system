@@ -1,0 +1,114 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "properties": {
+    "bookings": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "arrangement": {
+            "enum": [
+              "BOOKING",
+              "HOLD",
+              "BOOKING_REQUEST"
+            ],
+            "type": "string"
+          },
+          "flag": {
+            "enum": [
+              "REQUIRES_RECONFIRMATION",
+              "UNSUITABLE"
+            ],
+            "type": "string"
+          },
+          "reason": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "reference": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "staffIds": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "venueName": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "flag",
+          "reason",
+          "reference",
+          "staffIds",
+          "venueName"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "changeRequestId": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "eventId": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "eventName": {
+      "type": "string"
+    },
+    "eventReference": {
+      "type": "string"
+    },
+    "reservations": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "equipmentTypeName": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "flag": {
+            "const": "FLAGGED_FOR_REVIEW",
+            "type": "string"
+          },
+          "reason": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "reservedBy": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "equipmentTypeName",
+          "flag",
+          "reason",
+          "reservedBy"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "returnedToPlanning": {
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "bookings",
+    "changeRequestId",
+    "eventId",
+    "eventName",
+    "eventReference",
+    "reservations",
+    "returnedToPlanning"
+  ],
+  "type": "object"
+}

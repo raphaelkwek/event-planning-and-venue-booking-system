@@ -1,0 +1,89 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "properties": {
+    "changedAt": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "eventId": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "ownerId": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "previousEndAt": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "previousStartAt": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "proposedEndAt": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "proposedStartAt": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "status": {
+      "enum": [
+        "DRAFT",
+        "SUBMITTED",
+        "UNDER_REVIEW",
+        "AWAITING_CLARIFICATION",
+        "APPROVED",
+        "PLANNING",
+        "SAFETY_REVIEW",
+        "CONFIRMED",
+        "COMPLETED",
+        "CANCELLED",
+        "REJECTED"
+      ],
+      "type": "string"
+    }
+  },
+  "required": [
+    "changedAt",
+    "eventId",
+    "ownerId",
+    "previousEndAt",
+    "previousStartAt",
+    "proposedEndAt",
+    "proposedStartAt",
+    "status"
+  ],
+  "type": "object"
+}

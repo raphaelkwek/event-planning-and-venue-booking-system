@@ -1,0 +1,51 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "properties": {
+    "amendedFields": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "clarificationId": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "eventId": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "eventName": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "eventReference": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "requestedBy": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "respondedAt": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "respondedBy": {
+      "format": "uuid",
+      "type": "string"
+    }
+  },
+  "required": [
+    "amendedFields",
+    "clarificationId",
+    "eventId",
+    "eventName",
+    "eventReference",
+    "requestedBy",
+    "respondedAt",
+    "respondedBy"
+  ],
+  "type": "object"
+}

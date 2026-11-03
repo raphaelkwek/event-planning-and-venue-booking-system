@@ -3,7 +3,10 @@ import { config } from "./config.js";
 import { sql } from "./db.js";
 import { kafka } from "./kafka.js";
 import { logger } from "./logger.js";
+import { installProcessGuards } from "./processGuards.js";
 import { startConsumers, type RunningConsumers } from "./consumer/run.js";
+
+installProcessGuards();
 
 const server = app.listen(config.port, () => {
   logger.info(`notification listening on :${config.port}`);

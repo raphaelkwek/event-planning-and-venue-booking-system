@@ -19,6 +19,6 @@
 |---|---|
 | Actual Result |  |
 | Status | Not Executed |
-| Remarks | Waits for H3, which is not merged: the search widens the requested window by 0 minutes until the venue's own setup and turnaround times exist. UI walk-through in Chrome pending at the sprint review |
+| Remarks | H3 has merged, and the venue audit fix (PR #84) makes the search widen the window by the venue's own times. Proven at repo level: backend/services/planning-core/tests/venue/api/auditFixes.test.ts › J1-T18: the window is widened by the venue's own times against a hold taken before they were set (16:00–17:00 leaves the venue out, 16:30–17:30 lists it). UI walk-through in Chrome pending at the sprint review |
 | Executed By |  |
 | Date of Execution |  |

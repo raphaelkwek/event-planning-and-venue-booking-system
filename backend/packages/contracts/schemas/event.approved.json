@@ -1,0 +1,39 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "properties": {
+    "approvedAt": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "approvedBy": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "eventId": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "eventName": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "eventReference": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "ownerId": {
+      "format": "uuid",
+      "type": "string"
+    }
+  },
+  "required": [
+    "approvedAt",
+    "approvedBy",
+    "eventId",
+    "eventName",
+    "eventReference",
+    "ownerId"
+  ],
+  "type": "object"
+}

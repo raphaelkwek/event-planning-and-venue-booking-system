@@ -1,5 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   parseChangelog,
   parseTimestamp,
@@ -7,6 +11,10 @@ import {
   sortEntries,
   formatTable,
   formatStandupTable,
+  combineChangelog,
+  fragmentProblems,
+  readCombinedChangelog,
+  readFragments,
 } from "./confluence-digest.ts";
 
 const fixture = `# Changelog
@@ -192,4 +200,85 @@ test("formatStandupTable aliases known short names, and falls back to the name b
     /\| 2026-09-16T16:23\+08:00 \(SGT\) \| Yichen \| Entry with a known gap and follow-ups \| the nominee case is not enforced; second blocker \| write the missing Playwright test \|/,
   );
   assert.match(table, /\| Seann \| Entry with neither section \| None recorded \| None recorded \|/);
+});
+
+// Fragments: changelog/<YYYY-MM-DD>-<slug>.md, one per change ------------------------------------
+
+const fragment = (name: string, title: string, timestamp: string | null, author = "Joash") => ({
+  name,
+  text: [`# ${title}`, "", ...(timestamp ? [`**Timestamp:** ${timestamp}`] : []), `**Author:** ${author}`, "**Reason:** r.", "", "## Added", "", "- x", ""].join("\n"),
+});
+
+test("combineChangelog puts the fragments, newest first, between CHANGELOG.md's header and its own entries", () => {
+  const combined = combineChangelog(fixture, [
+    fragment("2026-11-03-older.md", "Fragment A", "2026-11-03T09:00+08:00 (SGT)"),
+    fragment("2026-11-03-newer.md", "Fragment B", "2026-11-03T21:00+08:00 (SGT)"),
+    fragment("2026-11-04-undated.md", "Fragment C", null),
+  ]);
+  assert.ok(combined.startsWith("# Changelog\n\n> **Convention** — entries are newest-first.\n\n---\n\n# Fragment C"));
+  assert.deepEqual(
+    parseChangelog(combined).map((e) => e.title),
+    ["Fragment C", "Fragment B", "Fragment A", "Newest entry", "Entry with internal rule and Scope field", "Oldest entry"],
+  );
+  assert.ok(combined.endsWith("**Reason:** Oldest one | still counts.\n"));
+  assert.equal(combineChangelog(fixture, []), fixture);
+});
+
+test("a fragment may hold a few entries, kept in their order, and sorts by its newest one", () => {
+  const two = { name: "2026-11-02-two.md", text: `${fragment("", "Second", "2026-11-05T10:00+08:00 (SGT)").text}\n---\n\n${fragment("", "First", "2026-11-02T10:00+08:00 (SGT)").text}` };
+  const titles = parseChangelog(combineChangelog(fixture, [fragment("2026-11-04-x.md", "Other", "2026-11-04T10:00+08:00 (SGT)"), two])).map((e) => e.title);
+  assert.deepEqual(titles.slice(0, 3), ["Second", "First", "Other"]);
+});
+
+test("readFragments reads only <YYYY-MM-DD>-<slug>.md files, and an absent folder holds none", () => {
+  const dir = mkdtempSync(join(tmpdir(), "changelog-"));
+  try {
+    writeFileSync(join(dir, "2026-11-03-one-file-per-change.md"), "# T\n");
+    writeFileSync(join(dir, "README.md"), "# Not an entry\n");
+    writeFileSync(join(dir, "notes.txt"), "no");
+    assert.deepEqual(readFragments(dir).map((f) => f.name), ["2026-11-03-one-file-per-change.md"]);
+    assert.deepEqual(readFragments(join(dir, "missing")), []);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("fragmentProblems names a fragment with no title, no readable timestamp or no author", () => {
+  assert.deepEqual(fragmentProblems(fragment("2026-11-03-ok.md", "Fine", "2026-11-03T21:00+08:00 (SGT)")), []);
+  assert.deepEqual(fragmentProblems({ name: "2026-11-03-empty.md", text: "just text\n" }), ['2026-11-03-empty.md: no entry (it must start with a "# Title" line)']);
+  assert.deepEqual(fragmentProblems(fragment("2026-11-03-bad.md", "Bad", null, "")), [
+    '2026-11-03-bad.md: "Bad" has no readable **Timestamp:**',
+    '2026-11-03-bad.md: "Bad" has no **Author:**',
+  ]);
+});
+
+test("the repository's changelog fragments each parse as entries with a timestamp and an author", () => {
+  const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
+  const fragments = readFragments(join(root, "changelog"));
+  assert.ok(fragments.length > 0);
+  assert.deepEqual(fragments.flatMap(fragmentProblems), []);
+  const combined = readCombinedChangelog(root);
+  assert.equal(parseChangelog(combined).length, parseChangelog(readFileSync(join(root, "CHANGELOG.md"), "utf8")).length + fragments.flatMap((f) => parseChangelog(`---\n\n${f.text}`)).length);
+});
+
+test("npm run changelog prints the combined log, or writes it with --out", async () => {
+  const { main } = await import("./changelog.ts");
+  const dir = mkdtempSync(join(tmpdir(), "changelog-cli-"));
+  const write = process.stdout.write;
+  let printed = "";
+  try {
+    mkdirSync(join(dir, "changelog"));
+    writeFileSync(join(dir, "CHANGELOG.md"), fixture);
+    writeFileSync(join(dir, "changelog", "2026-11-03-x.md"), fragment("", "Fragment", "2026-11-03T21:00+08:00 (SGT)").text);
+    process.stdout.write = ((chunk: string) => ((printed += chunk), true)) as typeof process.stdout.write;
+    const log = main([], dir);
+    process.stdout.write = write;
+    assert.equal(printed, log);
+    assert.match(log, /---\n\n# Fragment\n[\s\S]*---\n\n# Newest entry/);
+    main(["--out", join(dir, "out.md")], dir);
+    assert.equal(readFileSync(join(dir, "out.md"), "utf8"), log);
+  } finally {
+    process.stdout.write = write;
+    rmSync(dir, { recursive: true, force: true });
+  }
 });

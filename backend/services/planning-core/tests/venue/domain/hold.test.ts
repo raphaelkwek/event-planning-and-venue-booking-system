@@ -69,7 +69,7 @@ describe("readHoldRequest (L3-T1, L3-T4)", () => {
     const zero = readHoldRequest(request({ reminderLeadMinutes: 0 }));
     expect(zero).toEqual({
       ok: false,
-      fields: [{ field: "reminderLeadMinutes", message: "Enter a whole number of minutes, at least 1." }],
+      fields: [{ field: "reminderLeadMinutes", message: "Enter a whole number of minutes from 1 to 525600." }],
     });
     expect(readHoldRequest(request({ reminderLeadMinutes: 1 })).ok).toBe(true);
   });

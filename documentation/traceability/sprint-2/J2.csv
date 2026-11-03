@@ -1,0 +1,9 @@
+story_id,acceptance_criterion,test_file,test_name
+J2,"A partial, case-insensitive match on venue name or building returns every matching active venue",backend/services/planning-core/tests/venue/repo/venueSearch.test.ts,"matches part of the name, ignoring case (J2-T1)"
+J2,"A partial, case-insensitive match on venue name or building returns every matching active venue",backend/services/planning-core/tests/venue/repo/venueSearch.test.ts,"matches part of the building, ignoring case (J2-T2)"
+J2,"A partial, case-insensitive match on venue name or building returns every matching active venue",backend/services/planning-core/tests/venue/repo/venueSearch.test.ts,"never returns an inactive venue (J2-T3)"
+J2,"The text search can be combined with the filters in J1, and the result satisfies both",backend/services/planning-core/tests/venue/repo/venueSearch.test.ts,"combines with the filters, and the result satisfies both (J2-T4)"
+J2,"Each result row shows venue name, building, maximum capacity, and key facilities",backend/services/planning-core/tests/venue/repo/venueSearch.test.ts,"returns the fields a result row shows (J2 AC3)"
+J2,"Each result row shows venue name, building, maximum capacity, and key facilities",frontend/tests/venueSearch.test.tsx,"shows each row's name, building, maximum capacity and facilities (J2 AC3)"
+J2,"An empty search term with no filters returns all active venues rather than an error",backend/services/planning-core/tests/venue/repo/venueSearch.test.ts,"returns every active venue and no inactive one, by name"
+J2,"An empty search term with no filters returns all active venues rather than an error",backend/services/planning-core/tests/venue/api/venueSearch.test.ts,"lists every active venue for an empty search, with the row fields J2 shows"
