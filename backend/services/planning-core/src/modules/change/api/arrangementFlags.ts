@@ -1,7 +1,7 @@
 import { Router, type NextFunction, type RequestHandler, type Response } from "express";
 import type { Sql } from "postgres";
 import { findEventForChange } from "../../event/index.js";
-import { resolveAccessScope } from "../../identity/index.js";
+import { notInScopeMessage, resolveAccessScope } from "../../identity/index.js";
 import { outstandingReservationFlags, type OutstandingReservationFlag } from "../../equipment/index.js";
 import { outstandingBookingFlags, type OutstandingBookingFlag } from "../../venue/index.js";
 import { authenticate, type ActorRequest } from "../auth/actor.js";
@@ -67,7 +67,7 @@ export function arrangementFlagsRouter(sql: Sql, limiter: RequestHandler = chang
         const actor = req.actor!;
         const scope = resolveAccessScope(actor.role, actor.userId, "events");
         const event = UUID.test(id) ? await findEventForChange(sql, id, scope, actor.userId) : null;
-        if (!event) return void refuse(res, 404, "EVENT_NOT_FOUND", "No event with that id exists.");
+        if (!event) return void refuse(res, 404, "EVENT_NOT_FOUND", notInScopeMessage(actor.role, "No event with that id exists."));
         const [bookings, reservations] = await Promise.all([
           outstandingBookingFlags(sql, event.id),
           outstandingReservationFlags(sql, event.id),

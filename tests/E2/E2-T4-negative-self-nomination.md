@@ -19,6 +19,6 @@
 |---|---|
 | Actual Result | The dialog stayed open with "This coordinator is already assigned to the event.". After closing it no "Pending reassignment" state was shown and no proposal row exists. |
 | Status | Blocked |
-| Remarks | Retired by E4 (W9-FX-5, W9-59): coordinators no longer propose or accept a reassignment; the Lead reassigns (E4). Proposing and accepting answer 410 REASSIGNMENT_RETIRED, and migration event/0020 closed every pending proposal, so this case can no longer be run. The 2026-09-20 manual Pass is kept as it was: Commit: b0ef6ee (working tree modified) · Evidence: tests/E2/evidence/E2-T4.png · Defect: — · Not rerun |
+| Remarks | Retired by E4 (W9-FX-5, W9-59): coordinators no longer propose, accept or decline a reassignment; the Lead reassigns (E4). Proposing, accepting and declining answer 410 REASSIGNMENT_RETIRED, and migration event/0020 closed every pending proposal, so this case can no longer be run. The 2026-09-20 manual Pass is kept as it was: Commit: b0ef6ee (working tree modified) · Evidence: tests/E2/evidence/E2-T4.png · Defect: — · Not rerun |
 | Executed By | Sahanya |
 | Date of Execution | 2026-09-20 |

@@ -233,7 +233,7 @@ describe.runIf(isThrowawayDatabase())("M7: the assignment is read again once the
     expect(seen?.assignedCoordinatorId).toBe(COORDINATOR_B);
   });
 
-  it("F5: the outgoing coordinator's confirmation, queued behind the reassignment, is refused as not assigned", async () => {
+  it("F5: the outgoing coordinator's confirmation, queued behind the reassignment, is not found (A4) and confirms nothing", async () => {
     const event = await newEvent();
     await assignForTest(sql, event, COORDINATOR_A);
 
@@ -241,12 +241,13 @@ describe.runIf(isThrowawayDatabase())("M7: the assignment is read again once the
       confirmArrangements(tx, event.id, { userId: COORDINATOR_A, role: "EVENT_COORDINATOR" }),
     );
 
-    expect(outcome).toMatchObject({ ok: false, code: "NOT_ASSIGNED" });
+    // A4: a coordinator acts only in their own scope, so the event they lost is not found (404).
+    expect(outcome).toEqual({ ok: false, code: "NOT_FOUND" });
     const [stored] = await sql<{ status: string }[]>`select status from event.events where id = ${event.id}`;
     expect(stored!.status).toBe("PLANNING");
   });
 
-  it("S2: the outgoing coordinator's approval, queued behind the reassignment, is refused as not assigned", async () => {
+  it("S2: the outgoing coordinator's approval, queued behind the reassignment, is not found (A4) and decides nothing", async () => {
     const event = await newEvent();
     await assignForTest(sql, event, COORDINATOR_A);
     const [row] = await sql<{ reference: string }[]>`select reference from event.events where id = ${event.id}`;
@@ -264,7 +265,8 @@ describe.runIf(isThrowawayDatabase())("M7: the assignment is read again once the
       decideChangeRequest(tx, pending.id, { decision: "APPROVE" }, { userId: COORDINATOR_A, role: "EVENT_COORDINATOR" }),
     );
 
-    expect(outcome).toMatchObject({ ok: false, code: "NOT_ASSIGNED" });
+    // A4: a coordinator acts only in their own scope, so the event they lost is not found (404).
+    expect(outcome).toEqual({ ok: false, code: "NOT_FOUND" });
     const [stored] = await sql<{ status: string }[]>`select status from change.change_requests where id = ${pending.id}`;
     expect(stored!.status).toBe("PENDING");
   });

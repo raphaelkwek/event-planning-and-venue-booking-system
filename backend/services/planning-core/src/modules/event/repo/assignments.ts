@@ -119,40 +119,12 @@ export async function closePendingProposal(tx: TransactionSql, eventId: string, 
   `;
 }
 
-export async function findPendingProposal(
-  sql: Sql | TransactionSql,
-  eventId: string
-): Promise<ProposalRow | null> {
-  const rows = await sql<RawProposal[]>`
-    select * from event.reassignment_proposals where event_id = ${eventId} and status = 'PENDING'
-  `;
-  return rows[0] ? toProposal(rows[0]) : null;
-}
-
 /** History for the event, newest first — pending and resolved proposals alike. */
 export async function listProposals(sql: Sql, eventId: string): Promise<ProposalRow[]> {
   const rows = await sql<RawProposal[]>`
     select * from event.reassignment_proposals where event_id = ${eventId} order by proposed_at desc
   `;
   return rows.map(toProposal);
-}
-
-/**
- * E2 decline — conditional on the proposal still being pending for this
- * nominee, so a second decline (or the Lead's reassignment closing it) racing in
- * cannot also win. E2's accept is retired (W9-FX-5).
- */
-export async function resolveProposalDecline(
-  tx: TransactionSql,
-  params: { proposalId: string; nomineeId: string }
-): Promise<ProposalRow | null> {
-  const rows = await tx<RawProposal[]>`
-    update event.reassignment_proposals
-    set status = 'DECLINED', resolved_at = now(), updated_at = now(), updated_by = ${params.nomineeId}
-    where id = ${params.proposalId} and nominee_coordinator_id = ${params.nomineeId} and status = 'PENDING'
-    returning *
-  `;
-  return rows[0] ? toProposal(rows[0]) : null;
 }
 
 /** E3 — a request in the Lead's unassigned queue. */

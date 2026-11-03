@@ -19,6 +19,6 @@
 |---|---|
 | Actual Result | The outgoing coordinator's own attempt to accept returned HTTP 404 REASSIGNMENT_PROPOSAL_NOT_FOUND, and the proposal is still PENDING with the assignment unchanged. The known gap the case records still stands: before accepting, the nominee's Approve is enabled and Reject is enabled, because D1/D4/D5 let any Event Coordinator decide on a request under review — raised for the story owner, not built around. |
 | Status | Blocked |
-| Remarks | Retired by E4 (W9-FX-5, W9-59): coordinators no longer propose or accept a reassignment; the Lead reassigns (E4). Proposing and accepting answer 410 REASSIGNMENT_RETIRED, and migration event/0020 closed every pending proposal, so this case can no longer be run. The 2026-09-20 manual Pass is kept as it was: Commit: b0ef6ee (working tree modified) · Evidence: tests/E2/evidence/E2-T8.png · Defect: — · Not rerun |
+| Remarks | Retired by E4 (W9-FX-5, W9-59): coordinators no longer propose, accept or decline a reassignment; the Lead reassigns (E4). Proposing, accepting and declining answer 410 REASSIGNMENT_RETIRED, and migration event/0020 closed every pending proposal, so this case can no longer be run. The 2026-09-20 manual Pass is kept as it was: Commit: b0ef6ee (working tree modified) · Evidence: tests/E2/evidence/E2-T8.png · Defect: — · Not rerun |
 | Executed By | Sahanya |
 | Date of Execution | 2026-09-20 |

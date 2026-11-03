@@ -19,6 +19,6 @@
 |---|---|
 | Actual Result | HTTP 409 REASSIGNMENT_ALREADY_PENDING, naming the pending nominee 00000000-0000-0000-0000-000000000008: "A reassignment proposal to nominee 00000000-0000-0000-0000-000000000008 is already pending for this event.". The original proposal is unchanged and still PENDING. |
 | Status | Blocked |
-| Remarks | Retired by E4 (W9-FX-5, W9-59): coordinators no longer propose or accept a reassignment; the Lead reassigns (E4). Proposing and accepting answer 410 REASSIGNMENT_RETIRED, and migration event/0020 closed every pending proposal, so this case can no longer be run. The 2026-09-20 manual Pass is kept as it was: Commit: b0ef6ee (working tree modified) · Evidence: tests/E2/evidence/E2-T6.png · Defect: — · Not rerun |
+| Remarks | Retired by E4 (W9-FX-5, W9-59): coordinators no longer propose, accept or decline a reassignment; the Lead reassigns (E4). Proposing, accepting and declining answer 410 REASSIGNMENT_RETIRED, and migration event/0020 closed every pending proposal, so this case can no longer be run. The 2026-09-20 manual Pass is kept as it was: Commit: b0ef6ee (working tree modified) · Evidence: tests/E2/evidence/E2-T6.png · Defect: — · Not rerun |
 | Executed By | Sahanya |
 | Date of Execution | 2026-09-20 |

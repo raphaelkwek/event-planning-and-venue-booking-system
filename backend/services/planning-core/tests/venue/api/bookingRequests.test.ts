@@ -292,11 +292,12 @@ describe("POST /api/v1/booking-requests (L1)", () => {
     const event = await newEvent();
 
     signedInAs("EVENT_COORDINATOR", OTHER_COORDINATOR);
+    // A4: an event not assigned to the coordinator is not found, as an unknown one is.
     const unassigned = await submit(body(event.id, venueId));
-    expect(unassigned.status).toBe(403);
+    expect(unassigned.status).toBe(404);
     expect(unassigned.body.error).toMatchObject({
-      code: "ROLE_NOT_AUTHORISED",
-      message: "Only the event's assigned coordinator can request a venue for it.",
+      code: "EVENT_NOT_FOUND",
+      message: "No event with that reference is assigned to you.",
     });
 
     for (const [role, userId] of [["EVENT_ORGANISER", OWNER], ["VENUE_STAFF", STAFF], ["TECH_SUPPORT_STAFF", STAFF]] as const) {
@@ -465,7 +466,15 @@ describe("POST /api/v1/booking-requests/:id/withdraw (L2)", () => {
 
   it("refuses anyone but the event's assigned coordinator, changing nothing (L2-T2)", async () => {
     const { id } = await pending();
-    for (const [role, userId] of [["EVENT_COORDINATOR", OTHER_COORDINATOR], ["EVENT_ORGANISER", OWNER], ["VENUE_STAFF", STAFF]] as const) {
+    // A4: another coordinator finds no such request, as for an unknown one.
+    signedInAs("EVENT_COORDINATOR", OTHER_COORDINATOR);
+    const notAssigned = await withdraw(id);
+    expect(notAssigned.status).toBe(404);
+    expect(notAssigned.body.error).toMatchObject({
+      code: "BOOKING_REQUEST_NOT_FOUND",
+      message: "No booking request with that id is on an event assigned to you.",
+    });
+    for (const [role, userId] of [["EVENT_ORGANISER", OWNER], ["VENUE_STAFF", STAFF]] as const) {
       signedInAs(role, userId);
       const res = await withdraw(id);
       expect(res.status, role).toBe(403);

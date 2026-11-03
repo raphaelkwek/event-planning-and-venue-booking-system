@@ -11,12 +11,7 @@ tests:
       - principal: assigned_coordinator # O1: the assigned coordinator records equipment
         resource: line_projectors
         actions: { create: EFFECT_ALLOW, update: EFFECT_ALLOW, remove: EFFECT_ALLOW, view: EFFECT_ALLOW }
-      - principal: other_coordinator
-        resource: line_projectors
-        actions: { view: EFFECT_ALLOW }
-      - principal: nominee
-        resource: line_projectors
-        actions: { view: EFFECT_ALLOW }
+      # other_coordinator, nominee: none. A4: not their event, so they don't see its lines.
       - principal: tech_support # A3, O2, P1, Q1, Q2
         resource: line_projectors
         actions: { view: EFFECT_ALLOW, update_status: EFFECT_ALLOW, check_availability: EFFECT_ALLOW, reserve: EFFECT_ALLOW, release: EFFECT_ALLOW }
