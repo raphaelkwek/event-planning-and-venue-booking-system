@@ -40,8 +40,10 @@ wait_for() { # <description> <seconds> <command...>
 wait_for "Caddy answering /healthz on 7860" 240 curl -fsS http://127.0.0.1:7860/healthz
 wait_for "planning-core answering through Caddy" 180 sh -c 'curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:7860/identity/api/v1/users/me | grep -qx 401'
 
-docker logs space 2>&1 | grep -q "the services use MIGRATE_DATABASE_URL" || fail "start.sh did not fall back to the session pooler URL"
-applied="$(docker logs space 2>&1 | sed -n 's/^start.sh: migrations applied: \([0-9]*\) files$/\1/p' | head -1)"
+# Read the log once: `docker logs | grep -q` fails under pipefail when grep stops early (SIGPIPE).
+startup="$(docker logs space 2>&1)"
+grep -q "the services use MIGRATE_DATABASE_URL" <<< "$startup" || fail "start.sh did not fall back to the session pooler URL"
+applied="$(sed -n 's/^start.sh: migrations applied: \([0-9]*\) files$/\1/p' <<< "$startup" | head -1)"
 [ "${applied:-0}" -gt 0 ] || fail "the migrations did not run before the services"
 
 ready() { # <port>
