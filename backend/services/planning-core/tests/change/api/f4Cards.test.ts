@@ -1,6 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import request from "supertest";
+import { parseCloudEvent } from "@connectsphere/contracts";
+import { notificationsFor } from "../../../../notification/src/domain/recipients.js";
 import { testDb } from "../../support/testDb.js";
 import { actorsWithPrefix, cleanLineFixtures, createBulkType, insertLineDirect } from "../../support/lineFixtures.js";
 import { seedEvent, setStatusDirect } from "../../support/seedEvent.js";
@@ -450,5 +452,34 @@ describe("F4 lock order: a hold at a new venue that commits while the cancellati
       await block.catch(() => undefined);
       await Promise.all([watcher.end(), planner.end(), blocker.end()]);
     }
+  });
+});
+
+// Review note CQ-06 on #72 (not one of F4's acceptance criteria): `event.cancelled` listed only the
+// confirmed bookings, so the Venue Staff of a venue whose hold was released, or whose pending request
+// was withdrawn, were not told. The message now names those too, each with its venue, and the
+// notification service tells their staff as it tells a booked venue's.
+describe("CQ-06: the staff of a released hold's or withdrawn request's venue are told", () => {
+  it("event.cancelled names the hold and the pending request with their venues, and their staff's notice lists them", async () => {
+    const { event, v1, v2, h, p, b1 } = await fixture();
+    expect((await cancel(event.id)).status).toBe(200);
+
+    const rows = await sql`
+      select envelope from event.outbox where message_key = ${event.id} and envelope->>'type' = 'event.cancelled'
+    `;
+    expect(rows).toHaveLength(1);
+    const message = parseCloudEvent(rows[0]!.envelope);
+    expect(message.data).toMatchObject({
+      bookings: [{ reference: b1.reference, venueName: v1.name, staffIds: [A.vs] }],
+      holds: [{ reference: h.reference, venueId: v2.id, venueName: v2.name, startsAt: EVENT_START, endsAt: EVENT_END, staffIds: [A.vs] }],
+      requests: [{ reference: p.reference, venueId: v1.id, venueName: v1.name, staffIds: [A.vs] }],
+    });
+
+    const notices = notificationsFor({ id: message.id, type: message.type, time: message.time, subject: event.id, data: message.data as Record<string, unknown> });
+    const staffNotice = notices.filter((notice) => notice.recipientUserId === A.vs).map((notice) => notice.message);
+    expect(staffNotice).toHaveLength(1);
+    expect(staffNotice[0]).toContain(`Released: booking ${b1.reference} at ${v1.name}`);
+    expect(staffNotice[0]).toContain(`hold ${h.reference} at ${v2.name}`);
+    expect(staffNotice[0]).toContain(`Withdrawn: booking request ${p.reference} at ${v1.name}`);
   });
 });
