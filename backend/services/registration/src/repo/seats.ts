@@ -130,3 +130,83 @@ export async function setVipSeats(sql: Sql, eventId: string, targetVip: number):
     return { moved: moved.length, shortfall: shift.count - moved.length };
   });
 }
+
+/**
+ * CR-02, R2: when an approval replaces a booking, the seats attendees hold on
+ * the replaced booking move onto the new one, numbered from 1, so the new
+ * booking's seat build adds only the rest of its capacity. The event then has
+ * exactly the new venue's capacity, or more only when more attendees already
+ * hold seats than the new venue holds (places remaining is then zero). Run it
+ * before retiring the replaced booking's free seats and before building the new
+ * booking's. Returns how many moved.
+ */
+export async function moveClaimedSeats(db: Db, fromBookingId: string, toBookingId: string): Promise<number> {
+  const sql = db as Sql;
+  // Lock them first, so a withdrawal of one of these seats waits for the move and then frees it on the new booking.
+  await sql`select id from registration.seats where booking_id = ${fromBookingId} and status = 'CLAIMED' for update`;
+  const moved = await sql`
+    update registration.seats s set booking_id = ${toBookingId}, seat_no = numbered.n, updated_at = now()
+    from (
+      select id, row_number() over (order by seat_no, id)::int as n
+      from registration.seats where booking_id = ${fromBookingId} and status = 'CLAIMED'
+    ) as numbered
+    where s.id = numbered.id
+    returning s.id
+  `;
+  return moved.length;
+}
+
+/**
+ * R4: a withdrawn registration's seat is free again, so places remaining rises
+ * by exactly one. Conditional on the seat still being claimed, so it is never
+ * freed twice.
+ */
+export async function releaseSeat(db: Db, seatId: string): Promise<boolean> {
+  const sql = db as Sql;
+  const freed = await sql`
+    update registration.seats set status = 'FREE', claimed_by = null, claimed_at = null, updated_at = now()
+    where id = ${seatId} and status = 'CLAIMED'
+    returning id
+  `;
+  return freed.length > 0;
+}
+
+/**
+ * R3, F4: a cancelled event's places are no longer offered. Every seat that is
+ * free or held is retired; the registrations that held them are Cancelled in
+ * the same transaction and keep their seat_id as a record.
+ */
+export async function retireSeatsOfEvent(db: Db, eventId: string): Promise<number> {
+  const sql = db as Sql;
+  const retired = await sql`
+    update registration.seats set status = 'RETIRED', claimed_by = null, claimed_at = null, updated_at = now()
+    where event_id = ${eventId} and status in ('FREE', 'CLAIMED')
+    returning id
+  `;
+  return retired.length;
+}
+
+/** What places remaining is worked out from, per event (R1, R2): free public seats, and active registrations without one (R7). */
+export interface PlaceCounts {
+  freeSeats: number;
+  unseatedRegistrations: number;
+}
+
+export async function placeCountsOf(db: Db, eventIds: readonly string[]): Promise<Map<string, PlaceCounts>> {
+  const counts = new Map<string, PlaceCounts>(eventIds.map((id) => [id, { freeSeats: 0, unseatedRegistrations: 0 }]));
+  if (eventIds.length === 0) return counts;
+  const sql = db as Sql;
+  const seats = await sql<{ event_id: string; n: number }[]>`
+    select event_id, count(*)::int as n from registration.seats
+    where event_id in ${sql(eventIds as string[])} and pool = 'PUBLIC' and status = 'FREE'
+    group by event_id
+  `;
+  for (const row of seats) counts.get(row.event_id)!.freeSeats = row.n;
+  const unseated = await sql<{ event_id: string; n: number }[]>`
+    select event_id, count(*)::int as n from registration.registrations
+    where event_id in ${sql(eventIds as string[])} and status = 'REGISTERED' and seat_id is null
+    group by event_id
+  `;
+  for (const row of unseated) counts.get(row.event_id)!.unseatedRegistrations = row.n;
+  return counts;
+}

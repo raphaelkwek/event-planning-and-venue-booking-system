@@ -1,6 +1,7 @@
 import express from "express";
 import { randomUUID } from "node:crypto";
 import { corsFor, parseAllowedOrigins } from "./shared/cors.js";
+import { createServiceMetrics } from "@connectsphere/observability";
 import { logger } from "./shared/logger.js";
 import { sql } from "./shared/db.js";
 import { healthRouter } from "./shared/health.js";
@@ -21,6 +22,12 @@ export const app = express();
 
 // ADR-0016: the web app is on Vercel, another origin; first, so every answer carries the headers.
 app.use(corsFor(parseAllowedOrigins(process.env.CORS_ALLOWED_ORIGINS)));
+// EN-17: timed first, so every route and every refusal is counted. /metrics is
+// rate-limited, and off in production unless METRICS_TOKEN is set.
+const metrics = createServiceMetrics({ service: "planning-core", token: process.env.METRICS_TOKEN });
+app.use(metrics.middleware);
+app.use(metrics.router);
+
 app.use(express.json());
 
 app.use((req, res, next) => {

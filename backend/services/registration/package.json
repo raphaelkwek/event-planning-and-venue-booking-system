@@ -15,8 +15,11 @@
   "dependencies": {
     "@connectsphere/contracts": "*",
     "@connectsphere/kafka": "*",
+    "@connectsphere/observability": "*",
     "cors": "2.8.5",
     "express": "^4.19.2",
+    "express-rate-limit": "^8.7.1",
+    "jose": "^5.6.3",
     "kafkajs": "^2.2.4",
     "postgres": "^3.4.4"
   },

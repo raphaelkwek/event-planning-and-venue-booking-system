@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | Step 1 showed "Hold HLD-000041 requested." and the Holds table listed it at Lee Kong Chian Auditorium, 14:00–18:00, Requested. Step 2: the availability calendar for 2 December 2026 shows no 14:00–18:00 entry (a request reserves nothing). Step 3: status REQUESTED, requested_by the assigned coordinator, requested_at 2026-10-20T02:58:57.317Z, reminder_lead_minutes 1440, slot null. |
+| Actual Result | The notice and the hold row; the day stayed free on the calendar; the API showed Requested, the requester, time and reminder, and no slot. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
 | Status | Pass |
-| Remarks | Commit: 01a891e · Evidence: tests/L3/evidence/L3-T1.png · Environment: local throwaway Postgres + hosted Supabase Auth · Defect: — |
-| Executed By | Yichen, via automated testing |
-| Date of Execution | 2026-10-20 |
+| Remarks | Automated, browser E2E in CI (EN-14). Commit: 6080462 · Evidence: tests/e2e/l-bookings.spec.ts › L3-T1 the assigned coordinator requests a hold; it is stored Requested and reserves nothing, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41513983925 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

@@ -1,0 +1,133 @@
+# EN-17: the SLIs as recording rules, one per window of the multi-window burn-rate alerts.
+# Each is the BAD share of events (1 - good/total), so it can be compared with a multiple of
+# the error budget directly. Generated shape: see documentation/slos.md for the SLI definitions.
+# No traffic gives no sample (0/0), so a quiet service neither fires nor reports a healthy ratio.
+groups:
+  - name: sli_registration_latency
+    rules:
+      - record: sli:registration_latency_slow:ratio_rate5m
+        expr: |
+          1 - (
+            sum(rate(http_request_duration_seconds_bucket{service="registration",route!~"/healthz|/readyz|/metrics|unmatched",le="0.8"}[5m]))
+            /
+            sum(rate(http_request_duration_seconds_count{service="registration",route!~"/healthz|/readyz|/metrics|unmatched"}[5m]))
+          )
+      - record: sli:registration_latency_slow:ratio_rate30m
+        expr: |
+          1 - (
+            sum(rate(http_request_duration_seconds_bucket{service="registration",route!~"/healthz|/readyz|/metrics|unmatched",le="0.8"}[30m]))
+            /
+            sum(rate(http_request_duration_seconds_count{service="registration",route!~"/healthz|/readyz|/metrics|unmatched"}[30m]))
+          )
+      - record: sli:registration_latency_slow:ratio_rate1h
+        expr: |
+          1 - (
+            sum(rate(http_request_duration_seconds_bucket{service="registration",route!~"/healthz|/readyz|/metrics|unmatched",le="0.8"}[1h]))
+            /
+            sum(rate(http_request_duration_seconds_count{service="registration",route!~"/healthz|/readyz|/metrics|unmatched"}[1h]))
+          )
+      - record: sli:registration_latency_slow:ratio_rate6h
+        expr: |
+          1 - (
+            sum(rate(http_request_duration_seconds_bucket{service="registration",route!~"/healthz|/readyz|/metrics|unmatched",le="0.8"}[6h]))
+            /
+            sum(rate(http_request_duration_seconds_count{service="registration",route!~"/healthz|/readyz|/metrics|unmatched"}[6h]))
+          )
+  - name: sli_staff_api_latency
+    rules:
+      - record: sli:staff_api_latency_slow:ratio_rate5m
+        expr: |
+          1 - (
+            (
+              sum(rate(http_request_duration_seconds_bucket{service="planning-core",route!~"/healthz|/readyz|/metrics|unmatched",method=~"GET|HEAD",le="0.4"}[5m]))
+              +
+              sum(rate(http_request_duration_seconds_bucket{service="planning-core",route!~"/healthz|/readyz|/metrics|unmatched",method!~"GET|HEAD",le="0.8"}[5m]))
+            )
+            /
+            sum(rate(http_request_duration_seconds_count{service="planning-core",route!~"/healthz|/readyz|/metrics|unmatched"}[5m]))
+          )
+      - record: sli:staff_api_latency_slow:ratio_rate30m
+        expr: |
+          1 - (
+            (
+              sum(rate(http_request_duration_seconds_bucket{service="planning-core",route!~"/healthz|/readyz|/metrics|unmatched",method=~"GET|HEAD",le="0.4"}[30m]))
+              +
+              sum(rate(http_request_duration_seconds_bucket{service="planning-core",route!~"/healthz|/readyz|/metrics|unmatched",method!~"GET|HEAD",le="0.8"}[30m]))
+            )
+            /
+            sum(rate(http_request_duration_seconds_count{service="planning-core",route!~"/healthz|/readyz|/metrics|unmatched"}[30m]))
+          )
+      - record: sli:staff_api_latency_slow:ratio_rate1h
+        expr: |
+          1 - (
+            (
+              sum(rate(http_request_duration_seconds_bucket{service="planning-core",route!~"/healthz|/readyz|/metrics|unmatched",method=~"GET|HEAD",le="0.4"}[1h]))
+              +
+              sum(rate(http_request_duration_seconds_bucket{service="planning-core",route!~"/healthz|/readyz|/metrics|unmatched",method!~"GET|HEAD",le="0.8"}[1h]))
+            )
+            /
+            sum(rate(http_request_duration_seconds_count{service="planning-core",route!~"/healthz|/readyz|/metrics|unmatched"}[1h]))
+          )
+      - record: sli:staff_api_latency_slow:ratio_rate6h
+        expr: |
+          1 - (
+            (
+              sum(rate(http_request_duration_seconds_bucket{service="planning-core",route!~"/healthz|/readyz|/metrics|unmatched",method=~"GET|HEAD",le="0.4"}[6h]))
+              +
+              sum(rate(http_request_duration_seconds_bucket{service="planning-core",route!~"/healthz|/readyz|/metrics|unmatched",method!~"GET|HEAD",le="0.8"}[6h]))
+            )
+            /
+            sum(rate(http_request_duration_seconds_count{service="planning-core",route!~"/healthz|/readyz|/metrics|unmatched"}[6h]))
+          )
+  - name: sli_notification_freshness
+    rules:
+      - record: sli:notification_freshness_late:ratio_rate5m
+        expr: |
+          1 - (
+            sum(rate(notification_visibility_lag_seconds_bucket{service="notification",le="10"}[5m]))
+            /
+            sum(rate(notification_visibility_lag_seconds_count{service="notification"}[5m]))
+          )
+      - record: sli:notification_freshness_late:ratio_rate30m
+        expr: |
+          1 - (
+            sum(rate(notification_visibility_lag_seconds_bucket{service="notification",le="10"}[30m]))
+            /
+            sum(rate(notification_visibility_lag_seconds_count{service="notification"}[30m]))
+          )
+      - record: sli:notification_freshness_late:ratio_rate1h
+        expr: |
+          1 - (
+            sum(rate(notification_visibility_lag_seconds_bucket{service="notification",le="10"}[1h]))
+            /
+            sum(rate(notification_visibility_lag_seconds_count{service="notification"}[1h]))
+          )
+      - record: sli:notification_freshness_late:ratio_rate6h
+        expr: |
+          1 - (
+            sum(rate(notification_visibility_lag_seconds_bucket{service="notification",le="10"}[6h]))
+            /
+            sum(rate(notification_visibility_lag_seconds_count{service="notification"}[6h]))
+          )
+  - name: sli_availability
+    rules:
+      - record: sli:availability_errors:ratio_rate5m
+        expr: |
+          sum by (service) (rate(http_requests_total{route!~"/healthz|/readyz|/metrics|unmatched",status="5xx"}[5m]))
+          /
+          sum by (service) (rate(http_requests_total{route!~"/healthz|/readyz|/metrics|unmatched"}[5m]))
+      - record: sli:availability_errors:ratio_rate30m
+        expr: |
+          sum by (service) (rate(http_requests_total{route!~"/healthz|/readyz|/metrics|unmatched",status="5xx"}[30m]))
+          /
+          sum by (service) (rate(http_requests_total{route!~"/healthz|/readyz|/metrics|unmatched"}[30m]))
+      - record: sli:availability_errors:ratio_rate1h
+        expr: |
+          sum by (service) (rate(http_requests_total{route!~"/healthz|/readyz|/metrics|unmatched",status="5xx"}[1h]))
+          /
+          sum by (service) (rate(http_requests_total{route!~"/healthz|/readyz|/metrics|unmatched"}[1h]))
+      - record: sli:availability_errors:ratio_rate6h
+        expr: |
+          sum by (service) (rate(http_requests_total{route!~"/healthz|/readyz|/metrics|unmatched",status="5xx"}[6h]))
+          /
+          sum by (service) (rate(http_requests_total{route!~"/healthz|/readyz|/metrics|unmatched"}[6h]))
