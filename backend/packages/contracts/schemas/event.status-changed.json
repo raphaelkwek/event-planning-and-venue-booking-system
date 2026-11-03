@@ -1,0 +1,87 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "properties": {
+    "action": {
+      "pattern": "^[A-Z][A-Z_]*$",
+      "type": "string"
+    },
+    "changedAt": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "eventId": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "newStatus": {
+      "enum": [
+        "DRAFT",
+        "SUBMITTED",
+        "UNDER_REVIEW",
+        "AWAITING_CLARIFICATION",
+        "APPROVED",
+        "PLANNING",
+        "SAFETY_REVIEW",
+        "CONFIRMED",
+        "COMPLETED",
+        "CANCELLED",
+        "REJECTED"
+      ],
+      "type": "string"
+    },
+    "ownerId": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "previousStatus": {
+      "enum": [
+        "DRAFT",
+        "SUBMITTED",
+        "UNDER_REVIEW",
+        "AWAITING_CLARIFICATION",
+        "APPROVED",
+        "PLANNING",
+        "SAFETY_REVIEW",
+        "CONFIRMED",
+        "COMPLETED",
+        "CANCELLED",
+        "REJECTED"
+      ],
+      "type": "string"
+    },
+    "proposedEndAt": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "proposedStartAt": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "action",
+    "changedAt",
+    "eventId",
+    "newStatus",
+    "ownerId",
+    "previousStatus",
+    "proposedEndAt",
+    "proposedStartAt"
+  ],
+  "type": "object"
+}
