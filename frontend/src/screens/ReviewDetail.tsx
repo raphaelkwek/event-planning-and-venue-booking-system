@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import Button from "@atlaskit/button/new";
-import Lozenge from "@atlaskit/lozenge";
+import Lozenge from "../shared/Lozenge.js";
 import TextArea from "@atlaskit/textarea";
 import SectionMessage from "@atlaskit/section-message";
 import Modal, { ModalBody, ModalFooter, ModalHeader, ModalTitle, ModalTransition } from "@atlaskit/modal-dialog";

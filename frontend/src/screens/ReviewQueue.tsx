@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import Lozenge from "@atlaskit/lozenge";
+import Lozenge from "../shared/Lozenge.js";
 import DynamicTable from "@atlaskit/dynamic-table";
 import SectionMessage from "@atlaskit/section-message";
 import { useSignedIn } from "../auth/SessionContext.js";

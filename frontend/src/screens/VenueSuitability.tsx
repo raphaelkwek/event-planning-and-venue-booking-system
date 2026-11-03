@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import Button from "@atlaskit/button/new";
-import Lozenge from "@atlaskit/lozenge";
+import Lozenge from "../shared/Lozenge.js";
 import { useSignedIn } from "../auth/SessionContext.js";
 import { listRequests } from "../api/events.js";
 import type { EventListItem } from "../api/types.js";

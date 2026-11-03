@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | "BKR-001160 rejected." was shown and the request left the queue. It is REJECTED, reason "The auditorium is closed for exams that week", decided by 00000000-0000-0000-0000-000000000003 at 2026-10-19T08:22:57.413Z. The coordinator's row read "BKR-001160Lee Kong Chian AuditoriumWednesday 2 December 2026, 14:00–18:00Theatre150RejectedReason: The auditorium is closed for exams that week". |
+| Actual Result | The request became Rejected with the reason, decider and time; the coordinator's Venue requests showed Rejected and the reason. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
 | Status | Pass |
-| Remarks | Commit: ba2d786 · Evidence: tests/M2/evidence/M2-T2.png · Defect: — |
-| Executed By | Yichen, via automated testing |
-| Date of Execution | 2026-10-19 |
+| Remarks | Automated, browser E2E in CI (EN-14). Commit: 6080462 · Evidence: tests/e2e/l-bookings.spec.ts › M2-T2 a rejection records the reason, who and when, and the coordinator sees it, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41513983925 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

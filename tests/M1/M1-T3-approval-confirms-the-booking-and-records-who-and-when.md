@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | The dialog read "Approve BKR-001148?The booking for Lee Kong Chian Auditorium, Wednesday 2 December 2026, 14:00–18:00, will be confirmed, and the coordinator and the event's organiser will be told. It is refused if the period now overlaps another booking or recorded unavailability.CancelApprove request". Afterwards "BKR-001148 approved. The booking is confirmed." was shown and the request left the queue. It is APPROVED, decided by 00000000-0000-0000-0000-000000000003 at 2026-10-19T08:22:09.564Z, and its booking 3fa2b336-7f65-4015-988e-fa201b938342 is CONFIRMED at Lee Kong Chian Auditorium, 2026-12-02T06:00:00.000Z to 2026-12-02T10:00:00.000Z. |
+| Actual Result | The dialog wording, the notice, the request left the queue; the API showed it Approved by Venue Staff One with a confirmed booking for the venue and period. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
 | Status | Pass |
-| Remarks | Commit: ba2d786 · Evidence: tests/M1/evidence/M1-T3.png · Defect: — |
-| Executed By | Yichen, via automated testing |
-| Date of Execution | 2026-10-19 |
+| Remarks | Automated, browser E2E in CI (EN-14). Commit: 6080462 · Evidence: tests/e2e/l-bookings.spec.ts › M1-T3 approval sets the request Approved and confirms the booking, recording who approved it and when, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41513983925 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

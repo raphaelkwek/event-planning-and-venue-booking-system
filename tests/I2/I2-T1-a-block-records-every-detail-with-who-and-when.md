@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | The dialog read "Record this unavailability?Lee Kong Chian Auditorium: Wednesday 9 December 2026, 09:00–13:00, Maintenance: Annual rigging inspectionNothing is booked, held or requested in this period.CancelRecord unavailability". "Unavailability recorded." was shown and the block listed as "Wednesday 9 December 2026, 09:00–13:00MaintenanceAnnual rigging inspection00000000-0000-0000-0000-00000000000310/19/2026, 4:17:35 PMRemove". Stored ACTIVE at Lee Kong Chian Auditorium, 2026-12-09T01:00:00.000Z to 2026-12-09T05:00:00.000Z, MAINTENANCE, created by 00000000-0000-0000-0000-000000000003 at 2026-10-19T08:17:35.622Z. |
+| Actual Result | The dialog said nothing is disrupted, the notice and the block row; the API showed it Active with its period, Maintenance, description, creator and time. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
 | Status | Pass |
-| Remarks | Commit: a9a9cc4 · Evidence: tests/I2/evidence/I2-T1.png · Defect: — |
-| Executed By | Yichen, via automated testing |
-| Date of Execution | 2026-10-19 |
+| Remarks | Automated, browser E2E in CI (EN-14). Commit: 6080462 · Evidence: tests/e2e/l-bookings.spec.ts › I2-T1 Venue Staff record a period of unavailability, recording who created it and when, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41513983925 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

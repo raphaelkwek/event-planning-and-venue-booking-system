@@ -257,6 +257,14 @@ playwright.config.ts
 *.spec.ts
 tests/support
 
+# EN-14's browser tests are committed: the config, the specs and the support code under
+# tests/e2e, and the visual baselines CI made. Each run's service logs are not.
+!/tests/playwright.config.ts
+!/tests/e2e/**/*.spec.ts
+tests/e2e-logs*/
+tests/test-results-*/
+tests/playwright-report-*/
+
 # Local-only files: other teams' past submissions kept for reference, personal
 # agent scratch folders, and a stray Windows NUL file. Never commit these.
 *.zip

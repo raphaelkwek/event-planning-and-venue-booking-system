@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | Refused on the sign-in screen: "INVALID_CREDENTIALSemail or password is incorrectHTTP 401 · correlation b933339f-1b40-4ce5-8e81-4ae0065fe2e2". No header and no navigation. |
+| Actual Result | Refused on the sign-in screen with INVALID_CREDENTIALS, "email or password is incorrect", HTTP 401; no header and no navigation. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
 | Status | Pass |
-| Remarks | Commit: b0ef6ee (working tree modified) · Evidence: tests/A1/evidence/A1-T4.png · Defect: — |
-| Executed By | Seann Khoo |
-| Date of Execution | 2026-09-20 |
+| Remarks | Automated, browser E2E in CI (EN-14). Commit: 6080462 · Evidence: tests/e2e/a-sign-in-and-access.spec.ts › A1-T4 a wrong password is refused without saying which field was wrong, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41513983925 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

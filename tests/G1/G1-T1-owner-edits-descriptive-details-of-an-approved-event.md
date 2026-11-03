@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | "Details saved." was shown. The request's page showed Purpose "Share faculty research with industry partners", Description "A one-day symposium for the school of computing, with an industry panel.", Accessibility needs "Step-free access to the stage, and a hearing loop" and Contact details "Dr Mei Lin Tan, meilin.tan@smu.edu.sg, 6828 0123". The status stayed Approved and the expected attendance 150. |
+| Actual Result | "Details saved." and the four new values shown; status, start, end, attendance and requirements unchanged. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
 | Status | Pass |
-| Remarks | Commit: 21956ca · Evidence: tests/G1/evidence/G1-T1.png · Defect: — |
-| Executed By | Yichen, via automated testing |
-| Date of Execution | 2026-10-14 |
+| Remarks | Automated, browser E2E in CI (EN-14). Commit: 6080462 · Evidence: tests/e2e/f-status-and-confirmation.spec.ts › G1-T1 the owning organiser edits the descriptive details of an approved event, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41513983925 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |
