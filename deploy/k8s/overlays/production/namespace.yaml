@@ -1,0 +1,9 @@
+# The restricted Pod Security Standard is enforced: the manifests already meet it
+# (non-root, no privilege escalation, dropped capabilities, seccomp RuntimeDefault).
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: connectsphere-production
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: latest
