@@ -2,6 +2,7 @@ import { Router, type RequestHandler, type Response } from "express";
 import { rateLimit } from "express-rate-limit";
 import type { Sql } from "postgres";
 import { findEventForPlanning } from "../../event/index.js";
+import { notInScopeMessage } from "../../identity/index.js";
 import { authenticate, requireRole, type ActorRequest } from "../auth/actor.js";
 import { resolveEventsScope } from "../auth/identity.js";
 import { assessSuitability, requirementsFromEvent } from "../domain/suitability.js";
@@ -55,7 +56,7 @@ export function suitabilityRouter(sql: Sql, limiter: RequestHandler = suitabilit
 
       const { userId, role } = req.actor!;
       const event = await findEventForPlanning(sql, eventId, resolveEventsScope(role, userId), userId);
-      if (!event) return refuse(res, 404, "EVENT_NOT_FOUND", "No event with that id exists.");
+      if (!event) return refuse(res, 404, "EVENT_NOT_FOUND", notInScopeMessage(role, "No event with that id exists."));
 
       res.json({
         venueId: venue.id,

@@ -14,7 +14,7 @@ import { QUEUE_STATUSES } from "../domain/statusMachine.js";
 import { submitEvent } from "./submitEvent.js";
 import { transitionEvent } from "./transitionEvent.js";
 import { submissionBodySchema, toEventFields } from "./schemas.js";
-import { fieldsFromZod, refuse } from "./errors.js";
+import { eventNotFound, fieldsFromZod, refuse } from "./errors.js";
 import { etag } from "../domain/eventDetails.js";
 
 /** B1 — submission; C3 — the organiser's combined list of requests. */
@@ -84,13 +84,13 @@ export function eventsRouter(sql: Sql) {
     }
   );
 
-  /** D1 — the queue of requests awaiting a decision. */
+  /** D1 — the queue of requests awaiting a decision, only the caller's own (A4). */
   router.get(
     "/api/v1/events/queue",
     ...authenticate,
     requireRole("EVENT_COORDINATOR"),
-    async (_req: ActorRequest, res) => {
-      const items = await listReviewQueue(sql, QUEUE_STATUSES);
+    async (req: ActorRequest, res) => {
+      const items = await listReviewQueue(sql, QUEUE_STATUSES, req.actor!.userId);
       res.status(200).json({ items, nextCursor: null });
     }
   );
@@ -107,7 +107,7 @@ export function eventsRouter(sql: Sql) {
 
     const event = await findEventInScope(sql, req.params.id, scope, userId);
     if (!event) {
-      refuse(res, 404, "EVENT_NOT_FOUND", "No event with that reference is available to you.");
+      eventNotFound(res, role);
       return;
     }
 
@@ -118,14 +118,22 @@ export function eventsRouter(sql: Sql) {
       return;
     }
 
-    const opened = await sql.begin((tx) =>
-      transitionEvent(tx, event.id, "OPEN_FOR_REVIEW", { userId, role }, { set: reviewColumns(tx, userId) })
+    // A4: the scope once more, under the row lock. If the Lead reassigned the request while this
+    // waited, the outgoing coordinator neither claims it nor sees it.
+    const opened = await sql.begin(async (tx) =>
+      (await findEventInScope(tx, event.id, scope, userId, { lock: "update" }))
+        ? transitionEvent(tx, event.id, "OPEN_FOR_REVIEW", { userId, role }, { set: reviewColumns(tx, userId) })
+        : null
     );
 
     // If another coordinator claimed it between our read and the transition, the
     // transition is refused and changes nothing; re-read so this coordinator
     // sees the first reviewer (D1).
-    const shown = opened.ok ? opened.event : (await findEventInScope(sql, event.id, scope, userId))!;
+    const shown = opened?.ok ? opened.event : await findEventInScope(sql, event.id, scope, userId);
+    if (!shown) {
+      eventNotFound(res, role);
+      return;
+    }
     res.set("ETag", etag(shown.version)).status(200).json(shown);
   });
 

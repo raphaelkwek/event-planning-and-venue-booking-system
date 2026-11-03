@@ -45,7 +45,7 @@ vi.mock("../src/api/events.js", async () => {
 
 vi.mock("../src/api/users.js", () => ({ lookupUsers: vi.fn(async () => []) }));
 
-vi.mock("../src/api/changeRequests.js", () => ({ listChangeRequests: vi.fn(async () => ({ items: [] })), listArrangementFlags: vi.fn(async () => ({ flags: [] })) }));
+vi.mock("../src/api/changeRequests.js", () => ({ listChangeRequests: vi.fn(async () => ({ items: [] })), listArrangementFlags: vi.fn(async () => ({ flags: [] })), getChangeImpact: vi.fn(async () => ({ impact: { bookings: [], reservations: [], activeRegistrations: 0, flags: [] } })) }));
 
 const { Root } = await import("../src/Root.js");
 
