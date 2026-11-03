@@ -1,6 +1,6 @@
 # L6 — Tentative holds expire
 
-Twelve cases, written from the story (SPM-182, CR-04) on 21 Oct 2026, before the code, following the design in
+Thirteen cases (L6-T13 added on 3 Nov 2026 for W9-40), written from the story (SPM-182, CR-04) on 21 Oct 2026, before the code, following the design in
 `documentation/superpowers/specs/2026-10-21-l6-hold-expiry-design.md` (section 8 is the card table). L6-T1 to L6-T9 are API- and
 repository-level procedures (HTTP requests with authentication stubbed, and the venue repository's operations, against a migrated
 throwaway Postgres), automated one test per card in `tests/venue/api/l6Cards.test.ts`. L6-T10 is the Temporal workflow, automated in
@@ -12,7 +12,7 @@ L6-T12 is the signed-in browser walk-through, done by hand.
 | AC1: every hold records an expiry later than the moment it is placed; a hold without a valid expiry is refused and stores nothing; Venue Staff of the venue set and update it (CQ-06) | L6-T8, L6-T9, L6-T11, L6-T12 |
 | AC2: when the expiry passes before the hold is converted or released, its status becomes Expired, the record is kept, and the period becomes available | L6-T1, L6-T2, L6-T4, L6-T5, L6-T12 |
 | AC3: an expired hold is never treated as a booking: it blocks no period, cannot be converted, and does not count towards confirmation (F5) | L6-T2, L6-T3, L6-T12 |
-| AC4: the holding coordinator is notified before the hold expires and again when it expires, naming the venue, period, event and expiry time | L6-T6, L6-T7, L6-T12 |
+| AC4: the holding coordinator is notified before the hold expires and again when it expires, naming the venue, period, event and expiry time (and, per W9-40, when Venue Staff move it) | L6-T6, L6-T7, L6-T12, L6-T13 |
 | AC5: a hold expires at its expiry time whether or not anyone is using the system | L6-T10 |
 
 Boundaries: one second before the expiry the hold is not due and exactly at the expiry it is (L6-T4); one second before the

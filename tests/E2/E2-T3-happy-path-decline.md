@@ -18,7 +18,7 @@
 | Item | Content |
 |---|---|
 | Actual Result | The proposal is DECLINED, "Assigned coordinator" still reads "Coordinator One", and the only active assignment row is still the original coordinator's. |
-| Status | Pass |
-| Remarks | Commit: b0ef6ee (working tree modified) · Evidence: tests/E2/evidence/E2-T3.png · Defect: — |
+| Status | Blocked |
+| Remarks | Retired by E4 (W9-FX-5, W9-59): coordinators no longer propose, accept or decline a reassignment; the Lead reassigns (E4). Proposing, accepting and declining answer 410 REASSIGNMENT_RETIRED, and migration event/0020 closed every pending proposal, so this case can no longer be run. The 2026-09-20 manual Pass is kept as it was: Commit: b0ef6ee (working tree modified) · Evidence: tests/E2/evidence/E2-T3.png · Defect: — · Not rerun |
 | Executed By | Sahanya |
 | Date of Execution | 2026-09-20 |
