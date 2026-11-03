@@ -63,6 +63,48 @@ happened or be edited afterwards.
 
 ---
 
+# EN-10 and EN-16: container images, Kubernetes, Terraform, GitOps and canary releases (SPM-128, SPM-134)
+
+**Timestamp:** 2026-11-02T23:55+08:00 (SGT)
+**Author:** Joash
+**Scope:** backend/services/*/Dockerfile, backend/scripts/Dockerfile, frontend/Dockerfile,
+deploy/ (k8s, terraform, argocd, ci), .github/workflows/deploy.yml, documentation/deploy.md.
+
+**Deploy:** nothing to deploy yet. Follow documentation/deploy.md once a cluster exists.
+
+## Added
+
+- Multi-stage Dockerfiles for planning-core (also the Temporal worker), registration, notification,
+  the web app (unprivileged nginx with SPA fallback) and a migration image. Pinned bases, uid 1000,
+  no secrets. The shared packages export TypeScript source, so the images compile them and repoint
+  main at dist/ inside the image only.
+- A Deploy workflow (its own file, not a required check): builds every image with buildx and a cache,
+  starts each read-only with capabilities dropped against a throwaway Postgres and checks its health
+  endpoint, and on main pushes to GHCR tagged with the commit sha. It also runs kubeconform -strict
+  (CRD schemas included) and a hardening policy check on the rendered overlays, Terraform
+  fmt/validate/tflint, a kind smoke deploy of the staging overlay, an Argo CD sync in kind, and a
+  canary promote-then-rollback demonstration in kind. The cluster jobs run when deploy/, a Dockerfile
+  or the workflow changes, and on main.
+- Kustomize base and staging and production overlays: probes, resources, restricted securityContext,
+  Services, Ingress, HPAs, PodDisruptionBudgets, default-deny NetworkPolicy with allows, a PreSync
+  migration Job, Secrets as references only (documented kubectl step, optional ExternalSecret).
+- Terraform for the VPC, EKS (ap-southeast-1, three zones) and ElastiCache Redis, with the S3 backend
+  left unconfigured. Argo CD AppProject and Applications (staging automated with self-heal,
+  production manual).
+- EN-16: planning-core and registration are Argo Rollouts in both overlays (10%, analyse, 50%,
+  analyse, 100%) with an AnalysisTemplate on error rate and p95.
+
+## Not done / limits
+
+- Plan and apply were never run (no cloud account), nothing is deployed, and the GHCR push is
+  unverified until the first merge to main.
+- The AnalysisTemplate queries depend on EN-17 naming its metrics http_requests_total{status} and
+  http_request_duration_seconds. The kind demonstration used a stand-in service, not planning-core.
+- kind has no Kafka, Supabase or Temporal: those paths are not exercised, and the worker runs at zero
+  replicas there.
+
+---
+
 # A4 review: the assignment is re-checked under the row lock, and the spec and cards catch up
 
 **Timestamp:** 2026-11-03T11:05+08:00 (SGT)
