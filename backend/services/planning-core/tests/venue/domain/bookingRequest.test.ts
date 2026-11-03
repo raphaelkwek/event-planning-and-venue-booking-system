@@ -5,6 +5,9 @@ import {
   duplicateMessage,
   eventBookable,
   isDuplicatePending,
+  isSecondPendingReplacement,
+  ONE_PENDING_REPLACEMENT_INDEX,
+  replacementPendingMessage,
   JUSTIFICATION_MESSAGE,
   layoutAt,
   layoutCapacityAt,
@@ -77,7 +80,7 @@ describe("readBookingRequest", () => {
       ok: false,
       fields: [
         { field: "endsAt", message: "The end must be after the start." },
-        { field: "expectedAttendance", message: "Expected attendance must be a whole number greater than zero." },
+        { field: "expectedAttendance", message: "Expected attendance must be a whole number from 1 to 1000000." },
       ],
     });
     expect(readBookingRequest({ ...valid, endsAt: valid.startsAt })).toMatchObject({ ok: false, fields: [{ field: "endsAt" }] });
@@ -99,7 +102,7 @@ describe("readBookingRequest", () => {
         { field: "startsAt", message: "Enter a date and time with its offset, for example 2026-12-02T14:00+08:00." },
         { field: "endsAt", message: "Enter a date and time with its offset, for example 2026-12-02T14:00+08:00." },
         { field: "layout", message: "Choose a room layout." },
-        { field: "expectedAttendance", message: "Expected attendance must be a whole number greater than zero." },
+        { field: "expectedAttendance", message: "Expected attendance must be a whole number from 1 to 1000000." },
         { field: "facilities", message: "Must be a list of names." },
         { field: "replacesBookingId", message: "Must be the id of the booking to replace." },
       ],
@@ -219,6 +222,27 @@ describe("isDuplicatePending and duplicateMessage", () => {
     expect(duplicateMessage(["BKR-000001", "BKR-000002"])).toContain("this period: BKR-000001 and BKR-000002.");
     expect(duplicateMessage(["BKR-000001", "BKR-000002", "BKR-000003"])).toContain("this period: BKR-000001, BKR-000002 and BKR-000003.");
     expect(duplicateMessage([])).toContain("overlaps this period: another pending request.");
+  });
+});
+
+describe("isSecondPendingReplacement and replacementPendingMessage (L5, audit)", () => {
+  it("recognise only the one-pending-replacement index's refusal", () => {
+    expect(ONE_PENDING_REPLACEMENT_INDEX).toBe("booking_requests_one_pending_replacement_idx");
+    expect(isSecondPendingReplacement({ code: "23505", constraint_name: "booking_requests_one_pending_replacement_idx" })).toBe(true);
+    expect(isSecondPendingReplacement({ code: "23505", constraint_name: "booking_requests_booking_idx" })).toBe(false);
+    expect(isSecondPendingReplacement({ code: "23P01", constraint_name: ONE_PENDING_REPLACEMENT_INDEX })).toBe(false);
+    expect(isSecondPendingReplacement({ constraint_name: ONE_PENDING_REPLACEMENT_INDEX })).toBe(false);
+    expect(isSecondPendingReplacement(null)).toBe(false);
+    expect(isSecondPendingReplacement(undefined)).toBe(false);
+  });
+
+  it("names the pending replacement, or says there is one when it can't be named", () => {
+    expect(replacementPendingMessage("BKR-000007")).toBe(
+      "A replacement for this booking is already pending: BKR-000007. Withdraw it, or wait for Venue Staff to decide it, before requesting another.",
+    );
+    expect(replacementPendingMessage(null)).toBe(
+      "A replacement for this booking is already pending: another request. Withdraw it, or wait for Venue Staff to decide it, before requesting another.",
+    );
   });
 });
 

@@ -46,6 +46,7 @@ export const ERROR_CODES = [
   "HOLD_NOT_REQUESTED",
   "IDENTITY_UNAVAILABLE",
   "INSUFFICIENT_EQUIPMENT",
+  "INTERNAL_ERROR", // Anything a route did not expect: a 500 with a generic message, the detail only in the log.
   "INVALID_CREDENTIALS",
   "JUSTIFICATION_REQUIRED",
   "LINE_NOT_RELEASABLE",

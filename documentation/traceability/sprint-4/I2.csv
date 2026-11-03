@@ -1,0 +1,2 @@
+story_id,acceptance_criterion,test_file,test_name
+I2,"Removing a block restores availability for that period, clears the Requires Reconfirmation flag on any booking disrupted only by that block, and notifies the affected coordinators.",backend/services/planning-core/tests/venue/api/auditFixes.test.ts,"keeps the flag while an active block still disrupts the booking, and clears it when the block is removed"

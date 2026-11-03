@@ -422,6 +422,7 @@ components:
       enum:
         - EVENT_NOT_FOUND
         - IDENTITY_UNAVAILABLE
+        - INTERNAL_ERROR
         - NO_ROLE_ASSIGNED
         - RATE_LIMITED
         - REGISTRATION_DUPLICATE

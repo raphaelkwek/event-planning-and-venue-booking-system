@@ -1,5 +1,8 @@
 import { identityConfig } from "../config.js";
 
+/** Supabase Auth is a remote dependency: a call that hangs must fail rather than hold the request open. */
+const AUTH_TIMEOUT_MS = Number(process.env.SUPABASE_AUTH_TIMEOUT_MS ?? 5000);
+
 export interface PasswordGrantResult {
   ok: true;
   supabaseUserId: string;
@@ -16,6 +19,7 @@ export async function signInWithPassword(
     method: "POST",
     headers: { "Content-Type": "application/json", apikey: identityConfig.supabaseAnonKey },
     body: JSON.stringify({ email, password }),
+    signal: AbortSignal.timeout(AUTH_TIMEOUT_MS),
   });
 
   if (!res.ok) {
@@ -38,5 +42,6 @@ export async function revokeSession(accessToken: string): Promise<void> {
       apikey: identityConfig.supabaseAnonKey,
       Authorization: `Bearer ${accessToken}`,
     },
+    signal: AbortSignal.timeout(AUTH_TIMEOUT_MS),
   });
 }
