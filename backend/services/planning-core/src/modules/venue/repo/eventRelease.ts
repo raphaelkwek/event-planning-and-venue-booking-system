@@ -21,9 +21,10 @@ export interface ReleasedArrangements {
 }
 
 /**
- * Locks the row of every venue where the event has a live arrangement, in a fixed order, as every booking
- * change at a venue does (§4.6 rule 1). F4 calls this before it reads the arrangements `for share`, so its
- * locks are taken venue first, then slot, the same order as M1's approval and I2's block.
+ * Locks the row of every venue where the event has a live arrangement, in ascending id, as every booking
+ * change at a venue does (§4.6 rule 1). F4 calls this before it locks the event, so its locks are taken
+ * venue, then event, then slot: the same order as I2's block (venue, then the events it returns to
+ * Planning) and M1's approval (venue, then slot).
  */
 export async function lockVenuesForEvent(tx: TransactionSql, eventId: string): Promise<void> {
   const venues = await tx<{ venue_id: string }[]>`

@@ -15,12 +15,13 @@ import { closePendingForCancelledEvent, lockPendingForEvent, type ChangeRequestR
  * F3 — the owning organiser or the assigned coordinator cancels an event. One
  * core transaction (ADR-0004), as F5's confirmation:
  *
- * 1. Lock the event's pending change request, then the event (`for update`), in
- *    the caller's A3 scope. S2 takes the same two locks in the same order.
+ * 1. Lock the event's pending change request (S2 takes it before the event too),
+ *    then the row of every venue where the event has a live arrangement, in
+ *    ascending id, then the event (`for update`), in the caller's A3 scope.
  * 2. Refuse anyone but the owner or the assigned coordinator, and any status F1
  *    does not let move to Cancelled (AC1).
- * 3. Lock the event's venues, then read the venue and equipment arrangements
- *    through their modules' interfaces (`for share`), for who to notify (AC6).
+ * 3. Read the venue and equipment arrangements through their modules'
+ *    interfaces (`for share`), for who to notify (AC6).
  * 4. F4: release the bookings and holds, withdraw the pending venue requests,
  *    and release the reservations, each recording "event cancelled", the user
  *    and the time (F4 AC1–AC3, AC6). Anything already released is skipped (AC7).
@@ -30,14 +31,29 @@ import { closePendingForCancelledEvent, lockPendingForEvent, type ChangeRequestR
  *
  * Every refusal returns before anything is written. Any error rolls the whole
  * transaction back, so a failed release leaves the event in its status and
- * nothing released (F4 AC5). Lock order is the change request, the event, its
- * venues, their slots and requests, then equipment rows: the same order as S2,
- * M1 (venue, then slot) and Q1 (event, line, type), so this cannot deadlock with them.
+ * nothing released (F4 AC5).
  *
- * Registrations (F4 AC4) wait for EN-13: there is no registration service yet,
- * so `released.registrations` is always 0 and no attendee is notified. ADR-0009's
- * CancelEvent workflow exists only to hold registrations in that service while
- * this transaction runs, and joins with EN-13.
+ * Lock order: the change request, the venues (ascending id), the event, then
+ * the venue module's holds, requests and slots, then equipment rows. That is
+ * the venue module's order (implementation.md §4.6: venue rows, then event
+ * rows, then holds, requests and slots), so a block at one of the event's
+ * venues (I2 locks the venue, then the events it returns to Planning) waits
+ * for the cancellation or the cancellation waits for it; neither holds what the
+ * other needs. It also matches S2 (change request, then event), M1 (venue, then
+ * slot) and Q1 (event, line, type). The venues are locked before the scope and
+ * status checks, so a refused cancellation can briefly hold them; it writes
+ * nothing. One narrow gap is left: a hold or request at a new venue that
+ * commits between the venue locks and the event lock is locked by the release,
+ * after the event. Creating a hold or request doesn't lock the event, so only a
+ * block at that new venue in the same instant could still deadlock.
+ *
+ * Registrations (F4 AC4) are not released here. EN-13's registration service
+ * builds seats from venue approvals, and R1–R4 (#80) and R5–R7 (#88) add the
+ * consumer of `event.cancelled` (`connectsphere.event.v1`) that cancels the
+ * event's registrations and waitlist and tells its attendees. So
+ * `released.registrations` is 0: this transaction cannot read another
+ * service's schema. ADR-0009's CancelEvent workflow is not built; that consumer
+ * takes its place.
  */
 
 /** F4 — what the cancellation released, by reference, for the response. */
@@ -46,7 +62,7 @@ export interface ReleasedOnCancellation {
   holds: string[];
   requests: string[];
   reservations: { reservationId: string; equipmentTypeName: string; reservedQuantity: number }[];
-  /** Always 0 until EN-13's registration service exists. */
+  /** Always 0: the registration service releases registrations when it consumes `event.cancelled`. */
   registrations: number;
 }
 
@@ -63,6 +79,8 @@ export async function cancelEvent(
   actor: { userId: string; role: Role; correlationId?: string | null }
 ): Promise<CancelOutcome> {
   await lockPendingForEvent(tx, eventId);
+  // Venues before the event (§4.6): I2's block locks the venue, then the events it returns to Planning.
+  await lockVenuesForEvent(tx, eventId);
   const scope = resolveAccessScope(actor.role, actor.userId, "events");
   const event = await findEventForChange(tx, eventId, scope, actor.userId, { lock: "update" });
   if (!event) return { ok: false, code: "NOT_FOUND" };
@@ -74,7 +92,6 @@ export async function cancelEvent(
   if (refusal) return { ok: false, code: "STATUS_NOT_PERMITTED", message: refusal };
 
   // AC6 — the Venue Staff of each booked venue and whoever reserved each reservation.
-  await lockVenuesForEvent(tx, event.id);
   const venue = await venueArrangementsForEvent(tx, event.id);
   const lines = await equipmentArrangementsForEvent(tx, event.id);
   const notice = {

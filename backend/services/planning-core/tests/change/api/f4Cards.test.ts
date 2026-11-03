@@ -3,7 +3,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 import request from "supertest";
 import { testDb } from "../../support/testDb.js";
 import { actorsWithPrefix, cleanLineFixtures, createBulkType, insertLineDirect } from "../../support/lineFixtures.js";
-import { seedEvent } from "../../support/seedEvent.js";
+import { seedEvent, setStatusDirect } from "../../support/seedEvent.js";
 import { EVENT_END, EVENT_START } from "../../support/eventDates.js";
 
 // The F4 cards (tests/F4): real Express app and migrated Postgres, with JWT verification and each
@@ -44,6 +44,7 @@ const { resolveCurrentUser: resolveVenueUser } = await import("../../../src/modu
 const { resolveCurrentUser: resolveEventUser, resolveEventsScope } = await import("../../../src/modules/event/auth/identity.js");
 const { releaseEventReservations } = await import("../../../src/modules/equipment/index.js");
 const { releaseVenueArrangementsForEvent } = await import("../../../src/modules/venue/index.js");
+const { returnBlockedEventsToPlanning } = await import("../../../src/modules/event/index.js");
 const { app } = await import("../../../src/app.js");
 
 const sql = testDb();
@@ -308,10 +309,58 @@ describe("F4 cards (tests/F4)", () => {
     expect(await state(event.id)).toEqual(once);
   });
 
-  it("F4-T7 no registration is released and no attendee is told, since there is no registration service yet", async () => {
+  // F4-T7 itself is Blocked: AC4 is met by the registration service's consumer of event.cancelled (#80, #88).
+  // This checks F4's part only: the cancellation releases no registration in its own transaction.
+  it("F4-T7 the cancellation itself releases no registration: the registration service does that from event.cancelled", async () => {
     const { event } = await fixture();
     const response = await cancel(event.id);
     expect(response.status).toBe(200);
     expect(response.body.released.registrations).toBe(0);
+  });
+});
+
+// The lock order (review of #72, implementation.md §4.6): I2's block locks the venue, then the events it
+// returns to Planning. The cancellation used to lock the event, then its venues, so the two could deadlock
+// (40P01). It now locks the venues first. This test holds a block's venue lock, waits until the
+// cancellation is queued behind it, then takes the event lock as I2 does. Under the old order the
+// cancellation would already hold the event, and Postgres would abort one of the two.
+describe("F4 lock order: a block and a cancellation racing on one event and venue", () => {
+  it("the cancellation waits on the venue a block has locked, and the block can still lock the event and finish", async () => {
+    const { event, v1, b1 } = await fixture();
+    await setStatusDirect(sql, event.id, "CONFIRMED");
+    const staff = { userId: A.vs, role: "VENUE_STAFF" };
+
+    const watcher = testDb();
+    try {
+      const started: { cancellation?: Promise<request.Response> } = {};
+      let queued = false;
+      const returned = await sql.begin(async (tx) => {
+        await tx`set local lock_timeout = '5s'`;
+        // I2, step 1: the venue row lock (lockVenue).
+        await tx`select id from venue.venues where id = ${v1.id} for update`;
+        started.cancellation = cancel(event.id).then((response) => response);
+        for (let i = 0; i < 100 && !queued; i += 1) {
+          const [waiting] = await watcher<{ n: number }[]>`
+            select count(*)::int as n from pg_stat_activity
+            where datname = current_database() and wait_event_type = 'Lock' and query ilike '%from venue.venues%for update%'
+          `;
+          queued = waiting!.n > 0;
+          if (!queued) await new Promise((resolve) => setTimeout(resolve, 50));
+        }
+        // I2, step 2: the events the block returns to Planning, locked `for update`.
+        return returnBlockedEventsToPlanning(tx, [event.id], staff);
+      });
+
+      expect(queued).toBe(true);
+      expect([...returned]).toEqual([event.id]);
+      const response = await started.cancellation!;
+      expect(response.status).toBe(200);
+      expect(response.body.released).toMatchObject({ bookings: [b1.reference] });
+      const after = await state(event.id);
+      expect(after.event).toMatchObject({ status: "CANCELLED" });
+      expect(after.slots.find((s) => s.id === b1.id)).toMatchObject({ status: "RELEASED" });
+    } finally {
+      await watcher.end();
+    }
   });
 });
