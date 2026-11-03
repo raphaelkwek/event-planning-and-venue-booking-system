@@ -21,12 +21,10 @@ export interface ReleasedArrangements {
 }
 
 /**
- * Locks the row of every venue where the event has a live arrangement, in ascending id, as every booking
- * change at a venue does (§4.6 rule 1). F4 calls this before it locks the event, so its locks are taken
- * venue, then event, then slot: the same order as I2's block (venue, then the events it returns to
- * Planning) and M1's approval (venue, then slot).
+ * The venues where the event has a live arrangement (a held or confirmed slot, a pending request, or a
+ * requested or held hold), in ascending id.
  */
-export async function lockVenuesForEvent(tx: TransactionSql, eventId: string): Promise<void> {
+export async function liveVenueIdsForEvent(tx: TransactionSql, eventId: string): Promise<string[]> {
   const venues = await tx<{ venue_id: string }[]>`
     select venue_id from venue.venue_slots where event_id = ${eventId} and status in ('HELD', 'CONFIRMED')
     union
@@ -35,7 +33,20 @@ export async function lockVenuesForEvent(tx: TransactionSql, eventId: string): P
     select venue_id from venue.holds where event_id = ${eventId} and status in ('REQUESTED', 'HELD')
     order by venue_id
   `;
-  for (const { venue_id } of venues) await lockVenue(tx, venue_id);
+  return venues.map((row) => row.venue_id);
+}
+
+/**
+ * Locks the row of every venue where the event has a live arrangement, in ascending id, as every booking
+ * change at a venue does (§4.6 rule 1), and returns their ids. F4 calls this before it locks the event,
+ * so its locks are taken venue, then event, then slot: the same order as I2's block (venue, then the
+ * events it returns to Planning) and M1's approval (venue, then slot). Once it holds the event, F4 reads
+ * the venues again (`liveVenueIdsForEvent`) and starts over if the event gained one in between.
+ */
+export async function lockVenuesForEvent(tx: TransactionSql, eventId: string): Promise<string[]> {
+  const venueIds = await liveVenueIdsForEvent(tx, eventId);
+  for (const venueId of venueIds) await lockVenue(tx, venueId);
+  return venueIds;
 }
 
 /**

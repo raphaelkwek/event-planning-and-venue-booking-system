@@ -3,7 +3,13 @@ import type { Sql } from "postgres";
 import type { Role } from "@connectsphere/contracts";
 import { notInScopeMessage } from "../../identity/index.js";
 import { authenticate, requireRole, type ActorRequest } from "../auth/actor.js";
-import { CANCELLATION_FAILED_MESSAGE, NOT_PERMITTED_TO_CANCEL_MESSAGE, validateCancellationBody } from "../domain/cancellation.js";
+import {
+  CANCELLATION_CONTENDED_MESSAGE,
+  CANCELLATION_FAILED_MESSAGE,
+  NOT_PERMITTED_TO_CANCEL_MESSAGE,
+  retryWhile,
+  validateCancellationBody,
+} from "../domain/cancellation.js";
 import { cancelEvent } from "../repo/cancelEvent.js";
 import { logger } from "../../../shared/logger.js";
 import { refuse } from "./errors.js";
@@ -44,7 +50,11 @@ export function cancellationsRouter(sql: Sql, limiter: RequestHandler = changeRa
 
         let outcome;
         try {
-          outcome = await sql.begin((tx) => cancelEvent(tx, eventId, body.reason, { ...req.actor!, correlationId }));
+          // F4: an attempt that found new venue arrangements under it wrote nothing; it is tried again.
+          outcome = await retryWhile(
+            () => sql.begin((tx) => cancelEvent(tx, eventId, body.reason, { ...req.actor!, correlationId })),
+            (attempt) => !attempt.ok && attempt.code === "VENUES_CHANGED"
+          );
         } catch (error) {
           // F4 AC5 — the transaction rolled back, so the event keeps its status and nothing was released.
           logger.error("F3 cancellation failed and was rolled back", { correlationId, eventId, cause: String(error) });
@@ -63,6 +73,9 @@ export function cancellationsRouter(sql: Sql, limiter: RequestHandler = changeRa
             return void refuse(res, 403, "ROLE_NOT_AUTHORISED", NOT_PERMITTED_TO_CANCEL_MESSAGE);
           case "STATUS_NOT_PERMITTED":
             return void refuse(res, 409, "STATUS_TRANSITION_NOT_PERMITTED", outcome.message);
+          case "VENUES_CHANGED":
+            logger.warn("F3 cancellation gave up: the event's venues kept changing", { correlationId, eventId });
+            return void refuse(res, 409, "CANCELLATION_CONTENDED", CANCELLATION_CONTENDED_MESSAGE);
           default: {
             const unreachable: never = outcome;
             throw new Error(`Unhandled cancellation outcome ${JSON.stringify(unreachable)}`);

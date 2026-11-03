@@ -71,6 +71,8 @@ export const ERROR_CODES = [
   // F3: a cancelled event refuses new equipment; a cancellation that fails changes nothing.
   "EVENT_CANCELLED",
   "CANCELLATION_FAILED",
+  // F4: every attempt found the event's venue arrangements changing under it, so nothing was cancelled.
+  "CANCELLATION_CONTENDED",
 ] as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[number];

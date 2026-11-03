@@ -37,6 +37,7 @@ export { releaseHoldsForEvent } from "./repo/holds.js";
  */
 export {
   EVENT_CANCELLED,
+  liveVenueIdsForEvent,
   lockVenuesForEvent,
   releaseVenueArrangementsForEvent,
   type ReleasedArrangements,
