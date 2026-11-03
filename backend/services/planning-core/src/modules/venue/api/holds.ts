@@ -139,6 +139,10 @@ export function holdsRouter(sql: Sql, limiter: RequestHandler = holdsRateLimit()
         );
         if (blocks.length > 0) return refuse(res, 409, "VENUE_UNAVAILABLE", holdBlockedMessage(venue.name, blocks));
         const outcome = await sql.begin(async (tx) => {
+          // The venue, then the event (§4.6). The hold's foreign key takes a share lock on the venue row,
+          // so taking the event first would wait on a block at the venue (I2: venue, then event) while
+          // holding what that block waits for.
+          await lockVenue(tx, venue.id);
           const locked = await lockEventInScope(tx, event.id, req);
           if (!locked) return { code: "NOT_FOUND" } as const;
           if (!eventHoldable(locked.status)) return { code: "NOT_HOLDABLE", status: locked.status } as const;

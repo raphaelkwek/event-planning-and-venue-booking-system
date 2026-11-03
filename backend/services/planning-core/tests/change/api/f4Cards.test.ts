@@ -413,10 +413,13 @@ describe("F4 lock order: a hold at a new venue that commits while the cancellati
     const blockerMayGo = new Promise<void>((resolve) => (letBlockerGo = resolve));
     let venueHeld!: () => void;
     const blockerHoldsVenue = new Promise<void>((resolve) => (venueHeld = resolve));
-    // I2 at V3, step 1: the venue row lock. Step 2, once let go: the event, `for update`.
+    // A block at V3 that starts just after the hold commits: step 1 the venue row, step 2 (once let go) the
+    // event `for update`, as I2 does. It holds the venue `for no key update` rather than I2's `for update`,
+    // which still makes the cancellation's `for update` wait but lets the hold's foreign-key check (a key
+    // share lock on the venue) through, so the hold can be committed while the block already holds V3.
     const block = blocker.begin(async (tx) => {
       await tx`set local lock_timeout = '10s'`;
-      await tx`select id from venue.venues where id = ${v3.id} for update`;
+      await tx`select id from venue.venues where id = ${v3.id} for no key update`;
       venueHeld();
       await blockerMayGo;
       await tx`select id from event.events where id = ${event.id} for update`;
@@ -424,8 +427,10 @@ describe("F4 lock order: a hold at a new venue that commits while the cancellati
     try {
       await blockerHoldsVenue;
       let cancellation!: Promise<request.Response>;
-      // The hold at V3 is written by a transaction holding the event `for share`, as L3's request does.
+      // The hold at V3 is written by a transaction holding the event `for share`, as L3's request does (L3 locks
+      // V3 first too; here the block stands in for one that takes V3 just after the hold commits).
       await planner.begin(async (tx) => {
+        await tx`set local lock_timeout = '10s'`;
         await tx`select id from event.events where id = ${event.id} for share`;
         cancellation = cancel(event.id).then((response) => response);
         expect(await blockedOn("%from event.events%")).toBe(true);
