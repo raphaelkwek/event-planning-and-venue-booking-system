@@ -32,12 +32,14 @@ The local-policies evaluator (`src/shared/authz/localPolicies.ts`) is the one th
 production: `startup.ts` asserts the mode before the server listens, and the evaluator throws if it
 is constructed with `NODE_ENV=production` (`pdpStartup.unit.test.ts`).
 
-**Checked on Windows without WSL** (this machine, 3 Nov 2026): `npm run cerbos:start` printed that
-there is no Windows build and exited 0, so the rest of the dev stack kept running. planning-core,
-started alongside it with no `.env` (its settings came from the shell, and the database pointed at
-nothing), logged the LOCAL-POLICIES warning after 5 s, listened, and answered `/healthz` 200 and an
-unauthenticated permissions check 401. The full `npm run dev` wasn't run, because it reads a `.env`,
-and none may be created here.
+**Checked on Windows without WSL** (this machine, 4 Nov 2026, after merging #97 and #99): the six
+processes `npm run dev` starts were started the same way (the PDP script, planning-core, notification,
+registration, the web app and the Temporal worker), with their settings in the shell instead of a
+`.env`, since none may be created here, and the database pointing at nothing. `npm run cerbos:start`
+printed that there is no Windows build and exited 0, so nothing else was stopped. planning-core logged
+the LOCAL-POLICIES warning after 5 s and listened; planning-core, notification and registration answered
+`/healthz` 200 and the web app served its page. The worker said TEMPORAL_ADDRESS is not set and exited
+0, as it does without Temporal.
 
 ## What was validated
 
