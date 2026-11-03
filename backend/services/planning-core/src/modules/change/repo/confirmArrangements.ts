@@ -44,7 +44,6 @@ export class ArrangementsUnavailableError extends Error {
 export type ConfirmOutcome =
   | { ok: true; event: ConfirmedArrangements }
   | { ok: false; code: "NOT_FOUND" }
-  | { ok: false; code: "NOT_ASSIGNED" }
   | { ok: false; code: "STATUS_NOT_PERMITTED"; message: string }
   | {
       ok: false;
@@ -75,8 +74,8 @@ export async function confirmArrangements(
 ): Promise<ConfirmOutcome> {
   const scope = resolveAccessScope(actor.role, actor.userId, "events");
   const event = await findEventForChange(tx, eventId, scope, actor.userId, { lock: "update" });
+  // A4: a coordinator's scope is the events assigned to them, so any other event is not found.
   if (!event) return { ok: false, code: "NOT_FOUND" };
-  if (event.assignedCoordinatorId !== actor.userId) return { ok: false, code: "NOT_ASSIGNED" };
 
   const refusal = arrangementsConfirmationRefusal(event.status);
   if (refusal) return { ok: false, code: "STATUS_NOT_PERMITTED", message: refusal };

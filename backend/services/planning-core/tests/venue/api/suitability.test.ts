@@ -1,5 +1,6 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import request from "supertest";
+import { assignForTest } from "../../support/assignment.js";
 import { testDb } from "../../support/testDb.js";
 
 /**
@@ -51,6 +52,7 @@ async function cleanUp() {
   const ours = sql`select id from venue.venues where created_by = ${STAFF}`;
   await sql`delete from venue.venue_slots where venue_id in (${ours})`;
   await sql`delete from venue.venues where created_by = ${STAFF}`;
+  await sql`delete from event.assignments where event_id in (select id from event.events where owner_id = ${OWNER})`;
   await sql`delete from event.events where owner_id = ${OWNER}`;
 }
 
@@ -102,6 +104,8 @@ async function newEvent(fields: EventFields = {}): Promise<{ id: string; referen
     )
     returning id, reference
   `;
+  // A4: a coordinator assesses only an event assigned to them.
+  await assignForTest(sql, row!, COORDINATOR);
   return row!;
 }
 

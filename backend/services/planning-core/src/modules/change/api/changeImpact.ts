@@ -1,5 +1,7 @@
 import { Router, type NextFunction, type RequestHandler, type Response } from "express";
 import type { Sql } from "postgres";
+import type { Role } from "@connectsphere/contracts";
+import { notInScopeMessage } from "../../identity/index.js";
 import { authenticate, type ActorRequest } from "../auth/actor.js";
 import { alreadyDecidedMessage } from "../domain/changeRequests.js";
 import { previewChangeRequest } from "../repo/changeImpact.js";
@@ -9,16 +11,18 @@ import { changeRateLimiter } from "./limiter.js";
 
 /**
  * G2 (SPM-31) — before deciding a Pending change request, which arrangements approving it would
- * flag, and why (AC2, AC3), in S3's `impact` shape. The owning organiser and Event Coordinators can
- * see it, as they can the request (S1); anyone else gets the 404 of a request that does not exist.
+ * flag, and why (AC2, AC3), in S3's `impact` shape. The owning organiser and the assigned coordinator
+ * (A4: no other coordinator) can see it, as they can the request (S1); anyone else gets the 404 of a
+ * request that does not exist.
  * The read runs in a `read only` transaction and locks nothing, so viewing alters no booking,
  * reservation or registration and blocks no decision (AC4). A decided request has no preview: it
  * answers S2's 409, naming the decision.
  */
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-function notFound(res: Response) {
-  refuse(res, 404, "CHANGE_REQUEST_NOT_FOUND", "No change request with that id exists.");
+/** A4: a coordinator is told the request is not on an event assigned to them. */
+function notFound(res: Response, role: Role) {
+  refuse(res, 404, "CHANGE_REQUEST_NOT_FOUND", notInScopeMessage(role, "No change request with that id exists.", "change request"));
 }
 
 export function changeImpactRouter(sql: Sql, limiter: RequestHandler = changeRateLimiter()) {
@@ -27,7 +31,7 @@ export function changeImpactRouter(sql: Sql, limiter: RequestHandler = changeRat
   router.get("/api/v1/change-requests/:id/impact", limiter, authenticate, async (req: ActorRequest, res: Response, next: NextFunction) => {
     try {
       const requestId = req.params.id!;
-      if (!UUID.test(requestId)) return notFound(res);
+      if (!UUID.test(requestId)) return notFound(res, req.actor!.role);
       const actor = req.actor!;
 
       const outcome = await sql.begin("read only", (tx) => previewChangeRequest(tx, requestId, actor));
@@ -35,7 +39,7 @@ export function changeImpactRouter(sql: Sql, limiter: RequestHandler = changeRat
       if (outcome.ok) return void res.status(200).json({ impact: impactBody(outcome.impact) });
       switch (outcome.code) {
         case "NOT_FOUND":
-          return notFound(res);
+          return notFound(res, actor.role);
         case "ALREADY_DECIDED":
           return void refuse(
             res,

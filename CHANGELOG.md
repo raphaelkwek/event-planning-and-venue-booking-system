@@ -4,6 +4,43 @@
 
 ---
 
+# A4 review: the assignment is re-checked under the row lock, and the spec and cards catch up
+
+**Timestamp:** 2026-11-03T11:05+08:00 (SGT)
+**Author:** Joash
+**Scope:** planning-core event module (`repo/events.ts`, `api/decisions.ts`, `api/events.ts`), the
+OpenAPI spec, A4's cards and traceability. Review fixes on PR #81; no migration.
+
+## Fixed
+
+- **A reassignment now refuses an action already waiting for the event's lock.** Under READ
+  COMMITTED a statement that waited for a row lock re-checks only the locked row, so the coordinator
+  scope's assignment test still saw the outgoing coordinator. With A4's separate 403 checks gone,
+  F5's confirmation and S2's decision could go through after the Lead (E4) moved the event.
+  - `findEventInScope` reads the assignment again, in a statement of its own, whenever it locks for
+    the coordinator scope.
+  - D4/D5 (approve, reject) and D1's claim-on-open read the scope only before their transaction; each
+    now reads it again under the lock inside it. The outgoing coordinator gets A4's 404.
+  - Opening an event no longer throws if it leaves the caller's scope before the re-read.
+- **OpenAPI:** the queue, open-an-event, G1, F5, S2, L1, L2, L3, O1 and S3 flag descriptions now say
+  that another coordinator's event is a 404, not a 403.
+- **F3 and G2, merged from main, follow A4.** Their routes already read the event through the scope,
+  so another coordinator was refused with 404; the message now says the event (or change request) is
+  not assigned to them. F3-T2 and G2-T7 expected that coordinator to get 403 and the preview; both
+  tests and cards are revised for A4.
+
+## Tests
+
+- `tests/event/api/a4LockedScope.test.ts`: findEventForChange (update and share lock), F5, S2, D4,
+  D5 and D1, each queued behind an uncommitted reassignment. Throwaway database only.
+
+## Cards
+
+- A4-T15 (F3) is automated in `a4Cards.test.ts`, as F3 has merged.
+- The cards' execution records name the CI run that passed them.
+
+---
+
 # F4: Release the arrangements of a cancelled event
 
 **Timestamp:** 2026-10-29T19:30+08:00 (SGT); revised 2026-11-03T10:57+08:00 (SGT) for the review of #72
@@ -92,6 +129,59 @@ the same transaction; the two should merge together (Gate B: "cancellation is on
     check then failed on main and on every branch.
   - **The fix:** the date is now far in the future, with a comment saying why it must stay there.
     Nothing in the app changes.
+
+---
+
+# A4: coordinators act only on the events assigned to them (CR-05)
+
+**Timestamp:** 2026-11-02T23:59+08:00 (SGT)
+**Author:** Shawmya
+**Scope:** contracts (`ASSIGNED_TO_USER` scope), planning-core (identity, event, change, venue,
+equipment modules), Cerbos policies, web app (All events), functional test cases. No migration.
+
+## Changed
+
+- A coordinator's events scope is now `ASSIGNED_TO_USER` (was `ALL`); the Lead keeps `ALL`. The
+  event repo applies it in the query, so every list, read and action that finds an event through
+  the scope sees only the caller's actively assigned, non-draft events. The D1 queue holds only the
+  caller's requests. A reassigned event leaves the previous coordinator at once.
+- Anything outside the scope is not found. Decided with the story owner: CQ-11 is open, and until
+  it is answered a coordinator gets no read-only view of other events. One 404 for "not yours" and
+  "does not exist", worded "No event with that reference is assigned to you." (or "No booking
+  request / hold / equipment request line / change request with that id is on an event assigned to
+  you."), from `notInScopeMessage` in identity's public interface. It meets AC1 without revealing
+  the event (implementation.md §6).
+- The separate 403 assignment checks in F5, S2, O1, L1, L2 and L3 can no longer be reached and are
+  removed, so one rule decides. S2 now checks the scope before the request's status, and a
+  coordinator can no longer read another event's equipment line by id.
+- Cerbos: coordinator rules use `assigned_coordinator`; `release_hold` follows the assignment
+  (as the code does), so `heldById` is gone. The policy suite runs in CI only (no network here).
+- All events: the "Every event" / "Assigned to me" filter is gone, as every row is the
+  coordinator's own.
+
+## Tests
+
+- A4-T1 to A4-T13 automated in `tests/event/api/a4Cards.test.ts`, all passing on a throwaway
+  Postgres. With the old scope, nine of them fail. A4-T14 (browser) and A4-T15 (F3, not on main)
+  are Not Executed.
+- Regression, as the story asks: A3, D1, E4, F5, G1, L1, L2, L3, O1, S2 and S3 tests and cases now
+  expect 404 with A4's message for another coordinator. Browser cases are reset to Not Executed.
+
+## Not done, or to raise
+
+- **S3 AC8** says any Event Coordinator sees an event's flags; A4 overrides that for unassigned
+  coordinators. S3's owner should agree it.
+- **E2's legacy proposals:** the nominee can still accept or decline through the API, but can't
+  open the event page to do it, since it isn't assigned to them yet.
+- **Race:** the scope is checked when the action reads the event. A Lead reassignment committing
+  in the same instant as the old coordinator's action may not stop it. G1 re-checks under lock.
+  (Review, 3 Nov: closed for F5, S2, D4, D5 and D1's claim; see the entry above. D2, L1, L3 and O1
+  still check before their transaction.)
+- **F3/F4** aren't on main; they should look the event up through the scope like the rest.
+- **OpenAPI** 404 descriptions updated in review (3 Nov). RLS (EN-07.2) follows.
+- `tests/race/invariants.test.ts` L3-T17 hard-codes 2026-11-02 with a 09:00 expiry, so it fails
+  from that evening on, on main too. Not changed here (L3 / EN-02.3). Fixed on main by #82, which
+  this branch has merged.
 
 ---
 
