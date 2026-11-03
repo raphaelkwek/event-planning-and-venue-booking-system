@@ -1,0 +1,89 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "properties": {
+    "addedBy": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "addedByName": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "addedOverCapacity": {
+      "type": "boolean"
+    },
+    "attendeeId": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "eventEndsAt": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "eventId": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "eventName": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "eventReference": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "eventStartsAt": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "registeredAt": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "registrationId": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "registrationReference": {
+      "pattern": "^REG-\\d{6}$",
+      "type": "string"
+    }
+  },
+  "required": [
+    "addedBy",
+    "addedByName",
+    "addedOverCapacity",
+    "attendeeId",
+    "eventEndsAt",
+    "eventId",
+    "eventName",
+    "eventReference",
+    "eventStartsAt",
+    "registeredAt",
+    "registrationId",
+    "registrationReference"
+  ],
+  "type": "object"
+}

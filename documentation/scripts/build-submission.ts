@@ -4,10 +4,11 @@
  * Week 12 zip never holds a second, hand-typed copy that drifts from the source.
  *
  *   tests/<story>/*.md                      → 3. Test Cases/Functional Test Cases.xlsx
- *   documentation/traceability/sprint-*.csv → 3. Test Cases/Automated Test Traceability.xlsx
+ *   documentation/traceability/sprint-<n>/<STORY>.csv
+ *                                           → 3. Test Cases/Automated Test Traceability.xlsx
  *   final user stories.md + sprint allocation.csv + plan.md §9
  *                                           → 4. Sprint Meetings/3. Sprint Backlogs.xlsx
- *   CHANGELOG.md                            → 4. Sprint Meetings/2. Sprint Updates.xlsx
+ *   changelog/*.md + CHANGELOG.md           → 4. Sprint Meetings/2. Sprint Updates.xlsx
  *
  * It also copies the sprint review/retrospective and the meeting transcripts into
  * 4. Sprint Meetings/, for the same reason. Hand-written files in submission/ are never touched.
@@ -18,7 +19,8 @@ import { readFileSync, readdirSync, existsSync, mkdirSync, copyFileSync } from "
 import { join, relative } from "node:path";
 import { pathToFileURL } from "node:url";
 import ExcelJS from "exceljs";
-import { parseChangelog, sortEntries, standupName, type ChangelogEntry } from "./confluence-digest.ts";
+import { parseChangelog, readCombinedChangelog, sortEntries, standupName, type ChangelogEntry } from "./confluence-digest.ts";
+import { traceabilityFiles } from "./traceability-matrix.ts";
 
 // ---------------------------------------------------------------------------------------------
 // Sprint calendar. Add a row when a sprint is planned; mark it reviewed after its Sprint Review.
@@ -661,11 +663,10 @@ async function main() {
     .map((f) => parseTestCard(readFileSync(f, "utf8"), relative(repo, f)))
     .sort(compareCards);
   const traceability = new Map<number, Record<string, string>[]>();
-  for (const f of readdirSync(join(repo, "documentation/traceability")).sort()) {
-    const m = f.match(/^sprint-(\d+)\.csv$/);
-    if (m) traceability.set(Number(m[1]), parseCsv(read(`documentation/traceability/${f}`)));
+  for (const { sprint, path } of traceabilityFiles(join(repo, "documentation/traceability"))) {
+    traceability.set(sprint, [...(traceability.get(sprint) ?? []), ...parseCsv(readFileSync(path, "utf8"))]);
   }
-  const entries = parseChangelog(read("CHANGELOG.md"));
+  const entries = parseChangelog(readCombinedChangelog(repo));
 
   const tests = join(out, "3. Test Cases");
   const meetings = join(out, "4. Sprint Meetings");

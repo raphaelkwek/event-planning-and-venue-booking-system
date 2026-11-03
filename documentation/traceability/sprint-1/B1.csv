@@ -1,0 +1,10 @@
+story_id,acceptance_criterion,test_file,test_name
+B1,"The request captures event name, purpose, description, proposed date, start and end time, expected attendance, venue requirements, accessibility needs, equipment requirements, and whether registration is required",backend/services/planning-core/tests/event/api/review.test.ts,"shows the full submitted content, including requirements"
+B1,"On a successful submission the request is stored with status Submitted, and the submitting organiser, submission timestamp, and a unique event reference are recorded",backend/services/planning-core/tests/event/api/submission.test.ts,"stores the request as Submitted with a reference and a submission time"
+B1,"The submitting organiser is recorded as the owner of the event",backend/services/planning-core/tests/event/api/submission.test.ts,"records the submitting organiser as the owner of the event"
+B1,"The submitted request appears in the Event Coordinator review queue",backend/services/planning-core/tests/event/api/review.test.ts,"shows a submitted request with the details a coordinator triages on"
+B1,"On submission the assigned coordinator (E1) is notified that a new event request is awaiting review",backend/services/planning-core/tests/event/api/submission.test.ts,"raises the notification that a new request awaits review, in the same transaction"
+B1,"If submission fails validation, no event record is created and no submission timestamp is recorded",backend/services/planning-core/tests/event/api/submission.test.ts,"creates no event record at all when validation fails (B1, B2)"
+B1,"The request captures venue requirements and equipment requirements",backend/services/planning-core/tests/event/api/submission.test.ts,"stores the venue and equipment requirements it captures (B1)"
+B1,"The request form captures venue requirements and equipment requirements",frontend/tests/requestBody.test.ts,"sends venue requirements as a layout, a list of facilities and notes"
+B1,"The submitting organiser is shown to the organiser",frontend/tests/names.test.tsx,"shows the submitting organiser on the organiser's own request page"

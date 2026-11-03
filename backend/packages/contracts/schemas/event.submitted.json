@@ -1,0 +1,44 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "properties": {
+    "eventId": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "eventName": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "eventReference": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "ownerId": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "proposedEndAt": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "proposedStartAt": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "submittedAt": {
+      "format": "date-time",
+      "type": "string"
+    }
+  },
+  "required": [
+    "eventId",
+    "eventName",
+    "eventReference",
+    "ownerId",
+    "proposedEndAt",
+    "proposedStartAt",
+    "submittedAt"
+  ],
+  "type": "object"
+}

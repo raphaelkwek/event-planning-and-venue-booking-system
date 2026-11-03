@@ -3,6 +3,7 @@ import { rateLimit } from "express-rate-limit";
 import type { Sql } from "postgres";
 import { authenticate, requireRole, type ActorRequest } from "../auth/actor.js";
 import { changedFields, validateVenue, type VenueInput } from "../domain/venueRecord.js";
+import { isVenueStaff } from "../repo/bookingDecisions.js";
 import {
   addVenueStaff,
   findVenue,
@@ -111,7 +112,9 @@ export function venuesRouter(sql: Sql, limiter: RequestHandler = venuesRateLimit
 
     const updated = await sql.begin(async (tx) => {
       const locked = await lockVenue(tx, req.params.id!);
-      if (!locked) return null;
+      // H1, H3: Venue Staff update only the venues they look after. Another venue is "not found" (A3, §6),
+      // as for I2's blocks, L3's holds and M1's decisions. Checked under the lock, before anything is read or written.
+      if (!locked || !(await isVenueStaff(tx, locked.id, actor.userId))) return null;
       const changes = changedFields(locked, venue);
       if (Object.keys(changes).length === 0) return { record: locked, flaggedBookings: [] };
       const record = await updateVenue(tx, locked.id, venue, actor.userId);

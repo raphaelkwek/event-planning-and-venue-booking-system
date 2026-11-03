@@ -5,6 +5,7 @@ import {
   type EquipmentRequestLineStatus,
   type ErrorField,
 } from "@connectsphere/contracts";
+import { MAX_QUANTITY, isWholeBetween } from "../../../shared/limits.js";
 
 /**
  * O1/O2 rules for the lines of an event's equipment request, as pure functions:
@@ -82,8 +83,8 @@ export function validateLine(raw: RawLine, event: EventTimes, prefix = ""): Line
   }
 
   const quantity = raw.quantity;
-  if (typeof quantity !== "number" || !Number.isInteger(quantity) || quantity <= 0) {
-    fields.push(field(prefix, "quantity", "Quantity must be a whole number greater than zero."));
+  if (!isWholeBetween(quantity, 1, MAX_QUANTITY)) {
+    fields.push(field(prefix, "quantity", `Quantity must be a whole number from 1 to ${MAX_QUANTITY}.`));
   }
 
   const notes = raw.notes ?? "";
@@ -180,8 +181,8 @@ export function validateStatusChange(raw: RawLine): StatusChangeValidation {
     } else substituteEquipmentTypeId = type;
 
     const quantity = raw.substituteQuantity;
-    if (typeof quantity !== "number" || !Number.isInteger(quantity) || quantity <= 0) {
-      fields.push({ field: "substituteQuantity", message: "Substitute quantity must be a whole number greater than zero." });
+    if (!isWholeBetween(quantity, 1, MAX_QUANTITY)) {
+      fields.push({ field: "substituteQuantity", message: `Substitute quantity must be a whole number from 1 to ${MAX_QUANTITY}.` });
     } else substituteQuantity = quantity;
   }
 

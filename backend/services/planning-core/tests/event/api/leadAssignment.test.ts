@@ -25,6 +25,11 @@ vi.mock("../../../src/modules/event/auth/identity.js", async () => {
   return { ...actual, resolveCurrentUser: vi.fn(), resolveEventsScope: vi.fn() };
 });
 
+// The event routes now share one 120-a-minute budget (M11); this file makes more requests than that.
+vi.mock("../../../src/modules/event/api/eventRateLimiter.js", () => ({
+  eventRateLimiter: () => (_req: unknown, _res: unknown, next: () => void) => next(),
+}));
+
 const { resolveCurrentUser, resolveEventsScope } = await import("../../../src/modules/event/auth/identity.js");
 const { app } = await import("../../../src/app.js");
 

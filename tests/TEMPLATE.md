@@ -4,6 +4,9 @@
 Copy this file to /tests/<story-id>/<story-id>-T<n>-<short-slug>.md.
 Format and rules: documentation/planning/implementation.md §8.4.
 The specification is written once; the execution record is replaced on every run.
+Trace the automated test that checks this card in the story's own file,
+documentation/traceability/sprint-<n>/<story-id>.csv (§8.2), and describe the change in a new
+changelog/<YYYY-MM-DD>-<branch-or-slug>.md, not in CHANGELOG.md (§11.2).
 -->
 
 ## Specification
