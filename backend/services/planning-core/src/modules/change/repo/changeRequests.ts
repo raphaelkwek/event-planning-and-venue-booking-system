@@ -171,16 +171,25 @@ export async function listForEvent(db: Db, eventId: string): Promise<ChangeReque
   return withFields(db, rows);
 }
 
-/** S2 — the request, locked `for update` until the transaction ends; null when there is none. */
-export async function lockRequest(tx: TransactionSql, id: string): Promise<ChangeRequestRecord | null> {
-  const rows = await tx<RequestRow[]>`
+async function requestById(db: Db, id: string, lock: boolean): Promise<ChangeRequestRecord | null> {
+  const rows = await db<RequestRow[]>`
     select id, event_id, event_reference, status, reason, requested_by, requested_at,
       decided_by, decided_at, rejection_reason
     from change.change_requests
     where id = ${id}
-    for update
+    ${lock ? db`for update` : db``}
   `;
-  return (await withFields(tx, rows))[0] ?? null;
+  return (await withFields(db, rows))[0] ?? null;
+}
+
+/** S2 — the request, locked `for update` until the transaction ends; null when there is none. */
+export function lockRequest(tx: TransactionSql, id: string): Promise<ChangeRequestRecord | null> {
+  return requestById(tx, id, true);
+}
+
+/** G2 — the request, unlocked, for a read that writes nothing; null when there is none. */
+export function findRequest(db: Db, id: string): Promise<ChangeRequestRecord | null> {
+  return requestById(db, id, false);
 }
 
 /** S2 — records the decision on a request the caller holds locked; the check constraint ties the columns to the status. */

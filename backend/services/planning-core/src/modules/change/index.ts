@@ -1,6 +1,7 @@
 import { Router } from "express";
 import type { Sql } from "postgres";
 import { arrangementFlagsRouter } from "./api/arrangementFlags.js";
+import { changeImpactRouter } from "./api/changeImpact.js";
 import { changeRequestsRouter } from "./api/changeRequests.js";
 import { confirmationsRouter } from "./api/confirmations.js";
 import { decisionsRouter } from "./api/decisions.js";
@@ -16,7 +17,8 @@ export { CHANGE_OUTBOX_TABLE } from "./events/outbox.js";
  *
  * Routers go in api/, pure rules in domain/, SQL against the `change` schema only
  * in repo/, and outbox writers and consumers in events/. F5 confirms an event's
- * arrangements here; stories still to come: G2, S3.
+ * arrangements here, S3 flags the arrangements an approved change affects, and G2
+ * previews them for a pending request.
  */
 export function changeRouter(sql: Sql): Router {
   const router = Router();
@@ -26,5 +28,6 @@ export function changeRouter(sql: Sql): Router {
   router.use(decisionsRouter(sql, limiter));
   router.use(confirmationsRouter(sql, limiter));
   router.use(arrangementFlagsRouter(sql, limiter));
+  router.use(changeImpactRouter(sql, limiter));
   return router;
 }

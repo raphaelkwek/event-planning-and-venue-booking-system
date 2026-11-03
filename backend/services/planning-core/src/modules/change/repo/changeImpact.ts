@@ -1,10 +1,13 @@
 import type { TransactionSql } from "postgres";
-import { isSignificantEventField, KAFKA_TOPICS, type Role } from "@connectsphere/contracts";
-import { returnToPlanningAfterChange, type EventForChange, type ProposedChanges } from "../../event/index.js";
+import { KAFKA_TOPICS, type Role } from "@connectsphere/contracts";
+import { findEventForChange, returnToPlanningAfterChange, type EventForChange, type ProposedChanges } from "../../event/index.js";
+import { resolveAccessScope } from "../../identity/index.js";
 import { bookingsForImpact, flagBookings } from "../../venue/index.js";
 import { flagReservations, reservationsForImpact } from "../../equipment/index.js";
-import { assessChangeImpact, valuesAfterChange, type ChangeImpact } from "../domain/changeImpact.js";
+import { assessProposedChange, type ChangeImpact } from "../domain/changeImpact.js";
+import { proposedChanges } from "../domain/changeRequests.js";
 import { writeOutbox } from "../events/outbox.js";
+import { findRequest } from "./changeRequests.js";
 
 /**
  * S3 (SPM-59) — applies an approved change's impact on the event's
@@ -27,13 +30,7 @@ export async function flagArrangementsForChange(
 ): Promise<AppliedChangeImpact> {
   const bookings = await bookingsForImpact(tx, event.id);
   const reservations = await reservationsForImpact(tx, event.id);
-
-  const impact = assessChangeImpact({
-    bookings,
-    reservations,
-    after: valuesAfterChange(event.current, changes),
-    changedFields: Object.keys(changes).filter(isSignificantEventField),
-  });
+  const impact = assessProposedChange({ bookings, reservations, current: event.current, changes });
 
   await flagBookings(tx, event.id, changeRequestId, impact.bookingFlags);
   await flagReservations(tx, event.id, changeRequestId, impact.reservationFlags);
@@ -83,4 +80,51 @@ export async function flagArrangementsForChange(
   }
 
   return { ...impact, returnedToPlanning };
+}
+
+/**
+ * G2 (SPM-31) — what approving `changes` would do to the event's arrangements (AC2, AC3): the
+ * same reads and the same assessment as `flagArrangementsForChange`, without locking a row or
+ * writing anything (AC4). Run it in a `read only` transaction.
+ */
+export async function previewChangeImpact(
+  tx: TransactionSql,
+  event: Pick<EventForChange, "id" | "current">,
+  changes: ProposedChanges
+): Promise<ChangeImpact> {
+  const bookings = await bookingsForImpact(tx, event.id, { lock: false });
+  const reservations = await reservationsForImpact(tx, event.id, { lock: false });
+  return assessProposedChange({ bookings, reservations, current: event.current, changes });
+}
+
+export type PreviewOutcome =
+  | { ok: true; impact: ChangeImpact }
+  | { ok: false; code: "NOT_FOUND" }
+  | { ok: false; code: "ALREADY_DECIDED"; status: "APPROVED" | "REJECTED"; decidedAt: string };
+
+/** Who may see a request's preview: its event's owner, and Event Coordinators (the assigned one among them). */
+const PREVIEWERS: readonly Role[] = ["EVENT_ORGANISER", "EVENT_COORDINATOR"];
+
+/**
+ * G2 — a change request's preview, for an actor who can see the request (S1's rule: the event in
+ * the actor's A3 scope, so the owning organiser and Event Coordinators; anyone else, as for a
+ * request that does not exist, gets NOT_FOUND). Only a Pending request has one: a decided request
+ * answers ALREADY_DECIDED, since S3 already reported what approval did.
+ */
+export async function previewChangeRequest(
+  tx: TransactionSql,
+  requestId: string,
+  actor: { userId: string; role: Role }
+): Promise<PreviewOutcome> {
+  if (!PREVIEWERS.includes(actor.role)) return { ok: false, code: "NOT_FOUND" };
+  const request = await findRequest(tx, requestId);
+  if (!request) return { ok: false, code: "NOT_FOUND" };
+  const scope = resolveAccessScope(actor.role, actor.userId, "events");
+  const event = await findEventForChange(tx, request.eventId, scope, actor.userId);
+  if (!event) return { ok: false, code: "NOT_FOUND" };
+  if (request.status !== "PENDING") {
+    // The check constraint gives every decided request a decision time.
+    return { ok: false, code: "ALREADY_DECIDED", status: request.status, decidedAt: request.decidedAt! };
+  }
+  return { ok: true, impact: await previewChangeImpact(tx, event, proposedChanges(request.fields)) };
 }

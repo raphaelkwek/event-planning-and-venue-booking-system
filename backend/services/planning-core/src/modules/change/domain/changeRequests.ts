@@ -161,3 +161,10 @@ export function staleFields(
 export function cannotApproveMessage(status: EventStatus): string {
   return `The event is ${EVENT_STATUS_LABELS[status]}, so the change can't be approved. You can still reject it.`;
 }
+
+/** S2, G2 — a request's changes: each field's proposed value under its name (a proposed null included). */
+export function proposedChanges(fields: readonly { fieldName: SignificantEventField; proposedValue: unknown }[]): ProposedChanges {
+  const changes: ProposedChanges = {};
+  for (const field of fields) changes[field.fieldName] = field.proposedValue;
+  return changes;
+}
