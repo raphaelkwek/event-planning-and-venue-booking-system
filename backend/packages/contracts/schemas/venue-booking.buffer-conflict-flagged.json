@@ -1,0 +1,82 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "properties": {
+    "actedAt": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "actedBy": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "coordinatorId": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "eventId": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "eventName": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "eventReference": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "kind": {
+      "enum": [
+        "BOOKING",
+        "HOLD",
+        "REQUEST"
+      ],
+      "type": "string"
+    },
+    "overlapsReferences": {
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "reference": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "setupMinutes": {
+      "minimum": 0,
+      "type": "integer"
+    },
+    "turnaroundMinutes": {
+      "minimum": 0,
+      "type": "integer"
+    },
+    "venueId": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "venueName": {
+      "minLength": 1,
+      "type": "string"
+    }
+  },
+  "required": [
+    "actedAt",
+    "actedBy",
+    "coordinatorId",
+    "eventId",
+    "eventName",
+    "eventReference",
+    "kind",
+    "overlapsReferences",
+    "reference",
+    "setupMinutes",
+    "turnaroundMinutes",
+    "venueId",
+    "venueName"
+  ],
+  "type": "object"
+}

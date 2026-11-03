@@ -1,0 +1,119 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "properties": {
+    "actedAt": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "actedBy": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "blockEndsAt": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "blockId": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "blockStartsAt": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "coordinatorId": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "description": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "eventId": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "eventName": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "eventReference": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "kind": {
+      "enum": [
+        "BOOKING",
+        "HOLD",
+        "REQUEST"
+      ],
+      "type": "string"
+    },
+    "reasonType": {
+      "enum": [
+        "MAINTENANCE",
+        "EQUIPMENT_FAILURE",
+        "RENOVATION",
+        "SAFETY",
+        "OTHER"
+      ],
+      "type": "string"
+    },
+    "reference": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "stillCause": {
+      "anyOf": [
+        {
+          "enum": [
+            "UNAVAILABILITY",
+            "BUFFER_CONFLICT"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "stillDisrupted": {
+      "type": "boolean"
+    },
+    "venueId": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "venueName": {
+      "minLength": 1,
+      "type": "string"
+    }
+  },
+  "required": [
+    "actedAt",
+    "actedBy",
+    "blockEndsAt",
+    "blockId",
+    "blockStartsAt",
+    "coordinatorId",
+    "description",
+    "eventId",
+    "eventName",
+    "eventReference",
+    "kind",
+    "reasonType",
+    "reference",
+    "stillDisrupted",
+    "venueId",
+    "venueName"
+  ],
+  "type": "object"
+}
