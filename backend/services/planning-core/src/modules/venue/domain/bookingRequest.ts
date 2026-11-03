@@ -7,6 +7,7 @@ import {
   type SuitabilityStatus,
 } from "@connectsphere/contracts";
 import type { ConditionResult, SuitabilityAssessment } from "./suitability.js";
+import { MAX_HEADCOUNT, isWholeBetween } from "../../../shared/limits.js";
 
 /**
  * L1, L2 — a venue booking request's rules. Whether two requests overlap is the
@@ -86,8 +87,8 @@ export function readBookingRequest(body: unknown): { ok: true; request: BookingR
   if (layout === "") fields.push({ field: "layout", message: "Choose a room layout." });
 
   const attendance = b.expectedAttendance;
-  if (!Number.isInteger(attendance) || (attendance as number) < 1) {
-    fields.push({ field: "expectedAttendance", message: "Expected attendance must be a whole number greater than zero." });
+  if (!isWholeBetween(attendance, 1, MAX_HEADCOUNT)) {
+    fields.push({ field: "expectedAttendance", message: `Expected attendance must be a whole number from 1 to ${MAX_HEADCOUNT}.` });
   }
 
   const facilities = names(b.facilities);
