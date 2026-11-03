@@ -7,9 +7,9 @@
 | Test Case ID | DEPLOY-T14 |
 | Test Scenario | The first Lead user is created in an environment with that environment's service-role key |
 | Pre-conditions | 1. The environment's migrations have run. |
-| Test Steps | 1. Run `npm run lead:create` with the environment's SUPABASE_URL, service-role key and session-pooler URL, and an email.<br>2. Run it with a SUPABASE_URL whose project ref differs from `--project-ref`.<br>3. Run it again with the same email. |
+| Test Steps | 1. Run `npm run lead:create` with the environment's SUPABASE_URL, service-role key and session-pooler URL, an email and `--redirect-to` the environment's web origin.<br>2. Run it with a SUPABASE_URL whose project ref differs from `--project-ref`.<br>3. Run it again with the same email.<br>4. Open the invite email, set a password as the runbook's step 7 says, and sign in on the web app. |
 | Test Data | A new email address. |
-| Expected Result | Step 1 creates the Auth user and its identity user with the EVENT_COORDINATOR_LEAD role and prints the password once; step 2 is refused before any request; step 3 changes nothing. |
+| Expected Result | Step 1 invites the Lead through Supabase Auth's admin invite (no password in the request or the output) and creates the identity user with the EVENT_COORDINATOR_LEAD role; step 2 is refused before any request; step 3 changes nothing and sends no second invite; step 4 signs the Lead in. |
 | Acceptance criterion | Creating the first Lead user in each environment with that environment's service-role key and the identity tables. |
 | Created By | Joash |
 | Date of Creation | 2026-11-03 |
@@ -20,6 +20,6 @@
 |---|---|
 | Actual Result | — |
 | Status | Blocked |
-| Remarks | Blocked: neither environment's Supabase project exists yet. Proven in CI: the guard (step 2) and the arguments, by deploy/scripts/create-lead.test.mjs › DEPLOY-T14 (four tests). |
+| Remarks | Blocked: neither environment's Supabase project exists yet. Proven in CI: the guard (step 2), the arguments, and that the invite request carries no password, by deploy/scripts/create-lead.test.mjs › DEPLOY-T14 (four tests). |
 | Executed By | — |
 | Date of Execution | — |

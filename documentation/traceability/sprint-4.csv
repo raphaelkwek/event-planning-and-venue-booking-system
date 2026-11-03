@@ -193,4 +193,5 @@ DEPLOY,Migrations run with the migrate Job against each environment's Supabase s
 DEPLOY,Staging deploys automatically on every merge; production deploys the same digests after approval; smoke tests pass.,.github/workflows/deploy-environment.yml,"jobs: Deploy staging, Deploy production (DEPLOY-T12)"
 DEPLOY,"An idempotent bootstrap.sh run once on the VM, opening only 80 and 443 (plus 22).",deploy/oracle/bootstrap.sh,manual: DEPLOY-T13
 DEPLOY,Creating the first Lead user in each environment with its service-role key and the identity tables.,deploy/scripts/create-lead.test.mjs,"DEPLOY-T14 another project's URL is refused before any request, naming the variable only"
+DEPLOY,Creating the first Lead user in each environment with its service-role key and the identity tables.,deploy/scripts/create-lead.test.mjs,"DEPLOY-T14 the Lead is invited through Supabase Auth's admin invite, with no password anywhere"
 DEPLOY,documentation/deploy/README.md is the runbook and Joash's checklist.,documentation/deploy/README.md,manual: DEPLOY-T15

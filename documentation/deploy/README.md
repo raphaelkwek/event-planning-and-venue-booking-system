@@ -265,25 +265,40 @@ Public Suffix List, so its limit is your own).
 ## 7. The first Lead in each environment
 
 Once an environment's first release has run its migrations, create its first Event Coordinator Lead
-from your laptop. The script never reads `.env` (that points at the shared project), and refuses to run
-unless both URLs belong to the `--project-ref` you type:
+from your laptop. The script never reads `.env` (that points at the shared project), refuses to run
+unless both URLs belong to the `--project-ref` you type, and never handles or prints a password:
 
 ```bash
-SUPABASE_URL=https://<staging ref>.supabase.co \
-SUPABASE_SERVICE_ROLE_KEY='<staging service_role key>' \
-MIGRATE_DATABASE_URL='<staging session pooler URI>' \
-npm run lead:create -- --project-ref <staging ref> --email lead@your-domain --display-name "Lead One"
+SUPABASE_URL=https://<staging ref>.supabase.co SUPABASE_SERVICE_ROLE_KEY='<staging service_role key>' MIGRATE_DATABASE_URL='<staging session pooler URI>' npm run lead:create -- --project-ref <staging ref> --email lead@your-domain   --display-name "Lead One" --redirect-to https://connectsphere-staging-….vercel.app
 ```
 
-It creates the Supabase Auth user (confirmed) with the service-role key, inserts the identity user and
-gives it the `EVENT_COORDINATOR_LEAD` role (`identity.users`, `identity.user_roles`, and the
-`identity.role_policy` row the seeds use), and prints the generated password once (or set
-`LEAD_PASSWORD`). Run it again with the same email and nothing changes. Repeat with production's
-values. Sign in on the environment's Vercel URL to check. Other users are added through the app, or
-the same way with the identity tables.
+It invites the Lead through Supabase Auth's admin invite (`POST /auth/v1/invite`, what
+`auth.admin.inviteUserByEmail` sends) with the service-role key, so Supabase emails the Lead a link.
+It then inserts the identity user and gives it the `EVENT_COORDINATOR_LEAD` role (`identity.users`,
+`identity.user_roles`, and the `identity.role_policy` row the seeds use). Run it again with the same
+email and nothing changes, and no second invite is sent. Repeat with production's values. Supabase's
+free plan sends only a few emails an hour, which is plenty for this.
 
-Without the script: Supabase dashboard → Authentication → **Add user** (auto-confirm), copy its UID,
-then in the SQL editor:
+**The Lead sets their own password from the invite.** The link signs the Lead in and returns them to
+`--redirect-to` with a session in the address bar (`#access_token=…&type=invite`). That only works if
+step 2's Site URL and Redirect URLs list that origin. ConnectSphere signs in with a password and has
+no screen yet that sets one from an invite. Until it does, the Lead sets it on that page, in the
+browser's developer console. The password is typed into the prompt and goes straight to Supabase:
+
+```js
+const token = new URLSearchParams(location.hash.slice(1)).get("access_token");
+await fetch("https://<ref>.supabase.co/auth/v1/user", {
+  method: "PUT",
+  headers: { apikey: "<that environment's anon key>", Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+  body: JSON.stringify({ password: prompt("Choose a password") }),
+}).then((r) => r.status); // 200 means it is set
+```
+
+Then sign in on the environment's Vercel URL with the email and that password. Other users are added
+through the app, or the same way with the identity tables.
+
+Without the script: the Lead's own password can also be set by whoever creates them in the Supabase
+dashboard (Authentication → **Add user**, auto-confirm). Copy its UID, then run this in the SQL editor:
 
 ```sql
 insert into identity.role_policy (role, description)

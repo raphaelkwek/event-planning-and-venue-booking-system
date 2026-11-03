@@ -1,7 +1,7 @@
 // ADR-0016: the guard in front of `npm run lead:create`. Run by `npm run test:scripts`.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { checkProject, generatePassword, LeadError, parseArgs } from "./create-lead.mjs";
+import { checkProject, inviteRequest, LeadError, parseArgs } from "./create-lead.mjs";
 
 const REF = "abcdefghijklmnopqrst";
 // Fake values built at run time, so no secret scanner mistakes a test for a leak.
@@ -33,23 +33,32 @@ test("DEPLOY-T14 another project's URL is refused before any request, naming the
   assert.throws(() => checkProject({ ...good, supabaseUrl: undefined }), /SUPABASE_URL/);
 });
 
-test("DEPLOY-T14 the arguments need a project ref and an email", () => {
+test("DEPLOY-T14 the arguments need a project ref and an email, and take the web origin to return to", () => {
   assert.deepEqual(parseArgs(["--project-ref", REF, "--email", "Lead@Example.org"]), {
     projectRef: REF,
     email: "lead@example.org",
     displayName: "Event Coordinator Lead",
+    redirectTo: null,
   });
+  assert.equal(parseArgs(["--project-ref", REF, "--email", "a@b.co", "--redirect-to", "https://connectsphere-staging-g9.vercel.app"]).redirectTo,
+    "https://connectsphere-staging-g9.vercel.app");
   assert.throws(() => parseArgs(["--email", "lead@example.org"]), /--project-ref/);
   assert.throws(() => parseArgs(["--project-ref", REF, "--email", "not-an-email"]), /--email/);
   assert.throws(() => parseArgs(["--project-ref", REF, "--email", "a@b.co", "--role", "X"]), /unknown argument/);
+  assert.throws(() => parseArgs(["--project-ref", REF, "--email", "a@b.co", "--redirect-to", "https://x.vercel.app/login"]), /--redirect-to/);
+  assert.throws(() => parseArgs(["--project-ref", REF, "--email", "a@b.co", "--redirect-to", "http://x.vercel.app"]), /--redirect-to/);
 });
 
-test("DEPLOY-T14 a generated password is long and has every character class", () => {
-  const password = generatePassword();
-  assert.ok(password.length >= 28);
-  assert.match(password, /[A-Z]/);
-  assert.match(password, /[a-z]/);
-  assert.match(password, /[0-9]/);
-  assert.match(password, /[^A-Za-z0-9]/);
-  assert.notEqual(password, generatePassword());
+test("DEPLOY-T14 the Lead is invited through Supabase Auth's admin invite, with no password anywhere", () => {
+  const request = inviteRequest({
+    supabaseUrl: `https://${REF}.supabase.co`,
+    email: "lead@example.org",
+    displayName: "Lead One",
+    redirectTo: "https://connectsphere-staging-g9.vercel.app",
+  });
+  assert.equal(request.url, `https://${REF}.supabase.co/auth/v1/invite?redirect_to=${encodeURIComponent("https://connectsphere-staging-g9.vercel.app")}`);
+  assert.deepEqual(request.body, { email: "lead@example.org", data: { display_name: "Lead One" } });
+  assert.ok(!/password/i.test(JSON.stringify(request)));
+  assert.equal(inviteRequest({ supabaseUrl: `https://${REF}.supabase.co`, email: "a@b.co", displayName: "A", redirectTo: null }).url,
+    `https://${REF}.supabase.co/auth/v1/invite`);
 });
