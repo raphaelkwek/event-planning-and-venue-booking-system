@@ -19,8 +19,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Steps 1 and 5 (J1's search) added on 2026-11-03 after the review of #72; the run recorded before them (CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41597952863) did not search. Waits for CI. Commit: · Evidence: · Defect: — |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | Before the cancellation J1's search over E's window did not offer V1, and I1's calendar for V1 listed a booking for E. After the 200 cancellation the calendar listed none, the same search offered V1, and a confirmed booking at V1 for E's period for another event was stored. |
+| Status | Pass |
+| Remarks | Automated (API level) · Commit: 7773de0 · Evidence: `backend/services/planning-core/tests/change/api/f4Cards.test.ts` › `F4-T2 the venue's period is free again: I1's calendar no longer shows it, J1's search offers it, and a new booking for it can be stored`, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41608364237 · Steps 1 and 5 (J1's search) added on 2026-11-03 after the review of #72 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

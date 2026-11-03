@@ -19,8 +19,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Expected result for step 1 revised for A4 (CR-05) on 2026-11-03 (was 403 `ROLE_NOT_AUTHORISED`). Waits for CI. Commit: · Evidence: · Defect: — |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | C2 got 404 `EVENT_NOT_FOUND` "No event with that reference is assigned to you."; O2 got 404 `EVENT_NOT_FOUND`; T got 403. E, its history, slots, lines, reservations, change requests and messages were as before. C then got 200 with `event.status` `CANCELLED` and `cancelledBy` C. |
+| Status | Pass |
+| Remarks | Automated (API level) · Commit: 7773de0 · Evidence: `backend/services/planning-core/tests/change/api/f3Cards.test.ts` › `F3-T2 the assigned coordinator may cancel; another coordinator and another organiser get 404, changing nothing`, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41608364237 · Expected result for step 1 revised for A4 (CR-05) on 2026-11-03 (was 403 `ROLE_NOT_AUTHORISED`) · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |
