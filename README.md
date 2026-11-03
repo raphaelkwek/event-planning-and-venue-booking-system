@@ -6,6 +6,7 @@
 | `backend/` | `planning-core` (the staff-facing modules in one process, ADR-0004), the shared `contracts` package, the migration script and the Supabase CLI config. |
 | `documentation/` | Planning (`plan.md`, `implementation.md`), ADRs, proposals, user stories, Superpowers specs and plans, traceability. |
 | `tests/` | Functional test cases, one folder per user story. Unit and integration tests live beside their code. |
+| `load/`, `chaos/`, `deploy/chaos/` | The k6 load tests and the chaos experiments (EN-18, EN-20). They run in CI only; `documentation/reliability.md` says what they prove and how to run them. |
 
 ## Local development
 

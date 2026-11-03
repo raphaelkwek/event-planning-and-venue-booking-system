@@ -1,0 +1,28 @@
+# EN-20 experiment 2: a broker outage loses no notifications.
+# NOT RUN in staging (no cluster). The same hypothesis ran in CI with Toxiproxy and Redpanda for 20 seconds:
+# documentation/evidence/EN-20/2-broker-outage.md.
+#
+# Hypothesis: with Kafka unreachable for 10 minutes, registrations still commit. When Kafka is back the
+# notifications arrive, none duplicated.
+#
+# Replace the host with the Kafka bootstrap host staging uses (KAFKA_BROKERS) before applying. Cuts
+# registration's traffic to the broker, so its outbox relay and consumers cannot reach it.
+apiVersion: chaos-mesh.org/v1alpha1
+kind: NetworkChaos
+metadata:
+  name: exp2-registration-cannot-reach-kafka
+  namespace: connectsphere-staging
+  labels:
+    connectsphere.chaos/experiment: "2"
+spec:
+  action: partition
+  mode: all
+  selector:
+    namespaces:
+      - connectsphere-staging
+    labelSelectors:
+      app.kubernetes.io/name: registration
+  direction: to
+  externalTargets:
+    - replace-with-kafka-bootstrap-host
+  duration: 10m

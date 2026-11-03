@@ -121,6 +121,22 @@ describe("applyApprovedChange", () => {
       });
     });
 
+    it("carries the approval's correlation id, and none when the approval had none (audit, 3 Nov 2026)", async () => {
+      const end = new Date("2027-03-02T18:00:00.000Z");
+      const traced = await seedEvent(sql, { ownerId: OWNER, status: "CONFIRMED", endsAt: end });
+      const untraced = await seedEvent(sql, { ownerId: OWNER, status: "CONFIRMED", endsAt: end });
+      const current = { proposedEndAt: end.toISOString() } as unknown as ChangeableEvent;
+      const later = { proposedEndAt: "2027-03-02T20:00:00.000Z" };
+
+      await sql.begin(async (tx) => {
+        await applyApprovedChange(tx, { id: traced, current }, later, { ...actor, correlationId: "corr-s2-approval-1" });
+        await applyApprovedChange(tx, { id: untraced, current }, later, actor);
+      });
+
+      expect((await scheduleMessages(traced))[0]!.envelope.correlationid).toBe("corr-s2-approval-1");
+      expect((await scheduleMessages(untraced))[0]!.envelope).not.toHaveProperty("correlationid");
+    });
+
     it("writes one when only the start moves", async () => {
       const id = await seedEvent(sql, { ownerId: OWNER, status: "PLANNING", endsAt: new Date("2027-03-02T18:00:00.000Z") });
       const current = { proposedStartAt: "2027-03-02T14:00:00.000Z" } as unknown as ChangeableEvent;

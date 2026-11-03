@@ -1,0 +1,32 @@
+# EN-20 experiment 6: a partition cannot push seats over a reduced capacity.
+# NOT RUN. It needs the ReduceCapacity workflow of ADR-0009, which is not built, and a staging cluster.
+#
+# Hypothesis: planning-core is cut off from registration while an organiser reduces an event's capacity.
+# The seats never exceed the new capacity at any moment, and after the partition heals the workflow completes.
+#
+# Use: start a capacity reduction on an event whose registrations are close to its capacity, apply this
+# file, watch the seat count every second, delete the file, and let the workflow finish.
+apiVersion: chaos-mesh.org/v1alpha1
+kind: NetworkChaos
+metadata:
+  name: exp6-core-registration-partition
+  namespace: connectsphere-staging
+  labels:
+    connectsphere.chaos/experiment: "6"
+spec:
+  action: partition
+  mode: all
+  selector:
+    namespaces:
+      - connectsphere-staging
+    labelSelectors:
+      app.kubernetes.io/name: planning-core
+  direction: both
+  target:
+    mode: all
+    selector:
+      namespaces:
+        - connectsphere-staging
+      labelSelectors:
+        app.kubernetes.io/name: registration
+  duration: 5m
