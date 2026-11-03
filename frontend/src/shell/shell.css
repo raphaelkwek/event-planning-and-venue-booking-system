@@ -1,0 +1,770 @@
+/*
+ * The operations-console shell: command bar, rail, main area, palette and the sign-in frame.
+ * Wide screens: a 52px bar over a rail and the main area. Below 960px the rail becomes a
+ * scrolling strip under the bar, so every link stays one tap away (a drawer would hide them).
+ * Below 640px tables become stacked cards.
+ */
+
+.cs-app {
+  min-height: 100vh;
+  background: var(--cs-canvas);
+  --cs-sticky-top: var(--cs-header-h);
+}
+
+/* ---------- Skip link ---------- */
+
+.cs-skip {
+  position: absolute;
+  left: var(--cs-space-3);
+  top: var(--cs-space-2);
+  z-index: 600;
+  padding: 6px 10px;
+  background: var(--cs-ink);
+  color: var(--cs-on-ink) !important;
+  border-radius: var(--cs-radius);
+  font-weight: 600;
+  text-decoration: none !important;
+  transform: translateY(-160%);
+}
+
+.cs-skip:focus-visible {
+  transform: none;
+}
+
+/* ---------- Command bar ---------- */
+
+.cs-bar {
+  position: sticky;
+  top: 0;
+  z-index: 300;
+  display: flex;
+  align-items: center;
+  gap: var(--cs-space-4);
+  height: var(--cs-header-h);
+  padding: 0 var(--cs-space-4) 0 0;
+  background: var(--cs-surface);
+  border-bottom: 1px solid var(--cs-line);
+}
+
+.cs-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: none;
+  box-sizing: border-box;
+  width: var(--cs-rail-w);
+  height: 100%;
+  padding: 0 var(--cs-space-4);
+  border-right: 1px solid var(--cs-line);
+  color: var(--cs-text) !important;
+  text-decoration: none !important;
+}
+
+.cs-brand__name {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  font-stretch: 92%;
+}
+
+.cs-mark {
+  color: var(--cs-text);
+  flex: none;
+}
+
+.cs-mark__node {
+  fill: var(--cs-accent);
+}
+
+.cs-context {
+  display: flex;
+  align-items: center;
+  gap: var(--cs-space-2);
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  color: var(--cs-text-subtlest);
+  font-family: var(--cs-font-mono);
+  font-size: var(--cs-fs-label);
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.cs-context__part + .cs-context__part::before {
+  content: "/";
+  margin-right: var(--cs-space-2);
+  color: var(--cs-text-subtlest);
+}
+
+.cs-context__part:last-child {
+  color: var(--cs-text-subtle);
+}
+
+.cs-bar__tools {
+  display: flex;
+  align-items: center;
+  gap: var(--cs-space-2);
+  margin-left: auto;
+  min-width: 0;
+}
+
+.cs-jump {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cs-space-2);
+  box-sizing: border-box;
+  height: 30px;
+  min-width: 176px;
+  padding: 0 6px 0 10px;
+  border: 1px solid var(--cs-line-strong);
+  border-radius: var(--cs-radius);
+  background: var(--cs-surface-input);
+  color: var(--cs-text-subtle);
+  font: 500 var(--cs-fs-small) / 1 var(--cs-font-sans);
+  cursor: pointer;
+}
+
+.cs-jump:hover {
+  border-color: var(--cs-line-input);
+  color: var(--cs-text);
+}
+
+.cs-kbd {
+  margin-left: auto;
+  padding: 3px 5px;
+  border: 1px solid var(--cs-line-strong);
+  border-radius: var(--cs-radius-sm);
+  background: var(--cs-surface);
+  color: var(--cs-text-subtle);
+  font: 500 10px / 1 var(--cs-font-mono);
+  letter-spacing: 0.04em;
+}
+
+.cs-env {
+  padding: 5px 7px;
+  border: 1px solid var(--cs-line-strong);
+  border-radius: var(--cs-radius-sm);
+  color: var(--cs-text-subtle);
+  font: 500 10px / 1 var(--cs-font-mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.cs-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  box-sizing: border-box;
+  min-width: 30px;
+  height: 30px;
+  padding: 0 6px;
+  border: 1px solid transparent;
+  border-radius: var(--cs-radius);
+  background: transparent;
+  color: var(--cs-text-subtle) !important;
+  text-decoration: none !important;
+  cursor: pointer;
+}
+
+.cs-icon-btn:hover {
+  background: var(--cs-surface-hover);
+  color: var(--cs-text) !important;
+}
+
+.cs-icon-btn:active {
+  transform: translateY(1px);
+}
+
+.cs-bell__count {
+  color: var(--cs-accent-text);
+  font: 600 var(--cs-fs-label) / 1 var(--cs-font-mono);
+}
+
+.cs-user {
+  display: flex;
+  align-items: center;
+  gap: var(--cs-space-2);
+  min-width: 0;
+  margin-left: var(--cs-space-1);
+  padding-left: var(--cs-space-3);
+  border-left: 1px solid var(--cs-line);
+}
+
+.cs-avatar {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--cs-line-strong);
+  border-radius: var(--cs-radius-sm);
+  background: var(--cs-surface-raised);
+  color: var(--cs-text);
+  font: 600 var(--cs-fs-small) / 1 var(--cs-font-mono);
+}
+
+.cs-avatar::before {
+  content: attr(data-initial);
+}
+
+.cs-user__id {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--cs-text-subtle);
+  font-size: var(--cs-fs-small);
+}
+
+.cs-user__email {
+  font-family: var(--cs-font-mono);
+  font-size: 11.5px;
+}
+
+.cs-user__role {
+  color: var(--cs-text);
+  font-weight: 600;
+}
+
+/* ---------- Body: rail and main ---------- */
+
+.cs-body {
+  display: grid;
+  grid-template-columns: var(--cs-rail-w) minmax(0, 1fr);
+  min-height: calc(100vh - var(--cs-header-h));
+}
+
+.cs-rail {
+  position: sticky;
+  top: var(--cs-header-h);
+  box-sizing: border-box;
+  height: calc(100vh - var(--cs-header-h));
+  overflow-y: auto;
+  padding: var(--cs-space-4) var(--cs-space-2) var(--cs-space-5);
+  background: var(--cs-surface);
+  border-right: 1px solid var(--cs-line);
+  scrollbar-width: thin;
+}
+
+.cs-rail__group + .cs-rail__group {
+  margin-top: 18px;
+}
+
+.cs-rail__label::before {
+  content: attr(data-label);
+  display: block;
+  padding: 0 10px 6px;
+  color: var(--cs-text-subtlest);
+  font: 500 10px / 14px var(--cs-font-mono);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.cs-rail__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cs-rail__link {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: var(--cs-radius-sm);
+  color: var(--cs-text-subtle) !important;
+  font-size: var(--cs-fs-dense);
+  font-weight: 500;
+  line-height: 18px;
+  text-decoration: none !important;
+}
+
+.cs-rail__link:hover {
+  background: var(--cs-surface-hover);
+  color: var(--cs-text) !important;
+}
+
+.cs-rail__link[data-active] {
+  background: var(--cs-accent-wash);
+  color: var(--cs-text) !important;
+}
+
+.cs-rail__link[data-active]::before {
+  content: "";
+  position: absolute;
+  left: -8px;
+  top: 5px;
+  bottom: 5px;
+  width: 2px;
+  border-radius: 1px;
+  background: var(--cs-accent);
+}
+
+.cs-rail__count {
+  color: var(--cs-accent-text);
+  font-family: var(--cs-font-mono);
+  font-size: var(--cs-fs-small);
+  white-space: pre;
+}
+
+.cs-main {
+  position: relative;
+  isolation: isolate;
+  min-width: 0;
+  padding: var(--cs-space-5) 28px 56px;
+}
+
+/* Texture: a faint grid with a glow from the top, fading out behind each screen's title. */
+.cs-main::before,
+.cs-login__brand::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  z-index: -1;
+  height: 320px;
+  pointer-events: none;
+  background-image: radial-gradient(ellipse 70% 100% at 18% 0%, var(--cs-glow), transparent 70%),
+    linear-gradient(var(--cs-grid) 1px, transparent 1px), linear-gradient(90deg, var(--cs-grid) 1px, transparent 1px);
+  background-size:
+    100% 100%,
+    24px 24px,
+    24px 24px;
+  background-position: 0 0, -1px -1px, -1px -1px;
+  -webkit-mask-image: linear-gradient(to bottom, #000 30%, transparent);
+  mask-image: linear-gradient(to bottom, #000 30%, transparent);
+}
+
+.cs-screen {
+  max-width: 1440px;
+}
+
+/* ---------- Command palette ---------- */
+
+.cs-palette {
+  position: fixed;
+  inset: 0;
+  z-index: 520;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 12vh var(--cs-space-4) 0;
+  background: var(--cs-blanket);
+}
+
+.cs-palette__dialog {
+  width: min(560px, 100%);
+  overflow: hidden;
+  border-radius: var(--cs-radius-lg);
+  background: var(--cs-surface-overlay);
+  box-shadow: var(--cs-shadow-overlay);
+  animation: cs-rise var(--cs-dur) var(--cs-ease);
+}
+
+.cs-palette__field {
+  display: flex;
+  align-items: center;
+  gap: var(--cs-space-2);
+  padding: 0 var(--cs-space-3) 0 var(--cs-space-4);
+  border-bottom: 1px solid var(--cs-line);
+}
+
+.cs-palette__input {
+  flex: 1;
+  min-width: 0;
+  height: 48px;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--cs-text);
+  font: 400 15px / 1 var(--cs-font-sans);
+}
+
+.cs-palette__input::placeholder {
+  color: var(--cs-text-subtlest);
+}
+
+.cs-palette__list {
+  max-height: min(52vh, 420px);
+  overflow-y: auto;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+}
+
+.cs-palette__option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cs-space-3);
+  padding: 9px 10px;
+  border-radius: var(--cs-radius-sm);
+  color: var(--cs-text);
+  cursor: pointer;
+}
+
+.cs-palette__option[aria-selected="true"] {
+  background: var(--cs-accent-wash);
+  box-shadow: inset 2px 0 0 var(--cs-accent);
+}
+
+.cs-palette__section {
+  color: var(--cs-text-subtle);
+  font: 500 10px / 1 var(--cs-font-mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.cs-palette__empty {
+  margin: 0;
+  padding: var(--cs-space-4);
+  color: var(--cs-text-subtle);
+}
+
+@keyframes cs-rise {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.985);
+  }
+}
+
+/* ---------- Sign-in frame ---------- */
+
+.cs-login {
+  display: grid;
+  grid-template-columns: minmax(320px, 5fr) 7fr;
+  min-height: 100vh;
+  background: var(--cs-canvas);
+}
+
+.cs-login__brand {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 40px;
+  overflow: hidden;
+  background: var(--cs-surface);
+  border-right: 1px solid var(--cs-line);
+}
+
+.cs-login__brand::before {
+  height: 100%;
+  -webkit-mask-image: linear-gradient(160deg, #000 20%, transparent 85%);
+  mask-image: linear-gradient(160deg, #000 20%, transparent 85%);
+}
+
+.cs-login__mark {
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--cs-line-strong);
+  border-radius: var(--cs-radius);
+  background: var(--cs-surface-raised);
+}
+
+.cs-login__tagline {
+  max-width: 14ch;
+  margin: auto 0 var(--cs-space-6);
+  color: var(--cs-text);
+  font-size: clamp(32px, 3.4vw, 48px);
+  font-weight: 600;
+  line-height: 1.04;
+  letter-spacing: -0.03em;
+  font-stretch: 84%;
+}
+
+.cs-login__readout {
+  display: flex;
+  gap: var(--cs-space-6);
+  margin: 0;
+  padding-top: var(--cs-space-4);
+  border-top: 1px solid var(--cs-line);
+}
+
+.cs-login__readout dt {
+  color: var(--cs-text-subtle);
+  font: 500 10px / 14px var(--cs-font-mono);
+  letter-spacing: 0.14em;
+}
+
+.cs-login__readout dd {
+  margin: 2px 0 0;
+  color: var(--cs-text);
+  font: 500 var(--cs-fs-small) / 16px var(--cs-font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.cs-login__panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: var(--cs-space-5);
+}
+
+.cs-login__theme {
+  position: absolute;
+  top: var(--cs-space-4);
+  right: var(--cs-space-4);
+}
+
+/* ---------- Medium widths ---------- */
+
+@media (max-width: 1279.98px) {
+  .cs-user__email {
+    display: inline-block;
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    vertical-align: bottom;
+  }
+
+  .cs-jump {
+    min-width: 0;
+  }
+}
+
+@media (max-width: 1099.98px) {
+  .cs-context {
+    display: none;
+  }
+}
+
+/* ---------- Narrow: the rail becomes a strip ---------- */
+
+@media (max-width: 959.98px) {
+  .cs-app {
+    --cs-sticky-top: 0px;
+  }
+
+  .cs-bar {
+    position: static;
+    flex-wrap: wrap;
+    height: auto;
+    row-gap: 0;
+    padding: 0 var(--cs-space-3);
+  }
+
+  .cs-brand {
+    width: auto;
+    height: 48px;
+    padding: 0;
+    border-right: 0;
+  }
+
+  .cs-jump__label,
+  .cs-jump .cs-kbd {
+    display: none;
+  }
+
+  .cs-jump {
+    width: 30px;
+    min-width: 30px;
+    justify-content: center;
+    padding: 0;
+  }
+
+  .cs-user {
+    order: 10;
+    flex: 1 0 100%;
+    justify-content: space-between;
+    margin: 0;
+    padding: 6px 0;
+    border-left: 0;
+    border-top: 1px solid var(--cs-line);
+  }
+
+  .cs-user__id {
+    flex: 1;
+  }
+
+  .cs-user__email {
+    max-width: none;
+  }
+
+  .cs-body {
+    display: block;
+  }
+
+  .cs-rail {
+    position: static;
+    display: flex;
+    gap: var(--cs-space-2);
+    height: auto;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 6px var(--cs-space-3);
+    border-right: 0;
+    border-bottom: 1px solid var(--cs-line);
+    scrollbar-width: none;
+  }
+
+  .cs-rail__group {
+    display: flex;
+    flex: none;
+  }
+
+  .cs-rail__group + .cs-rail__group {
+    margin-top: 0;
+    padding-left: var(--cs-space-2);
+    border-left: 1px solid var(--cs-line);
+  }
+
+  .cs-rail__label {
+    display: none;
+  }
+
+  .cs-rail__list {
+    display: flex;
+    gap: 2px;
+  }
+
+  .cs-rail__link {
+    white-space: nowrap;
+  }
+
+  .cs-rail__link[data-active]::before {
+    left: 10px;
+    right: 10px;
+    top: auto;
+    bottom: -6px;
+    width: auto;
+    height: 2px;
+  }
+
+  .cs-main {
+    padding: 20px var(--cs-space-4) 40px;
+  }
+
+  .cs-login {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+  }
+
+  .cs-login__brand {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--cs-space-4);
+    padding: var(--cs-space-4) var(--cs-space-4) var(--cs-space-3);
+    border-right: 0;
+    border-bottom: 1px solid var(--cs-line);
+  }
+
+  .cs-login__tagline {
+    flex: 1;
+    max-width: none;
+    margin: 0;
+    font-size: 20px;
+    letter-spacing: -0.015em;
+  }
+
+  .cs-login__readout {
+    flex: 1 0 100%;
+    padding-top: var(--cs-space-2);
+  }
+
+  .cs-login__panel {
+    justify-content: flex-start;
+    padding: var(--cs-space-2) var(--cs-space-3) var(--cs-space-5);
+  }
+
+  .cs-login__theme {
+    top: var(--cs-space-2);
+  }
+}
+
+/* ---------- Two-column detail screens stack on narrow screens ---------- */
+
+@media (max-width: 767.98px) {
+  .cs-main [style*="display: flex"][style*="gap: 32px"] {
+    flex-direction: column;
+    align-items: stretch !important;
+  }
+
+  .cs-main [style*="display: flex"][style*="gap: 32px"] > * {
+    flex-basis: auto !important;
+    min-width: 0;
+  }
+
+  .cs-main aside[style*="border-left"] {
+    border-left: 0 !important;
+    padding-left: 0 !important;
+    padding-top: var(--cs-space-4);
+    border-top: 1px solid var(--cs-line);
+  }
+
+  .cs-main [style*="display: flex"] {
+    flex-wrap: wrap;
+  }
+}
+
+/* ---------- Tables become stacked cards ---------- */
+
+@media (max-width: 639.98px) {
+  .cs-main table,
+  .cs-main table > tbody,
+  .cs-main table > tbody > tr,
+  .cs-main table > tbody > tr > td {
+    display: block;
+    width: auto;
+  }
+
+  /* The header row stays for screen readers; each card shows the labels instead. */
+  html body .cs-main table > thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  html body .cs-main table > tbody > tr {
+    margin-bottom: var(--cs-space-2);
+    padding: 4px var(--cs-space-3);
+    border: 1px solid var(--cs-line);
+    border-radius: var(--cs-radius);
+    background: var(--cs-surface);
+  }
+
+  html body .cs-main table > tbody > tr > td {
+    display: grid;
+    grid-template-columns: minmax(88px, 36%) minmax(0, 1fr);
+    gap: var(--cs-space-3);
+    align-items: baseline;
+    padding: 6px 0;
+    background: transparent !important;
+    overflow-wrap: anywhere;
+  }
+
+  html body .cs-main table > tbody > tr > td:last-child {
+    border-bottom: 0;
+  }
+
+  html body .cs-main table > tbody > tr > td:not([data-label]) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  html body .cs-main table > tbody > tr > td[data-label]::before {
+    content: attr(data-label);
+    color: var(--cs-text-subtle);
+    font: 500 10px / 16px var(--cs-font-mono);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  html body .cs-main table > tbody > tr > td:first-child {
+    box-shadow: none !important;
+  }
+}

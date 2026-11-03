@@ -1,7 +1,9 @@
 import type { ReactElement } from "react";
-import { HashRouter, Link, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
-import Button from "@atlaskit/button/new";
+import { HashRouter, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { SessionProvider, useSession } from "./auth/SessionContext.js";
+import { ThemeProvider } from "./theme/ThemeProvider.js";
+import { AppShell } from "./shell/AppShell.js";
+import { LoginFrame } from "./shell/LoginFrame.js";
 import { Login } from "./screens/Login.js";
 import { MyRequests } from "./screens/MyRequests.js";
 import { DraftEditor } from "./screens/DraftEditor.js";
@@ -224,7 +226,13 @@ function Shell() {
   const navigate = useNavigate();
   const unread = useUnreadCount(session?.token ?? null, location.pathname);
 
-  if (!session) return <Login />;
+  if (!session) {
+    return (
+      <LoginFrame>
+        <Login />
+      </LoginFrame>
+    );
+  }
 
   // A1 — signing out leaves nothing behind, including the address of the last
   // screen, so whoever signs in next starts from their own landing screen. The
@@ -238,71 +246,43 @@ function Shell() {
   const permitted = ROUTES.filter((route) => route.nav && route.roles.includes(session.role));
 
   return (
-    <div>
-      <header
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 24,
-          padding: "12px 24px",
-          borderBottom: "1px solid #DFE1E6",
-          background: "#fff",
-        }}
-      >
-        <strong>ConnectSphere</strong>
-
-        <nav style={{ display: "flex", gap: 16, flex: 1 }}>
-          {permitted.map((route) => (
-            <Link
-              key={route.path}
-              to={route.nav!.to}
-              style={{
-                textDecoration: location.pathname === route.nav!.to ? "underline" : "none",
-                color: "#172B4D",
-              }}
-            >
-              {route.path === "/notifications" && unread ? `${route.nav!.label} (${unread})` : route.nav!.label}
-            </Link>
-          ))}
-        </nav>
-
-        <span style={{ fontSize: 13, color: "#626F86" }}>
-          {session.email} · <strong>{ROLE_LABELS[session.role]}</strong>
-        </span>
-        <Button appearance="subtle" onClick={() => void onSignOut()}>
-          Sign out
-        </Button>
-      </header>
-
-      <main style={{ padding: 24 }}>
-        <Routes>
-          <Route path="/" element={<Navigate to={landingFor(session.role)} replace />} />
-          {ROUTES.map((route) => (
-            <Route
-              key={route.path}
-              path={route.path}
-              element={
-                route.roles.includes(session.role) ? (
-                  route.element
-                ) : (
-                  <Navigate to={landingFor(session.role)} replace />
-                )
-              }
-            />
-          ))}
-          <Route path="*" element={<Navigate to={landingFor(session.role)} replace />} />
-        </Routes>
-      </main>
-    </div>
+    <AppShell
+      email={session.email}
+      roleLabel={ROLE_LABELS[session.role]}
+      nav={permitted.map((route) => route.nav!)}
+      patterns={ROUTES.map((route) => route.path)}
+      unread={unread}
+      onSignOut={() => void onSignOut()}
+    >
+      <Routes>
+        <Route path="/" element={<Navigate to={landingFor(session.role)} replace />} />
+        {ROUTES.map((route) => (
+          <Route
+            key={route.path}
+            path={route.path}
+            element={
+              route.roles.includes(session.role) ? (
+                route.element
+              ) : (
+                <Navigate to={landingFor(session.role)} replace />
+              )
+            }
+          />
+        ))}
+        <Route path="*" element={<Navigate to={landingFor(session.role)} replace />} />
+      </Routes>
+    </AppShell>
   );
 }
 
 export function App() {
   return (
-    <SessionProvider>
-      <HashRouter>
-        <Shell />
-      </HashRouter>
-    </SessionProvider>
+    <ThemeProvider>
+      <SessionProvider>
+        <HashRouter>
+          <Shell />
+        </HashRouter>
+      </SessionProvider>
+    </ThemeProvider>
   );
 }
