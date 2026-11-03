@@ -233,7 +233,8 @@ describe("C1: process guards", () => {
     await settle();
     expect(exit).not.toHaveBeenCalled();
     handlers.uncaughtException!(new Error("thrown"));
-    await new Promise((resolve) => setTimeout(resolve, 20));
+    // The exit waits for stderr to flush, which can outlast a fixed delay on a loaded runner.
+    await vi.waitFor(() => expect(exit).toHaveBeenCalledTimes(1), { timeout: 2000 });
     expect(errorLog).toHaveBeenCalledWith("unhandled promise rejection", expect.objectContaining({ error: "lost" }));
     expect(errorLog).toHaveBeenCalledWith("unhandled promise rejection", expect.objectContaining({ error: "plain text" }));
     expect(errorLog).toHaveBeenCalledWith("uncaught exception", expect.objectContaining({ error: "thrown" }));
