@@ -371,7 +371,7 @@ paths:
     get:
       tags: [Events]
       summary: The review queue (D1)
-      description: Event Coordinator only. Every request awaiting a decision, oldest submission first.
+      description: Event Coordinator only. The requests assigned to the caller that await a decision (A4), oldest submission first.
       operationId: getReviewQueue
       responses:
         "200":
@@ -399,7 +399,9 @@ paths:
       description: |
         When an Event Coordinator opens a request that is still Submitted, it is claimed
         for review (Submitted to Under Review). The claim is conditional, so a second
-        coordinator sees the first reviewer rather than replacing them.
+        coordinator sees the first reviewer rather than replacing them. A coordinator opens
+        only the events assigned to them (A4): any other, unassigned or another coordinator's,
+        is the same 404 as an id that does not exist, and opening it claims nothing.
       operationId: getEvent
       responses:
         "200":
@@ -455,7 +457,7 @@ paths:
         "400": { $ref: "#/components/responses/ValidationFailed" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403":
-          description: "`ROLE_NOT_AUTHORISED`: not the owning organiser or the assigned coordinator, or a role that never edits events."
+          description: "`ROLE_NOT_AUTHORISED`: a role that never edits events. An event outside the caller's scope (another organiser's, or for a coordinator one not assigned to them, A4) is 404."
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
@@ -1054,9 +1056,9 @@ paths:
       tags: [Change requests]
       summary: The flags still outstanding on an event's arrangements (S3)
       description: |
-        The event's owning organiser, its assigned coordinator and Event Coordinators (AC8). Anyone
-        else, including an organiser who does not own the event, gets the same 404 as for an event
-        that does not exist. Lists every flag that holds back F5's confirmation (AC9): each flagged
+        The event's owning organiser, its assigned coordinator and the Event Coordinator Lead. A4
+        narrows S3's AC8: a coordinator not assigned to the event is refused. Anyone else, including
+        an organiser who does not own the event, gets the same 404 as for an event that does not exist. Lists every flag that holds back F5's confirmation (AC9): each flagged
         venue booking, hold and pending booking request first, then each flagged equipment
         reservation, saying which arrangement and why, oldest first. An arrangement carries each flag
         once, with the newest reason. A Requires Reconfirmation set by unavailability (I2) or the
@@ -1151,7 +1153,7 @@ paths:
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404":
-          description: No change request with that id exists (`CHANGE_REQUEST_NOT_FOUND`), or its event is outside the caller's scope.
+          description: No change request with that id exists (`CHANGE_REQUEST_NOT_FOUND`), or its event is outside the caller's scope (for a coordinator, not assigned to them, A4).
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
@@ -1163,6 +1165,47 @@ paths:
             Approval is also refused when the event changed since the request was made: each field whose
             current value no longer matches the request's is listed in `details.fields`, named
             `changes.<field>`.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "429": { $ref: "#/components/responses/RateLimitExceeded" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
+  /api/v1/change-requests/{id}/impact:
+    parameters:
+      - $ref: "#/components/parameters/RecordId"
+    get:
+      tags: [Change requests]
+      summary: Preview the arrangements approving a pending change request would affect (G2)
+      description: |
+        The event's owning organiser and its assigned coordinator, as for reading the request (S1);
+        A4 leaves out other coordinators. Anyone else, including an organiser who does not own the event, gets the same
+        404 as for a request that does not exist. For a Pending request, runs S3's assessment over the
+        event's current values with the request's proposed values laid over them and answers in S3's
+        `impact` shape: the confirmed venue bookings, held holds, pending booking requests and equipment
+        reservations, the active registration count (0 until the registration service exists), and the
+        flags approval *would* set, with their reasons. Nothing is stored or locked: the read runs in a
+        read-only transaction, so no booking, reservation, flag, request, event or message changes, and
+        no decision is held up. A decided request has no preview (409).
+      operationId: previewChangeImpact
+      responses:
+        "200":
+          description: What approving the request would do to the event's arrangements.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [impact]
+                properties:
+                  impact: { $ref: "#/components/schemas/ChangeImpact" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "404":
+          description: No change request with that id exists (`CHANGE_REQUEST_NOT_FOUND`), or its event is outside the caller's scope (for a coordinator, not assigned to them, A4).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "409":
+          description: "`CHANGE_REQUEST_ALREADY_DECIDED`: the request is Approved or Rejected; `details` has the decision's `status` and `decidedAt`."
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
@@ -1198,12 +1241,12 @@ paths:
                   event: { $ref: "#/components/schemas/ConfirmedArrangements" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403":
-          description: "`ROLE_NOT_AUTHORISED`: not an Event Coordinator, or not the event's assigned one."
+          description: "`ROLE_NOT_AUTHORISED`: not an Event Coordinator."
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
         "404":
-          description: "`EVENT_NOT_FOUND`: no event with that id, or it is outside the caller's scope (A3)."
+          description: "`EVENT_NOT_FOUND`: no event with that id, or it is outside the caller's scope (A3), which for a coordinator means not assigned to them (A4)."
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
@@ -1225,6 +1268,79 @@ paths:
         "429": { $ref: "#/components/responses/RateLimitExceeded" }
         "503":
           description: "`ARRANGEMENTS_UNAVAILABLE`: the venue or equipment records could not be read, so nothing was changed; or `IDENTITY_UNAVAILABLE`."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+
+  /api/v1/events/{id}/cancellation:
+    parameters:
+      - $ref: "#/components/parameters/RecordId"
+    post:
+      tags: [Decisions]
+      summary: Cancel an event (F3)
+      description: |
+        The owning organiser or the assigned coordinator, at any point before the event is Completed,
+        Rejected or Cancelled. A reason is mandatory. In one transaction the event becomes Cancelled
+        with the reason, user and time recorded and a history entry; its confirmed bookings and holds
+        are Released and its pending venue requests Withdrawn, and its equipment reservations are
+        Released, each recording "event cancelled", the user and the time (F4); a change request still
+        pending is Closed (W9-07); and the owner, the coordinator, each booked venue's Venue Staff and
+        each reserver are notified (`event.cancelled`). Any failure rolls all of it back, so nothing is
+        left partly released. A refusal stores nothing. The locks are taken change request, venues
+        (ascending id), event, then slots, the venue module's order, so a block at one of the event's
+        venues cannot deadlock with it. Registrations are not released in this transaction, so
+        `released.registrations` is always 0: the registration service (EN-13) cancels the event's
+        registrations and waitlist entries, and tells the attendees, when it consumes `event.cancelled`
+        (R1–R4 and R5–R7, not yet merged).
+      operationId: cancelEvent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason: { type: string, minLength: 1, maxLength: 1000, description: Trimmed; must not be blank. }
+      responses:
+        "200":
+          description: The event, now Cancelled, and the change request it closed, if any.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [event, closedChangeRequest, released]
+                properties:
+                  event: { $ref: "#/components/schemas/CancelledEvent" }
+                  released: { $ref: "#/components/schemas/ReleasedOnCancellation" }
+                  closedChangeRequest:
+                    oneOf:
+                      - $ref: "#/components/schemas/ChangeRequest"
+                      - type: "null"
+        "400":
+          description: "`VALIDATION_FAILED`: no reason, a blank one, or one over 1,000 characters (field `reason`). Nothing is changed."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403":
+          description: "`ROLE_NOT_AUTHORISED`: not an Event Organiser or Event Coordinator, or neither the owner nor the assigned coordinator. Another coordinator's event is 404 (A4)."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "404":
+          description: "`EVENT_NOT_FOUND`: no event with that id, or it is outside the caller's scope (A3), which for a coordinator means not assigned to them (A4)."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "409":
+          description: "`STATUS_TRANSITION_NOT_PERMITTED`: the event is Completed, Rejected or already Cancelled. The message names its status."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "429": { $ref: "#/components/responses/RateLimitExceeded" }
+        "500":
+          description: "`CANCELLATION_FAILED`: something failed, so the whole cancellation was rolled back. The event keeps its status."
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
@@ -1823,6 +1939,11 @@ paths:
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: "`EVENT_CANCELLED`: the event has been cancelled, so no equipment can be requested for it (F3)."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
         "429": { $ref: "#/components/responses/RateLimitExceeded" }
         "503": { $ref: "#/components/responses/IdentityUnavailable" }
 
@@ -1991,7 +2112,7 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
         "409":
-          description: "`LINE_NOT_RESERVABLE` (the message names the status), `PARTIAL_NOT_CONFIRMED`, or `INSUFFICIENT_EQUIPMENT` with `details.available` and `details.shortfall`."
+          description: "`LINE_NOT_RESERVABLE` (the message names the status), `PARTIAL_NOT_CONFIRMED`, `INSUFFICIENT_EQUIPMENT` with `details.available` and `details.shortfall`, or `EVENT_CANCELLED` when the event has been cancelled (F3)."
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
@@ -2268,7 +2389,7 @@ paths:
         "400": { $ref: "#/components/responses/ValidationFailed" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403":
-          description: "`ROLE_NOT_AUTHORISED`: not the event's assigned coordinator, or not an Event Coordinator."
+          description: "`ROLE_NOT_AUTHORISED`: not an Event Coordinator. Another coordinator's event is 404 (A4)."
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
@@ -2384,7 +2505,7 @@ paths:
               schema: { $ref: "#/components/schemas/BookingRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403":
-          description: "`ROLE_NOT_AUTHORISED`: not the event's assigned coordinator, or not an Event Coordinator."
+          description: "`ROLE_NOT_AUTHORISED`: not an Event Coordinator. Another coordinator's event is 404 (A4)."
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
@@ -2541,7 +2662,7 @@ paths:
         "400": { $ref: "#/components/responses/ValidationFailed" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403":
-          description: "`ROLE_NOT_AUTHORISED`: not the event's assigned coordinator, or not an Event Coordinator."
+          description: "`ROLE_NOT_AUTHORISED`: not an Event Coordinator. Another coordinator's event is 404 (A4)."
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
@@ -2776,7 +2897,7 @@ paths:
               schema: { $ref: "#/components/schemas/Hold" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403":
-          description: "`ROLE_NOT_AUTHORISED`: not the event's assigned coordinator, or not an Event Coordinator."
+          description: "`ROLE_NOT_AUTHORISED`: not an Event Coordinator. Another coordinator's event is 404 (A4)."
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
@@ -2837,7 +2958,7 @@ paths:
         "400": { $ref: "#/components/responses/ValidationFailed" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403":
-          description: "`ROLE_NOT_AUTHORISED`: not the event's assigned coordinator, or not an Event Coordinator."
+          description: "`ROLE_NOT_AUTHORISED`: not an Event Coordinator. Another coordinator's event is 404 (A4)."
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
@@ -2912,7 +3033,7 @@ components:
         application/json:
           schema: { $ref: "#/components/schemas/ErrorEnvelope" }
     NotFound:
-      description: "`EVENT_NOT_FOUND`, `DRAFT_NOT_FOUND`, `REASSIGNMENT_PROPOSAL_NOT_FOUND` or `VENUE_NOT_FOUND`, `EQUIPMENT_TYPE_NOT_FOUND` or `EQUIPMENT_LINE_NOT_FOUND`. Also returned when the record exists but is outside the caller's scope (A3)."
+      description: "`EVENT_NOT_FOUND`, `DRAFT_NOT_FOUND`, `REASSIGNMENT_PROPOSAL_NOT_FOUND` or `VENUE_NOT_FOUND`, `EQUIPMENT_TYPE_NOT_FOUND` or `EQUIPMENT_LINE_NOT_FOUND`. Also returned when the record exists but is outside the caller's scope (A3). For an Event Coordinator that is any event not assigned to them, or a record on one (A4), and the message says so in the same words whether it exists or not."
       content:
         application/json:
           schema: { $ref: "#/components/schemas/ErrorEnvelope" }
@@ -2995,6 +3116,8 @@ components:
         - EVENT_NOT_ASSIGNED
         - REASSIGNMENT_RETIRED
         - INTERNAL_ERROR
+        - EVENT_CANCELLED
+        - CANCELLATION_FAILED
 
     ErrorEnvelope:
       type: object
@@ -3166,7 +3289,7 @@ components:
       allOf:
         - $ref: "#/components/schemas/RequestFields"
         - type: object
-          required: [id, reference, ownerId, name, status, submittedAt, lastSavedAt, reviewingCoordinatorId, reviewStartedAt, decidedBy, decidedAt, rejectionReason, assignedCoordinatorId, contactDetails, version]
+          required: [id, reference, ownerId, name, status, submittedAt, lastSavedAt, reviewingCoordinatorId, reviewStartedAt, decidedBy, decidedAt, rejectionReason, cancellationReason, cancelledBy, cancelledAt, assignedCoordinatorId, contactDetails, version]
           properties:
             id: { type: string, format: uuid }
             reference: { type: [string, "null"], description: Null until submitted (C3). }
@@ -3180,6 +3303,9 @@ components:
             decidedBy: { type: [string, "null"], format: uuid }
             decidedAt: { type: [string, "null"], format: date-time }
             rejectionReason: { type: [string, "null"] }
+            cancellationReason: { type: [string, "null"], description: "F3: why the event was cancelled; null unless Cancelled." }
+            cancelledBy: { type: [string, "null"], format: uuid, description: "F3: who cancelled it; null unless Cancelled." }
+            cancelledAt: { type: [string, "null"], format: date-time, description: "F3: when it was cancelled; null unless Cancelled." }
             assignedCoordinatorId: { type: [string, "null"], format: uuid }
             contactDetails: { type: [string, "null"], description: "Free text, such as a name, email and phone number (G1)." }
             version: { type: integer, minimum: 1, description: "Raised by every change to the event. Send it back in If-Match to edit (G1)." }
@@ -3844,18 +3970,19 @@ components:
 
     ChangeRequest:
       type: object
-      required: [id, eventId, eventReference, status, reason, requestedBy, requestedAt, decidedBy, decidedAt, rejectionReason, fields]
+      required: [id, eventId, eventReference, status, reason, requestedBy, requestedAt, decidedBy, decidedAt, rejectionReason, closedReason, fields]
       properties:
         id: { type: string, format: uuid }
         eventId: { type: string, format: uuid }
         eventReference: { type: string }
-        status: { type: string, enum: [PENDING, APPROVED, REJECTED] }
+        status: { type: string, enum: [PENDING, APPROVED, REJECTED, CLOSED], description: "CLOSED: still pending when its event was cancelled (F3, W9-07); it can no longer be decided." }
         reason: { type: string }
         requestedBy: { type: string, format: uuid }
         requestedAt: { type: string, format: date-time }
-        decidedBy: { type: [string, "null"], format: uuid, description: The deciding coordinator; null while Pending. }
+        decidedBy: { type: [string, "null"], format: uuid, description: "The deciding coordinator, or for a Closed request whoever cancelled the event; null while Pending." }
         decidedAt: { type: [string, "null"], format: date-time, description: null while Pending. }
         rejectionReason: { type: [string, "null"], description: The coordinator's reason when Rejected; otherwise null. }
+        closedReason: { type: [string, "null"], description: "F3: why it was closed without a decision; null unless Closed." }
         fields:
           type: array
           items: { $ref: "#/components/schemas/ChangeRequestField" }
@@ -3864,6 +3991,7 @@ components:
       type: object
       description: |
         S3 — the event's arrangements an approved change was assessed against, and the flags it set.
+        G2's preview of a pending request uses the same shape, `flags` being the ones approval would set.
         `flags` lists venue flags (bookings, holds, booking requests) first, then reservation flags; a
         venue arrangement can carry two flags.
       required: [bookings, reservations, activeRegistrations, flags]
@@ -3896,7 +4024,7 @@ components:
         activeRegistrations:
           type: integer
           minimum: 0
-          description: Always 0 until the registration service (EN-13) exists.
+          description: Always 0. Registrations are held by the registration service (EN-13), whose schema planning-core does not read.
         flags:
           type: array
           items:
@@ -3920,6 +4048,37 @@ components:
         previousStatus: { type: string, enum: [APPROVED, PLANNING] }
         confirmedBy: { type: string, format: uuid, description: The assigned coordinator who confirmed. }
         confirmedAt: { type: string, format: date-time, description: The history entry's time. }
+
+    CancelledEvent:
+      type: object
+      required: [id, reference, status, previousStatus, cancellationReason, cancelledBy, cancelledAt]
+      properties:
+        id: { type: string, format: uuid }
+        reference: { type: [string, "null"], description: Null for a cancelled draft. }
+        status: { type: string, enum: [CANCELLED] }
+        previousStatus: { $ref: "#/components/schemas/EventStatus" }
+        cancellationReason: { type: string }
+        cancelledBy: { type: string, format: uuid, description: The owner or assigned coordinator who cancelled. }
+        cancelledAt: { type: string, format: date-time }
+
+    ReleasedOnCancellation:
+      description: "F4: what the cancellation released. References in the order released."
+      type: object
+      required: [bookings, holds, requests, reservations, registrations]
+      properties:
+        bookings: { type: array, items: { type: string }, description: Confirmed bookings now Released. }
+        holds: { type: array, items: { type: string }, description: Requested or placed holds now Released. }
+        requests: { type: array, items: { type: string }, description: Pending booking requests now Withdrawn. }
+        reservations:
+          type: array
+          items:
+            type: object
+            required: [reservationId, equipmentTypeName, reservedQuantity]
+            properties:
+              reservationId: { type: string, format: uuid }
+              equipmentTypeName: { type: string }
+              reservedQuantity: { type: integer, minimum: 1 }
+        registrations: { type: integer, enum: [0], description: "Always 0. The registration service (EN-13) cancels registrations when it consumes event.cancelled." }
 
     BookingRequestInput:
       type: object

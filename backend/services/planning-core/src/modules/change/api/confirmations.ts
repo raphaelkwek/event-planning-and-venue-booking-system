@@ -1,7 +1,9 @@
 import { Router, type NextFunction, type RequestHandler, type Response } from "express";
 import type { Sql } from "postgres";
+import type { Role } from "@connectsphere/contracts";
+import { notInScopeMessage } from "../../identity/index.js";
 import { authenticate, requireRole, type ActorRequest } from "../auth/actor.js";
-import { ARRANGEMENTS_UNAVAILABLE_MESSAGE, NOT_ASSIGNED_MESSAGE } from "../domain/readiness.js";
+import { ARRANGEMENTS_UNAVAILABLE_MESSAGE } from "../domain/readiness.js";
 import { ArrangementsUnavailableError, confirmArrangements } from "../repo/confirmArrangements.js";
 import { logger } from "../../../shared/logger.js";
 import { refuse } from "./errors.js";
@@ -17,8 +19,8 @@ const COORDINATOR = "EVENT_COORDINATOR";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const PATH = "/api/v1/events/:id/confirmation";
 
-function notFound(res: Response) {
-  refuse(res, 404, "EVENT_NOT_FOUND", "No event with that reference is available to you.");
+function notFound(res: Response, role: Role) {
+  refuse(res, 404, "EVENT_NOT_FOUND", notInScopeMessage(role, "No event with that reference is available to you."));
 }
 
 export function confirmationsRouter(sql: Sql, limiter: RequestHandler = changeRateLimiter()) {
@@ -27,7 +29,7 @@ export function confirmationsRouter(sql: Sql, limiter: RequestHandler = changeRa
   router.post(PATH, limiter, authenticate, requireRole(COORDINATOR), async (req: ActorRequest, res: Response, next: NextFunction) => {
     try {
       const eventId = req.params.id!;
-      if (!UUID.test(eventId)) return notFound(res);
+      if (!UUID.test(eventId)) return notFound(res, req.actor!.role);
       const correlationId = req.header("x-correlation-id") ?? null;
 
       let outcome;
@@ -43,9 +45,7 @@ export function confirmationsRouter(sql: Sql, limiter: RequestHandler = changeRa
       if (outcome.ok) return void res.status(200).json({ event: outcome.event });
       switch (outcome.code) {
         case "NOT_FOUND":
-          return notFound(res);
-        case "NOT_ASSIGNED":
-          return void refuse(res, 403, "ROLE_NOT_AUTHORISED", NOT_ASSIGNED_MESSAGE);
+          return notFound(res, req.actor!.role);
         case "STATUS_NOT_PERMITTED":
           return void refuse(res, 409, "STATUS_TRANSITION_NOT_PERMITTED", outcome.message);
         case "NOT_READY":

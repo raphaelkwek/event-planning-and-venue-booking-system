@@ -1,6 +1,7 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import request from "supertest";
 import { testDb } from "../../support/testDb.js";
+import { setStatusDirect } from "../../support/seedEvent.js";
 
 /**
  * L3 — tentative holds against the venue and event schemas, one test or more
@@ -96,10 +97,11 @@ async function newEvent(status = "APPROVED", coordinator: string | null = COORDI
     insert into event.events (
       reference, owner_id, name, purpose, description, proposed_start_at, proposed_end_at,
       expected_attendance, equipment_required, registration_required, status, submitted_at,
-      last_saved_at, created_by, updated_by
+      last_saved_at, created_by, updated_by, cancellation_reason, cancelled_by, cancelled_at
     ) values (
       'EVT-' || lpad(nextval('event.event_reference_seq')::text, 6, '0'), ${OWNER}, 'L3 test event', 'L3 test',
-      'L3 test', ${at("14:00")}, ${at("18:00")}, 150, false, false, ${status}, now(), now(), ${OWNER}, ${OWNER}
+      'L3 test', ${at("14:00")}, ${at("18:00")}, 150, false, false, ${status}, now(), now(), ${OWNER}, ${OWNER},
+      ${status === "CANCELLED" ? "L3 test" : null}, ${status === "CANCELLED" ? OWNER : null}, ${status === "CANCELLED" ? new Date() : null}
     )
     returning id, reference
   `;
@@ -191,8 +193,9 @@ describe("requesting a hold (L3)", () => {
 
     signedInAs("EVENT_COORDINATOR", OTHER_COORDINATOR);
     const other = await requestHold(holdBody(event.id, venueId));
-    expect(other.status).toBe(403);
-    expect(other.body.error).toMatchObject({ code: "ROLE_NOT_AUTHORISED", message: "Only the event's assigned coordinator can request a hold for it." });
+    // A4: an event not assigned to the coordinator is not found, as an unknown one is.
+    expect(other.status).toBe(404);
+    expect(other.body.error).toMatchObject({ code: "EVENT_NOT_FOUND", message: "No event with that reference is assigned to you." });
 
     signedInAs("EVENT_ORGANISER", OWNER);
     expect((await requestHold(holdBody(event.id, venueId))).body.error.code).toBe("ROLE_NOT_AUTHORISED");
@@ -371,7 +374,7 @@ describe("placing a hold (L3)", () => {
     const other = await newEvent();
     asCoordinator();
     const { id } = (await requestHold(holdBody(other.id, venueId, { startsAt: at("19:00"), endsAt: at("21:00") }))).body;
-    await sql`update event.events set status = 'CANCELLED' where id = ${other.id}`;
+    await setStatusDirect(sql, other.id, "CANCELLED");
     asStaff();
     expect((await place(id)).body.error.code).toBe("EVENT_NOT_HOLDABLE");
   });
@@ -485,7 +488,10 @@ describe("converting and releasing (L3)", () => {
     asCoordinator();
     expect((await convert(held.id)).body.error.code).toBe("EVENT_NOT_BOOKABLE");
     signedInAs("EVENT_COORDINATOR", OTHER_COORDINATOR);
-    expect((await convert(held.id)).body.error.code).toBe("ROLE_NOT_AUTHORISED");
+    expect((await convert(held.id)).body.error).toMatchObject({
+      code: "HOLD_NOT_FOUND",
+      message: "No hold with that id is on an event assigned to you.",
+    });
     expect(await holdRow(held.id)).toMatchObject({ status: "HELD" });
   });
 
@@ -549,7 +555,7 @@ describe("converting and releasing (L3)", () => {
     const requested = (await requestHold(holdBody(event.id, seminar))).body;
 
     signedInAs("EVENT_COORDINATOR", OTHER_COORDINATOR);
-    expect((await release(held.id)).status).toBe(403);
+    expect((await release(held.id)).status).toBe(404); // A4: not on an event assigned to them
 
     asCoordinator();
     expect((await release(held.id)).body).toMatchObject({ status: "RELEASED", releasedBy: COORDINATOR });

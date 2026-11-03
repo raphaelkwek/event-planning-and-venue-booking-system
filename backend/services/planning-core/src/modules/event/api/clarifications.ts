@@ -14,7 +14,7 @@ import { recordFieldChanges } from "../repo/eventHistory.js";
 import { transitionEvent } from "./transitionEvent.js";
 import { writeOutbox } from "../events/outbox.js";
 import { clarificationBodySchema, clarificationResponseBodySchema, AMENDABLE_COLUMNS } from "./schemas.js";
-import { refuse } from "./errors.js";
+import { eventNotFound, refuse } from "./errors.js";
 
 /** D2, D3 — asking the organiser for clarification, and their response. */
 
@@ -30,11 +30,11 @@ export function clarificationsRouter(sql: Sql, limiter: RequestHandler = eventRa
 
   /** Visible to the owning organiser and to Event Coordinators, nobody else. */
   router.get("/api/v1/events/:id/clarifications", limiter, ...authenticate, async (req: ActorRequest, res) => {
-    const { userId, scope } = req.actor!;
+    const { userId, role, scope } = req.actor!;
 
     const event = await findEventInScope(sql, req.params.id, scope, userId);
     if (!event) {
-      refuse(res, 404, "EVENT_NOT_FOUND", "No event with that reference is available to you.");
+      eventNotFound(res, role);
       return;
     }
 
@@ -61,7 +61,7 @@ export function clarificationsRouter(sql: Sql, limiter: RequestHandler = eventRa
 
       const event = await findEventInScope(sql, req.params.id, scope, userId);
       if (!event) {
-        refuse(res, 404, "EVENT_NOT_FOUND", "No event with that reference is available to you.");
+        eventNotFound(res, role);
         return;
       }
 
@@ -134,7 +134,7 @@ export function clarificationsRouter(sql: Sql, limiter: RequestHandler = eventRa
 
       const event = await findEventInScope(sql, req.params.id, scope, userId);
       if (!event) {
-        refuse(res, 404, "EVENT_NOT_FOUND", "No event with that reference is available to you.");
+        eventNotFound(res, role);
         return;
       }
 

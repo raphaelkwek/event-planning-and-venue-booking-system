@@ -8,15 +8,10 @@ tests:
       resources: [booking_hall]
       actions: [create, withdraw, request_hold, convert_hold, place_hold, release_hold, view, approve, reject, view_conflicts]
     expected:
-      - principal: assigned_coordinator # L1, L2, L3: only the assigned coordinator requests, converts and (as holder) releases
+      - principal: assigned_coordinator # L1, L2, L3, A4: only the assigned coordinator requests, converts, releases and sees
         resource: booking_hall
         actions: { create: EFFECT_ALLOW, withdraw: EFFECT_ALLOW, request_hold: EFFECT_ALLOW, convert_hold: EFFECT_ALLOW, release_hold: EFFECT_ALLOW, view: EFFECT_ALLOW }
-      - principal: other_coordinator # A3: coordinators see everything, but don't act for another's event
-        resource: booking_hall
-        actions: { view: EFFECT_ALLOW }
-      - principal: nominee
-        resource: booking_hall
-        actions: { view: EFFECT_ALLOW }
+      # other_coordinator, nominee: none. A4: not their event, so they don't see it either.
       - principal: venue_manager # M1, M2, N2: staff of this venue decide; L3 (Week 9 answer): they place holds
         resource: booking_hall
         actions: { view: EFFECT_ALLOW, approve: EFFECT_ALLOW, reject: EFFECT_ALLOW, view_conflicts: EFFECT_ALLOW, place_hold: EFFECT_ALLOW }

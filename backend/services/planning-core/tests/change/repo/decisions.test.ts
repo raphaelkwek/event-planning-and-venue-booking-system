@@ -155,15 +155,23 @@ describe("decideChangeRequest", () => {
     }
   });
 
-  it("refuses a coordinator who is not assigned, to approve or to reject, and an unknown request", async () => {
+  // A4: a request on an event not assigned to the coordinator is not found, as an unknown one is.
+  it("finds no request for a coordinator who is not assigned, to approve or to reject (A4)", async () => {
     const { request: other } = await fixture();
-    expect(await decide(other.id, { decision: "REJECT", reason: "x" }, { userId: C2, role: "EVENT_COORDINATOR" })).toEqual({ ok: false, code: "NOT_ASSIGNED" });
+    expect(await decide(other.id, { decision: "REJECT", reason: "x" }, { userId: C2, role: "EVENT_COORDINATOR" })).toEqual({ ok: false, code: "NOT_FOUND" });
   });
 
-  it("refuses a coordinator who is not assigned, and an unknown request", async () => {
+  it("finds no decided request for a coordinator who is not assigned, so its decision is not revealed (A4)", async () => {
+    const { request } = await fixture();
+    expect((await decide(request.id, { decision: "REJECT", reason: "x" })).ok).toBe(true);
+
+    expect(await decide(request.id, { decision: "APPROVE" }, { userId: C2, role: "EVENT_COORDINATOR" })).toEqual({ ok: false, code: "NOT_FOUND" });
+  });
+
+  it("refuses a coordinator who is not assigned, and an unknown request, storing nothing", async () => {
     const { eventId, request } = await fixture();
 
-    expect(await decide(request.id, { decision: "APPROVE" }, { userId: C2, role: "EVENT_COORDINATOR" })).toEqual({ ok: false, code: "NOT_ASSIGNED" });
+    expect(await decide(request.id, { decision: "APPROVE" }, { userId: C2, role: "EVENT_COORDINATOR" })).toEqual({ ok: false, code: "NOT_FOUND" });
     expect(await decide(randomUUID(), { decision: "APPROVE" })).toEqual({ ok: false, code: "NOT_FOUND" });
     expect(await historyCount(eventId)).toBe(0);
     expect(await outboxTypes(eventId)).toEqual([]);

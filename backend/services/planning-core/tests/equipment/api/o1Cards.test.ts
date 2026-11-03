@@ -407,15 +407,22 @@ describe("O1 cards: who may write, and refusals that store nothing", () => {
     const before = await row(created.id);
     const historyBefore = await historyCount();
 
+    // A4: the event and its lines are not found for a coordinator they aren't assigned to.
     asC2();
+    const saved = await save([line()]);
+    expect(saved.status).toBe(404);
+    expect(saved.body.error).toMatchObject({ code: "EVENT_NOT_FOUND", message: "No event with that reference is assigned to you." });
     const attempts = [
-      await save([line()]),
       await request(app).put(`${BASE}/${created.id}`).set(bearer).send({ equipmentTypeId: chairs.id, quantity: 10, notes: "", requiredFrom: at("14:00"), requiredTo: at("18:00") }),
       await request(app).post(`${BASE}/${created.id}/removal`).set(bearer).send({}),
+      await request(app).get(`${BASE}/${created.id}`).set(bearer),
     ];
     for (const attempt of attempts) {
-      expect(attempt.status).toBe(403);
-      expect(attempt.body.error.code).toBe("ROLE_NOT_AUTHORISED");
+      expect(attempt.status).toBe(404);
+      expect(attempt.body.error).toMatchObject({
+        code: "EQUIPMENT_LINE_NOT_FOUND",
+        message: "No equipment request line with that id is on an event assigned to you.",
+      });
     }
     expect(await lineCount()).toBe(1);
     expect(await row(created.id)).toEqual(before);

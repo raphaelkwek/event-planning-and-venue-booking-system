@@ -70,6 +70,9 @@ export const ERROR_CODES = [
   "REASSIGNMENT_RETIRED",
   // Anything a route did not expect: a 500 with a generic message, the detail only in the log.
   "INTERNAL_ERROR",
+  // F3: a cancelled event refuses new equipment; a cancellation that fails changes nothing.
+  "EVENT_CANCELLED",
+  "CANCELLATION_FAILED",
 ] as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[number];

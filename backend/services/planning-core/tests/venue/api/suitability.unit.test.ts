@@ -96,7 +96,13 @@ describe("GET /api/v1/venues/:id/suitability", () => {
   it("reads the event under the coordinator's own scope", async () => {
     await check();
 
-    expect(findEventForPlanning).toHaveBeenCalledWith(sql, EVENT_ID, { scopeType: "ALL" }, COORDINATOR);
+    // A4: a coordinator's scope is the events assigned to them.
+    expect(findEventForPlanning).toHaveBeenCalledWith(
+      sql,
+      EVENT_ID,
+      { scopeType: "ASSIGNED_TO_USER", userId: COORDINATOR },
+      COORDINATOR,
+    );
   });
 
   it("returns Suitable with no reasons when nothing fails (K1 AC6)", async () => {

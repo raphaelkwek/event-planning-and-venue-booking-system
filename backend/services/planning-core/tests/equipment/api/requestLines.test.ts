@@ -126,11 +126,11 @@ describe("recording lines: bad input", () => {
     expect(response.body.error.code).toBe("EVENT_NOT_FOUND");
   });
 
-  it("refuses lines for an event that has lost its assigned coordinator", async () => {
+  it("finds no event that has lost its assigned coordinator (A4)", async () => {
     await sql`update event.assignments set is_active = false, ended_at = now() where event_id = ${event.id}`;
     const response = await save([body()]);
-    expect(response.status).toBe(403);
-    expect(response.body.error.code).toBe("ROLE_NOT_AUTHORISED");
+    expect(response.status).toBe(404);
+    expect(response.body.error.code).toBe("EVENT_NOT_FOUND");
   });
 });
 
@@ -176,7 +176,8 @@ describe("editing and removing lines: bad input and scope", () => {
     await sql`update event.assignments set is_active = false, ended_at = now() where event_id = ${event.id}`;
     await sql`insert into event.assignments (event_id, coordinator_id, assignment_rule) values (${event.id}, ${A.c2}, 'TEST_FIXTURE')`;
     const response = await request(app).post(`${BASE}/${id}/removal`).set(bearer).send({});
-    expect(response.status).toBe(403);
+    expect(response.status).toBe(404);
+    expect(response.body.error.code).toBe("EQUIPMENT_LINE_NOT_FOUND");
     expect((await sql`select status from equipment.equipment_request_lines where id = ${id}`)[0]!.status).toBe("SUBMITTED");
   });
 });

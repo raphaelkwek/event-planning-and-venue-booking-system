@@ -2,6 +2,7 @@ import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import request from "supertest";
 import { testDb } from "../../support/testDb.js";
 import { EVENT_END, EVENT_START } from "../../support/eventDates.js";
+import { setStatusDirect } from "../../support/seedEvent.js";
 
 /**
  * E3 (CR-05) — new requests wait, unassigned, until an Event Coordinator Lead
@@ -307,8 +308,8 @@ describe("POST /api/v1/events/:id/assignment (E3)", () => {
   it("refuses a draft and a Rejected, Cancelled or Completed event", async () => {
     const event = await submitted();
     signedInAs(LEAD, "EVENT_COORDINATOR_LEAD");
-    for (const status of ["REJECTED", "CANCELLED", "COMPLETED", "DRAFT"]) {
-      await sql`update event.events set status = ${status} where id = ${event.id}`;
+    for (const status of ["REJECTED", "CANCELLED", "COMPLETED", "DRAFT"] as const) {
+      await setStatusDirect(sql, event.id, status);
       const res = await assign(event.id, COORDINATOR);
       expect(res.status, status).toBe(409);
       expect(res.body.error.code, status).toBe("STATUS_NOT_ASSIGNABLE");
@@ -440,8 +441,8 @@ describe("POST /api/v1/events/:id/reassignment (E4)", () => {
     await sql`update event.events set status = 'CONFIRMED' where id = ${event.id}`;
     expect((await reassign(event.id, OTHER_COORDINATOR)).status).toBe(201);
 
-    for (const status of ["COMPLETED", "CANCELLED", "REJECTED"]) {
-      await sql`update event.events set status = ${status} where id = ${event.id}`;
+    for (const status of ["COMPLETED", "CANCELLED", "REJECTED"] as const) {
+      await setStatusDirect(sql, event.id, status);
       const res = await reassign(event.id, COORDINATOR);
       expect(res.status, status).toBe(409);
       expect(res.body.error.code, status).toBe("STATUS_NOT_ASSIGNABLE");

@@ -169,11 +169,6 @@ export function differencesFromEvent(
   return differences;
 }
 
-/** Only the coordinator assigned to the event requests or withdraws its venues (L1, L2). */
-export function isAssignedCoordinator(userId: string, event: { assignedCoordinatorId: string | null }): boolean {
-  return userId === event.assignedCoordinatorId;
-}
-
 /** True when a database error is the constraint refusing a second pending request (L1-T8). */
 export function isDuplicatePending(error: unknown): boolean {
   const e = error as { code?: unknown; constraint_name?: unknown } | null | undefined;
