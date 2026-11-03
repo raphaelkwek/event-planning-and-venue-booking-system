@@ -109,8 +109,9 @@ The `pod` label EN-16's queries filter on comes from the Prometheus scrape (pod 
 ## Logs
 
 Logs stay structured JSON on standard output (implementation.md §9). Inside a request or a consumed message each line
-carries `traceId` and `spanId`, and `correlationId` is the trace id. In Grafana, search Loki for the trace id to see a
-request's lines next to its trace. Exporting the lines to Loki over OTLP is not built (below).
+carries `traceId` and `spanId`, and `correlationId` is the trace id, so the lines of one request are the lines that
+contain the id shown in its trace (and in its `x-correlation-id` response header). Shipping them to Loki, so that Grafana
+shows them next to the trace, is not built (below).
 
 ## What this does not do
 
