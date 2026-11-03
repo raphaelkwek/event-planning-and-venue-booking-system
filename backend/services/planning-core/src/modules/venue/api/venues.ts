@@ -105,9 +105,12 @@ export function venuesRouter(sql: Sql, limiter: RequestHandler = venuesRateLimit
     if (!UUID.test(req.params.id!)) return notFound(res);
     const current = await findVenue(sql, req.params.id!);
     if (!current) return notFound(res);
+    const actor = req.actor!;
+    // Another staff member's venue is "not found" before the body is read, so a refusal of the body
+    // cannot tell them the venue exists (A3, §6). Checked again under the lock below.
+    if (!(await isVenueStaff(sql, current.id, actor.userId))) return notFound(res);
     const venue = readVenue(req, res, current);
     if (!venue) return;
-    const actor = req.actor!;
 
     const updated = await sql.begin(async (tx) => {
       const locked = await lockVenue(tx, req.params.id!);
