@@ -1,122 +1,174 @@
 # Staging and production: the runbook (ADR-0016)
 
-There are two ways to run the live environments. Both are free, and in both the two environments
-differ only in credentials and hostnames:
+The live environments run on **one Azure VM** (the ADR-0016 amendment of 4 Nov 2026). Two other
+paths are kept, documented below:
 
-- **Hugging Face Spaces (the one in use, ADR-0016 amendment of 3 Nov 2026).** Each environment's
-  backend is one public Docker Space on the free CPU Basic tier (2 vCPU, 16 GB, no card). The web app
-  is on Vercel, and each environment has its own Supabase project. You deploy from your laptop with
-  `npm run deploy:space`.
-- **Oracle Cloud k3s (the scale-up option).** One Always Free Ampere VM with k3s, deployed by
-  `release.yml` through GitHub environments. That path needs an Oracle card and repository Admin. It is
-  documented in full below, from "The Oracle k3s path".
+1. **Azure VM (in use):** one Ubuntu VM, one container per environment, the web app on Vercel, and
+   one Supabase project per environment. You deploy from your laptop with `npm run deploy:vm`.
+2. **k3s on a bigger VM (the scale-up option):** the Oracle and k3s path, deployed by `release.yml`
+   through GitHub environments.
+3. **Hugging Face Spaces:** this works only with a PRO subscription (USD 9 a month). The free
+   cpu-basic tier no longer hosts Docker Spaces.
 
-## The Hugging Face path
+In all three, staging and production differ only in credentials and hostnames.
 
-> **Blocked on 3 Nov 2026: Hugging Face no longer hosts Docker Spaces for free.** The probe
-> (`npm run deploy:space -- --probe`) was refused with HTTP 402: "Static Spaces are free for everyone,
-> but hosting Gradio and Docker Spaces on free cpu-basic requires a PRO subscription." This path
-> needs a PRO subscription (USD 9 a month, a card), or another host for the same image. The image,
-> `start.sh` and the CI job that runs it are host-independent: any host that runs one Docker container
-> with one public port can run it. Until a host is chosen, nothing here is deployed.
+## The Azure path
+
+### What runs
+
+| | Staging | Production |
+|---|---|---|
+| API | `https://api.staging.<ip>.sslip.io` | `https://api.<ip>.sslip.io` |
+| Web | the Vercel project `connectsphere-staging` | the Vercel project `connectsphere` |
+| Container on the VM | `connectsphere-staging`, 127.0.0.1:7861 | `connectsphere-production`, 127.0.0.1:7862 |
+| Database and Auth | its own Supabase project (ref in `staging.env`) | its own Supabase project (ref in `production.env`) |
+| Demo users | yes (`--seed`: the identity seeds and `seed:auth`, password on the sign-in page) | never |
+
+- **The VM:** one `Standard_B2pls_v2` (2 Ampere vCPUs, 4 GB, arm64), Ubuntu 24.04, in `connectsphere-rg`
+  in southeastasia. Every resource is tagged `project=connectsphere`. The subscription offers neither
+  `Standard_B2s` nor `B2ms` there.
+- **The NSG** allows only TCP 22, 80 and 443 in.
+- **Caddy on the host** (a container on ports 80 and 443) takes the certificates from Let's Encrypt,
+  with ZeroSSL as its fallback, and routes each host to its environment's container. Nothing else is
+  published: each container listens only on 127.0.0.1.
+- **Each container** is the single-container image of `deploy/space`:
+  - planning-core, its Temporal worker, registration and notification;
+  - Redpanda (SASL/SCRAM over TLS, 512 MB on the VM), the Temporal dev server and a Cerbos PDP
+    (`CERBOS_URL=http://127.0.0.1:3592`, so EN-07's checks have their PDP);
+  - an inner Caddy on 7860 that routes only the public API prefixes, plus a static `/healthz`.
+
+  Migrations run when the container starts, against the environment's own Supabase session pooler.
+  The container's disk is its own, so Redpanda and Temporal start empty after a restart; Supabase
+  holds the data.
+- **Cost:** about USD 31–38 a month for the VM, USD 4.4 for the static IP and USD 2.5 for the 32 GB
+  disk. That is about **USD 40 a month**; nothing else in the resource group bills by the hour.
 
 ### Checklist
 
-1. **Supabase, twice.** Create `connectsphere-staging` and `connectsphere-production` (Southeast Asia,
-   Singapore). From each project's **Connect** and **Settings → API**, fill
-   `C:\Users\Joash Lau\connectsphere-secrets\staging.env` and `production.env`:
+1. **Supabase, twice.** For staging and for production, fill
+   `C:\Users\Joash Lau\connectsphere-secrets\staging.env` and `production.env` with these values,
+   pasting the URIs as Supabase shows them, `[YOUR-PASSWORD]` included:
    - `DB_PASSWORD`;
-   - `DATABASE_URL`, the transaction pooler URI;
-   - `MIGRATE_DATABASE_URL`, the session pooler URI;
+   - `DATABASE_URL` (the transaction pooler);
+   - `MIGRATE_DATABASE_URL` (the session pooler);
    - `SUPABASE_URL`, `SUPABASE_ANON_KEY` and `SUPABASE_SERVICE_ROLE_KEY`.
 
-   Paste the URIs exactly as Supabase shows them, with `[YOUR-PASSWORD]` still in them. The script puts
-   `DB_PASSWORD` in, URL-encoded.
-2. **Hugging Face token.** huggingface.co → Settings → Access Tokens → **New token**, type *Write*. Put
-   it in `shared.env` as `HF_TOKEN`.
-3. **Vercel token.** vercel.com → Account Settings → Tokens. Put it in `shared.env` as `VERCEL_TOKEN`.
-4. `npm run deploy:space -- --env staging`, then check staging.
-5. `npm run deploy:space -- --env production`. It refuses unless the staging Space is running and healthy.
-6. In each Supabase project, Authentication → URL Configuration: set the **Site URL** to the
-   environment's web origin (the script prints it), and add `<web origin>/**` under **Redirect URLs**.
-   Then `npm run lead:create` (step 7 below) with `--redirect-to <web origin>`.
-7. Add both Space URLs (the script prints them) to `deploy/space/spaces.txt` and commit, so the
-   keep-awake job pings them.
+   `shared.env` holds `VERCEL_TOKEN`, plus `SUPABASE_ACCESS_TOKEN`, which lets the script set each
+   project's Auth Site URL and redirect URLs.
+2. **The VM, once:**
+   `bash deploy/azure/create-vm.sh --subscription <id>`, with `az login` done and an SSH key at
+   `~/.ssh/connectsphere-azure`. The script is idempotent and touches nothing outside its resource group.
+   The subscription refuses a budget from the CLI, so set one in the portal: Cost Management → Budgets →
+   Add, scope `connectsphere-rg`, USD 20 a month, alert at 80%.
+3. **Deploy staging**, with the demo users and the first Lead:
+   `npm run deploy:vm -- --env staging --seed --lead <email>`
+4. **Deploy production**, with no demo users, once staging answers:
+   `npm run deploy:vm -- --env production --lead <email>`
+5. **The Lead** gets an email from each project. Its link opens the web app's **Set your password**
+   screen, where the Lead chooses a password and then signs in.
 
-The secrets folder is outside the repository and is never committed. Only `deploy-space.mjs` reads it,
-and it never prints a value: every line it or a tool prints is masked. A blank key stops it with a
-message naming the key.
+**Redeploy both environments, one command,** from the commit you are on (main after a merge):
 
-### What `deploy:space` does
+```bash
+npm run deploy:vm -- --env staging && npm run deploy:vm -- --env production
+```
 
-1. Asks Hugging Face who the token belongs to. The Space is `<you>/connectsphere-<env>`, at
-   `https://<you>-connectsphere-<env>.hf.space`.
-2. Builds the web app with `VITE_API_BASE_URL` set to that Space, and deploys it with the Vercel CLI
-   (`vercel@65.10.0`, `--token`) to the Vercel project `connectsphere-staging` or `connectsphere`, which it
-   creates if missing. It reads the project's production origin, the `*.vercel.app` alias.
-3. Creates the Space if missing (Docker SDK, **public**: the SPA must reach it without a Hugging Face
-   token, and every API call still needs a Supabase token). It then sets the Space secrets
-   `DATABASE_URL`, `MIGRATE_DATABASE_URL`, `SUPABASE_URL`, `SUPABASE_ANON_KEY` and
-   `SUPABASE_SERVICE_ROLE_KEY`, and the variable `CORS_ALLOWED_ORIGINS` (the web origin, and nothing else).
-4. Pushes the Space repository: `deploy/space/Dockerfile` at its root and the committed source it builds
-   (`git archive HEAD`, so only what is committed deploys). Hugging Face builds the image.
-5. Waits for the Space to reach RUNNING, then smoke-tests it:
-   - `/healthz`;
-   - the API routes answer 401 with the error envelope;
-   - nothing else is routed;
-   - CORS allows the web origin only.
+### Automated: every merge to main (release.yml)
 
-   Then it smoke-tests the web app (the shell, built for the Space).
+1. CI runs as on every pull request: lint, unit, integration, browser tests, CodeQL and supply chain.
+2. `release.yml` builds every image once per architecture, including `connectsphere-space`, the image
+   the VM runs. It joins each into one GHCR index, then signs and attests it.
+3. **Deploy staging (Azure VM)** runs `deploy-vm-environment.yml` with `environment: staging`:
+   - verifies the space image's signature;
+   - sends the container's settings to the VM's deploy gate over SSH, with the staging deploy key;
+   - pulls the image by digest with the job's own token (never stored on the VM) and replaces the staging
+     container; the migrations run against staging's Supabase as it starts;
+   - waits until every service is ready, smoke-tests the API over TLS, then builds and deploys the staging
+     SPA to Vercel and smoke-tests it.
+4. **Deploy production (Azure VM)** does the same with the same commit and image. It waits for the
+   `production` environment's required reviewer (joass1), and starts only after staging is green.
 
-### Inside the Space
+To roll back, use **Actions → Release → Run workflow** with `release` set to an earlier commit on main.
+That commit's signed images are looked up and verified, not rebuilt, then deployed to staging and, after
+approval, to production. `target: k3s` sends the same release down the k3s path instead.
 
-One container, as uid 1000, with one public port (7860). `deploy/space/start.sh`:
+**The deploy gate** (`deploy/azure/connectsphere-vm-deploy`) is installed once by `setup-deploy-user.sh`.
+The `cs-deploy` user has no password. Its `authorized_keys` let the staging key run only
+`connectsphere-vm-deploy staging …` and the production key only `… production …`: no shell, no
+forwarding, no other environment. The gate:
 
-- checks the settings;
-- makes a TLS certificate and a random Kafka password (both live only as long as the container);
-- runs every migration against the **session pooler**;
-- then starts these under supervisord:
-  - planning-core, its Temporal worker, registration and notification;
-  - Redpanda (SASL/SCRAM over TLS, on 127.0.0.1), the Temporal dev server and Cerbos;
-  - **Caddy** on 7860, routing `/identity`, `/event`, `/venue` and `/equipment` (planning-core),
-    `/notification` and `/registration` under `/api/v1`, with the prefix stripped, as the k3s Ingress does.
-    Health, readiness and metrics stay internal; Caddy itself answers a static `/healthz`.
+- accepts only `deploy <ghcr.io/…/connectsphere-space@sha256:…>` and `health`;
+- accepts only the listed settings on stdin;
+- writes `/etc/connectsphere/<env>.env` (mode 660, group `connectsphere`);
+- prints key names, never values.
 
-Known limits:
+`npm run deploy:vm` stays the manual fallback, writing the same files and containers.
 
-- **The disk is ephemeral.** Redpanda's topics and Temporal's workflows start empty after every restart
-  or rebuild. Supabase holds all the data, and the outbox relay republishes anything not yet published.
-  A hold-expiry or completion timer scheduled before a restart is lost until the event is touched again.
-- **Port 6543 may be blocked.** A Space's outbound traffic may not allow Supabase's transaction-pooler
-  port. If `start.sh` cannot reach `DATABASE_URL`, the services use the session pooler too, and the log
-  says so by name. Port 5432 is reported open for Spaces; if even that is blocked, the Space cannot run
-  and the script stops at the smoke test.
-- **Sleep.** A free Space sleeps after about 48 hours without traffic. `.github/workflows/keep-awake.yml`
-  hits each URL in `deploy/space/spaces.txt` every 6 hours, needing no secret. A sleeping Space wakes
-  on the first request, in a minute or two.
-- **Rebuild on deploy.** Each `deploy:space` rebuilds the image on Hugging Face (several minutes), and
-  setting secrets restarts the Space.
+### GitHub environments for the Azure path
 
-Look inside: the Space's page → **Logs** (container), which shows every process's output. Roll back:
-check out an earlier commit and run `deploy:space` again. Production uses exactly the commit you run it
-from, so run staging and production from the same commit.
+Each environment (`staging`, `production`) needs these names; the values are its own. Variables are
+public values; secrets are secret.
 
-CI (`deploy.yml`, job "Space image") builds the image from the same Space repository the script pushes.
-It runs it as a Space runs it, against a throwaway Postgres and never Supabase, with `DATABASE_URL`
-pointing at a closed port, and checks:
+| Name | Kind | Holds | Staging | Production |
+|---|---|---|---|---|
+| `VM_HOST` | variable | the VM's static IP | `4.194.57.47` | `4.194.57.47` |
+| `VM_SSH_KNOWN_HOSTS` | variable | the VM's host key line, from `ssh-keyscan -t ed25519 <ip>` | the same | the same |
+| `API_HOST` | variable | the environment's API host | `api.staging.4.194.57.47.sslip.io` | `api.4.194.57.47.sslip.io` |
+| `WEB_ORIGIN` | variable | the environment's web origin (also its only CORS origin) | `https://connectsphere-staging.vercel.app` | `https://connectsphere-is212.vercel.app` |
+| `SUPABASE_URL` | variable | `https://<ref>.supabase.co` | staging's project | production's project |
+| `SUPABASE_ANON_KEY` | variable | the project's anon key (public by design) | staging's | production's |
+| `VM_SSH_KEY` | secret | the private deploy key for this environment | `connectsphere-secrets\vm-deploy-staging` | `connectsphere-secrets\vm-deploy-production` |
+| `DATABASE_URL` | secret | the transaction pooler URI, password filled in | staging's | production's |
+| `MIGRATE_DATABASE_URL` | secret | the session pooler URI, password filled in | staging's | production's |
+| `SUPABASE_SERVICE_ROLE_KEY` | secret | the project's service_role key | staging's | production's |
+| `VERCEL_TOKEN` | secret | a Vercel token | the same | the same |
+| `VERCEL_ORG_ID` | secret | the Vercel account's id | the same | the same |
+| `VERCEL_PROJECT_ID` | secret | the Vercel project's id | `connectsphere-staging` | `connectsphere` |
 
-- the fallback and the migrations;
-- every process running;
-- each service ready with Kafka reachable;
-- the worker connected;
-- the routes and CORS through Caddy.
+The `production` environment has a required reviewer, and both environments allow deployments from
+`main` only. The GHCR packages may stay private: the gate pulls with each job's own token.
 
-What CI cannot show: Hugging Face's own build, its egress rules, and sleep.
+### What `deploy:vm` does
 
-## The Oracle k3s path (the scale-up option)
+1. Reads the VM's address with `az` (or `--host`), and checks Docker on it over SSH.
+2. Builds the image of this commit **on the VM** (arm64), from the committed files (`git archive HEAD`),
+   unless that commit's image is already there. CI builds and runs the same image on amd64 and arm64.
+3. Builds the web app in a throwaway worktree with `VITE_API_BASE_URL` set to the environment's API,
+   and deploys it with the Vercel CLI and `VERCEL_TOKEN`. It creates the Vercel project if missing.
+4. Sets the Supabase project's Auth Site URL and redirect URLs to the web origin.
+5. Writes `/etc/connectsphere/<env>.env` over SSH, from stdin, mode 600. It holds the five Supabase
+   values, `CORS_ALLOWED_ORIGINS` (the environment's web origin only) and `REDPANDA_MEMORY`.
+6. Replaces the environment's container, and writes and reloads the host Caddy.
+7. Smoke-tests the result:
+   - `/healthz` over TLS;
+   - the API routes (401 envelopes) and that nothing else is routed;
+   - CORS for its origin only;
+   - each service's `/readyz` (database ok, Kafka reachable) and Cerbos;
+   - the web app, built for this API.
+8. `--seed` (staging only) applies the identity seeds and creates their Auth users. `--lead <email>`
+   runs `lead:create`, which sends the invite.
 
-The rest of this page is the k3s path on one Oracle Cloud Always Free Ampere VM, deployed by
-`release.yml`. It is kept for when an Oracle account and repository Admin are available.
+Production refuses to start unless staging's `/healthz` answers. The script never prints a value from
+the secrets folder; everything it or a tool prints is masked.
+
+### Look inside, roll back
+
+- **Logs and status:**
+  - `ssh -i ~/.ssh/connectsphere-azure azureuser@<ip> docker logs --tail 100 connectsphere-staging`;
+  - `docker exec connectsphere-staging supervisorctl -c /app/deploy/space/supervisord.conf status`;
+  - `docker stats --no-stream`.
+- **Roll back:** check out the earlier commit and run `deploy:vm` again. That commit's image is reused
+  if it is still on the VM.
+- **Memory:** `docker stats` shows each container's use. If 4 GB is not enough, first lower
+  `REDPANDA_MEMORY` in `deploy/azure/deploy-vm.mjs`. Only then resize:
+  `az vm resize -g connectsphere-rg -n connectsphere-vm --size Standard_B2ps_v2` (8 GB, about USD 70 a month).
+
+## k3s on a bigger VM (the scale-up option)
+
+This section is the k3s path. It is written for one Oracle Cloud Always Free Ampere VM, but runs on any
+Ubuntu VM with 4 vCPUs and 16 GB or more (bootstrap.sh is not Oracle-specific apart from the iptables
+step). It is deployed by `release.yml` through GitHub environments, which need repository Admin. It is
+kept for when the one small VM is no longer enough.
 
 ConnectSphere's two live environments cost nothing. The backend runs on one Oracle Cloud Always Free
 Ampere VM (arm64, ap-singapore-1) with k3s, one namespace per environment. The web app is on Vercel
@@ -454,3 +506,105 @@ insert into identity.user_roles (user_id, role) select id, 'EVENT_COORDINATOR_LE
 | On kind: Traefik, cert-manager, the deploy gate and its RBAC, the deploy state rendered from this commit's overlay on GitHub (by kubectl and by Argo CD's own kustomize), Redpanda with SCRAM over TLS, the Temporal dev server, Cerbos, the migrate Job (twice), every service ready with Kafka reachable, the worker connected, the API through Traefik over TLS with CORS | Let's Encrypt (kind uses a self-signed issuer of the same name), the Oracle firewall, Supabase Auth and its tokens, Vercel |
 | The state and env-file scripts, the Lead script's guard, CORS and the SPA's API base URL (unit tests) | The Lead script against a real project |
 | actionlint on the release workflows, shellcheck on every script | `bootstrap.sh` on a real VM |
+
+## The Hugging Face path (needs PRO)
+
+> **Blocked on 3 Nov 2026: Hugging Face no longer hosts Docker Spaces for free.** The probe
+> (`npm run deploy:space -- --probe`) was refused with HTTP 402: "Static Spaces are free for everyone,
+> but hosting Gradio and Docker Spaces on free cpu-basic requires a PRO subscription." This path
+> needs a PRO subscription (USD 9 a month, a card), or another host for the same image. The image,
+> `start.sh` and the CI job that runs it are host-independent: any host that runs one Docker container
+> with one public port can run it. Until a host is chosen, nothing here is deployed.
+
+### Checklist
+
+1. **Supabase, twice.** Create `connectsphere-staging` and `connectsphere-production` (Southeast Asia,
+   Singapore). From each project's **Connect** and **Settings → API**, fill
+   `C:\Users\Joash Lau\connectsphere-secrets\staging.env` and `production.env`:
+   - `DB_PASSWORD`;
+   - `DATABASE_URL`, the transaction pooler URI;
+   - `MIGRATE_DATABASE_URL`, the session pooler URI;
+   - `SUPABASE_URL`, `SUPABASE_ANON_KEY` and `SUPABASE_SERVICE_ROLE_KEY`.
+
+   Paste the URIs exactly as Supabase shows them, with `[YOUR-PASSWORD]` still in them. The script puts
+   `DB_PASSWORD` in, URL-encoded.
+2. **Hugging Face token.** huggingface.co → Settings → Access Tokens → **New token**, type *Write*. Put
+   it in `shared.env` as `HF_TOKEN`.
+3. **Vercel token.** vercel.com → Account Settings → Tokens. Put it in `shared.env` as `VERCEL_TOKEN`.
+4. `npm run deploy:space -- --env staging`, then check staging.
+5. `npm run deploy:space -- --env production`. It refuses unless the staging Space is running and healthy.
+6. In each Supabase project, Authentication → URL Configuration: set the **Site URL** to the
+   environment's web origin (the script prints it), and add `<web origin>/**` under **Redirect URLs**.
+   Then `npm run lead:create` (step 7 below) with `--redirect-to <web origin>`.
+7. Add both Space URLs (the script prints them) to `deploy/space/spaces.txt` and commit, so the
+   keep-awake job pings them.
+
+The secrets folder is outside the repository and is never committed. Only `deploy-space.mjs` reads it,
+and it never prints a value: every line it or a tool prints is masked. A blank key stops it with a
+message naming the key.
+
+### What `deploy:space` does
+
+1. Asks Hugging Face who the token belongs to. The Space is `<you>/connectsphere-<env>`, at
+   `https://<you>-connectsphere-<env>.hf.space`.
+2. Builds the web app with `VITE_API_BASE_URL` set to that Space, and deploys it with the Vercel CLI
+   (`vercel@65.10.0`, `--token`) to the Vercel project `connectsphere-staging` or `connectsphere`, which it
+   creates if missing. It reads the project's production origin, the `*.vercel.app` alias.
+3. Creates the Space if missing (Docker SDK, **public**: the SPA must reach it without a Hugging Face
+   token, and every API call still needs a Supabase token). It then sets the Space secrets
+   `DATABASE_URL`, `MIGRATE_DATABASE_URL`, `SUPABASE_URL`, `SUPABASE_ANON_KEY` and
+   `SUPABASE_SERVICE_ROLE_KEY`, and the variable `CORS_ALLOWED_ORIGINS` (the web origin, and nothing else).
+4. Pushes the Space repository: `deploy/space/Dockerfile` at its root and the committed source it builds
+   (`git archive HEAD`, so only what is committed deploys). Hugging Face builds the image.
+5. Waits for the Space to reach RUNNING, then smoke-tests it:
+   - `/healthz`;
+   - the API routes answer 401 with the error envelope;
+   - nothing else is routed;
+   - CORS allows the web origin only.
+
+   Then it smoke-tests the web app (the shell, built for the Space).
+
+### Inside the Space
+
+One container, as uid 1000, with one public port (7860). `deploy/space/start.sh`:
+
+- checks the settings;
+- makes a TLS certificate and a random Kafka password (both live only as long as the container);
+- runs every migration against the **session pooler**;
+- then starts these under supervisord:
+  - planning-core, its Temporal worker, registration and notification;
+  - Redpanda (SASL/SCRAM over TLS, on 127.0.0.1), the Temporal dev server and Cerbos;
+  - **Caddy** on 7860, routing `/identity`, `/event`, `/venue` and `/equipment` (planning-core),
+    `/notification` and `/registration` under `/api/v1`, with the prefix stripped, as the k3s Ingress does.
+    Health, readiness and metrics stay internal; Caddy itself answers a static `/healthz`.
+
+Known limits:
+
+- **The disk is ephemeral.** Redpanda's topics and Temporal's workflows start empty after every restart
+  or rebuild. Supabase holds all the data, and the outbox relay republishes anything not yet published.
+  A hold-expiry or completion timer scheduled before a restart is lost until the event is touched again.
+- **Port 6543 may be blocked.** A Space's outbound traffic may not allow Supabase's transaction-pooler
+  port. If `start.sh` cannot reach `DATABASE_URL`, the services use the session pooler too, and the log
+  says so by name. Port 5432 is reported open for Spaces; if even that is blocked, the Space cannot run
+  and the script stops at the smoke test.
+- **Sleep.** A free Space sleeps after about 48 hours without traffic. `.github/workflows/keep-awake.yml`
+  hits each URL in `deploy/space/spaces.txt` every 6 hours, needing no secret. A sleeping Space wakes
+  on the first request, in a minute or two.
+- **Rebuild on deploy.** Each `deploy:space` rebuilds the image on Hugging Face (several minutes), and
+  setting secrets restarts the Space.
+
+Look inside: the Space's page → **Logs** (container), which shows every process's output. Roll back:
+check out an earlier commit and run `deploy:space` again. Production uses exactly the commit you run it
+from, so run staging and production from the same commit.
+
+CI (`deploy.yml`, job "Space image") builds the image from the same Space repository the script pushes.
+It runs it as a Space runs it, against a throwaway Postgres and never Supabase, with `DATABASE_URL`
+pointing at a closed port, and checks:
+
+- the fallback and the migrations;
+- every process running;
+- each service ready with Kafka reachable;
+- the worker connected;
+- the routes and CORS through Caddy.
+
+What CI cannot show: Hugging Face's own build, its egress rules, and sleep.

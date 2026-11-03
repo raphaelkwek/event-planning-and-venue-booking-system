@@ -227,9 +227,18 @@ export async function deployWeb({ environment, token, apiOrigin, space, log, mas
   vc(["link", "--yes", "--project", project]);
   vc(["pull", "--yes", "--environment=production"]);
   log(`building the web app for ${environment} (VITE_API_BASE_URL=${apiOrigin})`);
-  vc(["build", "--prod"], { env: { VITE_API_BASE_URL: apiOrigin, VITE_SUPABASE_URL: space.SUPABASE_URL, VITE_SUPABASE_ANON_KEY: space.SUPABASE_ANON_KEY } });
+  // VITE_SHOW_SEEDED_ACCOUNTS: the sign-in page lists the demo accounts on staging only, which alone has them.
+  vc(["build", "--prod"], {
+    env: {
+      VITE_API_BASE_URL: apiOrigin,
+      VITE_SUPABASE_URL: space.SUPABASE_URL,
+      VITE_SUPABASE_ANON_KEY: space.SUPABASE_ANON_KEY,
+      VITE_SHOW_SEEDED_ACCOUNTS: environment === "staging" ? "true" : "false",
+    },
+  });
   const deployed = vc(["deploy", "--prebuilt", "--prod"]);
-  const url = deployed.stdout.split(/\s+/).find((word) => /^https:\/\/\S+\.vercel\.app$/.test(word));
+  // The CLI prints the deployment's URL on stdout or stderr depending on its version; take the last one.
+  const url = [...deployed.output.matchAll(/https:\/\/[a-z0-9.-]+\.vercel\.app/g)].map((m) => m[0]).pop();
   if (!url) throw new DeployError("vercel deploy printed no deployment URL");
   const response = await fetch(`https://api.vercel.com/v13/deployments/${new URL(url).host}`, { headers: { Authorization: `Bearer ${token}` } });
   const body = await response.json().catch(() => ({}));

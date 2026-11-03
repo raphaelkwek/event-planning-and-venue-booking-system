@@ -17,7 +17,7 @@
 // routes by host. Values come from C:\Users\Joash Lau\connectsphere-secrets\ (shared.env, <env>.env),
 // go to the VM over SSH into /etc/connectsphere/<env>.env (mode 600), and are never printed.
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, realpathSync, rmSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -53,8 +53,8 @@ export function hostCaddyfile(options) {
 }
 
 /** The container's env file. Values are written as they are: docker's --env-file takes no quoting. */
-export function containerEnv(space, webOrigin) {
-  const values = { ...space, CORS_ALLOWED_ORIGINS: webOrigin, REDPANDA_MEMORY };
+export function containerEnv(space, webOrigin, alsoOrigins = []) {
+  const values = { ...space, CORS_ALLOWED_ORIGINS: [webOrigin, ...alsoOrigins].join(","), REDPANDA_MEMORY };
   for (const [key, value] of Object.entries(values)) {
     if (/[\r\n]/.test(value)) throw new DeployError(`${key} contains a line break`);
   }
@@ -66,7 +66,7 @@ function parseArgs(argv) {
   for (let i = 0; i < argv.length; i += 1) {
     const flag = argv[i];
     if (flag === "--seed") args.seed = true;
-    else if (["--env", "--host", "--user", "--key", "--domain", "--lead", "--web-origin"].includes(flag)) {
+    else if (["--env", "--host", "--user", "--key", "--domain", "--lead", "--web-origin", "--also-origin"].includes(flag)) {
       if (argv[i + 1] === undefined) throw new DeployError(`${flag} needs a value`);
       args[flag.slice(2).replace(/-([a-z])/g, (_, c) => c.toUpperCase())] = argv[i + 1];
       i += 1;
@@ -74,6 +74,11 @@ function parseArgs(argv) {
   }
   if (!["staging", "production"].includes(args.env)) throw new DeployError("--env staging or --env production is required");
   if (args.seed && args.env !== "staging") throw new DeployError("--seed applies the demo users, which only staging gets");
+  // --also-origin: more web origins the API accepts (an older Vercel alias), comma-separated.
+  args.alsoOrigins = (args.alsoOrigin ?? "").split(",").map((o) => o.trim()).filter(Boolean);
+  for (const origin of args.alsoOrigins) {
+    if (!/^https:\/\/[a-z0-9.-]+$/.test(origin)) throw new DeployError(`--also-origin ${origin} is not an https origin`);
+  }
   return args;
 }
 
@@ -88,7 +93,7 @@ function vmAddress(log) {
   return address;
 }
 
-async function configureAuthUrls({ token, supabaseUrl, webOrigin, log }) {
+async function configureAuthUrls({ token, supabaseUrl, webOrigin, alsoOrigins = [], log }) {
   if (!token) {
     log("no SUPABASE_ACCESS_TOKEN in shared.env: set Authentication, URL Configuration by hand (runbook)");
     return;
@@ -97,10 +102,10 @@ async function configureAuthUrls({ token, supabaseUrl, webOrigin, log }) {
   const response = await fetch(`https://api.supabase.com/v1/projects/${ref}/config/auth`, {
     method: "PATCH",
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ site_url: webOrigin, uri_allow_list: `${webOrigin}/**` }),
+    body: JSON.stringify({ site_url: webOrigin, uri_allow_list: [webOrigin, ...alsoOrigins].map((o) => `${o}/**`).join(",") }),
   });
   if (!response.ok) throw new DeployError(`Supabase would not set the Auth URLs of ${ref} (${response.status})`);
-  log(`Supabase Auth of ${ref}: Site URL ${webOrigin}, redirect ${webOrigin}/**`);
+  log(`Supabase Auth of ${ref}: Site URL ${webOrigin}, redirect ${[webOrigin, ...alsoOrigins].map((o) => `${o}/**`).join(", ")}`);
 }
 
 async function main() {
@@ -158,7 +163,8 @@ async function main() {
   // this checkout's node_modules alone.
   let webOrigin = args.webOrigin;
   if (!webOrigin) {
-    const tree = mkdtempSync(join(tmpdir(), "connectsphere-web-"));
+    // The long form of the temp path: Vite's bundler rejects Windows 8.3 short names (JOASHL~1).
+    const tree = mkdtempSync(join(realpathSync.native(tmpdir()), "connectsphere-web-"));
     rmSync(tree, { recursive: true, force: true });
     run("git", ["worktree", "add", "--detach", tree, "HEAD"], { mask });
     try {
@@ -167,17 +173,18 @@ async function main() {
       run("git", ["worktree", "remove", "--force", tree], { mask, allowFailure: true });
     }
   }
-  await configureAuthUrls({ token: loaded.supabaseAccessToken, supabaseUrl: loaded.space.SUPABASE_URL, webOrigin, log });
+  await configureAuthUrls({ token: loaded.supabaseAccessToken, supabaseUrl: loaded.space.SUPABASE_URL, webOrigin, alsoOrigins: args.alsoOrigins, log });
 
-  // The env file goes over stdin, never as an argument, and stays readable by the admin user only.
+  // The env file goes over stdin, never as an argument. Once setup-deploy-user.sh has run, the
+  // connectsphere group (the admin user and the deploy gate) shares it; before that, the admin user only.
   const envPath = `/etc/connectsphere/${args.env}.env`;
   const upload = spawnSync(
     "ssh",
-    ["-i", key, "-o", "BatchMode=yes", `${user}@${host}`, `sudo install -d -m 0700 -o "$(id -u)" -g "$(id -g)" /etc/connectsphere && umask 077 && cat > ${envPath} && chmod 600 ${envPath}`],
-    { input: containerEnv(loaded.space, webOrigin), encoding: "utf8" }
+    ["-i", key, "-o", "BatchMode=yes", `${user}@${host}`, `if getent group connectsphere > /dev/null; then sudo install -d -m 2770 -o root -g connectsphere /etc/connectsphere; else sudo install -d -m 0700 -o "$(id -u)" -g "$(id -g)" /etc/connectsphere; fi && umask 007 && cat > ${envPath} && chmod 660 ${envPath}`],
+    { input: containerEnv(loaded.space, webOrigin, args.alsoOrigins), encoding: "utf8" }
   );
   if (upload.status !== 0) throw new DeployError(`could not write ${envPath}: ${mask(upload.stderr ?? "").trim()}`);
-  log(`wrote ${envPath} (mode 600): ${Object.keys(loaded.space).join(", ")}, CORS_ALLOWED_ORIGINS, REDPANDA_MEMORY`);
+  log(`wrote ${envPath} (mode 660, the admin user and the deploy gate only): ${Object.keys(loaded.space).join(", ")}, CORS_ALLOWED_ORIGINS, REDPANDA_MEMORY`);
 
   ssh(`docker rm -f ${container} > /dev/null 2>&1; docker run -d --name ${container} --restart unless-stopped --env-file ${envPath} -p 127.0.0.1:${PORTS[args.env]}:7860 ${image} > /dev/null`);
   log(`started ${container} from ${image}`);

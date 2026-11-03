@@ -5,10 +5,14 @@
 #   publish    one multi-arch index per image, tagged with the commit, signed keylessly with its
 #              SBOM attested (EN-21's composite action, the same one supply-chain.yml runs);
 #   release    the release: the commit and each image's index digest, which every later job uses;
-#   staging    deploy-environment.yml with `environment: staging`: the Secret over SSH, the
-#              deploy state on the deploy-state branch, Argo CD, smoke tests, then Vercel;
+#   staging    deploy-vm-environment.yml with `environment: staging` (the Azure VM, ADR-0016's
+#              amendment): the space image by digest through the VM's deploy gate, migrations as the
+#              container starts, smoke tests, then the web app on Vercel;
 #   production the same reusable workflow with `environment: production`, after staging is green
-#              and a required reviewer approves, with the SAME commit and digests.
+#              and the environment's required reviewer approves, with the SAME commit and digests.
+#
+# With `target: k3s` (dispatch only) the two deploy jobs use deploy-environment.yml instead: the k3s
+# path, through the k3s deploy gate, the deploy-state branch and Argo CD.
 #
 # workflow_dispatch with `release` set to an earlier commit redeploys that release's images (no
 # rebuild): the way to roll forward or back by hand. Nothing here pushes to main; the only branch
@@ -25,6 +29,12 @@ on:
         description: "Redeploy an earlier release: its full commit sha on main (its images must exist in GHCR). Empty builds the current commit."
         required: false
         default: ""
+      target:
+        description: "Where to deploy: vm (the Azure VM, ADR-0016's amendment) or k3s (the scale-up path)."
+        required: false
+        default: vm
+        type: choice
+        options: [vm, k3s]
 
 permissions:
   contents: read
@@ -53,7 +63,7 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        image: [planning-core, registration, notification, migrate, cerbos]
+        image: [planning-core, registration, notification, migrate, cerbos, space]
         arch: [amd64, arm64]
         include:
           - { image: planning-core, file: backend/services/planning-core/Dockerfile }
@@ -61,6 +71,8 @@ jobs:
           - { image: notification, file: backend/services/notification/Dockerfile }
           - { image: migrate, file: backend/scripts/Dockerfile }
           - { image: cerbos, file: deploy/cerbos/Dockerfile }
+          # One container for a whole environment (the Azure VM); its context is the Space repository.
+          - { image: space, file: Dockerfile }
           - { arch: amd64, runner: ubuntu-24.04, platform: linux/amd64 }
           - { arch: arm64, runner: ubuntu-24.04-arm, platform: linux/arm64 }
     steps:
@@ -76,13 +88,24 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # The space image builds from the Space repository: the files its Dockerfile copies, from the commit.
+      - name: The build context
+        id: context
+        run: |
+          if [ "${{ matrix.image }}" = space ]; then
+            node deploy/space/deploy-space.mjs --context-only "${RUNNER_TEMP}/space"
+            echo "dir=${RUNNER_TEMP}/space" >> "$GITHUB_OUTPUT"
+          else
+            echo "dir=." >> "$GITHUB_OUTPUT"
+          fi
+
       # Pushed by digest only; publish joins the two architectures under one tag.
       - name: Build and push by digest
         id: build
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
         with:
-          context: .
-          file: ${{ matrix.file }}
+          context: ${{ steps.context.outputs.dir }}
+          file: ${{ steps.context.outputs.dir }}/${{ matrix.file }}
           platforms: ${{ matrix.platform }}
           outputs: type=image,name=${{ env.IMAGE_PREFIX }}${{ matrix.image }},push-by-digest=true,name-canonical=true,push=true
           cache-from: type=gha,scope=release-${{ matrix.image }}-${{ matrix.arch }}
@@ -116,7 +139,7 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        image: [planning-core, registration, notification, migrate, cerbos]
+        image: [planning-core, registration, notification, migrate, cerbos, space]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -220,7 +243,7 @@ jobs:
           commit="${REQUESTED:-$GITHUB_SHA}"
           [[ "$commit" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::release must be a full 40-character commit sha"; exit 1; }
           images='{}'
-          for name in planning-core registration notification migrate cerbos; do
+          for name in planning-core registration notification migrate cerbos space; do
             if [ -n "$REQUESTED" ]; then
               digest="$(docker buildx imagetools inspect "${IMAGE_PREFIX}${name}:${commit}" --format '{{json .Manifest}}' | jq -r .digest)"
               ref="${IMAGE_PREFIX}${name}@${digest}"
@@ -237,9 +260,36 @@ jobs:
           { echo "### Release ${commit}"; echo; jq -r '.images | to_entries[] | "- \(.key): `\(.value)`"' <<< "$release"; } >> "$GITHUB_STEP_SUMMARY"
 
   staging:
-    name: Deploy staging
+    name: Deploy staging (Azure VM)
     needs: release
-    if: ${{ !cancelled() && needs.release.result == 'success' }}
+    if: ${{ !cancelled() && needs.release.result == 'success' && (inputs.target || 'vm') == 'vm' }}
+    permissions:
+      contents: read
+      packages: read
+    uses: ./.github/workflows/deploy-vm-environment.yml
+    with:
+      environment: staging
+      release: ${{ needs.release.outputs.release }}
+    secrets: inherit
+
+  production:
+    name: Deploy production (Azure VM)
+    needs: [release, staging]
+    if: ${{ !cancelled() && needs.staging.result == 'success' }}
+    permissions:
+      contents: read
+      packages: read
+    uses: ./.github/workflows/deploy-vm-environment.yml
+    with:
+      environment: production
+      release: ${{ needs.release.outputs.release }}
+    secrets: inherit
+
+  # The k3s path (scale-up), on request only.
+  staging-k3s:
+    name: Deploy staging (k3s)
+    needs: release
+    if: ${{ !cancelled() && needs.release.result == 'success' && inputs.target == 'k3s' }}
     permissions:
       contents: write
       packages: read
@@ -249,10 +299,10 @@ jobs:
       release: ${{ needs.release.outputs.release }}
     secrets: inherit
 
-  production:
-    name: Deploy production
-    needs: [release, staging]
-    if: ${{ !cancelled() && needs.staging.result == 'success' }}
+  production-k3s:
+    name: Deploy production (k3s)
+    needs: [release, staging-k3s]
+    if: ${{ !cancelled() && needs.staging-k3s.result == 'success' }}
     permissions:
       contents: write
       packages: read

@@ -24,6 +24,7 @@ tests. No Jira key is assigned yet; the folder is named DEPLOY until one is.
 | Creating the first Lead user in each environment: the Lead sets their own password from the invite. | DEPLOY-T16 | Pass |
 | One container per Space: the services, Redpanda (SASL), the Temporal dev server and Cerbos under a supervisor, with Caddy on the Space's one port routing the public prefixes; health and metrics internal; migrations at start against the session pooler. | DEPLOY-T17 | Not Executed |
 | Deploying from the laptop reads the secrets folder outside the repository, never commits or prints a value, and fails naming any blank key. | DEPLOY-T18 | Not Executed |
+| One VM runs both environments, each in its own container with its own env file, behind a host Caddy routing by host. | DEPLOY-T19 | Not Executed |
 
 **What no card here shows on a pull request:** the Oracle VM, the two Supabase projects, the two Vercel
 projects, Let's Encrypt and the GitHub environments do not exist until Joash creates them

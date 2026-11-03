@@ -28,4 +28,7 @@ test("DEPLOY-T19 the container's env file holds the Space values, its own web or
   assert.ok(text.includes("CORS_ALLOWED_ORIGINS=https://connectsphere-staging.vercel.app\n"));
   assert.ok(text.includes("REDPANDA_MEMORY=512M\n"));
   assert.throws(() => containerEnv({ ...space, SUPABASE_ANON_KEY: "a\nb" }, "https://x.vercel.app"), /SUPABASE_ANON_KEY contains a line break/);
+  // An older alias can be kept working: CORS then allows both, the canonical origin first.
+  const both = containerEnv(space, "https://connectsphere-is212.vercel.app", ["https://connectsphere-blush.vercel.app"]);
+  assert.ok(both.includes("CORS_ALLOWED_ORIGINS=https://connectsphere-is212.vercel.app,https://connectsphere-blush.vercel.app\n"));
 });

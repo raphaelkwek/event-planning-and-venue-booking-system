@@ -87,3 +87,32 @@ Hugging Face now requires a PRO subscription to host Docker or Gradio Spaces, ev
 static Spaces are free. So this amendment's host is blocked until Joash chooses one of three options:
 PRO (USD 9 a month, a card), another host for the same single container, or the k3s path on a VM.
 The container itself does not depend on Hugging Face.
+
+## Amendment, 4 Nov 2026: one Azure VM (Joash)
+
+**Context.** Hugging Face refused free Docker Spaces (HTTP 402, PRO only), and Oracle needs a card.
+A teammate's Azure for Students subscription is shared with the team with her consent. Its policy
+allows five Asian regions. In southeastasia it does not offer `Standard_B2s` or `B2ms`; it does offer
+the Ampere `B2pls_v2` and `B2ps_v2`.
+
+**Decision.** One `Standard_B2pls_v2` VM (2 vCPU, 4 GB, arm64, Ubuntu 24.04) in southeastasia, in its own
+resource group `connectsphere-rg`, every resource tagged `project=connectsphere`. Nothing outside that
+group is touched: the subscription holds other projects. The NSG admits only 22, 80 and 443.
+
+The VM runs the single-container image of the previous amendment twice, one container per environment,
+each with its own env file. Redpanda reserves 512 MB in each. A host Caddy takes the certificates and
+routes `api.staging.<ip>.sslip.io` and `api.<ip>.sslip.io` to the two containers. Each container
+includes its Cerbos PDP.
+
+`npm run deploy:vm` builds the image on the VM from the committed source, deploys the SPA to Vercel and
+smoke-tests everything. Production goes only while staging answers. The k3s path stays the scale-up
+option on a bigger VM, and Hugging Face works only with PRO.
+
+**Consequences.**
+- About USD 40 a month (VM, static IP, disk) from the student credit. The CLI cannot set a budget on
+  this subscription, so one is set in the portal.
+- Both environments share 4 GB and one machine. `docker stats` shows the headroom; the next step up is
+  `B2ps_v2` (8 GB, about USD 70 a month).
+- As on a Space, the images are built from source on the VM rather than pulled as the signed GHCR
+  images, so EN-21's signatures do not cover what runs there.
+

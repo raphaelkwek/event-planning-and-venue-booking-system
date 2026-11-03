@@ -32,7 +32,7 @@ export function problemWith(ref) {
 }
 
 function defaultFiles() {
-  const files = [".github/workflows/supply-chain.yml", ".github/workflows/deploy.yml", ".github/workflows/release.yml", ".github/workflows/deploy-environment.yml"];
+  const files = [".github/workflows/supply-chain.yml", ".github/workflows/deploy.yml", ".github/workflows/release.yml", ".github/workflows/deploy-environment.yml", ".github/workflows/deploy-vm-environment.yml"];
   const root = ".github/actions";
   for (const name of readdirSync(root)) {
     const file = join(root, name, "action.yml");

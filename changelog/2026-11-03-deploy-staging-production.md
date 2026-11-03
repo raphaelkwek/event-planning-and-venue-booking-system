@@ -1,3 +1,45 @@
+# Deploy: staging and production on one Azure VM (ADR-0016 amendment)
+
+**Timestamp:** 2026-11-04T02:00+08:00 (SGT)
+**Author:** Joash
+**Scope:** deploy/azure (create-vm.sh, cloud-init.yaml, deploy-vm.mjs), deploy/space (REDPANDA_MEMORY),
+.github/actions/sign-and-attest, .github/workflows/deploy.yml (Space image on arm64), frontend (Set your password),
+deploy/scripts/create-lead.mjs, documentation/deploy/README.md, ADR-0016's amendment, tests/DEPLOY.
+
+**Deploy:** `npm run deploy:vm -- --env staging && npm run deploy:vm -- --env production` (documentation/deploy/README.md).
+
+## Added
+
+- create-vm.sh: one `Standard_B2pls_v2` VM (arm64, 4 GB) in `connectsphere-rg`, every resource tagged
+  `project=connectsphere`, with a static IP, an NSG for 22, 80 and 443, and Docker from cloud-init. It is
+  idempotent and touches nothing outside its resource group.
+- `npm run deploy:vm` does the following:
+  - builds the single-container image of the commit on the VM;
+  - runs it once per environment behind a host Caddy (TLS, sslip.io hosts);
+  - writes each env file over SSH with mode 600;
+  - deploys the SPA to Vercel and sets each Supabase project's Auth URLs;
+  - smoke-tests the API, readiness, Cerbos and the SPA.
+
+  Production goes only while staging answers. `--seed` adds the demo users to staging only, and `--lead`
+  sends the first Lead's invite.
+- A Set your password screen (`#/set-password`), where invite and password-reset links land. lead:create
+  now uses Supabase Auth's admin invite and never handles a password, which fixes CodeQL's
+  js/clear-text-logging.
+
+## Fixed
+
+- The sign-and-attest action failed on main when an image digest already carried an attestation:
+  `verify-attestation` returned two, and the counts did not compare. It now accepts the one just made
+  among them.
+- cloud-init's usermod line is quoted. Unquoted, `cut -d: -f1` is a YAML mapping.
+
+## Not done / limits
+
+- Both environments share 4 GB on one VM, which is not high availability. The images run there are
+  built from source, not the signed GHCR ones.
+
+---
+
 # Deploy: the backend on Hugging Face Spaces (ADR-0016 amendment)
 
 **Timestamp:** 2026-11-03T21:50+08:00 (SGT)
