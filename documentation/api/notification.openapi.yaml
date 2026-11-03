@@ -218,7 +218,7 @@ components:
           properties:
             code:
               type: string
-              enum: [UNAUTHENTICATED, NO_ROLE_ASSIGNED, VALIDATION_FAILED, NOTIFICATION_NOT_FOUND, IDENTITY_UNAVAILABLE]
+              enum: [UNAUTHENTICATED, NO_ROLE_ASSIGNED, VALIDATION_FAILED, NOTIFICATION_NOT_FOUND, IDENTITY_UNAVAILABLE, RATE_LIMITED, INTERNAL_ERROR]
             message: { type: string }
             fields:
               type: array

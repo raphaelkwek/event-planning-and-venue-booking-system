@@ -42,7 +42,8 @@ describe("CompleteEvent replay (EN-11-T3)", () => {
   }, 30_000);
 
   it("round-trips a history to the same text", () => {
-    const text = read(files[0]!);
+    // A Windows checkout with core.autocrlf=true turns the committed LF file into CRLF; the history is the same.
+    const text = read(files[0]!).replace(/\r\n/g, "\n");
     expect(historyToText(historyFromText(text))).toBe(text);
   });
 });

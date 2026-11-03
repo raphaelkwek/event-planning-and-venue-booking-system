@@ -7,6 +7,7 @@ import {
 } from "@connectsphere/contracts";
 import { CALENDAR_TIME_ZONE } from "./availabilityCalendar.js";
 import { INSTANT_MESSAGE, UUID, instant } from "./bookingRequest.js";
+import { MAX_REMINDER_LEAD_MINUTES, isWholeBetween } from "../../../shared/limits.js";
 
 /**
  * L3 — a tentative hold's rules. The event's assigned coordinator requests a
@@ -31,7 +32,7 @@ export interface HoldRequestInput {
   reminderLeadMinutes: number;
 }
 
-const REMINDER_MESSAGE = "Enter a whole number of minutes, at least 1.";
+const REMINDER_MESSAGE = `Enter a whole number of minutes from 1 to ${MAX_REMINDER_LEAD_MINUTES}.`;
 
 /** The hold request as sent, checked for shape, or every field that is wrong with it. */
 export function readHoldRequest(body: unknown): { ok: true; hold: HoldRequestInput } | { ok: false; fields: ErrorField[] } {
@@ -53,7 +54,7 @@ export function readHoldRequest(body: unknown): { ok: true; hold: HoldRequestInp
   else if (startsAt && endsAt <= startsAt) fields.push({ field: "endsAt", message: "The end must be after the start." });
 
   const lead = b.reminderLeadMinutes;
-  if (!Number.isInteger(lead) || (lead as number) < 1) fields.push({ field: "reminderLeadMinutes", message: REMINDER_MESSAGE });
+  if (!isWholeBetween(lead, 1, MAX_REMINDER_LEAD_MINUTES)) fields.push({ field: "reminderLeadMinutes", message: REMINDER_MESSAGE });
 
   if (fields.length > 0) return { ok: false, fields };
   return { ok: true, hold: { eventId: eventId!, venueId: venueId!, startsAt: startsAt!, endsAt: endsAt!, reminderLeadMinutes: lead as number } };

@@ -1,6 +1,9 @@
+import "./asyncErrors.js";
 import express from "express";
 import { httpTelemetry, traceFields } from "@connectsphere/telemetry";
 import { config } from "./config.js";
+import helmet from "helmet";
+import { errorHandler } from "./errorHandler.js";
 import { sql } from "./db.js";
 import { healthRouter } from "./health.js";
 import { probeBroker } from "./kafka.js";
@@ -19,6 +22,7 @@ export const app = express();
 // EN-08: first, so every route and every refusal gets a correlation id (the trace id, ADR-0013)
 // and is timed by route pattern (http_request_duration_seconds, the names EN-17's SLOs query).
 app.use(httpTelemetry({ service: config.serviceName }));
+app.use(helmet());
 
 // EN-17: HTTP timings and the zero-over-admission gauge. /metrics is
 // rate-limited, and off in production unless METRICS_TOKEN is set.
@@ -38,16 +42,21 @@ app.use((req, res, next) => {
   if (req.path.startsWith("/api/")) res.setHeader("Cache-Control", "no-store");
   const startedAt = Date.now();
   res.on("finish", () => {
-    logger.info("request completed", {
+    const fields = {
       ...trace,
       correlationId,
       route: `${req.method} ${req.path}`,
       durationMs: Date.now() - startedAt,
-      outcome: res.statusCode < 400 ? "success" : "refused",
-    });
+    };
+    // A 5xx is our failure, not a refusal: log it as an error.
+    if (res.statusCode >= 500) logger.error("request failed", { ...fields, outcome: "error" });
+    else logger.info("request completed", { ...fields, outcome: res.statusCode < 400 ? "success" : "refused" });
   });
   next();
 });
 
 app.use(healthRouter(sql, probeBroker));
 app.use(registrationRouter({ sql, auth: supabaseAuthenticator }));
+
+// Last, so that anything a route rejects with or passes to next(error) ends in the envelope.
+app.use(errorHandler);

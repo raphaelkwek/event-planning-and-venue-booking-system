@@ -48,5 +48,7 @@ describe("/readyz", () => {
     const res = await request(appWith(fakeSql(false), async () => true)).get("/readyz");
     expect(res.status).toBe(503);
     expect(res.body).toMatchObject({ status: "not_ready", checks: { database: "unreachable" } });
+    // H1: the database error text is for the log, never for an unauthenticated caller.
+    expect(JSON.stringify(res.body)).not.toContain("connection refused");
   });
 });

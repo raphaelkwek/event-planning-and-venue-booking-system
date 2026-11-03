@@ -12,7 +12,7 @@
 # `node`. The build stage compiles them and points `main` at dist/ inside this
 # image only; the repository's package.json files are untouched.
 
-ARG NODE_IMAGE=node:20.18.1-bookworm-slim@sha256:b2c8e0eb8a6aeeae33b2711f8f516003e27ee45804e270468d937b3214f2f0cc
+ARG NODE_IMAGE=node:20.20.2-bookworm-slim@sha256:2cf067cfed83d5ea958367df9f966191a942351a2df77d6f0193e162b5febfc0
 
 # The workspace manifests alone, so the dependency layers are reused until the
 # lockfile changes.
@@ -60,6 +60,12 @@ RUN --mount=type=cache,target=/root/.npm \
 FROM ${NODE_IMAGE} AS runtime
 LABEL org.opencontainers.image.source="https://github.com/raphaelkwek/event-planning-and-venue-booking-system" \
       org.opencontainers.image.title="connectsphere-planning-core"
+# EN-21 (Trivy): security fixes published since the pinned base image was built, and no npm, npx,
+# corepack or yarn: this image runs `node dist/index.js`, and the copies bundled with the base
+# image carry their own findings (tar, glob, minimatch ...) for tools nothing here calls.
+RUN apt-get update && apt-get upgrade -y --no-install-recommends \
+ && rm -rf /var/lib/apt/lists/* \
+ && rm -rf /usr/local/lib/node_modules /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack /opt/yarn-* /usr/local/bin/yarn /usr/local/bin/yarnpkg
 ENV NODE_ENV=production
 WORKDIR /app
 COPY --from=deps /app/node_modules node_modules
