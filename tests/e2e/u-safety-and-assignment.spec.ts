@@ -3,6 +3,7 @@ import { ACCOUNTS } from "./support/accounts.js";
 import { expect, signIn, signOut, test, uniqueName } from "./support/fixtures.js";
 import { assign, submitRequest } from "./support/seed.js";
 import { query, rowWith } from "./support/seed-events.js";
+import { requestChange } from "./support/seed-arrangements.js";
 import { arrangedEvent, safetyReviewEvent } from "./support/seed-lifecycle.js";
 
 /**
@@ -22,7 +23,7 @@ async function openFromAllEvents(page: Page, name: string) {
 
 /** The Safety Officer opens an event's review from the queue. */
 async function openReview(page: Page, reference: string, name: string) {
-  await page.getByRole("link", { name: "Safety queue" }).click();
+  await page.getByRole("link", { name: "Safety queue", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Safety queue" })).toBeVisible();
   await page.getByRole("table", { name: "Events in Safety Review" }).getByRole("link", { name: reference }).click();
   await expect(page.getByRole("heading", { name: `${reference} · ${name}` })).toBeVisible();
@@ -145,7 +146,7 @@ test.describe("U1 the Safety Officer's queue, review and decision", () => {
 
     // Step 1: the Safety Officer's navigation offers the Safety queue.
     await signIn(page, "safety");
-    await expect(page.getByRole("banner").getByRole("link", { name: "Safety queue" })).toBeVisible();
+    await expect(page.getByRole("banner").getByRole("link", { name: "Safety queue", exact: true })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Safety queue" })).toBeVisible();
 
     // Step 2: the queue lists both; E1's review shows the factors; a decision to request changes needs a reason.
@@ -182,7 +183,7 @@ test.describe("U1 the Safety Officer's queue, review and decision", () => {
     expect(decision).toEqual([{ decision: "REQUEST_CHANGES", reason }]);
 
     // The event has left Safety Review, so it has left the queue; the other still waits.
-    await page.getByRole("link", { name: "Safety queue" }).click();
+    await page.getByRole("link", { name: "Safety queue", exact: true }).click();
     await expect(page.getByRole("table", { name: "Events in Safety Review" }).getByRole("row").filter({ hasText: second.event.name })).toBeVisible();
     await expect(page.getByText(first.event.name)).toHaveCount(0);
 
@@ -214,7 +215,7 @@ test.describe("U1 the Safety Officer's queue, review and decision", () => {
     await openReview(page, second.event.reference, second.event.name);
     await page.getByRole("form", { name: "Safety decision" }).getByRole("button", { name: "Record decision" }).click();
     await expect(page.getByText("A decision is recorded for this review")).toBeVisible();
-    await page.getByRole("link", { name: "Safety queue" }).click();
+    await page.getByRole("link", { name: "Safety queue", exact: true }).click();
     await expect(
       page.getByRole("table", { name: "Events in Safety Review" }).getByRole("row").filter({ hasText: second.event.name }),
     ).toContainText("Approved, awaiting Mark Confirmed");
@@ -282,5 +283,111 @@ test.describe("F1 every status change writes a history entry", () => {
       triggering_action: "REQUEST_SAFETY_CHANGES",
     });
     expect(row?.occurred_at).toBeInstanceOf(Date);
+  });
+});
+
+/** The part of F3-T9 and F4-T8 that needs no Kafka: the notifications each ends on are built from Kafka messages, which this stack leaves out. */
+test.describe("F3 and F4 cancel an event (the screens, not the notifications)", () => {
+  test("F3-T9 the owner cancels their event from its page with a reason; the coordinator sees the same", { tag: ["@F3", "@F3-T9"] }, async ({ page, a11y }) => {
+    const { event } = await arrangedEvent(true, "F3 Chairs");
+    await requestChange(event.id, { expectedAttendance: 160 }, "More people registered");
+
+    // Step 1: the owner opens the event's page from My requests.
+    await signIn(page, "organiser");
+    await page.getByRole("link", { name: "My requests" }).click();
+    await rowWith(page, event.name).getByRole("link", { name: "View" }).click();
+    await expect(page.getByRole("heading", { name: event.name })).toBeVisible();
+
+    // Step 2: the dialog says what will happen and that it can't be undone; an empty reason is refused and sends nothing.
+    await page.getByRole("button", { name: "Cancel event" }).click();
+    const dialog = page.getByRole("dialog");
+    await expect(dialog.getByText("This can't be undone.", { exact: false })).toBeVisible();
+    await a11y("cancel event dialog");
+    await dialog.getByRole("button", { name: "Cancel event" }).click();
+    await expect(dialog.getByText("Give a reason for cancelling the event.")).toBeVisible();
+    expect(await statusOf(event.id)).not.toBe("CANCELLED");
+
+    // Step 3: with a reason the event is cancelled and the page says so.
+    await dialog.getByLabel("Reason").fill("The speaker withdrew.");
+    await dialog.getByRole("button", { name: "Cancel event" }).click();
+    await expect(dialog).toHaveCount(0);
+    const banner = page.getByRole("heading", { name: "This event was cancelled" });
+    await expect(banner).toBeVisible();
+    await expect(page.getByText("The speaker withdrew.").first()).toBeVisible();
+    await expect(page.getByText(/^Cancelled \S.*\.$/)).toBeVisible();
+    await expect(statusPanel(page).getByText("Cancelled", { exact: true })).toBeVisible();
+    for (const control of ["Cancel event", "Edit details", "Request a change"]) {
+      await expect(page.getByRole("button", { name: control })).toHaveCount(0);
+    }
+    await expect(page.getByText("Change request closed")).toBeVisible();
+    await a11y("request detail, cancelled");
+
+    // Step 4: the coordinator sees the same banner and is offered neither Cancel event nor Confirm arrangements.
+    await signOut(page);
+    await signIn(page, "coordinator");
+    await openFromAllEvents(page, event.name);
+    await expect(page.getByRole("heading", { name: "This event was cancelled" })).toBeVisible();
+    await expect(page.getByText("The speaker withdrew.").first()).toBeVisible();
+    await expect(page.getByRole("button", { name: "Cancel event" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Confirm arrangements" })).toHaveCount(0);
+  });
+
+  test("F4-T8 the coordinator cancels an event with a booking and reserved equipment; the venue and the stock are free again", { tag: ["@F4", "@F4-T8"] }, async ({ page, a11y }) => {
+    const { event, venue, chairs, lineId } = await arrangedEvent(true, "F4 Chairs");
+    const tuesday = (p: Page) => p.getByRole("region", { name: "Tuesday 2 March 2027" });
+    const openDay = async () => {
+      await page.getByRole("navigation").getByRole("link", { name: "Venues", exact: true }).click();
+      await rowWith(page, venue.name).getByRole("link", { name: "View" }).click();
+      await page.getByRole("button", { name: "Availability" }).click();
+      await expect(page.getByText("Availability. Times are Singapore time.")).toBeVisible();
+      await page.getByLabel("From", { exact: true }).fill("2027-03-02");
+      await page.getByLabel("To", { exact: true }).fill("2027-03-02");
+      await page.getByRole("button", { name: "Show" }).click();
+      await expect(tuesday(page)).toBeVisible();
+    };
+
+    // Step 1: Venue Staff see the booking on the event's day.
+    await signIn(page, "venuestaff");
+    await openDay();
+    await expect(tuesday(page).getByRole("list", { name: "Committed" }).getByRole("listitem").filter({ hasText: event.reference })).toContainText("Confirmed");
+
+    // Step 2: the coordinator cancels; the dialog says what will be released.
+    await signOut(page);
+    await signIn(page, "coordinator");
+    await openFromAllEvents(page, event.name);
+    await page.getByRole("button", { name: "Cancel event" }).click();
+    const dialog = page.getByRole("dialog");
+    await expect(dialog).toContainText("venue bookings and holds are");
+    await expect(dialog).toContainText("released");
+    await expect(dialog).toContainText("equipment reservations released");
+    await a11y("cancel event dialog, with arrangements");
+    await dialog.getByLabel("Reason").fill("Venue flooded.");
+    await dialog.getByRole("button", { name: "Cancel event" }).click();
+    await expect(dialog).toHaveCount(0);
+    await expect(statusPanel(page).getByText("Cancelled", { exact: true })).toBeVisible();
+
+    // Step 3: the venue's day shows no booking for the event, and the whole opening day is free.
+    await signOut(page);
+    await signIn(page, "venuestaff");
+    await openDay();
+    await expect(tuesday(page).getByRole("list", { name: "Free" }).getByRole("listitem")).toHaveText(["08:00–22:00"]);
+    await expect(tuesday(page).getByText(event.reference)).toHaveCount(0);
+
+    // Step 4: Technical Support see the line is no longer Reserved and the full stock free for the period.
+    await signOut(page);
+    await signIn(page, "techsupport");
+    await page.getByRole("link", { name: "Equipment requests", exact: true }).click();
+    const line = rowWith(page, chairs!.name);
+    await expect(line).toBeVisible();
+    await expect(line.getByText("Reserved", { exact: true })).toHaveCount(0);
+    await page.getByRole("link", { name: "Equipment availability", exact: true }).click();
+    await page.getByLabel("Equipment type").selectOption({ label: chairs!.name });
+    await page.getByLabel("Requested quantity").fill("20");
+    await page.getByLabel("Starts at (local time)").fill("2027-03-02T14:00");
+    await page.getByLabel("Ends at (local time)").fill("2027-03-02T18:00");
+    await page.getByRole("button", { name: "Check availability" }).click();
+    await expect(page.getByRole("region", { name: "Availability result" })).toContainText("Available quantity: 20");
+    const lines = await query<{ status: string }>("select status from equipment.equipment_request_lines where id = $1", [lineId!]);
+    expect(lines[0]?.status).not.toBe("RESERVED");
   });
 });
