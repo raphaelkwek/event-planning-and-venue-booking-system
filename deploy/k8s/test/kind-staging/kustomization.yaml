@@ -1,0 +1,21 @@
+# CI only (the kind smoke deploy, deploy/ci/kind-deploy.sh): the real staging overlay
+# with the images the Deploy workflow just built, and the Temporal worker switched off
+# because the cluster has no Temporal namespace to connect it to.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../overlays/staging
+images:
+  - { name: ghcr.io/raphaelkwek/connectsphere-planning-core, newName: connectsphere-planning-core, newTag: ci }
+  - { name: ghcr.io/raphaelkwek/connectsphere-registration, newName: connectsphere-registration, newTag: ci }
+  - { name: ghcr.io/raphaelkwek/connectsphere-notification, newName: connectsphere-notification, newTag: ci }
+  - { name: ghcr.io/raphaelkwek/connectsphere-web, newName: connectsphere-web, newTag: ci }
+  - { name: ghcr.io/raphaelkwek/connectsphere-migrate, newName: connectsphere-migrate, newTag: ci }
+patches:
+  - target:
+      kind: Deployment
+      name: planning-core-worker
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 0

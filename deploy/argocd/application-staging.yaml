@@ -1,0 +1,45 @@
+# EN-10. Argo CD keeps the staging namespace equal to deploy/k8s/overlays/staging on
+# main: a merged pull request is a deployment. This repository is the config repo,
+# and it is public, so Argo CD needs no credentials to read it.
+#
+# Automated sync with prune and self-heal: a resource deleted by hand comes back, and
+# a hand edit is reverted. The migrate Job in the overlay is a PreSync hook.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: connectsphere-staging
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: connectsphere
+  source:
+    repoURL: https://github.com/raphaelkwek/event-planning-and-venue-booking-system.git
+    targetRevision: main
+    path: deploy/k8s/overlays/staging
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: connectsphere-staging
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - ServerSideApply=true
+    retry:
+      limit: 3
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 2m
+  # A Rollout's replica count and a HorizontalPodAutoscaler's are owned by their
+  # controllers; Argo CD must not fight them.
+  ignoreDifferences:
+    - group: argoproj.io
+      kind: Rollout
+      jsonPointers:
+        - /spec/replicas
+    - group: apps
+      kind: Deployment
+      jsonPointers:
+        - /spec/replicas
