@@ -2,7 +2,7 @@
 import { COMPAT_CASES } from "../packages/contracts/src/compat/cases.js";
 import { checkBackwardCompatible, type JsonSchema } from "../packages/contracts/src/compat/schemaCompat.js";
 import { generatedSnapshotFiles, nameFromFile } from "../packages/contracts/src/compat/snapshot.js";
-import { baseSnapshots } from "./lib/schemaFiles.js";
+import { baseSnapshots } from "./support/schemaFiles.js";
 
 // EN-05 (SPM-123), CI only. Asks a real schema registry, Redpanda's, the question
 // the in-process checker answers, so the checker is shown to follow the registry

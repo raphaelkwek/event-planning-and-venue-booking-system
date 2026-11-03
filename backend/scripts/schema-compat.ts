@@ -3,7 +3,7 @@ import { mkdirSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { runCli, type CliDeps } from "../packages/contracts/src/compat/cli.js";
 import { generatedSnapshotFiles } from "../packages/contracts/src/compat/snapshot.js";
-import { baseSnapshots, committedSnapshots, jsonFiles, schemaDir } from "./lib/schemaFiles.js";
+import { baseSnapshots, committedSnapshots, jsonFiles, schemaDir } from "./support/schemaFiles.js";
 
 // npm run schemas:generate | schemas:check | schemas:compat -- --base <git-ref>
 // (EN-05, ADR-0008.) The logic is in contracts/src/compat/cli.ts; this file only

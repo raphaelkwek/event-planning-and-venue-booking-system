@@ -41,7 +41,7 @@ function fake(options: {
 }
 
 describe("EN-05-T4 schemas:generate and schemas:check", () => {
-  it("generate writes every generated file and says how many", () => {
+  it("EN-05-T4 generate writes every generated file and says how many", () => {
     const generated = new Map([["event.approved.json", approved()]]);
     const { deps, printed, written } = fake({ generated });
     expect(runCli(["generate"], deps)).toBe(EXIT_OK);
@@ -49,14 +49,14 @@ describe("EN-05-T4 schemas:generate and schemas:check", () => {
     expect(printed).toEqual(["Wrote 1 schema files."]);
   });
 
-  it("check passes when the committed files are exactly the generated ones", () => {
+  it("EN-05-T4 check passes when the committed files are exactly the generated ones", () => {
     const files = new Map([["event.approved.json", approved()]]);
     const { deps, printed } = fake({ generated: files, committed: new Map(files) });
     expect(runCli(["check"], deps)).toBe(EXIT_OK);
     expect(printed).toEqual(["The 1 committed schema files match contracts."]);
   });
 
-  it("check fails and names a file whose contents differ", () => {
+  it("EN-05-T4 check fails and names a file whose contents differ", () => {
     const { deps, printed } = fake({
       generated: new Map([["event.approved.json", approved()]]),
       committed: new Map([["event.approved.json", approved({ note: { type: "string" } })]]),
@@ -68,13 +68,13 @@ describe("EN-05-T4 schemas:generate and schemas:check", () => {
     ]);
   });
 
-  it("check fails and names a file that was never committed", () => {
+  it("EN-05-T4 check fails and names a file that was never committed", () => {
     const { deps, printed } = fake({ generated: new Map([["event.new.json", approved()]]) });
     expect(runCli(["check"], deps)).toBe(EXIT_BREAKING);
     expect(printed[0]).toBe("missing: event.new.json is not committed");
   });
 
-  it("check fails and names a committed file whose message type is gone", () => {
+  it("EN-05-T4 check fails and names a committed file whose message type is gone", () => {
     const { deps, printed } = fake({ committed: new Map([["event.gone.json", approved()]]) });
     expect(runCli(["check"], deps)).toBe(EXIT_BREAKING);
     expect(printed[0]).toBe("stale: event.gone.json has no schema in contracts");
@@ -85,19 +85,19 @@ describe("EN-05-T5 schemas:compat", () => {
   const generated = (extra: Record<string, unknown> = {}, required?: string[]) =>
     new Map([["event.approved.json", approved(extra, required)]]);
 
-  it("exits 0 and says so when the branch changes nothing", () => {
+  it("EN-05-T5 exits 0 and says so when the branch changes nothing", () => {
     const { deps, printed } = fake({ generated: generated(), base: generated() });
     expect(runCli(["compat", "--base", "origin/main"], deps)).toBe(EXIT_OK);
     expect(printed[0]).toBe("Compared against origin/main: 1 unchanged, 0 changed compatibly, 0 new, 0 breaking.");
   });
 
-  it("exits 0 when the branch adds an optional field", () => {
+  it("EN-05-T5 exits 0 when the branch adds an optional field", () => {
     const { deps, printed } = fake({ generated: generated({ note: { type: "string" } }), base: generated() });
     expect(runCli(["compat", "--base", "origin/main"], deps)).toBe(EXIT_OK);
     expect(printed).toContain("  changed compatibly: event.approved");
   });
 
-  it("exits 1 and prints the finding when the branch removes a required field", () => {
+  it("EN-05-T5 exits 1 and prints the finding when the branch removes a required field", () => {
     const head = new Map([
       [
         "event.approved.json",
@@ -109,25 +109,25 @@ describe("EN-05-T5 schemas:compat", () => {
     expect(printed.some((line) => line.startsWith("  BREAKING event.approved $.approvedBy [property-removed]"))).toBe(true);
   });
 
-  it("exits 0 and says there is nothing to compare when the base has no schema files yet", () => {
+  it("EN-05-T5 exits 0 and says there is nothing to compare when the base has no schema files yet", () => {
     const { deps, printed } = fake({ generated: generated(), base: null });
     expect(runCli(["compat", "--base", "origin/main"], deps)).toBe(EXIT_OK);
     expect(printed).toEqual(['"origin/main" has no committed schema files yet, so there is nothing to compare with.']);
   });
 
-  it("exits non-zero and names the ref when the ref cannot be read", () => {
+  it("EN-05-T5 exits non-zero and names the ref when the ref cannot be read", () => {
     const { deps, printed } = fake({ generated: generated(), base: new Error("no such ref") });
     expect(runCli(["compat", "--base", "nope"], deps)).toBe(EXIT_USAGE);
     expect(printed).toEqual(['Cannot read the schemas at "nope": no such ref']);
   });
 
-  it("exits non-zero when a schema file at the base is not JSON", () => {
+  it("EN-05-T5 exits non-zero when a schema file at the base is not JSON", () => {
     const { deps, printed } = fake({ generated: generated(), base: new Map([["event.approved.json", "{not json"]]) });
     expect(runCli(["compat", "--base", "origin/main"], deps)).toBe(EXIT_USAGE);
     expect(printed).toEqual(["origin/main: event.approved.json is not valid JSON"]);
   });
 
-  it("exits non-zero without --base, or with --base and nothing after it", () => {
+  it("EN-05-T5 exits non-zero without --base, or with --base and nothing after it", () => {
     for (const args of [["compat"], ["compat", "--base"]]) {
       const { deps, printed } = fake({ generated: generated() });
       expect(runCli(args, deps)).toBe(EXIT_USAGE);
@@ -135,7 +135,7 @@ describe("EN-05-T5 schemas:compat", () => {
     }
   });
 
-  it("exits non-zero for a command it does not know, or none", () => {
+  it("EN-05-T5 exits non-zero for a command it does not know, or none", () => {
     for (const args of [["frobnicate"], []]) {
       const { deps, printed } = fake({});
       expect(runCli(args, deps)).toBe(EXIT_USAGE);
