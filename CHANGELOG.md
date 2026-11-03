@@ -4,6 +4,23 @@
 
 ---
 
+# fix: the race test's holds no longer expire in the past
+
+**Timestamp:** 2026-11-03T00:00+08:00 (SGT)
+**Author:** Joash
+**Scope:** planning-core tests only (`tests/race/invariants.test.ts`).
+
+## Fixed
+
+- **The race test now builds its periods on 4 Nov 2030.** It used to build them on 2 Nov 2026.
+  - **The break:** L3-T17 places holds that expire at 09:00 on that day. From 09:00 SGT on 2 Nov 2026,
+    the expiry was in the past, so placeHold refused all 50 attempts. The required Integration
+    check then failed on main and on every branch.
+  - **The fix:** the date is now far in the future, with a comment saying why it must stay there.
+    Nothing in the app changes.
+
+---
+
 # A4: coordinators act only on the events assigned to them (CR-05)
 
 **Timestamp:** 2026-11-02T23:59+08:00 (SGT)
