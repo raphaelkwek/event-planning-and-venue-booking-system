@@ -437,4 +437,42 @@ jobs:
         run: |
           shellcheck --version | head -2
           shellcheck -x deploy/oracle/bootstrap.sh deploy/oracle/connectsphere-deploy deploy/oracle/make-deployer-kubeconfig.sh \
-            deploy/release/smoke-api.sh deploy/release/smoke-web.sh deploy/ci/kind-k3s.sh deploy/ci/smoke-image.sh
+            deploy/release/smoke-api.sh deploy/release/smoke-web.sh deploy/ci/kind-k3s.sh deploy/ci/smoke-image.sh \
+            deploy/ci/space-smoke.sh deploy/space/start.sh
+
+  # ADR-0016 amendment: the Hugging Face Space image. Built from exactly the Space repository that
+  # deploy-space.mjs pushes, then run the way a Space runs it, against the job's throwaway Postgres.
+  space-image:
+    name: "Space image (one container: services, Redpanda, Temporal, Cerbos, Caddy on 7860)"
+    needs: changes
+    if: needs.changes.outputs.deploy == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: connectsphere_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci -d connectsphere_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - name: Write the Space repository (as deploy:space does)
+        run: node deploy/space/deploy-space.mjs --context-only "$RUNNER_TEMP/space"
+      - name: Build the Space image
+        run: docker build -t connectsphere-space:ci "$RUNNER_TEMP/space"
+      - name: Run it as a Space and smoke-test it
+        run: bash deploy/ci/space-smoke.sh
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: evidence-space-image
+          path: space-evidence.md
+          if-no-files-found: ignore

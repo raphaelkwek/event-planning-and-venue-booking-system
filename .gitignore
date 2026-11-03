@@ -294,3 +294,6 @@ topic_research.md
 
 # EN-22: vitest JSON reports that CI hands to the traceability job
 **/reports/vitest-*.json
+
+# The Vercel CLI links the web app here (deploy:space); never committed.
+.vercel

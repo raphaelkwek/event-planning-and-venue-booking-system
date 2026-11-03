@@ -42,7 +42,14 @@ if [ "$status" != 000 ] && [ "$body" != "404 page not found" ]; then
 else
   bad "GET /registration/api/v1/...: Traefik did not route it to registration (${status} ${body})"
 fi
-for path in /healthz /readyz /metrics /identity/healthz /identity/readyz /registration/healthz /notification/metrics; do
+not_routed="/healthz /readyz /metrics /identity/healthz /identity/readyz /registration/healthz /notification/metrics"
+# The Hugging Face Space answers a static /healthz itself (for the keep-awake job), from Caddy.
+if [ "${SMOKE_PUBLIC_HEALTHZ:-}" = 1 ]; then
+  not_routed="${not_routed#/healthz }"
+  read -r status body <<< "$(get /healthz)"
+  if [ "$status" = 200 ] && [ "$body" = ok ]; then say "| \`GET /healthz\` | 200 | the proxy's own answer |"; else bad "GET /healthz: expected 200 ok, got ${status} ${body}"; fi
+fi
+for path in $not_routed; do
   read -r status body <<< "$(get "$path")"
   if [ "$status" = 404 ] && [ "$body" = "404 page not found" ]; then
     say "| \`GET ${path}\` | 404 | not routed |"
