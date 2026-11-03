@@ -26,7 +26,7 @@
     "confluence:digest": "tsx documentation/scripts/confluence-digest.ts",
     "submission:build": "tsx documentation/scripts/build-submission.ts",
     "test": "npm run test --workspaces --if-present && npm run test:scripts",
-    "test:scripts": "tsx --test documentation/scripts/confluence-digest.test.ts tests/e2e/support/fake-supabase-auth.test.ts",
+    "test:scripts": "tsx --test documentation/scripts/confluence-digest.test.ts tests/e2e/support/fake-supabase-auth.test.ts .github/scripts/markdown-cell.test.mjs",
     "test:unit": "npm run test:unit --workspaces --if-present && npm run test:scripts",
     "test:mutation": "npm run test:mutation --workspaces --if-present",
     "policies:test": "tsx backend/scripts/cerbos.ts compile policies",

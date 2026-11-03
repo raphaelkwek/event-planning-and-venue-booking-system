@@ -3,6 +3,7 @@
 // violation axe reported, whatever its impact (serious and critical ones also fail the test).
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { markdownCell } from "./markdown-cell.mjs";
 
 const RESULTS = "tests/test-results/results.json";
 const AXE_DIR = "tests/test-results/axe-findings";
@@ -32,7 +33,7 @@ if (!existsSync(RESULTS)) {
     "",
     "| Result | Project | Test | Tags |",
     "|---|---|---|---|",
-    ...tests.map((t) => `| ${OUTCOME[t.status] ?? t.status} | ${t.project} | ${t.file} › ${t.title.replace(/\|/g, "\\|")} | ${t.tags.join(" ")} |`),
+    ...tests.map((t) => `| ${OUTCOME[t.status] ?? t.status} | ${markdownCell(t.project)} | ${markdownCell(`${t.file} › ${t.title}`)} | ${markdownCell(t.tags.join(" "))} |`),
   );
 }
 
@@ -51,7 +52,7 @@ if (findings.length === 0) {
   lines.push(
     "| Impact | Rule | Screen | Project | Elements |",
     "|---|---|---|---|---|",
-    ...[...grouped.values()].map((f) => `| ${f.impact} | [${f.id}](${f.helpUrl}) | ${f.screen} | ${f.project} | ${f.targets.slice(0, 3).join("; ").replace(/\|/g, "\\|")}${f.targets.length > 3 ? ` and ${f.targets.length - 3} more` : ""} |`),
+    ...[...grouped.values()].map((f) => `| ${markdownCell(f.impact)} | [${markdownCell(f.id)}](${f.helpUrl}) | ${markdownCell(f.screen)} | ${markdownCell(f.project)} | ${markdownCell(f.targets.slice(0, 3).join("; "))}${f.targets.length > 3 ? ` and ${f.targets.length - 3} more` : ""} |`),
   );
 }
 
