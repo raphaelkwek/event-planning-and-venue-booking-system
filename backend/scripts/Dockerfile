@@ -11,7 +11,7 @@
 #
 #   docker buildx build -f backend/scripts/Dockerfile .
 
-ARG NODE_IMAGE=node:20.18.1-alpine3.21@sha256:24fb6aa7020d9a20b00d6da6d1714187c45ed00d1eb4adb01395843c338b9372
+ARG NODE_IMAGE=node:20.20.2-alpine3.23@sha256:fb4cd12c85ee03686f6af5362a0b0d56d50c58a04632e6c0fb8363f609372293
 
 FROM ${NODE_IMAGE} AS build
 WORKDIR /app
@@ -28,6 +28,12 @@ RUN npx --no-install esbuild backend/scripts/migrate.ts --bundle --platform=node
 
 FROM ${NODE_IMAGE} AS runtime
 LABEL org.opencontainers.image.source="https://github.com/raphaelkwek/event-planning-and-venue-booking-system"       org.opencontainers.image.title="connectsphere-migrate"
+# EN-21 (Trivy): security fixes published since the pinned base image was built. The Job runs
+# `npm run migrate`, so npm stays, but at a pinned release whose bundled tar, glob and minimatch
+# are current; the copy that ships with Node 20 carries findings of its own. yarn is not used.
+RUN apk upgrade --no-cache \
+ && npm install -g npm@11.21.1 --no-audit --no-fund \
+ && rm -rf /root/.npm /opt/yarn-* /usr/local/bin/yarn /usr/local/bin/yarnpkg
 ENV NODE_ENV=production
 WORKDIR /app
 COPY --from=build /out/migrate.mjs migrate.mjs
