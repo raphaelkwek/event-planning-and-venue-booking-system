@@ -104,6 +104,25 @@ The web app's dev server proxies `/registration` to `REGISTRATION_PORT` (8092).
 - F3's `event.cancelled` schema is copied into contracts, marked, until PR #71 merges.
 - The UI walk-through in Chrome is pending at the sprint review; there is no `.env` here.
 
+---
+
+# fix: the race test's holds no longer expire in the past
+
+**Timestamp:** 2026-11-03T00:00+08:00 (SGT)
+**Author:** Joash
+**Scope:** planning-core tests only (`tests/race/invariants.test.ts`).
+
+## Fixed
+
+- **The race test now builds its periods on 4 Nov 2030.** It used to build them on 2 Nov 2026.
+  - **The break:** L3-T17 places holds that expire at 09:00 on that day. From 09:00 SGT on 2 Nov 2026,
+    the expiry was in the past, so placeHold refused all 50 attempts. The required Integration
+    check then failed on main and on every branch.
+  - **The fix:** the date is now far in the future, with a comment saying why it must stay there.
+    Nothing in the app changes.
+
+---
+
 # S3: flag the arrangements an approved change affects (SPM-59)
 
 **Timestamp:** 2026-10-28T12:00+08:00 (SGT)
