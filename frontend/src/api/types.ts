@@ -4,7 +4,8 @@ export type Role =
   | "VENUE_STAFF"
   | "TECH_SUPPORT_STAFF"
   | "ATTENDEE"
-  | "EVENT_COORDINATOR_LEAD";
+  | "EVENT_COORDINATOR_LEAD"
+  | "SAFETY_OFFICER";
 
 export type EventStatus =
   | "DRAFT"
@@ -50,6 +51,8 @@ export interface EventRecord {
   registrationRequired: boolean | null;
   registrationOpensAt: string | null;
   registrationClosesAt: string | null;
+  /** R4: the organiser's withdrawal deadline; absent from events read before R4. */
+  withdrawalDeadlineAt?: string | null;
   status: EventStatus;
   submittedAt: string | null;
   lastSavedAt: string;

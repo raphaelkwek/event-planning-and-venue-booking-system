@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import Button from "@atlaskit/button/new";
-import Lozenge from "@atlaskit/lozenge";
+import Lozenge from "../shared/Lozenge.js";
 import SectionMessage from "@atlaskit/section-message";
 import Modal, { ModalBody, ModalFooter, ModalHeader, ModalTitle, ModalTransition } from "@atlaskit/modal-dialog";
 import { useSignedIn } from "../auth/SessionContext.js";
@@ -347,7 +347,8 @@ export function EventVenueRequests() {
               <Button appearance="subtle" onClick={() => setReleasing(null)}>
                 Cancel
               </Button>
-              <Button appearance="danger" isDisabled={busy} onClick={() => void confirmRelease()}>
+              {/* "warning", as for Remove line: Atlaskit's "danger" white on #DD3A10 is 4.29:1, below WCAG AA (EN-14 axe). */}
+              <Button appearance="warning" isDisabled={busy} onClick={() => void confirmRelease()}>
                 Release hold
               </Button>
             </ModalFooter>
@@ -372,7 +373,7 @@ export function EventVenueRequests() {
               <Button appearance="subtle" onClick={() => setWithdrawing(null)}>
                 Cancel
               </Button>
-              <Button appearance="danger" isDisabled={busy} onClick={() => void confirmWithdraw()}>
+              <Button appearance="warning" isDisabled={busy} onClick={() => void confirmWithdraw()}>
                 Withdraw request
               </Button>
             </ModalFooter>

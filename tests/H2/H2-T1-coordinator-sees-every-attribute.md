@@ -21,8 +21,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | The page showed Lee Kong Chian Auditorium; summary "SummaryBuilding / locationSchool of Computing, Level 1Maximum capacity300StatusActive"; layouts Theatre 300, Classroom 120, Banquet 180; facilities Projector, Wireless microphones, Stage lighting; accessibility features Step-free access, Hearing loop, Accessible toilet; and hours for all seven days. |
+| Actual Result | The coordinator saw every attribute, each layout with its capacity, each accessibility feature and each day's hours. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
 | Status | Pass |
-| Remarks | Commit: ca285fa · Evidence: tests/H2/evidence/H2-T1.png · Defect: — |
-| Executed By | Yichen, via automated testing |
-| Date of Execution | 2026-10-05 |
+| Remarks | Automated, browser E2E in CI (EN-14). Commit: 6080462 · Evidence: tests/e2e/h-venues.spec.ts › H2-T1 an Event Coordinator sees every catalogue attribute of a venue, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41513983925 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

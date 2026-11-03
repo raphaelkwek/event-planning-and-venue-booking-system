@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | VALIDATION_FAILED was shown, both entered values remained on screen, and no event row was created. |
+| Actual Result | The refused submission created no request and every typed value stayed on screen. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
 | Status | Pass |
-| Remarks | Commit: b0ef6ee · Evidence: tests/B1/evidence/B1-T6-2026-09-20.png · Defect: — |
-| Executed By | Joash Lau Rong Wei |
-| Date of Execution | 2026-09-20 |
+| Remarks | Automated, browser E2E in CI (EN-14). Commit: 6080462 · Evidence: tests/e2e/b-event-requests.spec.ts › B1-T6 a blocked submission creates nothing and keeps the values typed, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41513983925 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

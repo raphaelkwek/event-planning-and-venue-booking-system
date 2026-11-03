@@ -1,0 +1,20 @@
+# EN-10. One Argo CD project for ConnectSphere: it may sync only this repository's
+# deploy/ path, only into the two ConnectSphere namespaces on this cluster.
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: connectsphere
+  namespace: argocd
+spec:
+  description: ConnectSphere staging and production
+  sourceRepos:
+    - https://github.com/raphaelkwek/event-planning-and-venue-booking-system.git
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: connectsphere-staging
+    - server: https://kubernetes.default.svc
+      namespace: connectsphere-production
+  # The overlays carry their own Namespace objects; nothing else cluster-scoped.
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace

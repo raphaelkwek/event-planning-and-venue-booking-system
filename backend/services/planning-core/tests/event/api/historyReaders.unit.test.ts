@@ -22,6 +22,8 @@ describe("who may read an event's status history (F2)", () => {
     ["ATTENDEE", false],
     // E5 gives the Lead each event's assignment history, not its status history.
     ["EVENT_COORDINATOR_LEAD", false],
+    // U1: the Safety Officer reads the review's factors, and the decision is recorded for them, not the history.
+    ["SAFETY_OFFICER", false],
   ] as const)("%s: %s", async (role, allowed) => {
     expect(await canViewHistory(role)).toBe(allowed);
   });
@@ -30,6 +32,6 @@ describe("who may read an event's status history (F2)", () => {
     const readers = [];
     for (const role of ROLES) if (await canViewHistory(role)) readers.push(role);
     expect(readers).toEqual(["EVENT_ORGANISER", "EVENT_COORDINATOR"]);
-    expect(ROLES).toHaveLength(6);
+    expect(ROLES).toHaveLength(7);
   });
 });

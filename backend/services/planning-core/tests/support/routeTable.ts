@@ -61,8 +61,8 @@ export function answeringRoutes(routes: ServedRoute[]): ServedRoute[] {
   });
 }
 
-/** No token needed at all. */
-export const PUBLIC_ROUTES = ["GET /healthz", "GET /readyz", "POST /api/v1/auth/login"];
+/** No user token: health, sign-in, and the Prometheus scrape (EN-17), which has its own METRICS_TOKEN and no event data. */
+export const PUBLIC_ROUTES = ["GET /healthz", "GET /readyz", "GET /metrics", "POST /api/v1/auth/login"];
 
 /**
  * A valid session is all these need: each reads or ends the caller's own session
@@ -74,6 +74,8 @@ export const SESSION_ROUTES = [
   "GET /api/v1/users/me",
   "GET /api/v1/access-scope/{resource}",
   "POST /api/v1/permissions/check",
+  // EN-15: the feature flags evaluated for the caller, which every role reads.
+  "GET /api/v1/feature-flags",
 ];
 
 /** The routes that break EN-07's rule: neither public nor session-only, and not exactly one gate. */

@@ -312,7 +312,7 @@ describe("the status-changed message (EN-11)", () => {
   it("writes one for a transition, in its transaction, naming the action, both statuses and the event's dates", async () => {
     const id = await seedEvent(sql, { ownerId: OWNER, status: "SAFETY_REVIEW", endsAt: FAR_FUTURE });
 
-    await sql.begin((tx) => transitionEvent(tx, id, "APPROVE_SAFETY", coordinator, { correlationId: "corr-en11" }));
+    await sql.begin((tx) => transitionEvent(tx, id, "MARK_CONFIRMED", coordinator, { correlationId: "corr-en11" }));
 
     const [row, ...rest] = await messagesOf(id);
     expect(rest).toHaveLength(0);
@@ -328,7 +328,7 @@ describe("the status-changed message (EN-11)", () => {
       ownerId: OWNER,
       previousStatus: "SAFETY_REVIEW",
       newStatus: "CONFIRMED",
-      action: "APPROVE_SAFETY",
+      action: "MARK_CONFIRMED",
       proposedStartAt: new Date(FAR_FUTURE.getTime() - 4 * 60 * 60 * 1000).toISOString(),
       proposedEndAt: FAR_FUTURE.toISOString(),
       changedAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T.*Z$/),

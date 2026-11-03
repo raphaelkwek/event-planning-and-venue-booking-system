@@ -15,6 +15,7 @@ import { lockEventDetails, saveEventDetails } from "../repo/eventDetails.js";
 import { recordFieldChanges } from "../repo/eventHistory.js";
 import { findEventInScope } from "../repo/events.js";
 import { eventNotFound, refuse } from "./errors.js";
+import { writeListingChanged } from "../events/listing.js";
 
 /**
  * G1 — the owning organiser or the assigned coordinator edits an event's
@@ -87,6 +88,10 @@ export function eventDetailsRouter(sql: Sql) {
           if (changes.length === 0) return "UNCHANGED" as const;
           await saveEventDetails(tx, event.id, Object.fromEntries(changes.map((c) => [c.fieldName, c.newValue])), actor.userId);
           await recordFieldChanges(tx, event.id, changes, actor, "UPDATE_DETAILS");
+          // R1: attendees see the description.
+          if (changes.some((c) => c.fieldName === "description")) {
+            await writeListingChanged(tx, event.id, actor, req.header("x-correlation-id") ?? null);
+          }
           return "SAVED" as const;
         });
 

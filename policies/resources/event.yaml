@@ -19,11 +19,13 @@ resourcePolicy:
       derivedRoles: [owner]
 
     # Which rows each role sees is A3's job, enforced by row-level security
-    # (EN-07.2). This rule only says which roles may open an event at all.
-    - name: C3-F2-view-as-staff
+    # (EN-07.2). This rule only says which roles may open an event at all. The
+    # Safety Officer's scope holds no event (U1 reads the review instead), as
+    # Venue Staff's and Technical Support's hold none through this route.
+    - name: C3-F2-U1-view-as-staff
       actions: [view]
       effect: EFFECT_ALLOW
-      roles: [VENUE_STAFF, TECH_SUPPORT_STAFF]
+      roles: [VENUE_STAFF, TECH_SUPPORT_STAFF, SAFETY_OFFICER]
 
     # A4 (CR-05): a coordinator opens only the events assigned to them. Whether
     # they may view others read-only is CQ-11; until it is answered, they may not.
@@ -87,6 +89,18 @@ resourcePolicy:
       effect: EFFECT_ALLOW
       roles: [EVENT_COORDINATOR]
 
+    # U1 (CR-06): only the Safety Officer reads the safety queue and review and records the
+    # decision (A2). Mark Confirmed belongs to the event's assigned coordinator (W9-31).
+    - name: U1-the-safety-officer-reviews-and-decides
+      actions: [view_safety_queue, view_safety_review, decide_safety]
+      effect: EFFECT_ALLOW
+      roles: [SAFETY_OFFICER]
+
+    - name: U1-assigned-coordinator-marks-confirmed
+      actions: [mark_confirmed]
+      effect: EFFECT_ALLOW
+      derivedRoles: [assigned_coordinator]
+
     - name: E2-only-the-nominee-accepts-or-declines
       actions: [respond_to_reassignment]
       effect: EFFECT_ALLOW
@@ -118,6 +132,12 @@ resourcePolicy:
       actions: [reconsider_arrangements]
       effect: EFFECT_ALLOW
       derivedRoles: [assigned_coordinator]
+
+    # R2, R4: the owning organiser sets the registration window and the withdrawal deadline.
+    - name: R2-R4-the-owner-configures-registration
+      actions: [configure_registration]
+      effect: EFFECT_ALLOW
+      derivedRoles: [owner]
 
     - name: S1-owner-requests-a-change
       actions: [request_change]

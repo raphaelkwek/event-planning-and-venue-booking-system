@@ -4,6 +4,172 @@
 
 ---
 
+# EN-14: Playwright browser tests on an ephemeral CI stack (SPM-132)
+
+**Timestamp:** 2026-11-03T04:05+08:00 (SGT)
+**Author:** Joash
+**Scope:** CI (`e2e` job), `tests/playwright.config.ts`, `tests/e2e/`, the web app (accessibility
+fixes found by axe). No service code and no migration.
+
+## Added
+
+- **An ephemeral stack for every pull request**, in the new `e2e` job: a throwaway `postgres:17` built
+  by `npm run migrate:all`, a fake Supabase Auth server, planning-core, notification, registration, and
+  the web app built and served with `vite preview`. Playwright starts each process and waits for its
+  readiness URL. The job is not a required check.
+- **A fake Supabase Auth server** (`tests/e2e/support/fake-supabase-auth.ts`): the GoTrue password grant,
+  logout, user and JWKS endpoints, issuing ES256 tokens with Supabase's claims for the seeded accounts.
+  It refuses to start without its flag, in production, or beside a database that isn't on the machine,
+  and listens on loopback only. Its unit tests run in the unit job.
+- **83 browser journeys** under `tests/e2e/` (78 story cards recorded Pass from CI run 41513983925), each titled and tagged with its story and card ids
+  (`--grep @D4`); CI fails a journey that isn't tagged. Each journey seeds its own data through the API.
+- **axe** on every screen a journey visits: serious and critical violations fail the test, and every
+  violation is listed in the job summary and `documentation/evidence/EN-14/axe-findings.md`.
+- **Visual snapshots** of six key screens at 360, 768 and 1280 px, against baselines made on CI's Linux
+  runner. A manual run of the CI workflow (`update_snapshots`) remakes them.
+- One retry in CI; traces, videos and screenshots of failures, the HTML report and the stack's logs are
+  uploaded as artifacts. `npm run test-cases:run` and `npm run test:e2e` run the config.
+
+## Fixed (found by axe)
+
+- Unlabelled fields: the event request form (B1), the API console, and the clarification reply's
+  attendance field.
+- Contrast below WCAG AA: the sign-in screen's account links, every red status lozenge (now Atlaskit's
+  bold variant, through `frontend/src/shared/Lozenge.tsx`), and the danger buttons in the remove-line,
+  release-hold and withdraw dialogs (now the warning button, as Reject uses).
+
+## Brought up to date with A4
+
+- Main's A4 (a coordinator acts only on the events assigned to them) changed what six cards mean, so
+  six journeys now check A4's behaviour: A3-T4, A3-T5, D1-T6, D2-T5, F2-T3 and the "different
+  coordinator" step of F5-T21. Another coordinator's event is not listed and its address answers 404
+  "No event with that reference is assigned to you." Their cards were revised to match and re-recorded Pass from the merge's CI run 41604122084 (101 passed, snapshots unchanged).
+
+## Not yet
+
+- A hosted per-PR preview (the ephemeral stack is the criterion's alternative).
+- Kafka and Temporal aren't in the stack, so notifications, seat building and hold expiry aren't
+  exercised in the browser.
+- Running it locally needs your own throwaway Postgres; see `documentation/evidence/EN-14/README.md`.
+
+---
+
+---
+
+# EN-23, EN-17: Threat model, PDPA and ASVS review; SLOs, alerts, dashboards and runbooks
+
+**Timestamp:** 2026-11-02T23:55+08:00 (SGT)
+**Author:** Joash
+**Scope:** EN-23 (threat model, PDPA, ASVS) and EN-17 (SLOs), ADR-0013. Backend: planning-core,
+registration, notification, a new `backend/packages/observability`. No migration.
+
+**Deploy:** set `METRICS_TOKEN` on each service and in Prometheus's credentials file. Without it
+`/metrics` answers 404 in production.
+
+## Added
+
+- **EN-08 was not built.** Jira marks it Done, but the code had no OpenTelemetry, no metrics and no
+  `/metrics`. This adds the minimum the SLOs need: a `prom-client` package that times every route by
+  pattern, and a rate-limited `GET /metrics` (off in production unless `METRICS_TOKEN` is set) in
+  planning-core, registration and notification. Tracing, Tempo and Loki are still not built.
+- Two SLI metrics: `notification_visibility_lag_seconds` (commit to visible) and
+  `registration_over_admission_seats` (read from the seat table's invariants), with
+  `registration_invariant_check_success`.
+- `observability/prometheus`: recording rules and multi-window, multi-burn-rate alerts (14.4x over
+  1h and 5m, 6x over 6h and 30m), a scrape config, and `promtool` unit tests for each alert firing and
+  staying quiet. `observability/grafana/dashboards`: five dashboards. `documentation/runbooks`: one
+  per alert. `documentation/slos.md`: each SLO, its SLI query, error budget and alert.
+- CI job `Observability (promtool, dashboards, runbooks)`: `promtool check rules`, `check config`
+  and `test rules` from the `prom/prometheus` image, then a check that dashboards use emitted
+  metrics and every alert has a runbook. Nothing is deployed.
+- `documentation/security/`: `threat-model.md` (a STRIDE table per C4 container, and 15 ranked
+  gaps), `pdpa.md` (the PDPA obligations against attendee data) and `asvs-l2.md` (ASVS 4.0.3 Level 2,
+  V1 to V14). A script test checks that every `file:line` it cites exists.
+- `/metrics` is in the planning-core and notification OpenAPI files.
+
+## Not yet
+
+- The gaps the threat model lists are findings, not fixes. C1 (async errors), H1 (stack traces),
+  M11 (rate limits), H3 (venue edit scope) and the body-parser bump are being fixed in another pull
+  request; the rest are open.
+- The registration latency SLI has no data until R2 adds a registration route.
+
+---
+
+---
+
+# EN-15, EN-22: feature flags; traceability matrix and DORA metrics from CI
+
+**Timestamp:** 2026-11-02T23:45+08:00 (SGT)
+**Author:** Joash
+**Scope:** planning-core (shared/flags, change module), contracts, web app, CI workflows,
+documentation scripts. No migration.
+
+## Added
+
+- EN-15: feature flags through OpenFeature with the flagd provider. The source is a flagd at
+  `FLAGD_HOST`, else the committed `flags/flags.flagd.json`, else the defaults in
+  `shared/flags/definitions.ts`. `change-approval` defaults to on. With it off, S2's approve is
+  refused with 403 `FEATURE_DISABLED`; reject still works. `GET /api/v1/feature-flags` (signed in,
+  rate limited) feeds the change-decision screen, which disables Approve. How to add and flip a
+  flag: `documentation/feature-flags.md`.
+- CI runs a real flagd (container, CI only) for one provider test (EN-15-T8).
+- EN-22: `documentation/scripts/traceability-matrix.ts` builds the story, criterion, test, last
+  result matrix (Markdown, HTML, JSON) from the traceability CSVs, the vitest JSON, Playwright JSON
+  and node:test JUnit results, and the cards' statuses. The new `traceability` CI job runs it on
+  every pull request and push to main, writes the summary to the job summary and uploads the matrix.
+  Missing tests, names that do not exist and non-standard card statuses are warnings.
+- EN-22: `documentation/scripts/dora.ts` and the weekly `dora.yml` workflow compute deployment
+  frequency, lead time, change failure rate and time to restore from the GitHub API. Snapshot and
+  dashboard page: `documentation/evidence/EN-22/`.
+- Cards `tests/EN-15/` and `tests/EN-22/`; traceability rows in `sprint-4.csv`.
+
+## Changed
+
+- Every vitest config also writes a JSON report when `CI` is set, and CI uploads them.
+- New error code `FEATURE_DISABLED`.
+# EN-10 and EN-16: container images, Kubernetes, Terraform, GitOps and canary releases (SPM-128, SPM-134)
+
+**Timestamp:** 2026-11-02T23:55+08:00 (SGT)
+**Author:** Joash
+**Scope:** backend/services/*/Dockerfile, backend/scripts/Dockerfile, frontend/Dockerfile,
+deploy/ (k8s, terraform, argocd, ci), .github/workflows/deploy.yml, documentation/deploy.md.
+
+**Deploy:** nothing to deploy yet. Follow documentation/deploy.md once a cluster exists.
+
+## Added
+
+- Multi-stage Dockerfiles for planning-core (also the Temporal worker), registration, notification,
+  the web app (unprivileged nginx with SPA fallback) and a migration image. Pinned bases, uid 1000,
+  no secrets. The shared packages export TypeScript source, so the images compile them and repoint
+  main at dist/ inside the image only.
+- A Deploy workflow (its own file, not a required check): builds every image with buildx and a cache,
+  starts each read-only with capabilities dropped against a throwaway Postgres and checks its health
+  endpoint, and on main pushes to GHCR tagged with the commit sha. It also runs kubeconform -strict
+  (CRD schemas included) and a hardening policy check on the rendered overlays, Terraform
+  fmt/validate/tflint, a kind smoke deploy of the staging overlay, an Argo CD sync in kind, and a
+  canary promote-then-rollback demonstration in kind. The cluster jobs run when deploy/, a Dockerfile
+  or the workflow changes, and on main.
+- Kustomize base and staging and production overlays: probes, resources, restricted securityContext,
+  Services, Ingress, HPAs, PodDisruptionBudgets, default-deny NetworkPolicy with allows, a PreSync
+  migration Job, Secrets as references only (documented kubectl step, optional ExternalSecret).
+- Terraform for the VPC, EKS (ap-southeast-1, three zones) and ElastiCache Redis, with the S3 backend
+  left unconfigured. Argo CD AppProject and Applications (staging automated with self-heal,
+  production manual).
+- EN-16: planning-core and registration are Argo Rollouts in both overlays (10%, analyse, 50%,
+  analyse, 100%) with an AnalysisTemplate on error rate and p95.
+
+## Not done / limits
+
+- Plan and apply were never run (no cloud account), nothing is deployed, and the GHCR push is
+  unverified until the first merge to main.
+- The AnalysisTemplate queries depend on EN-17 naming its metrics http_requests_total{status} and
+  http_request_duration_seconds. The kind demonstration used a stand-in service, not planning-core.
+- kind has no Kafka, Supabase or Temporal: those paths are not exercised, and the worker runs at zero
+  replicas there.
+
+---
+
 # A4 review: the assignment is re-checked under the row lock, and the spec and cards catch up
 
 **Timestamp:** 2026-11-03T11:05+08:00 (SGT)
@@ -112,6 +278,97 @@ the same transaction; the two should merge together (Gate B: "cancellation is on
 
 - The web app takes the significant fields from `@connectsphere/contracts` instead of its own
   copies, so G1, S1 and S2 use one list (G2 AC1). The web bundle grows by about 66 KB (zod).
+
+---
+
+# R1–R4: attendees browse, register, see and withdraw their registrations (PR #80)
+
+**Timestamp:** 2026-11-03T03:50+08:00 (SGT)
+**Author:** Joash
+**Scope:** registration service (migrations 0002 to 0004), planning-core (event and venue modules,
+event migration 0018), contracts, notification service, web app.
+
+**Deploy:** run `npm run migrate -- event` (0018) and `npm run migrate -- registration` (0002 to
+0004), then deploy planning-core, the registration service and the notification service together.
+The web app's dev server proxies `/registration` to `REGISTRATION_PORT` (8092).
+
+## Added
+
+- **R1:** `GET /api/v1/open-events` in the registration service lists Confirmed events with
+  registration enabled whose closing has not passed, with their published fields only, each
+  confirmed venue and its location, and places remaining (Full at zero).
+- **R2:** `POST /api/v1/registrations` claims a seat and stores the registration in one transaction.
+  Refusals name capacity (offering the waitlist), the existing registration, or the window, and
+  store nothing. Window bounds are inclusive.
+- **R3:** `GET /api/v1/registrations` and `/{id}`: the attendee's own registrations only; another's
+  answers 404. An event's cancellation marks its registrations Cancelled.
+- **R4:** `POST /api/v1/registrations/{id}/withdrawal`: Withdrawn with its time, the seat freed,
+  refused after the organiser's deadline (or the event's start), naming it.
+- The organiser's **registration settings** route in planning-core
+  (`PUT /api/v1/events/{id}/registration-settings`, owner only, If-Match), and its screen.
+- `event.listing-changed` (contracts): the event's published fields and registration settings,
+  written with every change to them. The approval message gains `venueLocation`.
+- The registration outbox and its relay; `registration.confirmed`, `.withdrawn` and `.cancelled`,
+  each notified to the attendee by the notification service.
+- The attendee screens (Events, the event's page with Register, My registrations with Withdraw) in a
+  shell of their own, and `documentation/api/registration.openapi.yaml` (in `lint:api`).
+
+## Fixed
+
+- **Audit M10 (EN-13):** approving a replacement booking (CR-02) built the new venue's full capacity
+  beside the seats attendees still held, so a 6-seat venue gave the event 7 places. Held seats now
+  move onto the new booking and only the rest of its capacity is built. EN-13-T6's test changed
+  accordingly.
+
+## Not done
+
+- R5 (the organiser's totals, R4-T12), R6 (joining the waitlist; the refusal only offers it) and R7
+  (manual additions above capacity, R2-T13) are the next package. The registrations table leaves
+  room for them: `seat_id` is nullable for an addition above capacity.
+- F3's `event.cancelled` schema was copied into contracts until PR #71 merged. Merging main dropped the
+  copy; the registration consumer reads main's schema, whose fields are the same.
+- The UI walk-through in Chrome is pending at the sprint review; there is no `.env` here.
+
+---
+
+# U1: The Safety Officer's operational safety check (CR-06)
+
+**Timestamp:** 2026-11-02T23:50+08:00 (SGT)
+**Author:** Joash
+**Scope:** U1, CR-06 and the Week 9 answers CQ-08 and CQ-10. planning-core (change, event, venue,
+equipment, identity modules), contracts, notification service, web app, Cerbos policies; migrations
+identity 0005 and 0006, event 0014 and 0015.
+
+**Deploy:** run `npm run migrate -- identity` (0005, 0006) and `npm run migrate -- event` (0014, 0015) before
+deploying planning-core, and deploy the notification service with it. Create the Safety Officer accounts in
+Supabase Auth and assign the role; the CI seed adds `safety@connectsphere.test` to the SQL seed only.
+
+## Added
+
+- The `SAFETY_OFFICER` role (identity, contracts, Cerbos, role navigation).
+- The Safety Officer's queue of events in Safety Review, and a review showing expected attendance,
+  accessibility needs, each booked venue's period, booked layout and capacity, and the equipment with its
+  placement notes. The venue record gains no fields (CQ-10).
+- One decision per review: approve, request changes or reject, with a reason required for the last two.
+  Recorded in `event.safety_decisions` with the officer, time, decision and reason.
+- Request changes returns the event to Planning and flags the venue bookings and equipment reservations the
+  officer names, using S3's flags. Reject (CQ-08) returns it to Planning too, as a rejection of the arrangement
+  as a whole; the event is not rejected or cancelled and its arrangements stay in place.
+- Approval, and Mark Confirmed after it, refuse while any arrangement flag is outstanding (commit 259050d).
+- The assigned coordinator's Mark Confirmed, allowed only once the current review is approved.
+- `event.safety-decision-recorded`; the assigned coordinator and the owning organiser are notified.
+- F1 transitions `REJECT_SAFETY_ARRANGEMENT` and `MARK_CONFIRMED`.
+- Screens: the Safety queue, the review with its decision form, and Mark Confirmed on the coordinator's event page.
+
+## Changed
+
+- `APPROVE_SAFETY` now keeps the event in Safety Review (Week 9 answer W9-31) instead of confirming it. Only
+  `MARK_CONFIRMED` makes an event Confirmed.
+
+## Not yet
+
+- Events confirmed before this release are not reviewed (the Week 9 answer). Clearing a flag a safety review
+  set is done as for S3's flags.
 
 ---
 

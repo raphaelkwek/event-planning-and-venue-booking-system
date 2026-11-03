@@ -1,0 +1,23 @@
+# EN-10. Every image is built with the repository root as its context (the
+# npm workspaces need the root package.json and lockfile), so keep the context
+# small and keep anything local or secret out of it.
+.git
+.github
+.claude
+.superpowers
+**/node_modules
+**/dist
+**/coverage
+**/reports
+**/.stryker-tmp
+**/*.tsbuildinfo
+.env
+.env.*
+!.env.example
+*.local.md
+*.zip
+documentation
+tests
+deploy
+policies
+**/*.log

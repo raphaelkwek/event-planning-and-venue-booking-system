@@ -8,7 +8,7 @@ import { request } from "./client.js";
  */
 
 /** A resource kind in policies/resources/. */
-export type PolicyKind = "event" | "venue" | "booking_request" | "equipment_type" | "equipment_request_line" | "user";
+export type PolicyKind = "event" | "venue" | "booking_request" | "equipment_type" | "equipment_request_line" | "registration" | "user";
 
 export interface PermissionCheck {
   kind: PolicyKind;

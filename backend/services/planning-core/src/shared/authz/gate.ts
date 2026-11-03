@@ -18,7 +18,7 @@ import { pdp, PolicyUnavailableError } from "./pdp.js";
  */
 
 /** The resource kinds planning-core asks about; each is a file in policies/resources/. */
-export const POLICY_KINDS = ["event", "venue", "booking_request", "equipment_type", "equipment_request_line", "user"] as const;
+export const POLICY_KINDS = ["event", "venue", "booking_request", "equipment_type", "equipment_request_line", "registration", "user"] as const;
 export type PolicyKind = (typeof POLICY_KINDS)[number];
 
 export interface Permission {

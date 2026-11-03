@@ -1,4 +1,4 @@
-import Lozenge from "@atlaskit/lozenge";
+import Lozenge from "../shared/Lozenge.js";
 
 /**
  * A3 — who an event is assigned to, with the signed-in coordinator's own

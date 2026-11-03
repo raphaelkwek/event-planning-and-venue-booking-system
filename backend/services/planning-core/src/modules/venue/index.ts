@@ -77,6 +77,9 @@ export {
   type VenueArrangementKind,
 } from "./repo/arrangementFlags.js";
 
+/** U1 — the change module reads the venue factors the Safety Officer weighs; read only. */
+export { venueSafetyFactors, type VenueSafetyFactor } from "./repo/safetyFactors.js";
+
 export function venueRouter(sql: Sql): Router {
   const router = Router();
   // Before venuesRouter: "/venues/search" must not be read as "/venues/:id".

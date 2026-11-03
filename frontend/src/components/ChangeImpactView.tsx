@@ -1,4 +1,4 @@
-import Lozenge from "@atlaskit/lozenge";
+import Lozenge from "../shared/Lozenge.js";
 import type { ChangeImpact, FlaggedArrangement } from "../api/changeRequests.js";
 import { ARRANGEMENT_LABELS, FLAG_LABELS } from "../shared/changeRequests.js";
 import { formatInstant } from "../shared/status.js";

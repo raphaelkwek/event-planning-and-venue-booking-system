@@ -4,7 +4,7 @@ description: Who may look people up by id (A2), derived from B1 and D1.
 tests:
   - name: Every role against a person
     input:
-      principals: [organiser, assigned_coordinator, venue_manager, tech_support, attendee, lead]
+      principals: [organiser, assigned_coordinator, venue_manager, tech_support, attendee, lead, safety_officer]
       resources: [user_someone]
       actions: [view]
     expected:
@@ -21,6 +21,9 @@ tests:
         resource: user_someone
         actions: { view: EFFECT_ALLOW }
       - principal: lead # E3, E5: names coordinators and organisers
+        resource: user_someone
+        actions: { view: EFFECT_ALLOW }
+      - principal: safety_officer # U1: names the people on the event under review
         resource: user_someone
         actions: { view: EFFECT_ALLOW }
       # attendee: none. Attendees never look staff up.
