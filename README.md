@@ -47,17 +47,20 @@ Tests run against a real database: yours is the team's Supabase project, and CI'
 
 ### Updating the Confluence sprint log
 
-`CHANGELOG.md` is the single point of authorship for "what got done, when" — don't hand-type the
-same thing into Confluence a second time. Instead, generate the table from it:
+The changelog is the single point of authorship for "what got done, when" — don't hand-type the
+same thing into Confluence a second time. Since 3 Nov 2026 each change adds its own entry file,
+`changelog/<YYYY-MM-DD>-<branch-or-slug>.md`, and `CHANGELOG.md` keeps the entries from before that
+(implementation.md §11.2). Generate the table from both:
 
 ```
+npm run changelog                            # the whole log, newest first
 npm run confluence:digest                    # every entry, chronological
 npm run confluence:digest -- --since 2026-09-16   # only what's new since a date
 ```
 
 Paste the output straight into the Confluence page as a table. `--out <path>` writes it to a file
-instead of stdout; `--order desc` matches CHANGELOG.md's own newest-first order if you'd rather
-read it that way.
+instead of stdout; `--order desc` gives the log's own newest-first order if you'd rather read it
+that way.
 
 See `documentation/planning/plan.md` for architecture and `documentation/planning/implementation.md` for the mandatory formats every service follows, including the repository layout (§2).
 

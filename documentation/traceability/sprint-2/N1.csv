@@ -1,0 +1,3 @@
+story_id,acceptance_criterion,test_file,test_name
+N1,"Confirmation of a booking is atomic: when two approvals for overlapping periods at the same venue are processed simultaneously, exactly one results in a confirmed booking and the other is refused",backend/services/planning-core/tests/race/invariants.test.ts,"N1, L3: exactly one of 50 overlapping holds on one venue succeeds; the other 49 get the conflict refusal"
+N1,"Two bookings where one ends exactly when the other begins merely touch, are not treated as overlapping, and are both permitted",backend/services/planning-core/tests/race/invariants.test.ts,N1: all of 50 back-to-back holds that merely touch succeed

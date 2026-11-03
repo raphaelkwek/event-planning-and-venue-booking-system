@@ -1,0 +1,58 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "properties": {
+    "changeRequestId": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "coordinatorId": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "eventId": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "eventName": {
+      "type": "string"
+    },
+    "eventReference": {
+      "type": "string"
+    },
+    "fields": {
+      "items": {
+        "enum": [
+          "proposedStartAt",
+          "proposedEndAt",
+          "expectedAttendance",
+          "venueRequirements",
+          "equipmentRequired",
+          "equipmentRequirements"
+        ],
+        "type": "string"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "requestedAt": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "requestedBy": {
+      "format": "uuid",
+      "type": "string"
+    }
+  },
+  "required": [
+    "changeRequestId",
+    "coordinatorId",
+    "eventId",
+    "eventName",
+    "eventReference",
+    "fields",
+    "requestedAt",
+    "requestedBy"
+  ],
+  "type": "object"
+}

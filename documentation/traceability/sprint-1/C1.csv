@@ -1,0 +1,8 @@
+story_id,acceptance_criterion,test_file,test_name
+C1,"A request can be saved once the event name is present; every other field may be empty",backend/services/planning-core/tests/event/repo/drafts.test.ts,"saves a draft with only a name, every other field empty"
+C1,"The saved record has status Draft and stores the owning organiser and a last-saved timestamp",backend/services/planning-core/tests/event/repo/drafts.test.ts,"records the owning organiser and a last-saved timestamp"
+C1,"The submission validation rules in B2 are not applied on save",backend/services/planning-core/tests/event/api/drafts.test.ts,"does not apply the submission rules on save"
+C1,"Any date or time that is entered must be a valid date or time",backend/services/planning-core/tests/event/api/drafts.test.ts,"refuses a date that is not a valid date, even on save"
+C1,"A draft does not appear in the Event Coordinator review queue",backend/services/planning-core/tests/event/api/review.test.ts,"never shows a draft in the queue"
+C1,"A draft is not visible to any user other than its owner",backend/services/planning-core/tests/event/api/drafts.test.ts,"gives an organiser who does not own the draft no draft content"
+C1,"A request can be saved once the event name is present; a name of spaces is not a name",backend/services/planning-core/tests/event/api/drafts.test.ts,"refuses a draft whose name is only spaces, since that is no name at all"
