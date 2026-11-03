@@ -224,7 +224,13 @@ const RULES: Record<string, Rule> = {
     return [[d.coordinatorId!, `${removedBlock(d)} ${outcome}`]];
   },
   // L6: the holding coordinator is reminded before the hold expires, and told when it has.
-  // hold-placed and hold-expiry-changed have no rule: they only drive the expiry workflow.
+  // hold-placed has no rule: it only drives the expiry workflow.
+  // W9-40: Venue Staff move the expiry, and the coordinator is told. A message written before
+  // this carries no coordinator and notifies nobody.
+  "venue-booking.hold-expiry-changed": (d, event) =>
+    d.coordinatorId
+      ? [[d.coordinatorId, holdNotice(d, event, "now expires", "Venue Staff moved the expiry" + (d.previousExpiresAt ? ` from ${instant(d.previousExpiresAt)}.` : "."))]]
+      : [],
   "venue-booking.hold-expiring": (d, event) => [
     [d.coordinatorId!, holdNotice(d, event, "expires", "Convert it to a booking request or ask Venue Staff to extend it.")],
   ],

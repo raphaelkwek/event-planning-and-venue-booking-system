@@ -1,0 +1,342 @@
+# EN-18 (load tests and autoscaling) and EN-20 (chaos experiments). Everything here runs on a
+# GitHub-hosted runner, against a throwaway Postgres built from the migrations. It never touches the
+# team's shared Supabase project or Kafka cluster (EN-06, ADR-0012): each job refuses to start if
+# DATABASE_URL points anywhere but the runner, and the harness refuses it again (assertTestHarnessOnly).
+#
+# Pull requests run the cheap checks: a smoke run and the 500 req/s spike (about a minute together),
+# the chaos experiments that run in CI, and the manifest validation. The soak and the stress run are
+# long, so they run by hand (workflow_dispatch) or while the pull request's title carries `[full-load]`.
+# GitHub only offers workflow_dispatch for a workflow that is on the default branch, so until this
+# merges the title is how they are started: add the marker to start them, edit it out to stop.
+#
+# Not a required check. documentation/reliability.md says what each job proves and what it does not.
+name: Load and chaos
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+    paths:
+      - "load/**"
+      - "chaos/**"
+      - "deploy/**"
+      - "backend/services/registration/**"
+      - "backend/services/notification/**"
+      - "backend/packages/**"
+      - ".github/workflows/load-chaos.yml"
+  workflow_dispatch:
+    inputs:
+      run_soak:
+        description: Run the soak test
+        type: boolean
+        default: true
+      soak_minutes:
+        description: How long the soak runs, in minutes
+        type: string
+        default: "5"
+      run_stress:
+        description: Run the stress test (ramp to breaking)
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: load-chaos-${{ github.ref }}-${{ github.event.action == 'edited' && 'edited' || 'run' }}
+  cancel-in-progress: true
+
+env:
+  # The runner's own database: throwaway credentials for a container nobody else can reach.
+  DATABASE_URL: postgres://ci:ci@127.0.0.1:5432/connectsphere_load
+  K6_IMAGE: grafana/k6:1.4.0
+
+jobs:
+  smoke-and-spike:
+    name: Load (k6 smoke and 500 req/s spike)
+    if: github.event.action != 'edited'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: connectsphere_load
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci -d connectsphere_load"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - name: Refuse any database but the runner's own
+        run: |
+          case "$DATABASE_URL" in
+            postgres://*@127.0.0.1:5432/*) echo "DATABASE_URL is the runner's throwaway Postgres." ;;
+            *) echo "::error::DATABASE_URL must point at the runner's own Postgres, never a shared database (EN-06)"; exit 1 ;;
+          esac
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Build the database from the migrations
+        run: npm run migrate:all
+
+      - name: Pull k6
+        run: docker pull "$K6_IMAGE"
+
+      - name: Smoke (40 req/s for 10 s, 20 seats)
+        run: npx tsx load/support/run.ts smoke
+
+      # Three times, each on a fresh event, because one shared runner's result varies from run to run
+      # and a single run would hide that.
+      - name: Spike (500 req/s for 10 s, 100 seats), run 1 of 3
+        run: npx tsx load/support/run.ts spike
+
+      - name: Spike, run 2 of 3
+        env:
+          LOAD_OUT_NAME: spike-2
+        run: npx tsx load/support/run.ts spike
+
+      - name: Spike, run 3 of 3
+        env:
+          LOAD_OUT_NAME: spike-3
+        run: npx tsx load/support/run.ts spike
+
+      - name: Upload the k6 summaries, results and service logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: load-smoke-and-spike
+          path: load/out/
+          if-no-files-found: ignore
+
+  soak:
+    name: Load (k6 soak)
+    if: (github.event_name == 'workflow_dispatch' && inputs.run_soak) || (github.event_name == 'pull_request' && contains(github.event.pull_request.title, '[full-load]'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: connectsphere_load
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci -d connectsphere_load"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - name: Refuse any database but the runner's own
+        run: |
+          case "$DATABASE_URL" in
+            postgres://*@127.0.0.1:5432/*) echo "DATABASE_URL is the runner's throwaway Postgres." ;;
+            *) echo "::error::DATABASE_URL must point at the runner's own Postgres, never a shared database (EN-06)"; exit 1 ;;
+          esac
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run migrate:all
+      - run: docker pull "$K6_IMAGE"
+      - name: Soak
+        env:
+          SOAK_MINUTES: ${{ inputs.soak_minutes || '5' }}
+        run: npx tsx load/support/run.ts soak
+      - name: Upload the k6 summary, result, usage samples and service log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: load-soak
+          path: load/out/
+          if-no-files-found: ignore
+
+  stress:
+    name: Load (k6 stress, ramp to breaking)
+    if: (github.event_name == 'workflow_dispatch' && inputs.run_stress) || (github.event_name == 'pull_request' && contains(github.event.pull_request.title, '[full-load]'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: connectsphere_load
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci -d connectsphere_load"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - name: Refuse any database but the runner's own
+        run: |
+          case "$DATABASE_URL" in
+            postgres://*@127.0.0.1:5432/*) echo "DATABASE_URL is the runner's throwaway Postgres." ;;
+            *) echo "::error::DATABASE_URL must point at the runner's own Postgres, never a shared database (EN-06)"; exit 1 ;;
+          esac
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run migrate:all
+      - run: docker pull "$K6_IMAGE"
+      - name: Stress
+        run: npx tsx load/support/run.ts stress
+      - name: Upload the k6 summary, result, usage samples and service log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: load-stress
+          path: load/out/
+          if-no-files-found: ignore
+
+  chaos:
+    name: Chaos (Toxiproxy, Redpanda, k6)
+    if: github.event.action != 'edited'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: connectsphere_load
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci -d connectsphere_load"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      TOXIPROXY_URL: http://127.0.0.1:8474
+    steps:
+      - name: Refuse any database but the runner's own
+        run: |
+          case "$DATABASE_URL" in
+            postgres://*@127.0.0.1:5432/*) echo "DATABASE_URL is the runner's throwaway Postgres." ;;
+            *) echo "::error::DATABASE_URL must point at the runner's own Postgres, never a shared database (EN-06)"; exit 1 ;;
+          esac
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Build the database from the migrations
+        run: npm run migrate:all
+
+      # Both containers share the runner's network, so the experiments reach them on 127.0.0.1.
+      # Redpanda has two listeners: 19092 is advertised as itself, 19093 as the Toxiproxy address
+      # (29092), so a client that goes through Toxiproxy stays behind it (chaos/support/kafka.ts).
+      - name: Start Toxiproxy and Redpanda
+        run: |
+          docker run -d --name toxiproxy --network host ghcr.io/shopify/toxiproxy:2.9.0
+          docker run -d --name redpanda --network host docker.io/redpandadata/redpanda:v24.3.18 \
+            redpanda start --mode dev-container --smp 1 --memory 1G --reserve-memory 0M --node-id 0 --check=false \
+            --kafka-addr internal://127.0.0.1:19092,viaproxy://127.0.0.1:19093 \
+            --advertise-kafka-addr internal://127.0.0.1:19092,viaproxy://127.0.0.1:29092 \
+            --rpc-addr 127.0.0.1:33145 --advertise-rpc-addr 127.0.0.1:33145 \
+            --set redpanda.auto_create_topics_enabled=false
+          docker pull "$K6_IMAGE"
+          for i in $(seq 1 60); do
+            if curl -sf http://127.0.0.1:8474/version > /dev/null && docker exec redpanda rpk cluster info -X brokers=127.0.0.1:19092 > /dev/null 2>&1; then
+              echo "Toxiproxy $(curl -s http://127.0.0.1:8474/version) and Redpanda are up"; exit 0
+            fi
+            sleep 2
+          done
+          docker logs toxiproxy | tail -20; docker logs redpanda | tail -40
+          echo "::error::Toxiproxy or Redpanda did not start"; exit 1
+
+      - name: The experiments that run in CI (2, 3, 4 and 5) and the Toxiproxy self-check
+        run: npx vitest run --config chaos/vitest.config.ts
+
+      - name: Container logs
+        if: always()
+        run: |
+          mkdir -p chaos/out
+          docker logs toxiproxy > chaos/out/toxiproxy.log 2>&1 || true
+          docker logs redpanda > chaos/out/redpanda.log 2>&1 || true
+
+      - name: Upload the experiments' results and logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: chaos-results
+          path: |
+            chaos/out/
+            load/out/
+          if-no-files-found: ignore
+
+  manifests:
+    name: Manifests (kubeconform, Chaos Mesh, autoscaling)
+    if: github.event.action != 'edited'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      KUBECONFORM_VERSION: v0.7.0
+      KUBECONFORM_SHA256: c31518ddd122663b3f3aa874cfe8178cb0988de944f29c74a0b9260920d115d3
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install kubeconform
+        run: |
+          curl -sSfL -o kubeconform.tar.gz \
+            "https://github.com/yannh/kubeconform/releases/download/${KUBECONFORM_VERSION}/kubeconform-linux-amd64.tar.gz"
+          echo "${KUBECONFORM_SHA256}  kubeconform.tar.gz" | sha256sum --check
+          tar -xzf kubeconform.tar.gz kubeconform
+
+      # Strict, and no schema may be skipped: a manifest whose kind has no schema fails, rather than passing
+      # unchecked. The Datree CRDs catalog has no Chaos Mesh, so the pinned CRDs are downloaded and converted
+      # (deploy/ci/crd-to-json-schema.py).
+      - name: Validate the Chaos Mesh manifests
+        env:
+          CHAOS_MESH_VERSION: v2.7.2
+        run: |
+          pip install --quiet pyyaml
+          for kind in podchaos networkchaos; do
+            curl -sSfL -o "chaos-mesh.org_${kind}.yaml" \
+              "https://raw.githubusercontent.com/chaos-mesh/chaos-mesh/${CHAOS_MESH_VERSION}/helm/chaos-mesh/crds/chaos-mesh.org_${kind}.yaml"
+          done
+          python3 deploy/ci/crd-to-json-schema.py chaos-mesh-schemas chaos-mesh.org_podchaos.yaml chaos-mesh.org_networkchaos.yaml
+          ./kubeconform -strict -summary -kubernetes-version 1.33.0 \
+            -schema-location default \
+            -schema-location "$PWD/chaos-mesh-schemas/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json" \
+            deploy/chaos
+
+      # The tuned autoscaling is a kustomize component. Its base manifests are in pull request #75, which is
+      # not merged, so it is rendered against a copy of them (deploy/k8s/test/autoscaling) and the
+      # result is validated like any overlay. What is rendered is shown, not only checked.
+      - name: Render the autoscaling component and validate the result
+        run: |
+          kubectl kustomize deploy/k8s/test/autoscaling > rendered-autoscaling.yaml
+          ./kubeconform -strict -summary -kubernetes-version 1.33.0 -schema-location default rendered-autoscaling.yaml
+          echo "::group::The HPA and the container resources as rendered"
+          grep -E 'minReplicas|maxReplicas|averageUtilization|cpu: |REGISTRATION_DB_POOL_MAX|stabilizationWindowSeconds' rendered-autoscaling.yaml
+          echo "::endgroup::"

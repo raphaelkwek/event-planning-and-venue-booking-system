@@ -2,6 +2,9 @@ import type { ReactElement, ReactNode } from "react";
 import { HashRouter, Link, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import Button from "@atlaskit/button/new";
 import { SessionProvider, useSession } from "./auth/SessionContext.js";
+import { FixedTheme, ThemeProvider } from "./theme/ThemeProvider.js";
+import { AppShell } from "./shell/AppShell.js";
+import { LoginFrame } from "./shell/LoginFrame.js";
 import { Login } from "./screens/Login.js";
 import { MyRequests } from "./screens/MyRequests.js";
 import { DraftEditor } from "./screens/DraftEditor.js";
@@ -246,7 +249,13 @@ function Shell() {
   const navigate = useNavigate();
   const unread = useUnreadCount(session?.token ?? null, location.pathname);
 
-  if (!session) return <Login />;
+  if (!session) {
+    return (
+      <LoginFrame>
+        <Login />
+      </LoginFrame>
+    );
+  }
 
   // A1 — signing out leaves nothing behind, including the address of the last
   // screen, so whoever signs in next starts from their own landing screen. The
@@ -277,51 +286,25 @@ function Shell() {
     // The API console stays reachable by its address, but is not one of the attendee's screens.
     const attendeeNav = permitted.filter((route) => route.path !== "/console");
     return (
-      <AttendeeShell email={session.email} unread={unread} nav={attendeeNav.map((r) => r.nav!)} onSignOut={() => void onSignOut()}>
-        {routes}
-      </AttendeeShell>
+      <FixedTheme mode="light" surface="attendee">
+        <AttendeeShell email={session.email} unread={unread} nav={attendeeNav.map((r) => r.nav!)} onSignOut={() => void onSignOut()}>
+          {routes}
+        </AttendeeShell>
+      </FixedTheme>
     );
   }
 
   return (
-    <div>
-      <header
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 24,
-          padding: "12px 24px",
-          borderBottom: "1px solid #DFE1E6",
-          background: "#fff",
-        }}
-      >
-        <strong>ConnectSphere</strong>
-
-        <nav style={{ display: "flex", gap: 16, flex: 1 }}>
-          {permitted.map((route) => (
-            <Link
-              key={route.path}
-              to={route.nav!.to}
-              style={{
-                textDecoration: location.pathname === route.nav!.to ? "underline" : "none",
-                color: "#172B4D",
-              }}
-            >
-              {route.path === "/notifications" && unread ? `${route.nav!.label} (${unread})` : route.nav!.label}
-            </Link>
-          ))}
-        </nav>
-
-        <span style={{ fontSize: 13, color: "#626F86" }}>
-          {session.email} · <strong>{ROLE_LABELS[session.role]}</strong>
-        </span>
-        <Button appearance="subtle" onClick={() => void onSignOut()}>
-          Sign out
-        </Button>
-      </header>
-
-      <main style={{ padding: 24 }}>{routes}</main>
-    </div>
+    <AppShell
+      email={session.email}
+      roleLabel={ROLE_LABELS[session.role]}
+      nav={permitted.map((route) => route.nav!)}
+      patterns={ROUTES.map((route) => route.path)}
+      unread={unread}
+      onSignOut={() => void onSignOut()}
+    >
+      {routes}
+    </AppShell>
   );
 }
 
@@ -389,10 +372,12 @@ function AttendeeShell(props: {
 
 export function App() {
   return (
-    <SessionProvider>
-      <HashRouter>
-        <Shell />
-      </HashRouter>
-    </SessionProvider>
+    <ThemeProvider>
+      <SessionProvider>
+        <HashRouter>
+          <Shell />
+        </HashRouter>
+      </SessionProvider>
+    </ThemeProvider>
   );
 }
