@@ -202,6 +202,9 @@ const OVERRIDES: Record<string, Partial<Recipe>> = {
   "POST /api/v1/events/{id}/safety-decision": { staffRows: ["SAFETY_OFFICER"] },
   // E2's proposal route is retired: it answers 410 to every coordinator, whatever the event.
   "POST /api/v1/events/{id}/reassignment-proposals": { record: "none" },
+  // ...and so are accepting and declining one (#86): 410 to every coordinator.
+  "POST /api/v1/events/{id}/reassignment-proposals/accept": { record: "none" },
+  "POST /api/v1/events/{id}/reassignment-proposals/decline": { record: "none" },
   "POST /api/v1/events/{id}/cancellation": { body: () => ({ reason: "Matrix cancellation" }) },
   "GET /api/v1/venues/{id}/suitability": { record: "eventQuery", url: (w) => `/api/v1/venues/${w.venue.id}/suitability?eventId=${w.event.id}` },
   "GET /api/v1/venues/search/prefill": { record: "eventQuery", url: (w) => `/api/v1/venues/search/prefill?eventId=${w.event.id}` },
