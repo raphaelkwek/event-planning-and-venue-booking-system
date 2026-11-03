@@ -1,0 +1,65 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: connectsphere-production
+resources:
+  - ../../base
+  - namespace.yaml
+components:
+  - ../../components/canary
+images:
+  - name: ghcr.io/raphaelkwek/connectsphere-planning-core
+    newTag: replace-with-commit-sha
+  - name: ghcr.io/raphaelkwek/connectsphere-registration
+    newTag: replace-with-commit-sha
+  - name: ghcr.io/raphaelkwek/connectsphere-notification
+    newTag: replace-with-commit-sha
+  - name: ghcr.io/raphaelkwek/connectsphere-web
+    newTag: replace-with-commit-sha
+  - name: ghcr.io/raphaelkwek/connectsphere-migrate
+    newTag: replace-with-commit-sha
+patches:
+  - target:
+      kind: Ingress
+    patch: |-
+      - op: replace
+        path: /spec/rules/0/host
+        value: connectsphere.example.org
+      - op: add
+        path: /spec/tls
+        value:
+          - hosts: [connectsphere.example.org]
+            secretName: connectsphere-production-tls
+  # Production runs three copies of each API and takes longer over each canary stage.
+  - target:
+      kind: Rollout|Deployment
+      name: planning-core|registration|web
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 3
+  - target:
+      kind: HorizontalPodAutoscaler
+      name: planning-core|registration|web
+    patch: |-
+      - op: replace
+        path: /spec/minReplicas
+        value: 3
+      - op: replace
+        path: /spec/maxReplicas
+        value: 10
+  - target:
+      kind: AnalysisTemplate
+      name: error-rate-and-p95
+    patch: |-
+      - op: replace
+        path: /spec/metrics/0/interval
+        value: 1m
+      - op: replace
+        path: /spec/metrics/0/count
+        value: 5
+      - op: replace
+        path: /spec/metrics/1/interval
+        value: 1m
+      - op: replace
+        path: /spec/metrics/1/count
+        value: 5
