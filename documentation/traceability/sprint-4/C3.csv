@@ -1,0 +1,7 @@
+story_id,acceptance_criterion,test_file,test_name
+C3,The list can be filtered to show only drafts or only submitted-and-later requests.,backend/services/planning-core/tests/event/api/auditFixes.test.ts,"filters by kind in the query, so a page of drafts holds drafts only"
+C3,The list can be filtered to show only drafts or only submitted-and-later requests.,backend/services/planning-core/tests/event/api/auditFixes.test.ts,"pages through 30 events ten at a time with none repeated and none skipped, newest first"
+C3,The list can be filtered to show only drafts or only submitted-and-later requests.,backend/services/planning-core/tests/event/api/auditFixes.test.ts,"returns 25 by default with a cursor, and the same shape as before: items and nextCursor"
+C3,The list can be filtered to show only drafts or only submitted-and-later requests.,backend/services/planning-core/tests/event/api/auditFixes.test.ts,lists nobody else's requests on any page (A3)
+C3,The list can be filtered to show only drafts or only submitted-and-later requests.,frontend/tests/listRequests.test.ts,"follows the cursor through every page and returns the items in order, with no cursor left"
+C3,The list can be filtered to show only drafts or only submitted-and-later requests.,backend/services/planning-core/tests/event/domain/pagination.test.ts,round-trips the sort time and id

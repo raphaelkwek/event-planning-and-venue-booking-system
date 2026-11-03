@@ -107,8 +107,9 @@ afterAll(async () => {
 
 /**
  * E4 retires E2's peer flow (W9-FX-5, W9-59): the Lead alone reassigns. A
- * coordinator can no longer propose; a proposal made before the retirement can
- * still be accepted or declined until the Lead reassigns the event, which closes it.
+ * coordinator can no longer propose, accept or decline; migration event/0020 closed
+ * every proposal made before the retirement, and the Lead's reassignment closes any
+ * other. The pending proposals below stand for one that 0020 has not yet closed.
  */
 describe("POST /api/v1/events/:id/reassignment-proposals is retired (E4)", () => {
   it("refuses a proposal, saying the Lead reassigns events, and stores nothing (E4-T6)", async () => {
@@ -130,7 +131,7 @@ describe("POST /api/v1/events/:id/reassignment-proposals is retired (E4)", () =>
   });
 });
 
-describe("POST /api/v1/events/:id/reassignment-proposals/accept (E2)", () => {
+describe("POST /api/v1/events/:id/reassignment-proposals/accept is retired (E4, W9-FX-5)", () => {
   async function givenPendingProposal() {
     const event = await givenSubmittedEvent();
     const active = event.assignedCoordinatorId;
@@ -139,97 +140,71 @@ describe("POST /api/v1/events/:id/reassignment-proposals/accept (E2)", () => {
     return { event, active, nominee };
   }
 
-  it("moves coordinator permissions to the nominee and closes the outgoing assignment", async () => {
+  it("refuses the nominee's accept with 410, pointing to the Lead, and moves nothing (M8)", async () => {
     const { event, active, nominee } = await givenPendingProposal();
     signedInAs(nominee, "EVENT_COORDINATOR");
 
-    const res = await request(app)
-      .post(`/api/v1/events/${event.id}/reassignment-proposals/accept`)
-      .set(bearer)
-      .send();
+    const res = await request(app).post(`/api/v1/events/${event.id}/reassignment-proposals/accept`).set(bearer).send();
 
-    expect(res.status).toBe(200);
-    expect(res.body.status).toBe("ACCEPTED");
-
-    // Re-read as the organiser: a coordinator's GET on a still-Submitted event
-    // claims it for review as a side effect (D1) and returns a placeholder
-    // assignedCoordinatorId on that specific response, which isn't what this
-    // assertion is about.
-    signedInAs(event.ownerId, "EVENT_ORGANISER");
-    const reread = await request(app).get(`/api/v1/events/${event.id}`).set(bearer);
-    expect(reread.body.assignedCoordinatorId).toBe(nominee);
-
-    const closed = await sql`
-      select is_active from event.assignments where event_id = ${event.id} and coordinator_id = ${active}
-    `;
-    expect(closed[0]!.is_active).toBe(false);
-  });
-
-  it("writes the reassignment-accepted event naming both coordinators", async () => {
-    const { event, active, nominee } = await givenPendingProposal();
-    signedInAs(nominee, "EVENT_COORDINATOR");
-
-    await request(app)
-      .post(`/api/v1/events/${event.id}/reassignment-proposals/accept`)
-      .set(bearer)
-      .send();
-
-    const outbox = await sql`
-      select envelope from event.outbox
-      where message_key = ${event.id} and topic = 'connectsphere.event.v1' and envelope->>'type' = 'event.reassignment-accepted'
-    `;
-    expect(outbox[0]!.envelope.data).toMatchObject({
-      outgoingCoordinatorId: active,
-      nomineeCoordinatorId: nominee,
+    expect(res.status).toBe(410);
+    expect(res.body.error).toMatchObject({
+      code: "REASSIGNMENT_RETIRED",
+      message: "Coordinators no longer accept reassignment proposals: the Event Coordinator Lead reassigns events (E4).",
     });
-  });
-
-  it("publishes the event's listing with the nominee as its coordinator (R5, R7)", async () => {
-    const { event, nominee } = await givenPendingProposal();
-    signedInAs(nominee, "EVENT_COORDINATOR");
-
-    await request(app).post(`/api/v1/events/${event.id}/reassignment-proposals/accept`).set(bearer).send();
-
-    const listings = await sql<{ envelope: { data: Record<string, unknown> } }[]>`
-      select envelope from event.outbox
-      where message_key = ${event.id} and envelope->>'type' = 'event.listing-changed' order by seq
+    const assignments = await sql<{ coordinator_id: string; is_active: boolean }[]>`
+      select coordinator_id, is_active from event.assignments where event_id = ${event.id}
     `;
-    expect(listings.at(-1)!.envelope.data).toMatchObject({ eventId: event.id, assignedCoordinatorId: nominee });
+    expect(assignments).toEqual([{ coordinator_id: active, is_active: true }]);
+    const [proposal] = await sql<{ status: string }[]>`select status from event.reassignment_proposals where event_id = ${event.id}`;
+    expect(proposal!.status).toBe("PENDING");
+    expect(
+      await sql`select 1 from event.outbox where message_key = ${event.id} and envelope->>'type' = 'event.reassignment-accepted'`
+    ).toEqual([]);
   });
 
-  it("refuses a caller who is not the nominee", async () => {
+  it("refuses everyone's accept the same way, the assigned coordinator's included", async () => {
     const { event, active } = await givenPendingProposal();
     signedInAs(active, "EVENT_COORDINATOR");
 
-    const res = await request(app)
-      .post(`/api/v1/events/${event.id}/reassignment-proposals/accept`)
-      .set(bearer)
-      .send();
+    const res = await request(app).post(`/api/v1/events/${event.id}/reassignment-proposals/accept`).set(bearer).send();
 
-    expect(res.status).toBe(404);
-    expect(res.body.error.code).toBe("REASSIGNMENT_PROPOSAL_NOT_FOUND");
+    expect(res.status).toBe(410);
+    expect(res.body.error.code).toBe("REASSIGNMENT_RETIRED");
+  });
+
+  it("is still the coordinators' to call: an organiser is refused as for any coordinator action", async () => {
+    const { event } = await givenPendingProposal();
+    signedInAs(ORGANISER, "EVENT_ORGANISER");
+
+    const res = await request(app).post(`/api/v1/events/${event.id}/reassignment-proposals/accept`).set(bearer).send();
+
+    expect(res.status).toBe(403);
   });
 });
 
-describe("POST /api/v1/events/:id/reassignment-proposals/decline (E2)", () => {
-  it("leaves the outgoing coordinator active and records the decline", async () => {
+describe("POST /api/v1/events/:id/reassignment-proposals/decline is retired (E4, W9-FX-5)", () => {
+  it("refuses the nominee's decline with 410, pointing to the Lead, and changes nothing (M8)", async () => {
     const event = await givenSubmittedEvent();
     const active = event.assignedCoordinatorId;
     const nominee = otherPoolMember(active);
     await pendingProposal(event.id, active, nominee);
-
     signedInAs(nominee, "EVENT_COORDINATOR");
-    const res = await request(app)
-      .post(`/api/v1/events/${event.id}/reassignment-proposals/decline`)
-      .set(bearer)
-      .send();
 
-    expect(res.status).toBe(200);
-    expect(res.body.status).toBe("DECLINED");
+    const res = await request(app).post(`/api/v1/events/${event.id}/reassignment-proposals/decline`).set(bearer).send();
 
-    // Re-read as the organiser, for the same reason as the accept test above.
-    signedInAs(event.ownerId, "EVENT_ORGANISER");
-    const reread = await request(app).get(`/api/v1/events/${event.id}`).set(bearer);
-    expect(reread.body.assignedCoordinatorId).toBe(active);
+    expect(res.status).toBe(410);
+    expect(res.body.error).toMatchObject({
+      code: "REASSIGNMENT_RETIRED",
+      message: "Coordinators no longer answer reassignment proposals: none is pending, and the Event Coordinator Lead reassigns events (E4).",
+    });
+    const assignments = await sql<{ coordinator_id: string; is_active: boolean }[]>`
+      select coordinator_id, is_active from event.assignments where event_id = ${event.id}
+    `;
+    expect(assignments).toEqual([{ coordinator_id: active, is_active: true }]);
+    const [proposal] = await sql<{ status: string }[]>`select status from event.reassignment_proposals where event_id = ${event.id}`;
+    expect(proposal!.status).toBe("PENDING");
+    expect(
+      await sql`select 1 from event.outbox where message_key = ${event.id} and envelope->>'type' = 'event.reassignment-declined'`
+    ).toEqual([]);
   });
 });

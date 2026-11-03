@@ -1,0 +1,120 @@
+{
+  "scenario": "smoke",
+  "ok": true,
+  "startedAt": "2026-11-02T22:01:33.887Z",
+  "durationSeconds": 11.883,
+  "runner": {
+    "cpuModel": "INTEL(R) XEON(R) PLATINUM 8573C",
+    "logicalCpus": 4,
+    "memoryGb": 15.6,
+    "node": "v20.20.2",
+    "k6Image": "grafana/k6:1.4.0",
+    "commit": "23358901d9098872e34894c0bb2268089cb2fcad",
+    "runUrl": "https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41533430275"
+  },
+  "config": {
+    "seats": 20,
+    "targetRate": 40,
+    "duration": "10s",
+    "dbPoolMax": 5,
+    "distinctAttendees": "one per attempt"
+  },
+  "checks": [
+    {
+      "name": "every seat is registered",
+      "ok": true,
+      "detail": "20 REGISTERED registrations for 20 seats"
+    },
+    {
+      "name": "every seat is claimed",
+      "ok": true,
+      "detail": "20 seats CLAIMED of 20"
+    },
+    {
+      "name": "no over-admission",
+      "ok": true,
+      "detail": "20 registered, 20 seats"
+    },
+    {
+      "name": "each registration has its own attendee",
+      "ok": true,
+      "detail": "20 distinct attendees in 20 registrations"
+    },
+    {
+      "name": "each registration has its own seat",
+      "ok": true,
+      "detail": "20 distinct seats in 20 registrations"
+    },
+    {
+      "name": "registrations and claimed seats match one to one",
+      "ok": true,
+      "detail": "0 registrations or seats without a match"
+    },
+    {
+      "name": "one confirmation message per registration is in the outbox",
+      "ok": true,
+      "detail": "20 outbox rows for 20 registrations"
+    },
+    {
+      "name": "k6 saw exactly as many 201s as there are registrations",
+      "ok": true,
+      "detail": "20 responses with status 201"
+    },
+    {
+      "name": "every other attempt was refused REGISTRATION_FULL",
+      "ok": true,
+      "detail": "380 refused REGISTRATION_FULL, 0 anything else (429: 0, 5xx: 0, other: 0)"
+    },
+    {
+      "name": "more attempts than seats, so the invariant was really tested",
+      "ok": true,
+      "detail": "400 attempts for 20 seats"
+    },
+    {
+      "name": "p95 is at most 800 ms",
+      "ok": true,
+      "detail": "p95 6.3 ms"
+    },
+    {
+      "name": "k6 ran to the end",
+      "ok": true,
+      "detail": "k6 exit code 0"
+    }
+  ],
+  "outcomes": {
+    "registered": 20,
+    "full": 380,
+    "otherConflict": 0,
+    "outsideWindow": 0,
+    "rateLimited": 0,
+    "serverErrors": 0,
+    "otherStatus": 0,
+    "withdrawn": 0,
+    "withdrawFailed": 0,
+    "readsOk": 0,
+    "readsFailed": 0
+  },
+  "spike": {
+    "targetRate": 40,
+    "achievedRate": 39.99320331506942,
+    "droppedIterations": 0,
+    "requests": 400,
+    "p95AllMs": 6.2978187499999905,
+    "p95RegisteredMs": 73.39218510000002,
+    "p95RefusedMs": 3.8996496,
+    "sloMs": 800,
+    "sloMet": true,
+    "rateSustained": true
+  },
+  "cpu": {
+    "cpuSeconds": 1.5099999999999998,
+    "perRequestMs": 3.7749999999999995,
+    "coresUsed": 0.1270722881427249
+  },
+  "notes": [
+    "The registration service ran from source with tsx (as `npm run dev` does), not from the container image. Steady-state CPU should be close; start-up is not.",
+    "Identity was a stand-in that answers from the token (`load/support/identity-stub.ts`). The real hop, planning-core's GET /api/v1/users/me, adds a network call and its own CPU to every register, withdraw and my-registrations request, and is not in these numbers.",
+    "The service's interim 120-requests-a-minute-per-address limit (ADR-0011) was raised for the run: one load generator is one address. The gateway (EN-12) owns rate limiting; it was not under test.",
+    "k6, the service and Postgres shared one runner, so the figures are a floor for what a dedicated machine could do, not the production cluster's."
+  ]
+}

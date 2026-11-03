@@ -1,4 +1,4 @@
-import type { Sql } from "postgres";
+import type { Sql, TransactionSql } from "postgres";
 
 export interface UserRow {
   id: string;
@@ -54,6 +54,27 @@ export async function listActiveUsersWithRole(sql: Sql, role: string): Promise<U
     order by coalesce(u.display_name, u.email), u.email
   `;
   return rows.map((row) => ({ id: row.id, displayName: row.display_name, email: row.email }));
+}
+
+/**
+ * E3, E4: the user if they are an active holder of `role`, else null. Inside a transaction,
+ * `lock: "share"` keeps the row from being deactivated until the transaction ends, so a
+ * coordinator checked and assigned in one transaction is never one who left in between.
+ */
+export async function findActiveUserWithRole(
+  sql: Sql | TransactionSql,
+  userId: string,
+  role: string,
+  options: { lock?: "share" } = {}
+): Promise<UserSummaryRow | null> {
+  const rows = await sql<{ id: string; display_name: string | null; email: string }[]>`
+    select u.id, u.display_name, u.email
+    from identity.users u join identity.user_roles r on r.user_id = u.id
+    where u.id = ${userId} and r.role = ${role} and u.is_active
+    ${options.lock === "share" ? sql`for share of u` : sql``}
+  `;
+  const row = rows[0];
+  return row ? { id: row.id, displayName: row.display_name, email: row.email } : null;
 }
 
 export async function findRoleForUser(sql: Sql, userId: string): Promise<string | null> {

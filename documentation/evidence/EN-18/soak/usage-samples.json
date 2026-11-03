@@ -1,0 +1,162 @@
+[
+ {
+  "atSeconds": 0,
+  "cpuSeconds": 1.16,
+  "rssMegabytes": 115.015625
+ },
+ {
+  "atSeconds": 10,
+  "cpuSeconds": 5.51,
+  "rssMegabytes": 148.33984375
+ },
+ {
+  "atSeconds": 20,
+  "cpuSeconds": 9.12,
+  "rssMegabytes": 149.6171875
+ },
+ {
+  "atSeconds": 30,
+  "cpuSeconds": 12.33,
+  "rssMegabytes": 150.06640625
+ },
+ {
+  "atSeconds": 40,
+  "cpuSeconds": 15.37,
+  "rssMegabytes": 150.33203125
+ },
+ {
+  "atSeconds": 50,
+  "cpuSeconds": 18.2,
+  "rssMegabytes": 150.96875
+ },
+ {
+  "atSeconds": 60,
+  "cpuSeconds": 21.17,
+  "rssMegabytes": 151.17578125
+ },
+ {
+  "atSeconds": 70,
+  "cpuSeconds": 24.24,
+  "rssMegabytes": 151.26953125
+ },
+ {
+  "atSeconds": 80,
+  "cpuSeconds": 27.04,
+  "rssMegabytes": 151.140625
+ },
+ {
+  "atSeconds": 90,
+  "cpuSeconds": 29.73,
+  "rssMegabytes": 151.2109375
+ },
+ {
+  "atSeconds": 100,
+  "cpuSeconds": 32.6,
+  "rssMegabytes": 151.3203125
+ },
+ {
+  "atSeconds": 110,
+  "cpuSeconds": 35.45,
+  "rssMegabytes": 151.62890625
+ },
+ {
+  "atSeconds": 120,
+  "cpuSeconds": 38.27,
+  "rssMegabytes": 151.95703125
+ },
+ {
+  "atSeconds": 130,
+  "cpuSeconds": 41.15,
+  "rssMegabytes": 152.13671875
+ },
+ {
+  "atSeconds": 140,
+  "cpuSeconds": 44.11,
+  "rssMegabytes": 152.421875
+ },
+ {
+  "atSeconds": 150,
+  "cpuSeconds": 46.9,
+  "rssMegabytes": 152.46484375
+ },
+ {
+  "atSeconds": 160,
+  "cpuSeconds": 49.62,
+  "rssMegabytes": 152.7734375
+ },
+ {
+  "atSeconds": 170,
+  "cpuSeconds": 52.39,
+  "rssMegabytes": 152.58984375
+ },
+ {
+  "atSeconds": 180,
+  "cpuSeconds": 55.07,
+  "rssMegabytes": 152.703125
+ },
+ {
+  "atSeconds": 190,
+  "cpuSeconds": 57.9,
+  "rssMegabytes": 152.7890625
+ },
+ {
+  "atSeconds": 200,
+  "cpuSeconds": 60.73,
+  "rssMegabytes": 153.125
+ },
+ {
+  "atSeconds": 210,
+  "cpuSeconds": 63.62,
+  "rssMegabytes": 153.25
+ },
+ {
+  "atSeconds": 220,
+  "cpuSeconds": 66.47,
+  "rssMegabytes": 153.4296875
+ },
+ {
+  "atSeconds": 230,
+  "cpuSeconds": 69.24,
+  "rssMegabytes": 153.6484375
+ },
+ {
+  "atSeconds": 240,
+  "cpuSeconds": 72.21,
+  "rssMegabytes": 154
+ },
+ {
+  "atSeconds": 250,
+  "cpuSeconds": 74.97,
+  "rssMegabytes": 154.04296875
+ },
+ {
+  "atSeconds": 260,
+  "cpuSeconds": 77.72,
+  "rssMegabytes": 154.09765625
+ },
+ {
+  "atSeconds": 270,
+  "cpuSeconds": 80.48,
+  "rssMegabytes": 154.140625
+ },
+ {
+  "atSeconds": 280,
+  "cpuSeconds": 83.18,
+  "rssMegabytes": 154.1796875
+ },
+ {
+  "atSeconds": 290,
+  "cpuSeconds": 85.9,
+  "rssMegabytes": 154.23046875
+ },
+ {
+  "atSeconds": 300,
+  "cpuSeconds": 88.59,
+  "rssMegabytes": 154.515625
+ },
+ {
+  "atSeconds": 300.6,
+  "cpuSeconds": 88.69,
+  "rssMegabytes": 154.51953125
+ }
+]

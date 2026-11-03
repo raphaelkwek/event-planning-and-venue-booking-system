@@ -84,16 +84,19 @@ export const CALENDAR_APPEARANCE: Record<CalendarState, LozengeAppearance> = {
   FREE: "success",
 };
 
-/** The day bar's fill for each state, matching its lozenge's colour. */
+/**
+ * The day bar's fill for each state, matching its lozenge's colour. Each is the status token for the
+ * active theme (frontend/src/theme/tokens.css), with the old fixed colour as the fallback.
+ */
 export const CALENDAR_BAR_COLOURS: Record<CalendarState, string> = {
-  CONFIRMED: "#DE350B",
-  HELD: "#6B778C",
-  PENDING: "#FF991F",
-  SETUP: "#4C9AFF",
-  TURNAROUND: "#4C9AFF",
-  UNAVAILABLE: "#6554C0",
-  OUTSIDE_HOURS: "#C1C7D0",
-  FREE: "#57D9A3",
+  CONFIRMED: "var(--cs-danger-bold, #DE350B)",
+  HELD: "var(--cs-neutral-bold, #6B778C)",
+  PENDING: "var(--cs-warning-bold, #FF991F)",
+  SETUP: "var(--cs-info-bold, #4C9AFF)",
+  TURNAROUND: "var(--cs-info-bold, #4C9AFF)",
+  UNAVAILABLE: "var(--cs-discovery-bold, #6554C0)",
+  OUTSIDE_HOURS: "var(--cs-line-strong, #C1C7D0)",
+  FREE: "var(--cs-success-bold, #57D9A3)",
 };
 
 /** O1, O2: how an equipment request line's status reads, and its one colour. */
