@@ -40,6 +40,9 @@ export CERBOS_URL=http://127.0.0.1:3592 PLANNING_CORE_URL=http://127.0.0.1:8090
 export PLANNING_CORE_PORT=8090 NOTIFICATION_PORT=8091 REGISTRATION_PORT=8092
 export SUPABASE_JWKS_URL="${SUPABASE_JWKS_URL:-${SUPABASE_URL}/auth/v1/.well-known/jwks.json}"
 export LOG_LEVEL="${LOG_LEVEL:-info}" XDG_DATA_HOME="$RUN/caddy" XDG_CONFIG_HOME="$RUN/caddy"
+# Redpanda reserves this much memory up front. 1G suits a Space; two environments on one small VM
+# set 512M in their env files (deploy/azure).
+export REDPANDA_MEMORY="${REDPANDA_MEMORY:-1G}"
 
 # Supabase's transaction pooler listens on 6543, which a Space's egress may not allow. If it cannot
 # be reached, the services use the session pooler (5432), as the migrations do.
