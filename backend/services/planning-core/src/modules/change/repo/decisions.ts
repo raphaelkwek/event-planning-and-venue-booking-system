@@ -26,7 +26,7 @@ export type DecisionOutcome =
   | { ok: true; request: ChangeRequestRecord; event?: DecidedEvent; impact?: AppliedChangeImpact }
   | { ok: false; code: "NOT_FOUND" }
   | { ok: false; code: "NOT_ASSIGNED" }
-  | { ok: false; code: "ALREADY_DECIDED"; status: "APPROVED" | "REJECTED"; decidedAt: string }
+  | { ok: false; code: "ALREADY_DECIDED"; status: "APPROVED" | "REJECTED" | "CLOSED"; decidedAt: string }
   | { ok: false; code: "NO_LONGER_VALID"; message: string; fields: ErrorField[]; status?: string };
 
 /** The event module reports a proposed value on its own field name; the request names it under `changes`. */

@@ -30,6 +30,7 @@ import { EquipmentRequirementsView, VenueRequirementsView } from "../components/
 import { ChangeImpactView } from "../components/ChangeImpactView.js";
 import { OutstandingFlags } from "../components/OutstandingFlags.js";
 import { ConfirmArrangementsAction } from "../components/ConfirmArrangements.js";
+import { CancelEventAction, CancelledNotice, canCancelEvent } from "../components/CancelEvent.js";
 
 /** G2 — what approving the pending change would affect, read-only; hidden once the request is decided or not visible to this user. */
 function ChangeImpactPreview({ token, requestId }: { token: string; requestId: string }) {
@@ -217,6 +218,8 @@ export function ReviewDetail() {
           </div>
         )}
 
+        <CancelledNotice event={event} />
+
         {changesFailed && <p role="status" style={{ color: "#626F86", fontSize: 13 }}>Change requests couldn't be loaded.</p>}
         {pendingChange && (
           <section role="region" aria-label="Pending change">
@@ -315,6 +318,13 @@ export function ReviewDetail() {
         {event.assignedCoordinatorId === session.userId && (event.status === "APPROVED" || event.status === "PLANNING") && (
           <div style={{ marginTop: 12 }}>
             <ConfirmArrangementsAction eventId={event.id} token={session.token} onConfirmed={() => void load()} />
+          </div>
+        )}
+
+        {/* F3 — the assigned coordinator, until the event is Completed, Rejected or Cancelled. */}
+        {canCancelEvent(event, session) && (
+          <div style={{ marginTop: 12 }}>
+            <CancelEventAction eventId={event.id} token={session.token} onCancelled={() => void load()} />
           </div>
         )}
 

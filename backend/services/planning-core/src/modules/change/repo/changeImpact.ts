@@ -100,7 +100,7 @@ export async function previewChangeImpact(
 export type PreviewOutcome =
   | { ok: true; impact: ChangeImpact }
   | { ok: false; code: "NOT_FOUND" }
-  | { ok: false; code: "ALREADY_DECIDED"; status: "APPROVED" | "REJECTED"; decidedAt: string };
+  | { ok: false; code: "ALREADY_DECIDED"; status: "APPROVED" | "REJECTED" | "CLOSED"; decidedAt: string };
 
 /** Who may see a request's preview: its event's owner, and Event Coordinators (the assigned one among them). */
 const PREVIEWERS: readonly Role[] = ["EVENT_ORGANISER", "EVENT_COORDINATOR"];

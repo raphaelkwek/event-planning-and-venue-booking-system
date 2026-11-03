@@ -17,7 +17,8 @@ export interface ChangeRequest {
   id: string;
   eventId: string;
   eventReference: string;
-  status: "PENDING" | "APPROVED" | "REJECTED";
+  /** CLOSED (F3, W9-07): still pending when the event was cancelled; it can no longer be decided. */
+  status: "PENDING" | "APPROVED" | "REJECTED" | "CLOSED";
   reason: string;
   requestedBy: string;
   requestedAt: string;
@@ -26,6 +27,8 @@ export interface ChangeRequest {
   decidedBy: string | null;
   decidedAt: string | null;
   rejectionReason: string | null;
+  /** F3 — why it was closed without a decision; null unless Closed. */
+  closedReason: string | null;
 }
 
 /** Only the fields being changed are present. */
