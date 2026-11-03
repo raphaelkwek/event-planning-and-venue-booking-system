@@ -73,14 +73,15 @@ Staff-facing code is **one deployable, `planning-core`**, made of modules (ADR-0
   /adr                      architecture decision records
   /proposals                decisions still being agreed
   /superpowers              /specs and /plans written by the Superpowers plugin
-  /traceability             sprint-<n>.csv (§8.2)
-  /scripts                  confluence-digest.ts
+  /traceability             sprint-<n>/<story-id>.csv, one file per story (§8.2)
+  /scripts                  confluence-digest.ts, changelog.ts, traceability-matrix.ts
   /transcript               meeting transcripts
   final user stories.md, sprint allocation.csv
 /tests                      functional test cases, one folder per user story (§8.4)
   /<story-id>               e.g. /tests/D5/D5-T1-reject-with-a-reason.md
   /flows/sprint-<n>         the sprint flow test: flow.md, seed.sql, flow.spec.ts (§8.2)
   /fixtures                 test-data reset
+/changelog                  <YYYY-MM-DD>-<branch-or-slug>.md, one changelog entry per change (§11.2)
 CHANGELOG.md  README.md  CLAUDE.md  package.json  .env
 ```
 
@@ -603,12 +604,12 @@ CI shows a coverage table in the job summary and uploads the HTML reports as the
 
 ### 8.2 The sprint test kit — build it *before* the sprint
 
-At sprint planning, before any story is started, the sprint owner creates `/tests/flows/sprint-<n>/` with the first three files, and `/documentation/traceability/sprint-<n>.csv`:
+At sprint planning, before any story is started, the sprint owner creates `/tests/flows/sprint-<n>/` with the first three files, and the folder `/documentation/traceability/sprint-<n>/`:
 
 1. **`flow.md`** — the end-to-end journey the sprint must demonstrate, written as numbered steps with the expected observable outcome at each. Derived from the sprint's stories, not invented.
 2. **`seed.sql`** — idempotent fixture data for that flow (staff accounts, venues, equipment, an attendee).
 3. **`flow.spec.ts`** — a Playwright test that walks `flow.md` start to finish and fails loudly at the first divergence.
-4. **`sprint-<n>.csv`** (the traceability file) — `story_id, acceptance_criterion, test_file, test_name`, one row per AC. This *is* deliverable 3.
+4. **`sprint-<n>/<story-id>.csv`** (the traceability files) — one file per story, each starting with the header `story_id,acceptance_criterion,test_file,test_name` and holding only that story's rows, one row per AC and test. A story's PR adds or edits only its own file, so two PRs never append to the same one; the EN-22 generator (`documentation/scripts/traceability-matrix.ts`) reads them all, and a unit test fails on a missing header or a row filed under another story. Until 3 Nov 2026 a sprint was a single `sprint-<n>.csv`; those were split into these files row for row. Together they *are* deliverable 3.
 
 The flow test goes red on day one and must be green before the sprint review. It is the sprint's definition of done at the system level, and it catches integration breakage between six people's services on the day it happens rather than in Week 12.
 
@@ -619,7 +620,7 @@ The flow test goes red on day one and must be green before the sprint review. It
 - CI pipeline green: build, lint, typecheck, test.
 - All acceptance criteria demonstrated to the Product Owner in the sprint review.
 - No new failing tests; existing tests still pass.
-- Story traced to its tests in `documentation/traceability/sprint-<n>.csv`.
+- Story traced to its tests in `documentation/traceability/sprint-<n>/<story-id>.csv`.
 - Functional test cases written for the story in `/tests/<story-id>/` (§8.4), each with a latest execution record, and every acceptance criterion covered by at least one of them.
 - Any new event type registered in `/backend/packages/contracts` with a schema and a validator.
 
@@ -774,7 +775,7 @@ Each of us is running Claude Code against a shared repo. These exist to stop six
 5. **Refusal paths are features.** Most stories specify what happens when an action is refused and assert nothing is stored. Implement and test those alongside the happy path.
 6. **No `DELETE`. No read-then-write on a contended resource. No HTTP inside a transaction. No ORM.**
 7. **Every state change that other services care about produces an outbox row in the same transaction.** Never produce directly to Kafka.
-8. **Write the test with the code, in the same PR,** and add the traceability row.
+8. **Write the test with the code, in the same PR,** and add the traceability row to the story's own file, `documentation/traceability/sprint-<n>/<story-id>.csv` (§8.2). A new error code goes into `ERROR_CODES` and the OpenAPI `ErrorCode` enum at its alphabetical place, not at the end (`npm run lint:api` checks this).
 9. **If you are unsure which service owns a behaviour, ask** — do not implement it in both.
 10. **You are accountable for what you ship.** Week 13 picks a feature at random and asks you to trace story → AC → test → code. "The agent wrote it" is not an answer, so read the diff before you commit it.
 11. **Follow the commit message standard below.** A human has to verify agent output fast — an inconsistent history costs them time we don't have.
@@ -814,20 +815,32 @@ Resolves: #123
 **Bad:** `fixed the bug` · `added a button and also fixed a typo in config` · `stuff.`
 **Good:** `feat(a1): add biometric login option` · `fix(event-service): repair profile picture upload crash`
 
-### 11.2 `CHANGELOG.md` is the record of what happened
+### 11.2 The changelog is the record of what happened
 
-`CHANGELOG.md` is the single point of authorship for "what got done, when, and why" — not Jira,
+The changelog is the single point of authorship for "what got done, when, and why" — not Jira,
 not the commit log. Jira tracks tickets moving through a workflow; the commit log records diffs.
 Neither captures the reasoning — why a design changed, what a fix actually was, what's still
 unverified — that a teammate or the Week 13 panel needs and that git alone cannot explain. That's
-what `CHANGELOG.md` is for, and it stands on its own regardless of whether a Jira ticket exists for
+what the changelog is for, and it stands on its own regardless of whether a Jira ticket exists for
 the work. It also feeds the Confluence sprint log directly (`npm run confluence:digest`, README.md)
 — write it once here, not a second time by hand there.
 
+**One file per change.** Since 3 Nov 2026 an entry goes in its own file,
+`changelog/<YYYY-MM-DD>-<branch-or-slug>.md` (the date the entry is written, in SGT, then the last
+part of your branch name, e.g. `changelog/2026-11-03-r5-r7-registration.md`), never in
+`CHANGELOG.md`: when every pull request added
+its entry at the top of one file, merging any of them made all the others conflict. The file holds
+exactly what an entry in `CHANGELOG.md` holds: a `# Title` line, then `**Timestamp:**` (from
+`TZ=Asia/Singapore date`, written as `2026-11-03T21:19+08:00 (SGT)`), `**Author:**` and the rest.
+A later chunk of work on the same branch goes in the same file, as another entry above the first,
+after a `---` line. `CHANGELOG.md` keeps every entry from before that date, unchanged.
+`npm run changelog` prints the whole log, newest first: the fragments by their timestamps, then
+`CHANGELOG.md`'s entries. `confluence:digest` and `submission:build` read the same combined log, and
+a unit test fails on a fragment without a title, a readable timestamp or an author.
+
 **Every push, and every distinct chunk of work within it, gets an entry before you push.** A chunk
 is a story slice, a bugfix, a refactor, a docs/tooling change — anything you'd want a teammate to
-be able to find later without reading the diff. Insert newest-first, directly below the header, per
-the convention at the top of the file. A push with no corresponding entry is not done.
+be able to find later without reading the diff. A push with no corresponding entry is not done.
 
 ---
 
