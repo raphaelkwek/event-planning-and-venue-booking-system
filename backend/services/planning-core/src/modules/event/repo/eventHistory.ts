@@ -1,49 +1,39 @@
 import type { TransactionSql } from "postgres";
-import type { EventStatus } from "@connectsphere/contracts";
+import type { OutboxMessage } from "../events/outbox.js";
+import {
+  fieldChangeEntries,
+  statusChangeEntry,
+  type FieldChange,
+  type StatusChange,
+} from "../domain/eventStream.js";
+import { appendToStream } from "./eventStream.js";
 
 /**
  * An event's history: every status change (F1) and every field-level
- * amendment (D3), in one append-only record. There is no update or delete
- * here, and none may be added — history cannot be edited (F2).
+ * amendment (D3, G1, S2). Since EN-03 each is an entry in the event's stream
+ * (ADR-0007), and event.event_history is the stream's projection; both are
+ * written by appendToStream in the caller's transaction. There is no update or
+ * delete here, and none may be added — history cannot be edited (F2).
  */
 
-export interface StatusChange {
-  previousStatus: EventStatus | null;
-  newStatus: EventStatus;
-  actorUserId: string | null;
-  actorRole: string;
-  triggeringAction: string;
-}
+export type { FieldChange, StatusChange };
 
-export interface FieldChange {
-  fieldName: string;
-  previousValue: string | null;
-  newValue: string | null;
-}
-
+/** F1 — one status change, and the message that publishes it when there is one. */
 export async function recordStatusChange(
   tx: TransactionSql,
   eventId: string,
-  change: StatusChange
+  change: StatusChange,
+  outbox?: OutboxMessage
 ): Promise<void> {
-  await tx`
-    insert into event.event_history (
-      event_id, entry_type, previous_status, new_status, actor_user_id, actor_role,
-      triggering_action, created_by, updated_by
-    ) values (
-      ${eventId}, 'STATUS_CHANGE', ${change.previousStatus}, ${change.newStatus},
-      ${change.actorUserId}, ${change.actorRole}, ${change.triggeringAction},
-      ${change.actorUserId}, ${change.actorUserId}
-    )
-  `;
+  await appendToStream(tx, eventId, [statusChangeEntry(change)], { outbox });
 }
 
-/** F5 — when the event's latest status change was recorded, so a message carries the history's own time. */
+/** F5 — when the event's latest status change was recorded, read from its stream, so a message carries the history's own time. */
 export async function latestStatusChangeAt(tx: TransactionSql, eventId: string): Promise<string> {
   const [row] = await tx<{ occurred_at: Date }[]>`
-    select occurred_at from event.event_history
-    where event_id = ${eventId} and entry_type = 'STATUS_CHANGE'
-    order by occurred_at desc, created_at desc
+    select occurred_at from event.event_stream
+    where aggregate_id = ${eventId} and type = 'STATUS_CHANGE'
+    order by occurred_at desc, version desc
     limit 1
   `;
   if (!row) throw new Error(`Event ${eventId} has no status change recorded.`);
@@ -60,22 +50,5 @@ export async function recordFieldChanges(
   occurredAt?: Date
 ): Promise<void> {
   if (changes.length === 0) return;
-
-  await tx`
-    insert into event.event_history ${tx(
-      changes.map((change) => ({
-        event_id: eventId,
-        entry_type: "FIELD_CHANGE",
-        field_name: change.fieldName,
-        previous_value: change.previousValue,
-        new_value: change.newValue,
-        actor_user_id: actor.userId,
-        actor_role: actor.role,
-        triggering_action: triggeringAction,
-        ...(occurredAt ? { occurred_at: occurredAt } : {}),
-        created_by: actor.userId,
-        updated_by: actor.userId,
-      }))
-    )}
-  `;
+  await appendToStream(tx, eventId, fieldChangeEntries(changes, actor, triggeringAction, occurredAt));
 }
