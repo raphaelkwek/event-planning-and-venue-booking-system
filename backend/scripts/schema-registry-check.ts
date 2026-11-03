@@ -11,13 +11,19 @@ import { baseSnapshots } from "./support/schemaFiles.js";
 //
 //   1. Every case in contracts/src/compat/cases.ts: register the previous schema
 //      under a throwaway subject set to BACKWARD, ask whether the next is
-//      compatible, and require the registry, the checker and the case to agree.
+//      compatible, and require the checker to give the case's verdict and the
+//      registry to give the case's registry verdict (`registry` when the case
+//      records that Redpanda differs from JSON Schema's meaning, else `compatible`).
 //   2. The branch against its base: register the base ref's schemas, ask about
-//      the branch's (BASE_REF; skipped when the base has none yet).
+//      the branch's (BASE_REF; skipped when the base has none yet). This is the
+//      check that decides what a deployed registry would accept.
 //   3. A control: a breaking change to a real message must be refused.
+//
+// `npx tsx schema-registry-check.ts cases` runs only 1 and 3, `branch` only 2.
 
 const registry = process.env.SCHEMA_REGISTRY_URL ?? "http://127.0.0.1:8081";
 const baseRef = process.env.BASE_REF;
+const only = process.argv[2];
 const CONTENT_TYPE = "application/vnd.schemaregistry.v1+json";
 
 interface Reply {
@@ -84,9 +90,12 @@ async function checkCases(): Promise<string[]> {
     await register(subject, testCase.previous);
     const registryVerdict = await registryAccepts(subject, testCase.next);
     const checkerVerdict = checkBackwardCompatible(testCase.previous, testCase.next).length === 0;
-    const line = `${registryVerdict === testCase.compatible && checkerVerdict === testCase.compatible ? "agree   " : "DISAGREE"} registry=${registryVerdict} checker=${checkerVerdict} expected=${testCase.compatible}  ${testCase.name}`;
+    const expectedByRegistry = testCase.registry ?? testCase.compatible;
+    const ok = registryVerdict === expectedByRegistry && checkerVerdict === testCase.compatible;
+    const note = testCase.registry === undefined ? "" : `  (known: Redpanda says ${testCase.registry})`;
+    const line = `${ok ? "agree   " : "DISAGREE"} registry=${registryVerdict} checker=${checkerVerdict} expected=${testCase.compatible}  ${testCase.name}${note}`;
     console.log(line);
-    if (registryVerdict !== testCase.compatible || checkerVerdict !== testCase.compatible) problems.push(line);
+    if (!ok) problems.push(line);
   }
   return problems;
 }
@@ -138,11 +147,14 @@ async function checkControl(): Promise<string[]> {
 
 async function main(): Promise<number> {
   await waitForRegistry();
-  const problems = [...(await checkCases()), ...(await checkControl())];
-  if (baseRef) problems.push(...(await checkBranchAgainstBase(baseRef)));
-  else console.log("BASE_REF is not set; the branch is not compared with a base.");
+  const problems: string[] = [];
+  if (only !== "branch") problems.push(...(await checkCases()), ...(await checkControl()));
+  if (only !== "cases") {
+    if (baseRef) problems.push(...(await checkBranchAgainstBase(baseRef)));
+    else console.log("BASE_REF is not set; the branch is not compared with a base.");
+  }
   if (problems.length === 0) {
-    console.log("The registry and the checker agree on every case, and the branch is compatible with its base.");
+    console.log("The registry and the checker give the expected verdict on every case, and the branch is compatible with its base.");
     return 0;
   }
   console.error(`\n${problems.length} problem(s):`);

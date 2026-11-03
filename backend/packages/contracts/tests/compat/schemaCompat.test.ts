@@ -25,6 +25,17 @@ describe("EN-05-T2 / EN-05-T3 the table of compatible and incompatible changes",
     });
   }
 
+  it("EN-05-T7 records a registry verdict only where Redpanda differs from the case's own", () => {
+    for (const testCase of COMPAT_CASES.filter((c) => c.registry !== undefined)) {
+      expect(testCase.registry, testCase.name).not.toBe(testCase.compatible);
+    }
+  });
+
+  it("names every case once", () => {
+    const names = COMPAT_CASES.map((c) => c.name);
+    expect(new Set(names).size).toBe(names.length);
+  });
+
   it("every rule the checker can report is exercised by a case or by a test below", () => {
     const covered = new Set(COMPAT_CASES.flatMap((c) => (c.rule ? [c.rule] : [])));
     // "unsupported-keyword" and "message-removed" have their own tests.

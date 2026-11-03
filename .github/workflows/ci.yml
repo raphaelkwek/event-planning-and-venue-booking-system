@@ -380,6 +380,14 @@ jobs:
           BASE_REF: ${{ github.event.pull_request.base.sha }}
         run: npx tsx backend/scripts/schema-registry-check.ts
 
+      # While the base branch has no schema files, the line above has nothing to
+      # compare. This runs the same mechanics against the checked-out commit itself,
+      # so register and compare are exercised on the real files either way.
+      - name: Register this commit's schemas and compare them with themselves
+        env:
+          BASE_REF: HEAD
+        run: npx tsx backend/scripts/schema-registry-check.ts branch
+
       - name: Build the database from the migrations
         run: npm run migrate:all
 

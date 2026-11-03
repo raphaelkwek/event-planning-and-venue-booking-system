@@ -14,6 +14,12 @@ export interface CompatCase {
   readonly previous: JsonSchema;
   readonly next: JsonSchema;
   readonly compatible: boolean;
+  /**
+   * Redpanda's verdict when it differs from `compatible`. The registry is stricter about
+   * alternatives and ignores `format` and properties added to an open object. The checker
+   * follows JSON Schema's meaning; the registry job decides what a deployed registry accepts.
+   */
+  readonly registry?: boolean;
   /** For an incompatible case: the rule and path the checker reports first. */
   readonly rule?: Rule;
   readonly path?: string;
@@ -86,6 +92,19 @@ export const COMPAT_CASES: readonly CompatCase[] = [
     name: "a property becomes nullable",
     previous: closed({ n: text }, ["n"]),
     next: closed({ n: { anyOf: [text, { type: "null" }] } }, ["n"]),
+    compatible: true,
+    registry: false,
+  },
+  {
+    name: "a property becomes nullable, written as a list of types",
+    previous: closed({ n: text }, ["n"]),
+    next: closed({ n: { type: ["string", "null"] } }, ["n"]),
+    compatible: true,
+  },
+  {
+    name: "a nullable property gains another alternative",
+    previous: closed({ n: { anyOf: [text, { type: "null" }] } }, ["n"]),
+    next: closed({ n: { anyOf: [text, { type: "null" }, { type: "number" }] } }, ["n"]),
     compatible: true,
   },
   {
@@ -211,6 +230,7 @@ export const COMPAT_CASES: readonly CompatCase[] = [
     previous: closed({ id: text }, ["id"]),
     next: closed({ id: uuid }, ["id"]),
     compatible: false,
+    registry: true,
     rule: "format-tightened",
     path: "$.id",
   },
@@ -243,6 +263,7 @@ export const COMPAT_CASES: readonly CompatCase[] = [
     previous: open({ id: uuid }, ["id"]),
     next: open({ id: uuid, note: text }, ["id"]),
     compatible: false,
+    registry: true,
     rule: "property-added-to-open-object",
     path: "$.note",
   },

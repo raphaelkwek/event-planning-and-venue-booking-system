@@ -4,6 +4,59 @@
 
 ---
 
+# EN-05: CDC spike, the schema-compatibility check, and an opt-in Debezium Server component
+
+**Timestamp:** 2026-11-03T17:25+08:00 (SGT)
+**Author:** Joash
+**Scope:** `backend/packages/contracts` (`src/compat/`, `schemas/`), `backend/scripts`, `.github/workflows/ci.yml`,
+`deploy/k8s/components/cdc`, `documentation/spikes/`, ADR-0008, `implementation.md` §3.3 and §3.4, `tests/EN-05/`.
+No migration, no route, and no change to planning-core, registration or notification code.
+
+An audit on 2 Nov found EN-05 (SPM-123) not built although Jira said Done. This is the card, starting
+with the spike it asks for.
+
+## Decided
+
+- **The polling relay stays the publisher in every environment.** Development's Aiven free plan has no
+  Kafka Connect. On staging and production a Free-plan Supabase project offers a replication slot only
+  over an IPv6 direct connection (the pooler cannot replicate; the IPv4 add-on needs Pro), and nobody
+  has tried that from the Oracle node. `documentation/spikes/EN-05-cdc-spike.md` has the findings with
+  their sources and what was not checked. ADR-0008 has the decision note.
+
+## Added
+
+- **A backward-compatibility check of every message's schema, on every pull request.**
+  - `contracts` generates a JSON Schema file for the CloudEvents envelope and one for each message
+    type's `data` (30 files in `backend/packages/contracts/schemas/`). A test fails when they drift from
+    the zod schemas; `npm run schemas:generate` rewrites them.
+  - `npm run schemas:compat -- --base <ref>` compares them with the files at a git ref, using the rules
+    Confluent's and Redpanda's registries use: the new schema must accept every message the old one
+    did. A keyword it does not understand is a finding, not a pass. Removing a message type is breaking.
+  - The *Message schema compatibility* CI job runs both on every pull request.
+- **Redpanda's Schema Registry is asked the same question.** The *Schema registry and CDC* CI job
+  starts a throwaway Redpanda and requires its answer to equal the checker's for a table of 40 cases,
+  and for this branch's schemas against the base branch's.
+- **Debezium Server as a kustomize component** (`deploy/k8s/components/cdc`), with the outbox router and
+  a Kafka sink, for the deployment to include once its checks have been made. Nothing includes it.
+  The same CI job starts it, with the component's own configuration in a hardened container, against a
+  throwaway Postgres and Redpanda, writes one message of every type into the outbox tables, and
+  requires Kafka to hold what the relay's `prepareRow` produces. A second job renders the component and
+  validates it with kubeconform.
+
+## Not done
+
+- Debezium does not replace the relay, and has not run against Supabase or on the Oracle node.
+- Registering the schemas in a deployed registry (staging's Redpanda).
+- Marking an outbox row published when CDC publishes it (`published_at` stays null).
+- A JSON Schema cannot hold zod refinements or a date-time's millisecond precision, so a change to those
+  is not checked.
+
+## Tests and cards
+
+- `backend/packages/contracts/tests/compat/`: the checker (100% of `src/compat`), the command with fake
+  and with real git, the committed files, and the example-message generator.
+- `tests/EN-05/`: nine cards, T1 to T9, and the criterion map.
+
 # A4 review: the assignment is re-checked under the row lock, and the spec and cards catch up
 
 **Timestamp:** 2026-11-03T11:05+08:00 (SGT)
