@@ -10,6 +10,7 @@ import { reassignmentsRouter } from "./api/reassignments.js";
 import { eventDetailsRouter } from "./api/eventDetails.js";
 import { registrationSettingsRouter } from "./api/registrationSettings.js";
 import { statusHistoryRouter } from "./api/statusHistory.js";
+import { eventRateLimiter } from "./api/eventRateLimiter.js";
 import { findEventInScope, findReferences } from "./repo/events.js";
 import type { ChangeableEvent } from "./domain/proposedChange.js";
 
@@ -26,16 +27,18 @@ export { EVENT_OUTBOX_TABLE } from "./events/outbox.js";
 
 export function eventRouter(sql: Sql): Router {
   const router = Router();
-  router.use(draftsRouter(sql));
-  router.use(clarificationsRouter(sql));
-  router.use(decisionsRouter(sql));
-  router.use(reassignmentsRouter(sql));
-  router.use(leadAssignmentsRouter(sql));
+  // One instance, so the 120-a-minute budget spans every event route and a client cannot multiply it by the number of routers.
+  const limiter = eventRateLimiter();
+  router.use(draftsRouter(sql, limiter));
+  router.use(clarificationsRouter(sql, limiter));
+  router.use(decisionsRouter(sql, limiter));
+  router.use(reassignmentsRouter(sql, limiter));
+  router.use(leadAssignmentsRouter(sql, limiter));
   router.use(eventDetailsRouter(sql));
-  router.use(registrationSettingsRouter(sql));
-  router.use(statusHistoryRouter(sql));
+  router.use(registrationSettingsRouter(sql, limiter));
+  router.use(statusHistoryRouter(sql, limiter));
   // Last, so that its `/api/v1/events/:id` cannot shadow a more specific path above.
-  router.use(eventsRouter(sql));
+  router.use(eventsRouter(sql, limiter));
   return router;
 }
 

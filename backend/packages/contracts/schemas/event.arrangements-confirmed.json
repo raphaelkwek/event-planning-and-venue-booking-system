@@ -1,0 +1,117 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "properties": {
+    "bookings": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "bookingId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "endsAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "reference": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "staffIds": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "startsAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "venueName": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "bookingId",
+          "endsAt",
+          "reference",
+          "staffIds",
+          "startsAt",
+          "venueName"
+        ],
+        "type": "object"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "confirmedAt": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "confirmedBy": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "eventId": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "eventName": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "eventReference": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "ownerId": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "reservations": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "equipmentTypeName": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "reservationId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "reservedBy": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "reservedQuantity": {
+            "exclusiveMinimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "equipmentTypeName",
+          "reservationId",
+          "reservedBy",
+          "reservedQuantity"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "bookings",
+    "confirmedAt",
+    "confirmedBy",
+    "eventId",
+    "eventName",
+    "eventReference",
+    "ownerId",
+    "reservations"
+  ],
+  "type": "object"
+}

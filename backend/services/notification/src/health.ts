@@ -1,5 +1,6 @@
 import { Router } from "express";
 import type { Sql } from "postgres";
+import { logger } from "./logger.js";
 
 /**
  * /healthz says the process is alive; /readyz says whether it can do its job.
@@ -20,7 +21,9 @@ export function healthRouter(sql: Sql, probeBroker?: () => Promise<boolean>) {
       await sql`select 1`;
       res.status(200).json({ status: "ready", checks: { database: "ok", kafka } });
     } catch (error) {
-      res.status(503).json({ status: "not_ready", checks: { database: "unreachable", kafka }, error: (error as Error).message });
+      // The detail is for the log; an unauthenticated caller gets only the status.
+      logger.error("readiness check failed", { outcome: "error", error: (error as Error).message });
+      res.status(503).json({ status: "not_ready", checks: { database: "unreachable", kafka } });
     }
   });
 

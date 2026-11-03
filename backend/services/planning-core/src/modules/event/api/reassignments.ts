@@ -1,9 +1,10 @@
-import { Router } from "express";
+import { Router, type RequestHandler } from "express";
 import type { Sql } from "postgres";
 import { authenticate, requireRole, type ActorRequest } from "../auth/actor.js";
 import { REASSIGNMENT_ACCEPT_RETIRED, REASSIGNMENT_DECLINE_RETIRED, REASSIGNMENT_RETIRED } from "../domain/assignment.js";
 import { findEventInScope } from "../repo/events.js";
 import { listProposals } from "../repo/assignments.js";
+import { eventRateLimiter } from "./eventRateLimiter.js";
 import { eventNotFound, refuse } from "./errors.js";
 
 /**
@@ -13,12 +14,12 @@ import { eventNotFound, refuse } from "./errors.js";
  * event/0020, so nothing is left to answer. The history stays readable, in the
  * caller's A4 scope.
  */
-export function reassignmentsRouter(sql: Sql) {
+export function reassignmentsRouter(sql: Sql, limiter: RequestHandler = eventRateLimiter()) {
   const router = Router();
 
   router.get(
     "/api/v1/events/:id/reassignment-proposals",
-    ...authenticate,
+    limiter, ...authenticate,
     async (req: ActorRequest, res) => {
       const { userId, role, scope } = req.actor!;
       const event = await findEventInScope(sql, req.params.id, scope, userId);
@@ -34,7 +35,7 @@ export function reassignmentsRouter(sql: Sql) {
   // E4 retires E2's peer flow (W9-FX-5, W9-59): only the Lead reassigns.
   router.post(
     "/api/v1/events/:id/reassignment-proposals",
-    ...authenticate,
+    limiter, ...authenticate,
     requireRole("EVENT_COORDINATOR"),
     (_req: ActorRequest, res) => {
       refuse(res, 410, "REASSIGNMENT_RETIRED", REASSIGNMENT_RETIRED);
@@ -43,7 +44,7 @@ export function reassignmentsRouter(sql: Sql) {
 
   router.post(
     "/api/v1/events/:id/reassignment-proposals/accept",
-    ...authenticate,
+    limiter, ...authenticate,
     requireRole("EVENT_COORDINATOR"),
     (_req: ActorRequest, res) => {
       refuse(res, 410, "REASSIGNMENT_RETIRED", REASSIGNMENT_ACCEPT_RETIRED);
@@ -53,7 +54,7 @@ export function reassignmentsRouter(sql: Sql) {
   // The decline is retired with them: event/0020 closed every pending proposal, so none is left to answer.
   router.post(
     "/api/v1/events/:id/reassignment-proposals/decline",
-    ...authenticate,
+    limiter, ...authenticate,
     requireRole("EVENT_COORDINATOR"),
     (_req: ActorRequest, res) => {
       refuse(res, 410, "REASSIGNMENT_RETIRED", REASSIGNMENT_DECLINE_RETIRED);

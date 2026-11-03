@@ -1,7 +1,8 @@
-import { Router, type Response } from "express";
+import { Router, type RequestHandler, type Response } from "express";
 import type { Sql } from "postgres";
 import { authenticate, type CallerRequest } from "./auth.js";
 import { refuse } from "./errors.js";
+import { notificationRateLimiter } from "./limiter.js";
 import { listForRecipient, markAllRead, markRead, unreadCount, type Cursor } from "../repo/notifications.js";
 
 /**
@@ -27,10 +28,10 @@ function decodeCursor(text: string): Cursor | null {
   return null;
 }
 
-export function notificationsRouter(sql: Sql) {
+export function notificationsRouter(sql: Sql, limiter: RequestHandler = notificationRateLimiter()) {
   const router = Router();
 
-  router.get("/api/v1/notifications", authenticate, async (req: CallerRequest, res: Response) => {
+  router.get("/api/v1/notifications", limiter, authenticate, async (req: CallerRequest, res: Response) => {
     const limit = req.query.limit === undefined ? DEFAULT_LIMIT : Number(req.query.limit);
     if (!Number.isInteger(limit) || limit < 1 || limit > MAX_LIMIT) {
       refuse(res, 400, "VALIDATION_FAILED", `limit must be a whole number from 1 to ${MAX_LIMIT}.`, [
@@ -58,12 +59,12 @@ export function notificationsRouter(sql: Sql) {
   });
 
   // Registered before /:id/read so "read-all" is never taken for an id.
-  router.post("/api/v1/notifications/read-all", authenticate, async (req: CallerRequest, res: Response) => {
+  router.post("/api/v1/notifications/read-all", limiter, authenticate, async (req: CallerRequest, res: Response) => {
     const updated = await markAllRead(sql, req.caller!.id);
     res.json({ updated, unreadCount: 0 });
   });
 
-  router.post("/api/v1/notifications/:id/read", authenticate, async (req: CallerRequest, res: Response) => {
+  router.post("/api/v1/notifications/:id/read", limiter, authenticate, async (req: CallerRequest, res: Response) => {
     const me = req.caller!.id;
     const marked = UUID.test(req.params.id!) ? await markRead(sql, req.params.id!, me) : null;
     if (!marked) {

@@ -21,7 +21,7 @@ A web system that manages the lifecycle of an event at a ConnectSphere-managed v
 | CAP | **CP**: consistency over availability (unchanged) | On a partition or a dependency timeout, **refuse the operation and return an error**. Never serve a stale answer, never accept a write you cannot verify. A refusal is a correct outcome; a double-booking is not. |
 | Database | **ACID (Supabase Postgres)**, every invariant enforced in Postgres (ADR-0006) | Exclusion constraints and row locks taken before the read. Never read-then-write on a contended resource. |
 | Style | **Modular core plus two edge services** (ADR-0004, ADR-0005) | `planning-core` holds Identity, Event, Venue, Equipment, and Change and readiness. Each is a module with its own schema and a public interface. CI blocks imports of another module's internals and SQL against another module's schema. Registration and Notification are separate deployables. |
-| Event history | **Event-sourced Event aggregate** (ADR-0007, Tier 2) | The history is the stream; projections update in the same transaction. Until EN-03 lands, `event_history` stays. |
+| Event history | **Event-sourced Event aggregate** (ADR-0007, Tier 2) | The history is the stream; projections update in the same transaction. Built by EN-03 (implementation.md §4.9): `event_history` is now the stream's projection. |
 | Messaging | **Hosted Kafka**: outbox published by CDC, CloudEvents, topics per aggregate, schema registry, inbox, retry topics and DLQ (ADR-0008) | Publish only through the outbox. Every consumer is idempotent through its inbox. |
 | Long-running processes | **Temporal** (ADR-0009) | Cancellation, capacity reduction, the completion timer, waitlist invitations and change fan-out are workflows, not cron jobs or hand-written retries. |
 | Auth | Supabase Auth (JWT, MFA for staff). **Cerbos** for actions, **row-level security** for rows (ADR-0010) | One policy bundle governs the gateway, the services and the SPA navigation. RLS is enforced, never bypassed. |
@@ -66,7 +66,7 @@ Each module or service owns exactly one Postgres schema and is the only writer t
 | Module / service | Schema | Key tables |
 |---|---|---|
 | Identity (core) | `identity` | users, user_roles, login_audit. Permission rules live as Cerbos policies in the repo (ADR-0010), replacing `role_policy`. |
-| Event (core) | `event` | event_stream and the events projection (drafts included, at status Draft), clarifications, assignments, assignment_cursor, event_comments, attachments, outbox. `event_history` stays until EN-03 replaces it with the stream. |
+| Event (core) | `event` | event_stream and the events projection (drafts included, at status Draft), clarifications, assignments, assignment_cursor, event_comments, attachments, outbox. `event_history` is the stream's projection since EN-03. |
 | Venue (core) | `venue` | venues, venue_layouts, operating_hours, **venue_slots** (holds and bookings, `blocked_period`, `requires_reconfirmation` flag), unavailability_blocks, booking_requests, outbox |
 | Equipment (core) | `equipment` | equipment_types, **equipment_units**, **unit_reservations**, bulk reservations, equipment_unavailability, request_lines, outbox |
 | Change and readiness (core) | `change` | change_requests (moving from `event` when EN-01 splits the module out), impact flags |

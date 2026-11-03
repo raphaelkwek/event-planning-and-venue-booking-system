@@ -126,10 +126,10 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [status, error]
+                required: [status]
                 properties:
                   status: { const: not_ready }
-                  error: { type: string }
+                  checks: { type: object, description: "Which dependency failed. The detail is in the log, never in the response." }
 
   /api/v1/auth/login:
     post:
@@ -3442,6 +3442,7 @@ components:
         - STATUS_NOT_ASSIGNABLE
         - EVENT_NOT_ASSIGNED
         - REASSIGNMENT_RETIRED
+        - INTERNAL_ERROR
         - REGISTRATION_FULL
         - REGISTRATION_DUPLICATE
         - REGISTRATION_OUTSIDE_WINDOW
