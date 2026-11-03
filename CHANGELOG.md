@@ -4,6 +4,65 @@
 
 ---
 
+# EN-03: the event store, an append-only and hash-chained stream of each event's history
+
+**Timestamp:** 2026-11-03T17:20+08:00 (SGT)
+**Author:** Joash
+**Scope:** EN-03 (SPM-121, ADR-0007). planning-core event module (`repo/eventStream.ts`,
+`repo/eventStreamVerification.ts`, `domain/eventStream.ts`, `repo/eventHistory.ts`, `repo/statusHistory.ts`,
+`api/transitionEvent.ts`), migrations `event/0022` and `event/0023`, `npm run event-store:verify`, a CI step, and
+`tests/EN-03/`. An audit on 2 Nov found EN-03 not built although Jira showed it Done; this builds it.
+
+**Reason:** ADR-0007 replaces the history table written beside the state, two writes that could drift apart, with an
+append-only stream per event whose entries are chained by hash, so the audit trail can't silently disagree with what
+happened or be edited afterwards.
+
+## Added
+
+- **`event.event_stream`** (0022): one row per history entry, `version` 1, 2, 3… per event, `unique(aggregate_id,
+  version)` as the optimistic guard, and `prev_hash` and `hash = sha256(prev_hash || canonical JSON)`. The canonical
+  form (PostgreSQL's `jsonb` text of the entry, time in UTC to the microsecond) is documented in the migration and in
+  implementation.md §4.9, and a test pins an example.
+- **Append-only.** Triggers refuse `UPDATE`, `DELETE` and `TRUNCATE`. The role the app connects as keeps only `SELECT`
+  and `INSERT` on the table; no other role has any privilege on it. In CI that role is a superuser, so there the
+  triggers are what refuse.
+- **One append.** `appendToStream` appends each entry (`event.append_to_stream` takes the version and the hash), writes
+  the `event_history` projection row from the stored entry with the same id, and writes the outbox row, in the caller's
+  transaction. `recordStatusChange` and `recordFieldChanges`, which every writer already used (F1's transition, D3, G1,
+  S2), now call it. It takes no lock, as every writer holds the event's row lock first, so §4.6's order is unchanged.
+- **Capture trigger** (0023): a history row inserted any other way is appended to the stream in the same statement, so
+  the projection can never hold an entry the stream lacks.
+- **Backfill** (0023): the existing history is copied into the stream, oldest first, in the order F2 already showed it
+  (time, then when recorded, then id), building each chain. It skips rows already copied, so it is idempotent.
+- **`npm run event-store:verify`**: recomputes every chain and checks every projection row against its entry. It exits
+  1 at the first broken link or mismatched row and names it.
+- **CI:** after the integration tests, the `Event store tamper check (EN-03)` step verifies the whole stream, edits one
+  entry on the runner's Postgres (`scripts/ci-tamper-event-stream.ts`, which refuses any other database), and fails
+  unless verify then names that entry.
+
+## Changed
+
+- **F2's status history and F5's confirmation time read the stream.** The screens show the same entries, in the same
+  order; F2's existing tests run unchanged.
+- `transitionEvent` hands its `event.status-changed` message to the append instead of writing it itself.
+
+## Tests
+
+- `tests/EN-03/` (19 cards). `tests/event/repo/eventStream.test.ts` (T1–T11), `tests/event/api/en03HistoryReads.test.ts`
+  (T12, T13), `tests/event/repo/eventStreamVerification.test.ts` (T14–T17, T19), the CI step (T14, T18), and
+  `tests/event/domain/eventStream.test.ts` (unit, 100% coverage and mutation score).
+
+## Not done
+
+- **Row-level security on `event_stream`** is EN-07's (event 0025–0027); the table needs a policy there.
+- The rest of the event row (drafts, review claims, assignments, cancellation details) is still stored as state, so the
+  stream holds the history, not yet the whole aggregate. There is no projection rebuild command, and G1's `If-Match`
+  still uses `events.version`.
+- **Shared database:** not migrated or verified here. Apply `event/0022` and `0023` with `npm run migrate:event`, then
+  run `npm run event-store:verify`.
+
+---
+
 # A4 review: the assignment is re-checked under the row lock, and the spec and cards catch up
 
 **Timestamp:** 2026-11-03T11:05+08:00 (SGT)
