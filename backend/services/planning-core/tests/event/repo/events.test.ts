@@ -96,12 +96,50 @@ describe("events repo — access scope (A3)", () => {
     expect(found).toBeNull();
   });
 
-  it("gives a coordinator every event, whoever owns it", async () => {
+  it("gives the Lead's scope every event, whoever owns it (E5)", async () => {
     const event = await givenSubmittedEvent(OTHER_ORGANISER);
 
     const found = await findEventInScope(sql, event.id, { scopeType: "ALL" }, COORDINATOR);
 
     expect(found!.id).toBe(event.id);
+  });
+
+  describe("a coordinator's scope (A4)", () => {
+    const mine = { scopeType: "ASSIGNED_TO_USER", userId: COORDINATOR } as const;
+
+    it("finds an event assigned to them", async () => {
+      const event = await givenSubmittedEvent();
+      await assignForTest(sql, event, COORDINATOR);
+
+      expect((await findEventInScope(sql, event.id, mine, COORDINATOR))!.id).toBe(event.id);
+    });
+
+    it("finds no event assigned to another coordinator, and none unassigned", async () => {
+      const theirs = await givenSubmittedEvent();
+      await assignForTest(sql, theirs, OTHER_COORDINATOR);
+      const unassigned = await givenSubmittedEvent();
+
+      expect(await findEventInScope(sql, theirs.id, mine, COORDINATOR)).toBeNull();
+      expect(await findEventInScope(sql, unassigned.id, mine, COORDINATOR)).toBeNull();
+    });
+
+    it("loses an event the moment its assignment ends", async () => {
+      const event = await givenSubmittedEvent();
+      await assignForTest(sql, event, COORDINATOR);
+      await sql`update event.assignments set is_active = false where event_id = ${event.id}`;
+      await assignForTest(sql, event, OTHER_COORDINATOR);
+
+      expect(await findEventInScope(sql, event.id, mine, COORDINATOR)).toBeNull();
+      expect((await findEventInScope(sql, event.id, { scopeType: "ASSIGNED_TO_USER", userId: OTHER_COORDINATOR }, OTHER_COORDINATOR))!.id).toBe(event.id);
+    });
+
+    it("never finds a draft, even one carrying an assignment (C1)", async () => {
+      const event = await givenSubmittedEvent();
+      await assignForTest(sql, event, COORDINATOR);
+      await sql`update event.events set status = 'DRAFT' where id = ${event.id}`;
+
+      expect(await findEventInScope(sql, event.id, mine, COORDINATOR)).toBeNull();
+    });
   });
 
   it("gives a role with no events scope nothing", async () => {
@@ -117,7 +155,7 @@ describe("events repo — review queue (D1)", () => {
   it("leaves out a request no coordinator is assigned to (E3)", async () => {
     const event = await givenSubmittedEvent();
 
-    const queue = await listReviewQueue(sql, QUEUE_STATUSES);
+    const queue = await listReviewQueue(sql, QUEUE_STATUSES, COORDINATOR);
 
     expect(queue.map((row) => row.id)).not.toContain(event.id);
   });
@@ -129,18 +167,28 @@ describe("events repo — review queue (D1)", () => {
     await assignForTest(sql, first, COORDINATOR);
     await assignForTest(sql, second, COORDINATOR);
 
-    const queue = await listReviewQueue(sql, QUEUE_STATUSES);
+    const queue = await listReviewQueue(sql, QUEUE_STATUSES, COORDINATOR);
     const mine = queue.filter((row) => [first.id, second.id].includes(row.id));
 
     expect(mine.map((row) => row.id)).toEqual([first.id, second.id]);
   });
 
+  it("leaves out a request assigned to another coordinator (A4)", async () => {
+    const theirs = await givenSubmittedEvent();
+    await assignForTest(sql, theirs, OTHER_COORDINATOR);
+
+    const queue = await listReviewQueue(sql, QUEUE_STATUSES, COORDINATOR);
+
+    expect(queue.map((row) => row.id)).not.toContain(theirs.id);
+  });
+
   it("drops an event from the queue once it carries a decision", async () => {
     const event = await givenSubmittedEvent();
+    await assignForTest(sql, event, COORDINATOR);
     await openForReview(event.id, COORDINATOR);
     await decide(event.id, "APPROVE", COORDINATOR, null);
 
-    const queue = await listReviewQueue(sql, QUEUE_STATUSES);
+    const queue = await listReviewQueue(sql, QUEUE_STATUSES, COORDINATOR);
 
     expect(queue.map((row) => row.id)).not.toContain(event.id);
   });

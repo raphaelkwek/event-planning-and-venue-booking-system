@@ -75,6 +75,9 @@ export const ERROR_CODES = [
   "REGISTRATION_NOT_FOUND",
   "REGISTRATION_NOT_ACTIVE",
   "WITHDRAWAL_DEADLINE_PASSED",
+  // F3: a cancelled event refuses new equipment; a cancellation that fails changes nothing.
+  "EVENT_CANCELLED",
+  "CANCELLATION_FAILED",
 ] as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[number];
