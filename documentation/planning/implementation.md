@@ -480,6 +480,20 @@ What a reviewer watches for, from ADR-0005: a registration path that reads capac
 
 Forward-only, numbered, one concern per file: `0007_add_venue_slots_exclusion.sql`. Never edit a merged migration. `migrate.ts` applies each file in its own transaction with a 5-second lock timeout and a 60-second statement timeout, so a migration that can't get its lock fails instead of stalling every query behind it. squawk checks new files in CI (§8.1). Seed data (internal staff accounts, venues, equipment types) lives in `/backend/services/<svc>/migrations/seed/` and is idempotent.
 
+### 4.9 The event store (EN-03, ADR-0007)
+
+An event's history (F1's status changes; D3, G1 and S2's field changes) is an append-only stream, `event.event_stream`, built by `migrations/event/0022` and `0023`.
+
+- **One entry per change,** with `version` 1, 2, 3… per event. `unique(aggregate_id, version)` is the optimistic guard: two appends that took the same version can't both be stored.
+- **Hash-chained.** Each entry stores `prev_hash` (64 zeros for version 1) and `hash = sha256(prev_hash || canonical JSON of the entry)`. The canonical form is PostgreSQL's `jsonb` text of the entry's id, aggregateId, version, type, data, actorUserId, actorRole and occurredAt (UTC, microseconds). `event.stream_entry_canonical` in 0022 documents it exactly, and `tests/event/repo/eventStream.test.ts` pins an example.
+- **Append-only.** Triggers refuse `UPDATE`, `DELETE` and `TRUNCATE`, and the app's role keeps only `SELECT` and `INSERT`. Row-level security is EN-07's: `event_stream` still needs its policy.
+
+**Writing.** `appendToStream` (`modules/event/repo/eventStream.ts`) is the one way in, and `recordStatusChange` and `recordFieldChanges` call it. In the caller's transaction it appends each entry (`event.append_to_stream` takes the version and the hash), writes the history projection's row from the stored entry with the same id, and writes the outbox row when the change is published. It takes no lock: call it holding the event's row lock, as every writer does, so the §4.6 order is unchanged. Never insert into `event.event_history` yourself. If you do, a trigger appends the row to the stream in the same statement, so the projection still can't hold an entry the stream lacks.
+
+**Reading.** F2's status history and F5's confirmation time read the stream. `event.event_history` stays as the projection, kept for the tests and queries that read it.
+
+**Checking.** `npm run event-store:verify` recomputes every chain, checks every projection row against its entry, and exits 1 at the first broken link (README). CI runs it after the integration tests, then edits one entry and expects it to fail.
+
 ## 5. HTTP API conventions
 
 - Base path `/api/v1/<resource>`; plural nouns; no verbs in paths.
