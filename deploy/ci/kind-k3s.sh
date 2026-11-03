@@ -169,9 +169,11 @@ for _ in $(seq 1 40); do
   sleep 3
 done
 [ "$started" = true ] || { echo "::error::the worker never logged 'Temporal worker started'"; exit 1; }
-sleep 15
-restarts="$(kubectl -n "$NS" get pods -l app.kubernetes.io/name=planning-core-worker -o jsonpath='{.items[*].status.containerStatuses[*].restartCount}')"
-[ "${restarts// /}" = 0 ] || { echo "::error::the worker restarted (${restarts})"; exit 1; }
+# It may have restarted while Temporal and Redpanda were still starting; once started it must stay up.
+worker_restarts() { kubectl -n "$NS" get pods -l app.kubernetes.io/name=planning-core-worker -o jsonpath='{.items[*].status.containerStatuses[*].restartCount}'; }
+before_restarts="$(worker_restarts)"
+sleep 20
+[ "$(worker_restarts)" = "$before_restarts" ] || { echo "::error::the worker restarted after it started"; exit 1; }
 endlog
 
 log "Through Traefik over TLS: routes, CORS and the certificate"
@@ -204,7 +206,7 @@ note "| Certificates | the API certificate (self-signed stand-in for Let's Encry
 note "| Redpanda, Temporal, Cerbos | ready, under the restricted Pod Security Standard |"
 note "| migrate Job | complete through MIGRATE_DATABASE_URL (${applied} files), then 0 on a second run |"
 while read -r line; do note "| \`${line%% *}\` | \`${line#* }\` |"; done < <(grep -E '^(planning-core|registration|notification|cerbos) ' "$WORK/health.out")
-note "| Temporal worker | logged 'Temporal worker started' (connected to temporal:7233 and its Kafka consumers), no restarts |"
+note "| Temporal worker | logged 'Temporal worker started' (connected to temporal:7233 and its Kafka consumers) and stayed up |"
 note "| TLS | Traefik presents the certificate for ${API_HOST}; plain HTTP does not reach the API |"
 note ""
 grep -E '^\|' "$WORK/smoke.out" | while read -r line; do note "$line"; done

@@ -173,6 +173,17 @@ health() {
       failed=1
     fi
   done
+  # The worker has no HTTP probe, so a crash loop still looks rolled out: it must not restart
+  # while we watch.
+  local restarts
+  restarts="$(kc -n "$NS" get pods -l app.kubernetes.io/name=planning-core-worker -o jsonpath='{.items[*].status.containerStatuses[*].restartCount}')"
+  sleep 20
+  if [ "$(kc -n "$NS" get pods -l app.kubernetes.io/name=planning-core-worker -o jsonpath='{.items[*].status.containerStatuses[*].restartCount}')" = "$restarts" ]; then
+    echo "planning-core-worker stayed up for 20s"
+  else
+    echo "connectsphere-deploy: planning-core-worker is restarting" >&2
+    failed=1
+  fi
   return "$failed"
 }
 
