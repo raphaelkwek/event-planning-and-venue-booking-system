@@ -17,10 +17,10 @@ tests. No Jira key is assigned yet; the folder is named DEPLOY until one is.
 | CORS: the backends allow the Vercel origin of their own environment only, read from env. | DEPLOY-T9 | Pass |
 | The web app is deployed to Vercel per environment with the VITE_* values per environment. | DEPLOY-T10 | Pass |
 | Migrations run with the migrate Job against each environment's Supabase (session pooler, not the transaction pooler). | DEPLOY-T11 | Pass |
-| Staging deploys automatically on every merge; production deploys the same digests after approval; smoke tests pass. | DEPLOY-T12 | Blocked |
-| An idempotent bootstrap.sh run once on the VM over SSH, opening only 80 and 443 (plus 22). | DEPLOY-T13 | Blocked |
-| Creating the first Lead user in each environment with that environment's service-role key and the identity tables. | DEPLOY-T14 | Blocked |
-| documentation/deploy/README.md is the runbook and Joash's checklist. | DEPLOY-T15 | Blocked |
+| Staging deploys automatically on every merge; production deploys the same digests after approval; smoke tests pass. | DEPLOY-T12 | Not Executed |
+| An idempotent bootstrap.sh run once on the VM over SSH, opening only 80 and 443 (plus 22). | DEPLOY-T13 | Not Executed |
+| Creating the first Lead user in each environment with that environment's service-role key and the identity tables. | DEPLOY-T14 | Not Executed |
+| documentation/deploy/README.md is the runbook and Joash's checklist. | DEPLOY-T15 | Not Executed |
 | Creating the first Lead user in each environment: the Lead sets their own password from the invite. | DEPLOY-T16 | Pass |
 | One container per Space: the services, Redpanda (SASL), the Temporal dev server and Cerbos under a supervisor, with Caddy on the Space's one port routing the public prefixes; health and metrics internal; migrations at start against the session pooler. | DEPLOY-T17 | Not Executed |
 | Deploying from the laptop reads the secrets folder outside the repository, never commits or prints a value, and fails naming any blank key. | DEPLOY-T18 | Not Executed |

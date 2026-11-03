@@ -19,7 +19,7 @@
 | Item | Content |
 |---|---|
 | Actual Result | — |
-| Status | Blocked |
-| Remarks | Blocked: the Oracle VM, the two Supabase projects, the two Vercel projects and the GitHub environments staging and production do not exist yet (documentation/deploy/README.md steps 1 to 6), and release.yml has not run on main. The deploy steps it runs are exercised on kind by DEPLOY-T4 to T7 and T11. |
+| Status | Not Executed |
+| Remarks | Partly proven on 4 Nov from the laptop (deploy:vm, documentation/evidence/DEPLOY/azure-first-deploy.md): staging, then production on the same image, each smoke-tested (TLS, routes, CORS, /readyz database ok and Kafka reachable, Cerbos, the SPA). Not yet run: the automated path, release.yml to deploy-vm-environment.yml with production's required reviewer, which waits for the GitHub environments' values. |
 | Executed By | — |
 | Date of Execution | — |

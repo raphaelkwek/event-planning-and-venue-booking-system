@@ -19,7 +19,7 @@
 | Item | Content |
 |---|---|
 | Actual Result | — |
-| Status | Blocked |
-| Remarks | Blocked: needs the accounts (Oracle, Supabase, Vercel) and the GitHub environments; the walk-through is Joash's checklist. |
+| Status | Not Executed |
+| Remarks | The Azure part of the runbook was followed on 4 Nov to stand up both environments (create-vm.sh, deploy:vm). UI walk-through by Joash pending at the sprint review. |
 | Executed By | — |
 | Date of Execution | — |

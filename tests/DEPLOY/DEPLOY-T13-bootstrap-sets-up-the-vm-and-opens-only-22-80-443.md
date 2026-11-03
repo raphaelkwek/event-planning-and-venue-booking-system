@@ -19,7 +19,7 @@
 | Item | Content |
 |---|---|
 | Actual Result | — |
-| Status | Blocked |
-| Remarks | Blocked: no Oracle VM exists yet. Proven in CI: shellcheck passes on bootstrap.sh, and the deployer RBAC and kubeconfig it makes are the ones the kind job uses (DEPLOY-T7). |
+| Status | Not Executed |
+| Remarks | The live environments run on an Azure VM (ADR-0016's amendment), created on 4 Nov by deploy/azure/create-vm.sh (connectsphere-vm, NSG 22, 80, 443 only), not by the k3s bootstrap.sh. bootstrap.sh stays the k3s scale-up path and has not run; CI runs shellcheck on it. |
 | Executed By | — |
 | Date of Execution | — |
