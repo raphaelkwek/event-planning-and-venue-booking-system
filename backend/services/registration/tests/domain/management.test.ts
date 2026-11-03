@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   additionPreview,
+  isEmailShaped,
   mayManage,
   MAX_REASON_LENGTH,
   readAdditionRequest,
@@ -115,6 +116,21 @@ describe("readAdditionRequest (R7-T13)", () => {
         { field: "confirmOverCapacity", message: "Say true to add above capacity." },
       ],
     });
+  });
+
+  it("checks an email's shape in linear time, even on input built to make a regex backtrack", () => {
+    const adversarial = `!@!.${"!.".repeat(50_000)}`;
+    const started = performance.now();
+    expect(isEmailShaped(adversarial)).toBe(false);
+    expect(isEmailShaped(`a@b.${"c.".repeat(50_000)}d`)).toBe(false);
+    expect(performance.now() - started).toBeLessThan(100);
+  });
+
+  it("wants one @, a local part, a domain of non-empty labels, and no whitespace", () => {
+    expect(["a@b.sg", "first.last+vip@mail.smu.edu.sg"].map(isEmailShaped)).toEqual([true, true]);
+    expect(["@b.sg", "a@", "a@b", "a@.sg", "a@b.", "a@b..sg", "a@@b.sg", "a@b@c.sg", "a b@c.sg", "a@b.s g", "ab.sg", ""].map(isEmailShaped)).toEqual(
+      Array(12).fill(false),
+    );
   });
 
   it("accepts an email of exactly 254 characters", () => {

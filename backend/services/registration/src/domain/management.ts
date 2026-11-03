@@ -85,8 +85,24 @@ export function additionPreview(capacity: number, registered: number): AdditionP
 }
 
 export const MAX_REASON_LENGTH = 500;
-const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MAX_EMAIL_LENGTH = 254;
+const WHITESPACE = /\s/;
+
+/**
+ * An email's shape, checked in linear time (a backtracking regex here is
+ * polynomial on input like "!@!." + "!.".repeat(n), CodeQL js/polynomial-redos):
+ * at most 254 characters, no whitespace, exactly one @, a non-empty local part,
+ * and a domain of at least two non-empty labels. Identity decides whether the
+ * account exists.
+ */
+export function isEmailShaped(email: string): boolean {
+  if (email.length > MAX_EMAIL_LENGTH || WHITESPACE.test(email)) return false;
+  const parts = email.split("@");
+  if (parts.length !== 2) return false;
+  const [local, domain] = parts as [string, string];
+  const labels = domain.split(".");
+  return local.length > 0 && labels.length >= 2 && labels.every((label) => label.length > 0);
+}
 
 export interface AdditionRequest {
   attendeeEmail: string;
@@ -105,7 +121,7 @@ export function readAdditionRequest(body: unknown): { ok: true; value: AdditionR
   const input = (body && typeof body === "object" ? body : {}) as Record<string, unknown>;
   const fields: FieldProblem[] = [];
   const email = typeof input.attendeeEmail === "string" ? input.attendeeEmail.trim() : "";
-  if (!EMAIL.test(email) || email.length > MAX_EMAIL_LENGTH) {
+  if (!isEmailShaped(email)) {
     fields.push({ field: "attendeeEmail", message: "Give the email address of the attendee's account." });
   }
   const reasonGiven = input.reason !== undefined && input.reason !== null;
