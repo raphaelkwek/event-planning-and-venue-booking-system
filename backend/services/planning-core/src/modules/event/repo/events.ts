@@ -47,6 +47,10 @@ export interface EventRow extends EventFields {
   decidedBy: string | null;
   decidedAt: string | null;
   rejectionReason: string | null;
+  /** F3: why, by whom and when the event was cancelled; null unless it is Cancelled. */
+  cancellationReason: string | null;
+  cancelledBy: string | null;
+  cancelledAt: string | null;
   assignedCoordinatorId: string | null;
   /** G1: free text, such as a name, email and phone number. */
   contactDetails: string | null;
@@ -80,6 +84,9 @@ export interface RawEvent {
   decided_by: string | null;
   decided_at: Date | null;
   rejection_reason: string | null;
+  cancellation_reason: string | null;
+  cancelled_by: string | null;
+  cancelled_at: Date | null;
   assigned_coordinator_id: string | null;
   contact_details: string | null;
   version: number;
@@ -112,6 +119,9 @@ export function toEvent(row: RawEvent): EventRow {
     decidedBy: row.decided_by,
     decidedAt: row.decided_at?.toISOString() ?? null,
     rejectionReason: row.rejection_reason,
+    cancellationReason: row.cancellation_reason ?? null,
+    cancelledBy: row.cancelled_by ?? null,
+    cancelledAt: row.cancelled_at?.toISOString() ?? null,
     assignedCoordinatorId: row.assigned_coordinator_id ?? null,
     contactDetails: row.contact_details ?? null,
     version: row.version,
@@ -128,13 +138,19 @@ function jsonOrNull(sql: Sql | TransactionSql, value: unknown) {
  * result the API layer has to remember to hide.
  *
  * Drafts live in this table too, and a draft is visible to its owner alone
- * (C1). So even the coordinator scope, which is every event, stops short of
- * other people's drafts.
+ * (C1). So even the Lead's scope, which is every event, stops short of other
+ * people's drafts. A4: a coordinator's scope is the events actively assigned
+ * to them; a draft is never assigned, and a reassigned event leaves at once.
  */
 function scopeCondition(sql: Sql | TransactionSql, scope: AccessScope, callerId: string) {
   switch (scope.scopeType) {
     case "ALL":
       return sql`(e.status <> 'DRAFT' or e.owner_id = ${callerId})`;
+    case "ASSIGNED_TO_USER":
+      return sql`e.status <> 'DRAFT' and exists (
+        select 1 from event.assignments mine
+        where mine.event_id = e.id and mine.is_active and mine.coordinator_id = ${callerId}
+      )`;
     case "OWNED_BY_USER":
       return sql`e.owner_id = ${callerId}`;
     default:
@@ -147,6 +163,12 @@ function scopeCondition(sql: Sql | TransactionSql, scope: AccessScope, callerId:
  * which locks the row `for update` (updateStatusIf), waits until the reader's transaction ends,
  * and a reader waits for a change in progress and then sees its result. `lock: "update"` locks it
  * `for update`, for a caller that writes the event.
+ *
+ * A4: under READ COMMITTED, a statement that waited for the lock re-checks only the locked row
+ * against its WHERE clause, so the assignment the coordinator scope tested is the one from before
+ * the wait. A Lead's reassignment (E4) takes this same row lock. So with a lock, a coordinator's
+ * assignment is checked again, in a statement of its own, once the lock is held: an event the Lead
+ * moved to someone else meanwhile is not found, as it would be a moment later.
  */
 export async function findEventInScope(
   sql: Sql | TransactionSql,
@@ -163,7 +185,21 @@ export async function findEventInScope(
     where e.id = ${eventId} and ${scopeCondition(sql, scope, callerId)}
     ${options.lock === "update" ? sql`for update of e` : options.lock === "share" ? sql`for share of e` : sql``}
   `;
-  return rows[0] ? toEvent(rows[0]) : null;
+  const row = rows[0];
+  if (!row) return null;
+  if (options.lock && scope.scopeType === "ASSIGNED_TO_USER" && !(await isActivelyAssignedTo(sql, row.id, callerId))) {
+    return null;
+  }
+  return toEvent(row);
+}
+
+/** A4: whether the coordinator holds the event's active assignment now, read in a fresh statement. */
+async function isActivelyAssignedTo(sql: Sql | TransactionSql, eventId: string, coordinatorId: string): Promise<boolean> {
+  const rows = await sql`
+    select 1 from event.assignments
+    where event_id = ${eventId} and is_active and coordinator_id = ${coordinatorId}
+  `;
+  return rows.length > 0;
 }
 
 /**
@@ -295,18 +331,20 @@ export async function listEventsInScope(
 }
 
 /**
- * D1 — the queue: every event awaiting a decision, oldest submission first.
- * `decided_at is null` is what "has no recorded decision" means.
+ * D1 — the queue: the coordinator's events awaiting a decision, oldest
+ * submission first. `decided_at is null` is what "has no recorded decision" means.
  */
 export async function listReviewQueue(
   sql: Sql,
-  statuses: readonly EventStatus[]
+  statuses: readonly EventStatus[],
+  coordinatorId: string
 ): Promise<EventRow[]> {
   const rows = await sql<RawEvent[]>`
     select e.*, a.coordinator_id as assigned_coordinator_id
     from event.events e
     -- E3: an unassigned request waits in the Lead's queue, not here.
-    join event.assignments a on a.event_id = e.id and a.is_active
+    -- A4: and a request assigned to another coordinator is in theirs.
+    join event.assignments a on a.event_id = e.id and a.is_active and a.coordinator_id = ${coordinatorId}
     where e.status in ${sql(statuses as string[])} and e.decided_at is null
     order by e.submitted_at asc
   `;
@@ -345,6 +383,11 @@ export function decisionColumns(
   rejectionReason: string | null
 ): Fragment {
   return tx`decided_by = ${deciderId}, decided_at = now(), rejection_reason = ${rejectionReason},`;
+}
+
+/** F3 — why, by whom and when the event was cancelled (AC3). */
+export function cancellationColumns(tx: TransactionSql, cancelledBy: string, reason: string): Fragment {
+  return tx`cancellation_reason = ${reason}, cancelled_by = ${cancelledBy}, cancelled_at = now(),`;
 }
 
 /** D1 — the coordinator who opened the request, and when. */

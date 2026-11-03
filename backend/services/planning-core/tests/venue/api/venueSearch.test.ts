@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import request from "supertest";
 import { testDb } from "../../support/testDb.js";
+import { assignForTest } from "../../support/assignment.js";
 import { deleteSeededEvents } from "../../support/seedEvent.js";
 import { at, COORDINATOR, OWNER, removeSearchFixture, seedSearchFixture } from "../support/searchFixture.js";
 
@@ -180,6 +181,8 @@ describe("GET /api/v1/venues/search/prefill (J1 AC8)", () => {
       )
       returning id, reference
     `;
+    // A4: a coordinator pre-fills a search only from an event assigned to them.
+    await assignForTest(sql, row!, COORDINATOR);
     return row!;
   }
   const prefill = (eventId: string) => request(app).get("/api/v1/venues/search/prefill").query({ eventId }).set(bearer);

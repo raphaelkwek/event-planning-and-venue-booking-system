@@ -141,14 +141,11 @@ export const eventArrangementsConfirmedPayloadSchema = z.object({
   ),
 });
 
-// TEMPORARY COPY of F3's contract (PR #71, branch feature-raphael/f3-cancel-event), byte for byte,
-// so the registration service can consume it before F3 merges (R3). When #71 merges, keep its copy
-// and delete this comment: the two are identical.
 /**
  * F3 — the event was cancelled, with its reason. It names everyone F3 notifies:
  * the owner, the assigned coordinator, the Venue Staff of each booked venue and
- * whoever reserved each reservation. With F4, each booking and reservation
- * listed has been released in the same transaction. A cancelled draft has no
+ * whoever reserved each reservation. Each booking and reservation listed was
+ * released in the same transaction (F4). A cancelled draft has no
  * reference and nobody else to tell, so it writes no message.
  */
 export const eventCancelledPayloadSchema = z.object({
