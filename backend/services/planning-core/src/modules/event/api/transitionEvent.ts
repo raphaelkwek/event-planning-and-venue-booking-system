@@ -1,6 +1,5 @@
 import type { TransactionSql } from "postgres";
 import { KAFKA_TOPICS, type EventStatus } from "@connectsphere/contracts";
-import { writeOutbox } from "../events/outbox.js";
 import {
   COMPLETION_NOT_DUE_MESSAGE,
   refusalMessage,
@@ -90,34 +89,39 @@ export async function transitionEvent(
     };
   }
 
-  await recordStatusChange(tx, eventId, {
-    previousStatus: changed.previousStatus,
-    newStatus: rule.to,
-    actorUserId: actor.userId,
-    actorRole: actor.role,
-    triggeringAction: action,
-  });
-
-  // EN-11 — every status change is published, here where every status change
-  // is made, so a consumer that waits for a status (the completion workflow
-  // waits for Confirmed, ADR-0009) needs no message from each story.
-  await writeOutbox(tx, {
-    topic: KAFKA_TOPICS.event,
-    messageType: "event.status-changed",
-    aggregateId: eventId,
-    actor,
-    correlationId: options.correlationId ?? null,
-    payload: {
-      eventId,
-      ownerId: changed.event.ownerId,
+  // EN-03 — the status change is appended to the event's stream with its
+  // history row and its message, in this transaction (ADR-0007). EN-11: every
+  // status change is published, here where every status change is made, so a
+  // consumer that waits for a status (the completion workflow waits for
+  // Confirmed, ADR-0009) needs no message from each story.
+  await recordStatusChange(
+    tx,
+    eventId,
+    {
       previousStatus: changed.previousStatus,
       newStatus: rule.to,
-      action,
-      proposedStartAt: changed.event.proposedStartAt,
-      proposedEndAt: changed.event.proposedEndAt,
-      changedAt: new Date().toISOString(),
+      actorUserId: actor.userId,
+      actorRole: actor.role,
+      triggeringAction: action,
     },
-  });
+    {
+      topic: KAFKA_TOPICS.event,
+      messageType: "event.status-changed",
+      aggregateId: eventId,
+      actor,
+      correlationId: options.correlationId ?? null,
+      payload: {
+        eventId,
+        ownerId: changed.event.ownerId,
+        previousStatus: changed.previousStatus,
+        newStatus: rule.to,
+        action,
+        proposedStartAt: changed.event.proposedStartAt,
+        proposedEndAt: changed.event.proposedEndAt,
+        changedAt: new Date().toISOString(),
+      },
+    }
+  );
 
   return { ok: true, event: changed.event, previousStatus: changed.previousStatus };
 }
