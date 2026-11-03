@@ -364,3 +364,76 @@ describe("F4 lock order: a block and a cancellation racing on one event and venu
     }
   });
 });
+
+// The narrow gap the lock order left (review of #72): a hold at a venue the cancellation did not lock,
+// committed between its venue locks and its event lock, had its venue locked after the event, out of
+// §4.6's order, so a block at that venue could deadlock with the cancellation. The cancellation now
+// re-reads the event's venues once it holds the event, and when one is new it writes nothing, lets go
+// and tries again, locking that venue first. This test commits such a hold while the cancellation waits
+// for the event, has a block hold the new venue, waits until the cancellation queues on it, then takes
+// the event lock as I2 does. Before the fix the cancellation held the event while it waited, so Postgres
+// aborted one of the two (40P01).
+describe("F4 lock order: a hold at a new venue that commits while the cancellation waits for the event", () => {
+  it("the cancellation tries again with that venue locked first, so a block there can still lock the event", async () => {
+    const { event, h } = await fixture();
+    const v3 = await newVenue(`F4 Annexe ${randomUUID().slice(0, 8)}`);
+    const newHold = ref("HLD");
+    const watcher = testDb();
+    const planner = testDb();
+    const blocker = testDb();
+    const blockedOn = async (pattern: string) => {
+      for (let i = 0; i < 100; i += 1) {
+        const [waiting] = await watcher<{ n: number }[]>`
+          select count(*)::int as n from pg_stat_activity
+          where datname = current_database() and wait_event_type = 'Lock' and query ilike ${pattern}
+        `;
+        if (waiting!.n > 0) return true;
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
+      return false;
+    };
+    let letBlockerGo!: () => void;
+    const blockerMayGo = new Promise<void>((resolve) => (letBlockerGo = resolve));
+    let venueHeld!: () => void;
+    const blockerHoldsVenue = new Promise<void>((resolve) => (venueHeld = resolve));
+    // I2 at V3, step 1: the venue row lock. Step 2, once let go: the event, `for update`.
+    const block = blocker.begin(async (tx) => {
+      await tx`set local lock_timeout = '10s'`;
+      await tx`select id from venue.venues where id = ${v3.id} for update`;
+      venueHeld();
+      await blockerMayGo;
+      await tx`select id from event.events where id = ${event.id} for update`;
+    });
+    try {
+      await blockerHoldsVenue;
+      let cancellation!: Promise<request.Response>;
+      // The hold at V3 is written by a transaction holding the event `for share`, as L3's request does.
+      await planner.begin(async (tx) => {
+        await tx`select id from event.events where id = ${event.id} for share`;
+        cancellation = cancel(event.id).then((response) => response);
+        expect(await blockedOn("%from event.events%")).toBe(true);
+        await tx`
+          insert into venue.holds (reference, event_id, venue_id, starts_at, ends_at, reminder_lead_minutes, status, requested_by,
+                                   created_by, updated_by)
+          values (${newHold}, ${event.id}, ${v3.id}, ${EVENT_START}, ${EVENT_END}, 1440, 'REQUESTED', ${A.c1}, ${A.c1}, ${A.c1})
+        `;
+      });
+
+      // The cancellation now waits for V3, which the block holds; then the block takes the event.
+      expect(await blockedOn("%from venue.venues%for update%")).toBe(true);
+      letBlockerGo();
+      await block;
+
+      const response = await cancellation;
+      expect(response.status, response.text).toBe(200);
+      expect([...response.body.released.holds].sort()).toEqual([h.reference, newHold].sort());
+      const [stored] = await sql<{ status: string }[]>`select status from venue.holds where reference = ${newHold}`;
+      expect(stored!.status).toBe("RELEASED");
+      expect((await state(event.id)).event).toMatchObject({ status: "CANCELLED" });
+    } finally {
+      letBlockerGo();
+      await block.catch(() => undefined);
+      await Promise.all([watcher.end(), planner.end(), blocker.end()]);
+    }
+  });
+});
