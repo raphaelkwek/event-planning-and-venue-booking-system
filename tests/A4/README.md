@@ -3,7 +3,7 @@
 Fifteen cases, written from the story (revision 5, with the Week 9 answers) on 2 Nov 2026,
 before the code. T1 to T13 are API-level procedures: HTTP requests with authentication stubbed,
 against a migrated throwaway Postgres, automated one test per card. T14 is the signed-in browser
-walk-through, done by hand. T15 waits for F3.
+walk-through, done by hand. T15 (F3) is automated too, now that F3 is on main.
 
 A4 replaces part of A3 (coordinators saw every event) and part of D1 (the queue held every assigned
 request). Both stay Done; their cases are updated in the same PR and name A4.

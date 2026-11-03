@@ -276,11 +276,11 @@ describe("G2 cards: previewing the arrangements a pending change would affect", 
     expect(response.body.impact.flags).toEqual([]);
   });
 
-  it("G2-T7 the owner, the coordinator and an Event Coordinator see the preview, others get 404 and a decided request 409", async () => {
+  it("G2-T7 the owner and the assigned coordinator see the preview, others get 404 and a decided request 409", async () => {
     const fx = await fixture(DATE_MOVED);
 
     const seen: { impact: { bookings: unknown[]; reservations: unknown[]; activeRegistrations: number; flags: FlagView[] } }[] = [];
-    for (const signIn of [asO, asC, asC2]) {
+    for (const signIn of [asO, asC]) {
       signIn();
       const response = await preview(fx.cr);
       expect(response.status).toBe(200);
@@ -289,7 +289,17 @@ describe("G2 cards: previewing the arrangements a pending change would affect", 
     listsTheArrangements(fx, seen[0]!.impact);
     expect(sorted(seen[0]!.impact.flags)).toEqual(dateMovedFlags(fx));
     expect(seen[1]).toEqual(seen[0]);
-    expect(seen[2]).toEqual(seen[0]);
+
+    // A4 (CR-05): a coordinator not assigned to the event is told so, and learns nothing of it.
+    asC2();
+    const other = await preview(fx.cr);
+    expect(other.status).toBe(404);
+    expect(other.body.error).toMatchObject({
+      code: "CHANGE_REQUEST_NOT_FOUND",
+      message: "No change request with that id is on an event assigned to you.",
+    });
+    expect(JSON.stringify(other.body)).not.toContain(fx.event.id);
+    expect(JSON.stringify(other.body)).not.toContain(fx.event.reference);
 
     const refused: { code: string; message: string }[] = [];
     for (const signIn of [asO2, asVS]) {

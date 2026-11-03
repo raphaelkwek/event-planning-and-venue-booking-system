@@ -24,6 +24,10 @@ OpenAPI spec, A4's cards and traceability. Review fixes on PR #81; no migration.
   - Opening an event no longer throws if it leaves the caller's scope before the re-read.
 - **OpenAPI:** the queue, open-an-event, G1, F5, S2, L1, L2, L3, O1 and S3 flag descriptions now say
   that another coordinator's event is a 404, not a 403.
+- **F3 and G2, merged from main, follow A4.** Their routes already read the event through the scope,
+  so another coordinator was refused with 404; the message now says the event (or change request) is
+  not assigned to them. F3-T2 and G2-T7 expected that coordinator to get 403 and the preview; both
+  tests and cards are revised for A4.
 
 ## Tests
 
@@ -32,7 +36,7 @@ OpenAPI spec, A4's cards and traceability. Review fixes on PR #81; no migration.
 
 ## Cards
 
-- A4-T15 is Blocked on F3 (#71), not Not Executed.
+- A4-T15 (F3) is automated in `a4Cards.test.ts`, as F3 has merged.
 - The cards' execution records name the CI run that passed them.
 
 ---

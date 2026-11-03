@@ -1178,8 +1178,8 @@ paths:
       tags: [Change requests]
       summary: Preview the arrangements approving a pending change request would affect (G2)
       description: |
-        The event's owning organiser, its assigned coordinator and Event Coordinators, as for reading
-        the request (S1). Anyone else, including an organiser who does not own the event, gets the same
+        The event's owning organiser and its assigned coordinator, as for reading the request (S1);
+        A4 leaves out other coordinators. Anyone else, including an organiser who does not own the event, gets the same
         404 as for a request that does not exist. For a Pending request, runs S3's assessment over the
         event's current values with the request's proposed values laid over them and answers in S3's
         `impact` shape: the confirmed venue bookings, held holds, pending booking requests and equipment
@@ -1200,7 +1200,7 @@ paths:
                   impact: { $ref: "#/components/schemas/ChangeImpact" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "404":
-          description: No change request with that id exists (`CHANGE_REQUEST_NOT_FOUND`), or its event is outside the caller's scope.
+          description: No change request with that id exists (`CHANGE_REQUEST_NOT_FOUND`), or its event is outside the caller's scope (for a coordinator, not assigned to them, A4).
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
@@ -1315,12 +1315,12 @@ paths:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403":
-          description: "`ROLE_NOT_AUTHORISED`: not an Event Organiser or Event Coordinator, or neither the owner nor the assigned coordinator."
+          description: "`ROLE_NOT_AUTHORISED`: not an Event Organiser or Event Coordinator, or neither the owner nor the assigned coordinator. Another coordinator's event is 404 (A4)."
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
         "404":
-          description: "`EVENT_NOT_FOUND`: no event with that id, or it is outside the caller's scope (A3)."
+          description: "`EVENT_NOT_FOUND`: no event with that id, or it is outside the caller's scope (A3), which for a coordinator means not assigned to them (A4)."
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }

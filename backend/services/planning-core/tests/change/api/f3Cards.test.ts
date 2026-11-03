@@ -183,16 +183,17 @@ describe("F3 cards (tests/F3)", () => {
     });
   });
 
-  it("F3-T2 the assigned coordinator may cancel; another coordinator gets 403 and another organiser 404, changing nothing", async () => {
+  it("F3-T2 the assigned coordinator may cancel; another coordinator and another organiser get 404, changing nothing", async () => {
     const { event } = await fixture();
     const before = await state(event.id);
 
     signedInAs(A.c2, "EVENT_COORDINATOR");
     const unassigned = await cancel(event.id);
-    expect(unassigned.status).toBe(403);
+    // A4 (CR-05): another coordinator's event is outside their scope, so it is not found.
+    expect(unassigned.status).toBe(404);
     expect(unassigned.body.error).toMatchObject({
-      code: "ROLE_NOT_AUTHORISED",
-      message: "Only the event's owner or its assigned coordinator can cancel it.",
+      code: "EVENT_NOT_FOUND",
+      message: "No event with that reference is assigned to you.",
     });
     signedInAs(A.org2, "EVENT_ORGANISER");
     const stranger = await cancel(event.id);

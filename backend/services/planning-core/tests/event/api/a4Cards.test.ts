@@ -487,4 +487,16 @@ describe("A4 cards (tests/A4)", () => {
       expect(response.status, `${path} ${response.text}`).toBe(200);
     }
   });
+
+  it("A4-T15 a coordinator not assigned to an event cannot cancel it (F3), so its arrangements are not released (F4)", async () => {
+    const f = await fixture();
+    const before = await state(f);
+
+    asC2();
+    expectNotAssigned(await post(`/api/v1/events/${f.e2}/cancellation`, { reason: "Not mine to cancel." }));
+
+    expect(await state(f)).toEqual(before);
+    const [e2] = await sql`select status, cancelled_at from event.events where id = ${f.e2}`;
+    expect(e2).toEqual({ status: "APPROVED", cancelled_at: null });
+  });
 });
