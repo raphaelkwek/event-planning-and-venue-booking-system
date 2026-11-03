@@ -37,12 +37,13 @@ describe("P1 actor verification", () => {
     const next=vi.fn(); await authenticate[1]!(req(),res,next);
     expect(next).toHaveBeenCalledWith(defect); expect(refuse).not.toHaveBeenCalled();
   });
-  it.each(["TECH_SUPPORT_STAFF","EVENT_COORDINATOR"] as const)("allows explicitly permitted %s", (role) => {
-    const next=vi.fn(); requireRole("TECH_SUPPORT_STAFF","EVENT_COORDINATOR")({...req(),actor:{userId:"p1-user",role}},res,next as NextFunction);
+  // EN-07: the permitted roles come from policies/equipment_type.yaml, not a list in the route.
+  it.each(["TECH_SUPPORT_STAFF","EVENT_COORDINATOR"] as const)("allows %s, whom the policy permits to view equipment types", async (role) => {
+    const next=vi.fn(); await requireRole("equipment_type","view")({...req(),actor:{userId:"p1-user",role}} as never,res,next as NextFunction);
     expect(next).toHaveBeenCalledWith(); expect(refuse).not.toHaveBeenCalled();
   });
-  it("refuses a role outside the permitted set", () => {
-    const next=vi.fn(); requireRole("TECH_SUPPORT_STAFF")({...req(),actor:{userId:"p1-user",role:"EVENT_COORDINATOR"}},res,next);
+  it("refuses a role the policy does not permit", async () => {
+    const next=vi.fn(); await requireRole("equipment_type","create")({...req(),actor:{userId:"p1-user",role:"EVENT_COORDINATOR"}} as never,res,next);
     expect(next).not.toHaveBeenCalled(); expect(refuse).toHaveBeenCalledWith(res,403,"ROLE_NOT_AUTHORISED",expect.any(String));
   });
 });

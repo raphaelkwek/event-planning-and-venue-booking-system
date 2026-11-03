@@ -61,6 +61,7 @@ export const ERROR_CODES = [
   "NO_OPEN_CLARIFICATION",
   "NO_ROLE_ASSIGNED",
   "PARTIAL_NOT_CONFIRMED",
+  "POLICY_UNAVAILABLE", // EN-07: the policy decision point could not be asked, so the request is refused (fail closed).
   "RATE_LIMITED",
   "REASSIGNMENT_ALREADY_PENDING",
   "REASSIGNMENT_NOT_PERMITTED",

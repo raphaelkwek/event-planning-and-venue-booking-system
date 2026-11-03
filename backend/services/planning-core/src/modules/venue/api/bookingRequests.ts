@@ -274,7 +274,7 @@ export function bookingRequestsRouter(sql: Sql) {
   const limiter = bookingRequestRateLimit();
 
   // L1: raise a request.
-  router.post(BASE, limiter, authenticate, requireRole("EVENT_COORDINATOR"), async (req: ActorRequest, res: Response, next: NextFunction) => {
+  router.post(BASE, limiter, authenticate, requireRole("booking_request", "create"), async (req: ActorRequest, res: Response, next: NextFunction) => {
     try {
       const read = readBookingRequest(req.body);
       if (!read.ok) return refuse(res, 400, "VALIDATION_FAILED", INVALID, read.fields);
@@ -288,7 +288,7 @@ export function bookingRequestsRouter(sql: Sql) {
   });
 
   // L1, L4, L5: one event's requests and bookings, with the event's values the request form starts from.
-  router.get(BASE, limiter, authenticate, requireRole("EVENT_COORDINATOR", "EVENT_ORGANISER"), async (req: ActorRequest, res: Response, next: NextFunction) => {
+  router.get(BASE, limiter, authenticate, requireRole("booking_request", "list"), async (req: ActorRequest, res: Response, next: NextFunction) => {
     try {
       const eventId = typeof req.query.eventId === "string" ? req.query.eventId : "";
       const event = eventId ? await findEvent(sql, eventId, req) : null;
@@ -317,7 +317,7 @@ export function bookingRequestsRouter(sql: Sql) {
   });
 
   // L1, M1: the pending requests for the venues this Venue Staff member looks after.
-  router.get(`${BASE}/queue`, limiter, authenticate, requireRole("VENUE_STAFF"), async (req: ActorRequest, res: Response, next: NextFunction) => {
+  router.get(`${BASE}/queue`, limiter, authenticate, requireRole("booking_request", "view_queue"), async (req: ActorRequest, res: Response, next: NextFunction) => {
     try {
       const items = await listPendingForStaff(sql, req.actor!.userId);
       const references = await findEventReferences(sql, [...new Set(items.map((item) => item.eventId))]);
@@ -328,7 +328,7 @@ export function bookingRequestsRouter(sql: Sql) {
   });
 
   // L2: withdraw a pending request. The record is kept.
-  router.post(`${BASE}/:id/withdraw`, limiter, authenticate, requireRole("EVENT_COORDINATOR"), async (req: ActorRequest, res: Response, next: NextFunction) => {
+  router.post(`${BASE}/:id/withdraw`, limiter, authenticate, requireRole("booking_request", "withdraw"), async (req: ActorRequest, res: Response, next: NextFunction) => {
     try {
       const id = req.params.id!;
       const existing = UUID.test(id) ? await findBookingRequest(sql, id) : null;

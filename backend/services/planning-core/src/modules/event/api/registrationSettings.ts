@@ -54,7 +54,7 @@ export function registrationSettingsRouter(sql: Sql, limiter: RequestHandler = r
     "/api/v1/events/:id/registration-settings",
     limiter,
     ...authenticate,
-    requireRole("EVENT_ORGANISER"),
+    requireRole("event", "configure_registration"),
     async (req: ActorRequest, res: Response, next: NextFunction) => {
       try {
         const actor = req.actor!;

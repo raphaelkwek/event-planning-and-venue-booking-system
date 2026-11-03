@@ -1,6 +1,7 @@
 import { telemetry } from "./shared/telemetry.js";
 import { app } from "./app.js";
 import { initFlags, shutdownFlags } from "./shared/flags/index.js";
+import { configurePolicyDecisionPoint } from "./shared/authz/startup.js";
 import { config } from "./shared/config.js";
 import { sql } from "./shared/db.js";
 import { logger } from "./shared/logger.js";
@@ -16,6 +17,9 @@ installProcessGuards();
 
 // EN-15: the flag provider is ready (or has fallen back to the defaults) before requests arrive.
 await initFlags();
+
+// EN-07: the Cerbos PDP at CERBOS_URL; in development only, the local policies when none answers.
+await configurePolicyDecisionPoint();
 
 const server = app.listen(config.port, () => {
   logger.info(`${config.serviceName} listening on :${config.port}`);

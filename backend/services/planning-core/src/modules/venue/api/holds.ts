@@ -116,7 +116,7 @@ export function holdsRouter(sql: Sql, limiter: RequestHandler = holdsRateLimit()
   const router = Router();
 
   // L3: the assigned coordinator requests a hold. It reserves nothing yet.
-  router.post(BASE, limiter, authenticate, requireRole("EVENT_COORDINATOR"), async (req: ActorRequest, res: Response, next: NextFunction) => {
+  router.post(BASE, limiter, authenticate, requireRole("booking_request", "request_hold"), async (req: ActorRequest, res: Response, next: NextFunction) => {
     try {
       const read = readHoldRequest(req.body);
       if (!read.ok) return refuse(res, 400, "VALIDATION_FAILED", INVALID_HOLD, read.fields);
@@ -179,7 +179,7 @@ export function holdsRouter(sql: Sql, limiter: RequestHandler = holdsRateLimit()
   });
 
   // L3: one event's holds.
-  router.get(BASE, limiter, authenticate, requireRole("EVENT_COORDINATOR", "EVENT_ORGANISER"), async (req: ActorRequest, res: Response, next: NextFunction) => {
+  router.get(BASE, limiter, authenticate, requireRole("booking_request", "list"), async (req: ActorRequest, res: Response, next: NextFunction) => {
     try {
       const eventId = typeof req.query.eventId === "string" ? req.query.eventId : "";
       const event = UUID.test(eventId) ? await findEvent(sql, eventId, req) : null;
@@ -192,7 +192,7 @@ export function holdsRouter(sql: Sql, limiter: RequestHandler = holdsRateLimit()
   });
 
   // L3: the requested holds at the venues this Venue Staff member looks after.
-  router.get(`${BASE}/queue`, limiter, authenticate, requireRole("VENUE_STAFF"), async (req: ActorRequest, res: Response, next: NextFunction) => {
+  router.get(`${BASE}/queue`, limiter, authenticate, requireRole("booking_request", "view_queue"), async (req: ActorRequest, res: Response, next: NextFunction) => {
     try {
       const items = await listRequestedForStaff(sql, req.actor!.userId);
       const references = await findEventReferences(sql, [...new Set(items.map((hold) => hold.eventId))]);
@@ -203,7 +203,7 @@ export function holdsRouter(sql: Sql, limiter: RequestHandler = holdsRateLimit()
   });
 
   // L6: the held and recently expired holds at those venues, newest expiry first, so Venue Staff can change an expiry.
-  router.get(`${BASE}/placed`, limiter, authenticate, requireRole("VENUE_STAFF"), async (req: ActorRequest, res: Response, next: NextFunction) => {
+  router.get(`${BASE}/placed`, limiter, authenticate, requireRole("booking_request", "view_queue"), async (req: ActorRequest, res: Response, next: NextFunction) => {
     try {
       const items = await listPlacedForStaff(sql, req.actor!.userId);
       const references = await findEventReferences(sql, [...new Set(items.map((hold) => hold.eventId))]);
@@ -214,7 +214,7 @@ export function holdsRouter(sql: Sql, limiter: RequestHandler = holdsRateLimit()
   });
 
   // L3: Venue Staff of the venue place a requested hold, setting its expiry.
-  router.post(`${BASE}/:id/place`, limiter, authenticate, requireRole("VENUE_STAFF"), async (req: ActorRequest, res: Response, next: NextFunction) => {
+  router.post(`${BASE}/:id/place`, limiter, authenticate, requireRole("booking_request", "place_hold"), async (req: ActorRequest, res: Response, next: NextFunction) => {
     try {
       const actor = req.actor!;
       const id = req.params.id!;
@@ -280,7 +280,7 @@ export function holdsRouter(sql: Sql, limiter: RequestHandler = holdsRateLimit()
   });
 
   // L6: Venue Staff of the venue move a held hold's expiry.
-  router.patch(`${BASE}/:id/expiry`, limiter, authenticate, requireRole("VENUE_STAFF"), async (req: ActorRequest, res: Response, next: NextFunction) => {
+  router.patch(`${BASE}/:id/expiry`, limiter, authenticate, requireRole("booking_request", "place_hold"), async (req: ActorRequest, res: Response, next: NextFunction) => {
     try {
       const actor = req.actor!;
       const id = req.params.id!;
@@ -320,7 +320,7 @@ export function holdsRouter(sql: Sql, limiter: RequestHandler = holdsRateLimit()
   });
 
   // L3: the holding coordinator releases a requested or held hold. The record is kept.
-  router.post(`${BASE}/:id/release`, limiter, authenticate, requireRole("EVENT_COORDINATOR"), async (req: ActorRequest, res: Response, next: NextFunction) => {
+  router.post(`${BASE}/:id/release`, limiter, authenticate, requireRole("booking_request", "release_hold"), async (req: ActorRequest, res: Response, next: NextFunction) => {
     try {
       const found = await holdForCoordinator(sql, req.params.id!, req);
       if (!found) return holdNotFound(res, req.actor!.role);
@@ -348,7 +348,7 @@ export function holdsRouter(sql: Sql, limiter: RequestHandler = holdsRateLimit()
   // L3: the holding coordinator converts a held hold into a booking request (L1)
   // for the same venue and period. Availability isn't checked again: the period
   // stays held, under the request, until M1 or M2 decides it.
-  router.post(`${BASE}/:id/convert`, limiter, authenticate, requireRole("EVENT_COORDINATOR"), async (req: ActorRequest, res: Response, next: NextFunction) => {
+  router.post(`${BASE}/:id/convert`, limiter, authenticate, requireRole("booking_request", "convert_hold"), async (req: ActorRequest, res: Response, next: NextFunction) => {
     try {
       const found = await holdForCoordinator(sql, req.params.id!, req);
       if (!found) return holdNotFound(res, req.actor!.role);

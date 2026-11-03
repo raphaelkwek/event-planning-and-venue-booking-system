@@ -20,7 +20,6 @@ import { changeRateLimiter } from "./limiter.js";
  * The request is stored Pending with a snapshot of each current value; the
  * event itself is never written (AC4), and every refusal stores nothing (AC7).
  */
-const ORGANISER = "EVENT_ORGANISER";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const PATH = "/api/v1/events/:id/change-requests";
 
@@ -63,7 +62,7 @@ function alreadyPending(res: Response, existing: ChangeRequestRecord) {
 export function changeRequestsRouter(sql: Sql, limiter: RequestHandler = changeRateLimiter()) {
   const router = Router();
 
-  router.post(PATH, limiter, authenticate, requireRole(ORGANISER), async (req: ActorRequest, res: Response, next: NextFunction) => {
+  router.post(PATH, limiter, authenticate, requireRole("event", "request_change"), async (req: ActorRequest, res: Response, next: NextFunction) => {
     try {
       const eventId = req.params.id!;
       if (!UUID.test(eventId)) return eventNotFound(res, req.actor!.role);
@@ -142,7 +141,7 @@ export function changeRequestsRouter(sql: Sql, limiter: RequestHandler = changeR
     }
   });
 
-  router.get(PATH, limiter, authenticate, async (req: ActorRequest, res: Response, next: NextFunction) => {
+  router.get(PATH, limiter, authenticate, requireRole("event", "view"), async (req: ActorRequest, res: Response, next: NextFunction) => {
     try {
       const event = await findInScope(sql, req);
       if (!event) return eventNotFound(res, req.actor!.role);

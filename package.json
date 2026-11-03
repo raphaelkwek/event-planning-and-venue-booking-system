@@ -8,7 +8,7 @@
     "backend/packages/*"
   ],
   "scripts": {
-    "dev": "concurrently --kill-others-on-fail --names core,notif,reg,web,worker --prefix-colors blue,magenta,cyan,green,yellow \"npm run dev -w @connectsphere/planning-core\" \"npm run dev -w @connectsphere/notification\" \"npm run dev -w @connectsphere/registration\" \"npm run dev -w @connectsphere/web\" \"npm run worker -w @connectsphere/planning-core\"",
+    "dev": "concurrently --kill-others-on-fail --names pdp,core,notif,reg,web,worker --prefix-colors gray,blue,magenta,cyan,green,yellow \"npm run cerbos:start\" \"npm run dev -w @connectsphere/planning-core\" \"npm run dev -w @connectsphere/notification\" \"npm run dev -w @connectsphere/registration\" \"npm run dev -w @connectsphere/web\" \"npm run worker -w @connectsphere/planning-core\"",
     "kafka:check": "tsx backend/scripts/kafka-check.ts",
     "schemas:generate": "tsx backend/scripts/schema-compat.ts generate",
     "schemas:check": "tsx backend/scripts/schema-compat.ts check",
@@ -37,6 +37,7 @@
     "test:unit": "npm run test:unit --workspaces --if-present && npm run test:scripts && npm run test:harness && npm run test:gateway",
     "test:mutation": "npm run test:mutation --workspaces --if-present",
     "policies:test": "tsx backend/scripts/cerbos.ts compile policies",
+    "cerbos:start": "tsx backend/scripts/cerbos.ts server --config=backend/cerbos/config.yaml",
     "build": "npm run build --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present && tsc -p tests/tsconfig.json && npm run typecheck:harness",
     "lint:boundaries": "npm run lint:boundaries -w @connectsphere/planning-core",

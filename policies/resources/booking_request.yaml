@@ -12,6 +12,20 @@ resourcePolicy:
       effect: EFFECT_ALLOW
       derivedRoles: [assigned_coordinator]
 
+    # L1, L2, L3: an event's venue requests and holds, listed for its owner and its
+    # assigned coordinator (the event's venue requests page).
+    - name: L1-L2-L3-the-owner-and-assigned-coordinator-list-an-event-s-requests
+      actions: [list]
+      effect: EFFECT_ALLOW
+      derivedRoles: [owner, assigned_coordinator]
+
+    # L1, L3, M1: the queues of pending requests and holds. Rows are the venues the
+    # staff member manages (A3), which the queue's query applies.
+    - name: L1-L3-M1-venue-staff-see-their-queues
+      actions: [view_queue]
+      effect: EFFECT_ALLOW
+      roles: [VENUE_STAFF]
+
     # L3, Week 9 answer (CQ-06): the coordinator requests a hold, and Venue Staff
     # of the venue place it, setting its expiry.
     - name: L3-venue-staff-place-holds-on-their-venues

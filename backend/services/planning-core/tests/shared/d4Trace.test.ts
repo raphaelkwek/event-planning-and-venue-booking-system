@@ -156,9 +156,16 @@ describe("one approval is one trace (D4)", () => {
     expect(res.headers["x-correlation-id"]).toBe(traceId);
     expect(logged.find((l) => l.message === "request completed")).toMatchObject({ traceId, correlationId: traceId, outcome: "success" });
 
-    const [transaction] = t.byName("db.transaction").filter((s) => parentIdOf(s) === server!.spanContext().spanId);
+    // EN-07: the scoped read of the event runs in a transaction of its own first (SET LOCAL ROLE and the
+    // caller's claims, for row-level security), so the approval's is the one under the request that writes.
+    const childrenOf = (span: { spanContext(): { spanId: string } }) =>
+      t.finished().filter((s) => parentIdOf(s) === span.spanContext().spanId).map((s) => s.name);
+    const transaction = t
+      .byName("db.transaction")
+      .filter((s) => parentIdOf(s) === server!.spanContext().spanId)
+      .find((s) => childrenOf(s).includes("INSERT event.outbox"));
     expect(transaction).toBeDefined();
-    const insideTransaction = t.finished().filter((s) => parentIdOf(s) === transaction!.spanContext().spanId).map((s) => s.name);
+    const insideTransaction = childrenOf(transaction!);
     expect(insideTransaction).toEqual(expect.arrayContaining(["INSERT event.event_history", "INSERT event.outbox"]));
 
     const [row] = await sql<Array<{ topic: string; message_key: string; envelope: Record<string, unknown> }>>`
