@@ -9,7 +9,9 @@ import { context, SpanKind, SpanStatusCode, trace, type Context, type Span } fro
  * (tagged templates, `sql.json`, `sql.begin`, `tx.savepoint`) is untouched.
  *
  * The span records the statement's text with `$n` in place of every value, so no
- * parameter, token or attendee field can reach a trace (implementation.md §9).
+ * parameter, token or attendee field can reach a trace (implementation.md §9). A failure
+ * records the SQLSTATE and the error's class, never the driver's message, which can echo values.
+ * `unsafe()` statements are recorded only when they were given parameters.
  *
  * A query is traced only inside a span (a request, or a consumed message). The
  * outbox relay's polling, the readiness probe and start-up queries have none, and
@@ -48,7 +50,7 @@ export function spanNameFor(statement: string): { name: string; operation?: stri
   return { name: table ? `${operation} ${table}` : operation, operation, table };
 }
 
-function startQuerySpan(statement: string, parent: Context): Span {
+function startQuerySpan(statement: string, parent: Context, recordText: boolean): Span {
   const { name, operation, table } = spanNameFor(statement);
   return trace.getTracer(TRACER_NAME).startSpan(
     name,
@@ -57,7 +59,7 @@ function startQuerySpan(statement: string, parent: Context): Span {
       attributes: {
         "db.system": "postgresql",
         "db.system.name": "postgresql",
-        "db.query.text": statement,
+        ...(recordText ? { "db.query.text": statement } : {}),
         ...(operation ? { "db.operation.name": operation } : {}),
         ...(table ? { "db.collection.name": table } : {}),
       },
@@ -66,14 +68,17 @@ function startQuerySpan(statement: string, parent: Context): Span {
   );
 }
 
-/** Marks the span failed: the exception, the status, and Postgres's SQLSTATE when the driver gave one. */
+/**
+ * Marks the span failed with Postgres's SQLSTATE and the error's class only. The driver's message
+ * is left out on purpose: Postgres echoes values in it ("Key (email)=(a@b.c) already exists"), and a
+ * span must never carry a value (implementation.md §9).
+ */
 export function failSpan(span: Span, error: unknown): void {
-  const err = error instanceof Error ? error : new Error(String(error));
-  span.recordException(err);
-  span.setStatus({ code: SpanStatusCode.ERROR, message: err.message });
+  const name = error instanceof Error ? error.name : "Error";
+  span.setStatus({ code: SpanStatusCode.ERROR });
   const sqlState = (error as { code?: unknown } | null)?.code;
   if (typeof sqlState === "string") span.setAttribute("db.response.status_code", sqlState);
-  span.setAttribute("error.type", err.name);
+  span.setAttribute("error.type", name);
 }
 
 /**
@@ -81,14 +86,14 @@ export function failSpan(span: Span, error: unknown): void {
  * `.finally`) and ends it when it settles. A fragment that is only interpolated
  * into another query is never run, and so never makes a span.
  */
-function traceQuery(query: QueryLike, parent: Context): void {
+function traceQuery(query: QueryLike, parent: Context, recordText = true): void {
   const strings = query.strings!;
   const originalThen = query.then.bind(query) as PromiseLike<unknown>["then"];
   let started = false;
   query.then = ((onFulfilled, onRejected) => {
     if (!started) {
       started = true;
-      const span = startQuerySpan(statementText(strings), parent);
+      const span = startQuerySpan(statementText(strings), parent, recordText);
       // The derived promise's handlers both return, so it can never reject unhandled.
       void originalThen(
         (result) => {
@@ -140,9 +145,12 @@ function instrument<T extends object>(sql: T, fixedParent?: Context): T {
           const result = (value as AnyFunction).apply(target, args);
           const parent = parentOf();
           if (isQuery(result) && hasSpan(parent)) {
-            // unsafe() takes the whole statement as a string, not as template parts.
+            // unsafe() takes the whole statement as a string, not as template parts. Its text is
+            // recorded only when values were passed as parameters: with none, a caller may have
+            // built the statement with the values inside it.
             result.strings = [typeof args[0] === "string" ? args[0] : ""];
-            traceQuery(result, parent);
+            const hasParameters = Array.isArray(args[1]) && args[1].length > 0;
+            traceQuery(result, parent, hasParameters);
           }
           return result;
         };

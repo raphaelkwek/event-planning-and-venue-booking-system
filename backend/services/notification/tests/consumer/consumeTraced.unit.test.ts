@@ -5,6 +5,7 @@ import type { Kafka } from "kafkajs";
 import type { Sql } from "postgres";
 import { instrumentSql, parentIdOf, startInMemoryTelemetry, withProducerSpans } from "@connectsphere/telemetry";
 import { startConsumers } from "../../src/consumer/run.js";
+import { NOT_BEFORE_HEADER } from "../../src/domain/retryPolicy.js";
 
 /**
  * EN-08-T4: the notification consumer continues the trace of the message it handles. Kafka and the
@@ -173,5 +174,24 @@ describe("the notification consumer", () => {
     }
     const stored = lines.map((l) => JSON.parse(l) as Record<string, unknown>).find((l) => l.message === "notifications stored");
     expect(stored).toMatchObject({ traceId: "4bf92f3577b34da6a3ce929d0e0e4736", correlationId: "4bf92f3577b34da6a3ce929d0e0e4736" });
+  });
+
+  it("EN-08-T10 counts the retry worker's lag from when the retry was due, not from when it was queued", async () => {
+    t.spans.reset();
+    const { client, handlers } = fakeKafka();
+    await startConsumers(client, database("ok"), "");
+
+    const headers = await publishedHeaders("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01");
+    // Queued an hour ago with a back-off that ended 200 ms ago: the hour is waiting, not lag.
+    const dueAt = Date.now() - 200;
+    const message = {
+      ...kafkaMessage(approval(), { ...headers, [NOT_BEFORE_HEADER]: String(dueAt) }),
+      timestamp: String(Date.now() - 3_600_000),
+    };
+    await handlers["connectsphere.notification.retry-worker"]!({ topic: RETRY_TOPIC, partition: 0, message, heartbeat: async () => undefined });
+
+    const lag = await t.metric("kafka_consumer_lag_seconds");
+    const point = lag!.dataPoints.find((p) => p.attributes.group === "connectsphere.notification.retry-worker")!;
+    expect((point.value as { max: number }).max).toBeLessThan(5);
   });
 });

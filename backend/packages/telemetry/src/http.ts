@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
-import type { Request, RequestHandler, Response } from "express";
-import { trace, type Span } from "@opentelemetry/api";
+import type { Request, RequestHandler } from "express";
+import { trace } from "@opentelemetry/api";
 import { activeTraceId } from "./traceContext.js";
 import { instruments } from "./instruments.js";
 
@@ -29,26 +29,6 @@ export function correlationIdFor(incoming: string | undefined): string {
   return activeTraceId() ?? (incoming?.trim() ? incoming.trim() : randomUUID());
 }
 
-/**
- * Names the HTTP server span after the Express route that handled the request,
- * `POST /api/v1/events/:id/approve`, and sets `http.route`. OpenTelemetry's
- * Express instrumentation would do this, but it hooks `require`, which the ESM
- * services bypass (see sdk.ts). It must happen before the response ends,
- * because the HTTP instrumentation ends the server span inside `res.end`.
- */
-function nameServerSpanOnEnd(span: Span | undefined, req: Request, res: Response): void {
-  if (!span) return;
-  const end = res.end;
-  res.end = function patchedEnd(this: Response, ...args: unknown[]) {
-    const route = routeLabel(req);
-    if (route !== UNMATCHED_ROUTE) {
-      span.setAttribute("http.route", route);
-      span.updateName(`${req.method} ${route}`);
-    }
-    return (end as (...a: unknown[]) => Response).apply(this, args);
-  } as Response["end"];
-}
-
 export interface HttpTelemetryOptions {
   /** The `service` label on every series: planning-core, notification, registration. */
   service: string;
@@ -59,7 +39,16 @@ export interface HttpTelemetryOptions {
  *
  * 1. Sets `x-correlation-id` on the request (for the code that reads it to fill
  *    an outbox row or an error envelope) and on the response.
- * 2. Records the request's duration and count when the response finishes.
+ * 2. When the response finishes, names the HTTP server span after the Express route
+ *    that handled it, `POST /api/v1/events/:id/approve`, sets `http.route`, and records
+ *    the request's duration and count. OpenTelemetry's Express instrumentation would
+ *    name the span, but it hooks `require`, which the ESM services bypass (see sdk.ts).
+ *    The HTTP instrumentation ends the server span on the response's `close` event,
+ *    which comes after `finish`, so the span can still be renamed here (tested in
+ *    http.test.ts, EN-08-T1, against the pinned version).
+ *
+ * Health probes are not traced but are counted in `http_requests_total`, under their
+ * own routes; EN-17's SLIs exclude `/healthz`, `/readyz` and `/metrics` by route.
  */
 export function httpTelemetry(options: HttpTelemetryOptions): RequestHandler {
   return (req, res, next) => {
@@ -70,16 +59,20 @@ export function httpTelemetry(options: HttpTelemetryOptions): RequestHandler {
       // A caller-chosen id is not lost: it stays searchable on the server span.
       serverSpan?.setAttribute("connectsphere.client_correlation_id", incoming.slice(0, 200));
     }
-    nameServerSpanOnEnd(serverSpan, req, res);
     req.headers[CORRELATION_HEADER] = correlationId;
     res.setHeader(CORRELATION_HEADER, correlationId);
 
     const startedAt = process.hrtime.bigint();
-    res.on("finish", () => {
+    res.once("finish", () => {
+      const route = routeLabel(req);
+      if (serverSpan && route !== UNMATCHED_ROUTE) {
+        serverSpan.setAttribute("http.route", route);
+        serverSpan.updateName(`${req.method} ${route}`);
+      }
       const attributes = {
         service: options.service,
         method: req.method,
-        route: routeLabel(req),
+        route,
         status: statusClass(res.statusCode),
       };
       const { httpDuration, httpRequests } = instruments();

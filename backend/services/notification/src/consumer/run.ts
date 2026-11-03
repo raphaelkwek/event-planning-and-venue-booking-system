@@ -70,8 +70,11 @@ export async function startConsumers(kafka: Kafka, sql: Sql, groupSuffix: string
   await retryWorker.run({
     eachMessage: async ({ topic, partition, message, heartbeat }) => {
       // The wait is outside the span: a retried message holds for seconds, and that is not processing time.
-      await waitUntilDue(Number(message.headers?.[NOT_BEFORE_HEADER]?.toString() ?? 0), heartbeat, () => stopping);
-      await consumeTraced({ topic, partition, group: retryGroup, message }, { sql, publish }, (outcome, incoming) =>
+      const dueAt = Number(message.headers?.[NOT_BEFORE_HEADER]?.toString() ?? 0);
+      await waitUntilDue(dueAt, heartbeat, () => stopping);
+      // The back-off is deliberate, so it is not lag: kafka_consumer_lag_seconds counts from when the retry was due.
+      const countedFrom = String(Math.max(Number(message.timestamp), dueAt));
+      await consumeTraced({ topic, partition, group: retryGroup, message: { ...message, timestamp: countedFrom } }, { sql, publish }, (outcome, incoming) =>
         log(outcome, topic, incoming.key),
       );
     },

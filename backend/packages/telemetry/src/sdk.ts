@@ -45,13 +45,19 @@ export interface Telemetry {
   /** The name on the resource, so a log line or a test can say which service it is. */
   readonly serviceName: string;
   forceFlush(): Promise<void>;
-  /** Flushes, then uninstalls. A service awaits it before `process.exit`. */
-  shutdown(): Promise<void>;
+  /**
+   * Flushes, then uninstalls. A service awaits it before `process.exit`. It gives up after
+   * `timeoutMs` (default 5 s) so an unreachable collector cannot outlast a pod's grace period.
+   */
+  shutdown(timeoutMs?: number): Promise<void>;
 }
 
 /** Health probes are polled every few seconds and are not worth a trace each. */
 const PROBE_PATH = /^\/(healthz|readyz|metrics)(\?|$)/;
 const isProbe = (request: IncomingMessage) => PROBE_PATH.test(request.url ?? "");
+
+/** How long shutdown() waits for the last batch to be exported. */
+const SHUTDOWN_TIMEOUT_MS = 5_000;
 
 const DISABLED: Telemetry = {
   enabled: false,
@@ -107,9 +113,15 @@ export function startTelemetry(options: TelemetryOptions): Telemetry {
     async forceFlush() {
       await Promise.all([tracerProvider.forceFlush(), meterProvider.forceFlush()]);
     },
-    async shutdown() {
+    async shutdown(timeoutMs = SHUTDOWN_TIMEOUT_MS) {
       unregister();
-      await Promise.allSettled([tracerProvider.shutdown(), meterProvider.shutdown()]);
+      let timer: NodeJS.Timeout | undefined;
+      const giveUp = new Promise<void>((resolve) => {
+        timer = setTimeout(resolve, timeoutMs);
+        timer.unref();
+      });
+      await Promise.race([Promise.allSettled([tracerProvider.shutdown(), meterProvider.shutdown()]), giveUp]);
+      clearTimeout(timer);
       trace.disable();
       metrics.disable();
       propagation.disable();

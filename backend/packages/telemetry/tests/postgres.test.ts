@@ -128,7 +128,11 @@ describe("a traced sql", () => {
     const [query] = t.byName("INSERT event.events");
     expect(query!.status.code).toBe(2);
     expect(query!.attributes["db.response.status_code"]).toBe("23505");
-    expect(query!.events.some((e) => e.name === "exception")).toBe(true);
+    expect(query!.attributes["error.type"]).toBe("Error");
+    // Postgres's message can echo a value ("Key (email)=(...) already exists"), so a span never carries it.
+    expect(query!.status.message).toBeUndefined();
+    expect(query!.events).toHaveLength(0);
+    expect(JSON.stringify([query!.status, query!.attributes, query!.events])).not.toContain("duplicate key");
   });
 
   it("EN-08-T2 traces a query run with .catch or .finally, and ends its span once however often it is awaited", async () => {
@@ -144,14 +148,22 @@ describe("a traced sql", () => {
     expect(t.byName("SELECT")).toHaveLength(3);
   });
 
-  it("EN-08-T2 traces unsafe() with its statement text", async () => {
+  it("EN-08-T2 traces unsafe(), recording its text only when it was given parameters", async () => {
     t.spans.reset();
-    const sql = instrumentSql(fakeSql()) as AnySql;
+    const sql = instrumentSql(fakeSql()) as AnySql & { unsafe(text: string, args?: unknown[]): PromiseLike<unknown> };
     await inRequest(async () => {
       await sql.unsafe("truncate event.events");
+      await sql.unsafe("delete from event.events where id = $1", ["x"]);
+      // No parameters: the caller may have put the values in the text.
+      await sql.unsafe("update event.events set name = 'secret-name'");
     });
-    const [query] = t.byName("TRUNCATE");
-    expect(query!.attributes["db.query.text"]).toBe("truncate event.events");
+    const [truncate] = t.byName("TRUNCATE");
+    const [deleted] = t.byName("DELETE event.events");
+    const [updated] = t.byName("UPDATE event.events");
+    expect(truncate!.attributes["db.query.text"]).toBeUndefined();
+    expect(updated!.attributes["db.query.text"]).toBeUndefined();
+    expect(JSON.stringify(updated!.attributes)).not.toContain("secret-name");
+    expect(deleted!.attributes["db.query.text"]).toBe("delete from event.events where id = $1");
   });
 });
 

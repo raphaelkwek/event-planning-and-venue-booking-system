@@ -149,6 +149,15 @@ describe("with no OTLP endpoint", () => {
     expect(received).toHaveLength(0);
   });
 
+  it("EN-08-T8 gives up on a collector that never answers, so a pod's shutdown is not held past its grace period", async () => {
+    const hanging = { export: (_spans: unknown, done: (result: { code: number }) => void) => done({ code: 0 }), shutdown: () => new Promise<void>(() => undefined), forceFlush: async () => undefined };
+    running = startTelemetry({ serviceName: "stuck", env: {}, spanExporter: hanging as never });
+    const startedAt = Date.now();
+    await running.shutdown(50);
+    running = undefined;
+    expect(Date.now() - startedAt).toBeLessThan(2000);
+  });
+
   it("EN-08-T8 names the service from the caller when OTEL_SERVICE_NAME is not set", () => {
     running = startTelemetry({ serviceName: "named-by-caller", env: {} });
     expect(running.serviceName).toBe("named-by-caller");
