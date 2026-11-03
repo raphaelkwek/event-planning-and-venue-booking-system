@@ -142,6 +142,23 @@ export const eventArrangementsConfirmedPayloadSchema = z.object({
 });
 
 /**
+ * U1 — the Safety Officer's decision on an event in Safety Review (CR-06). It names the owner and
+ * the assigned coordinator, whom the decision notifies, and the arrangements a request for changes
+ * flagged.
+ */
+export const eventSafetyDecisionRecordedPayloadSchema = z.object({
+  ...eventRef,
+  ownerId: z.string().uuid(),
+  coordinatorId: z.string().uuid().nullable(),
+  decision: z.enum(["APPROVE", "REQUEST_CHANGES", "REJECT"]),
+  reason: z.string().nullable(),
+  decidedBy: z.string().uuid(),
+  decidedAt: z.string().datetime(),
+  flaggedBookingReferences: z.array(z.string()),
+  flaggedEquipment: z.array(z.string()),
+});
+
+/**
  * F3 — the event was cancelled, with its reason. It names everyone F3 notifies:
  * the owner, the assigned coordinator, the Venue Staff of each booked venue and
  * whoever reserved each reservation. Each booking and reservation listed was
@@ -247,6 +264,7 @@ export const EVENT_PAYLOAD_SCHEMAS = {
   "event.reassignment-accepted": eventReassignmentAcceptedPayloadSchema,
   "event.reassignment-declined": eventReassignmentDeclinedPayloadSchema,
   "event.arrangements-confirmed": eventArrangementsConfirmedPayloadSchema,
+  "event.safety-decision-recorded": eventSafetyDecisionRecordedPayloadSchema,
   "event.cancelled": eventCancelledPayloadSchema,
   "event.status-changed": eventStatusChangedPayloadSchema,
   "event.schedule-changed": eventScheduleChangedPayloadSchema,

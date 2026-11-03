@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | Complete standard request opened in Submitted status with EVT-001882, a submission timestamp, and organiser “Organiser One”. |
+| Actual Result | The standard request was submitted from the form, shown Submitted with its reference, and listed in the Lead's unassigned requests (since E3 it reaches a coordinator only once assigned). Run on CI's throwaway stack, with unique names in place of the card's literal names. |
 | Status | Pass |
-| Remarks | Commit: b0ef6ee · Evidence: tests/B1/evidence/B1-T1-2026-09-20.png · Defect: — |
-| Executed By | Joash Lau Rong Wei |
-| Date of Execution | 2026-09-20 |
+| Remarks | Automated, browser E2E in CI (EN-14). Commit: 6080462 · Evidence: tests/e2e/b-event-requests.spec.ts › B1-T1 an organiser submits a complete request, which needs no equipment, and the Lead can assign it, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41513983925 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

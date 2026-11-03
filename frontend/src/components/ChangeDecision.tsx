@@ -5,6 +5,7 @@ import SectionMessage from "@atlaskit/section-message";
 import TextArea from "@atlaskit/textarea";
 import { ApiError } from "../api/client.js";
 import { decideChangeRequest, type ChangeImpact, type ChangeRequest } from "../api/changeRequests.js";
+import { useFeatureFlag } from "../shared/useFeatureFlag.js";
 import { formatChangeValue, SIGNIFICANT_FIELD_LABELS } from "../shared/changeRequests.js";
 import { Refusal } from "./Refusal.js";
 
@@ -24,6 +25,7 @@ export function ChangeDecisionActions({ request, token, onDecided }: { request: 
   const [reasonError, setReasonError] = useState<string | null>(null);
   const [error, setError] = useState<unknown>(null);
   const [busy, setBusy] = useState(false);
+  const approvalOn = useFeatureFlag("change-approval", token);
 
   function close() {
     setMode(null);
@@ -58,9 +60,14 @@ export function ChangeDecisionActions({ request, token, onDecided }: { request: 
   return (
     <>
       <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-        <Button appearance="primary" onClick={() => setMode("approve")}>Approve change</Button>
+        <Button appearance="primary" isDisabled={!approvalOn} onClick={() => setMode("approve")}>Approve change</Button>
         <Button appearance="warning" onClick={() => setMode("reject")}>Reject change</Button>
       </div>
+      {!approvalOn && (
+        <p role="status" style={{ color: "#626F86", fontSize: 12, marginTop: 8 }}>
+          Approving change requests is switched off right now (feature flag change-approval). You can still reject this request.
+        </p>
+      )}
       <ModalTransition>
         {mode === "approve" && (
           <Modal onClose={close}>

@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | "Venue saved." was shown and the form showed every value as entered: Theatre 300, Classroom 120, Banquet 180; 3 facilities; 3 accessibility features; Monday 08:00–22:00, Tuesday 08:00–22:00, Wednesday 08:00–22:00, Thursday 08:00–22:00, Friday 08:00–22:00, Saturday 09:00–18:00, Sunday closed. Venues listed it as Active. |
+| Actual Result | The standard venue was created through the form; every value was kept and it was listed as Active. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
 | Status | Pass |
-| Remarks | Commit: 56eb0b2 · Evidence: tests/H1/evidence/H1-T1.png · Defect: — |
-| Executed By | Yichen, via automated testing |
-| Date of Execution | 2026-10-04 |
+| Remarks | Automated, browser E2E in CI (EN-14). Commit: 6080462 · Evidence: tests/e2e/h-venues.spec.ts › H1-T1 Venue Staff create a venue with every catalogue attribute, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41513983925 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

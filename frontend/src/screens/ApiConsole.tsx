@@ -128,18 +128,20 @@ export function ApiConsole() {
 
       <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
         <div style={{ width: 110 }}>
-          <label style={{ fontSize: 12, fontWeight: 600 }}>Method</label>
-          <Textfield value={method} onChange={(e) => setMethod((e.target as HTMLInputElement).value)} />
+          {/* Each label names its field (htmlFor/id): unlabelled, axe reports a critical "label" violation (EN-14). */}
+          <label htmlFor="console-method" style={{ fontSize: 12, fontWeight: 600 }}>Method</label>
+          <Textfield id="console-method" value={method} onChange={(e) => setMethod((e.target as HTMLInputElement).value)} />
         </div>
         <div style={{ flex: 1 }}>
-          <label style={{ fontSize: 12, fontWeight: 600 }}>Path</label>
-          <Textfield value={path} onChange={(e) => setPath((e.target as HTMLInputElement).value)} />
+          <label htmlFor="console-path" style={{ fontSize: 12, fontWeight: 600 }}>Path</label>
+          <Textfield id="console-path" value={path} onChange={(e) => setPath((e.target as HTMLInputElement).value)} />
         </div>
       </div>
 
       <div style={{ marginTop: 12 }}>
-        <label style={{ fontSize: 12, fontWeight: 600 }}>Body (JSON, optional)</label>
+        <label htmlFor="console-body" style={{ fontSize: 12, fontWeight: 600 }}>Body (JSON, optional)</label>
         <TextArea
+          id="console-body"
           value={body}
           minimumRows={3}
           onChange={(e) => setBody((e.target as HTMLTextAreaElement).value)}

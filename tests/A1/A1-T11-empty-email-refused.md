@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | Refused on the sign-in screen: "VALIDATION_FAILEDemail and password are both required.HTTP 400 · correlation fea6df46-12aa-4ba4-8edd-64af6e4fc812". |
+| Actual Result | Refused with VALIDATION_FAILED, "email and password are both required.", HTTP 400; the sign-in screen remained. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
 | Status | Pass |
-| Remarks | Commit: b0ef6ee (working tree modified) · Evidence: tests/A1/evidence/A1-T11.png · Defect: — |
-| Executed By | Seann Khoo |
-| Date of Execution | 2026-09-20 |
+| Remarks | Automated, browser E2E in CI (EN-14). Commit: 6080462 · Evidence: tests/e2e/a-sign-in-and-access.spec.ts › A1-T11 signing in with the email left empty is refused, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41513983925 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

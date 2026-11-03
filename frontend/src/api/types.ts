@@ -4,7 +4,8 @@ export type Role =
   | "VENUE_STAFF"
   | "TECH_SUPPORT_STAFF"
   | "ATTENDEE"
-  | "EVENT_COORDINATOR_LEAD";
+  | "EVENT_COORDINATOR_LEAD"
+  | "SAFETY_OFFICER";
 
 export type EventStatus =
   | "DRAFT"
