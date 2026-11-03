@@ -4,8 +4,12 @@ import type { RequestHandler } from "express";
 import type { Sql } from "postgres";
 import { handleMessage } from "../../src/consumer/handleApproval.js";
 import { handleListingMessage } from "../../src/consumer/handleListing.js";
+import type { UserSummary } from "@connectsphere/contracts";
 import { CallerRefusedError, IdentityUnavailableError, type Authenticator } from "../../src/api/auth.js";
+import type { Directory } from "../../src/api/directory.js";
 import { registrationRouter } from "../../src/api/routes.js";
+import { waitingRoomRouter } from "../../src/api/waitingRoom.js";
+import type { WaitingRoomConfig } from "../../src/service/waitingRoom.js";
 
 /**
  * Test fixtures for R1 to R4, against the real registration schema. Events
@@ -15,6 +19,8 @@ import { registrationRouter } from "../../src/api/routes.js";
  */
 
 export const OWNER = "00000000-0000-0000-0000-000000000001";
+/** R5, R7: the coordinator every fixture event is assigned to, unless a test says otherwise. */
+export const COORDINATOR = "00000000-0000-0000-0000-000000000002";
 export const OPENS = "2026-12-01T01:00:00.000Z"; // Tuesday 1 December 2026, 09:00 SGT
 export const CLOSES = "2026-12-10T10:00:00.000Z"; // Thursday 10 December 2026, 18:00 SGT
 export const DEADLINE = "2026-12-14T10:00:00.000Z"; // Monday 14 December 2026, 18:00 SGT
@@ -50,9 +56,13 @@ export interface ListingOptions {
   opensAt?: string | null;
   closesAt?: string | null;
   deadline?: string | null;
+  /** EN-19. Left out, the message carries no flag at all, as one published before the flag did. */
+  highDemand?: boolean;
   startsAt?: string;
   endsAt?: string;
   changedAt?: string;
+  /** R5, R7: the assigned coordinator; COORDINATOR unless given, null for none. */
+  coordinatorId?: string | null;
 }
 
 /** planning-core's event.listing-changed for an event, as its event module writes it. */
@@ -65,6 +75,7 @@ export function listingMessage(eventId: string, reference: string, o: ListingOpt
       eventReference: reference,
       eventName: o.name ?? "R Test Symposium",
       ownerId: OWNER,
+      assignedCoordinatorId: o.coordinatorId === undefined ? COORDINATOR : o.coordinatorId,
       description: o.description === undefined ? "A one-day symposium for the school of computing." : o.description,
       status: o.status ?? "CONFIRMED",
       proposedStartAt: o.startsAt ?? STARTS,
@@ -73,6 +84,7 @@ export function listingMessage(eventId: string, reference: string, o: ListingOpt
       registrationOpensAt: o.opensAt === undefined ? OPENS : o.opensAt,
       registrationClosesAt: o.closesAt === undefined ? CLOSES : o.closesAt,
       withdrawalDeadlineAt: o.deadline === undefined ? DEADLINE : o.deadline,
+      ...(o.highDemand === undefined ? {} : { highDemand: o.highDemand }),
       changedAt: o.changedAt ?? new Date().toISOString(),
     },
     "/connectsphere/planning-core/event",
@@ -165,7 +177,11 @@ export async function cleanUp(sql: Sql): Promise<void> {
   const events = [...created.events];
   const messages = [...created.messages];
   if (events.length) {
+    await sql`delete from registration.waiting_room_entries where event_id in ${sql(events)}`;
+    await sql`delete from registration.waiting_room_gates where event_id in ${sql(events)}`;
     await sql`delete from registration.outbox where message_key in (select id::text from registration.registrations where event_id in ${sql(events)})`;
+    await sql`delete from registration.outbox where message_key in (select id::text from registration.waitlist_entries where event_id in ${sql(events)})`;
+    await sql`delete from registration.waitlist_entries where event_id in ${sql(events)}`;
     await sql`delete from registration.registrations where event_id in ${sql(events)}`;
     await sql`delete from registration.seats where event_id in ${sql(events)}`;
     await sql`delete from registration.event_venues where event_id in ${sql(events)}`;
@@ -183,9 +199,9 @@ export function track(eventId: string) {
 
 /**
  * A stand-in for Supabase and identity. A token names its caller:
- * `attendee:<id>` and `organiser:<id>` are signed in with that role; `down`
- * finds identity unreachable; `revoked` is refused by identity; `bad` fails the
- * signature check.
+ * `attendee:<id>`, `organiser:<id>` and `coordinator:<id>` are signed in with
+ * that role; `down` finds identity unreachable; `revoked` is refused by
+ * identity; `bad` fails the signature check.
  */
 export const fakeAuth: Authenticator = {
   async verifyToken(token) {
@@ -195,22 +211,69 @@ export const fakeAuth: Authenticator = {
     if (token === "down") throw new IdentityUnavailableError("connect ECONNREFUSED");
     if (token === "revoked") throw new CallerRefusedError(401, "UNAUTHENTICATED", "No active session for this token.");
     const [role, id] = token.split(":");
-    return { id: id!, email: `${role}@connectsphere.test`, role: role === "organiser" ? "EVENT_ORGANISER" : "ATTENDEE" };
+    const roles: Record<string, "EVENT_ORGANISER" | "EVENT_COORDINATOR" | "ATTENDEE"> = { organiser: "EVENT_ORGANISER", coordinator: "EVENT_COORDINATOR" };
+    return { id: id!, email: `${role}@connectsphere.test`, role: roles[role!] ?? "ATTENDEE" };
+  },
+};
+
+/**
+ * A stand-in for identity's people lookups (R5 to R7). Every id is named
+ * `Person <last 4 of the id>`, with an email, except the people in `known`;
+ * an attendee is found for any email starting `attendee`, with the id
+ * `attendees` gives it or a fixed one; `down@…` finds identity unreachable.
+ */
+export const ATTENDEE_ONE = "00000000-0000-0000-0000-000000000005";
+export const directoryPeople = {
+  known: new Map<string, UserSummary>([
+    [ATTENDEE_ONE, { id: ATTENDEE_ONE, displayName: "Attendee One", email: "attendee@connectsphere.test" }],
+    [OWNER, { id: OWNER, displayName: "Organiser One", email: "organiser@connectsphere.test" }],
+    [COORDINATOR, { id: COORDINATOR, displayName: "Coordinator One", email: "coordinator@connectsphere.test" }],
+  ]),
+  attendees: new Map<string, string>(),
+  namesDown: false,
+};
+
+export const fakeDirectory: Directory = {
+  async namesOf(_token, ids) {
+    if (directoryPeople.namesDown) throw new IdentityUnavailableError("connect ECONNREFUSED");
+    return new Map(
+      ids.map((id) => [id, directoryPeople.known.get(id) ?? { id, displayName: `Person ${id.slice(-4)}`, email: `${id.slice(-4)}@connectsphere.test` }]),
+    );
+  },
+  async attendeeByEmail(_token, email) {
+    if (email.startsWith("down@")) throw new IdentityUnavailableError("connect ECONNREFUSED");
+    if (!email.startsWith("attendee")) return null;
+    const id = directoryPeople.attendees.get(email) ?? ATTENDEE_ONE;
+    return { id, displayName: email === "attendee@connectsphere.test" ? "Attendee One" : null, email };
   },
 };
 
 const noLimit: RequestHandler = (_req, _res, next) => next();
 
-/** The attendee API on its own, with the fake identity and a clock the test controls. */
-export function appAt(sql: Sql, clock: { now: Date }) {
+/** EN-19: 50 admissions a second, a token good for a minute, and a key for tests only. */
+export const ROOM: WaitingRoomConfig = { admitPerSecond: 50, tokenTtlSeconds: 60, signingKey: "test-only-waiting-room-key-32-chars-min" };
+
+/** The attendee API and the waiting room on their own, with the fake identity and a clock the test controls. */
+export function appAt(sql: Sql, clock: { now: Date }, room: WaitingRoomConfig = ROOM) {
   const app = express();
   app.use(express.json());
-  app.use(registrationRouter({ sql, auth: fakeAuth, limiter: noLimit, clock: () => clock.now }));
+  app.use(registrationRouter({ sql, auth: fakeAuth, limiter: noLimit, clock: () => clock.now, signingKey: room.signingKey, directory: fakeDirectory }));
+  app.use(waitingRoomRouter({ sql, auth: fakeAuth, limiter: noLimit, clock: () => clock.now, waitingRoom: room }));
   return app;
 }
 
 export const asAttendee = (id: string) => ({ Authorization: `Bearer attendee:${id}` });
 export const asOrganiser = (id: string) => ({ Authorization: `Bearer organiser:${id}` });
+export const asCoordinator = (id: string) => ({ Authorization: `Bearer coordinator:${id}` });
+
+/** The waitlist messages written for the event's entries (R6), in order. */
+export async function waitlistOutboxOf(sql: Sql, eventId: string) {
+  return sql<{ type: string; key: string; data: Record<string, unknown>; actor: string }[]>`
+    select envelope->>'type' as type, message_key as key, envelope->'data' as data, envelope->>'actor' as actor
+    from registration.outbox
+    where message_key in (select id::text from registration.waitlist_entries where event_id = ${eventId})
+    order by seq`;
+}
 
 /** The event's places remaining, as R1 shows them. */
 export async function placesOf(sql: Sql, eventId: string): Promise<number> {

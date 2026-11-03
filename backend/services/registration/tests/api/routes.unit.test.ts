@@ -103,6 +103,7 @@ describe("what attendees are sent (R1-T8, R3)", () => {
     name: "R Test Symposium",
     description: null,
     ownerId: "00000000-0000-0000-0000-000000000001",
+    assignedCoordinatorId: null,
     status: "CONFIRMED",
     startsAt: "2026-12-16T06:00:00.000Z",
     endsAt: "2026-12-16T10:00:00.000Z",
@@ -110,6 +111,7 @@ describe("what attendees are sent (R1-T8, R3)", () => {
     registrationOpensAt: "2026-12-01T01:00:00.000Z",
     registrationClosesAt: "2026-12-10T10:00:00.000Z",
     withdrawalDeadlineAt: null,
+    highDemand: false,
   };
 
   it("an open event: no owner or status, the deadline as the start when none is set, and full at zero places", () => {
@@ -130,6 +132,9 @@ describe("what attendees are sent (R1-T8, R3)", () => {
       registeredAt: "2026-12-01T02:00:00.000Z",
       withdrawnAt: null,
       cancelledAt: null,
+      addedBy: null,
+      additionReason: null,
+      addedOverCapacity: false,
     };
     expect(presentRegistration(registration, undefined, []).event).toEqual({
       eventId: listing.eventId,

@@ -36,6 +36,8 @@ export interface EventFields {
 export interface EventRow extends EventFields {
   /** R4: the organiser's withdrawal deadline; null when none is set. */
   withdrawalDeadlineAt: string | null;
+  /** EN-19: attendees queue in the waiting room and register with an admission token. */
+  highDemand: boolean;
   id: string;
   /** Null until the request is submitted (C3). */
   reference: string | null;
@@ -78,6 +80,7 @@ export interface RawEvent {
   registration_opens_at: Date | null;
   registration_closes_at: Date | null;
   withdrawal_deadline_at?: Date | null;
+  high_demand?: boolean;
   status: EventStatus;
   submitted_at: Date | null;
   last_saved_at: Date;
@@ -113,6 +116,7 @@ export function toEvent(row: RawEvent): EventRow {
     registrationOpensAt: row.registration_opens_at?.toISOString() ?? null,
     registrationClosesAt: row.registration_closes_at?.toISOString() ?? null,
     withdrawalDeadlineAt: row.withdrawal_deadline_at?.toISOString() ?? null,
+    highDemand: row.high_demand ?? false,
     status: row.status,
     submittedAt: row.submitted_at?.toISOString() ?? null,
     lastSavedAt: row.last_saved_at.toISOString(),

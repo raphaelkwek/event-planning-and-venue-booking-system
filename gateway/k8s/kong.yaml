@@ -1,0 +1,182 @@
+# EN-12: the Kong gateway (ADR-0011). NOT deployed anywhere: these manifests are rendered and
+# validated in CI (kubeconform) and have never been applied to a cluster. They sit in gateway/k8s,
+# not deploy/, until EN-10's deploy/ folder (#75) is on main; then they can move there.
+#
+# Each pod starts by rendering the Kong configuration: an init container reads the Supabase JWKS and
+# writes gateway/kong.yml with the signing keys as JWT credentials (gateway/scripts/render-config.mjs).
+# After a key rotation, restart the Deployment (`kubectl rollout restart deploy/kong`); a rolling restart
+# keeps the gateway up. documentation/gateway.md explains why Kong cannot fetch the JWKS itself.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kong
+spec:
+  replicas: 2
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: kong
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: kong
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      initContainers:
+        - name: render-config
+          image: node:20-alpine
+          command:
+            - node
+            - /scripts/render-config.mjs
+            - --template
+            - /scripts/kong.yml
+            - --jwks-url
+            - $(SUPABASE_JWKS_URL)
+            - --redis
+            - redis:6379
+            - --out
+            - /config/kong.yml
+          env:
+            - name: SUPABASE_JWKS_URL
+              valueFrom:
+                configMapKeyRef: { name: connectsphere-config, key: SUPABASE_JWKS_URL }
+          resources:
+            requests: { cpu: 50m, memory: 64Mi }
+            limits: { cpu: 200m, memory: 128Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          volumeMounts:
+            - name: scripts
+              mountPath: /scripts
+              readOnly: true
+            - name: config
+              mountPath: /config
+      containers:
+        - name: kong
+          image: kong:3.9
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: KONG_DATABASE
+              value: "off"
+            - name: KONG_DECLARATIVE_CONFIG
+              value: /config/kong.yml
+            - name: KONG_PREFIX
+              value: /tmp/kong
+            # The Admin API stays off: DB-less Kong is configured by its file only.
+            - name: KONG_ADMIN_LISTEN
+              value: "off"
+            - name: KONG_PROXY_LISTEN
+              value: 0.0.0.0:8000
+            # Probes only; never exposed by a Service.
+            - name: KONG_STATUS_LISTEN
+              value: 0.0.0.0:8100
+            # The only Lua is the pre-function in gateway/kong.yml, which comes from git.
+            - name: KONG_UNTRUSTED_LUA
+              value: "on"
+            - name: KONG_PROXY_ACCESS_LOG
+              value: /dev/stdout
+            - name: KONG_PROXY_ERROR_LOG
+              value: /dev/stderr
+            # Behind a CDN and a load balancer the client address is in X-Forwarded-For. Trust only the
+            # hops that really are in front of Kong, or a client can choose its own address and so its
+            # own rate-limit key. Replace this with the load balancer's range and CloudFront's managed
+            # prefix list before use; 10.0.0.0/8 is a placeholder for a private VPC.
+            - name: KONG_REAL_IP_HEADER
+              value: X-Forwarded-For
+            - name: KONG_REAL_IP_RECURSIVE
+              value: "on"
+            - name: KONG_TRUSTED_IPS
+              value: 10.0.0.0/8
+          ports:
+            - name: proxy
+              containerPort: 8000
+              protocol: TCP
+            - name: status
+              containerPort: 8100
+              protocol: TCP
+          startupProbe:
+            httpGet: { path: /status/ready, port: status }
+            periodSeconds: 3
+            failureThreshold: 20
+          livenessProbe:
+            httpGet: { path: /status, port: status }
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+          readinessProbe:
+            httpGet: { path: /status/ready, port: status }
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          resources:
+            requests: { cpu: 200m, memory: 256Mi }
+            limits: { cpu: "1", memory: 512Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          volumeMounts:
+            - name: config
+              mountPath: /config
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: scripts
+          configMap:
+            name: kong-render
+        - name: config
+          emptyDir: { sizeLimit: 8Mi }
+        - name: tmp
+          emptyDir: { sizeLimit: 64Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kong
+spec:
+  selector:
+    app.kubernetes.io/name: kong
+  ports:
+    - name: proxy
+      port: 80
+      targetPort: proxy
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: kong
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: kong
+  minReplicas: 2
+  maxReplicas: 6
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target: { type: Utilization, averageUtilization: 70 }
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: kong
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: kong

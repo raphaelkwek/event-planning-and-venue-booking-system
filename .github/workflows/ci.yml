@@ -214,6 +214,8 @@ jobs:
           # EN-15-T8 reads this flagd; without it the test is skipped.
           FLAGD_INTEGRATION_HOST: 127.0.0.1
 
+      # Each service's suite runs even when an earlier one failed, so one failure doesn't hide
+      # another's results. The job still fails if any of them does.
       - name: Integration tests (notification)
         if: always()
         run: npm test -w @connectsphere/notification

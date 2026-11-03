@@ -29,6 +29,7 @@ const PATTERN_EXAMPLES: Record<string, string> = {
   "^BKR-\\d{6}$": "BKR-000042",
   "^HLD-\\d{6}$": "HLD-000042",
   "^REG-\\d{6}$": "REG-000042",
+  "^WL-\\d{6}$": "WL-000042",
 };
 
 export function instanceOf(schema: unknown, variant: Variant, now = new Date().toISOString()): unknown {

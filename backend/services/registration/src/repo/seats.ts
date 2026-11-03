@@ -158,17 +158,84 @@ export async function moveClaimedSeats(db: Db, fromBookingId: string, toBookingI
 
 /**
  * R4: a withdrawn registration's seat is free again, so places remaining rises
- * by exactly one. Conditional on the seat still being claimed, so it is never
- * freed twice.
+ * by exactly one, unless R7's seatUnseated then hands it on. Conditional on the
+ * seat still being claimed, so it is never freed twice. Returns the freed
+ * seat's pool, or null when it was not claimed.
  */
-export async function releaseSeat(db: Db, seatId: string): Promise<boolean> {
+export async function releaseSeat(db: Db, seatId: string): Promise<SeatPool | null> {
   const sql = db as Sql;
-  const freed = await sql`
+  const [freed] = await sql<{ pool: SeatPool }[]>`
     update registration.seats set status = 'FREE', claimed_by = null, claimed_at = null, updated_at = now()
     where id = ${seatId} and status = 'CLAIMED'
-    returning id
+    returning pool
   `;
-  return freed.length > 0;
+  return freed?.pool ?? null;
+}
+
+/**
+ * R7's invariant, with R2 and R6: while any active registration holds no seat
+ * (an addition above capacity), no seat is free, so places remaining never
+ * offers a place that is not there.
+ *
+ * Every change to which seats are free or which registrations hold none takes
+ * the event's places lock in its transaction, before anything else on the
+ * event: withdrawing (R4), adding by hand (R7), building or replacing seats
+ * (EN-13) and cancelling (R3) exclusively; registering (R2) and joining the
+ * waitlist (R6) shared, since they only take free seats or read the count and
+ * may run together. So an exclusive holder sees every seat claim committed or
+ * not started, and SKIP LOCKED never skips a seat a registration is about to
+ * release. Take the attendee's lock first where both are taken.
+ */
+export async function lockPlaces(db: Db, eventId: string, mode: "shared" | "exclusive"): Promise<void> {
+  const sql = db as Sql;
+  const key = "registration.places:" + eventId;
+  if (mode === "shared") await sql`select pg_advisory_xact_lock_shared(hashtext(${key}))`;
+  else await sql`select pg_advisory_xact_lock(hashtext(${key}))`;
+}
+
+/**
+ * R6, R7: one attendee's actions on one event are taken in turn, so joining the
+ * waitlist and registering (or being added) at once can't leave them holding
+ * both a registration and a waiting entry.
+ */
+export async function lockAttendee(db: Db, eventId: string, attendeeId: string): Promise<void> {
+  const sql = db as Sql;
+  await sql`select pg_advisory_xact_lock(hashtext(${"registration.attendee:" + eventId + ":" + attendeeId}))`;
+}
+
+/**
+ * R7: gives the event's free seats to its active registrations that hold none,
+ * earliest registration first, VIP seats before public ones. Run under the
+ * exclusive places lock after anything that frees or adds seats (a withdrawal,
+ * a new booking), so the invariant above holds when the transaction commits.
+ * Returns how many registrations were given a seat.
+ */
+export async function seatUnseated(db: Db, eventId: string): Promise<number> {
+  const sql = db as Sql;
+  const seated = await sql`
+    with unseated as (
+      select id, attendee_id, row_number() over (order by registered_at, id) as n
+      from registration.registrations
+      where event_id = ${eventId} and status = 'REGISTERED' and seat_id is null
+    ), free as (
+      select id, row_number() over (order by case pool when 'VIP' then 0 else 1 end, seat_no, id) as n
+      from registration.seats
+      where event_id = ${eventId} and status = 'FREE'
+    ), pairs as (
+      select unseated.id as registration_id, unseated.attendee_id, free.id as seat_id
+      from unseated join free using (n)
+    ), claimed as (
+      update registration.seats s
+      set status = 'CLAIMED', claimed_by = pairs.attendee_id, claimed_at = now(), updated_at = now()
+      from pairs where s.id = pairs.seat_id and s.status = 'FREE'
+      returning s.id
+    )
+    update registration.registrations r
+    set seat_id = pairs.seat_id, updated_at = now()
+    from pairs where r.id = pairs.registration_id and exists (select 1 from claimed where claimed.id = pairs.seat_id)
+    returning r.id
+  `;
+  return seated.length;
 }
 
 /**

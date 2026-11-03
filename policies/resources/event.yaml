@@ -133,7 +133,8 @@ resourcePolicy:
       effect: EFFECT_ALLOW
       derivedRoles: [assigned_coordinator]
 
-    # R2, R4: the owning organiser sets the registration window and the withdrawal deadline.
+    # R2, R4, EN-19: the owning organiser sets the registration window, the withdrawal deadline
+    # and whether the event is high-demand (attendees queue in the waiting room).
     - name: R2-R4-the-owner-configures-registration
       actions: [configure_registration]
       effect: EFFECT_ALLOW

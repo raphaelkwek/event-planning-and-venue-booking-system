@@ -1,0 +1,25 @@
+# EN-19-T15 — The organiser flags an event high-demand on the registration settings screen, which explains what it does
+
+## Specification
+
+| Item | Content |
+|---|---|
+| Test Case ID | EN-19-T15 |
+| Test Scenario | The organiser flags an event high-demand on the registration settings screen, which explains what it does |
+| Pre-conditions | 1. Dependencies installed (`npm ci`).<br>2. The registration settings screen for an Approved event; the API faked at the fetch boundary. |
+| Test Steps | 1. Run `npm test -w @connectsphere/web`.<br>2. Find the tests named `EN-19-T15` in `frontend/tests/registrationSettings.test.tsx`. |
+| Test Data | Tick the high-demand box and save; the server refuses with a stale version |
+| Expected Result | The box is described as putting attendees in a queue before they can register. Saving sends `highDemand: true` with the version loaded in If-Match, and the screen shows the saved state. A stale version shows the server's message and is not reported as saved; saving again with the right version works. |
+| Acceptance criterion | An organiser can mark an event high-demand. |
+| Created By | Joash |
+| Date of Creation | 2026-11-03 |
+
+## Execution record
+
+| Item | Content |
+|---|---|
+| Actual Result | jsdom component tests: the high-demand box and its explanation rendered; saving sent highDemand with the version in If-Match; a stale version showed the server's message and was not reported as saved; saving again with a fresh version showed the saved state; a saved flag loaded ticked. |
+| Status | Pass |
+| Remarks | Automated (UI component level, jsdom) · Commit: 4ed881d330ebe5af9151561254411ba4a5904d55 · Evidence: frontend/tests/registrationSettings.test.tsx › EN-19-T15 flags the event high-demand and shows the server's refusal when the version is stale ; EN-19-T15 loads the saved flag, and takes it off with the version the last save returned, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41532885735 · Defect: — · UI walk-through in Chrome pending at the sprint review |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

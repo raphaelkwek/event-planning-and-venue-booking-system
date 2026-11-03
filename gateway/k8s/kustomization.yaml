@@ -1,0 +1,16 @@
+# Render with:
+#   kubectl kustomize --load-restrictor LoadRestrictionsNone gateway/k8s
+# The ConfigMap is built from gateway/kong.yml and gateway/scripts/render-config.mjs, which sit
+# outside this folder, hence the flag (Argo CD needs `kustomize.buildOptions` set to the same).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - kong.yaml
+  - redis.yaml
+configMapGenerator:
+  - name: kong-render
+    options:
+      disableNameSuffixHash: true
+    files:
+      - kong.yml=../kong.yml
+      - render-config.mjs=../scripts/render-config.mjs

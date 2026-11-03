@@ -37,7 +37,7 @@ Role names come from `backend/packages/contracts` (`ROLES`). `contracts/tests/po
 |---|---|---|---|
 | B1, C1 | Create a request or draft | event `create` | Event Organiser |
 | C2 | Open, edit or submit a draft | event `view_draft`, `update_draft`, `submit_draft` | its owner |
-| R2, R4 | Set the registration window and withdrawal deadline | event `configure_registration` | its owner |
+| R2, R4, EN-19 | Set the registration window, withdrawal deadline and high-demand flag | event `configure_registration` | its owner |
 | C3, D1, F2 | Open an event | event `view` | its owner; the assigned coordinator (A4); Venue Staff, Tech Support (rows per A3); the Lead (E3, E5); Attendees only if open for registration (R1) |
 | F2, D2, E2 | History, clarifications, proposals | event `view_history`, `view_clarifications`, `view_reassignments` | its owner (history, clarifications); the assigned coordinator (A4) |
 | D1, D2, D4, D5 | Review, ask, approve, reject | event `review`, `request_clarification`, `approve`, `reject` | the assigned coordinator (A4) |
@@ -66,7 +66,7 @@ Role names come from `backend/packages/contracts` (`ROLES`). `contracts/tests/po
 | O2, P1, Q1, Q2 | Arrange equipment | equipment_request_line `update_status`, `check_availability`, `reserve`, `release` | Tech Support |
 | P2 | Maintain inventory | equipment_type `create`, `update`, `record_unavailability` | Tech Support only |
 | P1 | A type's availability over a period | equipment_type `check_availability` | Tech Support |
-| B1, D1 | Name people by id | user `view` | every internal role, never Attendees |
+| B1, D1, R7 | Name people by id; find an attendee by email | user `view` | every internal role, never Attendees |
 | R2, R6 | Register, join the waitlist | registration `create`, `join_waitlist` | Attendee |
 | R3, R4, R6 | My registration | registration `view`, `withdraw`, `leave_waitlist` | that attendee |
 | R5 | See an event's registrations | registration `view` | owner or assigned coordinator |

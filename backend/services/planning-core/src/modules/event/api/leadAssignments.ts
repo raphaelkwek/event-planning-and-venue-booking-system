@@ -6,6 +6,7 @@ import { findActiveCoordinator, listActiveCoordinators, type ActiveCoordinator }
 import { authenticate, requireRole, type ActorRequest } from "../auth/actor.js";
 import { ASSIGNMENT_NOT_ACTIVE_COORDINATOR, canAssign, LEAD_ASSIGNMENT_RULE } from "../domain/assignment.js";
 import { writeOutbox } from "../events/outbox.js";
+import { writeListingChanged } from "../events/listing.js";
 import {
   closeActiveAssignment,
   closePendingProposal,
@@ -98,6 +99,8 @@ export function leadAssignmentsRouter(sql: Sql, limiter: RequestHandler = eventR
 
         const assignment = await insertAssignment(tx, event.id, coordinator.id, LEAD_ASSIGNMENT_RULE, lead.userId);
         await raiseEventVersion(tx, event.id, lead.userId);
+        // R5, R7: the registration service learns who may see the event's registrations and add attendees.
+        await writeListingChanged(tx, event.id, { userId: lead.userId, role: lead.role }, correlationId);
         await writeOutbox(tx, {
           topic: KAFKA_TOPICS.event,
           messageType: "event.coordinator-assigned",
@@ -181,6 +184,8 @@ export function leadAssignmentsRouter(sql: Sql, limiter: RequestHandler = eventR
       const assignment = await insertAssignment(tx, event.id, coordinator.id, LEAD_ASSIGNMENT_RULE, lead.userId);
       await raiseEventVersion(tx, event.id, lead.userId);
       await closePendingProposal(tx, event.id, lead.userId);
+      // R5, R7: the new coordinator sees the registrations and may add attendees; the previous one no longer can.
+      await writeListingChanged(tx, event.id, { userId: lead.userId, role: lead.role }, correlationId);
       await writeOutbox(tx, {
         topic: KAFKA_TOPICS.event,
         messageType: "event.coordinator-reassigned",
