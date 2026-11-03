@@ -61,8 +61,11 @@ describe("resolveCurrentUser", () => {
 });
 
 describe("resolveEventsScope", () => {
-  it("gives a coordinator every event", async () => {
-    await expect(resolveEventsScope({ ...USER, role: "EVENT_COORDINATOR" })).resolves.toEqual({ scopeType: "ALL" });
+  it("limits a coordinator to the events assigned to them (A4)", async () => {
+    await expect(resolveEventsScope({ ...USER, role: "EVENT_COORDINATOR" })).resolves.toEqual({
+      scopeType: "ASSIGNED_TO_USER",
+      userId: USER.id,
+    });
   });
 
   it("limits an organiser to the events they own", async () => {

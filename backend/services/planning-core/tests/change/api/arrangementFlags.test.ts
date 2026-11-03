@@ -126,10 +126,17 @@ describe("GET /api/v1/events/:id/arrangement-flags (S3 AC8)", () => {
     await expectBothFlags(await read(f.event.id), f);
   });
 
-  it("shows an Event Coordinator who is not assigned", async () => {
+  // A4 supersedes S3 AC8's "and Event Coordinators": another coordinator sees none of the event.
+  it("answers 404 to an Event Coordinator who is not assigned (A4)", async () => {
     const f = await fixture();
     signedInAs(A.c2, "EVENT_COORDINATOR");
-    await expectBothFlags(await read(f.event.id), f);
+    const response = await read(f.event.id);
+    expect(response.status).toBe(404);
+    expect(response.body.error).toMatchObject({
+      code: "EVENT_NOT_FOUND",
+      message: "No event with that reference is assigned to you.",
+    });
+    expect(JSON.stringify(response.body)).not.toContain(f.event.id);
   });
 
   it("answers 404 EVENT_NOT_FOUND to an organiser who does not own the event, as for an unknown event", async () => {

@@ -29,7 +29,7 @@ tests:
       - principal: assigned_coordinator
         resource: event_open
         actions:
-          view: EFFECT_ALLOW # D1, A3: coordinators see all events
+          view: EFFECT_ALLOW # D1, A4: a coordinator sees the events assigned to them
           view_history: EFFECT_ALLOW # F2
           view_clarifications: EFFECT_ALLOW # D2
           view_reassignments: EFFECT_ALLOW # E2
@@ -43,33 +43,12 @@ tests:
           update_details: EFFECT_ALLOW # G1
           preview_change_impact: EFFECT_ALLOW # G2
           reconsider_arrangements: EFFECT_ALLOW # S3
-      - principal: other_coordinator
+      # other_coordinator: none. A4 (CR-05): a coordinator neither sees nor acts on an
+      # event not assigned to them (A3's "coordinators see all events" is superseded).
+      - principal: nominee # another coordinator, named by a proposal made before E4
         resource: event_open
         actions:
-          view: EFFECT_ALLOW
-          view_history: EFFECT_ALLOW
-          view_clarifications: EFFECT_ALLOW
-          view_reassignments: EFFECT_ALLOW
-          review: EFFECT_ALLOW
-          request_clarification: EFFECT_ALLOW
-          approve: EFFECT_ALLOW
-          reject: EFFECT_ALLOW
-          preview_change_impact: EFFECT_ALLOW
-          reconsider_arrangements: EFFECT_ALLOW
-      - principal: nominee # another coordinator, named by the pending proposal
-        resource: event_open
-        actions:
-          view: EFFECT_ALLOW
-          view_history: EFFECT_ALLOW
-          view_clarifications: EFFECT_ALLOW
-          view_reassignments: EFFECT_ALLOW
-          review: EFFECT_ALLOW
-          request_clarification: EFFECT_ALLOW
-          approve: EFFECT_ALLOW
-          reject: EFFECT_ALLOW
-          respond_to_reassignment: EFFECT_ALLOW # E2: the nominee accepts or declines
-          preview_change_impact: EFFECT_ALLOW
-          reconsider_arrangements: EFFECT_ALLOW
+          respond_to_reassignment: EFFECT_ALLOW # E2: the nominee accepts or declines, and nothing else (A4)
       - principal: venue_manager # A3: rows limited by RLS, not here
         resource: event_open
         actions:

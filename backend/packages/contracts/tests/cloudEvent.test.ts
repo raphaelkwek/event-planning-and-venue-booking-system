@@ -200,6 +200,16 @@ describe("parseCloudEvent: an example message for every event type", () => {
     expect(() => parseCloudEvent(exampleMessage("event.arrangements-confirmed", data))).toThrow(/bookings/);
   });
 
+  it("accepts a cancellation of an unassigned event with nothing booked or reserved (F3)", () => {
+    const data = { ...EXAMPLE_DATA["event.cancelled"], assignedCoordinatorId: null, bookings: [], reservations: [] };
+    expect(parseCloudEvent(exampleMessage("event.cancelled", data)).data).toMatchObject({ assignedCoordinatorId: null });
+  });
+
+  it("refuses a cancellation with no reason (F3 AC2)", () => {
+    const data = { ...EXAMPLE_DATA["event.cancelled"], reason: "" };
+    expect(() => parseCloudEvent(exampleMessage("event.cancelled", data))).toThrow(/reason/);
+  });
+
   it("refuses a type it has no schema for, naming the type", () => {
     expect(() => parseCloudEvent(exampleMessage("event.teleported", {}))).toThrow(/event\.teleported/);
   });

@@ -81,6 +81,9 @@ export const ERROR_CODES = [
   "WAITING_ROOM_NOT_REQUIRED",
   "WAITING_ROOM_UNAVAILABLE",
   "WAITING_ROOM_ENTRY_NOT_FOUND",
+  // F3: a cancelled event refuses new equipment; a cancellation that fails changes nothing.
+  "EVENT_CANCELLED",
+  "CANCELLATION_FAILED",
 ] as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[number];

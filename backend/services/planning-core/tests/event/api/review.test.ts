@@ -4,8 +4,7 @@ import { testDb } from "../../support/testDb.js";
 import { assignForTest } from "../../support/assignment.js";
 import { EVENT_END, EVENT_START } from "../../support/eventDates.js";
 
-/** E3: submission assigns no one, so each test assigns as the Lead would. */
-const POOL_COORDINATOR = "a5555555-0000-0000-0000-00000000000a";
+/** E3: submission assigns no one, so each test assigns as the Lead would: to COORDINATOR (A4). */
 
 vi.mock("../../../src/shared/auth/verifyJwt.js", () => ({
   verifyJwt: (
@@ -56,7 +55,7 @@ function signedInAs(userId: string, role: string) {
   });
   vi.mocked(resolveEventsScope).mockResolvedValue(
     role === "EVENT_COORDINATOR"
-      ? { scopeType: "ALL" }
+      ? { scopeType: "ASSIGNED_TO_USER", userId }
       : role === "EVENT_ORGANISER"
         ? { scopeType: "OWNED_BY_USER", userId }
         : { scopeType: "NONE" }
@@ -88,7 +87,7 @@ async function givenSubmittedEvent(overrides: Record<string, unknown> = {}) {
     .post("/api/v1/events")
     .set(bearer)
     .send({ ...validRequest, ...overrides });
-  await assignForTest(sql, res.body, POOL_COORDINATOR);
+  await assignForTest(sql, res.body, COORDINATOR);
   return res.body;
 }
 
@@ -257,19 +256,27 @@ describe("GET /api/v1/events/:id (D1)", () => {
     });
   });
 
-  it("does not overwrite the reviewer when a second coordinator opens it", async () => {
+  // A4 supersedes D1-T6: a second coordinator no longer sees the first reviewer, because the
+  // request isn't assigned to them. They get the same 404 as for an event that isn't there.
+  it("gives a coordinator it isn't assigned to no event data, and claims nothing (A4)", async () => {
     const event = await givenSubmittedEvent();
-    signedInAs(COORDINATOR, "EVENT_COORDINATOR");
-    await request(app).get(`/api/v1/events/${event.id}`).set(bearer);
 
     signedInAs(OTHER_COORDINATOR, "EVENT_COORDINATOR");
     const res = await request(app).get(`/api/v1/events/${event.id}`).set(bearer);
 
-    expect(res.status).toBe(200);
-    expect(res.body.reviewingCoordinatorId).toBe(COORDINATOR);
+    expect(res.status).toBe(404);
+    expect(res.body).toEqual({
+      error: {
+        code: "EVENT_NOT_FOUND",
+        message: "No event with that reference is assigned to you.",
+        correlationId: expect.any(String),
+      },
+    });
+    const [after] = await sql`select status, reviewing_coordinator_id from event.events where id = ${event.id}`;
+    expect(after).toEqual({ status: "SUBMITTED", reviewing_coordinator_id: null });
   });
 
-  it("a coordinator who loses the race to open a request sees the first reviewer", async () => {
+  it("opening a request twice at once, as from two tabs, records the review once", async () => {
     const event = await givenSubmittedEvent();
     const staleSubmittedRow = await realRepo.findEventInScope(sql, event.id, { scopeType: "ALL" }, COORDINATOR);
     expect(staleSubmittedRow?.status).toBe("SUBMITTED");
@@ -279,7 +286,7 @@ describe("GET /api/v1/events/:id (D1)", () => {
     const [claimed] = await sql`
       select reviewing_coordinator_id, review_started_at from event.events where id = ${event.id}`;
 
-    signedInAs(OTHER_COORDINATOR, "EVENT_COORDINATOR");
+    // The second open read the row before the first claimed it.
     vi.mocked(findEventInScope).mockResolvedValueOnce(staleSubmittedRow);
     const res = await request(app).get(`/api/v1/events/${event.id}`).set(bearer);
 
