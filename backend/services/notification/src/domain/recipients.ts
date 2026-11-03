@@ -365,19 +365,49 @@ function arrangementsConfirmed(d: ArrangementsConfirmed, event: string): Array<[
   return notices;
 }
 
+/** A venue arrangement F4 released, as `event.cancelled` names it, with its venue's staff. */
+interface ReleasedAtVenue {
+  reference: string;
+  venueName: string;
+  startsAt: string;
+  endsAt: string;
+  staffIds: string[];
+}
+
 /** F3's message data, as its contract (`eventCancelledPayloadSchema`) validated it. */
 interface EventCancelled {
   ownerId: string;
   assignedCoordinatorId: string | null;
   reason: string;
-  bookings: { reference: string; venueName: string; startsAt: string; endsAt: string; staffIds: string[] }[];
+  bookings: ReleasedAtVenue[];
   reservations: { equipmentTypeName: string; reservedQuantity: number; reservedBy: string }[];
+  /** CQ-06: the holds released and the pending requests withdrawn; absent from messages published before them. */
+  holds?: ReleasedAtVenue[];
+  requests?: ReleasedAtVenue[];
+}
+
+/**
+ * F4 for one Venue Staff member: their bookings and holds that were released, then their pending
+ * requests that were withdrawn, each named with its venue and period.
+ */
+function releasedAtTheirVenues(d: EventCancelled, staffId: string): string {
+  const theirs = (arrangements: ReleasedAtVenue[], what: string) =>
+    arrangements
+      .filter((arrangement) => arrangement.staffIds.includes(staffId))
+      .map((arrangement) => `${what} ${arrangement.reference} at ${arrangement.venueName}, ${period(arrangement.startsAt, arrangement.endsAt)}`);
+  const released = [...theirs(d.bookings, "booking"), ...theirs(d.holds ?? [], "hold")];
+  const withdrawn = theirs(d.requests ?? [], "booking request");
+  return [
+    ...(released.length > 0 ? [` Released: ${released.join("; ")}.`] : []),
+    ...(withdrawn.length > 0 ? [` Withdrawn: ${withdrawn.join("; ")}.`] : []),
+  ].join("");
 }
 
 /**
  * F3 AC6 — the owner, the assigned coordinator, the Venue Staff of each booked venue and whoever reserved
  * each reservation, each told once about all of theirs. Someone with two roles on the event gets the first
- * notice that names them.
+ * notice that names them. CQ-06: the staff of a venue whose hold was released or whose pending request was
+ * withdrawn are told too, after the booked venues' staff.
  */
 function eventCancelled(d: EventCancelled, event: string): Array<[string, string]> {
   const cancelled = `${event} has been cancelled. Reason: ${d.reason}`;
@@ -387,14 +417,9 @@ function eventCancelled(d: EventCancelled, event: string): Array<[string, string
   };
   tell(d.ownerId, `Your event ${cancelled}`);
   if (d.assignedCoordinatorId) tell(d.assignedCoordinatorId, `The event ${cancelled}`);
-  const staff = [...new Set(d.bookings.flatMap((booking) => booking.staffIds))];
-  for (const staffId of staff) {
-    const booked = d.bookings
-      .filter((booking) => booking.staffIds.includes(staffId))
-      .map((booking) => `booking ${booking.reference} at ${booking.venueName}, ${period(booking.startsAt, booking.endsAt)}`)
-      .join("; ");
-    tell(staffId, `${cancelled} Released: ${booked}.`);
-  }
+  const atVenues = [...d.bookings, ...(d.holds ?? []), ...(d.requests ?? [])];
+  const staff = [...new Set(atVenues.flatMap((arrangement) => arrangement.staffIds))];
+  for (const staffId of staff) tell(staffId, `${cancelled}${releasedAtTheirVenues(d, staffId)}`);
   const reservers = [...new Set(d.reservations.map((reservation) => reservation.reservedBy))];
   for (const reserver of reservers) {
     const reserved = d.reservations

@@ -43,3 +43,10 @@ The briefing's "complete within a reasonable time" also has no number attached t
 **What a reviewer should watch for:** a new service or consumer that doesn't propagate trace context.
 
 **Implemented by:** EN-08 (SPM-126) and EN-17 (SPM-135). **Extends:** `implementation.md` §9.
+
+## Implementation note (EN-08, 3 Nov 2026)
+
+HTTP, Postgres and Kafka are instrumented in planning-core, notification and registration, with W3C trace context in
+Kafka headers and the correlation id taken from the trace id. Temporal workflows and the Grafana Loki log export are not yet
+(`documentation/observability.md`, "What this does not do"). Traces and metrics are exported over OTLP to Grafana
+Cloud, so Tempo and Mimir hold them; the SLO rules and dashboards remain EN-17's.

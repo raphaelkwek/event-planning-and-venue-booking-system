@@ -1608,10 +1608,13 @@ paths:
         are Released and its pending venue requests Withdrawn, and its equipment reservations are
         Released, each recording "event cancelled", the user and the time (F4); a change request still
         pending is Closed (W9-07); and the owner, the coordinator, each booked venue's Venue Staff and
-        each reserver are notified (`event.cancelled`). Any failure rolls all of it back, so nothing is
-        left partly released. A refusal stores nothing. The locks are taken change request, venues
-        (ascending id), event, then slots, the venue module's order, so a block at one of the event's
-        venues cannot deadlock with it. Registrations are not released in this transaction, so
+        each reserver are notified (`event.cancelled`), as are the Venue Staff of each venue whose hold
+        was released or whose pending request was withdrawn (review note CQ-06). Any failure rolls all of it back, so nothing is left partly released. A
+        refusal stores nothing. The locks are taken change request, venues (ascending id), event, then
+        slots, the venue module's order, so a block at one of the event's venues cannot deadlock with
+        it. If the event gains an arrangement at another venue between the venue locks and the event
+        lock, the attempt writes nothing and is tried again with that venue locked first, up to three
+        times. Registrations are not released in this transaction, so
         `released.registrations` is always 0: the registration service (EN-13) cancels the event's
         registrations and waitlist entries, and tells the attendees, when it consumes `event.cancelled`
         (R1–R4 and R5–R7, not yet merged).
@@ -1657,7 +1660,7 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
         "409":
-          description: "`STATUS_TRANSITION_NOT_PERMITTED`: the event is Completed, Rejected or already Cancelled. The message names its status."
+          description: "`STATUS_TRANSITION_NOT_PERMITTED`: the event is Completed, Rejected or already Cancelled. The message names its status. `CANCELLATION_CONTENDED`: on each of three attempts the event gained a venue arrangement while the cancellation waited for it, so nothing was changed; try again."
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
@@ -3389,6 +3392,7 @@ components:
         - BOOKING_REQUEST_DUPLICATE
         - BOOKING_REQUEST_NOT_FOUND
         - BOOKING_REQUEST_NOT_PENDING
+        - CANCELLATION_CONTENDED
         - CANCELLATION_FAILED
         - CHANGE_REQUEST_ALREADY_DECIDED
         - CHANGE_REQUEST_ALREADY_PENDING

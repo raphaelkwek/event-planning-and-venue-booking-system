@@ -10,7 +10,7 @@
 | Test Steps | 1. As O, cancel E with the body below.<br>2. Read E's `event.cancelled` messages from the event outbox.<br>3. Pass the message through the notification service's `notificationsFor`.<br>4. Run `npm test -w @connectsphere/planning-core -- tests/change/api/f3Cards.test.ts -t 'F3-T7 '` and read the named `F3-T7 ` result. |
 | Test Data | `{"reason":"The speaker withdrew."}` |
 | Expected Result | Step 2 finds exactly one message, on the event topic, with `ownerId` O, `assignedCoordinatorId` C, the reason, `cancelledBy` O, `bookings` B1 at V1 with `staffIds` [VS], and `reservations` R1 × 5 reserved by T. Step 3 gives one notice each to O, C, VS and T, in that order. |
-| Created By | Raphael, via Claude |
+| Created By | Raphael |
 | Date of Creation | 2026-10-29 |
 
 > **Expected results are checked by the PR reviewer** against F3's acceptance criteria.

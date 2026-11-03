@@ -10,7 +10,7 @@
 | Test Steps | 1. As O, cancel E with the body below.<br>2. As C, send `POST /api/v1/change-requests/<CR>/decision` with `{"decision":"APPROVE"}`.<br>3. Run `npm test -w @connectsphere/planning-core -- tests/change/api/f3Cards.test.ts -t 'F3-T8 '` and read the named `F3-T8 ` result. |
 | Test Data | `{"reason":"The speaker withdrew."}` |
 | Expected Result | Step 1's `closedChangeRequest` is CR with `status` `CLOSED`, `closedReason` `The event was cancelled.`, `decidedBy` O and no rejection reason. Step 2 answers 409 `CHANGE_REQUEST_ALREADY_DECIDED` with `details.status` `CLOSED` and the message `This change request was closed on <decidedAt> because the event was cancelled.` |
-| Created By | Raphael, via Claude |
+| Created By | Raphael |
 | Date of Creation | 2026-10-29 |
 
 > **Expected results are checked by the PR reviewer** against F3's acceptance criteria.

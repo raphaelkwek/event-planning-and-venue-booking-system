@@ -1,6 +1,6 @@
 story_id,acceptance_criterion,test_file,test_name
 A3,"An Event Organiser's event list contains only events where that organiser is the recorded owner",backend/services/planning-core/tests/identity/domain/accessScope.test.ts,"scopes an Organiser's events list to events they own (AC1)"
-A3,"An Event Coordinator's list contains all events in the system, regardless of which coordinator is assigned",backend/services/planning-core/tests/identity/domain/accessScope.test.ts,"gives a Coordinator every event, not filtered by assignment (AC2)"
+A3,"An Event Coordinator's list contains all events in the system, regardless of which coordinator is assigned",backend/services/planning-core/tests/identity/domain/accessScope.test.ts,"scopes a Coordinator's events to the ones assigned to them (A4)"
 A3,"Venue Staff see booking requests and confirmed bookings for their own venues",backend/services/planning-core/tests/identity/domain/accessScope.test.ts,"scopes Venue Staff's venue bookings to their own venues (AC3)"
 A3,"Technical Support Staff see equipment requests and reservations",backend/services/planning-core/tests/identity/domain/accessScope.test.ts,"scopes Tech Support's equipment requests to what they handle (AC4)"
 A3,"An Attendee sees only events with registration enabled that are open to them",backend/services/planning-core/tests/identity/domain/accessScope.test.ts,"scopes an Attendee's events list to open-for-registration only (AC5)"

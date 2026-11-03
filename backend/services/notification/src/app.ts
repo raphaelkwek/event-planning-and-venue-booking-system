@@ -1,5 +1,7 @@
 import "./asyncErrors.js";
 import express from "express";
+import { httpTelemetry } from "@connectsphere/telemetry";
+import { config } from "./config.js";
 import helmet from "helmet";
 import { randomUUID } from "node:crypto";
 import { errorHandler } from "./errorHandler.js";
@@ -16,6 +18,8 @@ import { metrics } from "./metrics.js";
  * listening and starts the consumers.
  */
 export const app = express();
+// EN-08: the correlation id (the trace id) on every response, and http_request_duration_seconds by route pattern.
+app.use(httpTelemetry({ service: config.serviceName }));
 app.use(helmet());
 
 // EN-17: HTTP timings and the notification-freshness histogram (metrics.ts).
