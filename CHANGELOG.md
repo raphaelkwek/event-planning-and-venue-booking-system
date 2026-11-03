@@ -36,8 +36,9 @@ then `npm run deploy:space -- --env staging`, then `--env production` (documenta
 
 ## Not done / limits
 
-- No Space has been created yet: HF_TOKEN and VERCEL_TOKEN are still blank, so the egress probe (5432 and
-  6543) and the first deploy wait for them.
+- **Blocked: Hugging Face refused the probe Space with HTTP 402.** Docker Spaces on free cpu-basic now need
+  a PRO subscription. Nothing was created. The single-container image stays host-independent and proven in CI.
+  The egress probe (`npm run deploy:space -- --probe`) is ready for whichever host Joash chooses.
 - Ephemeral disk: Redpanda and Temporal start empty after a restart. The Space is built from source, so
   EN-21's image signatures do not cover it.
 

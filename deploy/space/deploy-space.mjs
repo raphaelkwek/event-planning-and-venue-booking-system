@@ -162,6 +162,7 @@ export function writeContext(dir, environment, repoRoot = process.cwd(), ref = "
 
 function parseArgs(argv) {
   const args = {};
+  if (argv[0] === "--probe") return { probe: true };
   for (let i = 0; i < argv.length; i += 2) {
     const flag = argv[i];
     if (!["--env", "--context-only", "--web-origin"].includes(flag)) throw new DeployError(`unknown argument ${flag}`);
@@ -252,31 +253,116 @@ async function setUpSpace({ token, space, owner, environment, values, webOrigin,
   void owner;
 }
 
+/** Pushes a directory as the Space repository's whole main branch; the token travels in a header, never in a URL or argument. */
+function pushDir({ token, owner, repo, dir, message, mask, log }) {
+  const git = (args) =>
+    run("git", ["-c", "user.name=ConnectSphere deploy", "-c", "user.email=deploy@connectsphere.invalid", "-c", "core.autocrlf=false", ...args], {
+      cwd: dir,
+      mask,
+      env: {
+        GIT_TERMINAL_PROMPT: "0",
+        GIT_CONFIG_COUNT: "1",
+        GIT_CONFIG_KEY_0: `http.${HF}/.extraheader`,
+        GIT_CONFIG_VALUE_0: `Authorization: Basic ${Buffer.from(`${owner}:${token}`).toString("base64")}`,
+      },
+    });
+  git(["init", "-q", "-b", "main"]);
+  git(["add", "-A"]);
+  git(["commit", "-q", "-m", message]);
+  git(["push", "-q", "--force", `${HF}/spaces/${repo}`, "HEAD:main"]);
+  log(`pushed to ${HF}/spaces/${repo}`);
+}
+
 function pushSpace({ token, owner, space, environment, mask, log }) {
   const dir = mkdtempSync(join(tmpdir(), "connectsphere-space-"));
   try {
     const count = writeContext(dir, environment);
     log(`Space repository: ${count} files`);
-    const git = (args, allowFailure = false) =>
-      run("git", ["-c", "user.name=ConnectSphere deploy", "-c", "user.email=deploy@connectsphere.invalid", ...args], {
-        cwd: dir,
-        mask,
-        allowFailure,
-        env: {
-          GIT_TERMINAL_PROMPT: "0",
-          GIT_CONFIG_COUNT: "1",
-          GIT_CONFIG_KEY_0: `http.${HF}/.extraheader`,
-          GIT_CONFIG_VALUE_0: `Authorization: Basic ${Buffer.from(`${owner}:${token}`).toString("base64")}`,
-        },
-      });
-    git(["init", "-q", "-b", "main"]);
-    git(["add", "-A"]);
-    git(["commit", "-q", "-m", `Deploy ConnectSphere ${environment}`]);
-    git(["push", "-q", "--force", `${HF}/spaces/${space.repo}`, "HEAD:main"]);
-    log(`pushed to ${HF}/spaces/${space.repo}`);
+    pushDir({ token, owner, repo: space.repo, dir, message: `Deploy ConnectSphere ${environment}`, mask, log });
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+}
+
+/** The hosts and ports the probe Space tries: Supabase's poolers in Singapore, and the project's own hosts. */
+export function probeTargets(supabaseUrl) {
+  const targets = [];
+  for (const host of ["aws-0-ap-southeast-1.pooler.supabase.com", "aws-1-ap-southeast-1.pooler.supabase.com"]) {
+    targets.push([host, 5432], [host, 6543]);
+  }
+  const ref = /^https:\/\/([a-z0-9]+)\.supabase\.co/.exec(supabaseUrl ?? "")?.[1];
+  if (ref) targets.push([`${ref}.supabase.co`, 443], [`db.${ref}.supabase.co`, 5432]);
+  return targets;
+}
+
+/** A tiny Space: one port, a second process, and a TCP check of each target, reported as JSON. */
+export function probeFiles(targets) {
+  return {
+    "README.md": ["---", "title: ConnectSphere probe", "sdk: docker", "app_port: 7860", "---", "", "A throwaway probe (deploy-space.mjs --probe).", ""].join("\n"),
+    Dockerfile: ["FROM python:3.12-slim", "COPY app.py /app.py", "USER 1000", 'CMD ["python", "/app.py"]', ""].join("\n"),
+    "app.py": [
+      "import json, os, socket, subprocess, sys",
+      "from http.server import BaseHTTPRequestHandler, HTTPServer",
+      `TARGETS = json.loads(${JSON.stringify(JSON.stringify(targets))})`,
+      'child = subprocess.Popen([sys.executable, "-c", "import time\\nwhile True: time.sleep(60)"])',
+      "def check(host, port):",
+      "    try:",
+      "        with socket.create_connection((host, port), timeout=8):",
+      '            return "open"',
+      "    except Exception as error:",
+      "        return type(error).__name__",
+      "class Handler(BaseHTTPRequestHandler):",
+      "    def do_GET(self):",
+      '        body = json.dumps({"uid": os.getuid(), "child_alive": child.poll() is None, "tcp": {f"{h}:{p}": check(h, p) for h, p in TARGETS}}).encode()',
+      "        self.send_response(200)",
+      '        self.send_header("Content-Type", "application/json")',
+      "        self.end_headers()",
+      "        self.wfile.write(body)",
+      'HTTPServer(("0.0.0.0", 7860), Handler).serve_forever()',
+      "",
+    ].join("\n"),
+  };
+}
+
+async function probe({ dir: secretsDir }) {
+  const read = (name) => {
+    try {
+      return parseEnvFile(readFileSync(join(secretsDir, name), "utf8"));
+    } catch {
+      return {};
+    }
+  };
+  const shared = requireKeys(read("shared.env"), ["HF_TOKEN"], "shared.env");
+  const staging = read("staging.env");
+  const mask = masker([shared.HF_TOKEN, shared.VERCEL_TOKEN, staging.DB_PASSWORD]);
+  const log = makeLog(mask);
+  const who = await hf(shared.HF_TOKEN, "/api/whoami-v2");
+  if (who.status !== 200 || !who.body.name) throw new DeployError(`the HF token was refused (${who.status})`);
+  const space = spaceFor(who.body.name, "probe");
+  const created = await hf(shared.HF_TOKEN, "/api/repos/create", { method: "POST", body: JSON.stringify({ type: "space", name: space.name, sdk: "docker", private: false }) });
+  if (created.status !== 200 && created.status !== 409) throw new DeployError(`Hugging Face would not create ${space.repo} (${created.status}${created.body.error ? `: ${created.body.error}` : ""})`);
+  const dir = mkdtempSync(join(tmpdir(), "connectsphere-probe-"));
+  try {
+    for (const [name, text] of Object.entries(probeFiles(probeTargets(staging.SUPABASE_URL)))) writeFileSync(join(dir, name), text);
+    pushDir({ token: shared.HF_TOKEN, owner: who.body.name, repo: space.repo, dir, message: "Probe", mask, log });
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+  await waitForSpace({ token: shared.HF_TOKEN, space, log });
+  let report = null;
+  await retryUntil(
+    async () => {
+      const response = await fetch(`${space.origin}/`);
+      if (response.status !== 200) return `got ${response.status}`;
+      report = await response.json();
+      return true;
+    },
+    5,
+    `${space.origin} never answered`
+  );
+  log(`probe ${space.origin}: ${JSON.stringify(report)}`);
+  const deleted = await hf(shared.HF_TOKEN, "/api/repos/delete", { method: "DELETE", body: JSON.stringify({ type: "space", name: space.name }) });
+  log(deleted.status === 200 ? `deleted the probe Space ${space.repo}` : `could not delete the probe Space ${space.repo} (${deleted.status}); delete it by hand`);
 }
 
 async function waitForSpace({ token, space, log }) {
@@ -358,6 +444,10 @@ export async function smokeWeb(origin, apiHost, log) {
 
 async function main() {
   const args = parseArgs(process.argv.slice(2));
+  if (args.probe) {
+    await probe({ dir: process.env.CONNECTSPHERE_SECRETS_DIR || DEFAULT_SECRETS_DIR });
+    return;
+  }
   if (args["context-only"]) {
     const count = writeContext(args["context-only"], args.env ?? "staging");
     console.log(`wrote the Space repository (${count} files) to ${args["context-only"]}`);

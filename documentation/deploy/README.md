@@ -13,6 +13,13 @@ differ only in credentials and hostnames:
 
 ## The Hugging Face path
 
+> **Blocked on 3 Nov 2026: Hugging Face no longer hosts Docker Spaces for free.** The probe
+> (`npm run deploy:space -- --probe`) was refused with HTTP 402: "Static Spaces are free for everyone,
+> but hosting Gradio and Docker Spaces on free cpu-basic requires a PRO subscription." This path
+> needs a PRO subscription (USD 9 a month, a card), or another host for the same image. The image,
+> `start.sh` and the CI job that runs it are host-independent: any host that runs one Docker container
+> with one public port can run it. Until a host is chosen, nothing here is deployed.
+
 ### Checklist
 
 1. **Supabase, twice.** Create `connectsphere-staging` and `connectsphere-production` (Southeast Asia,

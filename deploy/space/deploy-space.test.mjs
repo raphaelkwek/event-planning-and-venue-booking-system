@@ -104,3 +104,14 @@ test("DEPLOY-T18 each environment has its own public Space host, and the Space r
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test("DEPLOY-T18 the probe Space checks both pooler ports and the project's hosts, and carries no secret", async () => {
+  const { probeFiles, probeTargets } = await import("./deploy-space.mjs");
+  const targets = probeTargets(`https://${REF}.supabase.co`);
+  assert.ok(targets.some(([, port]) => port === 5432) && targets.some(([, port]) => port === 6543));
+  assert.ok(targets.some(([host]) => host === `db.${REF}.supabase.co`));
+  const files = probeFiles(targets);
+  assert.deepEqual(Object.keys(files).sort(), ["Dockerfile", "README.md", "app.py"]);
+  assert.match(files["README.md"], /sdk: docker\napp_port: 7860/);
+  assert.ok(!/token|password|key=/i.test(files["app.py"]));
+});

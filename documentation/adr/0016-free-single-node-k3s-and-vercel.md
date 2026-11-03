@@ -81,3 +81,9 @@ validated in CI, as the scale-up option; `release.yml` runs it once Raphael gran
 - **Deploys are not gated by GitHub.** Production waits for a healthy staging Space, not for a
   reviewer's approval.
 - **Sleep.** A Space sleeps after about 48 hours idle and takes a minute or two to wake.
+
+**Finding, the same evening.** The first call to create a Space (the probe) was refused with HTTP 402.
+Hugging Face now requires a PRO subscription to host Docker or Gradio Spaces, even on cpu-basic; only
+static Spaces are free. So this amendment's host is blocked until Joash chooses one of three options:
+PRO (USD 9 a month, a card), another host for the same single container, or the k3s path on a VM.
+The container itself does not depend on Hugging Face.
