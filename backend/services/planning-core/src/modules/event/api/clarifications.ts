@@ -21,6 +21,9 @@ function hasContent(value: string | null | undefined): value is string {
   return typeof value === "string" && value.trim().length > 0;
 }
 
+/** The event left the caller's scope while the request waited for its row lock (A4). */
+const OUT_OF_SCOPE = { ok: false, outOfScope: true } as const;
+
 /** Thrown inside the response transaction so that the status change rolls back. */
 class NoOpenClarification extends Error {}
 
@@ -65,6 +68,10 @@ export function clarificationsRouter(sql: Sql) {
       }
 
       const result = await sql.begin(async (tx) => {
+        // A4: the scope once more, under the row lock, as D4 and D5 check it. A Lead's reassignment
+        // that commits while this waits takes the event out of the outgoing coordinator's scope.
+        if (!(await findEventInScope(tx, event.id, scope, userId, { lock: "update" }))) return OUT_OF_SCOPE;
+
         // F1 — the transition is the first write, so a refusal stores nothing:
         // no status change, no history entry and no clarification.
         const moved = await transitionEvent(tx, event.id, "REQUEST_CLARIFICATION", { userId, role });
@@ -92,6 +99,10 @@ export function clarificationsRouter(sql: Sql) {
         return { ok: true as const, clarification: created };
       });
 
+      if ("outOfScope" in result) {
+        eventNotFound(res, role);
+        return;
+      }
       if (!result.ok) {
         refuse(res, 409, "STATUS_TRANSITION_NOT_PERMITTED", result.message);
         return;

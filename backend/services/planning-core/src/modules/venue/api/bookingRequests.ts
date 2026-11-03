@@ -2,7 +2,7 @@ import { Router, type NextFunction, type RequestHandler, type Response } from "e
 import { rateLimit } from "express-rate-limit";
 import type { Sql, TransactionSql } from "postgres";
 import type { ErrorCode, ErrorField, Role } from "@connectsphere/contracts";
-import { findEventForPlanning, findEventReferences, type EventPlanningView } from "../../event/index.js";
+import { findEventForChange, findEventForPlanning, findEventReferences, type EventPlanningView } from "../../event/index.js";
 import { notInScopeMessage, resolveAccessScope } from "../../identity/index.js";
 import { authenticate, requireRole, type ActorRequest } from "../auth/actor.js";
 import {
@@ -97,7 +97,7 @@ class RefusedInTransaction extends Error {
 }
 
 export interface SubmitHooks {
-  /** Runs first in the transaction; a refusal rolls it back (L3: the hold must still be Held). */
+  /** Runs in the transaction once the venue and the event are locked; a refusal rolls it back (L3: the hold must still be Held). */
   before?: (tx: TransactionSql) => Promise<Refusal | null>;
   /** Runs after the request is stored, in the same transaction (L3: the hold becomes Converted). */
   after?: (tx: TransactionSql, created: BookingRequest) => Promise<void>;
@@ -108,6 +108,9 @@ export interface SubmitHooks {
  * coordinator's event), an approved event, an active
  * venue with the layout, then the request, stored Pending with a message to the
  * venue's Venue Staff. Shared by L1's route and L3's conversion of a hold.
+ * The scope and the event's status are checked again inside the transaction,
+ * under the event's row lock, so a reassignment or cancellation that commits
+ * after the first check is not missed.
  */
 export async function submitBookingRequest(
   sql: Sql,
@@ -146,13 +149,23 @@ export async function submitBookingRequest(
 
   try {
     const created = await sql.begin(async (tx) => {
+      // The venue, then the event, then the hook's hold (implementation.md §4.6 lock order). The venue
+      // lock serialises with I2 recording a block, for direct requests and hold conversion alike.
+      await lockVenue(tx, venue.id);
+      // A4: the scope and status once more, under the event's row lock (`for share`). A Lead's
+      // reassignment (E4) or a cancellation (F3) that commits while this waits is seen here.
+      const locked = await findEventForChange(tx, event.id, resolveAccessScope(actor.role, actor.userId, "events"), actor.userId, {
+        lock: "share",
+      });
+      if (!locked) throw new RefusedInTransaction({ status: 404, code: "EVENT_NOT_FOUND", message: notInScopeMessage(actor.role, EVENT_NOT_FOUND) });
+      if (!eventBookable(locked.status)) {
+        throw new RefusedInTransaction({ status: 409, code: "EVENT_NOT_BOOKABLE", message: notBookableMessage(locked.status) });
+      }
       const before = await hooks.before?.(tx);
       if (before) throw new RefusedInTransaction(before);
       if (input.replacesBookingId && !(await isReplaceableBooking(tx, input.replacesBookingId, event.id))) {
         throw new RefusedInTransaction({ status: 422, code: "REPLACEMENT_NOT_VALID", message: REPLACEMENT_NOT_VALID });
       }
-      // Serialize with I2 block creation for both direct requests and hold conversion.
-      await lockVenue(tx, venue.id);
       const blocks = await activeBlocksOverlapping(tx, venue.id, new Date(input.startsAt), new Date(input.endsAt), 0, 0);
       if (blocks.length > 0) {
         throw new RefusedInTransaction({ status: 409, code: "VENUE_UNAVAILABLE", message: requestBlockedMessage(venue.name, blocks) });
