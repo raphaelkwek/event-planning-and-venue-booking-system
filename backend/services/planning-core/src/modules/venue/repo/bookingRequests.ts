@@ -1,6 +1,7 @@
 import type { Sql, TransactionSql } from "postgres";
 import type { BookingRequestStatus, SuitabilityStatus } from "@connectsphere/contracts";
-import { isDuplicatePending } from "../domain/bookingRequest.js";
+import { isDuplicatePending, isSecondPendingReplacement } from "../domain/bookingRequest.js";
+import { clearFlagsOfEnded } from "./bufferConflicts.js";
 import type { ConditionResult } from "../domain/suitability.js";
 
 /**
@@ -73,6 +74,14 @@ export interface NewBookingRequest {
   suitabilityStatus: SuitabilityStatus;
   suitabilityReasons: ConditionResult[];
   justification: string | null;
+}
+
+/** L5 (audit): the disrupted booking already has a pending replacement; the index refused a second. */
+export class PendingReplacementError extends Error {
+  constructor(readonly reference: string | null) {
+    super("The disrupted booking already has a pending replacement.");
+    this.name = "PendingReplacementError";
+  }
 }
 
 /** A second pending request for the same event, venue and overlapping period (L1). */
@@ -177,7 +186,8 @@ const COLUMNS = (db: Db) => db`
 
 /**
  * Inserts a Pending request, or refuses it when the event already has a pending
- * request for the venue overlapping the period. The insert runs in a savepoint
+ * request for the venue overlapping the period, or (L5) when the booking it
+ * replaces already has a pending replacement (a unique index decides). The insert runs in a savepoint
  * so that, when the constraint refuses it, the transaction can still look up
  * what it overlapped and name it; that look-up only shapes the message.
  */
@@ -202,6 +212,12 @@ export async function insertBookingRequest(tx: TransactionSql, request: NewBooki
     );
     return (await findBookingRequest(tx, inserted!.id))!;
   } catch (error) {
+    if (isSecondPendingReplacement(error)) {
+      const [pending] = await tx<{ reference: string }[]>`
+        select reference from venue.booking_requests where replaces_booking_id = ${request.replacesBookingId} and status = 'PENDING'
+      `;
+      throw new PendingReplacementError(pending?.reference ?? null);
+    }
     if (!isDuplicatePending(error)) throw error;
     const overlapped = await tx<{ reference: string }[]>`
       select reference from venue.booking_requests
@@ -283,4 +299,17 @@ export async function isReplaceableBooking(db: Db, slotId: string, eventId: stri
     where id = ${slotId} and event_id = ${eventId} and status = 'CONFIRMED' and (requires_reconfirmation or period_mismatch)
   `;
   return rows.length === 1;
+}
+
+/**
+ * M3 (audit): after a request is withdrawn or rejected (L2, M2), clears what a buffer change flagged
+ * against it, and against the held slot of the hold it was converted from if that slot was released
+ * too. Call holding the venue row lock, after both statuses are written.
+ */
+export async function clearFlagsOfRequestEnded(tx: TransactionSql, requestId: string, actorUserId: string): Promise<void> {
+  const released = await tx<{ id: string }[]>`
+    select s.id from venue.holds h join venue.venue_slots s on s.id = h.slot_id
+    where h.converted_request_id = ${requestId} and s.status = 'RELEASED'
+  `;
+  await clearFlagsOfEnded(tx, [requestId, ...released.map((row) => row.id)], actorUserId);
 }

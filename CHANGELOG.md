@@ -4,6 +4,61 @@
 
 ---
 
+# Venue audit fixes: buffers against blocks, hold expiry fallback, venue-staff scope, stale flags
+
+**Timestamp:** 2026-11-03T03:55+08:00 (SGT)
+**Author:** Joash
+**Scope:** planning-core (venue module), migrations venue/0020 and venue/0021, root `package.json`,
+implementation.md §4.6.
+
+**Deploy:** run `npm run migrate -- venue` (0020, 0021) before deploying planning-core. 0020 fails,
+changing nothing, if a disrupted booking already has two pending replacements; the file gives the
+query that finds them. Schedule `npm run jobs:expire-holds` (every minute is enough) beside
+`jobs:complete-events`.
+
+## Fixed
+
+- H3: `PUT /api/v1/venues/:id` let any Venue Staff member edit any venue, including its setup and
+  turnaround time, which flagged that venue's bookings and notified their coordinators. Only the
+  venue's own Venue Staff can now update it; anyone else gets 404, as for I2, L3 and M1. Creating a
+  venue is unchanged.
+- M1: I2's disrupted-request check, L1's block check and J1's search compared a request's own
+  period with a block. They now compare its occupied period (H3), so a request ending where an
+  open-ended block starts, with turnaround after it, is flagged by I2, refused by L1 and left out
+  of J1, instead of being refused only at approval. J1's window is widened by the venue's own
+  times, which also unblocks J1-T18.
+- M5, L1: placing a hold takes the setup and turnaround time from the venue row it locks, and
+  requesting one checks for blocks and inserts in one transaction under that lock.
+- L3: recording or removing a block, and changing a venue's times, read the events they notify
+  through the transaction instead of the pool, so they can't wait on the pool while holding the
+  venue lock.
+- L2: one lock order for every venue path (venue, event, hold, request, slot), written in
+  implementation.md §4.6. Converting a hold, F5's read of an event's arrangements, and I2's and
+  H3's flagging each took two of these the other way round.
+- M4: an expired hold no longer depends on Temporal and Kafka. Every slot insert expires the
+  venue's overdue holds first, `PATCH /holds/:id/expiry` expires an overdue hold instead of
+  reviving it (409 `HOLD_NOT_HELD`), and the new `npm run jobs:expire-holds` sweeps the rest. All
+  three write the workflow's records and `venue-booking.hold-expired` message.
+- M3: a Requires Reconfirmation flag set by a change of times now clears when the arrangement it
+  overlapped is released, expires, is withdrawn or rejected, or is released by a cancellation,
+  unless another live overlap or an active block still causes it. F5 no longer refuses for good.
+- L5: a disrupted booking can have one pending replacement at a time (migration 0020); a second is
+  refused with 409 `BOOKING_REQUEST_DUPLICATE` naming the first.
+- L9: migration 0021 validates the two checks venue/0011 added NOT VALID.
+
+## Not changed
+
+- M2 (existing slots keep the buffers they were taken with), M6 (a block doesn't flag a hold that
+  is only Requested) and M9 (S3 multi-venue attendance) wait for team or PO rulings.
+- S3's own flags (`period_mismatch`, `unsuitable`, equipment's review flag) are still only set,
+  never re-assessed; that is the change module's and is left to its owner.
+- L6 (audit): another venue's Venue Staff still get 403 on approve or reject; M1-T11 asserts it.
+
+---
+
+
+---
+
 # Audit fixes: async route errors, stack-trace leaks, rate limits, timeouts, hardening
 
 **Timestamp:** 2026-11-03T03:45+08:00 (SGT)

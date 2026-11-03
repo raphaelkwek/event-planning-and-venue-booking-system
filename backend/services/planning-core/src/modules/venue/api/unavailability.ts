@@ -1,12 +1,7 @@
 import { Router, type NextFunction, type RequestHandler, type Response } from "express";
 import { rateLimit } from "express-rate-limit";
 import type { Sql, TransactionSql } from "postgres";
-import {
-  blockReturnsToPlanning,
-  findEventForPlanning,
-  returnBlockedEventsToPlanning,
-  type EventPlanningView,
-} from "../../event/index.js";
+import { blockReturnsToPlanning, findEventForChange, returnBlockedEventsToPlanning, type EventForChange } from "../../event/index.js";
 import { authenticate, requireRole, type ActorRequest } from "../auth/actor.js";
 import { NOT_VENUE_STAFF, readBlock, readPeriod } from "../domain/unavailability.js";
 import { writeVenueOutbox } from "../events/outbox.js";
@@ -80,18 +75,25 @@ async function staffVenue(sql: Sql, req: ActorRequest, res: Response): Promise<V
   return venue;
 }
 
-/** Each disrupted event, read once. An event that no longer exists is left out. */
-async function eventsOf(sql: Sql, eventIds: readonly string[], callerId: string): Promise<Map<string, EventPlanningView>> {
-  const events = new Map<string, EventPlanningView>();
+/** What a disrupted item's event contributes: its reference, name, status and assigned coordinator. */
+type DisruptedEvent = Pick<EventForChange, "id" | "reference" | "name" | "status" | "assignedCoordinatorId">;
+
+/**
+ * Each disrupted event, read once. An event that no longer exists is left out. Inside a transaction
+ * that holds the venue row lock, pass the transaction, never the pool: a pool read there waits for a
+ * second connection while holding the first (L3, audit), and ten such requests exhaust the pool.
+ */
+async function eventsOf(db: Sql | TransactionSql, eventIds: readonly string[], callerId: string): Promise<Map<string, DisruptedEvent>> {
+  const events = new Map<string, DisruptedEvent>();
   for (const id of new Set(eventIds)) {
-    const event = await findEventForPlanning(sql, id, ALL_EVENTS, callerId);
+    const event = await findEventForChange(db, id, ALL_EVENTS, callerId);
     if (event) events.set(id, event);
   }
   return events;
 }
 
 /** A booking's or hold's event's assigned coordinator; a request's requesting coordinator (I2, CR-02). */
-function coordinatorOf(item: { kind: string; requestedBy: string | null }, event: EventPlanningView): string | null {
+function coordinatorOf(item: { kind: string; requestedBy: string | null }, event: DisruptedEvent): string | null {
   return item.kind === "REQUEST" ? item.requestedBy : event.assignedCoordinatorId;
 }
 
@@ -103,7 +105,7 @@ async function tellCoordinators(
   block: Block,
   venue: VenueRecord,
   items: readonly (Disrupted | ClearedDisruption)[],
-  events: Map<string, EventPlanningView>,
+  events: Map<string, DisruptedEvent>,
   acted: { by: string; at: string },
   returned: ReadonlySet<string> = new Set(),
 ): Promise<void> {
@@ -214,7 +216,7 @@ export function unavailabilityRouter(sql: Sql) {
         const disrupted = await disruptedBy(tx, venue.id, new Date(block.startsAt), block.endsAt === null ? null : new Date(block.endsAt));
         const returned = await returnBlockedEventsToPlanning(tx, bookedEventIds(disrupted), { ...actor, correlationId });
         await flagDisruptions(tx, block.id, disrupted, actor.userId);
-        const events = await eventsOf(sql, disrupted.map((d) => d.eventId), actor.userId);
+        const events = await eventsOf(tx, disrupted.map((d) => d.eventId), actor.userId);
         await tellCoordinators(
           tx,
           req,
@@ -252,7 +254,7 @@ export function unavailabilityRouter(sql: Sql) {
         await removeBlock(tx, blockId, actor.userId);
         const cleared = await clearDisruptions(tx, blockId);
         const removed = (await findBlock(tx, blockId))!;
-        const events = await eventsOf(sql, cleared.map((c) => c.eventId), actor.userId);
+        const events = await eventsOf(tx, cleared.map((c) => c.eventId), actor.userId);
         await tellCoordinators(tx, req, "venue-booking.disruption-cleared", removed, venue, cleared, events, {
           by: removed.removedBy!,
           at: removed.removedAt!,
