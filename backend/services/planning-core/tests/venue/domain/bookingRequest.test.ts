@@ -4,7 +4,6 @@ import {
   differencesFromEvent,
   duplicateMessage,
   eventBookable,
-  isAssignedCoordinator,
   isDuplicatePending,
   isSecondPendingReplacement,
   ONE_PENDING_REPLACEMENT_INDEX,
@@ -202,14 +201,6 @@ describe("differencesFromEvent", () => {
 
   it("finds none when the request keeps the event's values (L1-T3)", () => {
     expect(differencesFromEvent(event, { startsAt: event.startsAt, endsAt: event.endsAt, expectedAttendance: 150 })).toEqual([]);
-  });
-});
-
-describe("isAssignedCoordinator", () => {
-  it("is true only for the event's assigned coordinator (L1-T11, L2-T2)", () => {
-    expect(isAssignedCoordinator("c1", { assignedCoordinatorId: "c1" })).toBe(true);
-    expect(isAssignedCoordinator("c2", { assignedCoordinatorId: "c1" })).toBe(false);
-    expect(isAssignedCoordinator("c1", { assignedCoordinatorId: null })).toBe(false);
   });
 });
 

@@ -1,15 +1,14 @@
 import { Router, type NextFunction, type RequestHandler, type Response } from "express";
 import { rateLimit } from "express-rate-limit";
 import type { Sql, TransactionSql } from "postgres";
-import type { ErrorCode, ErrorField } from "@connectsphere/contracts";
+import type { ErrorCode, ErrorField, Role } from "@connectsphere/contracts";
 import { findEventForPlanning, findEventReferences, type EventPlanningView } from "../../event/index.js";
-import { resolveAccessScope } from "../../identity/index.js";
+import { notInScopeMessage, resolveAccessScope } from "../../identity/index.js";
 import { authenticate, requireRole, type ActorRequest } from "../auth/actor.js";
 import {
   differencesFromEvent,
   duplicateMessage,
   eventBookable,
-  isAssignedCoordinator,
   JUSTIFICATION_MESSAGE,
   layoutAt,
   notBookableMessage,
@@ -59,9 +58,8 @@ import { refuse } from "./errors.js";
  */
 
 export const BASE = "/api/v1/booking-requests";
+const EVENT_NOT_FOUND = "No event with that id exists, or you can't see it.";
 export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const NOT_ASSIGNED_REQUEST = "Only the event's assigned coordinator can request a venue for it.";
-const NOT_ASSIGNED_WITHDRAW = "Only the event's assigned coordinator can withdraw its requests.";
 const INVALID = "The request could not be submitted. Check the highlighted fields.";
 const REPLACEMENT_NOT_VALID =
   "The booking to replace must be one of this event's confirmed bookings flagged Requires Reconfirmation.";
@@ -108,7 +106,8 @@ export interface SubmitHooks {
 }
 
 /**
- * L1's checks and write: the assigned coordinator, an approved event, an active
+ * L1's checks and write: the assigned coordinator (A4: the scope finds no other
+ * coordinator's event), an approved event, an active
  * venue with the layout, then the request, stored Pending with a message to the
  * venue's Venue Staff. Shared by L1's route and L3's conversion of a hold.
  */
@@ -123,8 +122,7 @@ export async function submitBookingRequest(
     ({ ok: false, status, code, message, ...(fields ? { fields } : {}), ...(details ? { details } : {}) }) as const;
 
   const event = await findEvent(sql, input.eventId, req);
-  if (!event) return refused(404, "EVENT_NOT_FOUND", "No event with that id exists, or you can't see it.");
-  if (!isAssignedCoordinator(actor.userId, event)) return refused(403, "ROLE_NOT_AUTHORISED", NOT_ASSIGNED_REQUEST);
+  if (!event) return refused(404, "EVENT_NOT_FOUND", notInScopeMessage(actor.role, EVENT_NOT_FOUND));
   if (!eventBookable(event.status)) return refused(409, "EVENT_NOT_BOOKABLE", notBookableMessage(event.status));
 
   const venue = await findVenue(sql, input.venueId);
@@ -243,16 +241,21 @@ export async function presentAll(sql: Sql, requests: readonly BookingRequest[], 
   return requests.map((request) => present(request, referenceOf(request), conflicts.get(request.id) ?? []));
 }
 
-/** The event, if the caller may see it (A3); null otherwise. */
+/** The event, if the caller may see it (A3; for a coordinator, A4: assigned to them); null otherwise. */
 function findEvent(sql: Sql, eventId: string, req: ActorRequest): Promise<EventPlanningView | null> {
   const { role, userId } = req.actor!;
   return findEventForPlanning(sql, eventId, resolveAccessScope(role, userId, "events"), userId);
 }
 
-const eventNotFound = (res: Response) =>
-  refuse(res, 404, "EVENT_NOT_FOUND", "No event with that id exists, or you can't see it.");
-export const requestNotFound = (res: Response) =>
-  refuse(res, 404, "BOOKING_REQUEST_NOT_FOUND", "No booking request with that id exists, or you can't see it.");
+const eventNotFound = (res: Response, role: Role) =>
+  refuse(res, 404, "EVENT_NOT_FOUND", notInScopeMessage(role, EVENT_NOT_FOUND));
+export const requestNotFound = (res: Response, role: Role) =>
+  refuse(
+    res,
+    404,
+    "BOOKING_REQUEST_NOT_FOUND",
+    notInScopeMessage(role, "No booking request with that id exists, or you can't see it.", "booking request"),
+  );
 
 export function bookingRequestsRouter(sql: Sql) {
   const router = Router();
@@ -277,7 +280,7 @@ export function bookingRequestsRouter(sql: Sql) {
     try {
       const eventId = typeof req.query.eventId === "string" ? req.query.eventId : "";
       const event = eventId ? await findEvent(sql, eventId, req) : null;
-      if (!event) return eventNotFound(res);
+      if (!event) return eventNotFound(res, req.actor!.role);
       const items = await listForEvent(sql, event.id);
       res.json({
         event: {
@@ -317,10 +320,9 @@ export function bookingRequestsRouter(sql: Sql) {
     try {
       const id = req.params.id!;
       const existing = UUID.test(id) ? await findBookingRequest(sql, id) : null;
-      if (!existing) return requestNotFound(res);
+      if (!existing) return requestNotFound(res, req.actor!.role);
       const event = await findEvent(sql, existing.eventId, req);
-      if (!event) return requestNotFound(res);
-      if (!isAssignedCoordinator(req.actor!.userId, event)) return refuse(res, 403, "ROLE_NOT_AUTHORISED", NOT_ASSIGNED_WITHDRAW);
+      if (!event) return requestNotFound(res, req.actor!.role);
 
       const outcome = await sql.begin(async (tx) => {
         // The venue, then the request, then its slot (§4.6): withdrawing clears flags at the venue (M3).

@@ -22,7 +22,8 @@ export type EventAction =
   | "REQUEST_SAFETY_CHANGES"
   | "VENUE_BLOCKED"
   | "COMPLETE"
-  | "RECONSIDER_AFTER_CHANGE";
+  | "RECONSIDER_AFTER_CHANGE"
+  | "CANCEL";
 
 export interface TransitionRule {
   readonly from: readonly EventStatus[];
@@ -63,6 +64,23 @@ const TRANSITIONS: Record<EventAction, TransitionRule> = {
   // safety check (U1). S3 applies it when it approves a change request; every
   // significant field counts as material. No other status moves (S3 AC6).
   RECONSIDER_AFTER_CHANGE: { from: ["CONFIRMED"], to: "PLANNING" },
+  // F3 — the owning organiser or the assigned coordinator cancels, at any point
+  // before the event is Completed, Rejected or Cancelled (AC1), a draft too. The
+  // reason, user and time are set in the same statement, and F4 releases the
+  // event's arrangements in the same transaction.
+  CANCEL: {
+    from: [
+      "DRAFT",
+      "SUBMITTED",
+      "UNDER_REVIEW",
+      "AWAITING_CLARIFICATION",
+      "APPROVED",
+      "PLANNING",
+      "SAFETY_REVIEW",
+      "CONFIRMED",
+    ],
+    to: "CANCELLED",
+  },
 };
 
 export function transitionRule(action: EventAction): TransitionRule {

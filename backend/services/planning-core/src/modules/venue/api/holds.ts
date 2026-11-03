@@ -1,10 +1,11 @@
 import { Router, type NextFunction, type RequestHandler, type Response } from "express";
 import { rateLimit } from "express-rate-limit";
 import type { Sql } from "postgres";
+import type { Role } from "@connectsphere/contracts";
 import { findEventForPlanning, findEventReferences, type EventPlanningView } from "../../event/index.js";
-import { resolveAccessScope } from "../../identity/index.js";
+import { notInScopeMessage, resolveAccessScope } from "../../identity/index.js";
 import { authenticate, requireRole, type ActorRequest } from "../auth/actor.js";
-import { isAssignedCoordinator, readBookingRequest } from "../domain/bookingRequest.js";
+import { readBookingRequest } from "../domain/bookingRequest.js";
 import {
   duplicateHoldMessage,
   eventHoldable,
@@ -61,9 +62,7 @@ const INVALID_HOLD = "The hold could not be requested. Check the highlighted fie
 const INVALID_PLACEMENT = "The hold could not be placed. Check the highlighted fields.";
 const INVALID_EXPIRY = "The expiry could not be changed. Check the highlighted fields.";
 const INVALID_REQUEST = "The request could not be submitted. Check the highlighted fields.";
-const NOT_ASSIGNED_REQUEST = "Only the event's assigned coordinator can request a hold for it.";
-const NOT_ASSIGNED_RELEASE = "Only the event's assigned coordinator can release its holds.";
-const NOT_ASSIGNED_CONVERT = "Only the event's assigned coordinator can convert its holds.";
+const EVENT_NOT_FOUND = "No event with that id exists, or you can't see it.";
 
 /**
  * At most 120 requests a minute from one address to these routes, refused
@@ -85,13 +84,15 @@ function present(hold: Hold, eventReference: string | null) {
   return { ...hold, eventReference };
 }
 
-/** The event, if the caller may see it (A3); null otherwise. */
+/** The event, if the caller may see it (A3; for a coordinator, A4: assigned to them); null otherwise. */
 function findEvent(sql: Sql, eventId: string, req: ActorRequest): Promise<EventPlanningView | null> {
   const { role, userId } = req.actor!;
   return findEventForPlanning(sql, eventId, resolveAccessScope(role, userId, "events"), userId);
 }
 
-const holdNotFound = (res: Response) => refuse(res, 404, "HOLD_NOT_FOUND", "No hold with that id exists, or you can't see it.");
+const eventNotFound = (res: Response, role: Role) => refuse(res, 404, "EVENT_NOT_FOUND", notInScopeMessage(role, EVENT_NOT_FOUND));
+const holdNotFound = (res: Response, role: Role) =>
+  refuse(res, 404, "HOLD_NOT_FOUND", notInScopeMessage(role, "No hold with that id exists, or you can't see it.", "hold"));
 
 /** The hold and its event, for the event's coordinator; null when either is missing or out of the caller's scope. */
 async function holdForCoordinator(sql: Sql, id: string, req: ActorRequest): Promise<{ hold: Hold; event: EventPlanningView } | null> {
@@ -113,8 +114,7 @@ export function holdsRouter(sql: Sql, limiter: RequestHandler = holdsRateLimit()
       const actor = req.actor!;
 
       const event = await findEvent(sql, input.eventId, req);
-      if (!event) return refuse(res, 404, "EVENT_NOT_FOUND", "No event with that id exists, or you can't see it.");
-      if (!isAssignedCoordinator(actor.userId, event)) return refuse(res, 403, "ROLE_NOT_AUTHORISED", NOT_ASSIGNED_REQUEST);
+      if (!event) return eventNotFound(res, actor.role);
       if (!eventHoldable(event.status)) return refuse(res, 409, "EVENT_NOT_HOLDABLE", notHoldableMessage(event.status));
 
       // L1 (audit): the block check and the insert are one transaction under the venue row lock, the lock
@@ -163,7 +163,7 @@ export function holdsRouter(sql: Sql, limiter: RequestHandler = holdsRateLimit()
     try {
       const eventId = typeof req.query.eventId === "string" ? req.query.eventId : "";
       const event = UUID.test(eventId) ? await findEvent(sql, eventId, req) : null;
-      if (!event) return refuse(res, 404, "EVENT_NOT_FOUND", "No event with that id exists, or you can't see it.");
+      if (!event) return eventNotFound(res, req.actor!.role);
       const items = await listHoldsForEvent(sql, event.id);
       res.json({ items: items.map((hold) => present(hold, event.reference)) });
     } catch (error) {
@@ -200,14 +200,14 @@ export function holdsRouter(sql: Sql, limiter: RequestHandler = holdsRateLimit()
       const id = req.params.id!;
       const found = UUID.test(id) ? await findHold(sql, id) : null;
       // Venue Staff see only their venues' holds (A3), so another venue's hold is "not found".
-      if (!found || !(await looksAfterVenue(sql, found.venueId, actor.userId))) return holdNotFound(res);
+      if (!found || !(await looksAfterVenue(sql, found.venueId, actor.userId))) return holdNotFound(res, actor.role);
 
       const placement = readPlacement(req.body, new Date());
       if (!placement.ok) return refuse(res, 400, "VALIDATION_FAILED", INVALID_PLACEMENT, placement.fields);
 
       // The server checks the event on Venue Staff's behalf; only its status is used.
       const event = await findEventForPlanning(sql, found.eventId, { scopeType: "ALL" }, actor.userId);
-      if (!event) return holdNotFound(res);
+      if (!event) return holdNotFound(res, actor.role);
       if (!eventHoldable(event.status)) return refuse(res, 409, "EVENT_NOT_HOLDABLE", notHoldableMessage(event.status));
       const outcome = await sql.begin(async (tx) => {
         // The venue first, then the hold: the order every booking change at a venue takes (implementation.md §4.6).
@@ -266,13 +266,13 @@ export function holdsRouter(sql: Sql, limiter: RequestHandler = holdsRateLimit()
       const id = req.params.id!;
       const found = UUID.test(id) ? await findHold(sql, id) : null;
       // As for placing: another venue's hold is "not found".
-      if (!found || !(await looksAfterVenue(sql, found.venueId, actor.userId))) return holdNotFound(res);
+      if (!found || !(await looksAfterVenue(sql, found.venueId, actor.userId))) return holdNotFound(res, actor.role);
 
       const change = readExpiryChange(req.body, new Date());
       if (!change.ok) return refuse(res, 400, "VALIDATION_FAILED", INVALID_EXPIRY, change.fields);
 
       const event = await findEventForPlanning(sql, found.eventId, { scopeType: "ALL" }, actor.userId);
-      if (!event) return holdNotFound(res);
+      if (!event) return holdNotFound(res, actor.role);
 
       const outcome = await sql.begin(async (tx) => {
         await lockVenue(tx, found.venueId);
@@ -303,8 +303,7 @@ export function holdsRouter(sql: Sql, limiter: RequestHandler = holdsRateLimit()
   router.post(`${BASE}/:id/release`, limiter, authenticate, requireRole("EVENT_COORDINATOR"), async (req: ActorRequest, res: Response, next: NextFunction) => {
     try {
       const found = await holdForCoordinator(sql, req.params.id!, req);
-      if (!found) return holdNotFound(res);
-      if (!isAssignedCoordinator(req.actor!.userId, found.event)) return refuse(res, 403, "ROLE_NOT_AUTHORISED", NOT_ASSIGNED_RELEASE);
+      if (!found) return holdNotFound(res, req.actor!.role);
 
       const outcome = await sql.begin(async (tx) => {
         // The venue first, then the hold (§4.6): releasing clears flags at the venue (M3).
@@ -329,9 +328,8 @@ export function holdsRouter(sql: Sql, limiter: RequestHandler = holdsRateLimit()
   router.post(`${BASE}/:id/convert`, limiter, authenticate, requireRole("EVENT_COORDINATOR"), async (req: ActorRequest, res: Response, next: NextFunction) => {
     try {
       const found = await holdForCoordinator(sql, req.params.id!, req);
-      if (!found) return holdNotFound(res);
+      if (!found) return holdNotFound(res, req.actor!.role);
       const { hold } = found;
-      if (!isAssignedCoordinator(req.actor!.userId, found.event)) return refuse(res, 403, "ROLE_NOT_AUTHORISED", NOT_ASSIGNED_CONVERT);
 
       const body = typeof req.body === "object" && req.body !== null && !Array.isArray(req.body) ? (req.body as Record<string, unknown>) : {};
       const read = readBookingRequest({

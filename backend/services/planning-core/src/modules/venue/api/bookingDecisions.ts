@@ -85,7 +85,7 @@ async function decidable(sql: Sql, req: ActorRequest, res: Response): Promise<{ 
   const id = req.params.id!;
   const request = UUID.test(id) ? await findBookingRequest(sql, id) : null;
   if (!request) {
-    requestNotFound(res);
+    requestNotFound(res, req.actor!.role);
     return null;
   }
   if (!(await isVenueStaff(sql, request.venueId, req.actor!.userId))) {
@@ -94,7 +94,7 @@ async function decidable(sql: Sql, req: ActorRequest, res: Response): Promise<{ 
   }
   const event = await findEventForPlanning(sql, request.eventId, ALL_EVENTS, req.actor!.userId);
   if (!event) {
-    requestNotFound(res);
+    requestNotFound(res, req.actor!.role);
     return null;
   }
   return { request, event };
