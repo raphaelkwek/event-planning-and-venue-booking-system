@@ -371,7 +371,7 @@ paths:
     get:
       tags: [Events]
       summary: The review queue (D1)
-      description: Event Coordinator only. Every request awaiting a decision, oldest submission first.
+      description: Event Coordinator only. The requests assigned to the caller that await a decision (A4), oldest submission first.
       operationId: getReviewQueue
       responses:
         "200":
@@ -399,7 +399,9 @@ paths:
       description: |
         When an Event Coordinator opens a request that is still Submitted, it is claimed
         for review (Submitted to Under Review). The claim is conditional, so a second
-        coordinator sees the first reviewer rather than replacing them.
+        coordinator sees the first reviewer rather than replacing them. A coordinator opens
+        only the events assigned to them (A4): any other, unassigned or another coordinator's,
+        is the same 404 as an id that does not exist, and opening it claims nothing.
       operationId: getEvent
       responses:
         "200":
@@ -455,7 +457,7 @@ paths:
         "400": { $ref: "#/components/responses/ValidationFailed" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403":
-          description: "`ROLE_NOT_AUTHORISED`: not the owning organiser or the assigned coordinator, or a role that never edits events."
+          description: "`ROLE_NOT_AUTHORISED`: a role that never edits events. An event outside the caller's scope (another organiser's, or for a coordinator one not assigned to them, A4) is 404."
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
@@ -1054,9 +1056,9 @@ paths:
       tags: [Change requests]
       summary: The flags still outstanding on an event's arrangements (S3)
       description: |
-        The event's owning organiser, its assigned coordinator and Event Coordinators (AC8). Anyone
-        else, including an organiser who does not own the event, gets the same 404 as for an event
-        that does not exist. Lists every flag that holds back F5's confirmation (AC9): each flagged
+        The event's owning organiser, its assigned coordinator and the Event Coordinator Lead. A4
+        narrows S3's AC8: a coordinator not assigned to the event is refused. Anyone else, including
+        an organiser who does not own the event, gets the same 404 as for an event that does not exist. Lists every flag that holds back F5's confirmation (AC9): each flagged
         venue booking, hold and pending booking request first, then each flagged equipment
         reservation, saying which arrangement and why, oldest first. An arrangement carries each flag
         once, with the newest reason. A Requires Reconfirmation set by unavailability (I2) or the
@@ -1151,7 +1153,7 @@ paths:
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404":
-          description: No change request with that id exists (`CHANGE_REQUEST_NOT_FOUND`), or its event is outside the caller's scope.
+          description: No change request with that id exists (`CHANGE_REQUEST_NOT_FOUND`), or its event is outside the caller's scope (for a coordinator, not assigned to them, A4).
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
@@ -1198,12 +1200,12 @@ paths:
                   event: { $ref: "#/components/schemas/ConfirmedArrangements" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403":
-          description: "`ROLE_NOT_AUTHORISED`: not an Event Coordinator, or not the event's assigned one."
+          description: "`ROLE_NOT_AUTHORISED`: not an Event Coordinator."
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
         "404":
-          description: "`EVENT_NOT_FOUND`: no event with that id, or it is outside the caller's scope (A3)."
+          description: "`EVENT_NOT_FOUND`: no event with that id, or it is outside the caller's scope (A3), which for a coordinator means not assigned to them (A4)."
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
@@ -2268,7 +2270,7 @@ paths:
         "400": { $ref: "#/components/responses/ValidationFailed" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403":
-          description: "`ROLE_NOT_AUTHORISED`: not the event's assigned coordinator, or not an Event Coordinator."
+          description: "`ROLE_NOT_AUTHORISED`: not an Event Coordinator. Another coordinator's event is 404 (A4)."
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
@@ -2384,7 +2386,7 @@ paths:
               schema: { $ref: "#/components/schemas/BookingRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403":
-          description: "`ROLE_NOT_AUTHORISED`: not the event's assigned coordinator, or not an Event Coordinator."
+          description: "`ROLE_NOT_AUTHORISED`: not an Event Coordinator. Another coordinator's event is 404 (A4)."
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
@@ -2541,7 +2543,7 @@ paths:
         "400": { $ref: "#/components/responses/ValidationFailed" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403":
-          description: "`ROLE_NOT_AUTHORISED`: not the event's assigned coordinator, or not an Event Coordinator."
+          description: "`ROLE_NOT_AUTHORISED`: not an Event Coordinator. Another coordinator's event is 404 (A4)."
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
@@ -2776,7 +2778,7 @@ paths:
               schema: { $ref: "#/components/schemas/Hold" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403":
-          description: "`ROLE_NOT_AUTHORISED`: not the event's assigned coordinator, or not an Event Coordinator."
+          description: "`ROLE_NOT_AUTHORISED`: not an Event Coordinator. Another coordinator's event is 404 (A4)."
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
@@ -2837,7 +2839,7 @@ paths:
         "400": { $ref: "#/components/responses/ValidationFailed" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403":
-          description: "`ROLE_NOT_AUTHORISED`: not the event's assigned coordinator, or not an Event Coordinator."
+          description: "`ROLE_NOT_AUTHORISED`: not an Event Coordinator. Another coordinator's event is 404 (A4)."
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
@@ -2912,7 +2914,7 @@ components:
         application/json:
           schema: { $ref: "#/components/schemas/ErrorEnvelope" }
     NotFound:
-      description: "`EVENT_NOT_FOUND`, `DRAFT_NOT_FOUND`, `REASSIGNMENT_PROPOSAL_NOT_FOUND` or `VENUE_NOT_FOUND`, `EQUIPMENT_TYPE_NOT_FOUND` or `EQUIPMENT_LINE_NOT_FOUND`. Also returned when the record exists but is outside the caller's scope (A3)."
+      description: "`EVENT_NOT_FOUND`, `DRAFT_NOT_FOUND`, `REASSIGNMENT_PROPOSAL_NOT_FOUND` or `VENUE_NOT_FOUND`, `EQUIPMENT_TYPE_NOT_FOUND` or `EQUIPMENT_LINE_NOT_FOUND`. Also returned when the record exists but is outside the caller's scope (A3). For an Event Coordinator that is any event not assigned to them, or a record on one (A4), and the message says so in the same words whether it exists or not."
       content:
         application/json:
           schema: { $ref: "#/components/schemas/ErrorEnvelope" }
