@@ -84,3 +84,66 @@ export async function releaseVenueArrangementsForEvent(tx: TransactionSql, event
 
   return { bookings: bookings.map((b) => b.reference), holds, requests: pending.map((r) => r.reference) };
 }
+
+/** A hold or booking request F4 released, with its venue and that venue's Venue Staff, for `event.cancelled`. */
+export interface ReleasedAtVenue {
+  reference: string;
+  venueId: string;
+  venueName: string;
+  startsAt: string;
+  endsAt: string;
+  staffIds: string[];
+}
+
+/**
+ * CQ-06 (review of F4): the holds and pending requests `releaseVenueArrangementsForEvent` released,
+ * by the references it returned, each with its venue and the staff who look after it, so the
+ * cancellation's message can tell them as it tells a booked venue's staff. In the order given.
+ */
+export async function releasedForVenueStaff(
+  tx: TransactionSql,
+  eventId: string,
+  released: { holds: readonly string[]; requests: readonly string[] },
+): Promise<{ holds: ReleasedAtVenue[]; requests: ReleasedAtVenue[] }> {
+  type Row = { reference: string; venue_id: string; venue_name: string; starts_at: Date; ends_at: Date };
+  const holds =
+    released.holds.length === 0
+      ? []
+      : await tx<Row[]>`
+          select h.reference, h.venue_id, v.name as venue_name, h.starts_at, h.ends_at
+          from venue.holds h join venue.venues v on v.id = h.venue_id
+          where h.event_id = ${eventId} and h.reference in ${tx(released.holds as string[])}
+        `;
+  const requests =
+    released.requests.length === 0
+      ? []
+      : await tx<Row[]>`
+          select r.reference, r.venue_id, v.name as venue_name, r.starts_at, r.ends_at
+          from venue.booking_requests r join venue.venues v on v.id = r.venue_id
+          where r.event_id = ${eventId} and r.reference in ${tx(released.requests as string[])}
+        `;
+  const venueIds = [...new Set([...holds, ...requests].map((row) => row.venue_id))];
+  const staff =
+    venueIds.length === 0
+      ? []
+      : await tx<{ venue_id: string; user_id: string }[]>`
+          select venue_id, user_id from venue.venue_staff where venue_id in ${tx(venueIds)} order by created_at, user_id
+        `;
+  const present = (rows: Row[], order: readonly string[]): ReleasedAtVenue[] =>
+    order.flatMap((reference) => {
+      const row = rows.find((candidate) => candidate.reference === reference);
+      return row
+        ? [
+            {
+              reference: row.reference,
+              venueId: row.venue_id,
+              venueName: row.venue_name,
+              startsAt: row.starts_at.toISOString(),
+              endsAt: row.ends_at.toISOString(),
+              staffIds: staff.filter((member) => member.venue_id === row.venue_id).map((member) => member.user_id),
+            },
+          ]
+        : [];
+    });
+  return { holds: present(holds, released.holds), requests: present(requests, released.requests) };
+}

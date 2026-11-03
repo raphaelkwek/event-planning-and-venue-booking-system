@@ -1285,7 +1285,8 @@ paths:
         are Released and its pending venue requests Withdrawn, and its equipment reservations are
         Released, each recording "event cancelled", the user and the time (F4); a change request still
         pending is Closed (W9-07); and the owner, the coordinator, each booked venue's Venue Staff and
-        each reserver are notified (`event.cancelled`). Any failure rolls all of it back, so nothing is left partly released. A
+        each reserver are notified (`event.cancelled`), as are the Venue Staff of each venue whose hold
+        was released or whose pending request was withdrawn (review note CQ-06). Any failure rolls all of it back, so nothing is left partly released. A
         refusal stores nothing. The locks are taken change request, venues (ascending id), event, then
         slots, the venue module's order, so a block at one of the event's venues cannot deadlock with
         it. If the event gains an arrangement at another venue between the venue locks and the event

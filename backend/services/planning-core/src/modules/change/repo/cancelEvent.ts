@@ -9,6 +9,7 @@ import {
   liveVenueIdsForEvent,
   lockVenuesForEvent,
   releaseVenueArrangementsForEvent,
+  releasedForVenueStaff,
   venueArrangementsForEvent,
 } from "../../venue/index.js";
 import { closePendingForCancelledEvent, lockPendingForEvent, type ChangeRequestRecord } from "./changeRequests.js";
@@ -23,7 +24,9 @@ import { closePendingForCancelledEvent, lockPendingForEvent, type ChangeRequestR
  * 2. Refuse anyone but the owner or the assigned coordinator, and any status F1
  *    does not let move to Cancelled (AC1).
  * 3. Read the venue and equipment arrangements through their modules'
- *    interfaces (`for share`), for who to notify (AC6).
+ *    interfaces (`for share`), for who to notify (AC6). The released holds and
+ *    withdrawn requests are named in the message too, with their venues' staff
+ *    (review note CQ-06, not an acceptance criterion).
  * 4. F4: release the bookings and holds, withdraw the pending venue requests,
  *    and release the reservations, each recording "event cancelled", the user
  *    and the time (F4 AC1–AC3, AC6). Anything already released is skipped (AC7).
@@ -133,6 +136,8 @@ export async function cancelEvent(
 
   // F4 — every release in this transaction, so a failure leaves nothing released (AC5).
   const venueReleased = await releaseVenueArrangementsForEvent(tx, event.id, actor.userId);
+  // CQ-06: the staff of each venue whose hold was released or whose pending request was withdrawn are told too.
+  const releasedAtVenues = await releasedForVenueStaff(tx, event.id, venueReleased);
   const reservations = await releaseEventReservations(tx, event.id, actor, EVENT_CANCELLED);
   const released: ReleasedOnCancellation = {
     ...venueReleased,
@@ -152,7 +157,7 @@ export async function cancelEvent(
 
   const closedChangeRequest = await closePendingForCancelledEvent(tx, event.id, actor.userId);
 
-  const cancelled = await cancelEventRecord(tx, event.id, actor, { reason, notice });
+  const cancelled = await cancelEventRecord(tx, event.id, actor, { reason, notice: { ...notice, ...releasedAtVenues } });
   // The event row is locked and its status was checked above, so the transition cannot be refused here.
   if (!cancelled.ok) throw new Error(`F3 transition refused under lock: ${cancelled.message}`);
   return { ok: true, event: cancelled.event, closedChangeRequest, released };
