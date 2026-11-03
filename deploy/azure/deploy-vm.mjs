@@ -135,10 +135,11 @@ async function main() {
   } else {
     const dir = mkdtempSync(join(tmpdir(), "connectsphere-vm-"));
     try {
-      const count = writeContext(dir, args.env);
-      const tarFile = join(tmpdir(), `connectsphere-${commit}.tar`);
-      const tar = spawnSync("tar", ["-cf", tarFile, "-C", dir, "."]);
-      if (tar.status !== 0) throw new DeployError("tar could not pack the build context");
+      const count = writeContext(join(dir, "context"), args.env);
+      // Relative paths only: Git Bash's tar reads "C:\..." as a remote host.
+      const tarFile = join(dir, "context.tar");
+      const tar = spawnSync("tar", ["-cf", "context.tar", "-C", "context", "."], { cwd: dir, encoding: "utf8" });
+      if (tar.status !== 0) throw new DeployError(`tar could not pack the build context: ${(tar.stderr ?? "").trim().slice(0, 200)}`);
       log(`building ${image} on the VM from ${count} files (several minutes)`);
       const built = spawnSync("ssh", ["-i", key, "-o", "BatchMode=yes", "-o", "ServerAliveInterval=30", `${user}@${host}`, `docker build -q -t ${image} -`], {
         input: readFileSync(tarFile),
