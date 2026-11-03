@@ -59,6 +59,49 @@ query that finds them. Schedule `npm run jobs:expire-holds` (every minute is eno
 
 ---
 
+# Audit fixes: async route errors, stack-trace leaks, rate limits, timeouts, hardening
+
+**Timestamp:** 2026-11-03T03:45+08:00 (SGT)
+**Author:** Joash
+**Scope:** planning-core, notification and registration services, contracts, OpenAPI, dependencies.
+
+**Deploy:** no migration. `DB_STATEMENT_TIMEOUT_MS=5000` is recommended but off by default, because a transaction-mode
+pooler may refuse the `statement_timeout` startup parameter; `JWT_ISSUER` / `JWT_AUDIENCE` if a stand-in auth server issues
+tokens with other claims.
+
+## Fixed
+
+- **C1:** a rejected promise in an async route handler no longer ends the process (and, under
+  `concurrently --kill-others-on-fail`, the whole dev stack). Express's router layer now passes it to
+  a final error handler that answers `500 INTERNAL_ERROR` in the error envelope with a generic
+  message and logs the detail with the correlation id. `unhandledRejection` is logged and the process
+  carries on; `uncaughtException` is logged and the process exits with 1. Same in the notification and registration services. `INTERNAL_ERROR` joins
+  `ERROR_CODES` and the OpenAPI `ErrorCode` enum.
+- **C1 trigger:** venue and layout capacities, setup and turnaround minutes, expected attendance,
+  `reminderLeadMinutes` and equipment quantities are bounded below Postgres's `int` range and refused
+  with `400 VALIDATION_FAILED` naming the field and the bound.
+- **G4:** the approval message's `layoutCapacity` is at most `MAX_VENUE_CAPACITY` (1 000 000), the
+  constant planning-core uses for venue capacities, so one message cannot make the registration
+  service insert millions of seat rows; an oversized one is skipped as invalid.
+- **H1:** errors no longer reach the caller as an HTML stack trace: a malformed JSON body is
+  `400 VALIDATION_FAILED`, an oversized one `413`, and `next(error)` routes in venue, equipment and
+  change get the envelope. `/readyz` returns a generic status and logs the database error. A 5xx is
+  logged as an error, not as a refusal.
+- **M11:** the event module's routes and the notification routes are rate-limited before
+  authentication (120 a minute per address, `RATE_LIMITED`). The R2/R4 registration-settings route shares the event
+  module's limiter instead of keeping a budget of its own, and the registration service's attendee routes
+  (R1 to R4) and every `/metrics` endpoint (EN-17) keep their own limiter, which already runs before the token check.
+- **L10:** `GET /api/v1/users/me` is limited per verified token subject, with a high per-address
+  flood ceiling, so the notification and registration services' calls for every user no longer share one budget.
+- **L8:** an opt-in 5 s statement timeout on the Postgres pools (`DB_STATEMENT_TIMEOUT_MS=5000`, off by default, on in CI) and a timeout on
+  the Supabase Auth calls (`SUPABASE_AUTH_TIMEOUT_MS`).
+- **L13:** helmet headers and no `X-Powered-By`; `verifyJwt` checks `aud` (`authenticated`) and `iss`
+  (`<SUPABASE_URL>/auth/v1`), both overridable.
+- **M12:** `npm audit fix` without `--force`.
+- The `replay.unit.test.ts` round-trip test passes on a Windows checkout with `core.autocrlf=true`.
+
+---
+
 # EN-14: Playwright browser tests on an ephemeral CI stack (SPM-132)
 
 **Timestamp:** 2026-11-03T04:05+08:00 (SGT)
@@ -183,6 +226,9 @@ documentation scripts. No migration.
 
 - Every vitest config also writes a JSON report when `CI` is set, and CI uploads them.
 - New error code `FEATURE_DISABLED`.
+
+---
+
 # EN-10 and EN-16: container images, Kubernetes, Terraform, GitOps and canary releases (SPM-128, SPM-134)
 
 **Timestamp:** 2026-11-02T23:55+08:00 (SGT)

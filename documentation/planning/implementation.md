@@ -474,7 +474,7 @@ What a reviewer watches for, from ADR-0005: a registration path that reads capac
 
   There is no HTTP call and no residual window. If an arrangement changes after confirmation, S3 flags the event. The earlier instruction to "re-verify both arrangements inside the writing transaction" contradicted the rule below, and it no longer applies.
 - **Never** hold a transaction open across an HTTP call to another service. Under ADR-0004 there is no exception: cross-module reads inside the core are function calls, and the only remote calls are to the registration and notification services, which never happen inside a core transaction.
-- Statement timeout: 5 s. Connection pool max 10 per service.
+- Statement timeout: 5 s recommended, set with `DB_STATEMENT_TIMEOUT_MS=5000` on the Postgres pools (planning-core, notification, registration). It is off when the variable is unset, because the setting travels as a connection startup parameter and a transaction-mode pooler (Supavisor or pgbouncer, as Supabase uses) may reject it. CI sets 5000 against its own Postgres; turn it on against Supabase only after checking that connections still open. Connection pool max 10 per service.
 
 ### 4.8 Migrations
 
@@ -499,6 +499,8 @@ Forward-only, numbered, one concern per file: `0007_add_venue_slots_exclusion.sq
 ```
 
 The `message` is user-facing and must name the specific values the story requires. B2 says "the message names every field that caused the rejection" — that is what `fields[]` is for, and returning only the first is a failed acceptance test.
+
+- **`INTERNAL_ERROR`:** a failure no route expected (a rejected query, a bug) is `500` with `code: "INTERNAL_ERROR"`, a generic `message` and the `correlationId`, and nothing else: no stack, no driver or database text. The detail goes to the log under that correlation id. Every service ends its app with the same final error handler, which also maps a malformed JSON body to `400 VALIDATION_FAILED` and an oversized one to `413`. A route needs no try/catch to get this: the router layer passes a rejected promise to `next(error)`.
 
 - Every request carries `Authorization: Bearer <supabase-jwt>` and `X-Correlation-Id` (the gateway generates one if absent; services propagate it into logs and message envelopes).
 - Lists are paginated: `?limit=` (default 25, max 100) `&cursor=`. Response `{ "items": [...], "nextCursor": "..." | null }`.

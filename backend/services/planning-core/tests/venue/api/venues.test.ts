@@ -116,7 +116,7 @@ describe("POST /api/v1/venues (H1)", () => {
     expect(res.status).toBe(400);
     expect(res.body.error).toMatchObject({
       code: "VALIDATION_FAILED",
-      fields: [{ field: "maxCapacity", message: "Maximum capacity must be a whole number greater than zero." }],
+      fields: [{ field: "maxCapacity", message: "Maximum capacity must be a whole number from 1 to 1000000." }],
     });
     expect(await sql`select 1 from venue.venues where created_by = ${STAFF}`).toHaveLength(0);
   });
@@ -307,7 +307,7 @@ describe("setup and turnaround time (H3)", () => {
     const res = await request(app).put(`/api/v1/venues/${venue.id}`).set(bearer).send({ ...standardVenue(), setupMinutes: -1 });
     expect(res.status).toBe(400);
     expect(res.body.error.fields).toEqual([
-      { field: "setupMinutes", message: "Setup time must be a whole number of minutes, 0 or more." },
+      { field: "setupMinutes", message: "Setup time must be a whole number of minutes from 0 to 10080." },
     ]);
     const [row] = await sql`select setup_minutes from venue.venues where id = ${venue.id}`;
     expect(row!.setup_minutes).toBe(0);

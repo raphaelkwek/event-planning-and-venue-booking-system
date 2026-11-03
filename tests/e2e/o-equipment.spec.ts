@@ -83,7 +83,7 @@ test.describe("P2 equipment inventory", () => {
     await fillNewType(page, { name, description: "Boundary test record", characteristics: "Category: Test", total: "-1" });
     await page.getByRole("button", { name: "Save equipment type" }).click();
 
-    await expect(fieldBlock(page, "equipment-total")).toContainText("Total quantity must be a whole number of zero or greater.");
+    await expect(fieldBlock(page, "equipment-total")).toContainText("Total quantity must be a whole number from 0 to 1000000.");
     await expect(page.getByRole("heading", { name: "New equipment type" })).toBeVisible();
     await expect(page.getByLabel("Name", { exact: true })).toHaveValue(name);
     await expect(page.getByLabel("Description", { exact: true })).toHaveValue("Boundary test record");
