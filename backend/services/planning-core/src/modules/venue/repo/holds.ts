@@ -1,11 +1,15 @@
 import type { Sql, TransactionSql } from "postgres";
 import type { HoldStatus } from "@connectsphere/contracts";
-import { findEventForChange } from "../../event/index.js";
 import { isLiveHoldDuplicate, type OverlappedPeriod } from "../domain/hold.js";
 import { reminderAt } from "../domain/holdExpiry.js";
 import { writeVenueOutbox } from "../events/outbox.js";
 import { VenueSlotConflictError } from "../domain/slotConflict.js";
-import { insertVenueSlot } from "./slots.js";
+import { clearFlagsOfEnded } from "./bufferConflicts.js";
+import { expireLockedHold, holdExpiryReached, holdNoticePayload } from "./holdExpiry.js";
+import { insertVenueSlot, lockVenue } from "./slots.js";
+
+/** L6: re-exported for index.ts and the HoldExpiry workflow, which name it as non-retryable. */
+export { HoldEventMissingError } from "./holdExpiry.js";
 
 /**
  * L3 — tentative holds (migration venue/0012). SQL against the venue schema
@@ -300,15 +304,16 @@ async function releaseHeldSlot(tx: TransactionSql, slotId: string, actorUserId: 
 /**
  * Releases a Requested or Held hold (L3-T15): the hold becomes Released, and a
  * placed hold's slot RELEASED, so the period is free again. The record is kept.
- * The caller locks the hold and checks its status.
+ * The caller locks the venue row, then the hold, and checks its status.
  */
 export async function releaseHold(tx: TransactionSql, hold: Hold, actorUserId: string): Promise<Hold> {
-  if (hold.slotId) await releaseHeldSlot(tx, hold.slotId, actorUserId);
   await tx`
     update venue.holds
     set status = 'RELEASED', released_by = ${actorUserId}, released_at = now(), updated_at = now(), updated_by = ${actorUserId}
     where id = ${hold.id}
   `;
+  // M3: what a buffer change flagged against the freed slot is cleared, unless something else still causes it.
+  if (hold.slotId && (await releaseHeldSlot(tx, hold.slotId, actorUserId))) await clearFlagsOfEnded(tx, [hold.slotId], actorUserId);
   return (await findHold(tx, hold.id))!;
 }
 
@@ -394,6 +399,11 @@ export async function releaseHeldSlotForRequest(tx: TransactionSql, requestId: s
  * are left to their requests' own release.
  */
 export async function releaseHoldsForEvent(tx: TransactionSql, eventId: string, actorUserId: string): Promise<string[]> {
+  // The venues' rows first, in a fixed order, then the holds (§4.6, lock order). Taking one twice is harmless.
+  const venues = await tx<{ venue_id: string }[]>`
+    select distinct venue_id from venue.holds where event_id = ${eventId} and status in ('REQUESTED', 'HELD') order by venue_id
+  `;
+  for (const { venue_id } of venues) await lockVenue(tx, venue_id);
   const live = await tx<{ id: string }[]>`
     select id from venue.holds where event_id = ${eventId} and status in ('REQUESTED', 'HELD')
     order by requested_at, reference
@@ -404,36 +414,6 @@ export async function releaseHoldsForEvent(tx: TransactionSql, eventId: string, 
   return released;
 }
 
-
-/**
- * L6: a hold's event can't be found, so its notice can't be written. Retrying
- * won't help; the HoldExpiry workflow lists this error's name as non-retryable.
- */
-export class HoldEventMissingError extends Error {
-  constructor(holdId: string, eventId: string) {
-    super(`Hold ${holdId} names event ${eventId}, which could not be found`);
-    this.name = "HoldEventMissingError";
-  }
-}
-
-/** L6: what a reminder or expiry notice names; the holding coordinator is who requested the hold. */
-async function holdNoticePayload(tx: TransactionSql, hold: Hold): Promise<Record<string, unknown>> {
-  const event = await findEventForChange(tx, hold.eventId, { scopeType: "ALL" }, hold.requestedBy);
-  if (!event) throw new HoldEventMissingError(hold.id, hold.eventId);
-  return {
-    holdId: hold.id,
-    holdReference: hold.reference,
-    venueId: hold.venueId,
-    venueName: hold.venueName,
-    eventId: hold.eventId,
-    eventReference: event.reference ?? event.id,
-    eventName: event.name,
-    coordinatorId: hold.requestedBy,
-    startsAt: hold.startsAt,
-    endsAt: hold.endsAt,
-    expiresAt: hold.expiresAt,
-  };
-}
 
 export type RemindOutcome =
   | { outcome: "reminded"; message: string }
@@ -477,30 +457,20 @@ export type ExpireOutcome =
 /**
  * L6: expires the hold if it is Held and its expiry has been reached by the
  * database's clock (`expires_at <= now()`). The hold and its slot become Expired
- * in this transaction, so the period is free again, and the coordinator is told.
- * `not-due` returns the expiry as it now is (it may have been moved).
+ * in this transaction, so the period is free again, and the coordinator is told
+ * (repo/holdExpiry.ts, which the `jobs:expire-holds` sweep and slot inserts use
+ * too). `not-due` returns the expiry as it now is (it may have been moved).
  */
 export async function expireHoldIfDue(tx: TransactionSql, holdId: string): Promise<ExpireOutcome> {
-  const hold = await lockHold(tx, holdId);
-  if (!hold || hold.status !== "HELD") return { outcome: "gone", status: hold?.status ?? null };
+  // The venue row first, then the hold (implementation.md §4.6, lock order). A hold's venue never changes.
+  const [venue] = await tx<{ venue_id: string }[]>`select venue_id from venue.holds where id = ${holdId}`;
+  if (!venue) return { outcome: "gone", status: null };
+  await lockVenue(tx, venue.venue_id);
+  const hold = (await lockHold(tx, holdId))!;
+  if (hold.status !== "HELD") return { outcome: "gone", status: hold.status };
   // Compared in SQL, at the column's full precision, not through a JavaScript Date.
-  const [reached] = await tx<{ due: boolean }[]>`select expires_at <= now() as due from venue.holds where id = ${hold.id}`;
-  if (!reached!.due) return { outcome: "not-due", expiresAt: hold.expiresAt! };
-  await tx`
-    update venue.holds set status = 'EXPIRED', expired_at = now(), updated_at = now()
-    where id = ${hold.id}
-  `;
-  await tx`
-    update venue.venue_slots set status = 'EXPIRED', updated_at = now()
-    where id = ${hold.slotId!} and status = 'HELD'
-  `;
-  await writeVenueOutbox(tx, {
-    messageType: "venue-booking.hold-expired",
-    aggregateId: hold.id,
-    actor: { userId: null, role: "SYSTEM" },
-    correlationId: null,
-    payload: await holdNoticePayload(tx, hold),
-  });
+  if (!(await holdExpiryReached(tx, hold.id))) return { outcome: "not-due", expiresAt: hold.expiresAt! };
+  await expireLockedHold(tx, hold);
   return { outcome: "expired" };
 }
 
