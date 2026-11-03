@@ -19,6 +19,6 @@
 |---|---|
 | Actual Result |  |
 | Status | Not Executed |
-| Remarks | Document review, not an automated run. The spike document, the ADR-0008 decision note of 2026-11-03 and implementation.md §3.4 were written together in commit c4325fb; a reviewer reads them at the pull request. Commit: c4325fb · Evidence: documentation/spikes/EN-05-cdc-spike.md · Defect: — |
+| Remarks | Document review, not an automated run. The spike document, the ADR-0008 decision note of 2026-11-03 and implementation.md §3.4 were written together in commit 379c576; a reviewer reads them at the pull request. Commit: 379c576 · Evidence: documentation/spikes/EN-05-cdc-spike.md · Defect: — |
 | Executed By |  |
 | Date of Execution |  |

@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | The job "Message schema compatibility" ran on this pull request with fetch-depth 0, ran npm run schemas:check (30 committed schema files match contracts), then npm run schemas:compat against the pull request's base commit (main has no schema files yet, so it printed that there is nothing to compare). Both steps exit non-zero on failure, which fails the job; T5 shows the command's exit codes. The job was green. |
+| Actual Result | The job "Message schema compatibility" ran on this pull request with fetch-depth 0, ran npm run schemas:check (35 committed schema files match contracts), then npm run schemas:compat against the pull request's base commit (main has no schema files yet, so it printed that there is nothing to compare). Both steps exit non-zero on failure, which fails the job; T5 shows the command's exit codes. The job was green. |
 | Status | Pass |
-| Remarks | Automated (CI job) · Commit: c4325fb · Evidence: .github/workflows/ci.yml › job schema-compat "Message schema compatibility", CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41614891360 · Defect: — |
+| Remarks | Automated (CI job) · Commit: 379c576 · Evidence: .github/workflows/ci.yml › job schema-compat "Message schema compatibility", CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41636336928 · Defect: — |
 | Executed By | Joash, via automated testing (CI) |
 | Date of Execution | 2026-11-03 |
