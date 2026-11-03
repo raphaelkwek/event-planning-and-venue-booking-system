@@ -18,8 +18,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result |  |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By |  |
-| Date of Execution |  |
+| Actual Result | A local OTLP receiver got traces at /otlp/v1/traces and metrics at /otlp/v1/metrics as protobuf with the configured Authorization and X-Scope headers and a resource carrying the service name and deployment.environment; a signal with only its own endpoint was the only one sent; OTEL_*_EXPORTER=none switched one off. |
+| Status | Pass |
+| Remarks | Automated (unit tests, CI) · Commit: d62134e7c97989aff7b8cce0e362cb7a7af7f605 · Evidence: backend/packages/telemetry/tests/env.test.ts › EN-08-T9 exports both signals when the shared OTLP endpoint is set; backend/packages/telemetry/tests/env.test.ts › EN-08-T9 exports only the signal whose own endpoint is set; backend/packages/telemetry/tests/env.test.ts › EN-08-T9 turns one signal off with the standard OTEL_*_EXPORTER=none; backend/packages/telemetry/tests/sdk.test.ts › EN-08-T9 sends traces to <endpoint>/v1/traces with the OTEL_EXPORTER_OTLP_HEADERS and the resource attributes; backend/packages/telemetry/tests/sdk.test.ts › EN-08-T9 sends metrics to <endpoint>/v1/metrics, with the HTTP histogram EN-17 queries; backend/packages/telemetry/tests/sdk.test.ts › EN-08-T9 sends only the signal that has its own endpoint, and none that is switched off, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41611569860 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

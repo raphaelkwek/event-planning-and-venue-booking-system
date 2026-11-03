@@ -18,8 +18,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result |  |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By |  |
-| Date of Execution |  |
+| Actual Result | The notification consumer's CONSUMER span was a child of the producer span in the header, in one trace, with its transaction and queries below it; with no header it continued from the CloudEvent's traceparent; a failing message was retried under a PRODUCER span that was a child of the consumer span; the Temporal worker's two consumers did the same. |
+| Status | Pass |
+| Remarks | Automated (unit tests, CI) · Commit: d62134e7c97989aff7b8cce0e362cb7a7af7f605 · Evidence: backend/packages/telemetry/tests/kafka.test.ts › EN-08-T4 makes the consumer span a child of the producer span named in the header, in the same trace; backend/packages/telemetry/tests/kafka.test.ts › EN-08-T4 falls back to the CloudEvent's own traceparent when a message has no header; backend/packages/telemetry/tests/kafka.test.ts › EN-08-T4 starts a new trace for a message that names no usable parent; backend/packages/telemetry/tests/kafka.test.ts › EN-08-T4 marks the span failed and rethrows when the handler throws; backend/services/planning-core/tests/temporal/consumersTrace.unit.test.ts › EN-08-T4 handle an event-topic message in a CONSUMER span, a child of the traceparent in its header; backend/services/planning-core/tests/temporal/consumersTrace.unit.test.ts › EN-08-T4 handle a venue-booking message in a CONSUMER span, a child of the traceparent in its header; backend/services/notification/tests/consumer/consumeTraced.unit.test.ts › EN-08-T4 handles a message in a CONSUMER span that is a child of the producer's, with its queries below it; backend/services/notification/tests/consumer/consumeTraced.unit.test.ts › EN-08-T4 keeps a failing message in its trace: the retry is a PRODUCER span under the consumer span, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41611569860 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

@@ -18,8 +18,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result |  |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By |  |
-| Date of Execution |  |
+| Actual Result | http_request_duration_seconds (unit s, buckets including 0.4 and 0.8) and http_requests_total were recorded by service, method, route pattern and status class; the Kafka consumer recorded processing time by outcome and lag from the broker timestamp; the metrics reached the OTLP receiver. |
+| Status | Pass |
+| Remarks | Automated (unit tests, CI) · Commit: d62134e7c97989aff7b8cce0e362cb7a7af7f605 · Evidence: backend/packages/telemetry/tests/http.test.ts › EN-08-T10 record http_request_duration_seconds and http_requests_total with EN-17's labels; backend/packages/telemetry/tests/http.test.ts › EN-08-T10 count request durations in buckets that include 0.4 s and 0.8 s, the objectives; backend/packages/telemetry/tests/kafka.test.ts › EN-08-T10 records processing time by outcome and lag from the broker's timestamp, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41611569860 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

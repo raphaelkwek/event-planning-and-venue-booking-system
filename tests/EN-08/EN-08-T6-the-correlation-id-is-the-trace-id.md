@@ -18,8 +18,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result |  |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By |  |
-| Date of Execution |  |
+| Actual Result | The response's x-correlation-id was the server span's trace id (32 hex); an incoming traceparent was continued; a caller's own id was kept as a span attribute; the outbox message carried the same id as correlationid (T11); with no SDK the caller's id or a UUID was used. |
+| Status | Pass |
+| Remarks | Automated (unit tests, CI) · Commit: d62134e7c97989aff7b8cce0e362cb7a7af7f605 · Evidence: backend/packages/telemetry/tests/http.test.ts › EN-08-T6 answers with the trace id as x-correlation-id; backend/packages/telemetry/tests/http.test.ts › EN-08-T6 continues an incoming traceparent: the correlation id is that trace's id; backend/packages/telemetry/tests/http.test.ts › EN-08-T6 keeps a caller's own x-correlation-id on the span, but the trace id is the correlation id; backend/packages/telemetry/tests/httpWithoutSdk.test.ts › EN-08-T6 keeps a caller's x-correlation-id, on the response and for the code that reads it; backend/packages/telemetry/tests/httpWithoutSdk.test.ts › EN-08-T6 makes a UUID when there is neither a trace nor a caller's id; backend/services/planning-core/tests/shared/d4Trace.test.ts › EN-08-T11 runs from the HTTP request, through the transaction and the outbox relay, into the notification consumer, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41611569860 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

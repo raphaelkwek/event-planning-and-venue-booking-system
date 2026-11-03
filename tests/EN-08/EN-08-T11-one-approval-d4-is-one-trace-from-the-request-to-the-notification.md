@@ -18,8 +18,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result |  |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By |  |
-| Date of Execution |  |
+| Actual Result | Against the real database: one trace with the SERVER span `POST /api/v1/events/:id/approve`, its db.transaction holding INSERT event.event_history and INSERT event.outbox, the relay's PRODUCER span under it, the notification CONSUMER span under that with its own transaction and the two notification inserts; x-correlation-id, the log line's traceId and the outbox correlationid were that trace's id; the notification was stored. |
+| Status | Pass |
+| Remarks | Automated (API level, CI; the database is Postgres) · Commit: d62134e7c97989aff7b8cce0e362cb7a7af7f605 · Evidence: backend/services/planning-core/tests/shared/d4Trace.test.ts › EN-08-T11 runs from the HTTP request, through the transaction and the outbox relay, into the notification consumer, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41611569860 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

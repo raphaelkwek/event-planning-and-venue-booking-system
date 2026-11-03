@@ -18,8 +18,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result |  |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By |  |
-| Date of Execution |  |
+| Actual Result | The relay sent each message under its own PRODUCER span, a child of the transaction in its row's traceparent, with that span's traceparent in the Kafka header; the payload and content type were unchanged; a failed send marked the spans as errors and left the row pending; an unpublishable row made no span; an outbox row took the active span's traceparent. |
+| Status | Pass |
+| Remarks | Automated (unit tests, CI) · Commit: d62134e7c97989aff7b8cce0e362cb7a7af7f605 · Evidence: backend/packages/telemetry/tests/kafka.test.ts › EN-08-T3 gives each message its own PRODUCER span, a child of the transaction in its own traceparent, and that span's traceparent as the header; backend/packages/telemetry/tests/kafka.test.ts › EN-08-T3 makes the publish a child of the active span when it is not told to continue a header (a consumer's retry); backend/packages/telemetry/tests/kafka.test.ts › EN-08-T3 marks every span of a failed send as an error, rethrows, and counts the failure; backend/packages/telemetry/tests/kafka.test.ts › EN-08-T3 starts a new trace for a message whose header is missing or unusable; backend/packages/telemetry/tests/postgres.test.ts › EN-08-T3 makes the transaction the active span inside it, so an outbox row carries its traceparent; backend/services/planning-core/tests/shared/outboxRelayTrace.unit.test.ts › EN-08-T3 sends each message with the traceparent of its own PRODUCER span, a child of the transaction that wrote the row; backend/services/planning-core/tests/shared/outboxRelayTrace.unit.test.ts › EN-08-T3 keeps the CloudEvent's own traceparent in the payload, and the content type header; backend/services/planning-core/tests/shared/outboxRelayTrace.unit.test.ts › EN-08-T3 marks the producer spans failed when the broker refuses, and leaves the row pending; backend/services/planning-core/tests/shared/outboxRelayTrace.unit.test.ts › EN-08-T3 makes no span for a row that can never be published; backend/services/planning-core/tests/shared/outboxRelayTrace.unit.test.ts › EN-08-T3 gives a row written with no active span a new valid traceparent, so the relay still publishes one; backend/services/planning-core/tests/shared/outboxRelayTrace.unit.test.ts › EN-08-T3 is the active span's, so the message belongs to the request that caused it, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41611569860 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |
