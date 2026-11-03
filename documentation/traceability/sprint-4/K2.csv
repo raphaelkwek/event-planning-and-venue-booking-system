@@ -1,0 +1,2 @@
+story_id,acceptance_criterion,test_file,test_name
+K2,"The justification is stored with the booking request together with the failing conditions as evaluated at the time of the request, the coordinator, and the timestamp.",backend/services/planning-core/tests/venue/api/auditFixes.test.ts,has both checks validated

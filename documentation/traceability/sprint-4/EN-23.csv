@@ -1,0 +1,6 @@
+story_id,acceptance_criterion,test_file,test_name
+EN-23,"A STRIDE table per container, with threat, control (file:line), residual risk and gap.",documentation/scripts/check-docs.test.ts,EN-23-T1 every C4 container has a STRIDE section with six complete rows
+EN-23,"A STRIDE table per container, with threat, control (file:line), residual risk and gap.",documentation/scripts/check-docs.test.ts,EN-23-T2 every file:line reference in the security documents points at a real line
+EN-23,"A STRIDE table per container, with threat, control (file:line), residual risk and gap.",documentation/scripts/check-docs.test.ts,"EN-23-T5 the ranked gap list has at least ten gaps, in order, each with a location"
+EN-23,A PDPA note on attendee data.,documentation/scripts/check-docs.test.ts,EN-23-T3 the PDPA note covers every obligation with what the system does and what is missing
+EN-23,An ASVS Level 2 checklist mapped to controls.,documentation/scripts/check-docs.test.ts,"EN-23-T4 the ASVS checklist covers V1 to V14, uses four statuses, and backs every Met"
