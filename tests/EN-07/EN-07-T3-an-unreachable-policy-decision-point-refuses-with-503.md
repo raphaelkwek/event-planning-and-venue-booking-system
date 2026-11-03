@@ -18,8 +18,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | With the PDP unreachable, POST and GET /api/v1/venues as Venue Staff both answered 503 POLICY_UNAVAILABLE with the message that permissions could not be checked and nothing was changed; the database was never touched. |
+| Status | Pass |
+| Remarks | Automated (API level) · Commit: 7f1c8fa · Evidence: backend/services/planning-core/tests/venue/api/policyUnavailable.unit.test.ts › EN-07-T3 refuses Venue Staff's POST and GET /api/v1/venues with 503 POLICY_UNAVAILABLE and stores nothing, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41640443625 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

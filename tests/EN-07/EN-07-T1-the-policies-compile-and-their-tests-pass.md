@@ -18,8 +18,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | Cerbos 0.56.0 compiled every policy in policies/ and every test suite passed (event, venue, booking_request, equipment, registration, user). |
+| Status | Pass |
+| Remarks | Automated (CI step) · Commit: 7f1c8fa · Evidence: the CI job "Lint, typecheck, build, unit tests" › step "Permission policy tests (Cerbos)" (`npm run policies:test`), CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41640443625 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

@@ -18,8 +18,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | As connectsphere_request with organiser A's claims, a select with no WHERE clause returned A's event and draft and nothing of B's; B's claims returned only B's event. |
+| Status | Pass |
+| Remarks | Automated (API level) · Commit: 7f1c8fa · Evidence: backend/services/planning-core/tests/event/repo/rowLevelSecurity.test.ts › EN-07-T6 an organiser's claims see only that organiser's events and drafts, with no WHERE clause; EN-07-T6 the repo's scoped reads give the same rows under RLS as before, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41640443625 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

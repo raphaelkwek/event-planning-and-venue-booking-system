@@ -18,8 +18,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | Every served route that isn't public or session-only has exactly one gate naming an action a policy grants; an added route with no gate, and a gate naming an unknown action, were each reported by name. |
+| Status | Pass |
+| Remarks | Automated (unit) · Commit: 7f1c8fa · Evidence: backend/services/planning-core/tests/api/routePermissions.unit.test.ts › EN-07-T12 every route that is not public or session-only has exactly one policy gate; EN-07-T12 every gate names an action that a policy in policies/resources grants; EN-07-T12 a route added without a gate is reported, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41640443625 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

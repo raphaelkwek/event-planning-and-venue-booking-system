@@ -18,8 +18,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | The Lead's claims saw the submitted event but not A's draft; scope NONE and no claims at all saw no row. The request role could lock an event in scope, and its update was refused by row-level security. |
+| Status | Pass |
+| Remarks | Automated (API level) · Commit: 7f1c8fa · Evidence: backend/services/planning-core/tests/event/repo/rowLevelSecurity.test.ts › EN-07-T8 the Lead's claims see every event but other people's drafts; no scope, or no claims, see nothing; EN-07-T8 the request role can lock an event in scope but never change one, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41640443625 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

@@ -18,8 +18,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | Every gated and session route × seven roles × a related and an unrelated record answered as the PDP decided: 403 ROLE_NOT_AUTHORISED where the role is never allowed, 403 or 404 with nothing of the record where Cerbos or RLS refused it, and past authorisation otherwise. No mismatches. |
+| Status | Pass |
+| Remarks | Automated (API level) · Commit: 7f1c8fa · Evidence: backend/services/planning-core/tests/api/authorisationMatrix.test.ts › EN-07-T11 every route × role × related and unrelated record answers as the Cerbos PDP decides (the matrix is in the run's job summary), CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41640443625 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

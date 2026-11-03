@@ -18,8 +18,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result |  |
+| Status | Blocked |
+| Remarks | Blocked: the API gateway (EN-12) is not built, so there is no gateway to send the request through. It would ask the same PDP. · Defect: — |
+| Executed By |  |
+| Date of Execution |  |

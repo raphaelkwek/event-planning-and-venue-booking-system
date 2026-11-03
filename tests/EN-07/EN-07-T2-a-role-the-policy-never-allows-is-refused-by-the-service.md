@@ -18,8 +18,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | Against the real PDP, POST /api/v1/events/{id}/approve as an organiser and POST /api/v1/venues as a coordinator both answered 403 ROLE_NOT_AUTHORISED; the gate's own test asserted the message "Your role is not authorised to use this function." and that the route's handler never ran. |
+| Status | Pass |
+| Remarks | Automated (API level) · Commit: 7f1c8fa · Evidence: backend/services/planning-core/tests/shared/authz.unit.test.ts › EN-07-T2 refuses a role the policy never allows with 403 ROLE_NOT_AUTHORISED; backend/services/planning-core/tests/api/authorisationMatrix.test.ts › EN-07-T11 every route × role × related and unrelated record answers as the Cerbos PDP decides, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41640443625 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

@@ -18,8 +18,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
+| Actual Result |  |
 | Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Remarks | Partly proven: frontend/tests/permissions.test.tsx › EN-07-T4 (three tests) checks the console sends one permissions request with the token, every screen's action and no role, shows an organiser My requests and New request but no Review queue, shows Venue Staff Booking requests and Hold requests, sends Venue Staff from #/queue to their start page, and fails closed; the browser tests on the ephemeral stack passed with a PDP (CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41640443625). UI walk-through in Chrome pending at the sprint review · Commit: 7f1c8fa · Defect: — |
+| Executed By |  |
+| Date of Execution |  |

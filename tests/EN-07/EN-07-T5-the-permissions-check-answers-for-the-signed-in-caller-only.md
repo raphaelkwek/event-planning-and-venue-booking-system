@@ -18,8 +18,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | No token: 401 UNAUTHENTICATED with no results. A body naming another principal still got the organiser's answers (event approve not allowed, create allowed). 0 checks, 51 checks and an unknown kind: 400 VALIDATION_FAILED naming the field; 50 checks answered. The 503 names neither the PDP nor its address. |
+| Status | Pass |
+| Remarks | Automated (API level) · Commit: 7f1c8fa · Evidence: backend/services/planning-core/tests/identity/api/permissions.unit.test.ts › EN-07-T5 refuses a request without a token, with no decision in it; EN-07-T5 answers for the signed-in caller, whatever principal the body names; EN-07-T5 refuses 51 checks, one over the limit with 400 VALIDATION_FAILED naming the field (and the empty, unknown-kind and malformed-action cases); EN-07-T5 answers exactly 50 checks, the most it takes, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41640443625 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

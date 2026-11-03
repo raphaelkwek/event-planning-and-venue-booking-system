@@ -18,3 +18,15 @@ policy decision point, which CI provides. Cards T4 and T13 are about screens and
 | Negative | T3 (decision point down), T5 (no token, a forged principal, bad input), T8 (no scope, no claims), T12 (route without a policy) |
 | Boundary | T5 (0, 50 and 51 checks), T7 (the moment of a reassignment), T9 (commit and rollback) |
 | Cross-cutting | T9 (the transaction pooler), T10 (roles that bypass row-level security) |
+
+## Latest results
+
+From CI run [41640443625](https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41640443625) on `7f1c8fa`.
+
+| Card | Status |
+|---|---|
+| EN-07-T1, T2, T3, T5 to T12 | Pass |
+| EN-07-T4 | Not Executed: the screen tests and the browser tests pass; the walk-through in Chrome is at the sprint review |
+| EN-07-T13 | Blocked: the gateway (EN-12) isn't built |
+
+How to run them, and what was and wasn't validated: `documentation/evidence/EN-07/README.md`.
