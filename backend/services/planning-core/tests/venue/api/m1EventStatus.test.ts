@@ -1,5 +1,6 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import request from "supertest";
+import type { Sql, TransactionSql } from "postgres";
 import { testDb } from "../../support/testDb.js";
 
 /**
@@ -104,6 +105,12 @@ async function pendingRequest(venueId: string, eventId: string): Promise<string>
   return res.body.id;
 }
 
+/** F3's check (event/0012): a Cancelled event records why, by whom and when, so the row says so too. */
+const setStatus = (db: Sql | TransactionSql, eventId: string, status: string) =>
+  status === "CANCELLED"
+    ? db`update event.events set status = 'CANCELLED', cancellation_reason = 'L4 test', cancelled_by = ${OWNER}, cancelled_at = now() where id = ${eventId}`
+    : db`update event.events set status = ${status} where id = ${eventId}`;
+
 const approve = (id: string) => request(app).post(`/api/v1/booking-requests/${id}/approve`).set(bearer);
 const bookings = (eventId: string) => sql`select id from venue.venue_slots where event_id = ${eventId}`;
 
@@ -115,7 +122,7 @@ describe("L4: M1 approval reads the event's status again", () => {
     const venueId = await newVenue();
     const eventId = await newEvent();
     const requestId = await pendingRequest(venueId, eventId);
-    await sql`update event.events set status = ${status} where id = ${eventId}`;
+    await setStatus(sql, eventId, status);
     signedInAs("VENUE_STAFF", STAFF);
 
     const res = await approve(requestId);
@@ -137,7 +144,7 @@ describe("L4: M1 approval reads the event's status again", () => {
     const venueId = await newVenue();
     const eventId = await newEvent();
     const requestId = await pendingRequest(venueId, eventId);
-    await sql`update event.events set status = ${status} where id = ${eventId}`;
+    await setStatus(sql, eventId, status);
     signedInAs("VENUE_STAFF", STAFF);
 
     const res = await approve(requestId);
@@ -157,7 +164,7 @@ describe("L4: M1 approval reads the event's status again", () => {
     const cancelled = new Promise<void>((resolve) => (release = resolve));
     const canceller = sql.begin(async (tx) => {
       await tx`select id from event.events where id = ${eventId} for update`;
-      await tx`update event.events set status = 'CANCELLED' where id = ${eventId}`;
+      await setStatus(tx, eventId, "CANCELLED");
       await cancelled;
     });
     await new Promise((resolve) => setTimeout(resolve, 300));
