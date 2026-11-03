@@ -108,6 +108,8 @@ test.describe("A3 what each role is shown", () => {
     const notOpen = await approvedRequest({ name: uniqueName("Approved and not open") });
     await publishListing(open, { status: "CONFIRMED", registrationRequired: true, seats: 3 });
     await publishListing(notOpen, { status: "APPROVED", registrationRequired: true, seats: 3 });
+    const published = await query<Record<string, unknown>>("select status, registration_required, registration_closes_at > now() as open_window, starts_at from registration.event_listings where event_id = $1::uuid", [open.id]);
+    expect(published, "the published copy of the open event").toMatchObject([{ status: "CONFIRMED", registration_required: true, open_window: true }]);
 
     try {
       // Step 1: sign in as the attendee. Step 2: the list of events open for registration.
