@@ -11,7 +11,7 @@ F4-T8 is the signed-in browser walkthrough, done by hand.
 | AC1: release is triggered by cancellation (F3), for every booking, hold, reservation and registration | F4-T1, F4-T8 |
 | AC2: bookings and holds are released; the venue is available again in the calendar (I1) and search (J1) | F4-T1, F4-T2, F4-T8 |
 | AC3: reservations are released; the quantities are available again | F4-T3, F4-T8 |
-| AC4: registrations and waitlist entries become Cancelled, and attendees are told | F4-T7 (none exist yet) |
+| AC4: registrations and waitlist entries become Cancelled, and attendees are told | F4-T7 (Blocked on #80 and #88) |
 | AC5: all or nothing; the user is told when the cancellation did not complete | F4-T4 |
 | AC6: released records are kept, with the reason, the user and the time | F4-T5 |
 | AC7: releasing again changes nothing; a retried cancellation reaches the same end state | F4-T6 |
@@ -20,14 +20,21 @@ F4-T8 is the signed-in browser walkthrough, done by hand.
 
 F4 adds the releases to F3's cancellation transaction (`change/repo/cancelEvent.ts`), through the functions L4 and Q2 built for it:
 `releaseVenueArrangementsForEvent` (venue module) and `releaseEventReservations` (equipment module). Every release records the reason
-`event cancelled`, the cancelling user and the time. Any failure rolls the cancellation back with them (500 `CANCELLATION_FAILED`). The
-venues' rows are locked before the arrangements are read, so the locks are taken venue first, then slot, as M1 and I2 take them.
+`event cancelled`, the cancelling user and the time. Any failure rolls the cancellation back with them (500 `CANCELLATION_FAILED`).
+
+Lock order: the pending change request, then the rows of the event's venues in ascending id, then the event, then the holds, requests and
+slots. This is the venue module's order (implementation.md §4.6: venue rows, then event rows, then holds, requests and slots). I2's block
+locks the venue and then the events it returns to Planning, so a block and a cancellation of an event booked at that venue queue on the
+venue instead of deadlocking. The cancellation used to lock the event first; the review of #72 found the deadlock, and
+`f4Cards.test.ts` › `F4 lock order` races the two deterministically.
 
 ## What F4 does not do
 
-Registrations and the waitlist (AC4) wait for EN-13: there is no registration service, so `released.registrations` is always 0 and no
-attendee is told. ADR-0009's CancelEvent Temporal workflow exists to hold those registrations in that service while this transaction runs,
-so it is built with EN-13. Venue search (J1) is not called by the cards: it reads the same slots as the calendar, and FX-F4's period is
+Registrations and the waitlist (AC4) are not released in F4's transaction, because they live in the registration service (EN-13, merged
+30 Oct in #73), whose schema planning-core never reads. That service cancels the event's registrations and waitlist entries, retires its
+seats and tells the attendees when it consumes `event.cancelled` from `connectsphere.event.v1`: R1–R4 (#80) and R5–R7 (#88) build that
+consumer. Until they merge, F4-T7 is Blocked and `released.registrations` is always 0. ADR-0009's CancelEvent Temporal workflow is not
+built; the consumer takes its place. Venue search (J1) is not called by the cards: it reads the same slots as the calendar, and FX-F4's period is
 outside any opening hours a test venue would have.
 
 ## Fixture FX-F4 (API level)

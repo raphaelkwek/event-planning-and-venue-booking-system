@@ -1243,8 +1243,12 @@ paths:
         Released, each recording "event cancelled", the user and the time (F4); a change request still
         pending is Closed (W9-07); and the owner, the coordinator, each booked venue's Venue Staff and
         each reserver are notified (`event.cancelled`). Any failure rolls all of it back, so nothing is
-        left partly released. A refusal stores nothing. Registrations are not released yet: the
-        registration service (EN-13) does not exist, so `released.registrations` is always 0.
+        left partly released. A refusal stores nothing. The locks are taken change request, venues
+        (ascending id), event, then slots, the venue module's order, so a block at one of the event's
+        venues cannot deadlock with it. Registrations are not released in this transaction, so
+        `released.registrations` is always 0: the registration service (EN-13) cancels the event's
+        registrations and waitlist entries, and tells the attendees, when it consumes `event.cancelled`
+        (R1–R4 and R5–R7, not yet merged).
       operationId: cancelEvent
       requestBody:
         required: true
@@ -3975,7 +3979,7 @@ components:
         activeRegistrations:
           type: integer
           minimum: 0
-          description: Always 0 until the registration service (EN-13) exists.
+          description: Always 0. Registrations are held by the registration service (EN-13), whose schema planning-core does not read.
         flags:
           type: array
           items:
@@ -4029,7 +4033,7 @@ components:
               reservationId: { type: string, format: uuid }
               equipmentTypeName: { type: string }
               reservedQuantity: { type: integer, minimum: 1 }
-        registrations: { type: integer, enum: [0], description: "Always 0 until the registration service (EN-13) exists." }
+        registrations: { type: integer, enum: [0], description: "Always 0. The registration service (EN-13) cancels registrations when it consumes event.cancelled." }
 
     BookingRequestInput:
       type: object

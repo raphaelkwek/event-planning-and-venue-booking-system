@@ -10,7 +10,7 @@
 | Test Steps | 1. As O, cancel E with the body below.<br>2. Read E's slots, holds and reservations.<br>3. Run `npm test -w @connectsphere/planning-core -- tests/change/api/f4Cards.test.ts -t 'F4-T5 '` and read the named `F4-T5 ` result. |
 | Test Data | `{"reason":"The speaker withdrew."}` |
 | Expected Result | Both slots are still there: B1 `RELEASED` with `release_reason` `event cancelled`, `updated_by` O and an `updated_at`; H `RELEASED` with `released_by` O and a `released_at`; R1 and R2 still there, `RELEASED` with `release_reason` `event cancelled`, `released_by` O and a `released_at`. |
-| Created By | Raphael, via Claude |
+| Created By | Raphael |
 | Date of Creation | 2026-10-29 |
 
 > **Expected results are checked by the PR reviewer** against F4's acceptance criteria.

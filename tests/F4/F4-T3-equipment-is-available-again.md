@@ -10,7 +10,7 @@
 | Test Steps | 1. As T, send `GET /api/v1/equipment/types/<chairs>/availability?startsAt=<E start>&endsAt=<E end>&requestedQuantity=1`.<br>2. As O, cancel E with the body below.<br>3. Read R1 and R2, and repeat step 1.<br>4. Run `npm test -w @connectsphere/planning-core -- tests/change/api/f4Cards.test.ts -t 'F4-T3 '` and read the named `F4-T3 ` result. |
 | Test Data | `{"reason":"The speaker withdrew."}` |
 | Expected Result | Step 1 answers `availableQuantity` 2 (10 − 5 − 3). Step 2's `released.reservations` lists quantities 5 and 3. In step 3 R1, R2 and their bulk rows are `RELEASED` and `availableQuantity` is 10. |
-| Created By | Raphael, via Claude |
+| Created By | Raphael |
 | Date of Creation | 2026-10-29 |
 
 > **Expected results are checked by the PR reviewer** against F4's acceptance criteria.

@@ -10,7 +10,7 @@
 | Test Steps | 1. As O, send `POST /api/v1/events/<E>/cancellation` with the body below.<br>2. Read E's slots, holds and booking requests.<br>3. Run `npm test -w @connectsphere/planning-core -- tests/change/api/f4Cards.test.ts -t 'F4-T1 '` and read the named `F4-T1 ` result. |
 | Test Data | `{"reason":"The speaker withdrew."}` |
 | Expected Result | Step 1 answers 200 with `released.bookings` [B1], `released.holds` [H] and `released.requests` [P]. Step 2 finds B1's slot and H's slot `RELEASED`, H `RELEASED` with `released_by` O, and P `WITHDRAWN` with `withdrawn_by` O. |
-| Created By | Raphael, via Claude |
+| Created By | Raphael |
 | Date of Creation | 2026-10-29 |
 
 > **Expected results are checked by the PR reviewer** against F4's acceptance criteria.

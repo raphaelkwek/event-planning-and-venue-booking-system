@@ -10,7 +10,7 @@
 | Test Steps | 1. Sign in as `venuestaff@connectsphere.test` and open the venue's availability for the event's day; note the booking.<br>2. Sign in as `coordinator@connectsphere.test`, open the event and select **Cancel event**; read the dialog, enter `Venue flooded.` and confirm.<br>3. As `venuestaff@connectsphere.test`, reopen the venue's availability for that day, and open Notifications.<br>4. As `techsupport@connectsphere.test`, open the reserved line and the equipment type's availability for the event's period, and open Notifications. |
 | Test Data | Reason `Venue flooded.` |
 | Expected Result | Step 2: the dialog says the bookings, holds, pending requests and reservations will be released; the event shows Cancelled. Step 3: the period shows no booking for the event; one notice names the booking as released, with the reason. Step 4: the line is no longer Reserved and the full stock is available for the period; one notice says the equipment reserved was released, with the reason. |
-| Created By | Raphael, via Claude |
+| Created By | Raphael |
 | Date of Creation | 2026-10-29 |
 
 > **Expected results are checked by the PR reviewer** against F4's acceptance criteria.

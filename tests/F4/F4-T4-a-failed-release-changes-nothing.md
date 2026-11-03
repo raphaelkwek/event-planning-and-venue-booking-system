@@ -10,7 +10,7 @@
 | Test Steps | 1. In the automated test, make the equipment module's release throw.<br>2. As O, cancel E with the body below, noting the status and body.<br>3. Compare E, its history, slots, holds, requests, lines, reservations, CR and messages with before step 2.<br>4. Run `npm test -w @connectsphere/planning-core -- tests/change/api/f4Cards.test.ts -t 'F4-T4 '` and read the named `F4-T4 ` result. |
 | Test Data | `{"reason":"The speaker withdrew."}` |
 | Expected Result | Step 2 answers 500 `CANCELLATION_FAILED` "The event was not cancelled: something went wrong, so nothing was changed. Try again, or contact support if it keeps happening." Step 3 finds everything as before: E still Planning, B1 Confirmed, H Held, P Pending, R1 and R2 Reserved, CR Pending, no new message. |
-| Created By | Raphael, via Claude |
+| Created By | Raphael |
 | Date of Creation | 2026-10-29 |
 
 > **Expected results are checked by the PR reviewer** against F4's acceptance criteria.

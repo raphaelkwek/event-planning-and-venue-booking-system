@@ -10,7 +10,7 @@
 | Test Steps | 1. As O, cancel E with the body below, then read everything.<br>2. In the automated test, run the venue and equipment release functions for E again.<br>3. As O, cancel E again.<br>4. Read everything again.<br>5. Run `npm test -w @connectsphere/planning-core -- tests/change/api/f4Cards.test.ts -t 'F4-T6 '` and read the named `F4-T6 ` result. |
 | Test Data | `{"reason":"The speaker withdrew."}` |
 | Expected Result | Step 2 releases nothing (no references, no reservations). Step 3 answers 409 `STATUS_TRANSITION_NOT_PERMITTED`. Step 4 finds every row, quantity and timestamp as in step 1. |
-| Created By | Raphael, via Claude |
+| Created By | Raphael |
 | Date of Creation | 2026-10-29 |
 
 > **Expected results are checked by the PR reviewer** against F4's acceptance criteria.

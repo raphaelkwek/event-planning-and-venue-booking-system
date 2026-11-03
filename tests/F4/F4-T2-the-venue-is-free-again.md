@@ -10,7 +10,7 @@
 | Test Steps | 1. As VS, send `GET /api/v1/venues/<V1>/availability?from=<D>&to=<D+1>` and note the bookings' event references.<br>2. As O, cancel E with the body below.<br>3. As VS, read the calendar again.<br>4. Store a confirmed booking at V1 for E's period for another event.<br>5. Run `npm test -w @connectsphere/planning-core -- tests/change/api/f4Cards.test.ts -t 'F4-T2 '` and read the named `F4-T2 ` result. |
 | Test Data | `{"reason":"The speaker withdrew."}` |
 | Expected Result | Step 1 lists a booking for E. Step 3 lists none. Step 4 succeeds: the slot exclusion no longer counts B1. |
-| Created By | Raphael, via Claude |
+| Created By | Raphael |
 | Date of Creation | 2026-10-29 |
 
 > **Expected results are checked by the PR reviewer** against F4's acceptance criteria.
