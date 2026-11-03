@@ -14,8 +14,21 @@ test.skip(process.platform !== "linux" && !process.env.E2E_VISUAL_LOCAL, "Visual
 
 const VISUAL = { fullPage: true };
 
-/** What changes from run to run: references, and anything printed as a date or a time. */
-function dynamic(page: Page) {
+/**
+ * What changes from run to run: references, and anything printed as a date or a time. Masking
+ * hides the text but not its length, and in a narrow column "3/11/2026, 4:15:22 am" wraps onto
+ * fewer lines than "12/11/2026, 11:59:01 pm", which moves everything below it. So each date and
+ * time is first replaced, in the page, by one of a fixed length, and then masked.
+ */
+async function dynamic(page: Page) {
+  await page.evaluate(() => {
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    const dateTime = /\b\d{1,2}\/\d{1,2}\/\d{4},? \d{1,2}:\d{2}(?::\d{2})?(?:\s?[ap]m)?/gi;
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+      if (node.nodeValue && dateTime.test(node.nodeValue)) node.nodeValue = node.nodeValue.replace(dateTime, "01/01/2030, 12:00:00 pm");
+      dateTime.lastIndex = 0;
+    }
+  });
   return [
     page.getByText(/EVT-\d{6}|HLD-\d+|BKG-\d+/),
     page.getByText(/\d{1,2}:\d{2}/),
@@ -36,7 +49,7 @@ test.describe("visual snapshots", { tag: ["@visual", "@EN-14", "@EN-14-T6"] }, (
     await page.getByRole("link", { name: "New request" }).click();
     await expect(page.getByRole("heading", { name: "New event request" })).toBeVisible();
     await a11y("new event request");
-    await expect(page).toHaveScreenshot("new-request.png", { ...VISUAL, mask: dynamic(page) });
+    await expect(page).toHaveScreenshot("new-request.png", { ...VISUAL, mask: await dynamic(page) });
   });
 
   test("EN-14-T6 organiser's approved request", { tag: ["@D4", "@F2"] }, async ({ page, a11y }) => {
@@ -46,7 +59,7 @@ test.describe("visual snapshots", { tag: ["@visual", "@EN-14", "@EN-14-T6"] }, (
     await expect(page.getByRole("heading", { name: "Visual Snapshot Symposium" })).toBeVisible();
     await expect(page.getByText("This request was approved")).toBeVisible();
     await a11y("request detail");
-    await expect(page).toHaveScreenshot("request-detail.png", { ...VISUAL, mask: dynamic(page) });
+    await expect(page).toHaveScreenshot("request-detail.png", { ...VISUAL, mask: await dynamic(page) });
   });
 
   test("EN-14-T6 coordinator's review of a request", { tag: ["@D1"] }, async ({ page, a11y }) => {
@@ -57,7 +70,7 @@ test.describe("visual snapshots", { tag: ["@visual", "@EN-14", "@EN-14-T6"] }, (
     await expect(page.getByRole("heading", { name: "Visual Review Symposium" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Approve" })).toBeVisible();
     await a11y("review detail");
-    await expect(page).toHaveScreenshot("review-detail.png", { ...VISUAL, mask: dynamic(page) });
+    await expect(page).toHaveScreenshot("review-detail.png", { ...VISUAL, mask: await dynamic(page) });
   });
 
   test("EN-14-T6 venue detail", { tag: ["@H2"] }, async ({ page, a11y }) => {
@@ -66,7 +79,7 @@ test.describe("visual snapshots", { tag: ["@visual", "@EN-14", "@EN-14-T6"] }, (
     await page.goto(`/#/venues/${venue.id}`);
     await expect(page.getByRole("heading", { name: "Visual Snapshot Auditorium" })).toBeVisible();
     await a11y("venue detail");
-    await expect(page).toHaveScreenshot("venue-detail.png", { ...VISUAL, mask: dynamic(page) });
+    await expect(page).toHaveScreenshot("venue-detail.png", { ...VISUAL, mask: await dynamic(page) });
   });
 
   test("EN-14-T6 venue availability week", { tag: ["@I1"] }, async ({ page, a11y }) => {
