@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: — · Evidence: — · Defect: — · Story: P2, Sprint 2 |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | The notice; after a reload one entry with the quantity, period and reason (active); total quantity unchanged. Run on CI's throwaway stack, with unique names in place of the card's literal names. The card's 10 December 2026 period was moved to 10 December 2030, same times, so it never falls in the past. |
+| Status | Pass |
+| Remarks | Automated, browser E2E in CI (EN-14). Commit: b91681d · Evidence: tests/e2e/o-equipment.spec.ts › P2-T4 technical support mark a quantity unavailable for a valid period with a reason, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41516713095 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

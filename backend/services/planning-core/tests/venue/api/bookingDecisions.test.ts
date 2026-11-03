@@ -223,6 +223,7 @@ describe("POST /api/v1/booking-requests/:id/approve (M1)", () => {
       replacedBookingId: null,
       layout: "Theatre",
       layoutCapacity: 300,
+      venueLocation: BUILDING,
     });
   });
 

@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | Unknown email refused with "INVALID_CREDENTIALSemail or password is incorrectHTTP 401 · correlation be76a596-5276-4f1b-8333-aa032c953df6", word for word the refusal a wrong password gives (correlation id aside). |
+| Actual Result | Refused with INVALID_CREDENTIALS, exactly "email or password is incorrect", HTTP 401; no header. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
 | Status | Pass |
-| Remarks | Commit: b0ef6ee (working tree modified) · Evidence: tests/A1/evidence/A1-T5.png · Defect: — |
-| Executed By | Seann Khoo |
-| Date of Execution | 2026-09-20 |
+| Remarks | Automated, browser E2E in CI (EN-14). Commit: 6080462 · Evidence: tests/e2e/a-sign-in-and-access.spec.ts › A1-T5 an unknown email is refused with the same message as a wrong password, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41513983925 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

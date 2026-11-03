@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | Refused with "ACCOUNT_DEACTIVATEDThis account has been deactivated. Contact an administrator.HTTP 403 · correlation 1a991e83-129c-4835-a95a-6031813477f3" — a different title and wording from A1-T4's refusal. |
+| Actual Result | Refused with ACCOUNT_DEACTIVATED, "This account has been deactivated. Contact an administrator.", HTTP 403; no INVALID_CREDENTIALS message and no header. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
 | Status | Pass |
-| Remarks | Commit: b0ef6ee (working tree modified) · Evidence: tests/A1/evidence/A1-T6.png · Defect: — |
-| Executed By | Seann Khoo |
-| Date of Execution | 2026-09-20 |
+| Remarks | Automated, browser E2E in CI (EN-14). Commit: 6080462 · Evidence: tests/e2e/a-sign-in-and-access.spec.ts › A1-T6 a deactivated account is refused with a different message, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41513983925 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |
