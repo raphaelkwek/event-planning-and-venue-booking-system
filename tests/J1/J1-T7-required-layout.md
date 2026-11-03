@@ -18,7 +18,7 @@
 | Item | Content |
 |---|---|
 | Actual Result | Layout Boardroom returned Seminar Room only; Theatre returned Auditorium, Late Studio and Lecture Hall; Banquet returned no venue. |
-| Status | Pass (automated, API level) |
-| Remarks | Commit: cb3b9d8 · Evidence: backend/services/planning-core/tests/venue/repo/venueSearch.test.ts › keeps only venues that offer the required layout (J1-T7) , CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/38427990873 · Defect: — |
+| Status | Pass |
+| Remarks | Automated (API level) · Commit: cb3b9d8 · Evidence: backend/services/planning-core/tests/venue/repo/venueSearch.test.ts › keeps only venues that offer the required layout (J1-T7) , CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/38427990873 · Defect: — |
 | Executed By | Joash, via automated testing (CI) |
 | Date of Execution | 2026-10-13 |
