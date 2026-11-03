@@ -53,3 +53,11 @@ What was decided while building it, where it differs from the text above:
 - **No retry or dead-letter topic yet.** A message that fails validation is logged and skipped. A database failure throws, and the consumer gets the message again. The inbox makes that safe.
 - **The attendee PWA shell is not part of this change.** See ADR-0014.
 
+## Implementation notes (R1 to R4, 3 Nov 2026)
+
+- **The event facts come by Kafka only.** planning-core's event module writes `event.listing-changed`, a snapshot of the published fields (name, description, status, date and times) and the registration settings, in the transaction of every change to any of them. The service keeps it in `registration.event_listings`, applying the newest `changedAt`; it also reads F3's `event.cancelled`. Each confirmed venue's name and location come with the approval the seats are built from (`venueLocation`, an optional field). So browsing never calls planning-core.
+- **Browsing checks the token locally.** It verifies the Supabase JWT against Supabase's signing keys and asks nobody else, so attendees can browse while planning-core is down (the context above). Registering, withdrawing and my registrations need the attendee's internal id and role, which only identity has, so they ask planning-core's `GET /api/v1/users/me`, and are refused (503) when it can't answer.
+- **The registration settings are the organiser's, on the event.** The window was already on the request (B2); R4's withdrawal deadline is a new nullable column (event migration 0018), and the owning organiser changes both through `PUT /api/v1/events/{id}/registration-settings`.
+- **Cancelled is applied by the service.** Either cancellation message marks the event's Registered registrations Cancelled, retires its seats and tells each attendee, in the inbox row's transaction. F4's response does not wait for it: the registration side is eventually consistent.
+- **The attendee screens live in the existing web app,** in a shell of their own (`AttendeeShell` in `frontend/src/App.tsx`), not yet as a separate installable PWA. That, the shared tokens and the generated client remain ADR-0014's (EN-14).
+

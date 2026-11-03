@@ -25,6 +25,7 @@ const agent = new Agent({ keepAlive: false });
 };
 const planningCore = `http://127.0.0.1:${process.env.PLANNING_CORE_PORT || 8090}`;
 const notification = `http://127.0.0.1:${process.env.NOTIFICATION_PORT || 8091}`;
+const registration = `http://127.0.0.1:${process.env.REGISTRATION_PORT || 8092}`;
 
 function to(target: string, prefix: string): ProxyOptions {
   return { target, changeOrigin: true, agent, rewrite: (path) => path.replace(new RegExp(`^${prefix}`), "") };
@@ -37,6 +38,8 @@ export default defineConfig({
       "/event": to(planningCore, "/event"),
       "/venue": to(planningCore, "/venue"),
       "/equipment": to(planningCore, "/equipment"),
+      // The registration service (R1 to R4): the attendee API.
+      "/registration": to(registration, "/registration"),
       "/notification": to(notification, "/notification"),
     },
   },

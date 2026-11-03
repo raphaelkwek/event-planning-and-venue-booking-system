@@ -281,6 +281,56 @@ the same transaction; the two should merge together (Gate B: "cancellation is on
 
 ---
 
+# R1–R4: attendees browse, register, see and withdraw their registrations (PR #80)
+
+**Timestamp:** 2026-11-03T03:50+08:00 (SGT)
+**Author:** Joash
+**Scope:** registration service (migrations 0002 to 0004), planning-core (event and venue modules,
+event migration 0018), contracts, notification service, web app.
+
+**Deploy:** run `npm run migrate -- event` (0018) and `npm run migrate -- registration` (0002 to
+0004), then deploy planning-core, the registration service and the notification service together.
+The web app's dev server proxies `/registration` to `REGISTRATION_PORT` (8092).
+
+## Added
+
+- **R1:** `GET /api/v1/open-events` in the registration service lists Confirmed events with
+  registration enabled whose closing has not passed, with their published fields only, each
+  confirmed venue and its location, and places remaining (Full at zero).
+- **R2:** `POST /api/v1/registrations` claims a seat and stores the registration in one transaction.
+  Refusals name capacity (offering the waitlist), the existing registration, or the window, and
+  store nothing. Window bounds are inclusive.
+- **R3:** `GET /api/v1/registrations` and `/{id}`: the attendee's own registrations only; another's
+  answers 404. An event's cancellation marks its registrations Cancelled.
+- **R4:** `POST /api/v1/registrations/{id}/withdrawal`: Withdrawn with its time, the seat freed,
+  refused after the organiser's deadline (or the event's start), naming it.
+- The organiser's **registration settings** route in planning-core
+  (`PUT /api/v1/events/{id}/registration-settings`, owner only, If-Match), and its screen.
+- `event.listing-changed` (contracts): the event's published fields and registration settings,
+  written with every change to them. The approval message gains `venueLocation`.
+- The registration outbox and its relay; `registration.confirmed`, `.withdrawn` and `.cancelled`,
+  each notified to the attendee by the notification service.
+- The attendee screens (Events, the event's page with Register, My registrations with Withdraw) in a
+  shell of their own, and `documentation/api/registration.openapi.yaml` (in `lint:api`).
+
+## Fixed
+
+- **Audit M10 (EN-13):** approving a replacement booking (CR-02) built the new venue's full capacity
+  beside the seats attendees still held, so a 6-seat venue gave the event 7 places. Held seats now
+  move onto the new booking and only the rest of its capacity is built. EN-13-T6's test changed
+  accordingly.
+
+## Not done
+
+- R5 (the organiser's totals, R4-T12), R6 (joining the waitlist; the refusal only offers it) and R7
+  (manual additions above capacity, R2-T13) are the next package. The registrations table leaves
+  room for them: `seat_id` is nullable for an addition above capacity.
+- F3's `event.cancelled` schema was copied into contracts until PR #71 merged. Merging main dropped the
+  copy; the registration consumer reads main's schema, whose fields are the same.
+- The UI walk-through in Chrome is pending at the sprint review; there is no `.env` here.
+
+---
+
 # U1: The Safety Officer's operational safety check (CR-06)
 
 **Timestamp:** 2026-11-02T23:50+08:00 (SGT)

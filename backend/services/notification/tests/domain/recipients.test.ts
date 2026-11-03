@@ -735,6 +735,54 @@ describe("F5: tells the owner, each booked venue's staff and each reserver that 
   });
 });
 
+describe("notificationsFor: the registration messages (R2 to R4)", () => {
+  const attendee = "00000000-0000-0000-0000-000000000005";
+  const registration = {
+    registrationId: "77777777-7777-4777-8777-777777777777",
+    registrationReference: "REG-000042",
+    attendeeId: attendee,
+  };
+
+  it("R2-T12 tells the attendee their registration is confirmed, naming it and the event's date and times", () => {
+    const notes = notificationsFor(
+      message("registration.confirmed", {
+        ...registration,
+        registeredAt: at,
+        eventStartsAt: "2026-12-16T06:00:00.000Z",
+        eventEndsAt: "2026-12-16T10:00:00.000Z",
+      }),
+    );
+    expect(notes).toEqual([
+      {
+        ...common,
+        notificationType: "registration.confirmed",
+        recipientUserId: attendee,
+        relatedReference: "REG-000042",
+        message: "Your registration REG-000042 for EVT-2026-0042 “Freshmen Orientation” on Wednesday 16 December 2026, 14:00–18:00 is confirmed.",
+      },
+    ]);
+  });
+
+  it("R2-T12 leaves the date out when the event has none recorded", () => {
+    const [note] = notificationsFor(message("registration.confirmed", { ...registration, registeredAt: at, eventStartsAt: null, eventEndsAt: null }));
+    expect(note!.message).toBe("Your registration REG-000042 for EVT-2026-0042 “Freshmen Orientation” is confirmed.");
+  });
+
+  it("R4-T9 tells the attendee their withdrawal went through, and nobody else", () => {
+    const notes = notificationsFor(message("registration.withdrawn", { ...registration, registeredAt: at, withdrawnAt: at }));
+    expect(notes.map((n) => [n.recipientUserId, n.relatedReference, n.message])).toEqual([
+      [attendee, "REG-000042", "You withdrew registration REG-000042 for EVT-2026-0042 “Freshmen Orientation”. Your place has been released."],
+    ]);
+  });
+
+  it("R3-T4 tells the attendee their registration is cancelled with the event", () => {
+    const notes = notificationsFor(message("registration.cancelled", { ...registration, cancelledAt: at }));
+    expect(notes.map((n) => [n.recipientUserId, n.message])).toEqual([
+      [attendee, "EVT-2026-0042 “Freshmen Orientation” has been cancelled, so your registration REG-000042 is cancelled."],
+    ]);
+  });
+});
+
 describe("U1: the Safety Officer's decision", () => {
   const safetyOfficer = "00000000-0000-0000-0000-000000000010";
   const decided = (decision: string, extra: Record<string, unknown> = {}) =>
