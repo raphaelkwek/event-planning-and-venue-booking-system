@@ -12,7 +12,7 @@ import { cleanLineFixtures, createBulkType, insertLineDirect } from "../../suppo
 import { closeActiveAssignment, findActiveAssignment, insertAssignment, lockEventForAssignment } from "../../../src/modules/event/repo/assignments.js";
 
 /**
- * A4 (CR-05), the follow-up to tests/event/api/a4LockedScope.test.ts: D2, L1, L3 and O1 checked the
+ * A4 (CR-05), the follow-up to tests/event/api/a4LockedScope.test.ts: D2, L1, L2, L3 and O1 checked the
  * coordinator's scope before their transaction, so a Lead's reassignment (E4) that committed between
  * the check and the write let the outgoing coordinator act. Each action now checks the scope again
  * inside its transaction, under the event's row lock, as D4 and F5 do. Each test queues one action
@@ -259,6 +259,31 @@ describe.runIf(isThrowawayDatabase())("A4: a reassignment that commits while a c
     const [stored] = await sql<{ status: string }[]>`select status from venue.holds where id = ${holdId}`;
     expect(stored!.status).toBe("HELD");
     expect(await count(sql<{ n: number }[]>`select count(*)::int as n from venue.booking_requests where event_id = ${event.id}`)).toBe(0);
+  });
+
+  it("L2: the outgoing coordinator's withdrawal of a request is refused, and the request stays Pending", async () => {
+    const event = await eventAssignedToOutgoing("APPROVED");
+    const venueId = await newVenue();
+    const [pending] = await sql<{ id: string }[]>`
+      insert into venue.booking_requests (
+        event_id, venue_id, starts_at, ends_at, layout, expected_attendance, event_starts_at, event_ends_at,
+        event_attendance, differs_from_event, requested_by, created_by, updated_by
+      ) values (
+        ${event.id}, ${venueId}, ${EVENT_START}, ${EVENT_END}, 'Theatre', 150, ${EVENT_START}, ${EVENT_END}, 150, false,
+        ${OUTGOING}, ${OUTGOING}, ${OUTGOING}
+      )
+      returning id
+    `;
+    signedInAsOutgoing();
+
+    const res = await whileTheLeadReassigns(event.id, async () =>
+      request(app).post(`/api/v1/booking-requests/${pending!.id}/withdraw`).set(bearer),
+    );
+
+    expect(res.status, res.text).toBe(404);
+    expect(res.body.error.code).toBe("BOOKING_REQUEST_NOT_FOUND");
+    const [stored] = await sql<{ status: string }[]>`select status from venue.booking_requests where id = ${pending!.id}`;
+    expect(stored!.status).toBe("PENDING");
   });
 
   it("O1: the outgoing coordinator's equipment request is refused, and no line is stored", async () => {
