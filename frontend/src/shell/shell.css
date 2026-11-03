@@ -233,10 +233,18 @@
 
 /* ---------- Body: rail and main ---------- */
 
+/* The rail's column is painted on the body, so it runs the full height of a long page. */
 .cs-body {
   display: grid;
   grid-template-columns: var(--cs-rail-w) minmax(0, 1fr);
   min-height: calc(100vh - var(--cs-header-h));
+  background: linear-gradient(
+    90deg,
+    var(--cs-surface) calc(var(--cs-rail-w) - 1px),
+    var(--cs-line) calc(var(--cs-rail-w) - 1px),
+    var(--cs-line) var(--cs-rail-w),
+    transparent var(--cs-rail-w)
+  );
 }
 
 .cs-rail {
@@ -246,8 +254,6 @@
   height: calc(100vh - var(--cs-header-h));
   overflow-y: auto;
   padding: var(--cs-space-4) var(--cs-space-2) var(--cs-space-5);
-  background: var(--cs-surface);
-  border-right: 1px solid var(--cs-line);
   scrollbar-width: thin;
 }
 
@@ -266,9 +272,16 @@
 }
 
 .cs-rail__list {
+  display: grid;
+  gap: 2px;
   margin: 0;
   padding: 0;
   list-style: none;
+}
+
+/* Atlaskit's reset spaces list items apart; the rail spaces them with gap instead. */
+html body .cs-rail__list > li {
+  margin: 0;
 }
 
 .cs-rail__link {
@@ -485,11 +498,12 @@
   display: flex;
   gap: var(--cs-space-6);
   margin: 0;
-  padding-top: var(--cs-space-4);
+  padding: var(--cs-space-4) 0 0;
   border-top: 1px solid var(--cs-line);
 }
 
 .cs-login__readout dt {
+  margin: 0;
   color: var(--cs-text-subtle);
   font: 500 10px / 14px var(--cs-font-mono);
   letter-spacing: 0.14em;
@@ -550,15 +564,21 @@
     position: static;
     flex-wrap: wrap;
     height: auto;
-    row-gap: 0;
+    gap: 0 var(--cs-space-1);
     padding: 0 var(--cs-space-3);
   }
 
   .cs-brand {
     width: auto;
     height: 48px;
+    margin-right: auto;
     padding: 0;
     border-right: 0;
+  }
+
+  /* The tools join the bar's own wrapping row, so the signed-in line can take a row of its own. */
+  .cs-bar__tools {
+    display: contents;
   }
 
   .cs-jump__label,
@@ -593,11 +613,13 @@
 
   .cs-body {
     display: block;
+    background: none;
   }
 
   .cs-rail {
     position: static;
     display: flex;
+    background: var(--cs-surface);
     gap: var(--cs-space-2);
     height: auto;
     overflow-x: auto;
@@ -675,7 +697,7 @@
 
   .cs-login__panel {
     justify-content: flex-start;
-    padding: var(--cs-space-2) var(--cs-space-3) var(--cs-space-5);
+    padding: var(--cs-space-2) 0 var(--cs-space-5);
   }
 
   .cs-login__theme {
@@ -743,6 +765,7 @@
     grid-template-columns: minmax(88px, 36%) minmax(0, 1fr);
     gap: var(--cs-space-3);
     align-items: baseline;
+    justify-items: start;
     padding: 6px 0;
     background: transparent !important;
     overflow-wrap: anywhere;

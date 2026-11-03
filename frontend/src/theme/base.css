@@ -79,6 +79,13 @@ html body a {
   text-underline-offset: 3px;
 }
 
+/* A link that stands alone (a paragraph's only link, or one in a table cell) gets a 24px target
+   (WCAG 2.5.8). Links inside a sentence are exempt and keep their place in the line. */
+html body .cs-main :is(p > a:only-child, td > a, dd > a) {
+  display: inline-block;
+  padding-block: 3px;
+}
+
 html body a:hover {
   color: var(--cs-accent-text);
   text-decoration-color: currentColor;
@@ -151,6 +158,11 @@ html body label {
 [data-cs-cell="ref"] {
   color: var(--cs-text);
   font-weight: 500;
+  white-space: nowrap;
+}
+
+[data-cs-cell="num"] {
+  white-space: nowrap;
 }
 
 [data-cs-cell="empty"] {
