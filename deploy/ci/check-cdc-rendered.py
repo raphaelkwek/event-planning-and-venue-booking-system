@@ -55,6 +55,8 @@ def problems_in(path: str) -> list[str]:
         resources = container.get("resources", {})
         if not resources.get("requests") or not resources.get("limits"):
             problems.append(f"{path}: {name} has no resource requests and limits")
+        if {"name": "ENABLE_DEBEZIUM_SCRIPTING", "value": "true"} not in container.get("env", []):
+            problems.append(f"{path}: {name} must set ENABLE_DEBEZIUM_SCRIPTING=true, or the start-up script leaves the outbox router off the classpath")
         for env in container.get("env", []):
             if any(word in env["name"] for word in CREDENTIAL_WORDS) and "valueFrom" not in env:
                 problems.append(f"{path}: {name} sets {env['name']} to a literal value; use a secretKeyRef")

@@ -75,6 +75,11 @@ spec:
             # authentication is PLAINTEXT.
             - name: KAFKA_SECURITY_PROTOCOL
               value: PLAINTEXT
+            # The outbox router is in the image's lib_opt directory, which the start-up script puts on
+            # the classpath only when this is true (it also enables script-based filters, which this
+            # configuration does not use). Without it the server cannot load the router.
+            - name: ENABLE_DEBEZIUM_SCRIPTING
+              value: "true"
             - name: JAVA_OPTS_APPEND
               value: -Xmx384m
           startupProbe:

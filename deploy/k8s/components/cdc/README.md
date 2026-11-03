@@ -11,7 +11,8 @@ Debezium Server reads the outbox tables from Postgres's write-ahead log through 
 slot and publishes each new row to Kafka. It needs no Kafka Connect. Its outbox router turns a row into
 the Kafka message the relay would have sent: the row's `topic`, `message_key` as the key, and the
 CloudEvent in `envelope` as the value, with the CloudEvents `content-type` header. The whole
-configuration is `application.properties`.
+configuration is `application.properties`. The router sits in the image's `lib_opt` directory, which the
+start-up script adds to the classpath only when `ENABLE_DEBEZIUM_SCRIPTING` is `true`; the Deployment sets it.
 
 ## What CI proves, and what it does not
 

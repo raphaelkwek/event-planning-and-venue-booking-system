@@ -391,14 +391,6 @@ jobs:
       - name: Build the database from the migrations
         run: npm run migrate:all
 
-      - name: Show which jars of the Debezium Server image hold the outbox router
-        run: |
-          docker run --rm --entrypoint /bin/sh "$DEBEZIUM_IMAGE" -c '
-            ls /debezium; echo ---; ls /debezium/lib | wc -l
-            grep -l "io/debezium/transforms/outbox/EventRouter" /debezium/lib/*.jar /debezium/*/*.jar 2>/dev/null || echo "EventRouter: no jar holds it"
-            ls /debezium/lib | grep -i "transform|outbox|connector-common|scripting" || true
-          '
-
       - name: Start Debezium Server (the component's configuration, a hardened container)
         run: |
           mkdir -p "$RUNNER_TEMP/debezium-data"
@@ -410,7 +402,7 @@ jobs:
             -e CDC_DB_HOST=127.0.0.1 -e CDC_DB_USER=ci -e CDC_DB_PASSWORD=ci \
             -e CDC_DB_NAME=connectsphere_ci -e CDC_DB_SSLMODE=disable \
             -e KAFKA_BROKERS=127.0.0.1:9092 -e KAFKA_SECURITY_PROTOCOL=PLAINTEXT \
-            -e JAVA_OPTS_APPEND=-Xmx384m \
+            -e ENABLE_DEBEZIUM_SCRIPTING=true -e JAVA_OPTS_APPEND=-Xmx384m \
             "$DEBEZIUM_IMAGE"
           for i in $(seq 1 90); do
             curl -sf http://127.0.0.1:8089/q/health/live && echo && exit 0
