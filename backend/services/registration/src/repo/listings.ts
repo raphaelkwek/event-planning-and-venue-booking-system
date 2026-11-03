@@ -14,6 +14,8 @@ export interface Listing {
   name: string;
   description: string | null;
   ownerId: string;
+  /** R5, R7: the assigned coordinator, or null while none is (or none was published yet). */
+  assignedCoordinatorId: string | null;
   status: string;
   startsAt: string | null;
   endsAt: string | null;
@@ -31,6 +33,7 @@ interface ListingRow {
   name: string;
   description: string | null;
   owner_id: string;
+  assigned_coordinator_id: string | null;
   status: string;
   starts_at: Date | null;
   ends_at: Date | null;
@@ -50,6 +53,7 @@ function toListing(row: ListingRow): Listing {
     name: row.name,
     description: row.description,
     ownerId: row.owner_id,
+    assignedCoordinatorId: row.assigned_coordinator_id,
     status: row.status,
     startsAt: iso(row.starts_at),
     endsAt: iso(row.ends_at),
@@ -71,10 +75,11 @@ export async function applyListing(db: Db, data: EventListingChanged): Promise<b
   const sql = db as Sql;
   const rows = await sql`
     insert into registration.event_listings (
-      event_id, event_reference, name, description, owner_id, status, starts_at, ends_at,
+      event_id, event_reference, name, description, owner_id, assigned_coordinator_id, status, starts_at, ends_at,
       registration_required, registration_opens_at, registration_closes_at, withdrawal_deadline_at, high_demand, source_changed_at
     ) values (
-      ${data.eventId}, ${data.eventReference}, ${data.eventName}, ${data.description}, ${data.ownerId}, ${data.status},
+      ${data.eventId}, ${data.eventReference}, ${data.eventName}, ${data.description}, ${data.ownerId},
+      ${data.assignedCoordinatorId}, ${data.status},
       ${data.proposedStartAt}, ${data.proposedEndAt}, ${data.registrationRequired}, ${data.registrationOpensAt},
       ${data.registrationClosesAt}, ${data.withdrawalDeadlineAt}, ${data.highDemand}, ${data.changedAt}
     )
@@ -83,6 +88,7 @@ export async function applyListing(db: Db, data: EventListingChanged): Promise<b
       name = excluded.name,
       description = excluded.description,
       owner_id = excluded.owner_id,
+      assigned_coordinator_id = excluded.assigned_coordinator_id,
       status = excluded.status,
       starts_at = excluded.starts_at,
       ends_at = excluded.ends_at,
@@ -109,9 +115,10 @@ export async function closeListing(db: Db, data: EventCancelled): Promise<void> 
   const sql = db as Sql;
   await sql`
     insert into registration.event_listings (
-      event_id, event_reference, name, owner_id, status, registration_required, source_changed_at
+      event_id, event_reference, name, owner_id, assigned_coordinator_id, status, registration_required, source_changed_at
     ) values (
-      ${data.eventId}, ${data.eventReference}, ${data.eventName}, ${data.ownerId}, 'CANCELLED', false, ${data.cancelledAt}
+      ${data.eventId}, ${data.eventReference}, ${data.eventName}, ${data.ownerId}, ${data.assignedCoordinatorId},
+      'CANCELLED', false, ${data.cancelledAt}
     )
     on conflict (event_id) do update set
       status = 'CANCELLED',

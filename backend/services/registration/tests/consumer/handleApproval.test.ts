@@ -71,7 +71,7 @@ function approval(
 describe("handleMessage (the seat builder)", () => {
   it("builds the event's seats from an approval's layout capacity (EN-13-T1)", async () => {
     const a = approval({ layoutCapacity: 40 });
-    expect(await handleMessage(a.value, { sql })).toEqual({ outcome: "built", seats: 40, retired: 0, moved: 0 });
+    expect(await handleMessage(a.value, { sql })).toEqual({ outcome: "built", seats: 40, retired: 0, moved: 0, seated: 0, told: 0 });
     expect((await seatCounts(sql, a.eventId)).PUBLIC.free).toBe(40);
   });
 
@@ -96,7 +96,7 @@ describe("handleMessage (the seat builder)", () => {
     await handleMessage(first.value, { sql });
     const held = await claimSeat(sql, { eventId: first.eventId, pool: "PUBLIC", attendeeId: randomUUID() });
     const second = approval({ layoutCapacity: 6, eventId: first.eventId, replacedBookingId: first.bookingId });
-    expect(await handleMessage(second.value, { sql })).toEqual({ outcome: "built", seats: 5, retired: 9, moved: 1 });
+    expect(await handleMessage(second.value, { sql })).toEqual({ outcome: "built", seats: 5, retired: 9, moved: 1, seated: 0, told: 0 });
     expect(await seatCounts(sql, first.eventId)).toEqual({ PUBLIC: { free: 5, claimed: 1 }, VIP: { free: 0, claimed: 0 } });
     const [moved] = await sql`select booking_id, seat_no, status from registration.seats where id = ${held!.id}`;
     expect(moved).toEqual({ booking_id: second.bookingId, seat_no: 1, status: "CLAIMED" });
@@ -107,7 +107,7 @@ describe("handleMessage (the seat builder)", () => {
     await handleMessage(first.value, { sql });
     for (let i = 0; i < 3; i++) await claimSeat(sql, { eventId: first.eventId, pool: "PUBLIC", attendeeId: randomUUID() });
     const second = approval({ layoutCapacity: 2, eventId: first.eventId, replacedBookingId: first.bookingId });
-    expect(await handleMessage(second.value, { sql })).toEqual({ outcome: "built", seats: 0, retired: 1, moved: 3 });
+    expect(await handleMessage(second.value, { sql })).toEqual({ outcome: "built", seats: 0, retired: 1, moved: 3, seated: 0, told: 0 });
     expect(await seatCounts(sql, first.eventId)).toEqual({ PUBLIC: { free: 0, claimed: 3 }, VIP: { free: 0, claimed: 0 } });
   });
 
@@ -119,7 +119,7 @@ describe("handleMessage (the seat builder)", () => {
     await handleMessage(second.value, { sql });
     await claimSeat(sql, { eventId: first.eventId, pool: "PUBLIC", attendeeId: randomUUID() });
     const third = approval({ layoutCapacity: 3, eventId: first.eventId, replacedBookingId: second.bookingId });
-    expect(await handleMessage(third.value, { sql })).toEqual({ outcome: "built", seats: 1, retired: 2, moved: 2 });
+    expect(await handleMessage(third.value, { sql })).toEqual({ outcome: "built", seats: 1, retired: 2, moved: 2, seated: 0, told: 0 });
     expect(await seatCounts(sql, first.eventId)).toEqual({ PUBLIC: { free: 1, claimed: 2 }, VIP: { free: 0, claimed: 0 } });
   });
 

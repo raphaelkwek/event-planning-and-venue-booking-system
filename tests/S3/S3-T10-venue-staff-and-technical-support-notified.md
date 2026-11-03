@@ -10,7 +10,7 @@
 | Test Steps | 1. As C, send `POST /api/v1/change-requests/<CR>/decision` with `{"decision":"APPROVE"}`.<br>2. Read the outbox for messages of type `change-request.arrangements-flagged` for E.<br>3. Read the notifications of VS and of T (`techsupport@connectsphere.test`).<br>4. Repeat with a fresh FX-S3 and a CR whose change flags nothing (S3-T12) and read the outbox again.<br>5. Run `npm test -w @connectsphere/planning-core -- tests/change/api/s3Cards.test.ts -t 'S3-T10 '` (or the whole suite) and read the named `S3-T10 ` result. |
 | Test Data | VS `venuestaff@connectsphere.test` is the Venue Staff of V1 and V2. T `techsupport@connectsphere.test` reserved R1. |
 | Expected Result | Step 1 answers HTTP 200. Step 2 finds exactly one `change-request.arrangements-flagged` message on the event topic, whose payload lists B1 and B2 with their venues' staff ids (VS) and R1 with `reservedBy` T, and the flag for each. Step 3 shows VS with a notice for each of B1 and B2 and T with a notice for R1, each naming the event, the arrangement and the reason. In step 4 no `change-request.arrangements-flagged` message is written. |
-| Created By | Raphael, via Claude |
+| Created By | Raphael |
 | Date of Creation | 2026-10-28 |
 
 > **Expected results are checked by the PR reviewer** against S3's acceptance criteria.

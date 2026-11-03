@@ -141,6 +141,16 @@ export const eventArrangementsConfirmedPayloadSchema = z.object({
   ),
 });
 
+/** A hold released, or a pending booking request withdrawn, by a cancellation (F4, CQ-06), and its venue's staff. */
+const releasedAtVenueSchema = z.object({
+  reference: z.string().min(1),
+  venueId: z.string().uuid(),
+  venueName: z.string().min(1),
+  startsAt: z.string().datetime(),
+  endsAt: z.string().datetime(),
+  staffIds: z.array(z.string().uuid()),
+});
+
 /**
  * U1 — the Safety Officer's decision on an event in Safety Review (CR-06). It names the owner and
  * the assigned coordinator, whom the decision notifies, and the arrangements a request for changes
@@ -164,6 +174,12 @@ export const eventSafetyDecisionRecordedPayloadSchema = z.object({
  * whoever reserved each reservation. Each booking and reservation listed was
  * released in the same transaction (F4). A cancelled draft has no
  * reference and nobody else to tell, so it writes no message.
+ *
+ * `holds` and `requests` (review note CQ-06 on F4, 3 Nov 2026) name the holds
+ * released and the pending requests withdrawn, each with its venue and that
+ * venue's staff, so they are told too. Both are optional and additive: a
+ * message published before them still reads, and a consumer that doesn't need
+ * them (registration's) ignores them.
  */
 export const eventCancelledPayloadSchema = z.object({
   ...eventRef,
@@ -188,6 +204,8 @@ export const eventCancelledPayloadSchema = z.object({
       reservedBy: z.string().uuid(),
     })
   ),
+  holds: z.array(releasedAtVenueSchema).optional(),
+  requests: z.array(releasedAtVenueSchema).optional(),
 });
 
 /**
@@ -239,6 +257,12 @@ export const eventScheduleChangedPayloadSchema = z.object({
 export const eventListingChangedPayloadSchema = z.object({
   ...eventRef,
   ownerId: z.string().uuid(),
+  /**
+   * R5, R7: the event's assigned coordinator, who may see its registrations and
+   * add attendees; null while none is assigned. Written since R5, also on each
+   * change of coordinator (E2 to E4); a message written before then reads null.
+   */
+  assignedCoordinatorId: z.string().uuid().nullable().default(null),
   description: z.string().min(1).nullable(),
   status: eventStatusSchema,
   proposedStartAt: z.string().datetime().nullable(),

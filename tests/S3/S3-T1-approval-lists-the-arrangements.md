@@ -10,7 +10,7 @@
 | Test Steps | 1. As C, send `POST /api/v1/change-requests/<CR>/decision` with `{"decision":"APPROVE"}`, noting the HTTP status and the body.<br>2. Read `impact` in the body.<br>3. Run `npm test -w @connectsphere/planning-core -- tests/change/api/s3Cards.test.ts -t 'S3-T1 '` (or the whole suite) and read the named `S3-T1 ` result. |
 | Test Data | `{"decision":"APPROVE"}`; CR proposes `proposedStartAt` `D 15:00` (event E moves from `D 14:00`–`D 18:00` to `D 15:00`–`D 18:00`), nothing else. |
 | Expected Result | HTTP 200. `changeRequest.status` is `APPROVED`. `impact.bookings` has exactly two entries, B1 (V1) and B2 (V2), each with its booking reference and venue name; `impact.reservations` has exactly one entry, R1, with its equipment name; `impact.activeRegistrations` is 0. |
-| Created By | Raphael, via Claude |
+| Created By | Raphael |
 | Date of Creation | 2026-10-28 |
 
 > **Expected results are checked by the PR reviewer** against S3's acceptance criteria.

@@ -19,10 +19,23 @@ export function cancellationRefusal(status: EventStatus): string | null {
   return outcome.permitted ? null : outcome.message;
 }
 
+/** A hold or pending request F4 released, with its venue and that venue's staff (CQ-06). */
+export interface ReleasedAtVenueNotice {
+  reference: string;
+  venueId: string;
+  venueName: string;
+  startsAt: string;
+  endsAt: string;
+  staffIds: string[];
+}
+
 /** Who F3 notifies besides the owner and the coordinator, as the venue and equipment modules read them (AC6). */
 export interface CancellationNotice {
   bookings: { reference: string; venueName: string; startsAt: string; endsAt: string; staffIds: string[] }[];
   reservations: { equipmentTypeName: string; reservedQuantity: number; reservedBy: string }[];
+  /** CQ-06: the holds released and the pending requests withdrawn, so their venues' staff are told too. */
+  holds?: ReleasedAtVenueNotice[];
+  requests?: ReleasedAtVenueNotice[];
 }
 
 export interface CancelledEvent {
@@ -73,6 +86,8 @@ export async function cancelEventRecord(
         cancelledAt,
         bookings: input.notice.bookings,
         reservations: input.notice.reservations,
+        holds: input.notice.holds ?? [],
+        requests: input.notice.requests ?? [],
       },
     });
   }

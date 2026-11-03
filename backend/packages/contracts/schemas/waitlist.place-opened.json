@@ -1,0 +1,49 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "properties": {
+    "attendeeId": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "eventId": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "eventName": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "eventReference": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "openedAt": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "placesRemaining": {
+      "exclusiveMinimum": 0,
+      "type": "integer"
+    },
+    "waitlistEntryId": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "waitlistReference": {
+      "pattern": "^WL-\\d{6}$",
+      "type": "string"
+    }
+  },
+  "required": [
+    "attendeeId",
+    "eventId",
+    "eventName",
+    "eventReference",
+    "openedAt",
+    "placesRemaining",
+    "waitlistEntryId",
+    "waitlistReference"
+  ],
+  "type": "object"
+}

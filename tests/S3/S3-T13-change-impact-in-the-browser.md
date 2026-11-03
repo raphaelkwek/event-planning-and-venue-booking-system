@@ -10,7 +10,7 @@
 | Test Steps | 1. Sign in as the assigned coordinator, open the change request's review page, click "Approve change", then "Confirm approval".<br>2. Read the impact list that appears.<br>3. Open the event page and read the "Outstanding flags" panel.<br>4. Try to confirm the event (F5).<br>5. Sign out and sign in as `organiser@connectsphere.test`, open the event page, then "Notifications". Repeat the event page as `coordinator2@connectsphere.test`.<br>6. Sign in as `organiser2@connectsphere.test` and open the event's address.<br>7. Sign in as `venuestaff@connectsphere.test`, then as `techsupport@connectsphere.test`, and open "Notifications" in each. |
 | Test Data | As in the steps. |
 | Expected Result | Step 1 applies the change. Step 2 lists both bookings, the reservation and "0 active registrations", saying which were flagged: both bookings "Requires Reconfirmation", the theatre booking also "Unsuitable" (`Expected attendance is now 150, but <venue> holds 100 in the Theatre layout.`), the reservation "Flagged for review". Step 3 shows the "Outstanding flags" panel with the same flags and reasons. Step 4 is refused and names every flag. Step 5 shows the panel to the organiser and to the other Event Coordinator. Step 6 shows no event (not found) and no flags. Step 7 shows a notice for Venue Staff for each booking and for Technical Support for the reservation. |
-| Created By | Raphael, via Claude |
+| Created By | Raphael |
 | Date of Creation | 2026-10-28 |
 
 > **Expected results are checked by the PR reviewer** against S3's acceptance criteria.

@@ -1,3 +1,4 @@
+import { telemetry } from "./telemetry.js";
 import { app } from "./app.js";
 import { config } from "./config.js";
 import { sql } from "./db.js";
@@ -41,6 +42,7 @@ async function shutdown(signal: string) {
   await new Promise<void>((resolve) => server.close(() => resolve()));
   await consumers?.stop();
   await sql.end({ timeout: 5 });
+  await telemetry.shutdown();
   process.exit(0);
 }
 

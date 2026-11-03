@@ -809,6 +809,65 @@ describe("notificationsFor: the registration messages (R2 to R4)", () => {
   });
 });
 
+describe("notificationsFor: the registration list, waitlist and manual additions (R6, R7)", () => {
+  const attendee = "00000000-0000-0000-0000-000000000005";
+  const organiser = "00000000-0000-0000-0000-000000000001";
+  const registration = { registrationId: "77777777-7777-4777-8777-777777777777", registrationReference: "REG-000042", attendeeId: attendee };
+  const entry = { waitlistEntryId: "99999999-9999-4999-8999-999999999999", waitlistReference: "WL-000007", attendeeId: attendee };
+
+  it("R7-T1 tells the added attendee who added them, when the event is, and that it is confirmed", () => {
+    const notes = notificationsFor(
+      message("registration.added", {
+        ...registration,
+        registeredAt: at,
+        eventStartsAt: "2026-12-16T06:00:00.000Z",
+        eventEndsAt: "2026-12-16T10:00:00.000Z",
+        addedBy: organiser,
+        addedByName: "Organiser One",
+        addedOverCapacity: true,
+      }),
+    );
+    expect(notes).toEqual([
+      {
+        ...common,
+        notificationType: "registration.added",
+        recipientUserId: attendee,
+        relatedReference: "REG-000042",
+        message:
+          "Organiser One added you to EVT-2026-0042 “Freshmen Orientation” on Wednesday 16 December 2026, 14:00–18:00. Registration REG-000042 is confirmed; you can withdraw it from My registrations.",
+      },
+    ]);
+  });
+
+  it("R7-T1 says the organiser added them when identity didn't name who, and leaves out a date the event lacks", () => {
+    const [note] = notificationsFor(
+      message("registration.added", { ...registration, registeredAt: at, eventStartsAt: null, eventEndsAt: null, addedBy: organiser, addedByName: null, addedOverCapacity: false }),
+    );
+    expect(note!.message).toBe(
+      "The event's organiser added you to EVT-2026-0042 “Freshmen Orientation”. Registration REG-000042 is confirmed; you can withdraw it from My registrations.",
+    );
+  });
+
+  it("R6-T6 invites each waiting attendee to register when a place opens, naming the entry", () => {
+    const notes = notificationsFor(message("waitlist.place-opened", { ...entry, placesRemaining: 1, openedAt: at }));
+    expect(notes.map((n) => [n.recipientUserId, n.notificationType, n.relatedReference, n.message])).toEqual([
+      [
+        attendee,
+        "waitlist.place-opened",
+        "WL-000007",
+        "A place has opened at EVT-2026-0042 “Freshmen Orientation”. Register now if you still want one: places go to whoever registers first.",
+      ],
+    ]);
+  });
+
+  it("R6-T10 tells a waiting attendee their place on the waitlist is cancelled with the event", () => {
+    const notes = notificationsFor(message("waitlist.cancelled", { ...entry, cancelledAt: at }));
+    expect(notes.map((n) => [n.recipientUserId, n.relatedReference, n.message])).toEqual([
+      [attendee, "WL-000007", "EVT-2026-0042 “Freshmen Orientation” has been cancelled, so your place on its waitlist (WL-000007) is cancelled."],
+    ]);
+  });
+});
+
 describe("U1: the Safety Officer's decision", () => {
   const safetyOfficer = "00000000-0000-0000-0000-000000000010";
   const decided = (decision: string, extra: Record<string, unknown> = {}) =>
@@ -917,6 +976,54 @@ describe("event.cancelled (F3 AC6)", () => {
   it("notifies only the owner when there is no coordinator and nothing booked or reserved", () => {
     const recipients = notes({ ...cancelled, assignedCoordinatorId: null, bookings: [], reservations: [] }).map((note) => note.recipientUserId);
     expect(recipients).toEqual([organiser]);
+  });
+
+  // CQ-06 (review of #72): a released hold and a withdrawn pending request tell their venue's staff too.
+  const holdStaff = "00000000-0000-0000-0000-000000000008";
+  const atVenue = (reference: string, venueName: string, staffIds: string[]) => ({
+    reference,
+    venueId: "00000000-0000-0000-0000-000000000009",
+    venueName,
+    startsAt: "2026-12-02T06:00:00.000Z",
+    endsAt: "2026-12-02T10:00:00.000Z",
+    staffIds,
+  });
+  const withHoldsAndRequests = {
+    ...cancelled,
+    holds: [atVenue("HLD-000003", "Seminar Room 2-1", [venueStaff]), atVenue("HLD-000004", "Function Room", [holdStaff])],
+    requests: [atVenue("BKR-000005", "Function Room", [holdStaff])],
+  };
+  const textIn = (data: Record<string, unknown>, recipient: string) =>
+    notes(data).filter((note) => note.recipientUserId === recipient).map((note) => note.message);
+
+  it("tells the staff of a venue whose hold or pending request was released, after the others", () => {
+    expect(notes(withHoldsAndRequests).map((note) => note.recipientUserId)).toEqual([
+      organiser,
+      coordinator,
+      venueStaff,
+      otherVenueStaff,
+      holdStaff,
+      techSupport,
+    ]);
+    expect(textIn(withHoldsAndRequests, holdStaff)).toEqual([
+      `${name} Released: hold HLD-000004 at Function Room, Wednesday 2 December 2026, 14:00–18:00. ` +
+        "Withdrawn: booking request BKR-000005 at Function Room, Wednesday 2 December 2026, 14:00–18:00.",
+    ]);
+  });
+
+  it("lists a member's released holds after their bookings, in the one notice", () => {
+    expect(textIn(withHoldsAndRequests, venueStaff)).toEqual([
+      `${name} Released: booking BKR-000001 at Lee Kong Chian Auditorium, Wednesday 2 December 2026, 14:00–18:00; ` +
+        "booking BKR-000002 at Seminar Room 2-1, Wednesday 2 December 2026, 14:00–18:00; " +
+        "hold HLD-000003 at Seminar Room 2-1, Wednesday 2 December 2026, 14:00–18:00.",
+    ]);
+  });
+
+  it("tells the staff of a venue with only a withdrawn request what was withdrawn", () => {
+    const data = { ...cancelled, bookings: [], requests: [atVenue("BKR-000005", "Function Room", [holdStaff])] };
+    expect(textIn(data, holdStaff)).toEqual([
+      `${name} Withdrawn: booking request BKR-000005 at Function Room, Wednesday 2 December 2026, 14:00–18:00.`,
+    ]);
   });
 
   it("tells someone with two roles on the event once, as their first role", () => {

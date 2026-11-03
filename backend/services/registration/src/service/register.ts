@@ -4,7 +4,8 @@ import { takesRegistrations, windowState, type WindowState } from "../domain/reg
 import { writeRegistrationOutbox } from "../outbox/write.js";
 import { findListing, type Listing } from "../repo/listings.js";
 import { DuplicateRegistrationError, findActiveRegistration, insertRegistration, type Registration } from "../repo/registrations.js";
-import { claimSeat } from "../repo/seats.js";
+import { claimSeat, lockAttendee, lockPlaces } from "../repo/seats.js";
+import { closeEntryRegistered } from "../repo/waitlist.js";
 import { spendEntry } from "../repo/waitingRoom.js";
 
 /**
@@ -19,6 +20,12 @@ import { spendEntry } from "../repo/waitingRoom.js";
  * not expired. The token is spent in the same transaction as the registration
  * it admits, so one admission is one registration, and a refusal for capacity
  * or a duplicate leaves it unspent.
+ *
+ * R6: an invited attendee registers here like anyone else, first come first
+ * served, and their waiting entry ends in the same transaction. The attendee's
+ * lock keeps a waitlist join for the same event from slipping in beside it; the
+ * shared places lock lets registrations run together while an addition above
+ * capacity or a withdrawal (exclusive) waits for them (repo/seats.ts).
  */
 
 export type RegisterOutcome =
@@ -59,6 +66,8 @@ export async function register(
 
   try {
     return await sql.begin(async (tx): Promise<RegisterOutcome> => {
+      await lockAttendee(tx, listing.eventId, input.attendeeId);
+      await lockPlaces(tx, listing.eventId, "shared");
       // For the message only: the unique index is what stops a second registration.
       const existing = await findActiveRegistration(tx, listing.eventId, input.attendeeId);
       if (existing) return { ok: false, code: "DUPLICATE", listing, existing };
@@ -77,9 +86,16 @@ export async function register(
         seatId: seat.id,
         at: input.now,
       });
+      await closeEntryRegistered(tx, {
+        eventId: listing.eventId,
+        attendeeId: input.attendeeId,
+        registrationId: registration.id,
+        at: input.now,
+        by: input.attendeeId,
+      });
       await writeRegistrationOutbox(tx, {
         messageType: "registration.confirmed",
-        registrationId: registration.id,
+        subjectId: registration.id,
         actor: { userId: input.attendeeId, role: "ATTENDEE" },
         correlationId: input.correlationId,
         data: {
@@ -99,7 +115,7 @@ export async function register(
   } catch (error) {
     if (error instanceof AdmissionSpentError) return { ok: false, code: "ADMISSION_REQUIRED", listing };
     if (!(error instanceof DuplicateRegistrationError)) throw error;
-    // Two requests from one attendee raced past the read; the index refused the second, and its claim rolled back.
+    // Defensive: the attendee's lock serialises one attendee's requests, so the index refusing one is not expected.
     const existing = await findActiveRegistration(sql, listing.eventId, input.attendeeId);
     if (!existing) throw error;
     return { ok: false, code: "DUPLICATE", listing, existing };

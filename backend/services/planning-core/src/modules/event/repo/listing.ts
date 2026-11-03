@@ -12,6 +12,8 @@ export interface EventListing {
   eventReference: string | null;
   eventName: string;
   ownerId: string;
+  /** R5, R7: the active assignment's coordinator, or null. */
+  assignedCoordinatorId: string | null;
   description: string | null;
   status: EventStatus;
   proposedStartAt: string | null;
@@ -32,6 +34,7 @@ export async function readListing(tx: TransactionSql, eventId: string): Promise<
     reference: string | null;
     name: string;
     owner_id: string;
+    assigned_coordinator_id: string | null;
     description: string | null;
     status: EventStatus;
     proposed_start_at: Date | null;
@@ -42,10 +45,12 @@ export async function readListing(tx: TransactionSql, eventId: string): Promise<
     withdrawal_deadline_at: Date | null;
     high_demand: boolean;
   }[]>`
-    select id, reference, name, owner_id, description, status, proposed_start_at, proposed_end_at,
-           registration_required, registration_opens_at, registration_closes_at, withdrawal_deadline_at, high_demand
-    from event.events
-    where id = ${eventId}
+    select e.id, e.reference, e.name, e.owner_id, a.coordinator_id as assigned_coordinator_id, e.description, e.status,
+           e.proposed_start_at, e.proposed_end_at, e.registration_required, e.registration_opens_at,
+           e.registration_closes_at, e.withdrawal_deadline_at, e.high_demand
+    from event.events e
+    left join event.assignments a on a.event_id = e.id and a.is_active
+    where e.id = ${eventId}
   `;
   if (!row) return null;
   return {
@@ -53,6 +58,7 @@ export async function readListing(tx: TransactionSql, eventId: string): Promise<
     eventReference: row.reference,
     eventName: row.name,
     ownerId: row.owner_id,
+    assignedCoordinatorId: row.assigned_coordinator_id,
     description: row.description,
     status: row.status,
     proposedStartAt: iso(row.proposed_start_at),

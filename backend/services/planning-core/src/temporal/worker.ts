@@ -1,3 +1,4 @@
+import { telemetry } from "./telemetry.js";
 import { connectionOptionsFor, temporalSettingsFromEnv } from "./domain/settings.js";
 
 /**
@@ -92,4 +93,5 @@ try {
   await clientConnection.close().catch(() => {});
   await nativeConnection.close().catch(() => {});
   await sql.end({ timeout: 5 }).catch(() => {});
+  await telemetry.shutdown().catch(() => {});
 }

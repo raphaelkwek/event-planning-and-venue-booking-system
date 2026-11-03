@@ -280,6 +280,23 @@ const RULES: Record<string, Rule> = {
   "registration.cancelled": (d, event) => [
     [d.attendeeId!, `${event} has been cancelled, so your registration ${d.registrationReference} is cancelled.`],
   ],
+  // R7: the organiser or coordinator added the attendee by hand; the attendee can withdraw it under R4.
+  "registration.added": (d, event) => [
+    [
+      d.attendeeId!,
+      `${d.addedByName ?? "The event's organiser"} added you to ${event}` +
+        (d.eventStartsAt && d.eventEndsAt ? ` on ${period(d.eventStartsAt, d.eventEndsAt)}` : "") +
+        `. Registration ${d.registrationReference} is confirmed; you can withdraw it from My registrations.`,
+    ],
+  ],
+  // R6: a place opened; the waiting attendee is invited, not registered, and the first to register gets it.
+  "waitlist.place-opened": (d, event) => [
+    [d.attendeeId!, `A place has opened at ${event}. Register now if you still want one: places go to whoever registers first.`],
+  ],
+  // R6: the event was cancelled, so the attendee's place on its waitlist is too.
+  "waitlist.cancelled": (d, event) => [
+    [d.attendeeId!, `${event} has been cancelled, so your place on its waitlist (${d.waitlistReference}) is cancelled.`],
+  ],
   // F5: the owner, the Venue Staff of each booked venue (once per booking), and each Technical
   // Support Staff member who reserved equipment (once, listing what they reserved).
   "event.arrangements-confirmed": (d, event) => arrangementsConfirmed(d as unknown as ArrangementsConfirmed, event),
@@ -365,19 +382,49 @@ function arrangementsConfirmed(d: ArrangementsConfirmed, event: string): Array<[
   return notices;
 }
 
+/** A venue arrangement F4 released, as `event.cancelled` names it, with its venue's staff. */
+interface ReleasedAtVenue {
+  reference: string;
+  venueName: string;
+  startsAt: string;
+  endsAt: string;
+  staffIds: string[];
+}
+
 /** F3's message data, as its contract (`eventCancelledPayloadSchema`) validated it. */
 interface EventCancelled {
   ownerId: string;
   assignedCoordinatorId: string | null;
   reason: string;
-  bookings: { reference: string; venueName: string; startsAt: string; endsAt: string; staffIds: string[] }[];
+  bookings: ReleasedAtVenue[];
   reservations: { equipmentTypeName: string; reservedQuantity: number; reservedBy: string }[];
+  /** CQ-06: the holds released and the pending requests withdrawn; absent from messages published before them. */
+  holds?: ReleasedAtVenue[];
+  requests?: ReleasedAtVenue[];
+}
+
+/**
+ * F4 for one Venue Staff member: their bookings and holds that were released, then their pending
+ * requests that were withdrawn, each named with its venue and period.
+ */
+function releasedAtTheirVenues(d: EventCancelled, staffId: string): string {
+  const theirs = (arrangements: ReleasedAtVenue[], what: string) =>
+    arrangements
+      .filter((arrangement) => arrangement.staffIds.includes(staffId))
+      .map((arrangement) => `${what} ${arrangement.reference} at ${arrangement.venueName}, ${period(arrangement.startsAt, arrangement.endsAt)}`);
+  const released = [...theirs(d.bookings, "booking"), ...theirs(d.holds ?? [], "hold")];
+  const withdrawn = theirs(d.requests ?? [], "booking request");
+  return [
+    ...(released.length > 0 ? [` Released: ${released.join("; ")}.`] : []),
+    ...(withdrawn.length > 0 ? [` Withdrawn: ${withdrawn.join("; ")}.`] : []),
+  ].join("");
 }
 
 /**
  * F3 AC6 — the owner, the assigned coordinator, the Venue Staff of each booked venue and whoever reserved
  * each reservation, each told once about all of theirs. Someone with two roles on the event gets the first
- * notice that names them.
+ * notice that names them. CQ-06: the staff of a venue whose hold was released or whose pending request was
+ * withdrawn are told too, after the booked venues' staff.
  */
 function eventCancelled(d: EventCancelled, event: string): Array<[string, string]> {
   const cancelled = `${event} has been cancelled. Reason: ${d.reason}`;
@@ -387,14 +434,9 @@ function eventCancelled(d: EventCancelled, event: string): Array<[string, string
   };
   tell(d.ownerId, `Your event ${cancelled}`);
   if (d.assignedCoordinatorId) tell(d.assignedCoordinatorId, `The event ${cancelled}`);
-  const staff = [...new Set(d.bookings.flatMap((booking) => booking.staffIds))];
-  for (const staffId of staff) {
-    const booked = d.bookings
-      .filter((booking) => booking.staffIds.includes(staffId))
-      .map((booking) => `booking ${booking.reference} at ${booking.venueName}, ${period(booking.startsAt, booking.endsAt)}`)
-      .join("; ");
-    tell(staffId, `${cancelled} Released: ${booked}.`);
-  }
+  const atVenues = [...d.bookings, ...(d.holds ?? []), ...(d.requests ?? [])];
+  const staff = [...new Set(atVenues.flatMap((arrangement) => arrangement.staffIds))];
+  for (const staffId of staff) tell(staffId, `${cancelled}${releasedAtTheirVenues(d, staffId)}`);
   const reservers = [...new Set(d.reservations.map((reservation) => reservation.reservedBy))];
   for (const reserver of reservers) {
     const reserved = d.reservations
@@ -418,12 +460,14 @@ export function notificationsFor(message: NotifiableEvent): NewNotification[] {
     eventId: data.eventId!,
     eventReference: data.eventReference!,
     // A booking request's own reference, or a hold's, for the venue-booking messages (L1, L6).
-    // A registration's reference for the registration messages (R2 to R4).
+    // A registration's reference for the registration messages (R2 to R4, R7), a waitlist entry's for R6's.
     relatedReference: message.type.startsWith("venue-booking.")
       ? (data.reference ?? data.holdReference!)
       : message.type.startsWith("registration.")
         ? data.registrationReference!
-        : null,
+        : message.type.startsWith("waitlist.")
+          ? data.waitlistReference!
+          : null,
     message: text,
   }));
 }

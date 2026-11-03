@@ -223,6 +223,39 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "429": { $ref: "#/components/responses/RateLimitExceeded" }
 
+  /api/v1/attendees:
+    get:
+      tags: [Identity]
+      summary: Find the attendee with an email (R7)
+      description: >-
+        Internal staff only. The registration service calls it with the organiser's or
+        coordinator's token to find the attendee they add to an event by hand. Only an active
+        user with the Attendee role is found, ignoring the email's case; anyone else is an empty
+        list. Returns only the fields needed to name someone.
+      operationId: findAttendeeByEmail
+      parameters:
+        - name: email
+          in: query
+          required: true
+          schema: { type: string, format: email, maxLength: 254, examples: ["attendee@connectsphere.test"] }
+      responses:
+        "200":
+          description: The attendee, or an empty list when there is none.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    maxItems: 1
+                    items: { $ref: "#/components/schemas/UserSummary" }
+        "400": { $ref: "#/components/responses/ValidationFailed" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "429": { $ref: "#/components/responses/RateLimitExceeded" }
+
   /api/v1/access-scope/{resource}:
     get:
       tags: [Identity]
@@ -1675,10 +1708,13 @@ paths:
         are Released and its pending venue requests Withdrawn, and its equipment reservations are
         Released, each recording "event cancelled", the user and the time (F4); a change request still
         pending is Closed (W9-07); and the owner, the coordinator, each booked venue's Venue Staff and
-        each reserver are notified (`event.cancelled`). Any failure rolls all of it back, so nothing is
-        left partly released. A refusal stores nothing. The locks are taken change request, venues
-        (ascending id), event, then slots, the venue module's order, so a block at one of the event's
-        venues cannot deadlock with it. Registrations are not released in this transaction, so
+        each reserver are notified (`event.cancelled`), as are the Venue Staff of each venue whose hold
+        was released or whose pending request was withdrawn (review note CQ-06). Any failure rolls all of it back, so nothing is left partly released. A
+        refusal stores nothing. The locks are taken change request, venues (ascending id), event, then
+        slots, the venue module's order, so a block at one of the event's venues cannot deadlock with
+        it. If the event gains an arrangement at another venue between the venue locks and the event
+        lock, the attempt writes nothing and is tried again with that venue locked first, up to three
+        times. Registrations are not released in this transaction, so
         `released.registrations` is always 0: the registration service (EN-13) cancels the event's
         registrations and waitlist entries, and tells the attendees, when it consumes `event.cancelled`
         (R1–R4 and R5–R7, not yet merged).
@@ -1724,7 +1760,7 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
         "409":
-          description: "`STATUS_TRANSITION_NOT_PERMITTED`: the event is Completed, Rejected or already Cancelled. The message names its status."
+          description: "`STATUS_TRANSITION_NOT_PERMITTED`: the event is Completed, Rejected or already Cancelled. The message names its status. `CANCELLATION_CONTENDED`: on each of three attempts the event gained a venue arrangement while the cancellation waited for it, so nothing was changed; try again."
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
@@ -3453,11 +3489,13 @@ components:
         - ARRANGEMENTS_NOT_READY
         - ARRANGEMENTS_UNAVAILABLE
         - ARRANGEMENT_FLAGS_OUTSTANDING
+        - ATTENDEE_NOT_FOUND
         - BLOCK_ALREADY_REMOVED
         - BLOCK_NOT_FOUND
         - BOOKING_REQUEST_DUPLICATE
         - BOOKING_REQUEST_NOT_FOUND
         - BOOKING_REQUEST_NOT_PENDING
+        - CANCELLATION_CONTENDED
         - CANCELLATION_FAILED
         - CHANGE_REQUEST_ALREADY_DECIDED
         - CHANGE_REQUEST_ALREADY_PENDING
@@ -3503,10 +3541,13 @@ components:
         - REASSIGNMENT_PROPOSAL_NOT_FOUND
         - REASSIGNMENT_RETIRED
         - REGISTRATION_DUPLICATE
+        - REGISTRATION_EVENT_CLOSED
         - REGISTRATION_FULL
         - REGISTRATION_NOT_ACTIVE
         - REGISTRATION_NOT_FOUND
+        - REGISTRATION_NO_CONFIRMED_BOOKING
         - REGISTRATION_OUTSIDE_WINDOW
+        - REGISTRATION_OVER_CAPACITY_UNCONFIRMED
         - REPLACEMENT_NOT_VALID
         - RESERVATION_ALREADY_RELEASED
         - ROLE_NOT_AUTHORISED
@@ -3525,6 +3566,10 @@ components:
         - WAITING_ROOM_ENTRY_NOT_FOUND
         - WAITING_ROOM_NOT_REQUIRED
         - WAITING_ROOM_UNAVAILABLE
+        - WAITLIST_DUPLICATE
+        - WAITLIST_ENTRY_NOT_ACTIVE
+        - WAITLIST_ENTRY_NOT_FOUND
+        - WAITLIST_PLACES_AVAILABLE
         - WITHDRAWAL_DEADLINE_PASSED
 
     ErrorEnvelope:

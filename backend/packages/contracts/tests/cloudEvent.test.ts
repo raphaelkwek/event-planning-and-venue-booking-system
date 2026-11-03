@@ -152,6 +152,7 @@ const EXAMPLE_DATA: Record<EventMessageType, Record<string, unknown>> = {
   "event.listing-changed": {
     ...ref,
     ownerId: organiser,
+    assignedCoordinatorId: coordinator,
     description: "A week of welcome activities for new students.",
     status: "CONFIRMED",
     proposedStartAt: "2026-11-20T01:00:00.000Z",
@@ -216,6 +217,37 @@ describe("parseCloudEvent: an example message for every event type", () => {
     expect(parseCloudEvent(exampleMessage("event.cancelled", data)).data).toMatchObject({ assignedCoordinatorId: null });
   });
 
+  // CQ-06 (review of #72): the holds released and the pending requests withdrawn, with their venues, so
+  // those venues' staff are told. Optional, so a message without them (and a consumer that ignores them,
+  // as registration's does) still reads.
+  const releasedAtVenue = (reference: string) => ({
+    reference,
+    venueId: "00000000-0000-0000-0000-000000000009",
+    venueName: "Seminar Room 2-1",
+    startsAt: "2026-12-02T06:00:00.000Z",
+    endsAt: "2026-12-02T10:00:00.000Z",
+    staffIds: ["00000000-0000-0000-0000-000000000003"],
+  });
+
+  it("accepts a cancellation naming the holds released and the requests withdrawn, with their venues", () => {
+    const data = { ...EXAMPLE_DATA["event.cancelled"], holds: [releasedAtVenue("HLD-000007")], requests: [releasedAtVenue("BKR-000008")] };
+    expect(parseCloudEvent(exampleMessage("event.cancelled", data)).data).toMatchObject({
+      holds: [{ reference: "HLD-000007", venueId: "00000000-0000-0000-0000-000000000009" }],
+      requests: [{ reference: "BKR-000008", venueId: "00000000-0000-0000-0000-000000000009" }],
+    });
+  });
+
+  it("still accepts a cancellation without them, as published before they were added", () => {
+    const data = EXAMPLE_DATA["event.cancelled"];
+    expect(data).not.toHaveProperty("holds");
+    expect(EVENT_PAYLOAD_SCHEMAS["event.cancelled"].parse(data)).not.toHaveProperty("holds");
+  });
+
+  it.each(["holds", "requests"])("refuses a released %s entry with no venue id", (field) => {
+    const data = { ...EXAMPLE_DATA["event.cancelled"], [field]: [without(releasedAtVenue("HLD-000007"), "venueId")] };
+    expect(() => parseCloudEvent(exampleMessage("event.cancelled", data))).toThrow(/venueId/);
+  });
+
   it("refuses a cancellation with no reason (F3 AC2)", () => {
     const data = { ...EXAMPLE_DATA["event.cancelled"], reason: "" };
     expect(() => parseCloudEvent(exampleMessage("event.cancelled", data))).toThrow(/reason/);
@@ -278,6 +310,12 @@ describe("parseCloudEvent: the event's listing (R1 to R4)", () => {
     const older = without(listing, "highDemand");
     expect(parseCloudEvent(exampleMessage("event.listing-changed", older)).data).toEqual({ ...older, highDemand: false });
     expect(() => parseCloudEvent(exampleMessage("event.listing-changed", { ...listing, highDemand: "yes" }))).toThrow(/highDemand/);
+  });
+
+  it("carries the assigned coordinator (R5, R7), and reads null from a message written before it did", () => {
+    expect(parseCloudEvent(exampleMessage("event.listing-changed", listing)).data).toEqual(listing);
+    expect(parseCloudEvent(exampleMessage("event.listing-changed", without(listing, "assignedCoordinatorId"))).data).toEqual({ ...listing, assignedCoordinatorId: null });
+    expect(() => parseCloudEvent(exampleMessage("event.listing-changed", { ...listing, assignedCoordinatorId: "someone" }))).toThrow(/assignedCoordinatorId/);
   });
 
   it("refuses a listing without its registration settings or its status, which the attendee list filters on", () => {
