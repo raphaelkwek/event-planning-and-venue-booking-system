@@ -1,0 +1,57 @@
+# The browser talks to one origin. The web app calls /identity, /event, /venue,
+# /equipment and /notification (frontend/src/api/*.ts); the dev server proxies
+# them and strips the prefix, and this Ingress does the same, so no service
+# needs CORS. The host and TLS secret are set per overlay.
+#
+# Written for ingress-nginx; the rewrite annotations are its dialect.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: web
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: connectsphere.invalid
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service: { name: web, port: { name: http } }
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: planning-core
+  annotations:
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/rewrite-target: /$3
+    nginx.ingress.kubernetes.io/proxy-body-size: 1m
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: connectsphere.invalid
+      http:
+        paths:
+          - path: /(identity|event|venue|equipment)(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service: { name: planning-core, port: { name: http } }
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: notification
+  annotations:
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: connectsphere.invalid
+      http:
+        paths:
+          - path: /notification(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service: { name: notification, port: { name: http } }

@@ -1,0 +1,34 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: connectsphere-staging
+resources:
+  - ../../base
+  - namespace.yaml
+components:
+  - ../../components/canary
+# The release step sets these to the commit sha that passed CI and was pushed by the
+# Deploy workflow (documentation/deploy.md, "Promote"). The placeholder fails loudly:
+# it is not a tag.
+images:
+  - name: ghcr.io/raphaelkwek/connectsphere-planning-core
+    newTag: replace-with-commit-sha
+  - name: ghcr.io/raphaelkwek/connectsphere-registration
+    newTag: replace-with-commit-sha
+  - name: ghcr.io/raphaelkwek/connectsphere-notification
+    newTag: replace-with-commit-sha
+  - name: ghcr.io/raphaelkwek/connectsphere-web
+    newTag: replace-with-commit-sha
+  - name: ghcr.io/raphaelkwek/connectsphere-migrate
+    newTag: replace-with-commit-sha
+patches:
+  - target:
+      kind: Ingress
+    patch: |-
+      - op: replace
+        path: /spec/rules/0/host
+        value: staging.connectsphere.example.org
+      - op: add
+        path: /spec/tls
+        value:
+          - hosts: [staging.connectsphere.example.org]
+            secretName: connectsphere-staging-tls
