@@ -94,6 +94,13 @@ jobs:
         with:
           cosign-release: v3.1.4
 
+      # Read access to GHCR, so the signatures can be fetched even while the packages are private.
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       # The cluster pulls by digest; check each was signed by the Release workflow on main
       # before it is written anywhere.
       - name: Verify every image's signature
