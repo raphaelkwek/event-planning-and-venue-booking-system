@@ -130,7 +130,7 @@ describe("row-level security on event.events and event.assignments (EN-07.2)", (
     const theirs = await seedEvent(sql, { ownerId: b, status: "UNDER_REVIEW", endsAt: FUTURE });
     await assignForTest(sql, { id: mine }, coordinator);
 
-    expect((await listEventsInScope(sql, scopes.owner(a), a)).map((event) => event.id)).toEqual([mine]);
+    expect((await listEventsInScope(sql, scopes.owner(a), a, { limit: 100, after: null })).rows.map((event) => event.id)).toEqual([mine]);
     expect(await findEventInScope(sql, theirs, scopes.owner(a), a)).toBeNull();
     const asCoordinator = await findEventInScope(sql, mine, scopes.assigned(coordinator), coordinator);
     expect(asCoordinator?.assignedCoordinatorId).toBe(coordinator);
