@@ -18,8 +18,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | — |
-| Status | Not Executed |
-| Remarks | — |
-| Executed By | — |
-| Date of Execution | — |
+| Actual Result | With a base URL the request went to <base>/identity/api/v1/...; with the default empty base the path stayed relative. |
+| Status | Pass |
+| Remarks | Automated (unit, CI) · Commit: f76866586a318aa5852f75edab518cb95ffd7690 · Evidence: frontend/tests/apiBaseUrl.test.ts › DEPLOY-T10 (two tests), CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41614563224 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

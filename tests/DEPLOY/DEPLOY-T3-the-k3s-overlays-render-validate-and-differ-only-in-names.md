@@ -18,8 +18,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | — |
-| Status | Not Executed |
-| Remarks | — |
-| Executed By | — |
-| Date of Execution | — |
+| Actual Result | k3s-staging and k3s-production rendered and passed kubeconform -strict with the Traefik Middleware and cert-manager Issuer and Certificate schemas, passed check-rendered.py --no-canary (no Secret; every container, init containers and StatefulSets included, non-root, read-only, capabilities dropped, sized, no :latest), and check-parity.py found them identical once the namespace, API host, TLS Secret name and middleware reference were normalised. |
+| Status | Pass |
+| Remarks | Automated (CI) · Commit: f76866586a318aa5852f75edab518cb95ffd7690 · Evidence: .github/workflows/deploy.yml › job 'Manifests (kustomize and kubeconform)', CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41614563160 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

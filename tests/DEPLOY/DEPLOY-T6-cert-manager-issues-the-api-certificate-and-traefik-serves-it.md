@@ -18,8 +18,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | — |
-| Status | Not Executed |
-| Remarks | — |
-| Executed By | — |
-| Date of Execution | — |
+| Actual Result | cert-manager's ingress-shim made connectsphere-staging-api-tls from the Ingress, from the ClusterIssuer named letsencrypt (a self-signed stand-in in kind), and it became Ready; the certificate Traefik presented for api.staging.ci.invalid named that host; plain HTTP on port 80 answered 404 for the API path. Let's Encrypt's own HTTP-01 exchange is not shown (DEPLOY-T12). |
+| Status | Pass |
+| Remarks | Automated (kind, CI) · Commit: f76866586a318aa5852f75edab518cb95ffd7690 · Evidence: job 'kind: k3s staging overlay (Redpanda, Temporal, Cerbos, Traefik)', step 'Through Traefik over TLS', CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41614563160 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

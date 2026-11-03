@@ -19,7 +19,7 @@
 | Item | Content |
 |---|---|
 | Actual Result | — |
-| Status | Not Executed |
-| Remarks | — |
+| Status | Blocked |
+| Remarks | Blocked: the Oracle VM, the two Supabase projects, the two Vercel projects and the GitHub environments staging and production do not exist yet (documentation/deploy/README.md steps 1 to 6), and release.yml has not run on main. The deploy steps it runs are exercised on kind by DEPLOY-T4 to T7 and T11. |
 | Executed By | — |
 | Date of Execution | — |

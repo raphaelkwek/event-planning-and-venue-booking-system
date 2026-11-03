@@ -18,8 +18,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | — |
-| Status | Not Executed |
-| Remarks | — |
-| Executed By | — |
-| Date of Execution | — |
+| Actual Result | secret-env.mjs wrote exactly the gate's keys with the fixed in-cluster addresses and refused missing or malformed values naming the variable only (unit). In kind the gate created connectsphere-secrets in connectsphere-staging, printing key names and 'created', then 'unchanged', never the Kafka password; it refused an unknown key, a malformed line, a missing key, an unknown verb and a short commit; the staging deployer may not read production's or kube-system's Secrets, create pods or delete Secrets. |
+| Status | Pass |
+| Remarks | Automated (unit and kind, CI) · Commit: f76866586a318aa5852f75edab518cb95ffd7690 · Evidence: deploy/release/release.test.mjs › DEPLOY-T7 (two tests); job 'kind: k3s staging overlay (Redpanda, Temporal, Cerbos, Traefik)', step 'The deploy gate writes the Secret, and refuses what it should', CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41614563160 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

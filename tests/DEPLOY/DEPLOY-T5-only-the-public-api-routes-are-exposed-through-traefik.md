@@ -18,8 +18,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | — |
-| Status | Not Executed |
-| Remarks | — |
-| Executed By | — |
-| Date of Execution | — |
+| Actual Result | Through Traefik over TLS on api.staging.ci.invalid: GET /identity/api/v1/users/me and /notification/api/v1/notifications with no token answered 401 with the error envelope; /registration/api/v1/... was answered by registration, not Traefik; /healthz, /readyz, /metrics, /identity/healthz, /identity/readyz, /registration/healthz and /notification/metrics answered Traefik's 404. |
+| Status | Pass |
+| Remarks | Automated (kind, CI) · Commit: f76866586a318aa5852f75edab518cb95ffd7690 · Evidence: deploy/release/smoke-api.sh in job 'kind: k3s staging overlay (Redpanda, Temporal, Cerbos, Traefik)', CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41614563160 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

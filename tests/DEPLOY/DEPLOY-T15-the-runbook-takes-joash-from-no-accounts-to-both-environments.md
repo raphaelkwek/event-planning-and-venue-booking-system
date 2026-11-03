@@ -19,7 +19,7 @@
 | Item | Content |
 |---|---|
 | Actual Result | — |
-| Status | Not Executed |
-| Remarks | — |
+| Status | Blocked |
+| Remarks | Blocked: needs the accounts (Oracle, Supabase, Vercel) and the GitHub environments; the walk-through is Joash's checklist. |
 | Executed By | — |
 | Date of Execution | — |

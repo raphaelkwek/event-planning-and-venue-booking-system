@@ -57,7 +57,8 @@ creates, the first release, the first Lead in each environment).
   still built and checked on pull requests but is not released: Vercel builds the SPA per environment.
 - check-rendered.py checks StatefulSets and init containers too, and takes --no-canary for the k3s overlays. The
   canary needs EN-17's Prometheus, which the VM does not run, so the k3s overlays use rolling updates.
-- .gitleaksignore lists one false positive, a made-up test password in a pushed commit; the next commit replaces it.
+- The deploy tests build every fake credential at run time, so CI's gitleaks scan (which covers every fetched
+  branch) never sees a credential-shaped literal.
 
 ## Not done / limits
 

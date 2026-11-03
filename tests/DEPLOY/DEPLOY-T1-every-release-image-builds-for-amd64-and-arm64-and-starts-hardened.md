@@ -18,8 +18,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | — |
-| Status | Not Executed |
-| Remarks | — |
-| Executed By | — |
-| Date of Execution | — |
+| Actual Result | All five released images (planning-core, registration, notification, migrate, cerbos) built on linux/amd64 and natively on linux/arm64, and each started read-only, non-root, with no capabilities: the services answered /healthz and /readyz with the database ok, the worker entrypoint and workflow bundle resolved, migrate applied every migration then none, and Cerbos answered SERVING and allowed Venue Staff and denied an attendee creating a venue. |
+| Status | Pass |
+| Remarks | Automated (CI) · Commit: f76866586a318aa5852f75edab518cb95ffd7690 · Evidence: .github/workflows/deploy.yml › jobs 'Image (<name>)' and 'Image arm64 (<name>)', CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41614563160 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

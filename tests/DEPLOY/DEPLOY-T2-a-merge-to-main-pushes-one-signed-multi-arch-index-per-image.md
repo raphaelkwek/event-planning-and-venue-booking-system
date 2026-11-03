@@ -18,8 +18,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | — |
+| Actual Result | Not run: the Release workflow runs only on a push to main. Proven on this pull request: the same sign-and-attest action signs, attests and verifies in the Supply chain workflow (EN-21-T5), and actionlint passes release.yml. |
 | Status | Not Executed |
-| Remarks | — |
+| Remarks | Evidence: .github/workflows/release.yml › jobs 'Build', 'Publish' (main only) · Defect: — |
 | Executed By | — |
 | Date of Execution | — |

@@ -19,7 +19,7 @@
 | Item | Content |
 |---|---|
 | Actual Result | — |
-| Status | Not Executed |
-| Remarks | — |
+| Status | Blocked |
+| Remarks | Blocked: no Oracle VM exists yet. Proven in CI: shellcheck passes on bootstrap.sh, and the deployer RBAC and kubeconfig it makes are the ones the kind job uses (DEPLOY-T7). |
 | Executed By | — |
 | Date of Execution | — |

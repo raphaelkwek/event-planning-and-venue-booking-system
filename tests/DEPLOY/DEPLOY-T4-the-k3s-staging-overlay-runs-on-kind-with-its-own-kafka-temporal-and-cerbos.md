@@ -18,8 +18,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | — |
-| Status | Not Executed |
-| Remarks | — |
-| Executed By | — |
-| Date of Execution | — |
+| Actual Result | On kind v1.33.1 with Traefik and cert-manager, the deploy state built from this commit's overlay on GitHub (remote base ?ref=<commit>, rendered identically by kubectl and by Argo CD v2.14.11's kustomize) was applied. Redpanda (SCRAM over TLS from the internal CA), the Temporal dev server (SQLite on a PVC) and Cerbos became ready under the restricted Pod Security Standard; /readyz of planning-core, registration and notification reported database ok and kafka reachable; the worker logged 'Temporal worker started' and did not restart in the next 20 s; Cerbos reported SERVING. |
+| Status | Pass |
+| Remarks | Automated (kind, CI) · Commit: f76866586a318aa5852f75edab518cb95ffd7690 · Evidence: deploy/ci/kind-k3s.sh, job 'kind: k3s staging overlay (Redpanda, Temporal, Cerbos, Traefik)', CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41614563160 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

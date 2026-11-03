@@ -19,7 +19,7 @@
 | Item | Content |
 |---|---|
 | Actual Result | — |
-| Status | Not Executed |
-| Remarks | — |
+| Status | Blocked |
+| Remarks | Blocked: neither environment's Supabase project exists yet. Proven in CI: the guard (step 2) and the arguments, by deploy/scripts/create-lead.test.mjs › DEPLOY-T14 (four tests). |
 | Executed By | — |
 | Date of Execution | — |

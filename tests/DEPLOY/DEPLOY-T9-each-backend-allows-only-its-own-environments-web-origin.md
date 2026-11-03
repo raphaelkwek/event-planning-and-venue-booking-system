@@ -18,8 +18,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | — |
-| Status | Not Executed |
-| Remarks | — |
-| Executed By | — |
-| Date of Execution | — |
+| Actual Result | In planning-core, registration and notification: the allowed origin got Access-Control-Allow-Origin and the exposed X-Correlation-Id, its preflight 204 with the methods and headers; a foreign origin got no such header; with CORS_ALLOWED_ORIGINS unset nothing changed; a wildcard or a path was refused at start-up. In kind the deployed services allowed the configured origin's preflight and not a foreign one. |
+| Status | Pass |
+| Remarks | Automated (unit and kind, CI) · Commit: f76866586a318aa5852f75edab518cb95ffd7690 · Evidence: backend/services/{planning-core/tests/shared,registration/tests,notification/tests}/cors.unit.test.ts › DEPLOY-T9 (five tests each); deploy/release/smoke-api.sh in job 'kind: k3s staging overlay (Redpanda, Temporal, Cerbos, Traefik)'; CI runs https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41614563224 and https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41614563160 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

@@ -18,8 +18,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | — |
-| Status | Not Executed |
-| Remarks | — |
-| Executed By | — |
-| Date of Execution | — |
+| Actual Result | From one release, the staging and production states named the same commit and the same five digests and differed only in the overlay path, the API host and the web origin; a tag instead of a digest, a short commit, a host with a scheme, an origin with a path, an unknown environment and a missing image were refused; tags were accepted only with --allow-tags. |
+| Status | Pass |
+| Remarks | Automated (unit, CI) · Commit: f76866586a318aa5852f75edab518cb95ffd7690 · Evidence: deploy/release/release.test.mjs › DEPLOY-T8 (four tests), CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41614563224 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |
