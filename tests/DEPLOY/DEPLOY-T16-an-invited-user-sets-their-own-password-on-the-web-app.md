@@ -18,8 +18,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | — |
-| Status | Not Executed |
-| Remarks | — |
-| Executed By | — |
-| Date of Execution | — |
+| Actual Result | The screen showed and the session left the address bar (#/set-password); a 5-character password and a mismatch were refused on the screen with no request; the same valid password twice sent PUT http://supabase.test/auth/v1/user with Bearer <link session>, the anon key and a body of only the password, then the sign-in screen showed 'Your password is set'; Supabase's 422 reason was shown, and a 401 asked for a new link; with no session or an error link the screen asked for the email link again and Go to sign in reached sign-in, with nothing sent. The links parsed from the site root and after the route, and a root link was moved onto the screen. |
+| Status | Pass |
+| Remarks | Automated (frontend unit, jsdom, CI) · Commit: d36de39469d8e8e1349ae625cd061cfa33a2c130 · Evidence: frontend/tests/setPassword.test.tsx › DEPLOY-T16 (seven tests), CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41639707648 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |
