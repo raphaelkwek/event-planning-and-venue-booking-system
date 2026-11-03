@@ -1,0 +1,9 @@
+{
+  "extends": "../backend/tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "types": ["node"],
+    "allowImportingTsExtensions": false
+  },
+  "include": ["support", "tests"]
+}

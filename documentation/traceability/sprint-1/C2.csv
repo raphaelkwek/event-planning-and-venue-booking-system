@@ -1,0 +1,8 @@
+story_id,acceptance_criterion,test_file,test_name
+C2,"Opening one of my own drafts restores every previously saved field with the exact value that was saved",backend/services/planning-core/tests/event/repo/drafts.test.ts,"restores every saved field with the exact value that was saved"
+C2,"Saving an edited draft updates the last-saved timestamp and retains status Draft",backend/services/planning-core/tests/event/api/drafts.test.ts,"keeps the draft a draft when it is edited and saved"
+C2,"Submitting from a draft applies the full validation in B2",backend/services/planning-core/tests/event/api/submission.test.ts,"applies the full B2 validation when submitting from a draft"
+C2,"On success the status changes Draft to Submitted and the submission timestamp is recorded",backend/services/planning-core/tests/event/api/submission.test.ts,"moves the draft to Submitted and records the submission time"
+C2,"After submission the request is no longer editable through the draft screen",backend/services/planning-core/tests/event/api/submission.test.ts,"stops the request being edited through the draft screen once submitted"
+C2,"A user who is not the owning organiser cannot open, edit, or submit the draft",backend/services/planning-core/tests/event/api/drafts.test.ts,"refuses an edit by an organiser who does not own the draft"
+C2,"Submitting from a draft applies the full validation in B2 to the values being submitted",backend/services/planning-core/tests/event/api/submission.test.ts,"validates the sent values rather than the stored ones, naming an emptied name"

@@ -1,0 +1,11 @@
+story_id,acceptance_criterion,test_file,test_name
+B2,"Submission is blocked unless every mandatory field is populated",backend/services/planning-core/tests/event/domain/validation.test.ts,"names every missing mandatory field, not only the first"
+B2,"When submission is blocked, the message names every field that caused the rejection, not just the first one",backend/services/planning-core/tests/event/api/submission.test.ts,"names every field that caused the rejection, not just the first (B2)"
+B2,"The end date/time must be later than the start date/time; an equal or earlier end time is rejected and the message identifies this as the reason",backend/services/planning-core/tests/event/domain/validation.test.ts,"rejects an end time equal to the start time, saying why"
+B2,"The proposed start date/time must not be in the past at the moment of submission",backend/services/planning-core/tests/event/domain/validation.test.ts,"rejects a start date and time in the past"
+B2,"Expected attendance must be a whole number greater than zero",backend/services/planning-core/tests/event/domain/validation.test.ts,"rejects an expected attendance of zero"
+B2,"When registration is required, the opening and closing date/times are mandatory and the closing must be later than the opening",backend/services/planning-core/tests/event/domain/validation.test.ts,"requires the closing to be later than the opening"
+B2,"The registration closing must be no later than the event start",backend/services/planning-core/tests/event/domain/validation.test.ts,"requires the closing to be no later than the event start"
+B2,"An equipment-required flag is mandatory, and none-required counts as a complete equipment arrangement",backend/services/planning-core/tests/event/domain/validation.test.ts,"accepts 'no equipment required' as a stated equipment flag"
+B2,"A blocked submission creates no submission record and changes no other stored value",backend/services/planning-core/tests/event/api/submission.test.ts,"creates no event record at all when validation fails (B1, B2)"
+B2,"A blocked submission leaves the request at status Draft and changes no other stored value",backend/services/planning-core/tests/event/api/submission.test.ts,"stores none of the sent values when the submission is blocked (B2)"

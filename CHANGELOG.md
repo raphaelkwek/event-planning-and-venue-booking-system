@@ -1,70 +1,68 @@
 # Changelog
 
-> **Convention — read before editing this file:** entries are newest-first. When adding a new entry, insert it directly below this header, above every existing entry. Never append to the bottom. This header itself never moves and is never treated as an entry.
+> **Newer entries live in `changelog/`, one file per change (since 3 Nov 2026).** Don't add entries to this file: one shared file made every pull request conflict at its top. Add `changelog/<YYYY-MM-DD>-<branch-or-slug>.md` instead, holding exactly what an entry below holds (implementation.md §11.2). `npm run changelog` prints the whole log, newest first: the files in `changelog/`, then the entries below, which are newest-first and kept as they were. This header is never treated as an entry.
 
 ---
 
-# EN-07: the Cerbos policies run at request time, RLS backs A3 and A4, and a generated matrix checks both
+# EN-05: CDC spike, the schema-compatibility check, and an opt-in Debezium Server component
 
-**Timestamp:** 2026-11-03T20:50+08:00 (SGT)
+**Timestamp:** 2026-11-03T20:35+08:00 (SGT)
 **Author:** Joash
-**Scope:** EN-07 (SPM-125): EN-07.1 (SPM-163), EN-07.2 (SPM-168), EN-07.3 (SPM-173). ADR-0010.
-planning-core (`src/shared/authz/`, every module's `auth/actor.ts` and routes, the identity module's
-permissions check, the event repo), migration `event/0025`, `policies/`, the staff console's
-navigation, CI, the Playwright stack, docs and cards. The 2 Nov audit found EN-07 about a quarter built
-(the policies and their tests only); this finishes it.
+**Scope:** `backend/packages/contracts` (`src/compat/`, `schemas/`), `backend/scripts`, `.github/workflows/ci.yml`,
+`deploy/k8s/components/cdc`, `documentation/spikes/`, ADR-0008, `implementation.md` §3.3 and §3.4, `tests/EN-05/`.
+No migration, no route, and no change to planning-core, registration or notification code.
 
-## What changed
+An audit on 2 Nov found EN-05 (SPM-123) not built although Jira said Done. This is the card, starting
+with the spike it asks for.
 
-- **Every planning-core route asks the Cerbos PDP** at `CERBOS_URL` (`@cerbos/http`). A route names
-  the policy resource and action it performs (`requireRole("event", "approve")`), never a list of roles.
-  A role the policy never allows gets `403 ROLE_NOT_AUTHORISED`; an unanswered check (2 s) gets the new
-  `503 POLICY_UNAVAILABLE`. It fails closed.
-- **The same roles as before.** Before switching, every route was probed with every role on main and
-  the policies were aligned to that matrix. Three real disagreements were fixed in the policy: I2's
-  unavailability belongs to the venue's own staff, G2's change-impact preview is the owner's too, and
-  the owner lists an event's venue requests. Role lists the policies duplicated are gone (each route's
-  `requireRole(<roles>)`, GET /users' attendee check, F2's `HISTORY_ROLES`, G2's `PREVIEWERS`).
-- **The staff console asks the policies.** `POST /api/v1/permissions/check` answers, for the verified
-  caller only, which of the screens' actions their role may take; the navigation and the route guard use
-  it, and fail closed if it can't be read. App.tsx holds no role lists.
-- **Row-level security (EN-07.2).** Migration `event/0025` enables RLS on `event.events` and
-  `event.assignments` for a new `connectsphere_request` role, with policies that state the repo's scope
-  rule in SQL. Every scoped read runs as that role with `SET LOCAL ROLE` and the claims `app.user_id` and
-  `app.access_scope` set with `set_config(…, true)` inside its transaction, which is safe through
-  Supabase's transaction pooler. The service's login role owns the tables and RLS isn't forced, so the
-  migrator, the outbox relay, the Temporal worker and the jobs read every row, as they act for the system.
-- **The generated matrix (EN-07.3).** `authorisationMatrix.test.ts` takes the routes off the router ×
-  the seven roles × a related and an unrelated record, and holds each response to the PDP's own decision
-  plus RLS. `routePermissions.unit.test.ts` fails on a route without a gate or an action no policy has.
-- **Local and CI.** `npm run cerbos:start` runs the pinned binary on `policies/` (inside WSL on Windows,
-  where Cerbos has no build) and `npm run dev` starts it. Where no PDP answers in development (Windows
-  without WSL), planning-core evaluates `policies/` itself, with one loud startup warning; production
-  (`NODE_ENV=production`) refuses that mode at startup and stays fail-closed. CI's integration job runs the PDP as a service
-  container; the Playwright stack runs the binary. Unit runs ask a double that reads the same policies,
-  held to the real PDP by `pdpDouble.test.ts`.
-- **Merged main** (U1, R1 to R4, EN-10, EN-14, EN-15, EN-17): U1's safety routes and R2's registration
-  settings are gated by policy, and the Safety Officer keeps exactly the routes main gave them.
+## Decided
+
+- **The polling relay stays the publisher in every environment.** Development's Aiven free plan has no
+  Kafka Connect. On staging and production a Free-plan Supabase project offers a replication slot only
+  over an IPv6 direct connection (the pooler cannot replicate; the IPv4 add-on needs Pro), and nobody
+  has tried that from the Oracle node. `documentation/spikes/EN-05-cdc-spike.md` has the findings with
+  their sources and what was not checked. ADR-0008 has the decision note.
+
+## Added
+
+- **A backward-compatibility check of every message's schema, on every pull request.**
+  - `contracts` generates a JSON Schema file for the CloudEvents envelope and one for each message
+    type's `data` (35 files in `backend/packages/contracts/schemas/`). A test fails when they drift from
+    the zod schemas; `npm run schemas:generate` rewrites them.
+  - `npm run schemas:compat -- --base <ref>` compares them with the files at a git ref, using the rules
+    Confluent's and Redpanda's registries use: the new schema must accept every message the old one
+    did. A keyword it does not understand is a finding, not a pass. Removing a message type is breaking.
+  - The *Message schema compatibility* CI job runs both on every pull request.
+- **Redpanda's Schema Registry is asked the same question.** The *Schema registry and CDC* CI job
+  starts a throwaway Redpanda and asks it about a table of 36 cases, and about this branch's schemas
+  against the base branch's. It agrees with the checker on 33 cases. The three where it differs
+  (it refuses a property that becomes nullable through `anyOf`; it accepts a plain string that gains a
+  `format` and a constrained property added to an open object) are recorded in `cases.ts`, and the job
+  requires both verdicts.
+- **Debezium Server as a kustomize component** (`deploy/k8s/components/cdc`), with the outbox router and
+  a Kafka sink, for the deployment to include once its checks have been made. Nothing includes it.
+  The same CI job starts it, with the component's own configuration in a hardened container, against a
+  throwaway Postgres and Redpanda, writes one message of every type (a full and a minimal shape of each, including nulls and
+  empty arrays) into the outbox tables, and requires Kafka to hold what the relay's `prepareRow`
+  produces: the same topic, key and value, in order, and nothing for an `UPDATE`. The one difference is
+  the `content-type` header, which Debezium Server can only write as a JSON string, quotes included. A
+  second job renders the component and validates it with kubeconform.
+  - The router is in the image's `lib_opt`, which the server puts on its classpath only when
+    `ENABLE_DEBEZIUM_SCRIPTING` is true, and a literal `${...}` cannot be written in its configuration.
 
 ## Not done
 
-- **The gateway (EN-12) isn't built**, so EN-07-T13 is Blocked. It would ask the same PDP.
-- **The registration and notification services** still check roles in their own code; only
-  planning-core asks the PDP.
-- **Two record-level checks stay in domain code**, because they re-check inside a transaction, where no
-  HTTP call may run: G1's `mayEditDetails` and R2's `maySetRegistration`.
-- **RLS covers the event schema** (events and assignments); booking requests, holds and equipment lines
-  are still scoped by query alone.
-- **Supabase's real pooler wasn't exercised**: EN-07-T9 proves the property it needs (nothing survives
-  the transaction on a reused connection) against the throwaway Postgres.
+- Debezium does not replace the relay, and has not run against Supabase or on the Oracle node.
+- Registering the schemas in a deployed registry (staging's Redpanda).
+- Marking an outbox row published when CDC publishes it (`published_at` stays null).
+- A JSON Schema cannot hold zod refinements or a date-time's millisecond precision, so a change to those
+  is not checked.
 
 ## Tests and cards
 
-- `tests/EN-07/` (T1 to T13) with a README mapping each criterion; traceability rows in
-  `sprint-4.csv`. Cards record Pass only from the CI run named in them.
-- Four existing tests changed, each because it asserted the role-list mechanism EN-07 removes, not a
-  behaviour: the equipment actor's two `requireRole(<roles>)` cases, F2's `HISTORY_ROLES` cases (moved to
-  `historyReaders.unit.test.ts`, now against the policy), and G2's repo-level refusal (now the route's).
+- `backend/packages/contracts/tests/compat/`: the checker (100% of `src/compat`), the command with fake
+  and with real git, the committed files, and the example-message generator.
+- `tests/EN-05/`: nine cards, T1 to T9, and the criterion map.
 
 ---
 

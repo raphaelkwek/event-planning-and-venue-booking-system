@@ -63,7 +63,8 @@ function signInAs(role: string, path: string) {
   window.location.hash = `#${path}`;
 }
 
-const navLabels = () => Array.from(document.querySelectorAll("header nav a")).map((link) => link.textContent);
+// The staff console's primary navigation (#97's shell groups it; the order is the shell's, so compare as sets).
+const navLabels = () => Array.from(document.querySelectorAll('nav[aria-label="Primary"] a')).map((link) => link.textContent ?? "").sort();
 
 describe("navigation from the policies (EN-07-T4)", () => {
   it("EN-07-T4 asks once, with the token and every screen's resource and action but no role, and offers only what is allowed", async () => {
@@ -72,7 +73,7 @@ describe("navigation from the policies (EN-07-T4)", () => {
     render(<App />);
 
     await waitFor(() => expect(navLabels()).toContain("My requests"));
-    expect(navLabels()).toEqual(["My requests", "New request", "Venues", "Notifications", "API console"]);
+    expect(navLabels()).toEqual(["API console", "My requests", "New request", "Notifications", "Venues"]);
     expect(asked).toHaveLength(1);
     expect(asked[0]!.authorization).toBe("Bearer token-1");
     expect(Object.keys(asked[0]!.body)).toEqual(["checks"]);
@@ -90,7 +91,7 @@ describe("navigation from the policies (EN-07-T4)", () => {
     signInAs("VENUE_STAFF", "/queue");
     render(<App />);
 
-    await waitFor(() => expect(navLabels()).toEqual(["Booking requests", "Hold requests", "Venues", "Notifications", "API console"]));
+    await waitFor(() => expect(navLabels()).toEqual(["API console", "Booking requests", "Hold requests", "Notifications", "Venues"]));
     await waitFor(() => expect(window.location.hash).toBe("#/console"));
     expect(screen.queryByText("Review queue")).toBeNull();
   });
@@ -102,6 +103,6 @@ describe("navigation from the policies (EN-07-T4)", () => {
 
     expect(await screen.findByText("Your permissions could not be checked")).toBeTruthy();
     expect(screen.getByText(/permission service is unavailable/)).toBeTruthy();
-    expect(navLabels()).toEqual(["Notifications", "API console"]);
+    expect(navLabels()).toEqual(["API console", "Notifications"]);
   });
 });

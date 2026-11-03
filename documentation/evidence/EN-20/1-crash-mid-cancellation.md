@@ -1,0 +1,40 @@
+# Experiment 1: a crash mid-cancellation leaves no partial release
+
+**Status:** Not run (designed). Blocked by F3 and F4.
+**Card:** EN-20-T1 · **Run:** none, not run · **Commit:** `faf5ebc` · **Date:** 2026-11-03
+
+## Hypothesis
+
+If the pod running the `CancelEvent` workflow is killed after the freeze step, the workflow resumes on another pod and the
+outcome is all or nothing: every registration of the event is Cancelled and every seat retired, or none is (ADR-0009's
+semantic lock: registration marks the registrations `CANCEL_PENDING`, the core commits the cancellation and every release in one
+transaction, registration finalises).
+
+## Injection
+
+Kill one `planning-core-worker` pod once the workflow is past the freeze step: [`deploy/chaos/01-core-pod-kill.yaml`](../../../deploy/chaos/01-core-pod-kill.yaml)
+(Chaos Mesh `PodChaos`, `pod-kill`, mode `one`). Apply it by hand when Temporal's UI shows the freeze step done.
+
+## Pass condition
+
+After the workflow finishes: the event's registrations are all `CANCELLED` and its seats all `RETIRED`, or the registrations are all
+back to `REGISTERED` and no seat was freed. Never a mixture, and no registration left `CANCEL_PENDING`.
+
+## Actual result
+
+**Not run.** The `CancelEvent` workflow and the `CANCEL_PENDING` state belong to F3 and F4, which are in pull requests #71 and #72 and are not
+on this branch, so there is nothing to kill. What exists is the manifest, which kubeconform validates against the Chaos Mesh CRDs
+(job `Manifests`, EN-20-T8); it was not applied, because the team has no staging cluster running Chaos Mesh.
+
+What the registration side already guarantees, from earlier work and not from this experiment: a cancelled event's seats are retired in one
+transaction with its registrations being Cancelled (`retireSeatsOfEvent`, R3), and a message delivered twice changes nothing (experiment 5).
+
+## Fix log
+
+None. Nothing ran, so nothing was found.
+
+## To run it
+
+1. Merge F3 and F4 and deploy to staging with Chaos Mesh installed.
+2. Register a few attendees for an event, start its cancellation, apply the manifest after the freeze step, wait for the workflow.
+3. Read the two states above and record them here with the run's Temporal workflow id.

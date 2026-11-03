@@ -537,3 +537,179 @@ jobs:
           name: traceability-matrix
           path: traceability-out/
 
+  # EN-05 (SPM-123, ADR-0008). A producer must not silently break a consumer, so
+  # a message's data may only change in a backward-compatible way: every message
+  # that was valid on the base branch must still be valid. The schemas are the
+  # JSON Schema files generated from `contracts`; the checker follows the rules
+  # Confluent's and Redpanda's registries use (backend/packages/contracts/
+  # src/compat). The registry job below asks a real Redpanda the same question.
+  schema-compat:
+    name: Message schema compatibility
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: The committed schema files are what contracts generates
+        run: npm run schemas:check
+
+      - name: Compare with the pull request's base branch
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: npm run schemas:compat -- --base "$BASE_SHA"
+
+  # EN-05 (EN-05-T9). The Debezium Server component renders into valid Kubernetes
+  # objects and is hardened and sized. It proves the manifests are well formed, not
+  # that they run on the Oracle node or reach Supabase.
+  cdc-manifests:
+    name: CDC component manifests (kustomize, kubeconform)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      KUBECONFORM_VERSION: v0.7.0
+      KUBECONFORM_SHA256: c31518ddd122663b3f3aa874cfe8178cb0988de944f29c74a0b9260920d115d3
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install kubeconform
+        run: |
+          curl -sSfL -o kubeconform.tar.gz \
+            "https://github.com/yannh/kubeconform/releases/download/${KUBECONFORM_VERSION}/kubeconform-linux-amd64.tar.gz"
+          echo "${KUBECONFORM_SHA256}  kubeconform.tar.gz" | sha256sum --check
+          tar -xzf kubeconform.tar.gz kubeconform
+
+      - name: Render the component and validate it (strict, so an unknown field fails)
+        run: |
+          kubectl kustomize deploy/k8s/test/cdc > rendered-cdc.yaml
+          ./kubeconform -strict -summary -kubernetes-version 1.33.0 rendered-cdc.yaml
+
+      - name: Check the rendered component (one replica, Recreate, hardened, no literal credentials)
+        run: python3 deploy/ci/check-cdc-rendered.py rendered-cdc.yaml
+
+  # EN-05 (EN-05-T7, EN-05-T8). Containers are allowed in CI only (ADR-0012), and
+  # these three live as long as this job and are thrown away with the runner:
+  # a Postgres with logical decoding, Redpanda (the registry and Kafka the
+  # staging cluster runs) and Debezium Server. Never the team's Supabase project.
+  #   1. Redpanda's Schema Registry is asked what the backward-compatibility
+  #      checker answers, for a table of cases and for this branch against its base.
+  #   2. Debezium Server, with the component's own application.properties and a
+  #      hardened container like the pod, must publish what the polling relay
+  #      would, for every message type.
+  cdc-and-registry:
+    name: Schema registry and CDC (Redpanda, Debezium Server)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      REDPANDA_IMAGE: docker.redpanda.com/redpandadata/redpanda:v26.2.6
+      POSTGRES_IMAGE: postgres:17
+      DEBEZIUM_IMAGE: quay.io/debezium/server:3.7.0.Final
+      DATABASE_URL: postgres://ci:ci@127.0.0.1:5432/connectsphere_ci
+      KAFKA_BROKERS: 127.0.0.1:9092
+      SCHEMA_REGISTRY_URL: http://127.0.0.1:8081
+    steps:
+      - name: Refuse any database but the runner's own
+        run: |
+          case "$DATABASE_URL" in
+            postgres://*@127.0.0.1:5432/*) echo "DATABASE_URL is the runner's throwaway Postgres." ;;
+            *) echo "::error::DATABASE_URL must point at the runner's own Postgres, never a shared database (EN-06)"; exit 1 ;;
+          esac
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Start a throwaway Postgres with logical decoding
+        run: |
+          docker run -d --name postgres --network host \
+            -e POSTGRES_USER=ci -e POSTGRES_PASSWORD=ci -e POSTGRES_DB=connectsphere_ci \
+            "$POSTGRES_IMAGE" -c wal_level=logical -c max_replication_slots=4 -c max_wal_senders=4
+          for i in $(seq 1 60); do
+            docker exec postgres pg_isready -h 127.0.0.1 -U ci -d connectsphere_ci && exit 0
+            sleep 1
+          done
+          docker logs postgres
+          exit 1
+
+      - name: Start a throwaway Redpanda (Kafka and Schema Registry)
+        run: |
+          docker run -d --name redpanda --network host "$REDPANDA_IMAGE" \
+            redpanda start --mode dev-container --smp 1 --memory 1G --reserve-memory 0M \
+            --overprovisioned --node-id 0 --check=false \
+            --kafka-addr PLAINTEXT://127.0.0.1:9092 --advertise-kafka-addr PLAINTEXT://127.0.0.1:9092 \
+            --rpc-addr 127.0.0.1:33145 --advertise-rpc-addr 127.0.0.1:33145 \
+            --schema-registry-addr 127.0.0.1:8081 \
+            --pandaproxy-addr 127.0.0.1:8082 --advertise-pandaproxy-addr 127.0.0.1:8082
+          for i in $(seq 1 60); do
+            curl -sf http://127.0.0.1:8081/subjects && echo && exit 0
+            sleep 2
+          done
+          docker logs redpanda
+          exit 1
+
+      - name: Ask Redpanda's registry about every case and about this branch
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.sha }}
+        run: npx tsx backend/scripts/schema-registry-check.ts
+
+      # While the base branch has no schema files, the line above has nothing to
+      # compare. This runs the same mechanics against the checked-out commit itself,
+      # so register and compare are exercised on the real files either way.
+      - name: Register this commit's schemas and compare them with themselves
+        env:
+          BASE_REF: HEAD
+        run: npx tsx backend/scripts/schema-registry-check.ts branch
+
+      - name: Build the database from the migrations
+        run: npm run migrate:all
+
+      - name: Start Debezium Server (the component's configuration, a hardened container)
+        run: |
+          mkdir -p "$RUNNER_TEMP/debezium-data"
+          chmod 777 "$RUNNER_TEMP/debezium-data"
+          docker run -d --name debezium --network host \
+            --user 185:185 --read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges \
+            -v "$GITHUB_WORKSPACE/deploy/k8s/components/cdc/application.properties:/debezium/config/application.properties:ro" \
+            -v "$RUNNER_TEMP/debezium-data:/debezium/data" \
+            -e CDC_DB_HOST=127.0.0.1 -e CDC_DB_USER=ci -e CDC_DB_PASSWORD=ci \
+            -e CDC_DB_NAME=connectsphere_ci -e CDC_DB_SSLMODE=disable \
+            -e KAFKA_BROKERS=127.0.0.1:9092 -e KAFKA_SECURITY_PROTOCOL=PLAINTEXT \
+            -e ENABLE_DEBEZIUM_SCRIPTING=true -e JAVA_OPTS_APPEND=-Xmx384m \
+            "$DEBEZIUM_IMAGE"
+          for i in $(seq 1 90); do
+            curl -sf http://127.0.0.1:8089/q/health/live && echo && exit 0
+            if [ -z "$(docker ps -q --filter name=debezium)" ]; then echo "::error::Debezium Server exited"; break; fi
+            sleep 2
+          done
+          docker logs debezium
+          exit 1
+
+      - name: Debezium Server must publish what the relay publishes, for every message type
+        run: npx tsx backend/scripts/cdc-parity-check.ts
+
+      - name: Container logs
+        if: always()
+        run: |
+          echo "::group::debezium"; docker logs --tail 120 debezium || true; echo "::endgroup::"
+          echo "::group::redpanda"; docker logs --tail 40 redpanda || true; echo "::endgroup::"
+          echo "::group::postgres"; docker logs --tail 40 postgres || true; echo "::endgroup::"

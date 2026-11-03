@@ -3,7 +3,8 @@
  * EN-22 — the traceability matrix: story, acceptance criterion, test, last result.
  *
  * Inputs:
- *   - documentation/traceability/sprint-N.csv  (story_id, acceptance_criterion, test_file, test_name)
+ *   - documentation/traceability/sprint-N/<STORY>.csv  (story_id, acceptance_criterion, test_file, test_name),
+ *     one file per story and sprint, so that two pull requests never add rows to the same file
  *   - test results: every vitest `--reporter=json` file, Playwright JSON report and node:test JUnit file found
  *     under the --results paths (a report that is not there is simply not read). A JUnit file names no
  *     test file, so its file name does: documentation__scripts__x.test.ts.xml is documentation/scripts/x.test.ts.
@@ -36,7 +37,7 @@ export interface CriterionRow {
   criterion: string;
   testFile: string;
   testName: string;
-  /** 1-based data row in its sprint file, header excluded. */
+  /** 1-based data row in its story's file (sprint-N/<STORY>.csv), header excluded. */
   row: number;
 }
 
@@ -128,7 +129,7 @@ export function parseCsv(text: string): string[][] {
   return rows;
 }
 
-/** Rows of one sprint file; the header row is skipped, and an exact repeat of an earlier row is dropped. */
+/** Rows of one story's file; the header row is skipped, and an exact repeat of an earlier row is dropped. */
 export function parseTraceabilityCsv(text: string, sprint: string): CriterionRow[] {
   const [, ...body] = parseCsv(text);
   return body.map(([story = "", criterion = "", testFile = "", testName = ""], index) => ({
@@ -141,11 +142,44 @@ export function parseTraceabilityCsv(text: string, sprint: string): CriterionRow
   }));
 }
 
+export const TRACEABILITY_HEADER = "story_id,acceptance_criterion,test_file,test_name";
+const SPRINT_DIR = /^sprint-(\d+)$/;
+const natural = (a: string, b: string) => a.localeCompare(b, undefined, { numeric: true });
+
+/**
+ * The traceability files, sprint by sprint and then story by story: sprint-<n>/<STORY>.csv. A
+ * sprint-<n>.csv beside them is the layout before 3 Nov 2026. It is refused rather than read or
+ * skipped, so a branch that brings one back fails loudly instead of losing or doubling rows.
+ */
+export function traceabilityFiles(dir: string): { sprint: number; story: string; path: string }[] {
+  const names = readdirSync(dir);
+  const legacy = names.filter((name) => /^sprint-\d+\.csv$/.test(name));
+  if (legacy.length > 0) throw new Error(`${legacy.join(", ")}: traceability rows now go in sprint-<n>/<STORY>.csv, one file per story`);
+  return names
+    .filter((name) => SPRINT_DIR.test(name) && statSync(join(dir, name)).isDirectory())
+    .sort(natural)
+    .flatMap((sprintDir) =>
+      readdirSync(join(dir, sprintDir))
+        .filter((name) => name.endsWith(".csv"))
+        .sort(natural)
+        .map((name) => ({ sprint: Number(SPRINT_DIR.exec(sprintDir)![1]), story: name.slice(0, -".csv".length), path: join(dir, sprintDir, name) })),
+    );
+}
+
+/** What is wrong with the files: one without the header, or a row filed under another story. */
+export function traceabilityProblems(dir: string): string[] {
+  return traceabilityFiles(dir).flatMap(({ sprint, story, path }) => {
+    const [header = [], ...body] = parseCsv(readFileSync(path, "utf8"));
+    const where = `sprint-${sprint}/${story}.csv`;
+    const misfiled = body.flatMap(([id = ""], i) => (id.trim() === story ? [] : [`${where} row ${i + 1}: a row for ${id.trim() || "no story"} belongs in sprint-${sprint}/${id.trim() || "<STORY>"}.csv`]));
+    return header.join(",") === TRACEABILITY_HEADER ? misfiled : [`${where}: the first line must be ${TRACEABILITY_HEADER}`, ...misfiled];
+  });
+}
+
 export function loadCriterionRows(dir: string): CriterionRow[] {
-  const files = readdirSync(dir).filter((name) => /^sprint-\d+\.csv$/.test(name)).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
   const seen = new Set<string>();
-  return files.flatMap((name) =>
-    parseTraceabilityCsv(readFileSync(join(dir, name), "utf8"), name.replace(/^sprint-(\d+)\.csv$/, "S$1")).filter((row) => {
+  return traceabilityFiles(dir).flatMap(({ sprint, path }) =>
+    parseTraceabilityCsv(readFileSync(path, "utf8"), `S${sprint}`).filter((row) => {
       const key = JSON.stringify([row.story, row.criterion, row.testFile, row.testName]);
       if (!row.story || seen.has(key)) return false;
       seen.add(key);

@@ -2,7 +2,7 @@ import { Router, type RequestHandler } from "express";
 import type { Sql } from "postgres";
 import { z } from "zod";
 import { EVENT_STATUS_LABELS, KAFKA_TOPICS } from "@connectsphere/contracts";
-import { listActiveCoordinators, type ActiveCoordinator } from "../../identity/index.js";
+import { findActiveCoordinator, listActiveCoordinators, type ActiveCoordinator } from "../../identity/index.js";
 import { authenticate, requireRole, type ActorRequest } from "../auth/actor.js";
 import { ASSIGNMENT_NOT_ACTIVE_COORDINATOR, canAssign, LEAD_ASSIGNMENT_RULE } from "../domain/assignment.js";
 import { writeOutbox } from "../events/outbox.js";
@@ -84,8 +84,6 @@ export function leadAssignmentsRouter(sql: Sql, limiter: RequestHandler = eventR
         fields: [{ field: "coordinatorId", message: "Choose a coordinator to assign." }],
       });
     }
-    const coordinator = (await listActiveCoordinators(sql)).find((c) => c.id === parsed.data.coordinatorId);
-    if (!coordinator) return refuse(res, 400, "NOT_AN_ACTIVE_COORDINATOR", ASSIGNMENT_NOT_ACTIVE_COORDINATOR);
 
     const outcome = await sql
       .begin(async (tx) => {
@@ -94,6 +92,9 @@ export function leadAssignmentsRouter(sql: Sql, limiter: RequestHandler = eventR
         if (!canAssign(event.status)) return { code: "NOT_ASSIGNABLE", status: event.status } as const;
         const current = await findActiveAssignment(tx, event.id);
         if (current) return { code: "ASSIGNED", coordinatorId: current.coordinatorId } as const;
+        // Checked here, with the coordinator's row share-locked, so one deactivated a moment ago is never assigned.
+        const coordinator = await findActiveCoordinator(tx, parsed.data.coordinatorId, { lock: "share" });
+        if (!coordinator) return { code: "NOT_ACTIVE_COORDINATOR" } as const;
 
         const assignment = await insertAssignment(tx, event.id, coordinator.id, LEAD_ASSIGNMENT_RULE, lead.userId);
         await raiseEventVersion(tx, event.id, lead.userId);
@@ -126,6 +127,8 @@ export function leadAssignmentsRouter(sql: Sql, limiter: RequestHandler = eventR
     switch (outcome.code) {
       case "NOT_FOUND":
         return notFound();
+      case "NOT_ACTIVE_COORDINATOR":
+        return refuse(res, 400, "NOT_AN_ACTIVE_COORDINATOR", ASSIGNMENT_NOT_ACTIVE_COORDINATOR);
       case "NOT_ASSIGNABLE":
         return refuse(res, 409, "STATUS_NOT_ASSIGNABLE", `This event is ${EVENT_STATUS_LABELS[outcome.status]} and cannot be assigned.`);
       case "ASSIGNED": {
@@ -161,9 +164,6 @@ export function leadAssignmentsRouter(sql: Sql, limiter: RequestHandler = eventR
         fields: [{ field: "coordinatorId", message: "Choose a coordinator to reassign the event to." }],
       });
     }
-    const coordinators = await listActiveCoordinators(sql);
-    const coordinator = coordinators.find((c) => c.id === parsed.data.coordinatorId);
-    if (!coordinator) return refuse(res, 400, "NOT_AN_ACTIVE_COORDINATOR", ASSIGNMENT_NOT_ACTIVE_COORDINATOR);
 
     const outcome = await sql.begin(async (tx) => {
       const event = await lockEventForAssignment(tx, req.params.id!);
@@ -171,9 +171,13 @@ export function leadAssignmentsRouter(sql: Sql, limiter: RequestHandler = eventR
       if (!canAssign(event.status)) return { code: "NOT_ASSIGNABLE", status: event.status } as const;
       const current = await findActiveAssignment(tx, event.id);
       if (!current) return { code: "UNASSIGNED" } as const;
-      if (current.coordinatorId === coordinator.id) return { code: "SAME" } as const;
+      // Checked here, with the coordinator's row share-locked, so one deactivated a moment ago is never assigned.
+      const coordinator = await findActiveCoordinator(tx, parsed.data.coordinatorId, { lock: "share" });
+      if (!coordinator) return { code: "NOT_ACTIVE_COORDINATOR" } as const;
+      if (current.coordinatorId === coordinator.id) return { code: "SAME", coordinator } as const;
 
-      await closeActiveAssignment(tx, current.id, lead.userId);
+      // The event is locked, so this only fails if something closed the assignment outside the lock: stop, store nothing.
+      if (!(await closeActiveAssignment(tx, current.id, lead.userId))) return { code: "UNASSIGNED" } as const;
       const assignment = await insertAssignment(tx, event.id, coordinator.id, LEAD_ASSIGNMENT_RULE, lead.userId);
       await raiseEventVersion(tx, event.id, lead.userId);
       await closePendingProposal(tx, event.id, lead.userId);
@@ -203,10 +207,12 @@ export function leadAssignmentsRouter(sql: Sql, limiter: RequestHandler = eventR
         return notFound();
       case "NOT_ASSIGNABLE":
         return refuse(res, 409, "STATUS_NOT_ASSIGNABLE", `This event is ${EVENT_STATUS_LABELS[outcome.status]} and cannot be assigned.`);
+      case "NOT_ACTIVE_COORDINATOR":
+        return refuse(res, 400, "NOT_AN_ACTIVE_COORDINATOR", ASSIGNMENT_NOT_ACTIVE_COORDINATOR);
       case "UNASSIGNED":
         return refuse(res, 409, "EVENT_NOT_ASSIGNED", "This event has no coordinator to replace. Assign one instead.");
       case "SAME":
-        return refuse(res, 409, "ALREADY_ASSIGNED", `This event is already assigned to ${nameOf(coordinator)}.`);
+        return refuse(res, 409, "ALREADY_ASSIGNED", `This event is already assigned to ${nameOf(outcome.coordinator)}.`);
       case "REASSIGNED":
         return res.status(201).json({
           eventId: req.params.id,

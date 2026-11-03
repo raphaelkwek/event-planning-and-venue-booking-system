@@ -67,14 +67,17 @@ export interface EventPlanningView {
 /**
  * The event, if the caller may see it under the A3 scope rule; null when it does
  * not exist or is outside the caller's scope, which the caller turns into a 404.
+ * With `lock: "share"`, called inside a transaction, the event row stays share-locked until it
+ * ends, so a status change (which locks it for update) waits for the caller's decision.
  */
 export async function findEventForPlanning(
-  sql: Sql,
+  sql: Sql | TransactionSql,
   eventId: string,
   scope: AccessScope,
-  callerId: string
+  callerId: string,
+  options: { lock?: "share" } = {}
 ): Promise<EventPlanningView | null> {
-  const event = await findEventInScope(sql, eventId, scope, callerId);
+  const event = await findEventInScope(sql, eventId, scope, callerId, options);
   if (!event) return null;
 
   return {

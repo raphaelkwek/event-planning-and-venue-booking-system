@@ -95,10 +95,28 @@ export function toFormFields(event: EventRecord): RequestFields {
   };
 }
 
-/** C3 — the caller's requests, drafts and submitted alike. */
-export function listRequests(token: string, kind?: "drafts" | "submitted") {
-  const query = kind ? `?kind=${kind}` : "";
-  return request<Paged<EventListItem>>(`${EVENT}/events${query}`, { token });
+/** The most the server sends in a page (implementation.md section 5), asked for to keep the trips few. */
+const LIST_PAGE_SIZE = 100;
+/** A stop for a server that never ends the list: 100 pages of 100 is far beyond any one organiser's requests. */
+const MAX_LIST_PAGES = 100;
+
+/**
+ * C3 — the caller's requests, drafts and submitted alike. The server sends them a page at a time
+ * (L7); the screens that show them whole get every page, followed in turn, so none changes.
+ */
+export async function listRequests(token: string, kind?: "drafts" | "submitted"): Promise<Paged<EventListItem>> {
+  const items: EventListItem[] = [];
+  let cursor: string | null = null;
+  for (let page = 0; page < MAX_LIST_PAGES; page += 1) {
+    const query = new URLSearchParams({ limit: String(LIST_PAGE_SIZE) });
+    if (kind) query.set("kind", kind);
+    if (cursor) query.set("cursor", cursor);
+    const result: Paged<EventListItem> = await request<Paged<EventListItem>>(`${EVENT}/events?${query.toString()}`, { token });
+    items.push(...result.items);
+    cursor = result.nextCursor;
+    if (!cursor) break;
+  }
+  return { items, nextCursor: cursor };
 }
 
 /** D1 — the review queue. */
@@ -197,22 +215,6 @@ export function rejectEvent(token: string, eventId: string, reason: string) {
 /** E2 — proposals for this event, pending and resolved alike. */
 export function listReassignmentProposals(token: string, eventId: string) {
   return request<Paged<ReassignmentProposal>>(`${EVENT}/events/${eventId}/reassignment-proposals`, {
-    token,
-  });
-}
-
-/** E2 — the nominee accepts, becoming the active coordinator. */
-export function acceptReassignment(token: string, eventId: string) {
-  return request<ReassignmentProposal>(`${EVENT}/events/${eventId}/reassignment-proposals/accept`, {
-    method: "POST",
-    token,
-  });
-}
-
-/** E2 — the nominee declines; the outgoing coordinator remains active. */
-export function declineReassignment(token: string, eventId: string) {
-  return request<ReassignmentProposal>(`${EVENT}/events/${eventId}/reassignment-proposals/decline`, {
-    method: "POST",
     token,
   });
 }
