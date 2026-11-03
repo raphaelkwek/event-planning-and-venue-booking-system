@@ -19,6 +19,6 @@
 |---|---|
 | Actual Result | Refused with the attendance message on Expected attendance; nothing stored. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
 | Status | Pass |
-| Remarks | Automated, browser E2E in CI (EN-14). Commit: 6080462 · Evidence: tests/e2e/b-event-requests.spec.ts › B2-T7 an expected attendance of 0 is refused, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41513983925 · Defect: — |
+| Remarks | Automated, browser E2E in CI (EN-14). Commit: b81df4f · Evidence: tests/e2e/b-event-requests.spec.ts › B2-T7 an expected attendance of 0 is refused, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41640867276 · Defect: — |
 | Executed By | Joash, via automated testing (CI) |
 | Date of Execution | 2026-11-03 |
