@@ -4,6 +4,48 @@
 
 ---
 
+# EN-21: software supply chain security (SPM-139)
+
+**Timestamp:** 2026-11-03T04:25+08:00 (SGT)
+**Author:** Joash
+**Scope:** .github/workflows/supply-chain.yml, .github/workflows/deploy.yml, .github/actions/sign-and-attest,
+.github/scripts, .trivyignore.yaml, .zap/rules.tsv, the five Dockerfiles, documentation/supply-chain.md.
+
+**Deploy:** nothing to deploy. The first push to main signs the images in GHCR for the first time;
+after it, follow documentation/supply-chain.md to verify one.
+
+## Added
+
+- A Supply chain workflow (its own file, not a required check): a CycloneDX SBOM for the npm workspace
+  (from package-lock.json, because `npm sbom` rejects the Atlaskit and React peer ranges) and for each
+  image; Trivy over the repository (dependencies, Dockerfiles, deploy/ Kubernetes and Terraform, secrets)
+  and over each image, failing on CRITICAL with a fix and reporting HIGH, with SARIF uploaded to code
+  scanning; a keyless cosign demonstration on pull requests (sign-blob of each SBOM, and sign, attest and
+  verify of an image in a registry that lives for the job); a passive ZAP baseline scan of the web and
+  API images on a throwaway Postgres; and a job that fails on an action not pinned by commit SHA.
+- On a push to main, deploy.yml signs each image it pushes to GHCR keylessly, attests its SBOM and
+  verifies both, through the same composite action the pull request runs.
+- .trivyignore.yaml (two EKS findings and one Temporal crate, each with a reason and an expiry) and
+  .zap/rules.tsv (the FAIL guards and the ignores, each with a reason).
+- documentation/supply-chain.md (how to verify a signature and an SBOM), documentation/evidence/EN-21/
+  (Trivy triage and ZAP findings), tests/EN-21/.
+
+## Changed
+
+- The images move to Node 20.20.2 on Alpine 3.23 or Debian bookworm, and nginx-unprivileged 1.31.7, by
+  digest, and upgrade the packages published since their base was built. The three service images drop
+  npm, npx, corepack and yarn; the migrate image keeps npm at a pinned 11.21.1. The first Trivy run found
+  CRITICAL findings with a fix in all five; after these changes only an upstream crate remains.
+
+## Not done / limits
+
+- Nothing is signed in GHCR until main runs deploy.yml; EN-21-T4 and T8 stay Not Executed until then.
+- The ZAP scan is unauthenticated and passive. The Medium and Low items it found are listed, not fixed.
+- The lockfile findings (body-parser, source-map-js and others) are listed, not fixed: a lockfile bump
+  touches every package. Node 20 is end of life and the images stay on it until the repository moves.
+
+---
+
 # Venue audit fixes: buffers against blocks, hold expiry fallback, venue-staff scope, stale flags
 
 **Timestamp:** 2026-11-03T03:55+08:00 (SGT)
@@ -53,6 +95,9 @@ query that finds them. Schedule `npm run jobs:expire-holds` (every minute is eno
 - S3's own flags (`period_mismatch`, `unsuitable`, equipment's review flag) are still only set,
   never re-assessed; that is the change module's and is left to its owner.
 - L6 (audit): another venue's Venue Staff still get 403 on approve or reject; M1-T11 asserts it.
+
+---
+
 
 ---
 
@@ -268,6 +313,9 @@ deploy/ (k8s, terraform, argocd, ci), .github/workflows/deploy.yml, documentatio
   http_request_duration_seconds. The kind demonstration used a stand-in service, not planning-core.
 - kind has no Kafka, Supabase or Temporal: those paths are not exercised, and the worker runs at zero
   replicas there.
+
+---
+
 
 ---
 
@@ -487,6 +535,9 @@ Supabase Auth and assign the role; the CI seed adds `safety@connectsphere.test` 
     check then failed on main and on every branch.
   - **The fix:** the date is now far in the future, with a comment saying why it must stay there.
     Nothing in the app changes.
+
+---
+
 
 ---
 
