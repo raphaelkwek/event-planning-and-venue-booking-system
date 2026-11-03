@@ -1,9 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 
 /**
- * A3 — a coordinator's list contains every event, whoever it is assigned to,
- * with the events assigned to them distinguishable from the rest.
+ * A3 — the events assigned to a coordinator are marked as theirs. A4 (CR-05) —
+ * the All events screen lists only what the server returns, which for a
+ * coordinator is the events assigned to them, so it offers no filter.
  */
 
 const ME = "00000000-0000-0000-0000-000000000002";
@@ -62,13 +63,9 @@ vi.mock("../src/api/events.js", async () => {
       items: [record("1", "Mine to review", ME), record("2", "Someone else's", OTHER)],
       nextCursor: null,
     })),
+    // A4: the server lists a coordinator's own events only.
     listRequests: vi.fn(async () => ({
-      items: [
-        listItem("1", "Mine to review", ME),
-        listItem("2", "Someone else's", OTHER),
-        listItem("3", "Mine and approved", ME, "APPROVED"),
-        listItem("4", "Nobody's yet", null),
-      ],
+      items: [listItem("1", "Mine to review", ME), listItem("3", "Mine and approved", ME, "APPROVED")],
       nextCursor: null,
     })),
   };
@@ -120,29 +117,16 @@ describe("the All events screen", () => {
     expect(await screen.findByRole("link", { name: "All events" })).toBeTruthy();
   });
 
-  it("lists every event whoever it is assigned to, marking the coordinator's own", async () => {
+  it("lists the coordinator's events, each marked as theirs, with no filter to apply (A4)", async () => {
     signedIn("EVENT_COORDINATOR", "#/events");
     render(<App />);
     await screen.findByText("Mine and approved");
 
-    for (const name of ["Mine to review", "Someone else's", "Mine and approved", "Nobody's yet"]) {
-      expect(screen.getByText(name)).toBeTruthy();
+    for (const name of ["Mine to review", "Mine and approved"]) {
+      expect(within(rowFor(name)).getByText("You")).toBeTruthy();
     }
-    expect(within(rowFor("Mine and approved")).getByText("You")).toBeTruthy();
-    expect(within(rowFor("Nobody's yet")).getByText("Awaiting assignment")).toBeTruthy();
-  });
-
-  it("can be filtered to the events assigned to the signed-in coordinator", async () => {
-    signedIn("EVENT_COORDINATOR", "#/events");
-    render(<App />);
-    await screen.findByText("Mine and approved");
-
-    fireEvent.click(screen.getByRole("button", { name: "Assigned to me" }));
-
-    expect(screen.getByText("Mine to review")).toBeTruthy();
-    expect(screen.getByText("Mine and approved")).toBeTruthy();
-    expect(screen.queryByText("Someone else's")).toBeNull();
-    expect(screen.queryByText("Nobody's yet")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Assigned to me" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Every event" })).toBeNull();
   });
 
   it("is not offered to organisers", async () => {

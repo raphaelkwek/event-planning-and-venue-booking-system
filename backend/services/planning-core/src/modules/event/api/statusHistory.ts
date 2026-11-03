@@ -5,10 +5,9 @@ import { HISTORY_ROLES, toHistoryEntry, toStatusView } from "../domain/statusHis
 import { findEventInScope } from "../repo/events.js";
 import { listStatusHistory } from "../repo/statusHistory.js";
 import { eventRateLimiter } from "./eventRateLimiter.js";
-import { refuse } from "./errors.js";
+import { eventNotFound } from "./errors.js";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const NOT_FOUND = "No event with that reference is available to you.";
 
 /**
  * F2 — an event's current status and its status history.
@@ -23,12 +22,12 @@ export function statusHistoryRouter(sql: Sql, limiter: RequestHandler = eventRat
   const router = Router();
 
   router.get("/api/v1/events/:id/status", limiter, ...authenticate, async (req: ActorRequest, res) => {
-    const { userId, scope } = req.actor!;
+    const { userId, role, scope } = req.actor!;
     const event = UUID.test(req.params.id)
       ? await findEventInScope(sql, req.params.id, scope, userId)
       : null;
     if (!event) {
-      refuse(res, 404, "EVENT_NOT_FOUND", NOT_FOUND);
+      eventNotFound(res, role);
       return;
     }
     res.status(200).json(toStatusView(event));
@@ -40,12 +39,12 @@ export function statusHistoryRouter(sql: Sql, limiter: RequestHandler = eventRat
     ...authenticate,
     requireRole(...HISTORY_ROLES),
     async (req: ActorRequest, res) => {
-      const { userId, scope } = req.actor!;
+      const { userId, role, scope } = req.actor!;
       const event = UUID.test(req.params.id)
         ? await findEventInScope(sql, req.params.id, scope, userId)
         : null;
       if (!event) {
-        refuse(res, 404, "EVENT_NOT_FOUND", NOT_FOUND);
+        eventNotFound(res, role);
         return;
       }
 

@@ -10,6 +10,7 @@ import { writeOutbox } from "../events/outbox.js";
 import { reserveLine } from "../repo/reservations.js";
 import { findLine } from "../repo/requestLines.js";
 import { refuse } from "./errors.js";
+import { EventCancelledError, refuseIfCancelled } from "./eventGuard.js";
 import { equipmentRateLimiter } from "./limiter.js";
 import { present } from "./presentLine.js";
 
@@ -44,6 +45,7 @@ export function reservationsRouter(sql: Sql, limiter: RequestHandler = equipment
         let outcome;
         try {
           outcome = await sql.begin(async (tx) => {
+            await refuseIfCancelled(tx, event.id, req.actor!.userId);
             const result = await reserveLine(tx, id, checked.body, req.actor!);
             if (result.ok && event.assignedCoordinatorId) {
               await writeOutbox(
@@ -60,6 +62,7 @@ export function reservationsRouter(sql: Sql, limiter: RequestHandler = equipment
             return result;
           });
         } catch (error) {
+          if (error instanceof EventCancelledError) return refuse(res, 409, "EVENT_CANCELLED", error.message);
           if (!(error instanceof InsufficientEquipmentError)) throw error;
           return refuse(res, 409, "INSUFFICIENT_EQUIPMENT", error.message, undefined, {
             available: error.available,

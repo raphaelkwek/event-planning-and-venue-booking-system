@@ -29,7 +29,6 @@ Role names come from `backend/packages/contracts` (`ROLES`). `contracts/tests/po
 | `pendingNomineeId` | event | `nominated_coordinator` (E2) |
 | `registrationOpen` | event | attendees viewing an event (R1) |
 | `venueStaffIds` | venue, booking_request | `venue_manager` (M1, M2, N2) |
-| `heldById` | booking_request | releasing a hold (L3) |
 | `attendeeId` | registration | `registrant` (R3, R4, R6) |
 
 ## A2: function to rule
@@ -38,25 +37,25 @@ Role names come from `backend/packages/contracts` (`ROLES`). `contracts/tests/po
 |---|---|---|---|
 | B1, C1 | Create a request or draft | event `create` | Event Organiser |
 | C2 | Edit or submit a draft | event `update_draft`, `submit_draft` | its owner |
-| C3, D1, F2 | Open an event | event `view` | its owner; Coordinators, Venue Staff, Tech Support (rows per A3); Attendees only if open for registration (R1) |
-| F2, D2, E2 | History, clarifications, proposals | event `view_history`, `view_clarifications`, `view_reassignments` | its owner (history, clarifications); Coordinators |
-| D1, D2, D4, D5 | Review, ask, approve, reject | event `review`, `request_clarification`, `approve`, `reject` | Event Coordinator |
+| C3, D1, F2 | Open an event | event `view` | its owner; the assigned coordinator (A4); Venue Staff, Tech Support (rows per A3); the Lead (E3, E5); Attendees only if open for registration (R1) |
+| F2, D2, E2 | History, clarifications, proposals | event `view_history`, `view_clarifications`, `view_reassignments` | its owner (history, clarifications); the assigned coordinator (A4) |
+| D1, D2, D4, D5 | Review, ask, approve, reject | event `review`, `request_clarification`, `approve`, `reject` | the assigned coordinator (A4) |
 | D3 | Answer a clarification | event `respond_to_clarification` | its owner |
 | E2 | Propose reassignment | event `propose_reassignment` | the assigned coordinator only |
 | E2 | Accept or decline | event `respond_to_reassignment` | the nominated coordinator only |
 | F3 | Cancel | event `cancel` | owner or assigned coordinator |
 | F5, S2 | Confirm; decide a change | event `confirm`, `decide_change` | the assigned coordinator |
 | G1 | Edit non-significant details | event `update_details` | owner or assigned coordinator |
-| G2, S3 | Impact of a change | event `preview_change_impact`, `reconsider_arrangements` | Event Coordinator |
+| G2, S3 | Impact of a change | event `preview_change_impact`, `reconsider_arrangements` | the assigned coordinator (A4) |
 | S1 | Request a change | event `request_change` | its owner |
 | H1 | Maintain venues | venue `create`, `update`, `deactivate` | Venue Staff |
 | H1, H2, I1 | Read venues and the calendar | venue `view`, `view_calendar` | every internal role, never Attendees |
 | I2 | Record unavailability | venue `record_unavailability`, `remove_unavailability` | Venue Staff |
 | J1, J2, K1, K2 | Search and assess venues | venue `search`, `check_suitability`, `justify_unsuitable` | Event Coordinator |
 | L1, L2, L3 | Request, withdraw, hold | booking_request `create`, `withdraw`, `place_hold` | the assigned coordinator |
-| L3 | Release a hold | booking_request `release_hold` | the coordinator who holds it |
-| A3, M1, M2, N2 | See and decide bookings | booking_request `view`, `approve`, `reject`, `view_conflicts` | Venue Staff of that venue (`view` also for Coordinators) |
-| O1 | Record equipment lines | equipment_request_line `create`, `update`, `remove` | the assigned coordinator |
+| L3 | Release a hold | booking_request `release_hold` | the assigned coordinator (A4), the new one after a reassignment |
+| A3, M1, M2, N2 | See and decide bookings | booking_request `view`, `approve`, `reject`, `view_conflicts` | Venue Staff of that venue (`view` also for the assigned coordinator, A4) |
+| O1 | Record equipment lines | equipment_request_line `create`, `update`, `remove`, `view` | the assigned coordinator (A4) |
 | O2, P1, Q1, Q2 | Arrange equipment | equipment_request_line `update_status`, `check_availability`, `reserve`, `release` | Tech Support |
 | P2 | Maintain inventory | equipment_type `create`, `update`, `record_unavailability` | Tech Support only |
 | R2, R6 | Register, join the waitlist | registration `create`, `join_waitlist` | Attendee |

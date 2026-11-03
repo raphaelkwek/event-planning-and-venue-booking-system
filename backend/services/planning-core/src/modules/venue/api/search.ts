@@ -2,6 +2,7 @@ import { Router, type NextFunction, type RequestHandler, type Response } from "e
 import { rateLimit } from "express-rate-limit";
 import type { Sql } from "postgres";
 import { findEventForPlanning } from "../../event/index.js";
+import { notInScopeMessage } from "../../identity/index.js";
 import { authenticate, requireRole, type ActorRequest } from "../auth/actor.js";
 import { resolveEventsScope } from "../auth/identity.js";
 import { prefillFromEvent } from "../domain/searchPrefill.js";
@@ -95,7 +96,7 @@ export function searchRouter(sql: Sql, limiter: RequestHandler = searchRateLimit
       }
       const event = UUID.test(eventId) ? await findEventForPlanning(sql, eventId, resolveEventsScope(req.actor!.role, req.actor!.userId), req.actor!.userId) : null;
       if (!event) {
-        refuse(res, 404, "EVENT_NOT_FOUND", "No event with that id exists.");
+        refuse(res, 404, "EVENT_NOT_FOUND", notInScopeMessage(req.actor!.role, "No event with that id exists."));
         return;
       }
       const { filters, unmatchedAccessibility } = prefillFromEvent(event, await listCatalogueOptions(sql));

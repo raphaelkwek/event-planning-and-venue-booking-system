@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveAccessScope } from "../../../src/modules/identity/domain/accessScope.js";
+import { notInScopeMessage, resolveAccessScope } from "../../../src/modules/identity/domain/accessScope.js";
 
 const USER_ID = "11111111-0000-0000-0000-000000000001";
 
@@ -11,8 +11,12 @@ describe("resolveAccessScope", () => {
     });
   });
 
-  it("gives a Coordinator every event, not filtered by assignment (AC2)", () => {
-    expect(resolveAccessScope("EVENT_COORDINATOR", USER_ID, "events")).toEqual({ scopeType: "ALL" });
+  // A3's AC2 gave a coordinator every event; A4 (CR-05) supersedes it.
+  it("scopes a Coordinator's events to the ones assigned to them (A4)", () => {
+    expect(resolveAccessScope("EVENT_COORDINATOR", USER_ID, "events")).toEqual({
+      scopeType: "ASSIGNED_TO_USER",
+      userId: USER_ID,
+    });
   });
 
   it("scopes Venue Staff's venue bookings to their own venues (AC3)", () => {
@@ -56,5 +60,27 @@ describe("resolveAccessScope for the Event Coordinator Lead (E5)", () => {
   it("gives the Lead no venue bookings or equipment requests", () => {
     expect(resolveAccessScope("EVENT_COORDINATOR_LEAD", USER_ID, "venue_bookings")).toEqual({ scopeType: "NONE" });
     expect(resolveAccessScope("EVENT_COORDINATOR_LEAD", USER_ID, "equipment_requests")).toEqual({ scopeType: "NONE" });
+  });
+});
+
+describe("notInScopeMessage (A4)", () => {
+  const OTHERWISE = "No event with that reference is available to you.";
+
+  it("tells a coordinator the event is not assigned to them", () => {
+    expect(notInScopeMessage("EVENT_COORDINATOR", OTHERWISE)).toBe("No event with that reference is assigned to you.");
+  });
+
+  it("tells a coordinator a record is not on an event assigned to them", () => {
+    expect(notInScopeMessage("EVENT_COORDINATOR", OTHERWISE, "booking request")).toBe(
+      "No booking request with that id is on an event assigned to you."
+    );
+    expect(notInScopeMessage("EVENT_COORDINATOR", OTHERWISE, "change request")).toBe(
+      "No change request with that id is on an event assigned to you."
+    );
+  });
+
+  it("keeps the module's own wording for every other role, the Lead included", () => {
+    expect(notInScopeMessage("EVENT_ORGANISER", OTHERWISE)).toBe(OTHERWISE);
+    expect(notInScopeMessage("EVENT_COORDINATOR_LEAD", OTHERWISE, "hold")).toBe(OTHERWISE);
   });
 });
