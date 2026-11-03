@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import Button from "@atlaskit/button/new";
-import Lozenge from "@atlaskit/lozenge";
+import Lozenge from "../shared/Lozenge.js";
 import SectionMessage from "@atlaskit/section-message";
 import TextArea from "@atlaskit/textarea";
 import Textfield from "@atlaskit/textfield";

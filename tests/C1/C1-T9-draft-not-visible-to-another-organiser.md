@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | "My requests" did not list the other organiser's draft, and opening it directly was refused with "DRAFT_NOT_FOUNDNo draft with that reference is available to you.HTTP 404 · correlation 0254e108-b528-4988-801c-b79ccb6e82d7" with every form field empty. |
+| Actual Result | Organiser Two's list did not show the draft and its direct link gave no data. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
 | Status | Pass |
-| Remarks | Commit: b0ef6ee (working tree modified) · Evidence: tests/C1/evidence/C1-T9.png · Defect: — |
-| Executed By | Shawmya |
-| Date of Execution | 2026-09-20 |
+| Remarks | Automated, browser E2E in CI (EN-14). Commit: 6080462 · Evidence: tests/e2e/b-event-requests.spec.ts › C1-T9 a draft is not visible to another organiser, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41513983925 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

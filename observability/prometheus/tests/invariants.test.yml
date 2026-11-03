@@ -1,0 +1,72 @@
+# EN-17: promtool unit tests for the over-admission, invariant-check and target-down alerts.
+rule_files:
+  - ../rules/recording.yml
+  - ../rules/alerts.yml
+evaluation_interval: 1m
+tests:
+  # EN-17 over-admission: zero never fires, the first non-zero sample does
+  - interval: 1m
+    input_series:
+      - series: 'registration_over_admission_seats{service="registration"}'
+        values: '0 0 0 1 1 1'
+    alert_rule_test:
+      - eval_time: 2m
+        alertname: RegistrationOverAdmission
+        exp_alerts: []
+      - eval_time: 3m
+        alertname: RegistrationOverAdmission
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              slo: over_admission
+              service: registration
+            exp_annotations:
+              summary: "Registration found seat rows that break the one-seat-one-holder rule."
+              description: "Objective: zero over-admission. registration_over_admission_seats is above 0, which the schema's constraints should make impossible, so a constraint was dropped, left NOT VALID or bypassed."
+              runbook_url: "https://github.com/raphaelkwek/event-planning-and-venue-booking-system/blob/main/documentation/runbooks/RegistrationOverAdmission.md"
+              dashboard: "observability/grafana/dashboards/slo-over-admission.json"
+  # EN-17 invariant check: only a check that cannot run for 10 minutes fires
+  - interval: 1m
+    input_series:
+      - series: 'registration_invariant_check_success{service="registration"}'
+        values: '1 1 0 0 0 0 0 0 0 0 0 0 0 0 0'
+    alert_rule_test:
+      - eval_time: 8m
+        alertname: RegistrationInvariantCheckFailing
+        exp_alerts: []
+      - eval_time: 13m
+        alertname: RegistrationInvariantCheckFailing
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              slo: over_admission
+              service: registration
+            exp_annotations:
+              summary: "The over-admission check has not been able to run for 10 minutes."
+              description: "registration_invariant_check_success is 0: the zero over-admission SLI cannot be read, which is not the same as it being zero. Usually the registration database is unreachable."
+              runbook_url: "https://github.com/raphaelkwek/event-planning-and-venue-booking-system/blob/main/documentation/runbooks/RegistrationInvariantCheckFailing.md"
+              dashboard: "observability/grafana/dashboards/slo-over-admission.json"
+  # EN-17 target down: a scrape that fails for 5 minutes fires; a healthy target does not
+  - interval: 1m
+    input_series:
+      - series: 'up{job="connectsphere-registration",instance="registration:8092"}'
+        values: '1 1 0 0 0 0 0 0 0'
+      - series: 'up{job="connectsphere-notification",instance="notification:8091"}'
+        values: '1 1 1 1 1 1 1 1 1'
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: ServiceMetricsMissing
+        exp_alerts: []
+      - eval_time: 8m
+        alertname: ServiceMetricsMissing
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              slo: all
+              job: connectsphere-registration
+              instance: registration:8092
+            exp_annotations:
+              summary: "Prometheus cannot scrape a ConnectSphere service."
+              description: "up is 0 for a ConnectSphere job for 5 minutes, so every SLO for that service is blind. The job label says which service."
+              runbook_url: "https://github.com/raphaelkwek/event-planning-and-venue-booking-system/blob/main/documentation/runbooks/ServiceMetricsMissing.md"
+              dashboard: "observability/grafana/dashboards/slo-availability.json"

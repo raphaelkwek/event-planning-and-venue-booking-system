@@ -19,6 +19,6 @@
 |---|---|
 | Actual Result |  |
 | Status | Not Executed |
-| Remarks | Proven by frontend/tests/attendeeRegistration.test.tsx › R4-T11 keeping the place closes the dialog and changes nothing (against a stubbed API), passed in CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41513315276 (commit d43fab5). UI walk-through in Chrome pending at the sprint review. |
+| Remarks | Proven by frontend/tests/attendeeRegistration.test.tsx › R4-T11 keeping the place closes the dialog and changes nothing (against a stubbed API), passed in CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41602701323 (commit 4f9ab08). UI walk-through in Chrome pending at the sprint review. |
 | Executed By |  |
 | Date of Execution |  |

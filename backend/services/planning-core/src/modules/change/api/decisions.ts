@@ -5,6 +5,7 @@ import { notInScopeMessage } from "../../identity/index.js";
 import { authenticate, requireRole, type ActorRequest } from "../auth/actor.js";
 import { alreadyDecidedMessage, validateDecisionBody } from "../domain/changeRequests.js";
 import type { ChangeImpact } from "../domain/changeImpact.js";
+import { isEnabled } from "../../../shared/flags/index.js";
 import { decideChangeRequest } from "../repo/decisions.js";
 import { refuse } from "./errors.js";
 import { changeRateLimiter } from "./limiter.js";
@@ -16,6 +17,7 @@ import { changeRateLimiter } from "./limiter.js";
 const COORDINATOR = "EVENT_COORDINATOR";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const PATH = "/api/v1/change-requests/:id/decision";
+const APPROVAL_PAUSED = "Approving change requests is switched off right now (feature flag change-approval). Nothing was changed. You can still reject the request.";
 
 /**
  * S3 — what an approval's response says about the arrangements (AC1–AC4): each confirmed booking,
@@ -79,6 +81,13 @@ export function decisionsRouter(sql: Sql, limiter: RequestHandler = changeRateLi
       const body = validateDecisionBody(req.body);
       if (!body.ok) {
         return void refuse(res, 400, "VALIDATION_FAILED", "The decision could not be recorded. Check the highlighted fields.", body.fields);
+      }
+
+      // EN-15: with change-approval off, approving is refused here. Rejecting stays open: it changes
+      // nothing on the event, and a coordinator must still be able to clear a request while
+      // approvals are paused (S2's story gives a pending request only these two exits).
+      if (body.decision === "APPROVE" && !(await isEnabled("change-approval", { targetingKey: actor.userId, role: actor.role }))) {
+        return void refuse(res, 403, "FEATURE_DISABLED", APPROVAL_PAUSED, undefined, { flag: "change-approval" });
       }
 
       const correlationId = req.header("x-correlation-id") ?? null;

@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | The review screen showed Purpose: Share faculty research; Description: A one-day symposium for the school of computing.; Proposed start: 12/2/2026, 2:00:00 PM; Proposed end: 12/2/2026, 6:00:00 PM; Expected attendance: 150; Accessibility needs: Step-free access to the stage; Venue requirements: Room layout: TheatreFacilities: Projector, Microphone; Equipment requirements: 4 × Wireless microphone. The only input on the screen is the clarification box — no request field can be edited. |
+| Actual Result | The review screen showed every submitted field, including requirements, with no editable field. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
 | Status | Pass |
-| Remarks | Commit: b0ef6ee (working tree modified) · Evidence: tests/D1/evidence/D1-T4.png · Defect: — |
-| Executed By | Chai Yichen |
-| Date of Execution | 2026-09-20 |
+| Remarks | Automated, browser E2E in CI (EN-14). Commit: 6080462 · Evidence: tests/e2e/d-review.spec.ts › D1-T4 opening a request shows its full submitted content, read-only, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41513983925 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

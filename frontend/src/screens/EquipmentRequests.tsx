@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Button from "@atlaskit/button/new";
 import DynamicTable from "@atlaskit/dynamic-table";
-import Lozenge from "@atlaskit/lozenge";
+import Lozenge from "../shared/Lozenge.js";
 import SectionMessage from "@atlaskit/section-message";
 import Textfield from "@atlaskit/textfield";
 import { useSignedIn } from "../auth/SessionContext.js";
