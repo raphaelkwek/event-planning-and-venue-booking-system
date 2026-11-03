@@ -106,14 +106,19 @@ jobs:
 
       # One scan, written as JSON; the table and SARIF are converted from it. Dependencies come
       # from package-lock.json (production only), IaC from the Dockerfiles, deploy/k8s and
-      # deploy/terraform, and secrets from every file in the tree. HIGH and CRITICAL are reported
+      # deploy/terraform, and secrets from every file in the tree, except deploy/k8s/test: those manifests are
+      # kind fixtures that exist only inside a CI job and are never rendered into an overlay. HIGH and CRITICAL are reported
       # and do not fail the step.
       - name: Scan (reports HIGH and CRITICAL)
         run: |
           trivy fs . --scanners vuln,misconfig,secret --severity HIGH,CRITICAL \
-            --ignorefile .trivyignore.yaml --skip-dirs node_modules --format json -o trivy-fs.json
+            --ignorefile .trivyignore.yaml --skip-dirs node_modules --skip-dirs deploy/k8s/test --format json -o trivy-fs.json
           trivy convert --format table --severity HIGH,CRITICAL trivy-fs.json | tee trivy-fs.txt
-          trivy convert --format sarif trivy-fs.json -o trivy-fs.sarif
+          # Code scanning fails a pull request's check on any HIGH alert, so on a pull request the SARIF
+          # carries what the gate below fails on (CRITICAL with a fix). On main it carries HIGH too, which
+          # keeps the backlog in the Security tab; documentation/evidence/EN-21/trivy.md records it.
+          if [ "$GITHUB_EVENT_NAME" = pull_request ]; then sarif_flags="--severity CRITICAL --ignore-unfixed"; else sarif_flags="--severity HIGH,CRITICAL"; fi
+          trivy fs . --scanners vuln,misconfig,secret $sarif_flags --ignorefile .trivyignore.yaml             --skip-dirs node_modules --skip-dirs deploy/k8s/test --skip-db-update --format sarif -o trivy-fs.sarif
           {
             echo '### Trivy filesystem scan (HIGH and CRITICAL)'
             echo
@@ -158,7 +163,7 @@ jobs:
       - name: Gate (fails on CRITICAL with a fix available)
         run: |
           trivy fs . --scanners vuln,misconfig,secret --severity CRITICAL --ignore-unfixed \
-            --ignorefile .trivyignore.yaml --skip-dirs node_modules --skip-db-update \
+            --ignorefile .trivyignore.yaml --skip-dirs node_modules --skip-dirs deploy/k8s/test --skip-db-update \
             --format table --exit-code 1
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
@@ -260,7 +265,9 @@ jobs:
           trivy image "${IMAGE}:ci" --scanners vuln,secret --severity HIGH,CRITICAL \
             --ignorefile .trivyignore.yaml --format json -o trivy-image-${{ matrix.name }}.json
           trivy convert --format table --severity HIGH,CRITICAL trivy-image-${{ matrix.name }}.json | tee trivy-image-${{ matrix.name }}.txt
-          trivy convert --format sarif trivy-image-${{ matrix.name }}.json -o trivy-image-${{ matrix.name }}.sarif
+          # As for the filesystem scan: the pull request's SARIF matches the gate; main's carries HIGH too.
+          if [ "$GITHUB_EVENT_NAME" = pull_request ]; then sarif_flags="--severity CRITICAL --ignore-unfixed"; else sarif_flags="--severity HIGH,CRITICAL"; fi
+          trivy image "${IMAGE}:ci" --scanners vuln,secret $sarif_flags --ignorefile .trivyignore.yaml             --skip-db-update --format sarif -o trivy-image-${{ matrix.name }}.sarif
           node -e '
             const r = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
             let high = 0, critical = 0, fixable = 0;
