@@ -17,6 +17,7 @@
     "migrate:event": "tsx backend/scripts/migrate.ts event",
     "migrate:notification": "tsx backend/scripts/migrate.ts notification",
     "migrate:registration": "tsx backend/scripts/migrate.ts registration",
+    "event-store:verify": "tsx backend/services/planning-core/scripts/verify-event-store.ts",
     "seed:auth": "tsx backend/services/planning-core/migrations/identity/seed/seed-auth-users.ts",
     "test-cases:reset": "tsx tests/fixtures/reset-test-data.ts",
     "test-cases:run": "playwright test --config tests/playwright.config.ts",
