@@ -18,8 +18,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result |  |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By |  |
-| Date of Execution |  |
+| Actual Result | With no endpoint no exporter was created, no HTTP request was made and nothing was printed, while trace ids still existed; OTEL_SDK_DISABLED=true installed nothing, even with an endpoint; a blank endpoint counted as unset; shutdown gave up on a collector that never answered. |
+| Status | Pass |
+| Remarks | Automated (unit tests, CI) · Commit: f06a99244e8fbf21796f2af5b1a7865fbc4d1277 · Evidence: backend/packages/telemetry/tests/env.test.ts › EN-08-T8 exports nothing, and attempts nothing, when no endpoint is set; backend/packages/telemetry/tests/env.test.ts › EN-08-T8 OTEL_SDK_DISABLED switches everything off, whatever else is set; backend/packages/telemetry/tests/sdk.test.ts › EN-08-T8 exports nothing, opens no connection and prints nothing, yet still makes trace ids; backend/packages/telemetry/tests/sdk.test.ts › EN-08-T8 installs nothing at all with OTEL_SDK_DISABLED=true, even with an endpoint; backend/packages/telemetry/tests/sdk.test.ts › EN-08-T8 gives up on a collector that never answers, so a pod's shutdown is not held past its grace period; backend/packages/telemetry/tests/sdk.test.ts › EN-08-T8 names the service from the caller when OTEL_SERVICE_NAME is not set; backend/services/planning-core/tests/shared/outboxRelayTrace.unit.test.ts › EN-08-T3 gives a row written with no active span a new valid traceparent, so the relay still publishes one, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41638243222 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

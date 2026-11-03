@@ -18,8 +18,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result |  |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By |  |
-| Date of Execution |  |
+| Actual Result | A request to GET /things/:id made a SERVER span named `GET /things/:id` with `http.route` set, and the query's span was its child in the same trace; a health probe made no trace; an unmatched path kept the plain name `GET` and no `http.route`. The same on the real approve route (T11). |
+| Status | Pass |
+| Remarks | Automated (unit tests, CI) · Commit: f06a99244e8fbf21796f2af5b1a7865fbc4d1277 · Evidence: backend/packages/telemetry/tests/http.test.ts › EN-08-T1 makes a server span named after its route pattern, with the database query as its child; backend/packages/telemetry/tests/http.test.ts › EN-08-T1 makes no trace for a health probe; backend/packages/telemetry/tests/http.test.ts › EN-08-T1 leaves an unmatched route's span with its plain name, so a scan cannot create span names, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41638243222 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

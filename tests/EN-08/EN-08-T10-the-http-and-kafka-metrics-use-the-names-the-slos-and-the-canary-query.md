@@ -18,8 +18,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result |  |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By |  |
-| Date of Execution |  |
+| Actual Result | http_request_duration_seconds (unit s, buckets including 0.4 and 0.8) and http_requests_total were recorded by service, method, route pattern and status class; the Kafka consumer recorded processing time by outcome and lag from the broker timestamp; the retry worker's lag counted from when the retry was due; the metrics reached the OTLP receiver. |
+| Status | Pass |
+| Remarks | Automated (unit tests, CI) · Commit: f06a99244e8fbf21796f2af5b1a7865fbc4d1277 · Evidence: backend/packages/telemetry/tests/http.test.ts › EN-08-T10 record http_request_duration_seconds and http_requests_total with EN-17's labels; backend/packages/telemetry/tests/http.test.ts › EN-08-T10 count request durations in buckets that include 0.4 s and 0.8 s, the objectives; backend/packages/telemetry/tests/kafka.test.ts › EN-08-T10 records processing time by outcome and lag from the broker's timestamp; backend/services/notification/tests/consumer/consumeTraced.unit.test.ts › EN-08-T10 counts the retry worker's lag from when the retry was due, not from when it was queued, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41638243222 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

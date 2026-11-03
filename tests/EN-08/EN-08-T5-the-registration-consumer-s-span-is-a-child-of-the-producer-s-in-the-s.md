@@ -18,8 +18,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result |  |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By |  |
-| Date of Execution |  |
+| Actual Result | The registration seat-builder's CONSUMER span (and the event-listings consumer's) was a child of the producer span in the header, in the approval's trace, and continued from the CloudEvent's traceparent when the header was absent. |
+| Status | Pass |
+| Remarks | Automated (unit tests, CI) · Commit: f06a99244e8fbf21796f2af5b1a7865fbc4d1277 · Evidence: backend/services/registration/tests/consumer/consumeTraced.unit.test.ts › EN-08-T5 handles an approval in a CONSUMER span that is a child of the producer's, in the approval's trace; backend/services/registration/tests/consumer/consumeTraced.unit.test.ts › EN-08-T5 continues from the CloudEvent's own traceparent when the message has no header; backend/services/registration/tests/consumer/consumeTraced.unit.test.ts › EN-08-T5 handles a message in the event-listings consumer under a CONSUMER span as well, in the message's trace, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41638243222 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |
