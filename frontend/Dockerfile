@@ -22,7 +22,11 @@ COPY backend/packages/kafka/package.json backend/packages/kafka/
 COPY backend/services/planning-core/package.json backend/services/planning-core/
 COPY backend/services/registration/package.json backend/services/registration/
 COPY backend/services/notification/package.json backend/services/notification/
-RUN --mount=type=cache,target=/root/.npm     npm ci --ignore-scripts --no-audit --no-fund -w @connectsphere/web
+RUN --mount=type=cache,target=/root/.npm     npm ci --ignore-scripts --no-audit --no-fund -w @connectsphere/web -w @connectsphere/contracts
+# The web app imports @connectsphere/contracts (G2), which exports TypeScript source that Vite bundles.
+COPY backend/tsconfig.base.json backend/
+COPY backend/packages/contracts/tsconfig.json backend/packages/contracts/
+COPY backend/packages/contracts/src backend/packages/contracts/src
 COPY frontend frontend
 ARG SUPABASE_URL=""
 ARG SUPABASE_ANON_KEY=""
