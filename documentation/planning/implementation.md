@@ -8,7 +8,7 @@
 > |---|---|---|---|
 > | §4.6 | ~~Registration capacity counters~~ Rewritten for seat rows on 30 Oct 2026 (EN-13) | ADR-0005 (seat rows) | EN-13, done |
 > | §6 | Authorisation | ADR-0010 (Cerbos and RLS) | EN-07 |
-> | §9 | Logs written to a Kafka topic per service | ADR-0013 (OpenTelemetry, Grafana Loki) | EN-08 |
+> | §9 | ~~Logs written to a Kafka topic per service~~ Rewritten for OpenTelemetry on 3 Nov 2026 (EN-08) | ADR-0013 (OpenTelemetry, Grafana) | EN-08, done |
 >
 > §2 was rewritten for ADR-0004 on 2 Oct 2026, when EN-01 merged Identity and Event into `planning-core`. §3 was rewritten for ADR-0008 on 3 Oct 2026 (EN-04.1).
 
@@ -738,20 +738,32 @@ Note how D5-T3 and D5-T4 sit either side of the criterion's "at least one non-wh
 
 ## 9. Logging and observability
 
-Structured JSON to stdout **and** to `connectsphere.logs.<service>.v1`:
+Rewritten on 3 Nov 2026 for ADR-0013 (EN-08). How to read a trace and how to point the services at Grafana Cloud is in `documentation/observability.md`.
+
+Logs are structured JSON on stdout, one line per entry. There is no log topic in Kafka: traces and metrics go to Grafana over OTLP, and a line is joined to its trace by id.
 
 ```jsonc
-{ "ts": "...", "level": "info|warn|error", "service": "event-service",
-  "correlationId": "...", "userId": "... | null", "route": "POST /api/v1/events",
-  "durationMs": 42, "outcome": "success|refused|error", "code": "BOOKING_SLOT_CONFLICT | null",
-  "message": "..." }
+{ "ts": "...", "level": "info|warn|error", "service": "planning-core",
+  "correlationId": "...", "traceId": "...", "spanId": "...", "userId": "... | null",
+  "route": "POST /api/v1/events", "durationMs": 42, "outcome": "success|refused|error",
+  "code": "BOOKING_SLOT_CONFLICT | null", "message": "..." }
 ```
 
-Log every refusal with its `code` — refusals are correct behaviour under CP and we need to show they happen deliberately. **Never log** JWTs, passwords, or full attendee records. `correlationId` must appear in the HTTP response, the log line, and any message envelope produced during that request; that chain is what makes a Week 13 trace demonstration possible.
+Log every refusal with its `code` — refusals are correct behaviour under CP and we need to show they happen deliberately. **Never log** JWTs, passwords, or full attendee records.
+
+**The correlation id is the trace id.** `correlationId` is the id of the W3C trace the request or consumed message belongs to (32 hex characters), and the services fill it from the active span, so a log line written inside one carries `traceId`, `spanId` and the same `correlationId` without the code passing them. It appears in:
+
+- the HTTP response, as `x-correlation-id`, and in the error envelope's `correlationId`;
+- every log line written inside the request or the message's handling;
+- the `correlationid` attribute of every message envelope the request produces, and the `traceparent` attribute and Kafka header of each message, which let the next service continue the trace.
+
+A request that arrives with a `traceparent` continues that trace. A caller's own `x-correlation-id` is kept as the span attribute `connectsphere.client_correlation_id`; it is no longer the correlation id. With the SDK off (`OTEL_SDK_DISABLED=true`) the caller's id, or a UUID, is used as before.
+
+Every service starts the SDK in its `telemetry.ts` before anything else is imported, wraps its postgres.js pool with `instrumentSql`, and mounts `httpTelemetry` first. A new Kafka producer or consumer wraps its calls in `withProducerSpans` or `withConsumerSpan` (all from `@connectsphere/telemetry`), or the trace stops at it. Metrics: `http_request_duration_seconds` and `http_requests_total` by `service`, `method`, `route` (the pattern, never the URL) and `status` (`2xx`/`4xx`/`5xx`), the names EN-17's SLOs query.
 
 ## 10. Configuration and deployment
 
-All config from environment variables, documented in `.env.example`. No secrets in the repo, no `localhost` in code. Required per service: `PORT`, `DATABASE_URL`, `DATABASE_SCHEMA`, `KAFKA_BROKERS`, `KAFKA_SASL_MECHANISM`, `KAFKA_SASL_USERNAME`, `KAFKA_SASL_PASSWORD`, `KAFKA_SSL_CA_PATH` (Aiven only), `KAFKA_GROUP_SUFFIX` (laptops only), `NOTIFICATION_PORT` and, if planning-core runs elsewhere, `PLANNING_CORE_URL` (notification only), `SUPABASE_URL`, `SUPABASE_JWKS_URL`, `SERVICE_NAME`, `LOG_LEVEL`, `INTERNAL_TOKEN_SECRET`.
+All config from environment variables, documented in `.env.example`. No secrets in the repo, no `localhost` in code. Required per service: `PORT`, `DATABASE_URL`, `DATABASE_SCHEMA`, `KAFKA_BROKERS`, `KAFKA_SASL_MECHANISM`, `KAFKA_SASL_USERNAME`, `KAFKA_SASL_PASSWORD`, `KAFKA_SSL_CA_PATH` (Aiven only), `KAFKA_GROUP_SUFFIX` (laptops only), `NOTIFICATION_PORT` and, if planning-core runs elsewhere, `PLANNING_CORE_URL` (notification only), `SUPABASE_URL`, `SUPABASE_JWKS_URL`, `SERVICE_NAME`, `LOG_LEVEL`, `INTERNAL_TOKEN_SECRET`. Telemetry takes only the standard OpenTelemetry names, all optional: `OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_EXPORTER_OTLP_HEADERS`, `OTEL_RESOURCE_ATTRIBUTES` (`deployment.environment`), `OTEL_SERVICE_NAME`. Unset, nothing is exported (`.env.example`, §9).
 
 Cloud-readiness rules to follow now so the move is boring later: services are stateless (no in-process cache, no local disk writes, sessions in the token); health endpoints `/healthz` (liveness) and `/readyz` (readiness: it requires the database and reports whether the Kafka broker is reachable, without requiring it, because the outbox holds messages while Kafka is down; §3.4); graceful shutdown drains in-flight requests, lets the outbox relay finish its batch, and commits Kafka offsets; every service can run from its build (`npm run build`, then `npm run start -w <service>`), and `npm run dev` is for local work only. There is no Docker (ADR-0003): a deployment platform builds each service from its `package.json`.
 

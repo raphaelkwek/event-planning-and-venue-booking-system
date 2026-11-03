@@ -1,3 +1,4 @@
+import { telemetry } from "./shared/telemetry.js";
 import { app } from "./app.js";
 import { initFlags, shutdownFlags } from "./shared/flags/index.js";
 import { config } from "./shared/config.js";
@@ -48,6 +49,7 @@ async function shutdown(signal: string) {
   await shutdownFlags();
   await publisher?.disconnect();
   await sql.end({ timeout: 5 });
+  await telemetry.shutdown();
   process.exit(0);
 }
 

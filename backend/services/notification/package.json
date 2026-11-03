@@ -15,6 +15,7 @@
   "dependencies": {
     "@connectsphere/contracts": "*",
     "@connectsphere/kafka": "*",
+    "@connectsphere/telemetry": "*",
     "@connectsphere/observability": "*",
     "express": "^4.19.2",
     "express-rate-limit": "^8.7.1",
