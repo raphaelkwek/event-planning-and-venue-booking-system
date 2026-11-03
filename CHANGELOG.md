@@ -29,6 +29,45 @@ the same transaction; the two should merge together (Gate B: "cancellation is on
 
 ---
 
+# G2: preview which arrangements a pending change would affect (SPM-31)
+
+**Timestamp:** 2026-10-29T12:00+08:00 (SGT)
+**Author:** Raphael, via Claude
+**Scope:** planning-core (change, venue, equipment modules), web app. No migrations; needs S3's
+(venue/0019, equipment/0009).
+
+## Added
+
+- `GET /api/v1/change-requests/{id}/impact`: for a pending request, the bookings, holds, booking
+  requests and reservations approval would flag, with S3's reasons, read without locks in a
+  read-only transaction, so viewing alters nothing. 409 for a decided request; 404 for anyone who
+  can't see the request.
+- The coordinator's review page shows "If this change is approved" above Approve and Reject.
+
+## Changed
+
+- The web app takes the significant fields from `@connectsphere/contracts` instead of its own
+  copies, so G1, S1 and S2 use one list (G2 AC1). The web bundle grows by about 66 KB (zod).
+
+---
+
+# fix: the race test's holds no longer expire in the past
+
+**Timestamp:** 2026-11-03T00:00+08:00 (SGT)
+**Author:** Joash
+**Scope:** planning-core tests only (`tests/race/invariants.test.ts`).
+
+## Fixed
+
+- **The race test now builds its periods on 4 Nov 2030.** It used to build them on 2 Nov 2026.
+  - **The break:** L3-T17 places holds that expire at 09:00 on that day. From 09:00 SGT on 2 Nov 2026,
+    the expiry was in the past, so placeHold refused all 50 attempts. The required Integration
+    check then failed on main and on every branch.
+  - **The fix:** the date is now far in the future, with a comment saying why it must stay there.
+    Nothing in the app changes.
+
+---
+
 # S3: flag the arrangements an approved change affects (SPM-59)
 
 **Timestamp:** 2026-10-28T12:00+08:00 (SGT)
