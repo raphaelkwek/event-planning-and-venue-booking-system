@@ -178,6 +178,20 @@ const PERIOD = { startsAt: EVENT_START, endsAt: EVENT_END };
  */
 const OVERRIDES: Record<string, Partial<Recipe>> = {
   "PUT /api/v1/event-drafts/{id}": { body: () => ({ name: "Matrix draft, saved" }) },
+  // H1, H3: a whole venue record, so the venue's staff check (not validation) decides another venue's update.
+  "PUT /api/v1/venues/{id}": {
+    body: () => ({
+      name: `Matrix Hall ${randomUUID().slice(0, 8)}`,
+      building: "Matrix Building",
+      maxCapacity: 200,
+      layouts: [{ name: "Theatre", capacity: 200 }],
+      facilities: [],
+      accessibilityFeatures: [],
+      operatingHours: Object.fromEntries(
+        ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"].map((day) => [day, { opensAt: "00:00", closesAt: "23:59" }])
+      ),
+    }),
+  },
   "POST /api/v1/events/{id}/reject": { body: () => ({ reason: "Matrix rejection" }) },
   "POST /api/v1/events/{id}/clarifications": { body: () => ({ message: "Matrix question" }) },
   "POST /api/v1/events/{id}/clarifications/respond": { body: () => ({ message: "Matrix answer" }) },
