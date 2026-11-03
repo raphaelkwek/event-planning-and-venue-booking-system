@@ -26,7 +26,8 @@ export type AccountKey =
   | "techsupport"
   | "attendee"
   | "deactivated"
-  | "lead";
+  | "lead"
+  | "safety";
 
 const n = (i: number) => String(i).padStart(12, "0");
 
@@ -52,4 +53,5 @@ export const ACCOUNTS: Record<AccountKey, SeededAccount> = {
   organiser2: account("organiser2", 7, "Organiser Two", "Event Organiser", "EVENT_ORGANISER"),
   coordinator2: account("coordinator2", 8, "Coordinator Two", "Event Coordinator", "EVENT_COORDINATOR"),
   lead: account("lead", 9, "Lead One", "Event Coordinator Lead", "EVENT_COORDINATOR_LEAD"),
+  safety: account("safety", 10, "Safety Officer One", "Safety Officer", "SAFETY_OFFICER"),
 };
