@@ -42,7 +42,7 @@ describe("event.listing-changed", () => {
       update event.events set registration_required = true, registration_opens_at = '2030-01-01T01:00:00Z',
         registration_closes_at = '2030-01-31T10:00:00Z' where id = ${id}`;
 
-    await sql.begin((tx) => transitionEvent(tx, id, "APPROVE_SAFETY", coordinator, { correlationId: "corr-r1" }));
+    await sql.begin((tx) => transitionEvent(tx, id, "MARK_CONFIRMED", coordinator, { correlationId: "corr-r1" }));
 
     const [only, ...rest] = await listings(id);
     expect(rest).toEqual([]);

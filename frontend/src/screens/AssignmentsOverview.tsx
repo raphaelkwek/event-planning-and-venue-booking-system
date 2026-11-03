@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import Lozenge from "@atlaskit/lozenge";
+import Lozenge from "../shared/Lozenge.js";
 import { useSignedIn } from "../auth/SessionContext.js";
 import { listAssignments, type Coordinator, type OverviewEvent } from "../api/assignments.js";
 import { STATUS_APPEARANCE, STATUS_LABELS } from "../shared/status.js";

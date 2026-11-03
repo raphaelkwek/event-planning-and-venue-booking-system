@@ -19,6 +19,6 @@
 |---|---|
 | Actual Result |  |
 | Status | Not Executed |
-| Remarks | Proven by backend/services/planning-core/tests/event/api/registrationSettings.test.ts › R2-T11 R4-T8 the owner sets the window and the deadline, with history and the listing message, and frontend/tests/registrationSettings.test.tsx, passed in CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41513315276 (commit d43fab5). UI walk-through in Chrome pending at the sprint review. |
+| Remarks | Proven by backend/services/planning-core/tests/event/api/registrationSettings.test.ts › R2-T11 R4-T8 the owner sets the window and the deadline, with history and the listing message, and frontend/tests/registrationSettings.test.tsx, passed in CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41602701323 (commit 4f9ab08). UI walk-through in Chrome pending at the sprint review. |
 | Executed By |  |
 | Date of Execution |  |

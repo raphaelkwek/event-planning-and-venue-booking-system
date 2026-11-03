@@ -33,3 +33,6 @@ principals:
   lead:                 # an Event Coordinator Lead (E3 to E5); coordinates no event
     id: lead-1
     roles: [EVENT_COORDINATOR_LEAD]
+  safety_officer:       # U1 (CR-06): records the safety decision; coordinates no event
+    id: so-1
+    roles: [SAFETY_OFFICER]

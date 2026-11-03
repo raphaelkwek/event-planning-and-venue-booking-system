@@ -94,7 +94,8 @@ export function Login() {
                     background: "none",
                     border: "none",
                     padding: 0,
-                    color: "#0C66E4",
+                    // #0055CC, not #0C66E4: on the information panel #0C66E4 is below WCAG AA contrast (EN-14 axe).
+                    color: "#0055CC",
                     cursor: "pointer",
                     textDecoration: "underline",
                   }}

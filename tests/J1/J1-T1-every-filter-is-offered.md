@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result |  |
-| Status | Not Executed |
-| Remarks | Not recorded: the form fields (From, To, Minimum capacity, Building, Layout, Facilities, Accessibility) are on screen, and no integration test checks them; the API tests check the venue list only. UI walk-through in Chrome pending at the sprint review |
-| Executed By |  |
-| Date of Execution |  |
+| Actual Result | Every filter control was present; with none chosen each active test venue was listed once and the inactive one was not. (The FX-SEARCH venues were created through the API.) Run on CI's throwaway stack, with unique names in place of the card's literal names. |
+| Status | Pass |
+| Remarks | Automated, browser E2E in CI (EN-14). Commit: 6080462 · Evidence: tests/e2e/h-venues.spec.ts › J1-T1 the search offers every filter, and with none chosen lists the active venues, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41513983925 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

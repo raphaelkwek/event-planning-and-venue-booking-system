@@ -1,5 +1,6 @@
 import type { Sql } from "postgres";
 import { deadLetterTopic, parseCloudEvent, retryTopic } from "@connectsphere/contracts";
+import { recordVisibilityLag } from "../metrics.js";
 import { notificationsFor, type NewNotification } from "../domain/recipients.js";
 import {
   ATTEMPT_HEADER,
@@ -65,7 +66,9 @@ export async function handleMessage(message: IncomingMessage, deps: HandlerDeps)
 
   try {
     const stored = await store(deps.sql, event.id, event.time, notifications);
-    return stored ? { outcome: "stored", notifications: notifications.length } : { outcome: "duplicate" };
+    if (!stored) return { outcome: "duplicate" };
+    recordVisibilityLag(event.time, (deps.now ?? Date.now)());
+    return { outcome: "stored", notifications: notifications.length };
   } catch (error) {
     const attempt = attemptOf(message.headers) + 1;
     if (attempt > MAX_RETRIES) {

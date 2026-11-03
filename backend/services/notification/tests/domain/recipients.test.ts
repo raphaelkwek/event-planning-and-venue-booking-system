@@ -783,6 +783,52 @@ describe("notificationsFor: the registration messages (R2 to R4)", () => {
   });
 });
 
+describe("U1: the Safety Officer's decision", () => {
+  const safetyOfficer = "00000000-0000-0000-0000-000000000010";
+  const decided = (decision: string, extra: Record<string, unknown> = {}) =>
+    notificationsFor(
+      message("event.safety-decision-recorded", {
+        ownerId: organiser,
+        coordinatorId: coordinator,
+        decision,
+        reason: "Move the chairs away from the east exit",
+        decidedBy: safetyOfficer,
+        decidedAt: at,
+        flaggedBookingReferences: [],
+        flaggedEquipment: [],
+        ...extra,
+      }),
+    );
+
+  it("tells the assigned coordinator and the owner of an approval, once each, and nobody else", () => {
+    const notes = decided("APPROVE", { reason: null });
+    expect(notes.map((note) => note.recipientUserId)).toEqual([coordinator, organiser]);
+    expect(notes[0]!.message).toBe(
+      "The Safety Officer approved the safety arrangements for EVT-2026-0042 “Freshmen Orientation”. It stays in Safety Review until its coordinator marks it Confirmed.",
+    );
+    expect(notes.every((note) => note.notificationType === "event.safety-decision-recorded" && note.eventId === eventId)).toBe(true);
+  });
+
+  it("gives the reason and the flagged arrangements of a request for changes", () => {
+    const [note] = decided("REQUEST_CHANGES", { flaggedBookingReferences: ["VB-000001"], flaggedEquipment: ["Folding Chairs × 40"] });
+    expect(note!.message).toBe(
+      "The Safety Officer requested changes to the safety arrangements for EVT-2026-0042 “Freshmen Orientation”. It is back in Planning. Reason: Move the chairs away from the east exit. Flagged for review: VB-000001, Folding Chairs × 40.",
+    );
+  });
+
+  it("describes a rejection as of the arrangement as a whole, leaving the arrangements in place", () => {
+    const [note] = decided("REJECT", { reason: "Unsafe crowd flow." });
+    expect(note!.message).toBe(
+      "The Safety Officer rejected the safety arrangement for EVT-2026-0042 “Freshmen Orientation”. It is back in Planning, with its venue and equipment arrangements in place to be re-evaluated. Reason: Unsafe crowd flow.",
+    );
+  });
+
+  it("tells a coordinator who also owns the event once, and skips a missing coordinator", () => {
+    expect(decided("APPROVE", { coordinatorId: organiser }).map((note) => note.recipientUserId)).toEqual([organiser]);
+    expect(decided("APPROVE", { coordinatorId: null }).map((note) => note.recipientUserId)).toEqual([organiser]);
+  });
+});
+
 describe("event.cancelled (F3 AC6)", () => {
   const venueStaff = "00000000-0000-0000-0000-000000000005";
   const otherVenueStaff = "00000000-0000-0000-0000-000000000006";

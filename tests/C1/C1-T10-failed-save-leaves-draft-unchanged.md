@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | Refused with "Event name is required.". Last saved stayed Sun Sep 20 2026 15:26:10 GMT+0800 (Singapore Standard Time) (row: —Original nameDraft9/20/2026, 3:26:10 PM——Open draft) and reopening the draft showed "Original name" / "Original purpose". |
+| Actual Result | After a refused save the stored draft and its last-saved time were unchanged. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
 | Status | Pass |
-| Remarks | Commit: b0ef6ee (working tree modified) · Evidence: tests/C1/evidence/C1-T10.png · Defect: — |
-| Executed By | Shawmya |
-| Date of Execution | 2026-09-20 |
+| Remarks | Automated, browser E2E in CI (EN-14). Commit: 6080462 · Evidence: tests/e2e/b-event-requests.spec.ts › C1-T10 a failed save leaves the previously saved draft unchanged, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41513983925 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

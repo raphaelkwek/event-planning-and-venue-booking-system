@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result |  |
-| Status | Not Executed |
-| Remarks | Automated test written: backend/services/registration/tests/api/r2Cards.test.ts › R2-T10 refuses a registration a millisecond after closing, naming the window, storing nothing (API level); not yet run: CI's integration job stops at planning-core's unrelated L3-T17 date failure (fixed by PR #82) before it reaches the registration step (commit d43fab5). Becomes Pass when that step runs green. |
-| Executed By |  |
-| Date of Execution |  |
+| Actual Result | At 2026-12-10T10:00:00.001Z: 422 REGISTRATION_OUTSIDE_WINDOW, "Registration for … opened on Tuesday 1 December 2026, 09:00 and closed on Thursday 10 December 2026, 18:00, so you can no longer register." No registration, no message, free seats unchanged (3). |
+| Status | Pass |
+| Remarks | Automated (API level) · Commit: 4f9ab08 · Evidence: backend/services/registration/tests/api/r2Cards.test.ts › R2-T10 refuses a registration a millisecond after closing, naming the window, storing nothing, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41602701323 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

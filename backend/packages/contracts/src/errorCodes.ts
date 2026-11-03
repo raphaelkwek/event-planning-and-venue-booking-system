@@ -44,6 +44,7 @@ export const ERROR_CODES = [
   "CHANGE_REQUEST_NOT_FOUND",
   "CHANGE_REQUEST_ALREADY_DECIDED",
   "CHANGE_REQUEST_NO_LONGER_VALID",
+  "FEATURE_DISABLED",
   "EVENT_NOT_BOOKABLE",
   "VENUE_INACTIVE",
   "BOOKING_REQUEST_DUPLICATE",
@@ -81,6 +82,10 @@ export const ERROR_CODES = [
   "WAITING_ROOM_NOT_REQUIRED",
   "WAITING_ROOM_UNAVAILABLE",
   "WAITING_ROOM_ENTRY_NOT_FOUND",
+  // U1: the Safety Officer's decision, and the coordinator's Mark Confirmed that only a passed check allows.
+  "SAFETY_CHECK_NOT_PASSED",
+  "SAFETY_DECISION_ALREADY_RECORDED",
+  "ARRANGEMENT_FLAGS_OUTSTANDING",
   // F3: a cancelled event refuses new equipment; a cancellation that fails changes nothing.
   "EVENT_CANCELLED",
   "CANCELLATION_FAILED",

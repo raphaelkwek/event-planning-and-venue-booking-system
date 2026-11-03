@@ -8,6 +8,8 @@ import { logger } from "./logger.js";
 import { supabaseAuthenticator } from "./api/identity.js";
 import { registrationRouter } from "./api/routes.js";
 import { waitingRoomRouter } from "./api/waitingRoom.js";
+import { createServiceMetrics } from "@connectsphere/observability";
+import { registerOverAdmissionGauges } from "./overAdmission.js";
 
 /**
  * The registration service's HTTP side: health (EN-13), and the attendee API
@@ -15,6 +17,14 @@ import { waitingRoomRouter } from "./api/waitingRoom.js";
  */
 export const app = express();
 if (config.trustProxyHops > 0) app.set("trust proxy", config.trustProxyHops);
+
+// EN-17: HTTP timings and the zero-over-admission gauge. /metrics is
+// rate-limited, and off in production unless METRICS_TOKEN is set.
+const metrics = createServiceMetrics({ service: "registration", token: process.env.METRICS_TOKEN });
+registerOverAdmissionGauges(metrics.registry, sql);
+app.use(metrics.middleware);
+app.use(metrics.router);
+
 app.use(express.json());
 
 // The correlation id travels in the response, the log line and any message the request writes (§9).

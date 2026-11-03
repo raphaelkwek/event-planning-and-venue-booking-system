@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | VALIDATION_FAILED showed “Registration closing must be no later than the event start.”; no event row was created. |
+| Actual Result | Refused with the registration-closing message on its field; nothing stored. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
 | Status | Pass |
-| Remarks | Commit: b0ef6ee · Evidence: tests/B2/evidence/B2-T13-2026-09-20.png · Defect: — |
-| Executed By | Joash Lau Rong Wei |
-| Date of Execution | 2026-09-20 |
+| Remarks | Automated, browser E2E in CI (EN-14). Commit: 6080462 · Evidence: tests/e2e/b-event-requests.spec.ts › B2-T13 registration closing one minute after the event start is refused, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41513983925 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |
