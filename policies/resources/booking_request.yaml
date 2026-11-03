@@ -5,8 +5,10 @@ resourcePolicy:
   resource: booking_request
   importDerivedRoles: [connectsphere]
   rules:
-    - name: L1-L2-L3-only-the-assigned-coordinator-books
-      actions: [create, withdraw, request_hold, convert_hold]
+    # A4: the event's assigned coordinator, and nobody else, books, holds and releases
+    # for it. After a reassignment that is the new coordinator, whoever held the slot.
+    - name: L1-L2-L3-A4-only-the-assigned-coordinator-books
+      actions: [create, withdraw, request_hold, convert_hold, release_hold, view]
       effect: EFFECT_ALLOW
       derivedRoles: [assigned_coordinator]
 
@@ -16,19 +18,6 @@ resourcePolicy:
       actions: [place_hold]
       effect: EFFECT_ALLOW
       derivedRoles: [venue_manager]
-
-    - name: L3-the-holding-coordinator-releases-the-hold
-      actions: [release_hold]
-      effect: EFFECT_ALLOW
-      roles: [EVENT_COORDINATOR]
-      condition:
-        match:
-          expr: request.resource.attr.heldById == request.principal.id
-
-    - name: A3-coordinators-see-booking-requests
-      actions: [view]
-      effect: EFFECT_ALLOW
-      roles: [EVENT_COORDINATOR]
 
     - name: A3-M1-M2-N2-venue-staff-act-on-their-venues
       actions: [view, approve, reject, view_conflicts]

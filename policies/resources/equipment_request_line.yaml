@@ -5,15 +5,16 @@ resourcePolicy:
   resource: equipment_request_line
   importDerivedRoles: [connectsphere]
   rules:
-    - name: O1-the-assigned-coordinator-records-equipment
-      actions: [create, update, remove]
+    # A4: only the assigned coordinator records equipment for an event, or sees its lines.
+    - name: O1-A4-the-assigned-coordinator-records-equipment
+      actions: [create, update, remove, view]
       effect: EFFECT_ALLOW
       derivedRoles: [assigned_coordinator]
 
-    - name: A3-coordinators-and-tech-support-see-requests
+    - name: A3-tech-support-see-requests
       actions: [view]
       effect: EFFECT_ALLOW
-      roles: [EVENT_COORDINATOR, TECH_SUPPORT_STAFF]
+      roles: [TECH_SUPPORT_STAFF]
 
     - name: O2-P1-Q1-Q2-tech-support-arrange-equipment
       actions: [update_status, check_availability, reserve, release]

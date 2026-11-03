@@ -379,7 +379,8 @@ describe("S3 cards: reconsidering the arrangements an approved change affects", 
     expect(refused.body.error.code).toBe("ARRANGEMENTS_NOT_READY");
   });
 
-  it("S3-T8 the owner, the coordinator and an Event Coordinator see the flags and another organiser gets 404", async () => {
+  // A4 supersedes S3 AC8's "and Event Coordinators": a coordinator not assigned to the event sees none of it.
+  it("S3-T8 the owner and the assigned coordinator see the flags; another organiser and another coordinator get 404", async () => {
     const fx = await fixture(DATE_MOVED);
     expect((await decide(fx.cr)).status).toBe(200);
     const expected = sorted([
@@ -388,7 +389,7 @@ describe("S3 cards: reconsidering the arrangements an approved change affects", 
       reservationFlag(fx, reservationMovedReason),
     ]);
 
-    for (const signIn of [asO, asC, asC2]) {
+    for (const signIn of [asO, asC]) {
       signIn();
       const response = await readFlags(fx.event.id);
       expect(response.status).toBe(200);
@@ -402,12 +403,21 @@ describe("S3 cards: reconsidering the arrangements an approved change affects", 
     expect(JSON.stringify(other.body)).not.toContain(fx.event.id);
     expect(JSON.stringify(other.body)).not.toContain(fx.event.reference);
 
+    asC2();
+    const notAssigned = await readFlags(fx.event.id);
+    expect(notAssigned.status).toBe(404);
+    expect(notAssigned.body.error).toMatchObject({
+      code: "EVENT_NOT_FOUND",
+      message: "No event with that reference is assigned to you.",
+    });
+
     asC();
     const unknown = await readFlags(randomUUID());
     expect(unknown.status).toBe(404);
-    // Each response has its own correlation id, so compare the code and message.
-    const otherError = { code: other.body.error.code, message: other.body.error.message };
-    expect(unknown.body.error).toMatchObject(otherError);
+    // Each response has its own correlation id, so compare the code and message. A coordinator
+    // gets A4's wording, the same for an unknown event as for one not assigned to them.
+    const notAssignedError = { code: notAssigned.body.error.code, message: notAssigned.body.error.message };
+    expect(unknown.body.error).toMatchObject(notAssignedError);
   });
 
   it("S3-T9 F5 confirmation is refused, naming each flag", async () => {

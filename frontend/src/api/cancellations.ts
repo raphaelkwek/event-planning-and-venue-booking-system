@@ -15,9 +15,18 @@ export interface CancelledEvent {
   cancelledAt: string;
 }
 
-/** F3 — the owner or the assigned coordinator cancels the event, with a reason. */
+/** F4 — what the cancellation released, by reference. `registrations` is 0 until the registration service exists. */
+export interface ReleasedOnCancellation {
+  bookings: string[];
+  holds: string[];
+  requests: string[];
+  reservations: { reservationId: string; equipmentTypeName: string; reservedQuantity: number }[];
+  registrations: number;
+}
+
+/** F3 — the owner or the assigned coordinator cancels the event, with a reason; F4 releases what it holds. */
 export function cancelEvent(token: string, eventId: string, reason: string) {
-  return request<{ event: CancelledEvent; closedChangeRequest: ChangeRequest | null }>(`${EVENT}/events/${eventId}/cancellation`, {
+  return request<{ event: CancelledEvent; closedChangeRequest: ChangeRequest | null; released: ReleasedOnCancellation }>(`${EVENT}/events/${eventId}/cancellation`, {
     method: "POST",
     token,
     body: { reason },
