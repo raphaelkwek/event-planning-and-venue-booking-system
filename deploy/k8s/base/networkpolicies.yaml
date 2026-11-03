@@ -1,0 +1,141 @@
+# Default deny in both directions, then explicit allows (EN-10). Needs a CNI
+# that enforces NetworkPolicy (EKS: the VPC CNI's network policy agent, or
+# Calico/Cilium).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+---
+# Every pod resolves names through cluster DNS.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns
+spec:
+  podSelector: {}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - { protocol: UDP, port: 53 }
+        - { protocol: TCP, port: 53 }
+---
+# The hosted dependencies: Supabase (HTTPS, and the pooler on 6543), Kafka (SASL over
+# TLS on 9092-9096), Temporal Cloud (gRPC on 7233 and 443). Private ranges and the
+# cloud metadata address are excluded so a compromised pod cannot reach the cluster
+# network or the instance credentials through this rule.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-hosted-dependencies
+spec:
+  podSelector:
+    matchExpressions:
+      - key: app.kubernetes.io/name
+        operator: In
+        values: [planning-core, planning-core-worker, registration, notification, migrate]
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except: [10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 169.254.0.0/16]
+      ports:
+        - { protocol: TCP, port: 443 }
+        - { protocol: TCP, port: 5432 }
+        - { protocol: TCP, port: 6543 }
+        - { protocol: TCP, port: 7233 }
+        - { protocol: TCP, port: 9092 }
+        - { protocol: TCP, port: 9093 }
+        - { protocol: TCP, port: 9094 }
+        - { protocol: TCP, port: 9095 }
+        - { protocol: TCP, port: 9096 }
+---
+# notification asks planning-core who a token belongs to.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-notification-to-planning-core
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: notification
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: planning-core
+      ports:
+        - { protocol: TCP, port: 8090 }
+---
+# The ingress controller reaches the three public workloads. The namespace name is
+# ingress-nginx, the chart's default.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-from-ingress-controller
+spec:
+  podSelector:
+    matchExpressions:
+      - key: app.kubernetes.io/name
+        operator: In
+        values: [web, planning-core, notification, registration]
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+      ports:
+        - { protocol: TCP, port: 8080 }
+        - { protocol: TCP, port: 8090 }
+        - { protocol: TCP, port: 8091 }
+        - { protocol: TCP, port: 8092 }
+---
+# planning-core also takes calls from notification.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-planning-core-from-notification
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: planning-core
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: notification
+      ports:
+        - { protocol: TCP, port: 8090 }
+---
+# Prometheus (EN-17) scrapes /metrics from the services' own port, from the
+# monitoring namespace. Argo Rollouts' analysis queries Prometheus, not the pods.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-prometheus-scrape
+spec:
+  podSelector:
+    matchExpressions:
+      - key: app.kubernetes.io/name
+        operator: In
+        values: [planning-core, registration, notification]
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+      ports:
+        - { protocol: TCP, port: 8090 }
+        - { protocol: TCP, port: 8091 }
+        - { protocol: TCP, port: 8092 }

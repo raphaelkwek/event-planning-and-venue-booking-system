@@ -1,0 +1,45 @@
+# CI only. A throwaway Postgres for the kind smoke deploy, in its own namespace so the
+# connectsphere namespaces stay under the restricted Pod Security Standard. Its
+# credentials are the same throwaway ci/ci used by ci.yml's service container; the
+# database lives and dies with the kind cluster.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: test-deps
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+  namespace: test-deps
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: postgres }
+  template:
+    metadata:
+      labels: { app: postgres }
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:17
+          env:
+            - { name: POSTGRES_USER, value: ci }
+            - { name: POSTGRES_PASSWORD, value: ci }
+            - { name: POSTGRES_DB, value: connectsphere_ci }
+          ports:
+            - containerPort: 5432
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "ci", "-d", "connectsphere_ci"]
+            periodSeconds: 3
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: test-deps
+spec:
+  selector: { app: postgres }
+  ports:
+    - port: 5432

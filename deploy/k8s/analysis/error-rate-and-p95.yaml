@@ -1,0 +1,58 @@
+# EN-16. What a canary must satisfy before it gets more traffic: an error rate and
+# a p95 latency, both read from Prometheus for the canary's own pods.
+#
+# THE QUERIES DEPEND ON THESE METRIC NAMES, which EN-17 adds with prom-client to
+# every HTTP service and exposes on /metrics:
+#   http_requests_total{status="200"}                 counter, one series per status code
+#   http_request_duration_seconds_bucket{le="..."}    histogram of request durations
+# If EN-17 names them differently, change the two queries below and nothing else.
+# Prometheus must also attach the `pod` label to each series (any pod-level scrape does).
+#
+# The canary's pods are found by name: a Rollout names its pods
+# <rollout>-<pod-template-hash>-<suffix>, and the Rollout passes the canary's hash in.
+# A canary that receives no traffic produces no data, and an AnalysisRun with no data
+# is an error, not a pass: it is retried and then fails the step.
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: error-rate-and-p95
+spec:
+  args:
+    - name: rollout
+    - name: canary-hash
+    - name: prometheus-address
+      value: http://prometheus.monitoring.svc.cluster.local:9090
+    - name: max-error-rate
+      value: "0.02"
+    - name: max-p95-seconds
+      value: "0.5"
+  metrics:
+    - name: error-rate
+      interval: 30s
+      count: 4
+      failureLimit: 1
+      consecutiveErrorLimit: 3
+      successCondition: result[0] <= {{ args.max-error-rate }}
+      provider:
+        prometheus:
+          address: "{{ args.prometheus-address }}"
+          query: |
+            (
+              sum(rate(http_requests_total{pod=~"{{ args.rollout }}-{{ args.canary-hash }}-.+",status=~"5.."}[2m]))
+              or vector(0)
+            )
+            /
+            sum(rate(http_requests_total{pod=~"{{ args.rollout }}-{{ args.canary-hash }}-.+"}[2m]))
+    - name: p95-latency
+      interval: 30s
+      count: 4
+      failureLimit: 1
+      consecutiveErrorLimit: 3
+      successCondition: result[0] <= {{ args.max-p95-seconds }}
+      provider:
+        prometheus:
+          address: "{{ args.prometheus-address }}"
+          query: |
+            histogram_quantile(0.95,
+              sum by (le) (rate(http_request_duration_seconds_bucket{pod=~"{{ args.rollout }}-{{ args.canary-hash }}-.+"}[2m]))
+            )
