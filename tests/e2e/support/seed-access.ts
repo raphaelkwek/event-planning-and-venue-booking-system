@@ -112,7 +112,7 @@ export async function publishListing(event: EventRow, options: ListingOptions): 
       options.status,
       String(event.proposedStartAt),
       String(event.proposedEndAt),
-      String(options.registrationRequired),
+      options.registrationRequired,
       options.seats,
     ],
   );
