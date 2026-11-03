@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | Observability package: with the metrics middleware on a fake router, two GETs of different ids were counted under the route pattern /api/v1/things/:id (2xx, service planning-core, count 2), the POST that answered 500 under /api/v1/things (5xx, count 1) and an unknown path as unmatched (4xx, count 1); a router mounted under a prefix kept its full pattern; no raw id appeared in /metrics; the duration histogram carried the service, method, route and status labels with buckets and a count. planning-core: after /healthz and an unknown path, /metrics showed /healthz once as 2xx and unmatched once as 4xx, with the duration histogram present. |
+| Status | Pass |
+| Remarks | Automated (unit) · Commit: a74ca8b · Evidence: backend/packages/observability/tests/metrics.unit.test.ts › EN-17-T1 records a matched GET, a failing POST and an unknown path (7 of 7 tests in the file passed), and backend/services/planning-core/tests/shared/metrics.unit.test.ts › EN-17-T1 /metrics shows duration and count for a route that answered, and for an unknown path (1 of 1), CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41601054398, job Lint, typecheck, build, unit tests · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

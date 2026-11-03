@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | The registration app answered /healthz, then /metrics answered 200 and showed http_requests_total for GET /healthz, 2xx, service registration, with a count of 1, and declared registration_over_admission_seats and registration_invariant_check_success as gauges. |
+| Status | Pass |
+| Remarks | Automated (unit) · Commit: a74ca8b · Evidence: backend/services/registration/tests/metrics.unit.test.ts › EN-17-T2 /metrics shows the HTTP metrics and the over-admission gauge (5 of 5 tests in the file passed), CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41601054398, job Lint, typecheck, build, unit tests · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

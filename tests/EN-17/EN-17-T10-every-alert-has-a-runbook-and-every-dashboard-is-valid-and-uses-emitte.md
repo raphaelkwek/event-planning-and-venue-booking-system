@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | The script check passed 7 of 7 tests. It found at least 11 alerts, each with a runbook_url ending in /documentation/runbooks/<alert>.md, an existing runbook with the five required headings (Symptoms, First checks, Mitigation, Escalation, Dashboards) and an existing dashboard that the runbook links; every runbook belonged to an alert; every recording and alert rule queried only known metrics; and every dashboard parsed as JSON with a unique uid and title, at least one panel, a query on every panel and only known metrics. |
+| Status | Pass |
+| Remarks | Automated (script check in CI) · Commit: a74ca8b · Evidence: documentation/scripts/check-observability.test.ts › EN-17-T10 every alert has a runbook with the required sections; EN-17-T10 there is no runbook without an alert; EN-17-T10 rules query only known metrics; EN-17-T10 every dashboard is valid JSON with a uid and panels, and queries only known metrics, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41601054398, job Observability (promtool, dashboards, runbooks) · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

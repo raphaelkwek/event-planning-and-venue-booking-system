@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | The check read every path:line reference in threat-model.md, pdpa.md and asvs-l2.md (at least 100 of them). Each named file existed in the repository and had at least that many lines. |
+| Status | Pass |
+| Remarks | Automated (document check in CI) · Commit: a74ca8b · Evidence: documentation/scripts/check-docs.test.ts › EN-23-T2 every file:line reference in the security documents points at a real line, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41601054398, job Lint, typecheck, build, unit tests (step test:scripts) · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

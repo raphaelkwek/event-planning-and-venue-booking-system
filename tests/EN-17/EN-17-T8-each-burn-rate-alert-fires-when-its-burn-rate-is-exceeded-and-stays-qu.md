@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | promtool test rules ran availability.test.yml, invariants.test.yml, notification_freshness.test.yml, registration_latency.test.yml and staff_api_latency.test.yml and printed SUCCESS for all five. For each of the four SLOs (availability, registration latency, staff API latency, notification freshness) the files assert that a total outage fires both the fast and the slow burn alert at 65 minutes; a steady 8x burn fires the slow alert only at 400 minutes; half the budget spent steadily fires neither at 400 minutes; and a burst that has recovered fires the fast alert at 55 minutes but no longer at 68 minutes. |
+| Status | Pass |
+| Remarks | Automated (promtool in CI) · Commit: a74ca8b · Evidence: observability/prometheus/tests/availability.test.yml, registration_latency.test.yml, staff_api_latency.test.yml and notification_freshness.test.yml › EN-17-T8 cases (total outage, steady 8x burn, half the budget, recovered burst), run by .github/workflows/ci.yml › job Observability (promtool, dashboards, runbooks) › step promtool test rules, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41601054398 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

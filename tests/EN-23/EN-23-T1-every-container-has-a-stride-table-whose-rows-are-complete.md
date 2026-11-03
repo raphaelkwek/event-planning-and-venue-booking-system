@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | The check found every container declared in documentation/c4/connectsphere.dsl (at least 13) and, for each, a section of threat-model.md headed with its id. Every section had a Spoofing, Tampering, Repudiation, Information disclosure, Denial of service and Elevation of privilege row; every row had five non-empty cells; a row whose control began with None had a real entry in its last column, and every other row cited a file:line control. |
+| Status | Pass |
+| Remarks | Automated (document check in CI) · Commit: a74ca8b · Evidence: documentation/scripts/check-docs.test.ts › EN-23-T1 every C4 container has a STRIDE section with six complete rows, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41601054398, job Lint, typecheck, build, unit tests (step test:scripts) · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

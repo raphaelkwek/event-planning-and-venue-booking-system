@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | With a token set, /metrics answered 401 with no token, with a wrong token and with a too-short token, and 200 with the right one. With a limit of two a minute, the first two requests answered 200 and the third answered 429 with the error code RATE_LIMITED. In production with no token set, /metrics answered 404; in production with a token set and sent, 200. |
+| Status | Pass |
+| Remarks | Automated (unit) · Commit: a74ca8b · Evidence: backend/packages/observability/tests/metrics.unit.test.ts › EN-17-T4 a token is required when one is set; EN-17-T4 the third request in a window of two is refused with RATE_LIMITED; EN-17-T4 production without a token switches the endpoint off (7 of 7 tests in the file passed), CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41601054398, job Lint, typecheck, build, unit tests · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | The notification app answered /healthz, then /metrics answered 200 and showed http_requests_total for GET /healthz, 2xx, service notification, with a count of 1. |
+| Status | Pass |
+| Remarks | Automated (unit) · Commit: a74ca8b · Evidence: backend/services/notification/tests/metrics.unit.test.ts › EN-17-T3 /metrics shows the HTTP metrics (3 of 3 tests in the file passed), CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41601054398, job Lint, typecheck, build, unit tests · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |
