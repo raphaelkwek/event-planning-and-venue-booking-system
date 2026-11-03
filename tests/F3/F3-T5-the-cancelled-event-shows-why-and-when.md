@@ -10,7 +10,7 @@
 | Test Steps | 1. As O, cancel E with the body below, noting `cancelledAt`.<br>2. As O, then as C, send `GET /api/v1/events/<E>`.<br>3. Run `npm test -w @connectsphere/planning-core -- tests/change/api/f3Cards.test.ts -t 'F3-T5 '` and read the named `F3-T5 ` result. |
 | Test Data | `{"reason":"The speaker withdrew."}` |
 | Expected Result | Both reads answer 200 with `status` `CANCELLED`, `cancellationReason` `The speaker withdrew.`, `cancelledBy` O and `cancelledAt` as in step 1. |
-| Created By | Raphael, via Claude |
+| Created By | Raphael |
 | Date of Creation | 2026-10-29 |
 
 > **Expected results are checked by the PR reviewer** against F3's acceptance criteria.

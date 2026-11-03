@@ -10,7 +10,7 @@
 | Test Steps | 1. Read E, its history, slots, lines, reservations, change requests and messages.<br>2. As O, send `POST /api/v1/events/<E>/cancellation` with each body below.<br>3. Read them again.<br>4. Run `npm test -w @connectsphere/planning-core -- tests/change/api/f3Cards.test.ts -t 'F3-T4 '` and read the named `F3-T4 ` result. |
 | Test Data | `{}`, `{"reason":""}`, `{"reason":"   "}` |
 | Expected Result | Each request answers 400 `VALIDATION_FAILED` with the field `reason` and the message `Give a reason for cancelling the event.` Step 3 finds everything as in step 1: E still Planning, B1 Confirmed, R1 Reserved, CR Pending, no new message. |
-| Created By | Raphael, via Claude |
+| Created By | Raphael |
 | Date of Creation | 2026-10-29 |
 
 > **Expected results are checked by the PR reviewer** against F3's acceptance criteria.

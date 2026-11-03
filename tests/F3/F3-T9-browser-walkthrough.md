@@ -10,7 +10,7 @@
 | Test Steps | 1. Sign in as `organiser@connectsphere.test` and open the event's page from My requests.<br>2. Select **Cancel event**, then **Cancel event** in the dialog with the reason empty.<br>3. Enter `The speaker withdrew.` and select **Cancel event**.<br>4. Sign out, sign in as `coordinator@connectsphere.test` and open the event from the review queue's All events.<br>5. Open Notifications as each of the four users. |
 | Test Data | Reason `The speaker withdrew.` |
 | Expected Result | Step 2: the dialog says what will happen and that it can't be undone, and shows `Give a reason for cancelling the event.`; nothing is sent. Step 3: the dialog closes; the page shows **This event was cancelled** with the reason and date, the status Cancelled, no **Cancel event**, **Edit details** or **Request a change**, and the change request shown as closed. Step 4: the coordinator sees the same banner and no **Cancel event** or **Confirm arrangements**. Step 5: the organiser, coordinator, `venuestaff@connectsphere.test` and `techsupport@connectsphere.test` each have one cancellation notice with the reason. |
-| Created By | Raphael, via Claude |
+| Created By | Raphael |
 | Date of Creation | 2026-10-29 |
 
 > **Expected results are checked by the PR reviewer** against F3's acceptance criteria.

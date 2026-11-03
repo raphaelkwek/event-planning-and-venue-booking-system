@@ -919,6 +919,54 @@ describe("event.cancelled (F3 AC6)", () => {
     expect(recipients).toEqual([organiser]);
   });
 
+  // CQ-06 (review of #72): a released hold and a withdrawn pending request tell their venue's staff too.
+  const holdStaff = "00000000-0000-0000-0000-000000000008";
+  const atVenue = (reference: string, venueName: string, staffIds: string[]) => ({
+    reference,
+    venueId: "00000000-0000-0000-0000-000000000009",
+    venueName,
+    startsAt: "2026-12-02T06:00:00.000Z",
+    endsAt: "2026-12-02T10:00:00.000Z",
+    staffIds,
+  });
+  const withHoldsAndRequests = {
+    ...cancelled,
+    holds: [atVenue("HLD-000003", "Seminar Room 2-1", [venueStaff]), atVenue("HLD-000004", "Function Room", [holdStaff])],
+    requests: [atVenue("BKR-000005", "Function Room", [holdStaff])],
+  };
+  const textIn = (data: Record<string, unknown>, recipient: string) =>
+    notes(data).filter((note) => note.recipientUserId === recipient).map((note) => note.message);
+
+  it("tells the staff of a venue whose hold or pending request was released, after the others", () => {
+    expect(notes(withHoldsAndRequests).map((note) => note.recipientUserId)).toEqual([
+      organiser,
+      coordinator,
+      venueStaff,
+      otherVenueStaff,
+      holdStaff,
+      techSupport,
+    ]);
+    expect(textIn(withHoldsAndRequests, holdStaff)).toEqual([
+      `${name} Released: hold HLD-000004 at Function Room, Wednesday 2 December 2026, 14:00–18:00. ` +
+        "Withdrawn: booking request BKR-000005 at Function Room, Wednesday 2 December 2026, 14:00–18:00.",
+    ]);
+  });
+
+  it("lists a member's released holds after their bookings, in the one notice", () => {
+    expect(textIn(withHoldsAndRequests, venueStaff)).toEqual([
+      `${name} Released: booking BKR-000001 at Lee Kong Chian Auditorium, Wednesday 2 December 2026, 14:00–18:00; ` +
+        "booking BKR-000002 at Seminar Room 2-1, Wednesday 2 December 2026, 14:00–18:00; " +
+        "hold HLD-000003 at Seminar Room 2-1, Wednesday 2 December 2026, 14:00–18:00.",
+    ]);
+  });
+
+  it("tells the staff of a venue with only a withdrawn request what was withdrawn", () => {
+    const data = { ...cancelled, bookings: [], requests: [atVenue("BKR-000005", "Function Room", [holdStaff])] };
+    expect(textIn(data, holdStaff)).toEqual([
+      `${name} Withdrawn: booking request BKR-000005 at Function Room, Wednesday 2 December 2026, 14:00–18:00.`,
+    ]);
+  });
+
   it("tells someone with two roles on the event once, as their first role", () => {
     const recipients = notes({ ...cancelled, assignedCoordinatorId: organiser, bookings: [], reservations: [] }).map(
       (note) => note.recipientUserId,
