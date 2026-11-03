@@ -18,5 +18,6 @@ through the attendee API.
 An event is cancelled in planning-core (F3). Every status change, cancellation included, writes the
 event's `event.listing-changed` message, and when the registration service reads one whose status
 is Cancelled it marks the event's Registered registrations Cancelled, with the time, and frees
-their seats. Withdrawn registrations stay Withdrawn. F3 (PR #71) wasn't merged when R3 was built,
-so R3-T4 is proven by delivering that message to the consumer in a test.
+their seats. Withdrawn registrations stay Withdrawn. F3 (PR #71) is merged, and its cancellation
+also publishes `event.cancelled`, which the consumer handles the same way. R3-T4 delivers both
+messages to the consumer in a test; whichever arrives second changes nothing.

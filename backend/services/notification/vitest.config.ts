@@ -6,6 +6,9 @@ loadEnv({ path: resolve(__dirname, "../../../.env") });
 
 export default defineConfig({
   test: {
+    // EN-22: CI also writes a JSON report, which the traceability job reads.
+    reporters: process.env.CI ? ["default", "json"] : ["default"],
+    outputFile: { json: "reports/vitest-integration.json" },
     environment: "node",
     include: ["tests/**/*.test.ts"],
     // The integration tests share the notification schema on one database.

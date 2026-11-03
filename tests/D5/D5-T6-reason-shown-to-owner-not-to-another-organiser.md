@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | The owner saw "This request was rejectedNo suitable venue is available.Decided 9/20/2026, 3:30:03 PM. A rejected request cannot be edited or resubmitted.". The other organiser was refused with "EVENT_NOT_FOUNDNo event with that reference is available to you.HTTP 404 · correlation 23cd4f1e-83ea-463c-81df-75733a8cabc5", and the reason appeared nowhere on their screen. |
+| Actual Result | The owner saw the rejection reason; Organiser Two got no data for the request. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
 | Status | Pass |
-| Remarks | Commit: b0ef6ee (working tree modified) · Evidence: tests/D5/evidence/D5-T6.png · Defect: — |
-| Executed By | Raphael Kwek |
-| Date of Execution | 2026-09-20 |
+| Remarks | Automated, browser E2E in CI (EN-14). Commit: 6080462 · Evidence: tests/e2e/d-review.spec.ts › D5-T6 the reason is shown to the owning organiser, and another organiser cannot see the request, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41513983925 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

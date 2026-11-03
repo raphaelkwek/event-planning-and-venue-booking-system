@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result |  |
-| Status | Not Executed |
-| Remarks | Automated test written: backend/services/registration/tests/api/r3Cards.test.ts › R3-T4 shows the registration as Cancelled when the event is cancelled (event.listing-changed), keeping it and freeing nothing for others (API level); not yet run: CI's integration job stops at planning-core's unrelated L3-T17 date failure (fixed by PR #82) before it reaches the registration step (commit d43fab5). Becomes Pass when that step runs green. |
-| Executed By |  |
-| Date of Execution |  |
+| Actual Result | After the cancellation message, the registration was CANCELLED with cancelledAt 2026-12-06T03:00:00.000Z and kept; a withdrawn one stayed WITHDRAWN; every seat was retired; one registration.cancelled message named the attendee; the event was no longer listed and registering was 404. A redelivery changed nothing. "R3-T4 F3's event.cancelled does the same, and whichever of the two messages comes second changes nothing" also passed. |
+| Status | Pass |
+| Remarks | Automated (API level) · Commit: 4f9ab08 · Evidence: backend/services/registration/tests/api/r3Cards.test.ts › R3-T4 shows the registration as Cancelled when the event is cancelled (event.listing-changed), keeping it and freeing nothing for others, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41602701323 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

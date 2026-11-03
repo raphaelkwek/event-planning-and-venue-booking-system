@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { cloneElement, useEffect, useId, useState, type ReactElement } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import Button from "@atlaskit/button/new";
 import Textfield from "@atlaskit/textfield";
@@ -331,6 +331,10 @@ export function DraftEditor() {
   );
 }
 
+/**
+ * The label names its field (htmlFor and the field's id), so screen readers announce it and a
+ * click on it focuses the field. EN-14's axe check found every field here unlabelled (WCAG 1.3.1).
+ */
 function Field({
   label,
   error,
@@ -340,15 +344,16 @@ function Field({
   label: string;
   error?: string;
   required?: boolean;
-  children: React.ReactNode;
+  children: ReactElement<{ id?: string }>;
 }) {
+  const id = useId();
   return (
     <div style={{ marginBottom: 12 }}>
-      <label style={{ display: "block", fontWeight: 600, fontSize: 12, marginBottom: 4 }}>
+      <label htmlFor={id} style={{ display: "block", fontWeight: 600, fontSize: 12, marginBottom: 4 }}>
         {label}
         {required && <span style={{ color: "#AE2E24" }}> *</span>}
       </label>
-      {children}
+      {cloneElement(children, { id })}
       {error && <FieldError message={error} />}
     </div>
   );

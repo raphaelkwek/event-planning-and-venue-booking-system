@@ -19,6 +19,6 @@
 |---|---|
 | Actual Result |  |
 | Status | Not Executed |
-| Remarks | Covered by the registration.confirmed outbox row (r2Cards › R2-T1) and backend/services/notification/tests/domain/recipients.test.ts › R2-T12 tells the attendee their registration is confirmed, naming it and the event's date and times; delivery needs Kafka, not yet run: CI's integration job stops at planning-core's unrelated L3-T17 date failure (fixed by PR #82) before it reaches the registration step (commit d43fab5). UI walk-through in Chrome pending at the sprint review. |
+| Remarks | Proven by the registration.confirmed outbox row (r2Cards › R2-T1) and backend/services/notification/tests/domain/recipients.test.ts › R2-T12 tells the attendee their registration is confirmed, naming it and the event's date and times; delivery needs Kafka, passed in CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41602701323 (commit 4f9ab08). UI walk-through in Chrome pending at the sprint review. |
 | Executed By |  |
 | Date of Execution |  |
