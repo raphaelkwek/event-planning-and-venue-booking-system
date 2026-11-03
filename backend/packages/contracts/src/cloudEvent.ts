@@ -5,6 +5,7 @@ import { CHANGE_REQUEST_PAYLOAD_SCHEMAS } from "./changeRequestEvents.js";
 import { EQUIPMENT_REQUEST_PAYLOAD_SCHEMAS } from "./equipmentRequestEvents.js";
 import { VENUE_BOOKING_PAYLOAD_SCHEMAS } from "./venueBooking.js";
 import { EVENT_PAYLOAD_SCHEMAS } from "./eventEvents.js";
+import { REGISTRATION_PAYLOAD_SCHEMAS } from "./registrationEvents.js";
 
 /**
  * The Kafka message envelope (ADR-0008, implementation.md §3.3): a CloudEvents
@@ -94,6 +95,7 @@ export const MESSAGE_DATA_SCHEMAS = {
   ...EQUIPMENT_REQUEST_PAYLOAD_SCHEMAS,
   ...CHANGE_REQUEST_PAYLOAD_SCHEMAS,
   ...VENUE_BOOKING_PAYLOAD_SCHEMAS,
+  ...REGISTRATION_PAYLOAD_SCHEMAS,
 } as const;
 export type MessageType = keyof typeof MESSAGE_DATA_SCHEMAS;
 

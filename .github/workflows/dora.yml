@@ -1,0 +1,57 @@
+# EN-22. The four DORA metrics (documentation/scripts/dora.ts), weekly and on demand. The result
+# goes to the job summary and to an artifact. CI never commits to main (branch protection), so a
+# snapshot worth keeping is committed by hand under documentation/evidence/EN-22/.
+name: DORA metrics
+
+on:
+  schedule:
+    # 16:30 UTC on Sunday is 00:30 on Monday in Singapore.
+    - cron: "30 16 * * 0"
+  workflow_dispatch:
+    inputs:
+      days:
+        description: Length of the window in days
+        required: false
+        default: "30"
+      failure_window_hours:
+        description: A revert or hotfix this soon after a merge marks the merge as failed
+        required: false
+        default: "24"
+
+permissions:
+  contents: read
+  actions: read
+  pull-requests: read
+
+jobs:
+  dora:
+    name: Compute DORA metrics
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Compute the metrics
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DAYS: ${{ inputs.days || '30' }}
+          FAILURE_WINDOW_HOURS: ${{ inputs.failure_window_hours || '24' }}
+        run: |
+          npx tsx documentation/scripts/dora.ts \
+            --repo "$GITHUB_REPOSITORY" --days "$DAYS" --failure-window-hours "$FAILURE_WINDOW_HOURS" \
+            --out dora.md
+          cat dora.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload the report
+        uses: actions/upload-artifact@v4
+        with:
+          name: dora-metrics
+          path: dora.md

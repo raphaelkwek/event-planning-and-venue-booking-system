@@ -40,7 +40,7 @@ function confirmed(eventId: string, proposedEndAt: string) {
     ownerId: randomUUID(),
     previousStatus: "SAFETY_REVIEW",
     newStatus: "CONFIRMED",
-    action: "APPROVE_SAFETY",
+    action: "MARK_CONFIRMED",
     proposedStartAt: null,
     proposedEndAt,
     changedAt: "2026-10-19T08:00:00.000Z",

@@ -16,17 +16,17 @@ throwaway Postgres CI builds. T12 needs a Grafana Cloud stack, which Joash creat
 
 | Area | Card | Latest result |
 |---|---|---|
-| HTTP server span | EN-08-T1 | Pass |
-| postgres.js spans | EN-08-T2 | Pass |
-| Kafka producer and the relay | EN-08-T3 | Pass |
-| Notification consumer | EN-08-T4 | Pass |
-| Registration consumer | EN-08-T5 | Pass |
-| Correlation id is the trace id | EN-08-T6 | Pass |
-| Logs carry the trace id | EN-08-T7 | Pass |
-| No-op without an endpoint | EN-08-T8 | Pass |
-| Standard OTEL_* variables | EN-08-T9 | Pass |
-| Metric names | EN-08-T10 | Pass |
-| D4 approval, end to end (CI) | EN-08-T11 | Pass |
+| HTTP server span | EN-08-T1 | Not Executed |
+| postgres.js spans | EN-08-T2 | Not Executed |
+| Kafka producer and the relay | EN-08-T3 | Not Executed |
+| Notification consumer | EN-08-T4 | Not Executed |
+| Registration consumer | EN-08-T5 | Not Executed |
+| Correlation id is the trace id | EN-08-T6 | Not Executed |
+| Logs carry the trace id | EN-08-T7 | Not Executed |
+| No-op without an endpoint | EN-08-T8 | Not Executed |
+| Standard OTEL_* variables | EN-08-T9 | Not Executed |
+| Metric names | EN-08-T10 | Not Executed |
+| D4 approval, end to end (CI) | EN-08-T11 | Not Executed |
 | Grafana shows the trace | EN-08-T12 | Not Executed |
 
 **Not covered, on purpose.**

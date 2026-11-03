@@ -134,4 +134,30 @@ describe("the registration consumer", () => {
     expect(parentIdOf(consumer!)).toBe("b7ad6b7169203331");
     expect(consumer!.spanContext().traceId).toBe("0af7651916cd43dd8448eb211c80319c");
   });
+
+  it("EN-08-T5 handles a message in the event-listings consumer under a CONSUMER span as well, in the message's trace", async () => {
+    t.spans.reset();
+    const { client, handlers } = fakeKafka();
+    await startConsumers(client, database(), "");
+
+    const headers = await publishedHeaders();
+    // Not a listing message, so the handler skips it without touching the database; the span is what is checked.
+    await handlers["connectsphere.registration.event-listings"]!({
+      topic: "connectsphere.event.v1",
+      partition: 0,
+      message: {
+        key: Buffer.from("11111111-1111-4111-8111-111111111111"),
+        value: Buffer.from(approvalWithoutLayout),
+        headers: { traceparent: Buffer.from(headers.traceparent!) },
+        offset: "3",
+        timestamp: String(Date.now()),
+      },
+    });
+
+    const [consumer] = t.byName("connectsphere.event.v1 process");
+    expect(consumer!.kind).toBe(SpanKind.CONSUMER);
+    expect(consumer!.spanContext().traceId).toBe("0af7651916cd43dd8448eb211c80319c");
+    expect(consumer!.attributes["messaging.consumer.group.name"]).toBe("connectsphere.registration.event-listings");
+    expect(consumer!.attributes["connectsphere.outcome"]).toBe("ignored");
+  });
 });

@@ -45,6 +45,8 @@ Role names come from `backend/packages/contracts` (`ROLES`). `contracts/tests/po
 | E2 | Accept or decline | event `respond_to_reassignment` | the nominated coordinator only |
 | F3 | Cancel | event `cancel` | owner or assigned coordinator |
 | F5, S2 | Confirm; decide a change | event `confirm`, `decide_change` | the assigned coordinator |
+| U1 | View the safety queue and a review; record the safety decision | event `view_safety_queue`, `view_safety_review`, `decide_safety` | the Safety Officer |
+| U1 | Mark an approved event Confirmed | event `mark_confirmed` | the assigned coordinator |
 | G1 | Edit non-significant details | event `update_details` | owner or assigned coordinator |
 | G2, S3 | Impact of a change | event `preview_change_impact`, `reconsider_arrangements` | the assigned coordinator (A4) |
 | S1 | Request a change | event `request_change` | its owner |

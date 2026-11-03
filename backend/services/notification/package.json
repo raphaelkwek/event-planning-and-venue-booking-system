@@ -16,6 +16,7 @@
     "@connectsphere/contracts": "*",
     "@connectsphere/kafka": "*",
     "@connectsphere/telemetry": "*",
+    "@connectsphere/observability": "*",
     "express": "^4.19.2",
     "kafkajs": "^2.2.4",
     "postgres": "^3.4.4"

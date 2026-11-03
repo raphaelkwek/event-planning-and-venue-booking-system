@@ -1,6 +1,7 @@
 import express from "express";
 import { httpTelemetry, traceFields } from "@connectsphere/telemetry";
 import { config } from "./shared/config.js";
+import { createServiceMetrics } from "@connectsphere/observability";
 import { logger } from "./shared/logger.js";
 import { sql } from "./shared/db.js";
 import { healthRouter } from "./shared/health.js";
@@ -22,6 +23,11 @@ export const app = express();
 // EN-08: first, so every route and every refusal gets a correlation id (the trace id, ADR-0013)
 // and is timed by route pattern (http_request_duration_seconds, the names EN-17's SLOs query).
 app.use(httpTelemetry({ service: config.serviceName }));
+// EN-17: timed first, so every route and every refusal is counted. /metrics is
+// rate-limited, and off in production unless METRICS_TOKEN is set.
+const metrics = createServiceMetrics({ service: "planning-core", token: process.env.METRICS_TOKEN });
+app.use(metrics.middleware);
+app.use(metrics.router);
 
 app.use(express.json());
 

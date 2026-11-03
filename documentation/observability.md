@@ -13,11 +13,11 @@ Grafana needs an account and three environment variables.
 
 | What | How | Where |
 |---|---|---|
-| HTTP server requests | `@opentelemetry/instrumentation-http` makes the SERVER span and continues an incoming `traceparent`. `httpTelemetry` renames it after the Express route (`POST /api/v1/events/:id/approve`), sets `http.route`, and records the HTTP metrics. Health probes (`/healthz`, `/readyz`, `/metrics`) are not traced. | `backend/packages/telemetry/src/http.ts`, `sdk.ts` |
+| HTTP server requests | `@opentelemetry/instrumentation-http` makes the SERVER span and continues an incoming `traceparent`. `httpTelemetry` renames it after the Express route (`POST /api/v1/events/:id/approve`), sets `http.route`, and records the HTTP metrics. Health probes (`/healthz`, `/readyz`, `/metrics`) are not traced, but they are counted in `http_requests_total` under their own routes (EN-17's SLIs exclude those routes). | `backend/packages/telemetry/src/http.ts`, `sdk.ts` |
 | postgres.js | `instrumentSql` wraps the pool in a Proxy. Each query that runs inside a span becomes a CLIENT span named for its operation and table (`INSERT event.outbox`); each `sql.begin` becomes a `db.transaction` span with the queries as children. The statement is recorded with `$1` where a value was, never the value. | `backend/packages/telemetry/src/postgres.ts`; applied in each service's `db.ts` |
-| Kafka publish | `withProducerSpans` gives each message its own PRODUCER span and puts that span's `traceparent` in the message's header. The outbox relay continues the trace in the outbox row's `traceparent`, so the span is a child of the transaction that wrote the row. | `backend/packages/telemetry/src/kafka.ts`; `shared/outbox-relay.ts` |
-| Kafka consume | `withConsumerSpan` handles each message in a CONSUMER span that is a child of the span in the `traceparent` header (the CloudEvent's own `traceparent` if the header is absent). The notification service's retry and dead-letter publishes are PRODUCER spans under it. | notification `consumer/consumeTraced.ts` and `run.ts`; registration `consumer/run.ts`; the Temporal worker's `temporal/run*Consumer.ts` |
-| Correlation id | The active trace id, on the response as `x-correlation-id`, in every log line, and in each outbox message as `correlationid`. | `httpTelemetry`; `withTraceFields` in each logger |
+| Kafka publish | `withProducerSpans` gives each message its own PRODUCER span and puts that span's `traceparent` in the message's header. Each outbox relay (planning-core's and registration's) continues the trace in the outbox row's `traceparent`, so the span is a child of the transaction that wrote the row. | `backend/packages/telemetry/src/kafka.ts`; `shared/outbox-relay.ts` |
+| Kafka consume | `withConsumerSpan` handles each message in a CONSUMER span that is a child of the span in the `traceparent` header (the CloudEvent's own `traceparent` if the header is absent). The notification service's retry and dead-letter publishes are PRODUCER spans under it. | notification `consumer/consumeTraced.ts` and `run.ts`; registration `consumer/run.ts` (seat-builder and event-listings) and `outbox/relay.ts`; the Temporal worker's `temporal/run*Consumer.ts` |
+| Correlation id | The active trace id, on the response as `x-correlation-id`, in each log line written inside a span (a request or a consumed message), and in each outbox message as `correlationid`. | `httpTelemetry`; `withTraceFields` in each logger |
 
 The SDK starts in each service's `telemetry.ts` (`shared/telemetry.ts` in planning-core), which `src/index.ts`
 imports first, because the HTTP instrumentation patches `http` as it loads.
@@ -54,10 +54,23 @@ Joash creates the account; the steps are the same for anyone.
 5. Approve an event as a coordinator. The response's `x-correlation-id` header (browser developer tools, Network) is the
    trace id. In Grafana open **Explore**, choose the **Tempo** data source, pick the **TraceID** query type, and paste it.
 
-The exporters send OTLP over HTTP with protobuf bodies. The standard variables work as documented by OpenTelemetry:
+The exporters send OTLP over HTTP with protobuf bodies and nothing else: `OTEL_EXPORTER_OTLP_PROTOCOL` is ignored (Grafana
+Cloud takes `http/protobuf`, so nothing needs changing). The standard variables work as documented by OpenTelemetry:
 `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` and `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT` for a signal of its own,
 `OTEL_TRACES_EXPORTER=none` or `OTEL_METRICS_EXPORTER=none` to switch one off, and `OTEL_TRACES_SAMPLER` with
 `OTEL_TRACES_SAMPLER_ARG` to sample. Nothing else configures export.
+
+**Sampling.** By default every trace is kept, which suits a demo. For a longer-running environment set
+`OTEL_TRACES_SAMPLER=parentbased_traceidratio` and `OTEL_TRACES_SAMPLER_ARG=0.1` to keep a tenth of new traces. Because
+the sampler is parent-based, a request that arrives with a `traceparent` follows that header's sampled flag (below).
+
+**An incoming `traceparent` is trusted.** The server continues whatever `traceparent` a request carries, so a caller can
+choose the trace id (and therefore the correlation id) and can force a trace to be kept with the sampled flag. The id is
+validated as 32 hex characters, so it cannot inject anything into a log line or a header, but it identifies nothing and
+authorises nothing: never use a correlation id as proof of who made a request. A trace id a caller reuses joins that
+caller's requests into one trace, which is what the header is for. If the cost of forced sampling matters, the gateway
+(EN-12) is where an untrusted caller's `traceparent` should be dropped; until then use `OTEL_TRACES_SAMPLER=traceidratio`,
+which ignores the incoming flag.
 
 ## What the D4 trace looks like
 
@@ -92,19 +105,20 @@ analysis (`deploy/k8s/analysis/error-rate-and-p95.yaml`) query:
 
 | Metric | Labels | Notes |
 |---|---|---|
-| `http_request_duration_seconds` (histogram) | `service`, `method`, `route`, `status` | `route` is the pattern, `unmatched` if none matched; `status` is `2xx`, `4xx`, `5xx`. Buckets include 0.4 and 0.8, the objectives. |
+| `http_request_duration_seconds` (histogram) | `service`, `method`, `route`, `status` | `route` is the pattern, `unmatched` if none matched; `status` is the class: `2xx`, `3xx`, `4xx` or `5xx`. Buckets include 0.4 and 0.8, the objectives. |
 | `http_requests_total` (counter) | same | |
-| `kafka_consumer_processing_duration_seconds` (histogram) | `topic`, `group`, `outcome` | `outcome` is the handler's result (stored, duplicate, ignored, retried, dead-lettered, built, error). |
-| `kafka_consumer_lag_seconds` (histogram) | `topic`, `group` | The broker's timestamp to the start of handling. |
+| `kafka_consumer_processing_duration_seconds` (histogram) | `topic`, `group`, `outcome` | `outcome` is the handler's result: `stored`, `duplicate`, `ignored`, `retried`, `dead-lettered` (notification), `built`, `applied` (registration), `scheduled` (Temporal worker), `invalid`, or `error` when the handler threw. |
+| `kafka_consumer_lag_seconds` (histogram) | `topic`, `group` | The broker's timestamp to the start of handling. For the notification retry worker it counts from when the retry was due (its `connectsphere-not-before` header), because the back-off is deliberate waiting, not lag. |
 | `kafka_messages_published_total` (counter) | `topic`, `result` | |
 
-**Two metric paths, one name.** EN-17 (PR #78) serves the HTTP series from a Prometheus `/metrics` endpoint, which is
+**Two metric paths, one name.** EN-17 (#78, merged) serves the HTTP series from a Prometheus `/metrics` endpoint, which is
 what the in-cluster Prometheus scrapes for the canary analysis and the burn-rate alerts. This work sends the same series
-over OTLP to Grafana Cloud. A query reads the same either way. Do not feed both into one data source or every request is
-counted twice: either scrape `/metrics`, or set `OTEL_METRICS_EXPORTER=none` and keep OTLP for traces. When both pull
-requests are merged, the two HTTP middlewares should become one that feeds the prom-client registry and the OpenTelemetry
-instruments together; EN-17's `notification_visibility_lag_seconds` and over-admission gauges are not duplicated here.
-The `pod` label EN-16's queries filter on comes from the Prometheus scrape (pod discovery), not from OTLP.
+over OTLP to Grafana Cloud. The names, labels and buckets are identical to the ones in EN-17's recording rules, alerts
+and dashboards (`observability/`) and EN-16's canary analysis, so a query reads the same either way; EN-17's
+`notification_visibility_lag_seconds` and over-admission gauges are not duplicated here. Both middlewares run in each app
+and record independently. Do not feed both into one data source or every request is counted twice: either scrape
+`/metrics`, or set `OTEL_METRICS_EXPORTER=none` and keep OTLP for traces. The `pod` label EN-16's queries filter on comes
+from the Prometheus scrape (pod discovery), not from OTLP.
 
 ## Logs
 
@@ -127,5 +141,5 @@ shows them next to the trace, is not built (below).
 - **Logs are not exported over OTLP** (no Loki yet), only written to standard output with the trace id.
 - **Background work with no request** (the outbox relay's polling, the readiness probe, the completion sweep) makes no
   database spans; a query is traced only inside a span.
-- **Container images (EN-10, PR #75).** The shared packages are compiled there by an explicit list. `@connectsphere/telemetry`
-  must be added to each Dockerfile's `COPY`, `npm ci -w` and `npm run build -w` lists, as `@connectsphere/kafka` is.
+- **Container images (EN-10).** The shared packages are compiled in each service's Dockerfile by an explicit list;
+  `@connectsphere/telemetry` is in it. A new shared package must be added there too, or the image will not build.

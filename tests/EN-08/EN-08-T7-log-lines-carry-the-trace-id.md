@@ -18,8 +18,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | Inside a span a log line had traceId, spanId and a correlationId equal to the trace id unless the caller gave one; outside a span it was unchanged; the notification consumer's `notifications stored` line carried the producer's trace id. |
-| Status | Pass |
-| Remarks | Automated (unit tests, CI) · Commit: d62134e7c97989aff7b8cce0e362cb7a7af7f605 · Evidence: backend/packages/telemetry/tests/traceContext.test.ts › EN-08-T7 puts the trace id on a log line as traceId, and as correlationId when the caller gave none; backend/services/notification/tests/consumer/consumeTraced.unit.test.ts › EN-08-T7 logs what it did inside the span, so the line carries the trace id; backend/services/planning-core/tests/shared/d4Trace.test.ts › EN-08-T11 runs from the HTTP request, through the transaction and the outbox relay, into the notification consumer, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41611569860 · Defect: — |
-| Executed By | Joash, via automated testing (CI) |
-| Date of Execution | 2026-11-03 |
+| Actual Result |  |
+| Status | Not Executed |
+| Remarks | Commit: · Evidence: · Defect: |
+| Executed By |  |
+| Date of Execution |  |

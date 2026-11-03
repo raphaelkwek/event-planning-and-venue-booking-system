@@ -9,6 +9,7 @@ const WORKSPACES = [
   ["contracts", "backend/packages/contracts"],
   ["kafka", "backend/packages/kafka"],
   ["telemetry", "backend/packages/telemetry"],
+  ["observability", "backend/packages/observability"],
   ["web", "frontend"],
 ];
 const METRICS = ["lines", "branches", "functions", "statements"];
