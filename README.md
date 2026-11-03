@@ -24,6 +24,8 @@
 
 Images, Kubernetes, Terraform, Argo CD and canary releases (EN-10, EN-16, ADR-0012) are in [documentation/deploy.md](documentation/deploy.md). Local development stays as above: no Docker.
 
+How the images are inventoried, scanned and signed (SBOMs, Trivy, cosign, a ZAP baseline scan; EN-21), and how to verify an image yourself, is in [documentation/supply-chain.md](documentation/supply-chain.md).
+
 ### Trying the stories in the browser
 
 Sign in at <http://localhost:5173> with any seeded account; the login screen lists them and they all
@@ -58,6 +60,22 @@ instead of stdout; `--order desc` matches CHANGELOG.md's own newest-first order 
 read it that way.
 
 See `documentation/planning/plan.md` for architecture and `documentation/planning/implementation.md` for the mandatory formats every service follows, including the repository layout (§2).
+
+### The event store's tamper check (EN-03)
+
+An event's history is an append-only, hash-chained stream (`event.event_stream`, ADR-0007,
+`documentation/planning/implementation.md` §4.9). To check that no entry has been edited or removed:
+
+```sh
+npm run event-store:verify
+```
+
+It reads the database `DATABASE_URL` names, recomputes every event's hash chain, and checks every
+row of the history projection (`event.event_history`) against its stream entry. It prints how much
+it checked and exits 0 when everything is intact. Otherwise it exits 1 and names the first broken
+link (event, version and why) or the first history row that disagrees. It only reads. CI runs it
+after the integration tests, then edits one entry on the runner's throwaway Postgres and checks
+that it fails.
 
 ### Temporal Cloud (EN-11 branch)
 

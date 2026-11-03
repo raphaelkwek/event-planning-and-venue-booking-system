@@ -52,7 +52,7 @@ Role names come from `backend/packages/contracts` (`ROLES`). `contracts/tests/po
 | G2 | Impact of a change | event `preview_change_impact` | its owner; the assigned coordinator (A4) |
 | S3 | Reconsider arrangements | event `reconsider_arrangements` | the assigned coordinator (A4) |
 | S1 | Request a change | event `request_change` | its owner |
-| H1 | Maintain venues | venue `create`, `update`, `deactivate` | Venue Staff |
+| H1, H3 | Add a venue; update or deactivate one | venue `create`; `update`, `deactivate` | Venue Staff; Venue Staff of that venue |
 | H1, H2, I1 | Read venues and the calendar | venue `view`, `view_calendar` | Organisers, Coordinators, Venue Staff, Tech Support; never Attendees |
 | I2 | See, record and remove unavailability | venue `view_unavailability`, `record_unavailability`, `remove_unavailability` | Venue Staff of that venue |
 | J1, J2, K1, K2 | Search and assess venues | venue `search`, `check_suitability`, `justify_unsuitable` | Event Coordinator |

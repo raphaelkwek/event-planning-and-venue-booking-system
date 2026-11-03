@@ -5,10 +5,17 @@ resourcePolicy:
   resource: venue
   importDerivedRoles: [connectsphere]
   rules:
-    - name: H1-only-venue-staff-maintain-venues
-      actions: [create, update, deactivate]
+    - name: H1-only-venue-staff-add-venues
+      actions: [create]
       effect: EFFECT_ALLOW
       roles: [VENUE_STAFF]
+
+    # H1, H3: Venue Staff update only the venues they look after; another venue is
+    # "not found" to them (A3).
+    - name: H1-H3-the-venue-s-staff-maintain-it
+      actions: [update, deactivate]
+      effect: EFFECT_ALLOW
+      derivedRoles: [venue_manager]
 
     # H1: the other internal roles have read access only. H2, I1: attendees
     # have no access to the catalogue or the calendar.

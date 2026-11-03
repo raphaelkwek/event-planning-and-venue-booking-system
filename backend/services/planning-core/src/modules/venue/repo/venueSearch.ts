@@ -38,15 +38,9 @@ interface SearchRow {
   accessibility_features: string[];
 }
 
-/**
- * CR-01: the requested window is widened by the venue's own setup time before
- * it and turnaround time after it. Those two columns belong to H3 and are not
- * on main yet, so both are 0 minutes for now. When H3 lands, change the two
- * fragments to `db\`v.setup_minutes\`` and `db\`v.turnaround_minutes\``; nothing
- * else needs to change.
- */
-const venueSetupMinutes = (db: Db) => db`0`;
-const venueTurnaroundMinutes = (db: Db) => db`0`;
+/** CR-01 (H3): the requested window is widened by the venue's own setup time before it and turnaround time after it. */
+const venueSetupMinutes = (db: Db) => db`v.setup_minutes`;
+const venueTurnaroundMinutes = (db: Db) => db`v.turnaround_minutes`;
 
 /** The window, widened, as a range of the venue `v` the query is looking at. */
 function widenedWindow(db: Db, from: string, to: string) {

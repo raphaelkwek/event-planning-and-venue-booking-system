@@ -38,8 +38,8 @@ import {
   releaseHold,
   type Hold,
 } from "../repo/holds.js";
-import { lockVenue } from "../repo/slots.js";
-import { findVenue } from "../repo/venues.js";
+import { expireLockedHold, holdExpiryReached } from "../repo/holdExpiry.js";
+import { lockVenue } from "../repo/venues.js";
 import { presentAll, submitBookingRequest } from "./bookingRequests.js";
 import { refuse } from "./errors.js";
 
@@ -117,22 +117,41 @@ export function holdsRouter(sql: Sql, limiter: RequestHandler = holdsRateLimit()
       if (!event) return eventNotFound(res, actor.role);
       if (!eventHoldable(event.status)) return refuse(res, 409, "EVENT_NOT_HOLDABLE", notHoldableMessage(event.status));
 
-      const venue = await findVenue(sql, input.venueId);
-      if (!venue) return refuse(res, 404, "VENUE_NOT_FOUND", "No venue with that id exists.");
-      if (!venue.isActive) return refuse(res, 422, "VENUE_INACTIVE", `${venue.name} is inactive, so it can't be held.`);
-
-      try {
-        // I4: a block over the hold's occupied period (H3) refuses it. A request reserves nothing and
-        // placing it checks again under the venue lock, so no lock is needed here.
-        const blocks = await sql.begin((tx) =>
-          activeBlocksOverlapping(tx, venue.id, new Date(input.startsAt), new Date(input.endsAt), venue.setupMinutes, venue.turnaroundMinutes),
+      // L1 (audit): the block check and the insert are one transaction under the venue row lock, the lock
+      // I2 takes to record a block, so a block recorded meanwhile can't be missed (I4: nothing is stored).
+      // M5: the setup and turnaround time are the ones read under that lock.
+      const outcome = await sql.begin(async (tx) => {
+        const venue = await lockVenue(tx, input.venueId);
+        if (!venue) return { code: "NO_VENUE" } as const;
+        if (!venue.isActive) return { code: "INACTIVE", venue } as const;
+        const blocks = await activeBlocksOverlapping(
+          tx,
+          venue.id,
+          new Date(input.startsAt),
+          new Date(input.endsAt),
+          venue.setupMinutes,
+          venue.turnaroundMinutes,
         );
-        if (blocks.length > 0) return refuse(res, 409, "VENUE_UNAVAILABLE", holdBlockedMessage(venue.name, blocks));
-        const hold = await sql.begin((tx) => insertHold(tx, { ...input, requestedBy: actor.userId }));
-        res.status(201).json(present(hold, event.reference));
-      } catch (error) {
-        if (!(error instanceof DuplicateHoldError)) throw error;
-        return refuse(res, 409, "HOLD_DUPLICATE", duplicateHoldMessage(error.reference ?? "another hold", venue.name));
+        if (blocks.length > 0) return { code: "BLOCKED", venue, blocks } as const;
+        try {
+          return { code: "REQUESTED", hold: await insertHold(tx, { ...input, requestedBy: actor.userId }) } as const;
+        } catch (error) {
+          if (!(error instanceof DuplicateHoldError)) throw error;
+          return { code: "DUPLICATE", venue, reference: error.reference } as const;
+        }
+      });
+
+      switch (outcome.code) {
+        case "NO_VENUE":
+          return refuse(res, 404, "VENUE_NOT_FOUND", "No venue with that id exists.");
+        case "INACTIVE":
+          return refuse(res, 422, "VENUE_INACTIVE", `${outcome.venue.name} is inactive, so it can't be held.`);
+        case "BLOCKED":
+          return refuse(res, 409, "VENUE_UNAVAILABLE", holdBlockedMessage(outcome.venue.name, outcome.blocks));
+        case "DUPLICATE":
+          return refuse(res, 409, "HOLD_DUPLICATE", duplicateHoldMessage(outcome.reference ?? "another hold", outcome.venue.name));
+        case "REQUESTED":
+          return res.status(201).json(present(outcome.hold, event.reference));
       }
     } catch (error) {
       next(error);
@@ -190,12 +209,11 @@ export function holdsRouter(sql: Sql, limiter: RequestHandler = holdsRateLimit()
       const event = await findEventForPlanning(sql, found.eventId, { scopeType: "ALL" }, actor.userId);
       if (!event) return holdNotFound(res, actor.role);
       if (!eventHoldable(event.status)) return refuse(res, 409, "EVENT_NOT_HOLDABLE", notHoldableMessage(event.status));
-      const venue = (await findVenue(sql, found.venueId))!;
-      if (!venue.isActive) return refuse(res, 422, "VENUE_INACTIVE", `${venue.name} is inactive, so it can't be held.`);
-
       const outcome = await sql.begin(async (tx) => {
-        // The venue first, then the hold: the order every booking change at a venue takes (implementation.md §4.6, rule 1).
-        await lockVenue(tx, found.venueId);
+        // The venue first, then the hold: the order every booking change at a venue takes (implementation.md §4.6).
+        // M5: the setup and turnaround time come from this locking read, so a change of times can't slip in between.
+        const venue = (await lockVenue(tx, found.venueId))!;
+        if (!venue.isActive) return { code: "INACTIVE", venue } as const;
         const hold = (await lockHold(tx, id))!;
         if (hold.status !== "REQUESTED") return { code: "NOT_REQUESTED", hold } as const;
         // I4: a block recorded since the request refuses it. Checked under the venue lock I2 takes to record one.
@@ -207,7 +225,7 @@ export function holdsRouter(sql: Sql, limiter: RequestHandler = holdsRateLimit()
           venue.setupMinutes,
           venue.turnaroundMinutes,
         );
-        if (blocks.length > 0) return { code: "BLOCKED", hold, blocks } as const;
+        if (blocks.length > 0) return { code: "BLOCKED", hold, blocks, venue } as const;
         try {
           const placed = await placeHold(tx, hold, {
             expiresAt: placement.expiresAt,
@@ -219,17 +237,22 @@ export function holdsRouter(sql: Sql, limiter: RequestHandler = holdsRateLimit()
           return { code: "PLACED", hold: placed } as const;
         } catch (error) {
           if (!(error instanceof HoldConflictError)) throw error;
-          return { code: "CONFLICT", overlapped: error.overlapped } as const;
+          return { code: "CONFLICT", overlapped: error.overlapped, venue } as const;
         }
       });
 
+      if (outcome.code === "INACTIVE") {
+        return refuse(res, 422, "VENUE_INACTIVE", `${outcome.venue.name} is inactive, so it can't be held.`);
+      }
       if (outcome.code === "NOT_REQUESTED") {
         return refuse(res, 409, "HOLD_NOT_REQUESTED", notRequestedMessage(outcome.hold.reference, outcome.hold.status));
       }
       if (outcome.code === "BLOCKED") {
-        return refuse(res, 409, "VENUE_UNAVAILABLE", holdBlockedMessage(venue.name, outcome.blocks, outcome.hold.reference));
+        return refuse(res, 409, "VENUE_UNAVAILABLE", holdBlockedMessage(outcome.venue.name, outcome.blocks, outcome.hold.reference));
       }
-      if (outcome.code === "CONFLICT") return refuse(res, 409, "VENUE_SLOT_CONFLICT", holdConflictMessage(outcome.overlapped, venue.name));
+      if (outcome.code === "CONFLICT") {
+        return refuse(res, 409, "VENUE_SLOT_CONFLICT", holdConflictMessage(outcome.overlapped, outcome.venue.name));
+      }
       res.json(present(outcome.hold, event.reference));
     } catch (error) {
       next(error);
@@ -252,14 +275,23 @@ export function holdsRouter(sql: Sql, limiter: RequestHandler = holdsRateLimit()
       if (!event) return holdNotFound(res, actor.role);
 
       const outcome = await sql.begin(async (tx) => {
+        await lockVenue(tx, found.venueId);
         const hold = (await lockHold(tx, found.id))!;
         if (hold.status !== "HELD") return { code: "NOT_HELD", hold } as const;
+        // M4: a hold whose expiry has passed is expired now, as the workflow would have, rather than revived.
+        if (await holdExpiryReached(tx, hold.id)) {
+          await expireLockedHold(tx, hold);
+          return { code: "EXPIRED", hold } as const;
+        }
         const changed = await changeHoldExpiry(tx, hold, change.expiresAt, actor.userId, req.header("x-correlation-id") ?? null);
         return { code: "CHANGED", hold: changed } as const;
       });
 
       if (outcome.code === "NOT_HELD") {
         return refuse(res, 409, "HOLD_NOT_HELD", expiryNotChangeableMessage(outcome.hold.reference, outcome.hold.status));
+      }
+      if (outcome.code === "EXPIRED") {
+        return refuse(res, 409, "HOLD_NOT_HELD", expiryNotChangeableMessage(outcome.hold.reference, "EXPIRED"));
       }
       res.json(present(outcome.hold, event.reference));
     } catch (error) {
@@ -274,6 +306,8 @@ export function holdsRouter(sql: Sql, limiter: RequestHandler = holdsRateLimit()
       if (!found) return holdNotFound(res, req.actor!.role);
 
       const outcome = await sql.begin(async (tx) => {
+        // The venue first, then the hold (§4.6): releasing clears flags at the venue (M3).
+        await lockVenue(tx, found.hold.venueId);
         const hold = (await lockHold(tx, found.hold.id))!;
         if (hold.status !== "REQUESTED" && hold.status !== "HELD") return { code: "NOT_RELEASABLE", hold } as const;
         return { code: "RELEASED", hold: await releaseHold(tx, hold, req.actor!.userId) } as const;

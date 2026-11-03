@@ -26,9 +26,9 @@ tests:
       - principal: venue_manager # H1: only Venue Staff maintain venues; I2: the venue's own staff
         resource: venue_hall
         actions: { create: EFFECT_ALLOW, update: EFFECT_ALLOW, deactivate: EFFECT_ALLOW, view: EFFECT_ALLOW, view_calendar: EFFECT_ALLOW, view_unavailability: EFFECT_ALLOW, record_unavailability: EFFECT_ALLOW, remove_unavailability: EFFECT_ALLOW }
-      - principal: other_venue_staff # H1: any Venue Staff maintain the catalogue; I2: not another venue's unavailability
+      - principal: other_venue_staff # H1: any Venue Staff add venues, but update only their own (H3); I2: not another venue's unavailability
         resource: venue_hall
-        actions: { create: EFFECT_ALLOW, update: EFFECT_ALLOW, deactivate: EFFECT_ALLOW, view: EFFECT_ALLOW, view_calendar: EFFECT_ALLOW }
+        actions: { create: EFFECT_ALLOW, view: EFFECT_ALLOW, view_calendar: EFFECT_ALLOW }
       - principal: tech_support # H1: read access only
         resource: venue_hall
         actions: { view: EFFECT_ALLOW, view_calendar: EFFECT_ALLOW }
