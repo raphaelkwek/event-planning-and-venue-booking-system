@@ -75,7 +75,7 @@ describe("validateVenue", () => {
   });
 
   describe("maximum capacity: a whole number greater than zero", () => {
-    const message = "Maximum capacity must be a whole number greater than zero.";
+    const message = "Maximum capacity must be a whole number from 1 to 1000000.";
     it.each([0, -5, 150.5])("refuses %s", (maxCapacity) => {
       expect(fieldsOf({ ...standard(), maxCapacity })).toEqual([{ field: "maxCapacity", message }]);
     });
@@ -95,7 +95,7 @@ describe("validateVenue", () => {
         { name: "Classroom", capacity: 0 },
         { name: "Banquet", capacity: 12.5 },
       ];
-      const message = "Layout capacity must be a whole number greater than zero.";
+      const message = "Layout capacity must be a whole number from 1 to 1000000.";
       expect(fieldsOf({ ...standard(), layouts })).toEqual([
         { field: "layouts[1].capacity", message },
         { field: "layouts[2].capacity", message },
@@ -156,8 +156,8 @@ describe("validateVenue", () => {
 
     it.each([-1, 15.5])("refuses %s for either", (minutes) => {
       expect(fieldsOf({ ...standard(), setupMinutes: minutes, turnaroundMinutes: minutes })).toEqual([
-        { field: "setupMinutes", message: "Setup time must be a whole number of minutes, 0 or more." },
-        { field: "turnaroundMinutes", message: "Turnaround time must be a whole number of minutes, 0 or more." },
+        { field: "setupMinutes", message: "Setup time must be a whole number of minutes from 0 to 10080." },
+        { field: "turnaroundMinutes", message: "Turnaround time must be a whole number of minutes from 0 to 10080." },
       ]);
     });
   });

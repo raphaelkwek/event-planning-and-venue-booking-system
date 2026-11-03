@@ -77,7 +77,7 @@ describe("readBookingRequest", () => {
       ok: false,
       fields: [
         { field: "endsAt", message: "The end must be after the start." },
-        { field: "expectedAttendance", message: "Expected attendance must be a whole number greater than zero." },
+        { field: "expectedAttendance", message: "Expected attendance must be a whole number from 1 to 1000000." },
       ],
     });
     expect(readBookingRequest({ ...valid, endsAt: valid.startsAt })).toMatchObject({ ok: false, fields: [{ field: "endsAt" }] });
@@ -99,7 +99,7 @@ describe("readBookingRequest", () => {
         { field: "startsAt", message: "Enter a date and time with its offset, for example 2026-12-02T14:00+08:00." },
         { field: "endsAt", message: "Enter a date and time with its offset, for example 2026-12-02T14:00+08:00." },
         { field: "layout", message: "Choose a room layout." },
-        { field: "expectedAttendance", message: "Expected attendance must be a whole number greater than zero." },
+        { field: "expectedAttendance", message: "Expected attendance must be a whole number from 1 to 1000000." },
         { field: "facilities", message: "Must be a list of names." },
         { field: "replacesBookingId", message: "Must be the id of the booking to replace." },
       ],
