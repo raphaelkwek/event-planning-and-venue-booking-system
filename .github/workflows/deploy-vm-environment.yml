@@ -155,6 +155,8 @@ jobs:
             printf 'SUPABASE_SERVICE_ROLE_KEY=%s\n' "$SUPABASE_SERVICE_ROLE_KEY"
             printf 'CORS_ALLOWED_ORIGINS=%s\n' "$WEB_ORIGIN"
             printf 'REDPANDA_MEMORY=512M\n'
+            # The host Caddy and the container's Caddy stand in front of registration's per-address limits.
+            printf 'TRUST_PROXY_HOPS=2\n'
             printf 'GHCR_USER=%s\n' "$GHCR_USER"
             printf 'GHCR_TOKEN=%s\n' "$GHCR_TOKEN"
           } > "$settings"

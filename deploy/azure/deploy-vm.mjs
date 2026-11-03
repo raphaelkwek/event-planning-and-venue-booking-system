@@ -54,7 +54,8 @@ export function hostCaddyfile(options) {
 
 /** The container's env file. Values are written as they are: docker's --env-file takes no quoting. */
 export function containerEnv(space, webOrigin, alsoOrigins = []) {
-  const values = { ...space, CORS_ALLOWED_ORIGINS: [webOrigin, ...alsoOrigins].join(","), REDPANDA_MEMORY };
+  // TRUST_PROXY_HOPS: the host Caddy and the container's Caddy stand in front, so registration's per-address limits read the client.
+  const values = { ...space, CORS_ALLOWED_ORIGINS: [webOrigin, ...alsoOrigins].join(","), REDPANDA_MEMORY, TRUST_PROXY_HOPS: "2" };
   for (const [key, value] of Object.entries(values)) {
     if (/[\r\n]/.test(value)) throw new DeployError(`${key} contains a line break`);
   }

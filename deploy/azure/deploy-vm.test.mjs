@@ -24,7 +24,7 @@ test("DEPLOY-T19 the container's env file holds the Space values, its own web or
   const space = { DATABASE_URL: fake("db"), MIGRATE_DATABASE_URL: fake("mig"), SUPABASE_URL: "https://x.supabase.co", SUPABASE_ANON_KEY: fake("anon"), SUPABASE_SERVICE_ROLE_KEY: fake("svc") };
   const text = containerEnv(space, "https://connectsphere-staging.vercel.app");
   const keys = text.trim().split("\n").map((line) => line.split("=")[0]);
-  assert.deepEqual(keys, [...Object.keys(space), "CORS_ALLOWED_ORIGINS", "REDPANDA_MEMORY"]);
+  assert.deepEqual(keys, [...Object.keys(space), "CORS_ALLOWED_ORIGINS", "REDPANDA_MEMORY", "TRUST_PROXY_HOPS"]);
   assert.ok(text.includes("CORS_ALLOWED_ORIGINS=https://connectsphere-staging.vercel.app\n"));
   assert.ok(text.includes("REDPANDA_MEMORY=512M\n"));
   assert.throws(() => containerEnv({ ...space, SUPABASE_ANON_KEY: "a\nb" }, "https://x.vercel.app"), /SUPABASE_ANON_KEY contains a line break/);
