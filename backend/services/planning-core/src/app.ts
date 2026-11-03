@@ -1,5 +1,6 @@
 import express from "express";
-import { randomUUID } from "node:crypto";
+import { httpTelemetry, traceFields } from "@connectsphere/telemetry";
+import { config } from "./shared/config.js";
 import { logger } from "./shared/logger.js";
 import { sql } from "./shared/db.js";
 import { healthRouter } from "./shared/health.js";
@@ -18,15 +19,20 @@ import { changeRouter } from "./modules/change/index.js";
  */
 export const app = express();
 
+// EN-08: first, so every route and every refusal gets a correlation id (the trace id, ADR-0013)
+// and is timed by route pattern (http_request_duration_seconds, the names EN-17's SLOs query).
+app.use(httpTelemetry({ service: config.serviceName }));
+
 app.use(express.json());
 
 app.use((req, res, next) => {
-  const correlationId = req.header("x-correlation-id") ?? randomUUID();
-  req.headers["x-correlation-id"] = correlationId;
-  res.setHeader("x-correlation-id", correlationId);
+  const correlationId = res.getHeader("x-correlation-id") as string;
+  // Taken now, while the request's span is the active one: the 'finish' event may run outside it.
+  const trace = traceFields();
   const startedAt = Date.now();
   res.on("finish", () => {
     logger.info("request completed", {
+      ...trace,
       correlationId,
       route: `${req.method} ${req.path}`,
       durationMs: Date.now() - startedAt,

@@ -1,6 +1,7 @@
 import type { Kafka } from "kafkajs";
 import type { Sql } from "postgres";
 import { KAFKA_TOPICS } from "@connectsphere/contracts";
+import { kafkaHeaders, withConsumerSpan } from "@connectsphere/telemetry";
 import { logger } from "../logger.js";
 import { handleMessage } from "./handleApproval.js";
 import { consumerGroup } from "./kafkaMessages.js";
@@ -31,14 +32,25 @@ export async function startConsumers(kafka: Kafka, sql: Sql, groupSuffix: string
   }
 
   await seatBuilder.run({
-    eachMessage: async ({ topic, message }) => {
+    eachMessage: async ({ topic, partition, message }) => {
       const key = message.key ? message.key.toString() : null;
-      const outcome = await handleMessage(message.value ? message.value.toString() : null, { sql });
-      if (outcome.outcome === "built") logger.info("seats built", { topic, key, seats: outcome.seats, retired: outcome.retired });
-      else if (outcome.outcome === "invalid") logger.error("message skipped: it failed validation", { topic, key, error: outcome.error });
-      else if (outcome.outcome === "ignored" && outcome.reason === "no-layout-capacity") {
-        logger.warn("approval skipped: it names no layout capacity, so no seats were built", { topic, key });
-      }
+      const value = message.value ? message.value.toString() : null;
+      // A CONSUMER span that is a child of the span in the message's traceparent header, so the seats
+      // belong to the trace of the approval that built them (EN-08, ADR-0013).
+      await withConsumerSpan(
+        { topic, group, partition, offset: message.offset, timestamp: message.timestamp, key, headers: kafkaHeaders(message.headers), value },
+        async () => {
+          const outcome = await handleMessage(value, { sql });
+          // Logged inside the span, so each line carries the trace id.
+          if (outcome.outcome === "built") logger.info("seats built", { topic, key, seats: outcome.seats, retired: outcome.retired });
+          else if (outcome.outcome === "invalid") logger.error("message skipped: it failed validation", { topic, key, error: outcome.error });
+          else if (outcome.outcome === "ignored" && outcome.reason === "no-layout-capacity") {
+            logger.warn("approval skipped: it names no layout capacity, so no seats were built", { topic, key });
+          }
+          return outcome;
+        },
+        (result) => result.outcome,
+      );
     },
   });
 

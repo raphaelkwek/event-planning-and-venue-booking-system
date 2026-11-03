@@ -1,3 +1,4 @@
+import { withTraceFields } from "@connectsphere/telemetry";
 import { config } from "./config.js";
 
 type LogFields = {
@@ -16,7 +17,8 @@ function log(level: "info" | "warn" | "error", message: string, fields: LogField
     level,
     service: config.serviceName,
     message,
-    ...fields,
+    // traceId, spanId, and correlationId (the same value as traceId, ADR-0013) when a span is active.
+    ...withTraceFields(fields),
   };
   const output = level === "error" ? console.error : console.log;
   output(JSON.stringify(line));

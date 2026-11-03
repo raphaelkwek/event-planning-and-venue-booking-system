@@ -1,3 +1,4 @@
+import { telemetry } from "./shared/telemetry.js";
 import { app } from "./app.js";
 import { config } from "./shared/config.js";
 import { sql } from "./shared/db.js";
@@ -40,6 +41,7 @@ async function shutdown(signal: string) {
   await relay?.stop();
   await publisher?.disconnect();
   await sql.end({ timeout: 5 });
+  await telemetry.shutdown();
   process.exit(0);
 }
 

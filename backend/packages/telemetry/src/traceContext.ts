@@ -62,7 +62,7 @@ export function traceFields(): TraceFields {
  * from the trace id when the caller gave none, because the two are the same
  * thing (ADR-0013); an id the caller did give is kept.
  */
-export function withTraceFields<T extends { correlationId?: string | null }>(fields: T): T & TraceFields {
+export function withTraceFields<T extends Record<string, unknown>>(fields: T): T & TraceFields {
   const fromTrace = traceFields();
   if (!fromTrace.traceId) return fields;
   return { ...fields, ...fromTrace, correlationId: fields.correlationId ?? fromTrace.traceId };
