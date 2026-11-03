@@ -14,7 +14,7 @@ traceability. PR #91, the follow-up to #71, #72 and #81; no migration.
 
 ## Fixed
 
-- **A4: D2, L1, L3 and O1 check the coordinator's scope again under the event lock.** They checked it
+- **A4: D2, L1, L2, L3 and O1 check the coordinator's scope again under the event lock.** They checked it
   only before their transaction, so a Lead's reassignment (E4) committing in between let the outgoing
   coordinator act. Each now reads the event in the caller's scope inside the transaction, through
   `findEventInScope`'s lock option (which re-reads the assignment once the lock is held, #81):
@@ -24,7 +24,10 @@ traceability. PR #91, the follow-up to #71, #72 and #81; no migration.
   - L3's hold request locks the venue, then the event `for share` (the hold's foreign key share-locks
     the venue row, so the event first could deadlock with a block, which locks venue then event), and
     re-checks that the event can still hold a venue; L3's release locks the event before the hold;
+  - L2's withdrawal locks the event `for share` before the request and its slot;
   - O1's request, edit and removal lock the event `for share` before the line and the type.
+  S1 needed no change: its only write, the organiser's request, already reads the event in scope
+  `for share` inside its transaction, and coordinators cannot make one.
 - **F4: the cancellation's last lock-order gap is closed.** A hold or request at a venue the
   cancellation had not locked could commit between its venue locks and its event lock, and the release
   then locked that venue after the event, so a block there could deadlock with it. Once it holds the
@@ -49,7 +52,7 @@ traceability. PR #91, the follow-up to #71, #72 and #81; no migration.
 
 ## Tests
 
-- `tests/event/api/a4LockedScopeActions.test.ts`: D2, L1, L3 (request, release, convert) and O1
+- `tests/event/api/a4LockedScopeActions.test.ts`: D2, L1, L2, L3 (request, release, convert) and O1
   (request, edit, remove), each queued behind an uncommitted reassignment. Throwaway database only.
 - `f4Cards.test.ts`: a hold at a new venue committed while the cancellation waits for the event, with a
   block holding that venue; F4-T2 now searches with J1 before and after the cancellation; CQ-06's
