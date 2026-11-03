@@ -1,0 +1,2 @@
+story_id,acceptance_criterion,test_file,test_name
+I4,"Requesting or placing a tentative hold (L3) whose occupied period (H3) overlaps an active block is refused. The refusal names the block, its period and its reason type, and nothing is stored.",backend/services/planning-core/tests/venue/api/auditFixes.test.ts,refuses a hold request over a block in one transaction and stores nothing

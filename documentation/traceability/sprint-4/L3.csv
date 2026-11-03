@@ -1,0 +1,2 @@
+story_id,acceptance_criterion,test_file,test_name
+L3,"CR-01: this overlap check uses occupied periods, including the venue's setup and turnaround time (H3).",backend/services/planning-core/tests/venue/api/auditFixes.test.ts,"places a hold with the venue's times as they are when it is placed, not when it was requested"

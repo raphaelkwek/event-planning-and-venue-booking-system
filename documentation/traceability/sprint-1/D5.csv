@@ -1,0 +1,13 @@
+story_id,acceptance_criterion,test_file,test_name
+D5,"Rejection requires a reason of at least one non-whitespace character; without it the rejection is not performed, the status is unchanged, and no rejection timestamp is recorded",backend/services/planning-core/tests/event/api/decisions.test.ts,"refuses a rejection with no reason, changing nothing"
+D5,"A reason of whitespace only is refused",backend/services/planning-core/tests/event/api/decisions.test.ts,"refuses a reason of whitespace only"
+D5,"On rejection the status changes to Rejected and the reason, rejecting coordinator, and timestamp are recorded",backend/services/planning-core/tests/event/api/decisions.test.ts,"rejects an event with a reason, recording the coordinator and the time"
+D5,"The reason is visible to the owning organiser",backend/services/planning-core/tests/event/api/decisions.test.ts,"shows the reason to the owning organiser"
+D5,"The organiser receives a notification of the rejection",backend/services/planning-core/tests/event/api/decisions.test.ts,"notifies the organiser of the rejection, including the reason"
+D5,"A rejected event cannot be edited or resubmitted; its fields become read-only",backend/services/planning-core/tests/event/api/decisions.test.ts,"makes a rejected event read-only: it cannot be resubmitted"
+D5,"An event that already carries a decision cannot be rejected",backend/services/planning-core/tests/event/api/decisions.test.ts,"cannot reject an event that already carries a decision"
+D5,"The rejection writes a status history entry like any other transition (F1)",backend/services/planning-core/tests/event/api/decisions.test.ts,"writes a history entry for the rejection (F1)"
+D5,"Only an Event Coordinator may reject (A2)",backend/services/planning-core/tests/event/api/decisions.test.ts,"refuses a role that is not an Event Coordinator (A2)"
+D5,"The rejection reason is recorded with the decision",backend/services/planning-core/tests/event/repo/events.test.ts,"records a rejection with its reason"
+D5,"Without a reason the rejection is not performed, and the refusal is shown where the reason is entered",frontend/tests/rejectDialog.test.tsx,"shows the refusal inside the rejection dialog"
+D5,"Rejection is offered through a confirming dialog where the reason is entered, and that dialog opens in the app as mounted",frontend/tests/root.test.tsx,"shows the rejection dialog attached to the page"

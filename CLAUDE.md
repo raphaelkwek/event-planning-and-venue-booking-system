@@ -22,6 +22,19 @@ team's hosted project, Kafka is one hosted cluster reached through the `KAFKA_*`
 Testcontainers or `supabase start` for local work. CI integration tests run against an ephemeral
 Postgres on the runner, never the shared database (EN-06).
 
+## Files every pull request touches
+
+Since 3 Nov 2026 these are one file per change, so that pull requests stop conflicting
+(implementation.md §8.2, §11.2):
+
+- **Changelog:** add `changelog/<YYYY-MM-DD>-<branch-or-slug>.md`, holding exactly what a
+  `CHANGELOG.md` entry holds. Don't edit `CHANGELOG.md`; it keeps the older entries.
+  `npm run changelog` prints the whole log.
+- **Traceability:** add rows to `documentation/traceability/sprint-<n>/<story-id>.csv`, the story's
+  own file, with the usual header. There is no `sprint-<n>.csv` any more.
+- **Error codes:** put a new code at its alphabetical place in `ERROR_CODES` and in the OpenAPI
+  `ErrorCode` enum, not at the end. `npm run lint:api` checks the order.
+
 ## Superpowers plugin
 
 Superpowers specs go in `documentation/superpowers/specs/`, and plans in

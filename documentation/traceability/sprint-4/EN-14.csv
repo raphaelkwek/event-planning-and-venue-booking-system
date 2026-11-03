@@ -1,0 +1,8 @@
+story_id,acceptance_criterion,test_file,test_name
+EN-14,"A per-PR preview, or an ephemeral CI stack",tests/playwright.config.ts,"the e2e job's stack: fake auth, planning-core, notification, registration and vite preview on a throwaway Postgres (EN-14-T1, EN-14-T8)"
+EN-14,"A per-PR preview, or an ephemeral CI stack",tests/e2e/support/fake-supabase-auth.test.ts,assertTestHarnessOnly (EN-14-T2)
+EN-14,"A per-PR preview, or an ephemeral CI stack",tests/e2e/support/fake-supabase-auth.test.ts,the fake GoTrue endpoints (EN-14-T3)
+EN-14,Playwright E2E tagged with story test ids,.github/scripts/e2e-tags-check.mjs,every journey carries its story and card tags (EN-14-T4)
+EN-14,Playwright E2E tagged with story test ids,tests/playwright.config.ts,"retries, trace, video, screenshot and the HTML report (EN-14-T7)"
+EN-14,axe accessibility checks,tests/e2e/support/fixtures.ts,checkAccessibility on every screen visited (EN-14-T5)
+EN-14,"Visual snapshots at 360, 768 and 1280 px",tests/e2e/visual.spec.ts,EN-14-T6 visual snapshots of six key screens
