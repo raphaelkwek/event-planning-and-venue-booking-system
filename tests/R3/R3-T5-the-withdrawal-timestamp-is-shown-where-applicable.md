@@ -19,6 +19,6 @@
 |---|---|
 | Actual Result | The Withdrawn row showed `Registered <day>, <time>` and `Withdrawn <day>, <time>`, with withdrawn_at later than registered_at in the database; the Registered row showed no withdrawal time. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
 | Status | Pass |
-| Remarks | Automated (browser, Playwright) · Commit: ceb525b · Evidence: tests/e2e/r-registration.spec.ts › R3-T5 each entry shows the registration time and, only where applicable, the withdrawal time, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41688315679 · Defect: — |
+| Remarks | Automated (browser, Playwright) · Commit: aa700c3 · Evidence: tests/e2e/r-registration.spec.ts › R3-T5 each entry shows the registration time and, only where applicable, the withdrawal time, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41694828373 · Defect: — |
 | Executed By | Joash, via automated testing (CI) |
 | Date of Execution | 2026-11-04 |

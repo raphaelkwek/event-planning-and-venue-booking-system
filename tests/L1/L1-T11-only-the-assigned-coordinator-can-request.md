@@ -21,6 +21,6 @@
 |---|---|
 | Actual Result | The event was not in the other coordinator's All events and their console POST to /venue/api/v1/booking-requests returned 404 EVENT_NOT_FOUND with the not-assigned message; the organiser's same POST returned 403 ROLE_NOT_AUTHORISED; SQL showed no booking request for the event. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
 | Status | Pass |
-| Remarks | Automated (browser, Playwright) · Commit: ceb525b · Evidence: tests/e2e/e-access-and-console.spec.ts › L1-T11 only the coordinator assigned to the event can raise a booking request for it; nothing is stored, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41688315679 · Defect: — |
+| Remarks | Automated (browser, Playwright) · Commit: aa700c3 · Evidence: tests/e2e/e-access-and-console.spec.ts › L1-T11 only the coordinator assigned to the event can raise a booking request for it; nothing is stored, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41694828373 · Defect: — |
 | Executed By | Joash, via automated testing (CI) |
 | Date of Execution | 2026-11-04 |

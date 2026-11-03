@@ -19,6 +19,6 @@
 |---|---|
 | Actual Result | Minimum capacity 200 listed FX Auditorium and FX Lecture Hall; 201 and 300 listed FX Auditorium only; 301 listed no venue and the empty-result message restating minimum capacity 301. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
 | Status | Pass |
-| Remarks | Automated (browser, Playwright) · Commit: ceb525b · Evidence: tests/e2e/j-venue-search.spec.ts › J1-T3 boundary: a minimum capacity equal to a venue's maximum keeps it, and one more drops it, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41688315679 · Defect: — |
+| Remarks | Automated (browser, Playwright) · Commit: aa700c3 · Evidence: tests/e2e/j-venue-search.spec.ts › J1-T3 boundary: a minimum capacity equal to a venue's maximum keeps it, and one more drops it, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41694828373 · Defect: — |
 | Executed By | Joash, via automated testing (CI) |
 | Date of Execution | 2026-11-04 |

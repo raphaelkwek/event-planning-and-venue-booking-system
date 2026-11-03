@@ -19,6 +19,6 @@
 |---|---|
 | Actual Result | Reducing the total from 12 to 11 (one above the overlapping 10) saved with `Equipment type saved.` and the list and reopened editor showed 11; SQL showed both reservations unchanged and RESERVED. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
 | Status | Pass |
-| Remarks | Automated (browser, Playwright) · Commit: ceb525b · Evidence: tests/e2e/q-equipment-and-changes.spec.ts › P2-T13 a reduced total one above the overlapping reserved quantity is accepted, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41688315679 · Defect: — |
+| Remarks | Automated (browser, Playwright) · Commit: aa700c3 · Evidence: tests/e2e/q-equipment-and-changes.spec.ts › P2-T13 a reduced total one above the overlapping reserved quantity is accepted, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41694828373 · Defect: — |
 | Executed By | Joash, via automated testing (CI) |
 | Date of Execution | 2026-11-04 |

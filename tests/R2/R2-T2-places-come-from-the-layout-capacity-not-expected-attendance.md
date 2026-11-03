@@ -19,6 +19,6 @@
 |---|---|
 | Actual Result | With 3 seats and 1 taken the page showed `2 places remaining` and Register succeeded (201). No registration-capacity input or label appeared on the attendee's screens, the organiser's New request form or the Registration settings screen. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
 | Status | Pass |
-| Remarks | Automated (browser, Playwright) · Commit: ceb525b · Evidence: tests/e2e/r-registration.spec.ts › R2-T2 places come from the layout capacity, not the expected attendance, and no registration capacity is entered anywhere, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41688315679 · Defect: — |
+| Remarks | Automated (browser, Playwright) · Commit: aa700c3 · Evidence: tests/e2e/r-registration.spec.ts › R2-T2 places come from the layout capacity, not the expected attendance, and no registration capacity is entered anywhere, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41694828373 · Defect: — |
 | Executed By | Joash, via automated testing (CI) |
 | Date of Execution | 2026-11-04 |

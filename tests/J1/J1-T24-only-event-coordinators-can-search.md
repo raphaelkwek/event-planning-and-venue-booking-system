@@ -19,6 +19,6 @@
 |---|---|
 | Actual Result | The organiser, Venue Staff, Technical Support and the attendee had no `Find a venue` link and got 403 ROLE_NOT_AUTHORISED from GET /venue/api/v1/venues/search in the API console; the coordinator got 200 with an items list. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
 | Status | Pass |
-| Remarks | Automated (browser, Playwright) · Commit: ceb525b · Evidence: tests/e2e/j-venue-search.spec.ts › J1-T24 only Event Coordinators can search; every other role is refused by the server, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41688315679 · Defect: — |
+| Remarks | Automated (browser, Playwright) · Commit: aa700c3 · Evidence: tests/e2e/j-venue-search.spec.ts › J1-T24 only Event Coordinators can search; every other role is refused by the server, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41694828373 · Defect: — |
 | Executed By | Joash, via automated testing (CI) |
 | Date of Execution | 2026-11-04 |

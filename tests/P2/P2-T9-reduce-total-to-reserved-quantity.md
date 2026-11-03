@@ -19,6 +19,6 @@
 |---|---|
 | Actual Result | With 12 held and reservations of 6 and 4 overlapping, changing the total to 10 saved (`Equipment type saved.`) and the list and the reopened editor showed 10; SQL showed both reservations unchanged and RESERVED. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
 | Status | Pass |
-| Remarks | Automated (browser, Playwright) · Commit: ceb525b · Evidence: tests/e2e/q-equipment-and-changes.spec.ts › P2-T9 a total equal to the greatest overlapping reserved quantity is accepted, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41688315679 · Defect: — |
+| Remarks | Automated (browser, Playwright) · Commit: aa700c3 · Evidence: tests/e2e/q-equipment-and-changes.spec.ts › P2-T9 a total equal to the greatest overlapping reserved quantity is accepted, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41694828373 · Defect: — |
 | Executed By | Joash, via automated testing (CI) |
 | Date of Execution | 2026-11-04 |

@@ -19,6 +19,6 @@
 |---|---|
 | Actual Result | My registrations listed both registrations: each row showed the event name, `Wednesday 16 December 2026, 14:00–18:00`, `School of Computing, Level 1`, its status (Registered / Withdrawn) and `Registered <day>, <time>`. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
 | Status | Pass |
-| Remarks | Automated (browser, Playwright) · Commit: ceb525b · Evidence: tests/e2e/r-registration.spec.ts › R3-T1 My registrations lists each registration with the event, date, times, venue location, status and registration time, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41688315679 · Defect: — |
+| Remarks | Automated (browser, Playwright) · Commit: aa700c3 · Evidence: tests/e2e/r-registration.spec.ts › R3-T1 My registrations lists each registration with the event, date, times, venue location, status and registration time, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41694828373 · Defect: — |
 | Executed By | Joash, via automated testing (CI) |
 | Date of Execution | 2026-11-04 |

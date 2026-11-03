@@ -19,6 +19,6 @@
 |---|---|
 | Actual Result | With FX Seminar Room set to 30 minutes of setup and 30 of turnaround, the search for 16:00–17:00 on the day of its 14:00–16:00 hold listed FX Auditorium only (the venue's turnaround widens the window back into the hold); 16:30–17:30 listed FX Auditorium and FX Seminar Room (the widened window starts exactly where the hold ends). Run on CI's throwaway stack, with unique names in place of the card's literal names. |
 | Status | Pass |
-| Remarks | Automated (browser, Playwright) · Commit: ceb525b · Evidence: tests/e2e/j-venue-search.spec.ts › J1-T18 the requested window is widened by the venue's own setup and turnaround time, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41688315679 · Defect: — |
+| Remarks | Automated (browser, Playwright) · Commit: aa700c3 · Evidence: tests/e2e/j-venue-search.spec.ts › J1-T18 the requested window is widened by the venue's own setup and turnaround time, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41694828373 · Defect: — |
 | Executed By | Joash, via automated testing (CI) |
 | Date of Execution | 2026-11-04 |

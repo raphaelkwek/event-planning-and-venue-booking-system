@@ -19,6 +19,6 @@
 |---|---|
 | Actual Result | Withdraw opened a dialog restating the event and that the place will be released; Keep my place closed it, the row still read Registered with its Withdraw button, and SQL showed REGISTERED. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
 | Status | Pass |
-| Remarks | Automated (browser, Playwright) · Commit: ceb525b · Evidence: tests/e2e/r-registration.spec.ts › R4-T11 withdraw asks for confirmation; keeping the place changes nothing, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41688315679 · Defect: — |
+| Remarks | Automated (browser, Playwright) · Commit: aa700c3 · Evidence: tests/e2e/r-registration.spec.ts › R4-T11 withdraw asks for confirmation; keeping the place changes nothing, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41694828373 · Defect: — |
 | Executed By | Joash, via automated testing (CI) |
 | Date of Execution | 2026-11-04 |

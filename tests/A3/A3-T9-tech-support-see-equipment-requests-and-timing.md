@@ -23,6 +23,6 @@
 |---|---|
 | Actual Result | Technical Support's equipment requests listed the reserved line and the requested line with the event reference, quantity, start and end and `Reserved 5 of 5`; opening the request showed its update panel; the event name, purpose, description and accessibility needs appeared nowhere. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
 | Status | Pass |
-| Remarks | Automated (browser, Playwright) · Commit: ceb525b · Evidence: tests/e2e/e-access-and-console.spec.ts › A3-T9 Technical Support see equipment requests, reservations and the event timing they depend on, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41688315679 · Defect: — |
+| Remarks | Automated (browser, Playwright) · Commit: aa700c3 · Evidence: tests/e2e/e-access-and-console.spec.ts › A3-T9 Technical Support see equipment requests, reservations and the event timing they depend on, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41694828373 · Defect: — |
 | Executed By | Joash, via automated testing (CI) |
 | Date of Execution | 2026-11-04 |

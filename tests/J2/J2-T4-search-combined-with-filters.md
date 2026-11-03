@@ -19,6 +19,6 @@
 |---|---|
 | Actual Result | The text search `fx science` with minimum capacity 100 listed FX Auditorium only; adding Hearing loop still listed FX Auditorium only; adding the window 10:30–11:30 on the booked day listed no venue, with a message restating the search and filters. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
 | Status | Pass |
-| Remarks | Automated (browser, Playwright) · Commit: ceb525b · Evidence: tests/e2e/j-venue-search.spec.ts › J2-T4 the text search combined with J1's filters returns only venues satisfying both, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41688315679 · Defect: — |
+| Remarks | Automated (browser, Playwright) · Commit: aa700c3 · Evidence: tests/e2e/j-venue-search.spec.ts › J2-T4 the text search combined with J1's filters returns only venues satisfying both, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41694828373 · Defect: — |
 | Executed By | Joash, via automated testing (CI) |
 | Date of Execution | 2026-11-04 |

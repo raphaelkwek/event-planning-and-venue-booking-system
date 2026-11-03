@@ -19,6 +19,6 @@
 |---|---|
 | Actual Result | From the API console, POST /registration/api/v1/registrations/<id>/withdrawal on the other attendee's registration returned 404 REGISTRATION_NOT_FOUND with `No registration with that id is yours.`; that registration was still REGISTERED with no withdrawal time, and places remaining was unchanged. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
 | Status | Pass |
-| Remarks | Automated (browser, Playwright) · Commit: ceb525b · Evidence: tests/e2e/r-registration.spec.ts › R4-T3 another attendee's registration cannot be withdrawn; it is answered as not found, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41688315679 · Defect: — |
+| Remarks | Automated (browser, Playwright) · Commit: aa700c3 · Evidence: tests/e2e/r-registration.spec.ts › R4-T3 another attendee's registration cannot be withdrawn; it is answered as not found, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41694828373 · Defect: — |
 | Executed By | Joash, via automated testing (CI) |
 | Date of Execution | 2026-11-04 |

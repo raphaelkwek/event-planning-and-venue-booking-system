@@ -19,6 +19,6 @@
 |---|---|
 | Actual Result | My registrations → Withdraw opened a dialog saying the place will be released; confirming returned 200 and the row showed Withdrawn and `Withdrawn <day>, <time>` with no Withdraw button; SQL returned the row with status WITHDRAWN and withdrawn_at later than registered_at (not deleted). Run on CI's throwaway stack, with unique names in place of the card's literal names. |
 | Status | Pass |
-| Remarks | Automated (browser, Playwright) · Commit: ceb525b · Evidence: tests/e2e/r-registration.spec.ts › R4-T1 an attendee withdraws their registration after confirming; it becomes Withdrawn and is not deleted, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41688315679 · Defect: — |
+| Remarks | Automated (browser, Playwright) · Commit: aa700c3 · Evidence: tests/e2e/r-registration.spec.ts › R4-T1 an attendee withdraws their registration after confirming; it becomes Withdrawn and is not deleted, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41694828373 · Defect: — |
 | Executed By | Joash, via automated testing (CI) |
 | Date of Execution | 2026-11-04 |

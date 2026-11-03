@@ -19,6 +19,6 @@
 |---|---|
 | Actual Result | Opened from All events → the event → Find a venue, the form held From and To 12:00–14:00, minimum capacity 150, layout Theatre, exactly Projector and Wireless microphones, exactly Step-free access and Hearing loop, and the note that `Reserved seating` was not matched; the results shown were FX Auditorium only. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
 | Status | Pass |
-| Remarks | Automated (browser, Playwright) · Commit: ceb525b · Evidence: tests/e2e/j-venue-search.spec.ts › J1-T21 opened from an event, the filters are pre-filled from its recorded requirements, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41688315679 · Defect: — |
+| Remarks | Automated (browser, Playwright) · Commit: aa700c3 · Evidence: tests/e2e/j-venue-search.spec.ts › J1-T21 opened from an event, the filters are pre-filled from its recorded requirements, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41694828373 · Defect: — |
 | Executed By | Joash, via automated testing (CI) |
 | Date of Execution | 2026-11-04 |

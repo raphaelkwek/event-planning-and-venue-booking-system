@@ -19,6 +19,6 @@
 |---|---|
 | Actual Result | The page showed Full and no Register button. From the API console, POST /registration/api/v1/registrations returned 409 REGISTRATION_FULL, a message containing `has no places remaining` and naming the event, and details.waitlistOffered true; SQL found no registration for the attendee, and the card still showed Full. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
 | Status | Pass |
-| Remarks | Automated (browser, Playwright) · Commit: ceb525b · Evidence: tests/e2e/r-registration.spec.ts › R2-T4 registering for a full event is refused naming capacity and offering the waitlist, and stores nothing, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41688315679 · Defect: — |
+| Remarks | Automated (browser, Playwright) · Commit: aa700c3 · Evidence: tests/e2e/r-registration.spec.ts › R2-T4 registering for a full event is refused naming capacity and offering the waitlist, and stores nothing, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41694828373 · Defect: — |
 | Executed By | Joash, via automated testing (CI) |
 | Date of Execution | 2026-11-04 |

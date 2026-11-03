@@ -26,6 +26,6 @@
 |---|---|
 | Actual Result | The attendee's Events list showed the Confirmed open event (description, date and times, venue and location, `3 places remaining`) and not the Approved event; its page showed only published fields and a Register button, with no clarification thread, review comment, coordinator note or rejection reason. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
 | Status | Pass |
-| Remarks | Automated (browser, Playwright) · Commit: ceb525b · Evidence: tests/e2e/e-access-and-console.spec.ts › A3-T7 an attendee sees only events open to them, and only their published fields, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41688315679 · Defect: — |
+| Remarks | Automated (browser, Playwright) · Commit: aa700c3 · Evidence: tests/e2e/e-access-and-console.spec.ts › A3-T7 an attendee sees only events open to them, and only their published fields, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41694828373 · Defect: — |
 | Executed By | Joash, via automated testing (CI) |
 | Date of Execution | 2026-11-04 |

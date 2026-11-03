@@ -19,6 +19,6 @@
 |---|---|
 | Actual Result | The building filter `science` (any case) listed FX Auditorium and FX Seminar Room; `FX ARTS BUILDING` listed FX Lecture Hall only (the inactive FX Old Gym absent); `Nowhere Hall` listed no venue and the empty-result message. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
 | Status | Pass |
-| Remarks | Automated (browser, Playwright) · Commit: ceb525b · Evidence: tests/e2e/j-venue-search.spec.ts › J1-T6 the building filter keeps only venues there, ignoring case, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41688315679 · Defect: — |
+| Remarks | Automated (browser, Playwright) · Commit: aa700c3 · Evidence: tests/e2e/j-venue-search.spec.ts › J1-T6 the building filter keeps only venues there, ignoring case, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41694828373 · Defect: — |
 | Executed By | Joash, via automated testing (CI) |
 | Date of Execution | 2026-11-04 |

@@ -19,6 +19,6 @@
 |---|---|
 | Actual Result | With two confirmed venues, the card and the event page listed both `Lee Kong Chian Auditorium — School of Computing, Level 1` and `Seminar Room 2-1 — School of Computing, Level 2`, and read `5 places remaining` (not 3 or 2). Run on CI's throwaway stack, with unique names in place of the card's literal names. |
 | Status | Pass |
-| Remarks | Automated (browser, Playwright) · Commit: ceb525b · Evidence: tests/e2e/r-registration.spec.ts › R1-T2 an event with two confirmed venues lists each venue and totals the places remaining, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41688315679 · Defect: — |
+| Remarks | Automated (browser, Playwright) · Commit: aa700c3 · Evidence: tests/e2e/r-registration.spec.ts › R1-T2 an event with two confirmed venues lists each venue and totals the places remaining, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41694828373 · Defect: — |
 | Executed By | Joash, via automated testing (CI) |
 | Date of Execution | 2026-11-04 |

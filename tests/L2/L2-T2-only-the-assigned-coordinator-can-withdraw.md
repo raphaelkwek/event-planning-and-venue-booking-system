@@ -21,6 +21,6 @@
 |---|---|
 | Actual Result | The other coordinator's withdrawal returned 404 BOOKING_REQUEST_NOT_FOUND with `No booking request with that id is on an event assigned to you.`; the organiser and Venue Staff each got 403 ROLE_NOT_AUTHORISED; SQL showed the request still PENDING with no withdrawal recorded. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
 | Status | Pass |
-| Remarks | Automated (browser, Playwright) · Commit: ceb525b · Evidence: tests/e2e/e-access-and-console.spec.ts › L2-T2 only the event's assigned coordinator can withdraw its pending request; anyone else is refused, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41688315679 · Defect: — |
+| Remarks | Automated (browser, Playwright) · Commit: aa700c3 · Evidence: tests/e2e/e-access-and-console.spec.ts › L2-T2 only the event's assigned coordinator can withdraw its pending request; anyone else is refused, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41694828373 · Defect: — |
 | Executed By | Joash, via automated testing (CI) |
 | Date of Execution | 2026-11-04 |

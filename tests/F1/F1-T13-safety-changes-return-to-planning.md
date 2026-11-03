@@ -26,6 +26,6 @@
 |---|---|
 | Actual Result | The Safety Officer chose Request changes with the reason `Move the stage away from the fire exit.` and recorded it; the event's status became PLANNING and the newest status change read SAFETY_REVIEW → PLANNING, the Safety Officer's user id, SAFETY_OFFICER, REQUEST_SAFETY_CHANGES, with a non-empty occurred_at. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
 | Status | Pass |
-| Remarks | Automated (browser, Playwright) · Commit: ceb525b · Evidence: tests/e2e/u-safety-and-assignment.spec.ts › F1-T13 a request for safety changes returns a Safety Review event to Planning, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41688315679 · Defect: — |
+| Remarks | Automated (browser, Playwright) · Commit: aa700c3 · Evidence: tests/e2e/u-safety-and-assignment.spec.ts › F1-T13 a request for safety changes returns a Safety Review event to Planning, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41694828373 · Defect: — |
 | Executed By | Joash, via automated testing (CI) |
 | Date of Execution | 2026-11-04 |

@@ -19,6 +19,6 @@
 |---|---|
 | Actual Result | Register returned 201 and the page showed `You are registered` with a `REG-` and six-digit reference and a link to My registrations; a SQL read returned one row with the attendee's id, the event id, status REGISTERED and a registered_at within the last minute. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
 | Status | Pass |
-| Remarks | Automated (browser, Playwright) · Commit: ceb525b · Evidence: tests/e2e/r-registration.spec.ts › R2-T1 an attendee registers for an open event, sees a confirmation, and the registration is stored as Registered, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41688315679 · Defect: — |
+| Remarks | Automated (browser, Playwright) · Commit: aa700c3 · Evidence: tests/e2e/r-registration.spec.ts › R2-T1 an attendee registers for an open event, sees a confirmation, and the registration is stored as Registered, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41694828373 · Defect: — |
 | Executed By | Joash, via automated testing (CI) |
 | Date of Execution | 2026-11-04 |

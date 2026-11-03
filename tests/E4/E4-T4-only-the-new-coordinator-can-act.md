@@ -21,6 +21,6 @@
 |---|---|
 | Actual Result | After the Lead's reassignment, Coordinator One's All events lacked the event and the review link showed `No event with that reference is assigned to you.`; the console PATCH returned 404 EVENT_NOT_FOUND with that message and SQL showed the purpose unchanged with no field-change history; Coordinator Two's Edit details saved (`Details saved.`) and SQL showed the new purpose with one field-change row. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
 | Status | Pass |
-| Remarks | Automated (browser, Playwright) · Commit: ceb525b · Evidence: tests/e2e/e-access-and-console.spec.ts › E4-T4 from the reassignment, only the new coordinator can perform coordinator actions on the event, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41688315679 · Defect: — |
+| Remarks | Automated (browser, Playwright) · Commit: aa700c3 · Evidence: tests/e2e/e-access-and-console.spec.ts › E4-T4 from the reassignment, only the new coordinator can perform coordinator actions on the event, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41694828373 · Defect: — |
 | Executed By | Joash, via automated testing (CI) |
 | Date of Execution | 2026-11-04 |

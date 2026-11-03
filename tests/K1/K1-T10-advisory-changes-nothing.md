@@ -19,6 +19,6 @@
 |---|---|
 | Actual Result | The venue's availability was the same before and after running the check for the Not-suitable and the Suitable event; neither event gained a request, hold or booking or changed status or any field; the results offered only `Check suitability` and `Back to venue`. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
 | Status | Pass |
-| Remarks | Automated (browser, Playwright) · Commit: ceb525b · Evidence: tests/e2e/j-venue-search.spec.ts › K1-T10 the check is advisory: it creates, changes and blocks no booking, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41688315679 · Defect: — |
+| Remarks | Automated (browser, Playwright) · Commit: aa700c3 · Evidence: tests/e2e/j-venue-search.spec.ts › K1-T10 the check is advisory: it creates, changes and blocks no booking, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41694828373 · Defect: — |
 | Executed By | Joash, via automated testing (CI) |
 | Date of Execution | 2026-11-04 |

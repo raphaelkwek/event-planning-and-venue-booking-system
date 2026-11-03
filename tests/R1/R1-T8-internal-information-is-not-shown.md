@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | The event page showed no review, clarification, coordinator, booking, layout or equipment text. From the API console, GET /registration/api/v1/open-events returned 200 and the event object carried exactly the twelve published fields, with venues carrying only name and location. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
+| Actual Result | The event page showed no review, clarification, coordinator, booking, layout or equipment text. From the API console, GET /registration/api/v1/open-events returned 200 and the event object carried exactly the published fields (the twelve listed plus highDemand, added by R5 to R7), with venues carrying only name and location. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
 | Status | Pass |
-| Remarks | Automated (browser, Playwright) · Commit: ceb525b · Evidence: tests/e2e/r-registration.spec.ts › R1-T8 internal information is not shown: the page and the API response carry only the published fields, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41688315679 · Defect: — |
+| Remarks | Automated (browser, Playwright) · Commit: aa700c3 · Evidence: tests/e2e/r-registration.spec.ts › R1-T8 internal information is not shown: the page and the API response carry only the published fields, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41694828373 · Defect: — |
 | Executed By | Joash, via automated testing (CI) |
 | Date of Execution | 2026-11-04 |

@@ -19,6 +19,6 @@
 |---|---|
 | Actual Result | A window with no To, with To before From, and with To equal to From were each refused with the server's message under To (`Enter when the window ends, as well as when it starts.` / `The window must end after it starts.`), and no results list replaced the previous one. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
 | Status | Pass |
-| Remarks | Automated (browser, Playwright) · Commit: ceb525b · Evidence: tests/e2e/j-venue-search.spec.ts › J1-T23 a window with one end, or ending before it starts, is refused naming the field, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41688315679 · Defect: — |
+| Remarks | Automated (browser, Playwright) · Commit: aa700c3 · Evidence: tests/e2e/j-venue-search.spec.ts › J1-T23 a window with one end, or ending before it starts, is refused naming the field, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41694828373 · Defect: — |
 | Executed By | Joash, via automated testing (CI) |
 | Date of Execution | 2026-11-04 |

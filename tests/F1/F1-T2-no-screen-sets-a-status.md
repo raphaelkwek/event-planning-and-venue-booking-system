@@ -22,6 +22,6 @@
 |---|---|
 | Actual Result | On the organiser's and the coordinator's detail screens the status read Approved as a read-only lozenge (not a button, link or input), with no select, text box, combobox or button for setting a status. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
 | Status | Pass |
-| Remarks | Automated (browser, Playwright) · Commit: ceb525b · Evidence: tests/e2e/e-access-and-console.spec.ts › F1-T2 no screen offers a way to set an event's status, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41688315679 · Defect: — |
+| Remarks | Automated (browser, Playwright) · Commit: aa700c3 · Evidence: tests/e2e/e-access-and-console.spec.ts › F1-T2 no screen offers a way to set an event's status, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41694828373 · Defect: — |
 | Executed By | Joash, via automated testing (CI) |
 | Date of Execution | 2026-11-04 |

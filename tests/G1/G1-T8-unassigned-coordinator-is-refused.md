@@ -21,6 +21,6 @@
 |---|---|
 | Actual Result | The event was not in the unassigned coordinator's All events; the console PATCH returned 404 EVENT_NOT_FOUND with `No event with that reference is assigned to you.`; SQL showed the purpose unchanged and no field-change history. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
 | Status | Pass |
-| Remarks | Automated (browser, Playwright) · Commit: ceb525b · Evidence: tests/e2e/e-access-and-console.spec.ts › G1-T8 a coordinator who isn't assigned to the event can't edit it, and nothing is stored, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41688315679 · Defect: — |
+| Remarks | Automated (browser, Playwright) · Commit: aa700c3 · Evidence: tests/e2e/e-access-and-console.spec.ts › G1-T8 a coordinator who isn't assigned to the event can't edit it, and nothing is stored, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41694828373 · Defect: — |
 | Executed By | Joash, via automated testing (CI) |
 | Date of Execution | 2026-11-04 |

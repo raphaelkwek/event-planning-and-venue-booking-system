@@ -19,6 +19,6 @@
 |---|---|
 | Actual Result | Three spaces were treated as an empty search (all active venues, no error); `x` listed every venue whose name or building contains an x, including the FX venues; `%` and `_` listed only venues containing the literal character and none of the FX venues. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
 | Status | Pass |
-| Remarks | Automated (browser, Playwright) · Commit: ceb525b · Evidence: tests/e2e/j-venue-search.spec.ts › J2-T7 boundary: spaces only, a single character, and the wildcard characters % and _, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41688315679 · Defect: — |
+| Remarks | Automated (browser, Playwright) · Commit: aa700c3 · Evidence: tests/e2e/j-venue-search.spec.ts › J2-T7 boundary: spaces only, a single character, and the wildcard characters % and _, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41694828373 · Defect: — |
 | Executed By | Joash, via automated testing (CI) |
 | Date of Execution | 2026-11-04 |
