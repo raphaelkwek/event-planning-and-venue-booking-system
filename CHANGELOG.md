@@ -21,8 +21,9 @@ traceability. PR #91, the follow-up to #71, #72 and #81; no migration.
   - D2 (request clarification) locks the event `for update`, as D4 and D5 do;
   - L1, and L3's conversion through it, lock the venue, then the event `for share`, then the hold;
     L1 also re-checks that the event can still be booked;
-  - L3's hold request and release lock the event `for share` before the hold; the request re-checks
-    that the event can still hold a venue;
+  - L3's hold request locks the venue, then the event `for share` (the hold's foreign key share-locks
+    the venue row, so the event first could deadlock with a block, which locks venue then event), and
+    re-checks that the event can still hold a venue; L3's release locks the event before the hold;
   - O1's request, edit and removal lock the event `for share` before the line and the type.
 - **F4: the cancellation's last lock-order gap is closed.** A hold or request at a venue the
   cancellation had not locked could commit between its venue locks and its event lock, and the release
