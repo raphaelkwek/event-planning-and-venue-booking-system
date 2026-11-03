@@ -1,0 +1,263 @@
+# ADR-0016: the release pipeline for the free staging and production environments.
+#
+#   build      every image once per architecture, on a native runner (the VM is arm64), pushed
+#              to GHCR by digest;
+#   publish    one multi-arch index per image, tagged with the commit, signed keylessly with its
+#              SBOM attested (EN-21's composite action, the same one supply-chain.yml runs);
+#   release    the release: the commit and each image's index digest, which every later job uses;
+#   staging    deploy-environment.yml with `environment: staging`: the Secret over SSH, the
+#              deploy state on the deploy-state branch, Argo CD, smoke tests, then Vercel;
+#   production the same reusable workflow with `environment: production`, after staging is green
+#              and a required reviewer approves, with the SAME commit and digests.
+#
+# workflow_dispatch with `release` set to an earlier commit redeploys that release's images (no
+# rebuild): the way to roll forward or back by hand. Nothing here pushes to main; the only branch
+# it writes is deploy-state. Runs only on main, so the signing identity is always
+# .github/workflows/release.yml@refs/heads/main.
+name: Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      release:
+        description: "Redeploy an earlier release: its full commit sha on main (its images must exist in GHCR). Empty builds the current commit."
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+# No run-level concurrency: a run is never cancelled (it could stop between a push and its
+# signature). Each environment's deploy job queues behind the previous one instead
+# (deploy-environment.yml), so a production approval that is still waiting does not hold up
+# the next merge's staging deploy.
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  IMAGE_PREFIX: ghcr.io/${{ github.repository_owner }}/connectsphere-
+
+jobs:
+  build:
+    name: Build (${{ matrix.image }}, ${{ matrix.arch }})
+    if: github.ref == 'refs/heads/main' && inputs.release == ''
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: true
+      matrix:
+        image: [planning-core, registration, notification, migrate, cerbos]
+        arch: [amd64, arm64]
+        include:
+          - { image: planning-core, file: backend/services/planning-core/Dockerfile }
+          - { image: registration, file: backend/services/registration/Dockerfile }
+          - { image: notification, file: backend/services/notification/Dockerfile }
+          - { image: migrate, file: backend/scripts/Dockerfile }
+          - { image: cerbos, file: deploy/cerbos/Dockerfile }
+          - { arch: amd64, runner: ubuntu-24.04, platform: linux/amd64 }
+          - { arch: arm64, runner: ubuntu-24.04-arm, platform: linux/arm64 }
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Pushed by digest only; publish joins the two architectures under one tag.
+      - name: Build and push by digest
+        id: build
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
+        with:
+          context: .
+          file: ${{ matrix.file }}
+          platforms: ${{ matrix.platform }}
+          outputs: type=image,name=${{ env.IMAGE_PREFIX }}${{ matrix.image }},push-by-digest=true,name-canonical=true,push=true
+          cache-from: type=gha,scope=release-${{ matrix.image }}-${{ matrix.arch }}
+          cache-to: type=gha,scope=release-${{ matrix.image }}-${{ matrix.arch }},mode=max
+          provenance: false
+
+      - name: Record the digest
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          case "$DIGEST" in sha256:*) ;; *) echo "::error::no digest from the build"; exit 1 ;; esac
+          mkdir -p digests
+          printf '%s' "$DIGEST" > "digests/${{ matrix.image }}-${{ matrix.arch }}"
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: digest-${{ matrix.image }}-${{ matrix.arch }}
+          path: digests/${{ matrix.image }}-${{ matrix.arch }}
+          retention-days: 1
+
+  publish:
+    name: Publish (${{ matrix.image }})
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: write
+      # The OIDC token cosign trades for a keyless signing certificate (EN-21).
+      id-token: write
+    strategy:
+      fail-fast: true
+      matrix:
+        image: [planning-core, registration, notification, migrate, cerbos]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: digest-${{ matrix.image }}-*
+          path: digests
+          merge-multiple: true
+
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Join the architectures into one index, tagged with the commit
+        id: index
+        env:
+          NAME: ${{ env.IMAGE_PREFIX }}${{ matrix.image }}
+        run: |
+          amd64="$(cat "digests/${{ matrix.image }}-amd64")"
+          arm64="$(cat "digests/${{ matrix.image }}-arm64")"
+          docker buildx imagetools create -t "${NAME}:${GITHUB_SHA}" "${NAME}@${amd64}" "${NAME}@${arm64}"
+          digest="$(docker buildx imagetools inspect "${NAME}:${GITHUB_SHA}" --format '{{json .Manifest}}' | jq -r .digest)"
+          case "$digest" in sha256:*) ;; *) echo "::error::could not read the index digest"; exit 1 ;; esac
+          platforms="$(docker buildx imagetools inspect "${NAME}@${digest}" --format '{{json .Manifest}}' | jq -r '[.manifests[].platform | "\(.os)/\(.architecture)"] | sort | join(",")')"
+          [ "$platforms" = "linux/amd64,linux/arm64" ] || { echo "::error::the index has ${platforms}"; exit 1; }
+          echo "ref=${NAME}@${digest}" >> "$GITHUB_OUTPUT"
+          echo "| ${{ matrix.image }} | \`${digest}\` | ${platforms} |" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Sign, attest and verify (cosign, keyless)
+        uses: ./.github/actions/sign-and-attest
+        with:
+          image: ${{ steps.index.outputs.ref }}
+          identity: ${{ github.server_url }}/${{ github.repository }}/.github/workflows/release.yml@refs/heads/main
+          sbom-path: sbom-${{ matrix.image }}.cdx.json
+          require-oidc: "true"
+
+      - name: Record the reference
+        env:
+          REF: ${{ steps.index.outputs.ref }}
+        run: |
+          mkdir -p refs
+          printf '%s' "$REF" > "refs/${{ matrix.image }}"
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ref-${{ matrix.image }}
+          path: refs/${{ matrix.image }}
+          retention-days: 7
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: sbom-${{ matrix.image }}
+          path: sbom-${{ matrix.image }}.cdx.json
+          retention-days: 90
+
+  release:
+    name: Release (the commit and its digests)
+    needs: publish
+    # Runs after publish, or alone when an earlier release is redeployed.
+    if: ${{ !cancelled() && github.ref == 'refs/heads/main' && (needs.publish.result == 'success' || (needs.publish.result == 'skipped' && inputs.release != '')) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      packages: read
+    outputs:
+      release: ${{ steps.release.outputs.release }}
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        if: inputs.release == ''
+        with:
+          pattern: ref-*
+          path: refs
+          merge-multiple: true
+
+      - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+        with:
+          cosign-release: v3.1.4
+
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # An earlier release: look its images up by their commit tag, and accept them only if
+      # this workflow on main signed them.
+      - name: Resolve and verify the release
+        id: release
+        env:
+          REQUESTED: ${{ inputs.release }}
+          IDENTITY: ${{ github.server_url }}/${{ github.repository }}/.github/workflows/release.yml@refs/heads/main
+        run: |
+          set -euo pipefail
+          commit="${REQUESTED:-$GITHUB_SHA}"
+          [[ "$commit" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::release must be a full 40-character commit sha"; exit 1; }
+          images='{}'
+          for name in planning-core registration notification migrate cerbos; do
+            if [ -n "$REQUESTED" ]; then
+              digest="$(docker buildx imagetools inspect "${IMAGE_PREFIX}${name}:${commit}" --format '{{json .Manifest}}' | jq -r .digest)"
+              ref="${IMAGE_PREFIX}${name}@${digest}"
+            else
+              ref="$(cat "refs/${name}")"
+            fi
+            cosign verify "$ref" --certificate-identity "$IDENTITY" \
+              --certificate-oidc-issuer https://token.actions.githubusercontent.com > /dev/null
+            echo "verified ${ref}"
+            images="$(jq -c --arg n "$name" --arg r "$ref" '. + {($n): $r}' <<< "$images")"
+          done
+          release="$(jq -cn --arg c "$commit" --argjson i "$images" '{commit: $c, images: $i}')"
+          echo "release=${release}" >> "$GITHUB_OUTPUT"
+          { echo "### Release ${commit}"; echo; jq -r '.images | to_entries[] | "- \(.key): `\(.value)`"' <<< "$release"; } >> "$GITHUB_STEP_SUMMARY"
+
+  staging:
+    name: Deploy staging
+    needs: release
+    if: ${{ !cancelled() && needs.release.result == 'success' }}
+    permissions:
+      contents: write
+      packages: read
+    uses: ./.github/workflows/deploy-environment.yml
+    with:
+      environment: staging
+      release: ${{ needs.release.outputs.release }}
+    secrets: inherit
+
+  production:
+    name: Deploy production
+    needs: [release, staging]
+    if: ${{ !cancelled() && needs.staging.result == 'success' }}
+    permissions:
+      contents: write
+      packages: read
+    uses: ./.github/workflows/deploy-environment.yml
+    with:
+      environment: production
+      release: ${{ needs.release.outputs.release }}
+    secrets: inherit

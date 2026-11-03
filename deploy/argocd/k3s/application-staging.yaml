@@ -1,0 +1,42 @@
+# ADR-0016. The staging environment on the k3s VM. Argo CD follows environments/staging on the
+# deploy-state branch, which only the Release workflow writes: it pins the k3s-staging overlay
+# at one commit and the image digests (deploy/release/write-state.mjs). The workflow writes
+# that path only after a merge to main, so automated sync is safe
+# here: a commit to the path is the deployment, and reverting it is the rollback.
+#
+# bootstrap.sh applies this file. (deploy/argocd/application-staging.yaml is EN-10's version
+# for the EKS path, which follows the overlays on main.)
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: connectsphere-staging
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: connectsphere
+  source:
+    repoURL: https://github.com/raphaelkwek/event-planning-and-venue-booking-system.git
+    targetRevision: deploy-state
+    path: environments/staging
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: connectsphere-staging
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - ServerSideApply=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 15s
+        factor: 2
+        maxDuration: 3m
+  # The HorizontalPodAutoscalers own the replica counts.
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      jsonPointers:
+        - /spec/replicas

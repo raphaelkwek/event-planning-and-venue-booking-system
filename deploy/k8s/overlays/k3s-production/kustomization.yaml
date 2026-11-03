@@ -1,0 +1,45 @@
+# ADR-0016. The production environment on the free single-node k3s VM (deploy/oracle). It differs
+# from k3s-staging only in the namespace, the placeholder API host, the TLS Secret name
+# and the middleware reference that names the namespace; the Manifests job checks that.
+#
+# Argo CD does not read this directory directly: it reads the deploy state on the
+# deploy-state branch (deploy/release/write-state.mjs), which pins this directory at one
+# commit, sets the image digests, and replaces the placeholder host with the real one.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: connectsphere-production
+resources:
+  - ../../base
+  - namespace.yaml
+components:
+  - ../../components/k3s
+# The deploy state sets each to the digest the Release workflow built and signed. The
+# placeholder fails loudly: it is not a tag.
+images:
+  - name: ghcr.io/raphaelkwek/connectsphere-planning-core
+    newTag: replace-with-release-digest
+  - name: ghcr.io/raphaelkwek/connectsphere-registration
+    newTag: replace-with-release-digest
+  - name: ghcr.io/raphaelkwek/connectsphere-notification
+    newTag: replace-with-release-digest
+  - name: ghcr.io/raphaelkwek/connectsphere-migrate
+    newTag: replace-with-release-digest
+  - name: ghcr.io/raphaelkwek/connectsphere-cerbos
+    newTag: replace-with-release-digest
+patches:
+  - target:
+      kind: Ingress
+      name: api
+    patch: |-
+      - op: replace
+        path: /metadata/annotations/traefik.ingress.kubernetes.io~1router.middlewares
+        value: connectsphere-production-strip-service-prefix@kubernetescrd
+      - op: replace
+        path: /spec/rules/0/host
+        value: api.production.connectsphere.invalid
+      - op: replace
+        path: /spec/tls/0/hosts/0
+        value: api.production.connectsphere.invalid
+      - op: replace
+        path: /spec/tls/0/secretName
+        value: connectsphere-production-api-tls

@@ -1,5 +1,10 @@
 # EN-10 and EN-16 (ADR-0012): container images, Kubernetes manifests, Terraform,
-# GitOps and canary releases.
+# GitOps and canary releases; ADR-0016: the k3s overlays, the arm64 builds and the deploy
+# scripts the Release workflow (release.yml) uses.
+#
+# Nothing here pushes an image. Since ADR-0016 the Release workflow builds, pushes and signs
+# the images on main, once, for both architectures; this workflow proves on every pull request
+# that they build, start hardened and deploy.
 #
 # This is its own workflow so that none of it is a required check on
 # ci.yml. `images` runs on every pull request and push to main; the jobs that
@@ -45,7 +50,7 @@ jobs:
           fi
           changed="$(git diff --name-only "$BASE_SHA"...HEAD)"
           echo "$changed"
-          if echo "$changed" | grep -Eq '^(deploy/|\.dockerignore|\.github/workflows/deploy\.yml|backend/scripts/(migrate\.ts|Dockerfile)|backend/services/[^/]+/Dockerfile|frontend/(Dockerfile|nginx\.conf|security-headers\.inc))'; then
+          if echo "$changed" | grep -Eq '^(deploy/|policies/|vercel\.json|\.dockerignore|\.github/workflows/(deploy|release|deploy-environment)\.yml|backend/scripts/(migrate\.ts|Dockerfile)|backend/services/[^/]+/Dockerfile|frontend/(Dockerfile|nginx\.conf|security-headers\.inc))'; then
             echo "deploy=true" >> "$GITHUB_OUTPUT"
           else
             echo "deploy=false" >> "$GITHUB_OUTPUT"
@@ -54,8 +59,7 @@ jobs:
 
   # Builds every image with buildx and the GitHub Actions cache, starts it under
   # the restrictions the manifests impose, and checks its health endpoint
-  # (deploy/ci/smoke-image.sh). On main it also pushes the image to GHCR, tagged
-  # with the commit sha.
+  # (deploy/ci/smoke-image.sh). It pushes nothing: release.yml publishes on main.
   images:
     name: Image (${{ matrix.name }})
     needs: changes
@@ -63,10 +67,6 @@ jobs:
     timeout-minutes: 25
     permissions:
       contents: read
-      packages: write
-      # EN-21: the OIDC token cosign trades for a keyless signing certificate. Only the signing
-      # step uses it, and that step runs on main.
-      id-token: write
     strategy:
       fail-fast: false
       matrix:
@@ -76,6 +76,7 @@ jobs:
           - { name: notification, file: backend/services/notification/Dockerfile }
           - { name: web, file: frontend/Dockerfile }
           - { name: migrate, file: backend/scripts/Dockerfile }
+          - { name: cerbos, file: deploy/cerbos/Dockerfile }
     # A throwaway database for the smoke checks, as in ci.yml. It lives as long
     # as this job; CLAUDE.md allows containers in CI only.
     services:
@@ -130,52 +131,66 @@ jobs:
           path: image-${{ matrix.name }}.tar.gz
           retention-days: 1
 
-      # Only main publishes. A pull request never pushes, and a fork's token
-      # cannot write packages anyway.
-      - name: Log in to GHCR
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+      # ADR-0016: the Release workflow (release.yml) builds, pushes and signs the images on main,
+      # for linux/amd64 and linux/arm64, through EN-21's sign-and-attest action. This job only
+      # proves on a pull request that each image builds and starts.
 
-      - name: Push to GHCR, tagged with the commit sha
-        id: push
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+  # ADR-0016: the Oracle Ampere VM is arm64, so every image the Release workflow ships is also
+  # built and smoke-tested natively on an arm64 runner (free for public repositories), the same
+  # way the amd64 job does. Runs when deploy/, a Dockerfile or the workflows change.
+  images-arm64:
+    name: Image arm64 (${{ matrix.name }})
+    needs: changes
+    if: needs.changes.outputs.deploy == 'true'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 25
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: planning-core, file: backend/services/planning-core/Dockerfile }
+          - { name: registration, file: backend/services/registration/Dockerfile }
+          - { name: notification, file: backend/services/notification/Dockerfile }
+          - { name: migrate, file: backend/scripts/Dockerfile }
+          - { name: cerbos, file: deploy/cerbos/Dockerfile }
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: connectsphere_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci -d connectsphere_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      IMAGE: connectsphere-${{ matrix.name }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+
+      - name: Build (linux/arm64)
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
         with:
           context: .
           file: ${{ matrix.file }}
-          push: true
-          # Public values the browser needs to sign in (Actions variables, not secrets).
-          # Only the web Dockerfile declares them; the others ignore them.
-          build-args: |
-            SUPABASE_URL=${{ vars.SUPABASE_URL }}
-            SUPABASE_ANON_KEY=${{ vars.SUPABASE_ANON_KEY }}
-          tags: ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE }}:${{ github.sha }}
-          cache-from: type=gha,scope=${{ matrix.name }}
+          platforms: linux/arm64
+          load: true
+          tags: ${{ env.IMAGE }}:ci
+          cache-from: type=gha,scope=release-${{ matrix.name }}-arm64
           provenance: false
 
-      # EN-21 (documentation/supply-chain.md). Sign the digest that was just pushed, keylessly,
-      # attach its SBOM as a signed attestation, and verify both. supply-chain.yml runs the same
-      # action on every pull request against a throwaway registry.
-      - name: Sign, attest and verify (cosign, keyless)
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        uses: ./.github/actions/sign-and-attest
-        with:
-          image: ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE }}@${{ steps.push.outputs.digest }}
-          identity: ${{ github.server_url }}/${{ github.repository }}/.github/workflows/deploy.yml@refs/heads/main
-          sbom-path: sbom-attested-${{ matrix.name }}.cdx.json
-          require-oidc: "true"
-
-      - name: Upload the attested SBOM
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        with:
-          name: sbom-attested-${{ matrix.name }}
-          path: sbom-attested-${{ matrix.name }}.cdx.json
-          retention-days: 90
+      - name: Smoke check on arm64
+        run: |
+          [ "$(docker image inspect "${IMAGE}:ci" --format '{{.Architecture}}')" = arm64 ]
+          bash deploy/ci/smoke-image.sh "${{ matrix.name }}" "${IMAGE}:ci"
 
   # The manifests render and are valid Kubernetes, including the Argo Rollouts, Argo CD
   # and External Secrets custom resources (their schemas come from the Datree CRDs
@@ -206,7 +221,7 @@ jobs:
               -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \
               "$@"
           }
-          for dir in base overlays/staging overlays/production test/kind-staging test/canary-demo; do
+          for dir in base overlays/staging overlays/production test/kind-staging test/canary-demo overlays/k3s-staging overlays/k3s-production; do
             out="rendered-$(echo "$dir" | tr / -).yaml"
             echo "::group::deploy/k8s/$dir"
             kubectl kustomize "deploy/k8s/$dir" > "$out"
@@ -216,9 +231,21 @@ jobs:
           echo "::group::deploy/argocd, deploy/k8s/optional and the test dependencies"
           conform deploy/argocd deploy/k8s/optional deploy/k8s/test/deps deploy/k8s/test/canary-demo/prometheus.yaml
           echo "::endgroup::"
+          echo "::group::deploy/oracle: the deployer RBAC bootstrap.sh applies, per environment"
+          for env in staging production; do
+            sed "s/ENVIRONMENT/${env}/g" deploy/oracle/deployer-rbac.yaml > "rendered-deployer-${env}.yaml"
+            conform "rendered-deployer-${env}.yaml"
+          done
+          echo "::endgroup::"
 
       - name: Check the rendered overlays (no Secret, every container hardened and sized)
-        run: python3 deploy/ci/check-rendered.py rendered-overlays-staging.yaml rendered-overlays-production.yaml
+        run: |
+          python3 deploy/ci/check-rendered.py rendered-overlays-staging.yaml rendered-overlays-production.yaml
+          # ADR-0016: the k3s overlays run plain Deployments (no canary until EN-17's Prometheus).
+          python3 deploy/ci/check-rendered.py --no-canary rendered-overlays-k3s-staging.yaml rendered-overlays-k3s-production.yaml
+
+      - name: Staging and production (k3s) differ only in namespace, hostnames and Secret names
+        run: python3 deploy/ci/check-parity.py rendered-overlays-k3s-staging.yaml rendered-overlays-k3s-production.yaml
 
   terraform:
     name: Terraform (fmt, validate, tflint)
@@ -350,3 +377,64 @@ jobs:
           name: evidence-canary-rollback
           path: canary-demo-evidence.md
           if-no-files-found: ignore
+
+  # ADR-0016: the k3s staging overlay on kind with its own Redpanda, Temporal and Cerbos, deployed
+  # through the deploy gate and the deploy state the Release workflow uses (deploy/ci/kind-k3s.sh).
+  kind-k3s:
+    name: "kind: k3s staging overlay (Redpanda, Temporal, Cerbos, Traefik)"
+    needs: [changes, images]
+    if: needs.changes.outputs.deploy == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: image-*
+          merge-multiple: true
+      # Redpanda's asynchronous I/O wants more than the runner's default.
+      - name: Raise fs.aio-max-nr for Redpanda
+        run: sudo sysctl -w fs.aio-max-nr=1048576
+      - uses: helm/kind-action@1544676c07bb3570fcb70166beaa07c4528fd4aa # v1.15.1
+        with:
+          version: v0.29.0
+          node_image: kindest/node:v1.33.1
+          cluster_name: connectsphere
+      - name: Load the images
+        run: |
+          source deploy/ci/lib.sh
+          load_images connectsphere planning-core registration notification migrate cerbos
+      - name: Deploy the k3s staging overlay and smoke-test it
+        env:
+          # The pull request's own commit, which kustomize fetches from GitHub as the remote base.
+          REVISION: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: bash deploy/ci/kind-k3s.sh
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: evidence-kind-k3s
+          path: kind-k3s-evidence.md
+          if-no-files-found: ignore
+
+  # ADR-0016: the release workflows and deploy scripts are linted on every pull request.
+  lint-release:
+    name: Release workflows and scripts (actionlint, shellcheck)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      ACTIONLINT_VERSION: 1.7.12
+      ACTIONLINT_SHA256: 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - name: actionlint
+        run: |
+          curl -sSfL -o actionlint.tar.gz \
+            "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          echo "${ACTIONLINT_SHA256}  actionlint.tar.gz" | sha256sum --check
+          tar -xzf actionlint.tar.gz actionlint
+          ./actionlint -color .github/workflows/release.yml .github/workflows/deploy-environment.yml .github/workflows/deploy.yml
+      - name: shellcheck
+        run: |
+          shellcheck --version | head -2
+          shellcheck -x deploy/oracle/bootstrap.sh deploy/oracle/connectsphere-deploy deploy/oracle/make-deployer-kubeconfig.sh \
+            deploy/release/smoke-api.sh deploy/release/smoke-web.sh deploy/ci/kind-k3s.sh deploy/ci/smoke-image.sh

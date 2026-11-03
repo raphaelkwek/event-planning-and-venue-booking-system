@@ -1,0 +1,72 @@
+# ADR-0016. The one public entry to the cluster: Traefik (k3s's bundled ingress controller)
+# on port 443 of the API host. The SPA is on Vercel and calls this host with the same
+# prefixes the dev server and Kong use (/identity, /event, /venue, /equipment, /notification,
+# /registration); the middleware strips the prefix before the request reaches the service.
+#
+# Only /<prefix>/api/v1 is routed, as in Kong's configuration (EN-12, documentation/gateway.md
+# on its branch): /healthz, /readyz, /metrics and the in-cluster Redpanda, Temporal and Cerbos
+# are never reachable from outside. Kong is not on main, so Traefik routes straight to the
+# services; each service still checks the token and rate-limits itself.
+#
+# The overlay sets the host, the TLS Secret name and the middleware reference (which names the
+# namespace); the deploy state replaces the placeholder host with the environment's real one.
+# cert-manager's ingress-shim reads the annotation and issues the certificate from the
+# ClusterIssuer that bootstrap.sh creates (Let's Encrypt, HTTP-01 through Traefik on port 80).
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: api
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+    traefik.ingress.kubernetes.io/router.middlewares: replace-with-namespace-strip-service-prefix@kubernetescrd
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts: [api.connectsphere.invalid]
+      secretName: replace-with-tls-secret-name
+  rules:
+    - host: api.connectsphere.invalid
+      http:
+        paths:
+          - path: /identity/api/v1
+            pathType: Prefix
+            backend:
+              service: { name: planning-core, port: { name: http } }
+          - path: /event/api/v1
+            pathType: Prefix
+            backend:
+              service: { name: planning-core, port: { name: http } }
+          - path: /venue/api/v1
+            pathType: Prefix
+            backend:
+              service: { name: planning-core, port: { name: http } }
+          - path: /equipment/api/v1
+            pathType: Prefix
+            backend:
+              service: { name: planning-core, port: { name: http } }
+          - path: /notification/api/v1
+            pathType: Prefix
+            backend:
+              service: { name: notification, port: { name: http } }
+          - path: /registration/api/v1
+            pathType: Prefix
+            backend:
+              service: { name: registration, port: { name: http } }
+---
+# Strips the first matching prefix, so /identity/api/v1/users/me reaches planning-core as
+# /api/v1/users/me, exactly as the Vite dev server's proxy does.
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: strip-service-prefix
+spec:
+  stripPrefix:
+    prefixes:
+      - /identity
+      - /event
+      - /venue
+      - /equipment
+      - /notification
+      - /registration

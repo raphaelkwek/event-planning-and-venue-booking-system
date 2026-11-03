@@ -1,0 +1,192 @@
+#!/usr/bin/env bash
+# ADR-0016. The deploy gate: the only thing the Release workflow can run on the VM.
+#
+# bootstrap.sh installs it as /usr/local/bin/connectsphere-deploy and puts each environment's
+# deploy key in ~cs-deploy/.ssh/authorized_keys as a forced command:
+#
+#   command="/usr/local/bin/connectsphere-deploy staging",restrict ssh-ed25519 AAAA...
+#
+# so the staging key can only ask the staging gate for these verbs, and the gate talks to the
+# cluster as the namespace's own `deployer` ServiceAccount (deployer-rbac.yaml), never as admin.
+# A leaked staging key cannot read or change production, open a shell or forward a port.
+#
+#   apply-secret          stdin: KEY=value lines (deploy/release/secret-env.mjs). Writes the
+#                         namespace's connectsphere-secrets; prints key names only. If the Secret
+#                         changed, restarts the services so they read it.
+#   sync <commit>         Asks Argo CD to refresh, then waits until the environment's Application
+#                         is Synced and Healthy at that deploy-state commit.
+#   health                /healthz and /readyz of each service, Cerbos's health, and the
+#                         Redpanda, Temporal and worker workloads.
+#   status                The Application and the namespace's workloads, for a failed run.
+#
+# Run by hand on the VM: sudo -u cs-deploy connectsphere-deploy staging status
+set -euo pipefail
+
+ENVIRONMENT="${1:-}"
+case "$ENVIRONMENT" in
+  staging | production) ;;
+  *)
+    echo "connectsphere-deploy: the environment must be staging or production" >&2
+    exit 2
+    ;;
+esac
+NS="connectsphere-${ENVIRONMENT}"
+APP="connectsphere-${ENVIRONMENT}"
+KUBECONFIG_FILE="${CONNECTSPHERE_KUBECONFIG:-/etc/connectsphere/deployer-${ENVIRONMENT}.kubeconfig}"
+SYNC_TIMEOUT="${CONNECTSPHERE_SYNC_TIMEOUT:-900}"
+
+# The keys deploy/release/secret-env.mjs writes; any other is refused. Keep the two lists equal
+# (the kind job pipes one into the other, so a difference fails CI).
+ALLOWED_KEYS=(
+  DATABASE_URL MIGRATE_DATABASE_URL SUPABASE_URL SUPABASE_ANON_KEY SUPABASE_SERVICE_ROLE_KEY
+  KAFKA_SASL_PASSWORD SUPABASE_JWKS_URL KAFKA_BROKERS KAFKA_SASL_USERNAME TEMPORAL_ADDRESS TEMPORAL_NAMESPACE
+)
+SERVICES=(planning-core planning-core-worker registration notification)
+
+kc() { kubectl --kubeconfig "$KUBECONFIG_FILE" "$@"; }
+refuse() {
+  echo "connectsphere-deploy: refused: $*" >&2
+  exit 3
+}
+allowed() {
+  local key
+  for key in "${ALLOWED_KEYS[@]}"; do [ "$key" = "$1" ] && return 0; done
+  return 1
+}
+
+# Over SSH the request is in SSH_ORIGINAL_COMMAND; run locally, it is the remaining arguments.
+if [ -n "${SSH_ORIGINAL_COMMAND:-}" ]; then
+  read -r -a WORDS <<< "$SSH_ORIGINAL_COMMAND"
+else
+  WORDS=("${@:2}")
+fi
+VERB="${WORDS[0]:-}"
+
+apply_secret() {
+  [ "${#WORDS[@]}" -eq 1 ] || refuse "apply-secret takes no arguments"
+  local dir file line key count=0 before after
+  dir="$(mktemp -d)"
+  chmod 700 "$dir"
+  # shellcheck disable=SC2064 # expand now: the directory is removed however the gate exits.
+  trap "rm -rf '$dir'" EXIT
+  file="$dir/secret.env"
+  : > "$file"
+  chmod 600 "$file"
+  declare -A seen=()
+  while IFS= read -r line || [ -n "$line" ]; do
+    line="${line%$'\r'}"
+    [ -z "$line" ] && continue
+    count=$((count + 1))
+    [[ "$line" =~ ^([A-Z][A-Z0-9_]*)=(.+)$ ]] || refuse "line ${count} is not KEY=value"
+    key="${BASH_REMATCH[1]}"
+    allowed "$key" || refuse "${key} is not a key this gate accepts"
+    [ -z "${seen[$key]:-}" ] || refuse "${key} is given twice"
+    seen[$key]=1
+    printf '%s\n' "$line" >> "$file"
+  done
+  for key in "${ALLOWED_KEYS[@]}"; do
+    [ -n "${seen[$key]:-}" ] || refuse "${key} is missing"
+  done
+
+  before="$(kc -n "$NS" get secret connectsphere-secrets -o jsonpath='{.metadata.resourceVersion}' 2>/dev/null || true)"
+  kc -n "$NS" create secret generic connectsphere-secrets --from-env-file="$file" --dry-run=client -o yaml \
+    | kc apply --server-side --field-manager=connectsphere-deploy --force-conflicts -f - > /dev/null
+  after="$(kc -n "$NS" get secret connectsphere-secrets -o jsonpath='{.metadata.resourceVersion}')"
+  echo "connectsphere-secrets in ${NS}: ${count} keys (${!seen[*]})"
+  if [ -z "$before" ]; then
+    echo "created"
+  elif [ "$before" = "$after" ]; then
+    echo "unchanged"
+  else
+    echo "changed: restarting the services so they read it"
+    local service
+    for service in "${SERVICES[@]}"; do
+      if kc -n "$NS" get deployment "$service" > /dev/null 2>&1; then
+        kc -n "$NS" rollout restart "deployment/${service}"
+      fi
+    done
+  fi
+}
+
+app_field() { # <json> <jq filter>
+  jq -r "$2 // \"\"" <<< "$1"
+}
+
+sync_to() {
+  [ "${#WORDS[@]}" -eq 2 ] || refuse "sync takes one argument, the deploy-state commit"
+  local want="${WORDS[1]}" json revision sync health phase message deadline
+  [[ "$want" =~ ^[0-9a-f]{40}$ ]] || refuse "sync needs the full 40-character deploy-state commit"
+  kc -n argocd annotate application "$APP" argocd.argoproj.io/refresh=normal --overwrite > /dev/null
+  deadline=$((SECONDS + SYNC_TIMEOUT))
+  while :; do
+    json="$(kc -n argocd get application "$APP" -o json)"
+    revision="$(app_field "$json" '.status.sync.revision')"
+    sync="$(app_field "$json" '.status.sync.status')"
+    health="$(app_field "$json" '.status.health.status')"
+    phase="$(app_field "$json" '.status.operationState.phase')"
+    echo "revision=${revision:0:12} sync=${sync:-?} health=${health:-?} operation=${phase:-none}"
+    if [ "$revision" = "$want" ] && [ "$sync" = Synced ] && [ "$health" = Healthy ] && [ "$phase" != Running ]; then
+      echo "${APP} is Synced and Healthy at ${want}"
+      return 0
+    fi
+    if [ "$(app_field "$json" '.status.operationState.syncResult.revision')" = "$want" ] && { [ "$phase" = Failed ] || [ "$phase" = Error ]; }; then
+      message="$(app_field "$json" '.status.operationState.message')"
+      echo "connectsphere-deploy: the sync of ${want} failed: ${message}" >&2
+      return 1
+    fi
+    if [ "$SECONDS" -ge "$deadline" ]; then
+      echo "connectsphere-deploy: ${APP} did not reach Synced and Healthy at ${want} within ${SYNC_TIMEOUT}s" >&2
+      jq -r '.status.conditions[]? | "condition: \(.type): \(.message)"' <<< "$json" >&2 || true
+      jq -r '.status.resources[]? | select(.health.status != null and .health.status != "Healthy") | "unhealthy: \(.kind)/\(.name) \(.health.status) \(.health.message // "")"' <<< "$json" >&2 || true
+      return 1
+    fi
+    sleep 10
+  done
+}
+
+proxy_get() { # <service> <port> <path>
+  kc get --raw "/api/v1/namespaces/${NS}/services/http:$1:$2/proxy$3"
+}
+
+health() {
+  [ "${#WORDS[@]}" -eq 1 ] || refuse "health takes no arguments"
+  local failed=0 entry service port live ready
+  for entry in "planning-core 8090" "registration 8092" "notification 8091"; do
+    read -r service port <<< "$entry"
+    live="$(proxy_get "$service" "$port" /healthz 2>&1 || true)"
+    ready="$(proxy_get "$service" "$port" /readyz 2>&1 || true)"
+    echo "${service} /healthz ${live}"
+    echo "${service} /readyz ${ready}"
+    if ! grep -q '"database":"ok"' <<< "$ready" || ! grep -q '"kafka":"reachable"' <<< "$ready"; then
+      echo "connectsphere-deploy: ${service} is not ready with the database and Kafka" >&2
+      failed=1
+    fi
+  done
+  ready="$(proxy_get cerbos 3592 /_cerbos/health 2>&1 || true)"
+  echo "cerbos /_cerbos/health ${ready}"
+  grep -q SERVING <<< "$ready" || { echo "connectsphere-deploy: cerbos is not serving" >&2; failed=1; }
+  for entry in statefulset/redpanda statefulset/temporal deployment/planning-core-worker; do
+    if kc -n "$NS" rollout status "$entry" --timeout=120s > /dev/null 2>&1; then
+      echo "${entry} ready"
+    else
+      echo "connectsphere-deploy: ${entry} is not ready" >&2
+      failed=1
+    fi
+  done
+  return "$failed"
+}
+
+status() {
+  [ "${#WORDS[@]}" -eq 1 ] || refuse "status takes no arguments"
+  kc -n argocd get application "$APP" -o json \
+    | jq -r '"\(.metadata.name): sync=\(.status.sync.status) health=\(.status.health.status) revision=\(.status.sync.revision)"'
+  kc -n "$NS" get deployments,statefulsets,jobs,pods,certificates,ingress -o wide || true
+}
+
+case "$VERB" in
+  apply-secret) apply_secret ;;
+  sync) sync_to ;;
+  health) health ;;
+  status) status ;;
+  *) refuse "unknown request; the gate accepts apply-secret, sync <commit>, health and status" ;;
+esac
