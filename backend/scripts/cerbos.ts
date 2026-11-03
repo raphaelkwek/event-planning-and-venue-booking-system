@@ -13,8 +13,9 @@
  * build inside WSL when a Linux distribution is installed (WSL 2 forwards the
  * port, so http://127.0.0.1:3592 works from Windows). Without one it says how
  * to get one. For `server` it then exits 0, so `npm run dev` keeps running and
- * every protected request is refused with 503 (fail closed); for anything else
- * it exits 1 rather than pretending the policy tests passed.
+ * planning-core, finding no PDP, uses its development-only local-policies mode
+ * (src/shared/authz/startup.ts); for anything else it exits 1 rather than
+ * pretending the policy tests passed.
  */
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -92,7 +93,9 @@ function noWsl(): never {
     "Cerbos has no Windows build, and no WSL Linux distribution is installed to run its Linux build.\n" +
     "Install one with `wsl --install -d Ubuntu`, then run this again. CI runs the policy tests and a PDP on every pull request.";
   if (SERVING) {
-    console.warn(`${message}\nUntil then planning-core refuses every protected request with 503 POLICY_UNAVAILABLE (it fails closed).`);
+    console.warn(
+      `${message}\nUntil then planning-core, in development, evaluates policies/ itself (its log says LOCAL-POLICIES MODE); in production it never does, and refuses with 503 POLICY_UNAVAILABLE.`
+    );
     process.exit(0);
   }
   fail(message);

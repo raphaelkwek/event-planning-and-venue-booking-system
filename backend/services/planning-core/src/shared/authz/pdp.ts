@@ -94,5 +94,19 @@ export function httpPolicyDecisionPoint(url: string | undefined): PolicyDecision
   };
 }
 
-/** The PDP planning-core asks. Tests replace it (vi.mock) or point CERBOS_URL at a real one. */
-export const pdp: PolicyDecisionPoint = httpPolicyDecisionPoint(process.env.CERBOS_URL);
+let current: PolicyDecisionPoint = httpPolicyDecisionPoint(process.env.CERBOS_URL);
+
+/**
+ * The PDP planning-core asks: the Cerbos PDP at CERBOS_URL, unless startup.ts chose
+ * the local-policies mode for development. Tests replace it (vi.mock) or point
+ * CERBOS_URL at a real one.
+ */
+export const pdp: PolicyDecisionPoint = {
+  reach: (principal, kind, action) => current.reach(principal, kind, action),
+  allows: (principal, resource, action) => current.allows(principal, resource, action),
+};
+
+/** Called once, by startup.ts, before the server takes requests. */
+export function usePolicyDecisionPoint(next: PolicyDecisionPoint): void {
+  current = next;
+}
