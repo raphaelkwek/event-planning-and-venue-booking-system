@@ -1,0 +1,14 @@
+# The local Cerbos policy decision point (EN-07, ADR-0010), started by
+# `npm run cerbos:start` and `npm run dev` from the repository root.
+# planning-core reaches it at CERBOS_URL=http://127.0.0.1:3592. It listens on
+# the loopback address only: the PDP is never exposed beyond the machine.
+# CI runs the same policies in a Cerbos service container, and each
+# Kubernetes namespace gets its own PDP (EN-10).
+server:
+  httpListenAddr: "127.0.0.1:3592"
+  grpcListenAddr: "127.0.0.1:3593"
+storage:
+  driver: disk
+  disk:
+    directory: policies
+    watchForChanges: true

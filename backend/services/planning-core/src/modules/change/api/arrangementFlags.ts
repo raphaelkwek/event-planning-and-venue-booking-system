@@ -4,7 +4,7 @@ import { findEventForChange } from "../../event/index.js";
 import { notInScopeMessage, resolveAccessScope } from "../../identity/index.js";
 import { outstandingReservationFlags, type OutstandingReservationFlag } from "../../equipment/index.js";
 import { outstandingBookingFlags, type OutstandingBookingFlag } from "../../venue/index.js";
-import { authenticate, type ActorRequest } from "../auth/actor.js";
+import { authenticate, requireRole, type ActorRequest } from "../auth/actor.js";
 import { refuse } from "./errors.js";
 import { changeRateLimiter } from "./limiter.js";
 
@@ -61,6 +61,7 @@ export function arrangementFlagsRouter(sql: Sql, limiter: RequestHandler = chang
     "/api/v1/events/:id/arrangement-flags",
     limiter,
     authenticate,
+    requireRole("event", "view"),
     async (req: ActorRequest, res: Response, next: NextFunction) => {
       try {
         const id = req.params.id!;

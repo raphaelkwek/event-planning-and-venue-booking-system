@@ -20,7 +20,7 @@ tests:
     input:
       principals: [organiser, other_organiser, assigned_coordinator, other_coordinator, nominee, venue_manager, other_venue_staff, tech_support, attendee, other_attendee]
       resources: [type_projector]
-      actions: [create, update, record_unavailability, view]
+      actions: [create, update, record_unavailability, view, check_availability]
     expected:
       - principal: assigned_coordinator # O1: picks types when recording a request
         resource: type_projector
@@ -33,4 +33,4 @@ tests:
         actions: { view: EFFECT_ALLOW }
       - principal: tech_support # P2: only Technical Support Staff change inventory
         resource: type_projector
-        actions: { create: EFFECT_ALLOW, update: EFFECT_ALLOW, record_unavailability: EFFECT_ALLOW, view: EFFECT_ALLOW }
+        actions: { create: EFFECT_ALLOW, update: EFFECT_ALLOW, record_unavailability: EFFECT_ALLOW, view: EFFECT_ALLOW, check_availability: EFFECT_ALLOW }

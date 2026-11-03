@@ -49,6 +49,36 @@ Today the role list is checked in handlers and the scope is a filter in the repo
 - Cerbos publishes no Windows build, so Windows users run the policy tests through CI or WSL.
 - The policies and the A2 mapping are in `policies/`. Cerbos decides who; each module's domain code decides when.
 
+**EN-07, 3 Nov 2026: the policies run at request time, and RLS backs A3 and A4.**
+
+- **Runtime PDP.** planning-core asks a Cerbos PDP at `CERBOS_URL` (`@cerbos/http`) on every protected
+  route. It fails closed: an unanswered check is `503 POLICY_UNAVAILABLE`.
+- **Locally**, option (a): `npm run cerbos:start` runs the pinned binary on `policies/` (SHA-256
+  checked), and `npm run dev` starts it. Cerbos still publishes no Windows build, so on Windows the
+  script runs the Linux build inside WSL when a Linux distribution is installed. Option (b),
+  `@cerbos/embedded`, was ruled out: its bundles are built only by Cerbos Hub.
+- **Development without a PDP.** When `NODE_ENV` isn't production and no PDP answers at
+  `CERBOS_URL`, planning-core evaluates `policies/` itself (local-policies mode, one loud startup
+  warning), so `npm run dev` works on Windows without WSL. The evaluator is the unit runs' stand-in, held
+  to the real PDP in CI. Production refuses it at startup and stays fail-closed.
+- **In CI** the integration job runs the PDP as a service container (`ghcr.io/cerbos/cerbos:0.56.0`), and
+  the Playwright stack runs the binary. Each Kubernetes namespace gets its own PDP (EN-10).
+- **The staff console** asks `POST /api/v1/permissions/check`, which asks the PDP for the verified
+  caller. It does not use `@cerbos/http` in the browser: that client speaks the PDP's own API and sends a
+  principal of the browser's choosing, which the server would have to replace anyway.
+- **Role lists the policies duplicated were removed** (each route's `requireRole(<roles>)`, GET /users'
+  attendee check, F2's `HISTORY_ROLES`, G2's `PREVIEWERS`). Before the switch, every route was probed
+  with every role, and the policies were aligned to that matrix, so each route admits the same roles.
+  Three disagreements surfaced and were fixed in the policy: I2's unavailability is the venue's own
+  staff's (`venue_manager`), G2's preview is the owner's too, and the owner lists an event's venue
+  requests (`booking_request list`).
+- **RLS** (migration `event/0025`): `event.events` and `event.assignments` for the role
+  `connectsphere_request`, with policies that state the repo's `scopeCondition` in SQL. The claims are
+  the caller's id and the scope rule the repo applies (not the role), because modules deliberately read
+  an event under scope ALL for a record they authorise themselves (Venue Staff's booking, Technical
+  Support's equipment line), and RLS must agree with that.
+- **The generated matrix** (`tests/api/authorisationMatrix.test.ts`) is EN-07.3.
+
 **Week 7 customer changes, 2 Oct 2026** (`documentation/change-requests.md`):
 - **Two new roles:** CR-05 adds `EVENT_COORDINATOR_LEAD` and CR-06 adds `SAFETY_OFFICER`.
   - Both go into contracts `ROLES` and the Cerbos policies. The role-name test fails until every role has a permission.

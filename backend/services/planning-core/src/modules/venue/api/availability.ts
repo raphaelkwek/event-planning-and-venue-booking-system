@@ -14,7 +14,6 @@ import { refuse } from "./errors.js";
  * refused (AC8). It is read afresh on every request, so an approval, rejection,
  * withdrawal or release shows the next time it is loaded (AC7).
  */
-const READERS = ["EVENT_ORGANISER", "EVENT_COORDINATOR", "VENUE_STAFF", "TECH_SUPPORT_STAFF"] as const;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
@@ -41,7 +40,7 @@ export function availabilityRouter(sql: Sql) {
     "/api/v1/venues/:id/availability",
     calendarRateLimit(),
     authenticate,
-    requireRole(...READERS),
+    requireRole("venue", "view_calendar"),
     async (req: ActorRequest, res: Response) => {
       const venue = UUID.test(req.params.id!) ? await findVenue(sql, req.params.id!) : null;
       if (!venue) return refuse(res, 404, "VENUE_NOT_FOUND", "No venue with that id exists.");

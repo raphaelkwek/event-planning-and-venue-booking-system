@@ -15,7 +15,6 @@ import { equipmentRateLimiter } from "./limiter.js";
 import { present } from "./presentLine.js";
 
 /** Q1 — Technical Support reserve a Confirmed or Substituted line's equipment. */
-const TECH_SUPPORT = "TECH_SUPPORT_STAFF";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const ALL_EVENTS = { scopeType: "ALL" } as const;
 
@@ -28,7 +27,7 @@ export function reservationsRouter(sql: Sql, limiter: RequestHandler = equipment
     "/api/v1/equipment/request-lines/:id/reservation",
     limiter,
     authenticate,
-    requireRole(TECH_SUPPORT),
+    requireRole("equipment_request_line", "reserve"),
     async (req: ActorRequest, res: Response, next: NextFunction) => {
       try {
         const id = req.params.id!;

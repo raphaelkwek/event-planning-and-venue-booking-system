@@ -7,12 +7,13 @@ tests:
     input:
       principals: [organiser, other_organiser, assigned_coordinator, other_coordinator, nominee, venue_manager, other_venue_staff, tech_support, attendee, other_attendee, lead, safety_officer]
       resources: [event_open]
-      actions: [create, update_draft, submit_draft, view, view_history, view_clarifications, view_reassignments, review, request_clarification, approve, reject, respond_to_clarification, propose_reassignment, respond_to_reassignment, cancel, confirm, decide_change, update_details, preview_change_impact, reconsider_arrangements, request_change, assign, reassign, view_assignments, view_safety_queue, view_safety_review, decide_safety, mark_confirmed]
+      actions: [create, view_draft, update_draft, submit_draft, view, view_history, view_clarifications, view_reassignments, review, request_clarification, approve, reject, respond_to_clarification, propose_reassignment, respond_to_reassignment, cancel, confirm, decide_change, update_details, preview_change_impact, reconsider_arrangements, request_change, assign, reassign, view_assignments, view_safety_queue, view_safety_review, decide_safety, mark_confirmed, configure_registration]
     expected:
       - principal: organiser # the owner
         resource: event_open
         actions:
           create: EFFECT_ALLOW # B1, C1
+          view_draft: EFFECT_ALLOW # C2: the draft editor opens the draft
           update_draft: EFFECT_ALLOW # C2
           submit_draft: EFFECT_ALLOW # C2
           view: EFFECT_ALLOW # C3
@@ -22,6 +23,8 @@ tests:
           cancel: EFFECT_ALLOW # F3
           update_details: EFFECT_ALLOW # G1
           request_change: EFFECT_ALLOW # S1
+          configure_registration: EFFECT_ALLOW # R2, R4: the registration window and withdrawal deadline
+          preview_change_impact: EFFECT_ALLOW # G2: the owner sees a change request's impact, as the request
       - principal: other_organiser # C2, D3, A3: no access to someone else's request
         resource: event_open
         actions:
@@ -44,12 +47,18 @@ tests:
           preview_change_impact: EFFECT_ALLOW # G2
           reconsider_arrangements: EFFECT_ALLOW # S3
           mark_confirmed: EFFECT_ALLOW # U1: only after the Safety Officer approved (checked in the domain)
-      # other_coordinator: none. A4 (CR-05): a coordinator neither sees nor acts on an
-      # event not assigned to them (A3's "coordinators see all events" is superseded).
+          propose_reassignment: EFFECT_ALLOW # E2, retired by E4: the route tells every coordinator so
+      # other_coordinator: only the retired proposal route. A4 (CR-05): a coordinator neither
+      # sees nor acts on an event not assigned to them (A3's "coordinators see all events" is superseded).
+      - principal: other_coordinator
+        resource: event_open
+        actions:
+          propose_reassignment: EFFECT_ALLOW # E2, retired by E4: answered 410 by the route
       - principal: nominee # another coordinator, named by a proposal made before E4
         resource: event_open
         actions:
           respond_to_reassignment: EFFECT_ALLOW # E2: the nominee accepts or declines, and nothing else (A4)
+          propose_reassignment: EFFECT_ALLOW # E2, retired by E4: answered 410 by the route
       - principal: venue_manager # A3: rows limited by RLS, not here
         resource: event_open
         actions:
@@ -80,6 +89,7 @@ tests:
       - principal: safety_officer # U1: reviews and decides, and acts on nothing else
         resource: event_open
         actions:
+          view: EFFECT_ALLOW # A3: rows limited by RLS (no event is in the Safety Officer's scope)
           view_safety_queue: EFFECT_ALLOW # U1
           view_safety_review: EFFECT_ALLOW # U1: the factors to weigh
           decide_safety: EFFECT_ALLOW # U1: approve, request changes or reject

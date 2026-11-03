@@ -135,6 +135,16 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 12
+      # EN-07 (ADR-0010): the Cerbos policy decision point every route asks. The
+      # image is the release backend/scripts/cerbos.ts pins. It starts with an empty
+      # policy folder, outside the workspace so checkout isn't disturbed; the step
+      # after checkout copies policies/ in and restarts it.
+      cerbos:
+        image: ghcr.io/cerbos/cerbos:0.56.0
+        ports:
+          - 3592:3592
+        volumes:
+          - /tmp/cerbos-policies:/policies
     env:
       # The runner's own database. These are throwaway credentials for a
       # container nobody else can reach, not secrets.
@@ -151,6 +161,9 @@ jobs:
       KAFKA_SASL_MECHANISM: plain
       KAFKA_SASL_USERNAME: ci
       KAFKA_SASL_PASSWORD: ci-placeholder
+      # The Cerbos service container above. Integration tests and the generated
+      # matrix (EN-07.3) ask it, exactly as planning-core does when deployed.
+      CERBOS_URL: http://127.0.0.1:3592
     steps:
       - name: Refuse any database but the runner's own
         run: |
@@ -168,6 +181,14 @@ jobs:
 
       - name: Install
         run: npm ci
+
+      - name: Load the policies into the Cerbos service container
+        run: |
+          sudo cp -r policies/derived_roles policies/resources /tmp/cerbos-policies/
+          docker restart "${{ job.services.cerbos.id }}"
+          curl --silent --show-error --fail --retry 30 --retry-delay 1 --retry-connrefused --retry-all-errors http://127.0.0.1:3592/_cerbos/health
+          echo
+          docker logs "${{ job.services.cerbos.id }}" 2>&1 | tail -n 5
 
       - name: Build the database from the migrations (every module and service, with seeds)
         run: npm run migrate:all
@@ -417,7 +438,8 @@ jobs:
           tar -xzf gitleaks.tar.gz gitleaks
 
       - name: Scan the whole history for committed secrets
-        run: ./gitleaks git . --redact --no-banner --exit-code 1
+        # --verbose names the file, line, rule and commit of a finding; --redact still hides the value.
+        run: ./gitleaks git . --redact --verbose --no-banner --exit-code 1
 
   # EN-06.2 (SPM-167). Stryker plants small bugs in the domain code a pull
   # request changes and checks that some unit test fails for each. Below 80% it

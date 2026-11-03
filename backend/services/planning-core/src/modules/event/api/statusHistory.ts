@@ -1,7 +1,7 @@
 import { Router, type RequestHandler } from "express";
 import type { Sql } from "postgres";
 import { authenticate, requireRole, type ActorRequest } from "../auth/actor.js";
-import { HISTORY_ROLES, toHistoryEntry, toStatusView } from "../domain/statusHistory.js";
+import { toHistoryEntry, toStatusView } from "../domain/statusHistory.js";
 import { findEventInScope } from "../repo/events.js";
 import { listStatusHistory } from "../repo/statusHistory.js";
 import { eventRateLimiter } from "./eventRateLimiter.js";
@@ -21,7 +21,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export function statusHistoryRouter(sql: Sql, limiter: RequestHandler = eventRateLimiter()) {
   const router = Router();
 
-  router.get("/api/v1/events/:id/status", limiter, ...authenticate, async (req: ActorRequest, res) => {
+  router.get("/api/v1/events/:id/status", limiter, ...authenticate, requireRole("event", "view"), async (req: ActorRequest, res) => {
     const { userId, role, scope } = req.actor!;
     const event = UUID.test(req.params.id)
       ? await findEventInScope(sql, req.params.id, scope, userId)
@@ -37,7 +37,7 @@ export function statusHistoryRouter(sql: Sql, limiter: RequestHandler = eventRat
     "/api/v1/events/:id/status-history",
     limiter,
     ...authenticate,
-    requireRole(...HISTORY_ROLES),
+    requireRole("event", "view_history"),
     async (req: ActorRequest, res) => {
       const { userId, role, scope } = req.actor!;
       const event = UUID.test(req.params.id)

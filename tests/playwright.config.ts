@@ -8,7 +8,8 @@ import { ANON_KEY, AUTH_URL, HOST, PORTS, WEB_URL } from "./e2e/support/stack.js
 /**
  * EN-14: the browser tests, run against an ephemeral stack (documentation/evidence/EN-14).
  *
- * Playwright starts every process itself: the fake Supabase Auth server, planning-core, the
+ * Playwright starts every process itself: the fake Supabase Auth server, the Cerbos policy decision
+ * point on policies/ (EN-07, the same binary `npm run dev` starts), planning-core, the
  * notification and registration services, and the web app built and served by `vite preview`.
  * They all point at DATABASE_URL, which must be a throwaway Postgres on this machine (in CI, the
  * job's own service container, built by `npm run migrate:all`). The config refuses anything
@@ -45,6 +46,7 @@ const stackEnv: Record<string, string> = {
   NOTIFICATION_PORT: String(ports.notification),
   REGISTRATION_PORT: String(ports.registration),
   PLANNING_CORE_URL: `http://${host}:${ports.planningCore}`,
+  CERBOS_URL: `http://${host}:${ports.pdp}`,
   KAFKA_BROKERS: "",
   KAFKA_SASL_USERNAME: "",
   KAFKA_SASL_PASSWORD: "",
@@ -120,6 +122,15 @@ export default defineConfig({
       },
       reuseExistingServer: false,
       timeout: 60_000,
+    },
+    {
+      // EN-07: planning-core fails closed without it, so it starts before the services need it.
+      name: "pdp",
+      command: `npx tsx backend/scripts/cerbos.ts server --config=backend/cerbos/config.yaml --set=server.httpListenAddr=${host}:${ports.pdp} --set=server.grpcListenAddr=${host}:${ports.pdp + 1} ${logTo("pdp")}`,
+      cwd: "..",
+      url: `http://${host}:${ports.pdp}/_cerbos/health`,
+      reuseExistingServer: false,
+      timeout: 120_000,
     },
     service("planning-core", "backend/services/planning-core", ports.planningCore),
     service("notification", "backend/services/notification", ports.notification),
