@@ -70,6 +70,7 @@ jobs:
             backend/services/registration/coverage/
             backend/packages/contracts/coverage/
             backend/packages/kafka/coverage/
+            backend/packages/telemetry/coverage/
             frontend/coverage/
           if-no-files-found: ignore
 

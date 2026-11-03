@@ -4,6 +4,85 @@
 
 ---
 
+# EN-08: OpenTelemetry traces, metrics and correlation ids across planning-core, notification and registration
+
+**Timestamp:** 2026-11-03T17:30+08:00 (SGT)
+**Author:** Joash
+**Scope:** new package `backend/packages/telemetry`; planning-core, notification and registration
+(`telemetry.ts`, `db.ts`, `app.ts`, loggers, consumers); the outbox relay; `.env.example`;
+implementation.md §9 and §10; ADR-0013's implementation note; `documentation/observability.md`; EN-08's
+cards and traceability. No migration and no new route.
+
+EN-08 (SPM-126) was marked Done, but the 2 Nov audit found no `@opentelemetry` package, no spans and no
+metrics: `shared/tracing.ts` only made a random `traceparent` per message. This builds it.
+
+## Added
+
+- **`@connectsphere/telemetry`**, shared by the three services like `@connectsphere/kafka`.
+  - `startTelemetry` starts the SDK from the standard `OTEL_*` variables only. With no
+    `OTEL_EXPORTER_OTLP_ENDPOINT` it exports nothing, opens no connection and prints nothing, but still
+    makes trace ids, so correlation ids and Kafka's `traceparent` work on a laptop with no Grafana account.
+    `OTEL_SDK_DISABLED=true` installs nothing.
+  - **HTTP:** `@opentelemetry/instrumentation-http` makes the server span and continues an incoming
+    `traceparent`; `httpTelemetry` names it after the Express route (`POST /api/v1/events/:id/approve`),
+    sets `http.route`, and records the metrics. Health probes are not traced.
+  - **postgres.js:** `instrumentSql` wraps each pool (OpenTelemetry's `pg` instrumentation does not cover
+    porsager's driver). Queries become CLIENT spans (`INSERT event.outbox`), `sql.begin` a `db.transaction`
+    span with the queries below it. A statement is recorded with `$1` for its values.
+  - **Kafka:** `withProducerSpans` / `withConsumerSpan`. Each message gets its own PRODUCER span with its
+    `traceparent` in the Kafka header; the consumer's span is a child of it. The outbox relay continues the
+    trace in each row's `traceparent`, so the publish is a child of the transaction that wrote the row.
+    The notification retry and dead-letter publishes stay in the trace.
+- **Correlation id = trace id.** `x-correlation-id` on every response (also registration's and
+  notification's, which had none) is the trace id; a caller's own `x-correlation-id` is kept as the span
+  attribute `connectsphere.client_correlation_id`. The outbox's `correlationid` and `traceparent` come from
+  the active span. Log lines inside a request or a message carry `traceId`, `spanId` and `correlationId`.
+- **Metrics** with the names and labels EN-17's SLO rules and EN-16's canary analysis query:
+  `http_request_duration_seconds` (buckets include 0.4 and 0.8) and `http_requests_total` by `service`,
+  `method`, `route` and `status` class. Also `kafka_consumer_processing_duration_seconds`,
+  `kafka_consumer_lag_seconds` and `kafka_messages_published_total`.
+- `documentation/observability.md`: how to point the services at Grafana Cloud's free tier, what the D4
+  trace looks like, the metric names, and what is not covered.
+
+## Changed
+
+- Each service's `src/index.ts` imports `telemetry.ts` first (the HTTP instrumentation patches `http` as it
+  loads) and awaits its shutdown before exiting, so a batch of spans is flushed.
+- implementation.md §9 is rewritten (the per-service Kafka log topic is dropped: logs stay on stdout with the
+  trace id); §10 lists the optional `OTEL_*` variables. `.env.example` gains them, as comments without values.
+- The relay's Kafka messages now carry a `traceparent` header as well as the CloudEvent attribute.
+
+## Decisions and mismatches
+
+- **OpenTelemetry's Express and kafkajs packages are not used.** Both hook `require`, which an ESM `import`
+  of a CommonJS package bypasses; the relay's batches also mix traces, which a patch of `producer.send`
+  cannot split. The server span is named from the route, and Kafka is wrapped by hand.
+- **Two metric paths, one name.** EN-17 (PR #78) serves the HTTP series from a prom-client `/metrics`
+  (scraped by Prometheus, which EN-16's canary also needs for its `pod` label); this sends the same series
+  over OTLP. Names and labels match, so a query reads the same. They must not feed one data source, or every
+  request counts twice: `OTEL_METRICS_EXPORTER=none` keeps one off. When both merge, the two middlewares
+  should become one.
+- **Container images (PR #75).** The Dockerfiles compile the shared packages from an explicit list;
+  `@connectsphere/telemetry` must be added to it.
+- **Not built:** Temporal workflows and activities are not traced (the worker's two Kafka consumers are, and
+  the worker reports as `planning-core-worker`), logs are not exported over OTLP to Loki, and the Grafana
+  screenshot waits for the account (card T12).
+
+## Tests
+
+- `backend/packages/telemetry/tests/`: HTTP, postgres.js, Kafka, SDK and OTLP export (to a local receiver),
+  the no-op path, the metrics, the trace context. Coverage 99% of lines.
+- planning-core `outboxRelayTrace.unit.test.ts` and `temporal/consumersTrace.unit.test.ts`; notification and
+  registration `consumeTraced.unit.test.ts` (the consumer wiring with a stand-in Kafka client).
+- planning-core `d4Trace.test.ts` (integration): one approval, from `POST approve` through the transaction,
+  the relay and the notification consumer, as one trace.
+
+## Cards
+
+- `tests/EN-08/`, T1 to T12. T12 (Grafana shows the trace) stays Not Executed until Joash has the account.
+
+---
+
 # A4 review: the assignment is re-checked under the row lock, and the spec and cards catch up
 
 **Timestamp:** 2026-11-03T11:05+08:00 (SGT)

@@ -10,13 +10,13 @@ describe("an HTTP request when no SDK is running", () => {
     res.json({ seen: req.header("x-correlation-id") });
   });
 
-  it("EN-08-T8 keeps a caller's x-correlation-id, on the response and for the code that reads it", async () => {
+  it("EN-08-T6 keeps a caller's x-correlation-id, on the response and for the code that reads it", async () => {
     const res = await request(app).get("/ok").set("x-correlation-id", "caller-1");
     expect(res.headers["x-correlation-id"]).toBe("caller-1");
     expect(res.body.seen).toBe("caller-1");
   });
 
-  it("EN-08-T8 makes a UUID when there is neither a trace nor a caller's id", async () => {
+  it("EN-08-T6 makes a UUID when there is neither a trace nor a caller's id", async () => {
     const res = await request(app).get("/ok");
     expect(res.headers["x-correlation-id"]).toMatch(/^[0-9a-f-]{36}$/);
     const blank = await request(app).get("/ok").set("x-correlation-id", "   ");
