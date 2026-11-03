@@ -35,6 +35,8 @@ describe("handleListingMessage", () => {
       name: "R Test Symposium",
       description: "A one-day symposium for the school of computing.",
       ownerId: "00000000-0000-0000-0000-000000000001",
+      // R5, R7: who may see the registrations and add attendees, besides the owner.
+      assignedCoordinatorId: "00000000-0000-0000-0000-000000000002",
       status: "CONFIRMED",
       startsAt: "2026-12-16T06:00:00.000Z",
       endsAt: "2026-12-16T10:00:00.000Z",
@@ -43,6 +45,21 @@ describe("handleListingMessage", () => {
       registrationClosesAt: "2026-12-10T10:00:00.000Z",
       withdrawalDeadlineAt: null,
     });
+  });
+
+  it("R5, R7 takes a change of coordinator from a newer snapshot, and none from one written before the field", async () => {
+    const eventId = randomUUID();
+    track(eventId);
+    const newCoordinator = randomUUID();
+
+    await handleListingMessage(listingMessage(eventId, "EVT-000902", { changedAt: "2026-11-20T00:00:00.000Z" }), { sql });
+    await handleListingMessage(listingMessage(eventId, "EVT-000902", { changedAt: "2026-11-21T00:00:00.000Z", coordinatorId: newCoordinator }), { sql });
+    expect((await findListing(sql, eventId))!.assignedCoordinatorId).toBe(newCoordinator);
+
+    const before = JSON.parse(listingMessage(eventId, "EVT-000902", { changedAt: "2026-11-22T00:00:00.000Z" })) as { data: Record<string, unknown> };
+    delete before.data.assignedCoordinatorId;
+    await handleListingMessage(JSON.stringify(before), { sql });
+    expect((await findListing(sql, eventId))!.assignedCoordinatorId).toBeNull();
   });
 
   it("replaces it with a newer snapshot, and ignores an older one delivered late", async () => {

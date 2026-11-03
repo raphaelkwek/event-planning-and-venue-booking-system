@@ -257,6 +257,12 @@ export const eventScheduleChangedPayloadSchema = z.object({
 export const eventListingChangedPayloadSchema = z.object({
   ...eventRef,
   ownerId: z.string().uuid(),
+  /**
+   * R5, R7: the event's assigned coordinator, who may see its registrations and
+   * add attendees; null while none is assigned. Written since R5, also on each
+   * change of coordinator (E2 to E4); a message written before then reads null.
+   */
+  assignedCoordinatorId: z.string().uuid().nullable().default(null),
   description: z.string().min(1).nullable(),
   status: eventStatusSchema,
   proposedStartAt: z.string().datetime().nullable(),

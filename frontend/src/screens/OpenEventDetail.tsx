@@ -5,14 +5,14 @@ import SectionMessage from "@atlaskit/section-message";
 import Spinner from "@atlaskit/spinner";
 import { useSignedIn } from "../auth/SessionContext.js";
 import { ApiError } from "../api/client.js";
-import { getOpenEvent, registerFor, type OpenEvent, type RegistrationView } from "../api/registration.js";
+import { getOpenEvent, joinWaitlist, registerFor, type OpenEvent, type RegistrationView, type WaitlistEntryView } from "../api/registration.js";
 import { AttendeeRefusal, card, page, Places, space, Terms, Venues, When } from "../components/AttendeeParts.js";
 
 /**
- * R1, R2 — one open event's published details, and Register: the screen's one
- * primary action (§7.2). A full event offers no Register action. A refusal is
- * shown in the server's words, naming its cause; for capacity it offers the
- * waitlist, which R6 opens.
+ * R1, R2, R6 — one open event's published details, and Register: the screen's
+ * one primary action (§7.2). A full event offers no Register action but the
+ * waitlist (R6), as a refusal for capacity does. A refusal is shown in the
+ * server's words, naming its cause.
  */
 export function OpenEventDetail() {
   const session = useSignedIn();
@@ -20,7 +20,8 @@ export function OpenEventDetail() {
   const [event, setEvent] = useState<OpenEvent | null>(null);
   const [loadError, setLoadError] = useState<unknown>(null);
   const [registered, setRegistered] = useState<RegistrationView | null>(null);
-  const [refusal, setRefusal] = useState<unknown>(null);
+  const [waitlisted, setWaitlisted] = useState<WaitlistEntryView | null>(null);
+  const [refusal, setRefusal] = useState<{ error: unknown; action: "register" | "join" } | null>(null);
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
@@ -35,13 +36,13 @@ export function OpenEventDetail() {
     void load();
   }, [load]);
 
-  async function onRegister() {
+  async function act(action: "register" | "join", run: () => Promise<void>) {
     setBusy(true);
     setRefusal(null);
     try {
-      setRegistered(await registerFor(session.token, eventId!));
-    } catch (e) {
-      setRefusal(e);
+      await run();
+    } catch (error) {
+      setRefusal({ error, action });
     } finally {
       setBusy(false);
       // Places remaining as it now stands, whichever way it went.
@@ -49,7 +50,16 @@ export function OpenEventDetail() {
     }
   }
 
-  const waitlistOffered = refusal instanceof ApiError && refusal.envelope.details?.waitlistOffered === true;
+  const onRegister = () => act("register", async () => setRegistered(await registerFor(session.token, eventId!)));
+  const onJoin = () => act("join", async () => setWaitlisted(await joinWaitlist(session.token, eventId!)));
+
+  const waitlistOffered = refusal?.error instanceof ApiError && refusal.error.envelope.details?.waitlistOffered === true;
+  const settled = registered !== null || waitlisted !== null;
+  const joinButton = (
+    <Button appearance="primary" onClick={() => void onJoin()} isDisabled={busy} shouldFitContainer>
+      Join the waitlist
+    </Button>
+  );
 
   return (
     <section aria-labelledby="event-heading" style={page}>
@@ -67,10 +77,16 @@ export function OpenEventDetail() {
           <Terms registrationOpensAt={event.registrationOpensAt} registrationClosesAt={event.registrationClosesAt} withdrawalDeadline={event.withdrawalDeadline} />
           <div style={{ display: "flex", flexDirection: "column", gap: space(2), marginTop: space(2) }}>
             <Places placesRemaining={event.placesRemaining} isFull={event.isFull} />
-            {!event.isFull && !registered && (
+            {!event.isFull && !settled && (
               <Button appearance="primary" onClick={() => void onRegister()} isDisabled={busy} shouldFitContainer>
                 Register
               </Button>
+            )}
+            {event.isFull && !settled && !waitlistOffered && (
+              <>
+                <p style={{ margin: 0 }}>No places remain. Join the waitlist and you will be told when one opens.</p>
+                {joinButton}
+              </>
             )}
           </div>
         </article>
@@ -83,13 +99,17 @@ export function OpenEventDetail() {
           <Link to="/my-registrations">My registrations</Link>
         </SectionMessage>
       )}
-      <AttendeeRefusal error={refusal} title="You were not registered">
-        {waitlistOffered && (
-          <>
-            <Button isDisabled>Join waitlist</Button>
-            <p style={{ fontSize: 14 }}>Joining the waitlist is not available yet.</p>
-          </>
-        )}
+      {waitlisted && (
+        <SectionMessage appearance="success" title="You are on the waitlist">
+          <p>
+            {waitlisted.reference}: you are number {waitlisted.position} in line for {waitlisted.event.name}. When a place opens you will be told,
+            and it goes to whoever registers first.
+          </p>
+          <Link to="/my-registrations">My registrations</Link>
+        </SectionMessage>
+      )}
+      <AttendeeRefusal error={refusal?.error} title={refusal?.action === "join" ? "You were not added to the waitlist" : "You were not registered"}>
+        {waitlistOffered && !settled && joinButton}
       </AttendeeRefusal>
     </section>
   );

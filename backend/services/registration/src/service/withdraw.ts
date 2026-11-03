@@ -1,16 +1,23 @@
 import type { Sql } from "postgres";
-import { mayWithdraw, withdrawalDeadline } from "../domain/registrationRules.js";
+import { mayWithdraw, placesRemaining, withdrawalDeadline } from "../domain/registrationRules.js";
+import { withdrawalOpensPlace } from "../domain/waitlistRules.js";
 import { writeRegistrationOutbox } from "../outbox/write.js";
 import { findListing, type Listing } from "../repo/listings.js";
 import { findRegistrationOfAttendee, withdrawRegistration, type Registration } from "../repo/registrations.js";
-import { releaseSeat } from "../repo/seats.js";
+import { lockPlaces, placeCountsOf, releaseSeat, seatUnseated } from "../repo/seats.js";
+import { notifyWaitlist } from "./waitlist.js";
 
 /**
  * R4 — an attendee withdraws their own registration while it is Registered and
- * the deadline has not passed. The withdrawal, its seat freed (places remaining
- * rises by exactly one) and the registration.withdrawn message (the attendee's
- * confirmation; R6 reads it to tell the waitlist) are one transaction. The
- * record is kept, Withdrawn, with its time.
+ * the deadline has not passed. One transaction holds the withdrawal, its seat
+ * freed and the registration.withdrawn message (the attendee's confirmation).
+ * The record is kept, Withdrawn, with its time.
+ *
+ * R7: when an addition above capacity holds no seat, the freed seat goes to the
+ * earliest such registration before the transaction commits, so places
+ * remaining never shows a place that isn't free. R6: when the seat does become
+ * a free place, every waiting attendee is told in the same transaction. Both
+ * happen under the event's exclusive places lock (repo/seats.ts).
  */
 
 export type WithdrawOutcome =
@@ -33,13 +40,27 @@ export async function withdraw(
   }
 
   const done = await sql.begin(async (tx) => {
+    await lockPlaces(tx, found.eventId, "exclusive");
     const withdrawn = await withdrawRegistration(tx, input.registrationId, input.attendeeId, input.now);
     if (!withdrawn) return null;
-    if (withdrawn.seatId) await releaseSeat(tx, withdrawn.seatId);
+    const actor = { userId: input.attendeeId, role: "ATTENDEE" as const };
+    if (withdrawn.seatId) {
+      const freedPool = await releaseSeat(tx, withdrawn.seatId);
+      const handedOn = await seatUnseated(tx, withdrawn.eventId);
+      if (withdrawalOpensPlace(freedPool, handedOn)) {
+        const counts = (await placeCountsOf(tx, [withdrawn.eventId])).get(withdrawn.eventId)!;
+        await notifyWaitlist(tx, listing!, {
+          placesRemaining: placesRemaining(counts.freeSeats, counts.unseatedRegistrations),
+          at: input.now,
+          actor,
+          correlationId: input.correlationId,
+        });
+      }
+    }
     await writeRegistrationOutbox(tx, {
       messageType: "registration.withdrawn",
-      registrationId: withdrawn.id,
-      actor: { userId: input.attendeeId, role: "ATTENDEE" },
+      subjectId: withdrawn.id,
+      actor,
       correlationId: input.correlationId,
       data: {
         registrationId: withdrawn.id,

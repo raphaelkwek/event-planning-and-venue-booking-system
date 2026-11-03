@@ -223,6 +223,39 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "429": { $ref: "#/components/responses/RateLimitExceeded" }
 
+  /api/v1/attendees:
+    get:
+      tags: [Identity]
+      summary: Find the attendee with an email (R7)
+      description: >-
+        Internal staff only. The registration service calls it with the organiser's or
+        coordinator's token to find the attendee they add to an event by hand. Only an active
+        user with the Attendee role is found, ignoring the email's case; anyone else is an empty
+        list. Returns only the fields needed to name someone.
+      operationId: findAttendeeByEmail
+      parameters:
+        - name: email
+          in: query
+          required: true
+          schema: { type: string, format: email, maxLength: 254, examples: ["attendee@connectsphere.test"] }
+      responses:
+        "200":
+          description: The attendee, or an empty list when there is none.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    maxItems: 1
+                    items: { $ref: "#/components/schemas/UserSummary" }
+        "400": { $ref: "#/components/responses/ValidationFailed" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "429": { $ref: "#/components/responses/RateLimitExceeded" }
+
   /api/v1/access-scope/{resource}:
     get:
       tags: [Identity]
@@ -3387,6 +3420,7 @@ components:
         - ARRANGEMENTS_NOT_READY
         - ARRANGEMENTS_UNAVAILABLE
         - ARRANGEMENT_FLAGS_OUTSTANDING
+        - ATTENDEE_NOT_FOUND
         - BLOCK_ALREADY_REMOVED
         - BLOCK_NOT_FOUND
         - BOOKING_REQUEST_DUPLICATE
@@ -3438,10 +3472,13 @@ components:
         - REASSIGNMENT_PROPOSAL_NOT_FOUND
         - REASSIGNMENT_RETIRED
         - REGISTRATION_DUPLICATE
+        - REGISTRATION_EVENT_CLOSED
         - REGISTRATION_FULL
         - REGISTRATION_NOT_ACTIVE
         - REGISTRATION_NOT_FOUND
+        - REGISTRATION_NO_CONFIRMED_BOOKING
         - REGISTRATION_OUTSIDE_WINDOW
+        - REGISTRATION_OVER_CAPACITY_UNCONFIRMED
         - REPLACEMENT_NOT_VALID
         - RESERVATION_ALREADY_RELEASED
         - ROLE_NOT_AUTHORISED
@@ -3457,6 +3494,10 @@ components:
         - VENUE_NOT_FOUND
         - VENUE_SLOT_CONFLICT
         - VENUE_UNAVAILABLE
+        - WAITLIST_DUPLICATE
+        - WAITLIST_ENTRY_NOT_ACTIVE
+        - WAITLIST_ENTRY_NOT_FOUND
+        - WAITLIST_PLACES_AVAILABLE
         - WITHDRAWAL_DEADLINE_PASSED
 
     ErrorEnvelope:

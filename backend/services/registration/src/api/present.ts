@@ -1,9 +1,11 @@
-import type { RegistrationStatus } from "@connectsphere/contracts";
+import type { RegistrationStatus, UserSummary } from "@connectsphere/contracts";
 import { placesRemaining, withdrawalDeadline } from "../domain/registrationRules.js";
 import type { Listing } from "../repo/listings.js";
 import type { Registration } from "../repo/registrations.js";
 import type { PlaceCounts } from "../repo/seats.js";
 import type { PublicVenue } from "../repo/venues.js";
+import type { WaitlistEntry } from "../repo/waitlist.js";
+import { nameOf } from "./directory.js";
 
 /**
  * What attendees are sent. Only published fields (R1): the event's name,
@@ -84,4 +86,86 @@ export function presentRegistration(registration: Registration, listing: Listing
       withdrawalDeadline: listing ? (withdrawalDeadline(listing)?.at ?? null) : null,
     },
   };
+}
+
+/** R5, R6: a person on the organiser's lists: their id, and their name and email as identity has them now. */
+export interface Person {
+  id: string;
+  name: string | null;
+  email: string | null;
+}
+
+export function personOf(id: string, names: Map<string, UserSummary>): Person {
+  const user = names.get(id);
+  return { id, name: nameOf(user), email: user?.email ?? null };
+}
+
+/** R5, R7: one row of the organiser's registration list. */
+export interface ManagedRegistration {
+  id: string;
+  reference: string;
+  attendee: Person;
+  status: RegistrationStatus;
+  registeredAt: string;
+  withdrawnAt: string | null;
+  cancelledAt: string | null;
+  /** R7: null for a self-registration; who added it and why otherwise, and whether it went over capacity. */
+  manualAddition: { addedBy: Person; reason: string | null; overCapacity: boolean } | null;
+  /** R7: false only for an addition above capacity still waiting for a seat. */
+  holdsSeat: boolean;
+}
+
+export function presentManagedRegistration(registration: Registration, names: Map<string, UserSummary>): ManagedRegistration {
+  return {
+    id: registration.id,
+    reference: registration.reference,
+    attendee: personOf(registration.attendeeId, names),
+    status: registration.status,
+    registeredAt: registration.registeredAt,
+    withdrawnAt: registration.withdrawnAt,
+    cancelledAt: registration.cancelledAt,
+    manualAddition: registration.addedBy
+      ? { addedBy: personOf(registration.addedBy, names), reason: registration.additionReason, overCapacity: registration.addedOverCapacity }
+      : null,
+    holdsSeat: registration.seatId !== null,
+  };
+}
+
+/** R5, R6, R7: the event a staff list is for. */
+export function presentManagedEvent(listing: Listing) {
+  return { eventId: listing.eventId, reference: listing.eventReference, name: listing.name, status: listing.status, startsAt: listing.startsAt };
+}
+
+/** R6: the fields of an entry both the attendee and the organiser see. */
+function entryFields(entry: WaitlistEntry) {
+  return {
+    id: entry.id,
+    reference: entry.reference,
+    status: entry.status,
+    position: entry.position,
+    joinedAt: entry.joinedAt,
+    lastNotifiedAt: entry.lastNotifiedAt,
+    registeredAt: entry.registeredAt,
+    withdrawnAt: entry.withdrawnAt,
+    cancelledAt: entry.cancelledAt,
+  };
+}
+
+/** R6: one of the attendee's own waitlist entries, with its event as attendees see it. */
+export function presentWaitlistEntry(entry: WaitlistEntry, listing: Listing | undefined | null) {
+  return {
+    ...entryFields(entry),
+    event: {
+      eventId: entry.eventId,
+      reference: listing?.eventReference ?? "",
+      name: listing?.name ?? "",
+      startsAt: listing?.startsAt ?? null,
+      endsAt: listing?.endsAt ?? null,
+    },
+  };
+}
+
+/** R6: one row of the organiser's view of the waitlist. */
+export function presentManagedEntry(entry: WaitlistEntry, names: Map<string, UserSummary>) {
+  return { ...entryFields(entry), attendee: personOf(entry.attendeeId, names) };
 }

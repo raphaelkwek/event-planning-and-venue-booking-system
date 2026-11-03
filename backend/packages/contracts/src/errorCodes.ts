@@ -13,6 +13,7 @@ export const ERROR_CODES = [
   "ARRANGEMENTS_NOT_READY",
   "ARRANGEMENTS_UNAVAILABLE",
   "ARRANGEMENT_FLAGS_OUTSTANDING", // U1: the Safety Officer's decision, and the coordinator's Mark Confirmed that only a passed check allows.
+  "ATTENDEE_NOT_FOUND", // R7: manual additions.
   "BLOCK_ALREADY_REMOVED",
   "BLOCK_NOT_FOUND",
   "BOOKING_REQUEST_DUPLICATE",
@@ -64,10 +65,13 @@ export const ERROR_CODES = [
   "REASSIGNMENT_PROPOSAL_NOT_FOUND",
   "REASSIGNMENT_RETIRED", // E4: the Lead reassigns only an event that has a coordinator; E2's proposals are retired.
   "REGISTRATION_DUPLICATE", // R2 to R4: the registration service's refusals.
+  "REGISTRATION_EVENT_CLOSED",
   "REGISTRATION_FULL", // R2 to R4: the registration service's refusals.
   "REGISTRATION_NOT_ACTIVE", // R2 to R4: the registration service's refusals.
   "REGISTRATION_NOT_FOUND", // R2 to R4: the registration service's refusals.
+  "REGISTRATION_NO_CONFIRMED_BOOKING",
   "REGISTRATION_OUTSIDE_WINDOW", // R2 to R4: the registration service's refusals.
+  "REGISTRATION_OVER_CAPACITY_UNCONFIRMED",
   "REPLACEMENT_NOT_VALID",
   "RESERVATION_ALREADY_RELEASED",
   "ROLE_NOT_AUTHORISED",
@@ -83,6 +87,10 @@ export const ERROR_CODES = [
   "VENUE_NOT_FOUND",
   "VENUE_SLOT_CONFLICT",
   "VENUE_UNAVAILABLE",
+  "WAITLIST_DUPLICATE", // R6: the waitlist.
+  "WAITLIST_ENTRY_NOT_ACTIVE",
+  "WAITLIST_ENTRY_NOT_FOUND",
+  "WAITLIST_PLACES_AVAILABLE",
   "WITHDRAWAL_DEADLINE_PASSED", // R2 to R4: the registration service's refusals.
 ] as const;
 

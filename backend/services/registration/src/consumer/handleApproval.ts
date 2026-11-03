@@ -1,8 +1,12 @@
 import type { Sql } from "postgres";
 import { bookingRequestApprovedPayloadSchema, parseCloudEvent } from "@connectsphere/contracts";
+import { placesRemaining } from "../domain/registrationRules.js";
 import { seatBasisOf } from "../domain/seatPlan.js";
-import { createSeats, moveClaimedSeats, retireFreeSeatsOfBooking } from "../repo/seats.js";
+import { capacityOpensPlaces } from "../domain/waitlistRules.js";
+import { createSeats, lockPlaces, moveClaimedSeats, placeCountsOf, retireFreeSeatsOfBooking, seatUnseated, type Db } from "../repo/seats.js";
+import { findListing } from "../repo/listings.js";
 import { recordVenue, replaceVenue } from "../repo/venues.js";
+import { notifyWaitlist } from "../service/waitlist.js";
 
 /**
  * What the registration service does with one Kafka message from the
@@ -12,6 +16,11 @@ import { recordVenue, replaceVenue } from "../repo/venues.js";
  * consumer then gets the message again.
  *
  * Every seat starts in the PUBLIC pool; the organiser's VIP pool (setVipSeats) moves free seats afterwards.
+ *
+ * R7: new seats go first to attendees added above capacity who hold none, so
+ * no seat is free while one of them waits. R6: when the approval leaves more
+ * places than before (a capacity increase), the waiting attendees are told.
+ * Both under the event's exclusive places lock (repo/seats.ts).
  *
  * There is no retry or dead-letter topic yet: a message that fails validation is
  * logged and skipped by the caller, and `registration.consumed_messages` makes a
@@ -23,7 +32,7 @@ export const INBOX_CONSUMER = "registration.seat-builder";
 export const APPROVED = "venue-booking.request-approved";
 
 export type Outcome =
-  | { outcome: "built"; seats: number; retired: number; moved: number }
+  | { outcome: "built"; seats: number; retired: number; moved: number; seated: number; told: number }
   | { outcome: "duplicate" }
   | { outcome: "ignored"; reason: "other-type" | "no-layout-capacity" }
   | { outcome: "invalid"; error: string };
@@ -52,6 +61,8 @@ export async function handleMessage(value: string | null, deps: { sql: Sql }): P
     `;
     if (claimed.length === 0) return { outcome: "duplicate" } as const;
 
+    await lockPlaces(tx, approval.eventId, "exclusive");
+    const before = await placesOf(tx, approval.eventId);
     let moved = 0;
     let retired = 0;
     if (basis.replacedBookingId) {
@@ -74,6 +85,24 @@ export async function handleMessage(value: string | null, deps: { sql: Sql }): P
       startsAt: approval.startsAt,
       endsAt: approval.endsAt,
     });
-    return { outcome: "built", seats, retired, moved } as const;
+    const seated = await seatUnseated(tx, approval.eventId);
+    const after = await placesOf(tx, approval.eventId);
+    let told = 0;
+    if (capacityOpensPlaces(before, after)) {
+      // The notice names the event as attendees know it: the listing, where it has arrived.
+      const listing = await findListing(tx, approval.eventId);
+      told = await notifyWaitlist(
+        tx,
+        { eventId: approval.eventId, eventReference: listing?.eventReference ?? approval.eventReference, name: listing?.name ?? approval.eventName },
+        { placesRemaining: after, at: new Date(approval.decidedAt), actor: { userId: null, role: "SYSTEM" }, correlationId: event.correlationid ?? null },
+      );
+    }
+    return { outcome: "built", seats, retired, moved, seated, told } as const;
   });
+}
+
+/** The event's places remaining, as R1 and R2 count them. */
+async function placesOf(tx: Db, eventId: string): Promise<number> {
+  const counts = (await placeCountsOf(tx, [eventId])).get(eventId)!;
+  return placesRemaining(counts.freeSeats, counts.unseatedRegistrations);
 }

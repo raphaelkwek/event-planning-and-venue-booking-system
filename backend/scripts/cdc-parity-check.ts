@@ -46,6 +46,8 @@ const MODULES = [
   { prefix: "venue-booking.", table: "venue.outbox", topic: KAFKA_TOPICS.venueBooking, source: "/connectsphere/planning-core/venue" },
   // The registration service has its own outbox and its own relay (src/outbox/messages.ts), so its rows are compared with that one.
   { prefix: "registration.", table: "registration.outbox", topic: KAFKA_TOPICS.registration, source: "/connectsphere/registration" },
+  // R5 to R7: the waitlist's messages are the registration service's too, in the same outbox and on the same topic.
+  { prefix: "waitlist.", table: "registration.outbox", topic: KAFKA_TOPICS.registration, source: "/connectsphere/registration" },
 ] as const;
 
 interface Expected {
@@ -249,6 +251,8 @@ main().then(
   },
   (error: Error) => {
     console.error(error.message);
-    process.exitCode = 2;
+    // Exit now: the Kafka consumer and the Postgres pool are still open, and would keep the process
+    // (and the CI job) waiting until its timeout instead of failing here.
+    process.exit(2);
   },
 );
