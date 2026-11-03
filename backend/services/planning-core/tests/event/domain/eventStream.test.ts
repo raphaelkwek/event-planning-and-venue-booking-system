@@ -233,7 +233,7 @@ describe("what the command prints", () => {
     expect(report).toStrictEqual({
       ok: false,
       lines: [
-        "Checked 4 stream entries across 2 events.",
+        "Checked 4 stream entries across 2 events, stopping at the first broken link.",
         `First broken link: event ${A} version 2 (HASH_MISMATCH): it was changed.`,
         "Every history row matches its stream entry.",
       ],
