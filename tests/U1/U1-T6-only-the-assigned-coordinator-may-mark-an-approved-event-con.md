@@ -20,8 +20,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | Not yet re-run since the merge of main brought in A4, which changed C2's expected result from 403 to 404. The earlier run (below) recorded 403 for C2, ORG, VS, TS, ATT, LEAD and SO. |
-| Status | Not Executed |
-| Remarks | Automated (API level) · Commit: 042f2d5 · Evidence: backend/services/planning-core/tests/change/api/u1Cards.test.ts › U1-T6 only the assigned coordinator may mark an approved event Confirmed, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41475757839 · Defect: — (that run's integration job fails only on tests/race/invariants.test.ts L3-T17, a fixed-date test outside U1; every U1 card passed) |
+| Actual Result | C2 (another Event Coordinator) received 404 EVENT_NOT_FOUND, "No event with that reference is assigned to you." (A4); ORG, VS, TS, ATT, LEAD and SO each received 403 ROLE_NOT_AUTHORISED for Mark Confirmed on an approved event; E1 stayed in Safety Review and nothing was written. |
+| Status | Pass |
+| Remarks | Automated (API level) · Commit: ab8af39 · Evidence: backend/services/planning-core/tests/change/api/u1Cards.test.ts › U1-T6 only the assigned coordinator may mark an approved event Confirmed, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41603256115 · Defect: — (C2's expected result changed from 403 to 404 when the merge of main brought in A4) |
 | Executed By | Joash, via automated testing (CI) |
-| Date of Execution | 2026-11-02 |
+| Date of Execution | 2026-11-03 |
