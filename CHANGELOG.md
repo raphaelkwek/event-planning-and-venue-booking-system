@@ -38,7 +38,9 @@ navigation, CI, the Playwright stack, docs and cards. The 2 Nov audit found EN-0
   the seven roles × a related and an unrelated record, and holds each response to the PDP's own decision
   plus RLS. `routePermissions.unit.test.ts` fails on a route without a gate or an action no policy has.
 - **Local and CI.** `npm run cerbos:start` runs the pinned binary on `policies/` (inside WSL on Windows,
-  where Cerbos has no build) and `npm run dev` starts it. CI's integration job runs the PDP as a service
+  where Cerbos has no build) and `npm run dev` starts it. Where no PDP answers in development (Windows
+  without WSL), planning-core evaluates `policies/` itself, with one loud startup warning; production
+  (`NODE_ENV=production`) refuses that mode at startup and stays fail-closed. CI's integration job runs the PDP as a service
   container; the Playwright stack runs the binary. Unit runs ask a double that reads the same policies,
   held to the real PDP by `pdpDouble.test.ts`.
 - **Merged main** (U1, R1 to R4, EN-10, EN-14, EN-15, EN-17): U1's safety routes and R2's registration

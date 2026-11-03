@@ -81,8 +81,10 @@ npm run cerbos:start   # http://127.0.0.1:3592, which is CERBOS_URL's local valu
 ```
 
 `backend/cerbos/config.yaml` serves `policies/` from disk and reloads a policy when the file changes.
-planning-core **fails closed**: if the PDP doesn't answer, every protected request is refused with
-`503 POLICY_UNAVAILABLE`. In CI the integration job runs the PDP as a service container and the
+planning-core **fails closed** in production: if the PDP doesn't answer, every protected request is
+refused with `503 POLICY_UNAVAILABLE`. In development only, if no PDP answers at `CERBOS_URL` when
+planning-core starts (Windows without WSL, say), it evaluates these policies itself and logs
+"LOCAL-POLICIES MODE"; see `documentation/evidence/EN-07/README.md`. In CI the integration job runs the PDP as a service container and the
 Playwright stack runs the binary; each Kubernetes namespace has its own (EN-10).
 
 **Adding an action:** add it to the resource's policy and its test here, then gate the route with

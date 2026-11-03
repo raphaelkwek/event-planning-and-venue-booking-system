@@ -503,6 +503,14 @@ row-level security decides **which rows a caller reaches**; each module's `domai
   that action (`src/shared/authz/`). Never: `403 ROLE_NOT_AUTHORISED`. No answer within 2 s:
   `503 POLICY_UNAVAILABLE`. **It fails closed.** A new action goes in `policies/resources/` with a policy
   test, and `routePermissions.unit.test.ts` fails on a route without a gate.
+- **Two PDP modes, chosen once at startup** (`src/shared/authz/startup.ts`):
+  - **cerbos**, the Cerbos PDP at `CERBOS_URL`. Always when `NODE_ENV=production` (the images and the
+    Kubernetes deploy set it), and in CI. Without an answer, `503`.
+  - **local-policies**, development only: when `NODE_ENV` isn't production and no PDP answers at
+    `CERBOS_URL` within 5 s (or it's unset), planning-core evaluates `policies/` itself and logs
+    "LOCAL-POLICIES MODE" once. This is what `npm run dev` uses on Windows without WSL, where Cerbos has
+    no build. The same evaluator is the unit runs' stand-in, and `pdpDouble.test.ts` holds it to the
+    real PDP in CI. Startup refuses it in production, and so does the evaluator itself.
 - **Session-only routes** (sign-out, `/users/me`, `/access-scope`, `/permissions/check`,
   `/feature-flags`) need a valid token and no action; `tests/support/routeTable.ts` lists them.
 - **The staff console asks the same policies.** `POST /api/v1/permissions/check` answers, for the

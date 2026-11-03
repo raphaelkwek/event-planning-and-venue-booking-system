@@ -57,6 +57,10 @@ Today the role list is checked in handlers and the scope is a filter in the repo
   checked), and `npm run dev` starts it. Cerbos still publishes no Windows build, so on Windows the
   script runs the Linux build inside WSL when a Linux distribution is installed. Option (b),
   `@cerbos/embedded`, was ruled out: its bundles are built only by Cerbos Hub.
+- **Development without a PDP.** When `NODE_ENV` isn't production and no PDP answers at
+  `CERBOS_URL`, planning-core evaluates `policies/` itself (local-policies mode, one loud startup
+  warning), so `npm run dev` works on Windows without WSL. The evaluator is the unit runs' stand-in, held
+  to the real PDP in CI. Production refuses it at startup and stays fail-closed.
 - **In CI** the integration job runs the PDP as a service container (`ghcr.io/cerbos/cerbos:0.56.0`), and
   the Playwright stack runs the binary. Each Kubernetes namespace gets its own PDP (EN-10).
 - **The staff console** asks `POST /api/v1/permissions/check`, which asks the PDP for the verified
