@@ -19,8 +19,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Waits for CI on the F4 pull request. Commit: · Evidence: · Defect: — |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | 200 with `released.bookings` [B1], `released.holds` [H], `released.requests` [P]; B1's and H's slots `RELEASED`, H `RELEASED` with `released_by` O, P `WITHDRAWN` with `withdrawn_by` O. |
+| Status | Pass |
+| Remarks | Automated (API level) · Commit: 1e9a764 · Evidence: `backend/services/planning-core/tests/change/api/f4Cards.test.ts` › `F4-T1 cancelling releases the confirmed booking and the hold, and withdraws the pending request`, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41597952863 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

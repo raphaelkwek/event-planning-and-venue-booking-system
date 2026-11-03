@@ -19,8 +19,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Waits for CI on the F4 pull request. Commit: · Evidence: · Defect: — |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | Before: `availableQuantity` 2. Cancellation 200 with `released.reservations` quantities 3 and 5; R1, R2 and their bulk rows `RELEASED`; `availableQuantity` then 10. |
+| Status | Pass |
+| Remarks | Automated (API level) · Commit: 1e9a764 · Evidence: `backend/services/planning-core/tests/change/api/f4Cards.test.ts` › `F4-T3 both reservations are released, and the whole stock is available for the period again`, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41597952863 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

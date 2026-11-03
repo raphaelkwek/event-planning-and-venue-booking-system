@@ -19,8 +19,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Waits for CI on the F4 pull request. Commit: · Evidence: · Defect: — |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | Re-running both release functions released nothing (no references, no reservations) and changed no row; a second cancellation answered 409 `STATUS_TRANSITION_NOT_PERMITTED`; every row, quantity and timestamp equal to after the first cancellation. |
+| Status | Pass |
+| Remarks | Automated (API level) · Commit: 1e9a764 · Evidence: `backend/services/planning-core/tests/change/api/f4Cards.test.ts` › `F4-T6 releasing again changes nothing, and a second cancellation is refused with nothing changed`, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41597952863 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

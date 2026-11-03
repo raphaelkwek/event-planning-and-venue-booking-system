@@ -19,8 +19,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
+| Actual Result | Not run: the registration consumer of `event.cancelled` is not on main. Step 1's part passed in CI: the cancellation answered 200 with `released.registrations` 0. |
 | Status | Blocked |
-| Remarks | Blocked: waits for R1–R4 (#80) and R5–R7 (#88), whose registration-service consumer of `event.cancelled` cancels the event's registrations and waitlist entries and tells the attendees. Neither is merged. Only step 1's `released.registrations` 0 is automated here, in `f4Cards.test.ts` › `F4-T7 the cancellation itself releases no registration: the registration service does that from event.cancelled`. Commit: · Evidence: · Defect: — |
-| Executed By | |
-| Date of Execution | |
+| Remarks | Blocked: waits for R1–R4 (#80) and R5–R7 (#88), whose registration-service consumer of `event.cancelled` cancels the event's registrations and waitlist entries and tells the attendees. Neither is merged. Only step 1's `released.registrations` 0 is automated (API level) · Commit: 1e9a764 · Evidence: `backend/services/planning-core/tests/change/api/f4Cards.test.ts` › `F4-T7 the cancellation itself releases no registration: the registration service does that from event.cancelled`, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41597952863 · Defect: — |
+| Executed By | Joash, via automated testing (CI) (step 1 only) |
+| Date of Execution | 2026-11-03 |

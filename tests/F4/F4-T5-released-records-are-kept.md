@@ -19,8 +19,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Waits for CI on the F4 pull request. Commit: · Evidence: · Defect: — |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | Both slots kept, B1 `RELEASED` with `release_reason` `event cancelled`, `updated_by` O and an `updated_at`; H `RELEASED` with `released_by` O and a `released_at`; both reservations kept, `RELEASED` with `release_reason` `event cancelled`, `released_by` O and a `released_at`. |
+| Status | Pass |
+| Remarks | Automated (API level) · Commit: 1e9a764 · Evidence: `backend/services/planning-core/tests/change/api/f4Cards.test.ts` › `F4-T5 each released record is kept, with the reason, the user and the time`, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41597952863 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |
