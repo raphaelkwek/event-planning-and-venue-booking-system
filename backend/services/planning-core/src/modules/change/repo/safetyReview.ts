@@ -116,13 +116,14 @@ export async function decide(
 
 export type MarkConfirmedResult =
   | { ok: true; eventId: string; reference: string | null; status: EventStatus; previousStatus: EventStatus; confirmedAt: string }
-  | { ok: false; code: "NOT_FOUND" | "NOT_ASSIGNED" }
+  | { ok: false; code: "NOT_FOUND" }
   | { ok: false; code: "STATUS_NOT_PERMITTED" | "SAFETY_CHECK_NOT_PASSED" | "FLAGS_OUTSTANDING"; message: string; flags?: OutstandingFlag[] };
 
 /**
  * The assigned coordinator marks the event Confirmed (the Week 9 answer to U1 AC4): refused unless
  * the event is in Safety Review with an approved current review and no arrangement flag outstanding.
- * Assignment is checked as F5 checks it, against the event's active assignment.
+ * Assignment is checked as F5 checks it: a coordinator's scope is the events assigned to them (A4),
+ * re-read under the row lock, so another coordinator's event is not found.
  */
 export async function markConfirmed(
   tx: TransactionSql,
@@ -132,7 +133,6 @@ export async function markConfirmed(
   const scope = resolveAccessScope(actor.role, actor.userId, "events");
   const event = await findEventForChange(tx, eventId, scope, actor.userId, { lock: "update" });
   if (!event) return { ok: false, code: "NOT_FOUND" };
-  if (event.assignedCoordinatorId !== actor.userId) return { ok: false, code: "NOT_ASSIGNED" };
 
   if (event.status === "SAFETY_REVIEW") {
     const startedAt = await currentReviewStartedAt(tx, event.id);

@@ -332,7 +332,13 @@ describe("U1 cards (tests/U1)", () => {
     expect((await decide(event.id, { decision: "APPROVE" })).status).toBe(201);
     const before = await state(event.id);
 
-    for (const [name, userId, role] of OTHER_ROLES.filter(([name]) => name !== "C1")) {
+    // A4: another coordinator's event is outside their scope, so it is not found, and the message
+    // says it is not assigned to them. Every other role is refused by role first.
+    signedInAs(A.c2, "EVENT_COORDINATOR");
+    const asOtherCoordinator = await markConfirmed(event.id);
+    expect([asOtherCoordinator.status, asOtherCoordinator.body.error.code]).toEqual([404, "EVENT_NOT_FOUND"]);
+    expect(asOtherCoordinator.body.error.message).toBe("No event with that reference is assigned to you.");
+    for (const [name, userId, role] of OTHER_ROLES.filter(([name]) => name !== "C1" && name !== "C2")) {
       signedInAs(userId, role);
       const response = await markConfirmed(event.id);
       expect([name, response.status, response.body.error.code]).toEqual([name, 403, "ROLE_NOT_AUTHORISED"]);

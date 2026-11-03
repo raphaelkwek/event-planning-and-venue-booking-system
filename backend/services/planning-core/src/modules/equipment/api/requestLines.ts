@@ -3,9 +3,10 @@ import type { Sql } from "postgres";
 import {
   EQUIPMENT_LINE_STATUS_LABELS,
   type EquipmentRequestLineStatus,
+  type Role,
 } from "@connectsphere/contracts";
 import { findEventForPlanning, type EventPlanningView } from "../../event/index.js";
-import { resolveAccessScope } from "../../identity/index.js";
+import { notInScopeMessage, resolveAccessScope } from "../../identity/index.js";
 import { authenticate, requireRole, type ActorRequest } from "../auth/actor.js";
 import {
   canChangeStatus,
@@ -30,6 +31,7 @@ import {
 } from "../repo/requestLines.js";
 import { releaseReservation } from "../repo/releases.js";
 import { fieldsFromZod, refuse } from "./errors.js";
+import { EventCancelledError, refuseIfCancelled } from "./eventGuard.js";
 import { equipmentRateLimiter } from "./limiter.js";
 import { present } from "./presentLine.js";
 import { createLinesBodySchema, lineBodySchema, listLinesQuerySchema } from "./schemas.js";
@@ -38,7 +40,8 @@ import { createLinesBodySchema, lineBodySchema, listLinesQuerySchema } from "./s
  * O1 and O2 — the lines of an event's equipment request.
  *
  * O1: only the event's assigned coordinator records, edits or removes lines (the policy's
- * `assigned_coordinator`), checked here on the server from the event module's public read.
+ * `assigned_coordinator`). A coordinator's events scope is the events assigned to them (A4),
+ * so the event module's public read finds no other coordinator's event.
  * O2: only Technical Support changes a line's status. Coordinators and Technical Support read.
  */
 const COORDINATOR = "EVENT_COORDINATOR";
@@ -51,12 +54,17 @@ const REMOVAL_REASON = "Request line removed";
 /** A3: Technical Support see equipment requests and the event timing they depend on, for every event. */
 const ALL_EVENTS = { scopeType: "ALL" } as const;
 
-function lineNotFound(res: Response) {
-  refuse(res, 404, "EQUIPMENT_LINE_NOT_FOUND", "No equipment request line with that id exists.");
+function lineNotFound(res: Response, role: Role) {
+  refuse(
+    res,
+    404,
+    "EQUIPMENT_LINE_NOT_FOUND",
+    notInScopeMessage(role, "No equipment request line with that id exists.", "equipment request line"),
+  );
 }
 
-function eventNotFound(res: Response) {
-  refuse(res, 404, "EVENT_NOT_FOUND", "No event with that id exists.");
+function eventNotFound(res: Response, role: Role) {
+  refuse(res, 404, "EVENT_NOT_FOUND", notInScopeMessage(role, "No event with that id exists."));
 }
 
 function typeNotFound(res: Response, ids: string[]) {
@@ -68,10 +76,6 @@ function typeNotFound(res: Response, ids: string[]) {
     undefined,
     { equipmentTypeIds: ids },
   );
-}
-
-function notAssigned(res: Response) {
-  refuse(res, 403, "ROLE_NOT_AUTHORISED", "Only the event's assigned coordinator can record or change its equipment lines.");
 }
 
 function notEditable(res: Response, status: EquipmentRequestLineStatus) {
@@ -102,15 +106,11 @@ const eventTimes = (event: EventPlanningView): EventTimes => ({
   endsAt: instant(event.proposedEndAt),
 });
 
-/** The event, as the assigned coordinator's own authority needs it: null when it does not exist or has no reference yet. */
+/** The event, if it is in the caller's scope (A4: for a coordinator, assigned to them); null when not, or with no reference yet. */
 async function findPlannableEvent(sql: Sql, eventId: string, req: ActorRequest): Promise<EventPlanningView | null> {
   const scope = resolveAccessScope(req.actor!.role, req.actor!.userId, "events");
   const event = await findEventForPlanning(sql, eventId, scope, req.actor!.userId);
   return event && event.reference ? event : null;
-}
-
-function isAssignedCoordinator(event: EventPlanningView, req: ActorRequest): boolean {
-  return event.assignedCoordinatorId === req.actor!.userId;
 }
 
 /** The line as the API shows it: `seq` only orders and pages lists, so it is not part of the line. */
@@ -121,10 +121,9 @@ export function requestLinesRouter(sql: Sql, limiter: RequestHandler = equipment
   async function loadForCoordinator(req: ActorRequest, res: Response) {
     const id = req.params.id!;
     const line = UUID.test(id) ? await findLine(sql, id) : null;
-    if (!line) return void lineNotFound(res);
+    if (!line) return void lineNotFound(res, req.actor!.role);
     const event = await findPlannableEvent(sql, line.eventId, req);
-    if (!event) return void lineNotFound(res);
-    if (!isAssignedCoordinator(event, req)) return void notAssigned(res);
+    if (!event) return void lineNotFound(res, req.actor!.role);
     return { line, event };
   }
 
@@ -137,8 +136,7 @@ export function requestLinesRouter(sql: Sql, limiter: RequestHandler = equipment
         return;
       }
       const event = await findPlannableEvent(sql, body.data.eventId, req);
-      if (!event) return eventNotFound(res);
-      if (!isAssignedCoordinator(event, req)) return notAssigned(res);
+      if (!event) return eventNotFound(res, req.actor!.role);
 
       const checked = validateNewLines(body.data.lines, eventTimes(event));
       if (!checked.ok) {
@@ -146,12 +144,19 @@ export function requestLinesRouter(sql: Sql, limiter: RequestHandler = equipment
         return;
       }
 
-      const created = await sql.begin(async (tx) => {
-        const missing = await findMissingTypeIds(tx, checked.lines.map((line) => line.equipmentTypeId));
-        if (missing.length > 0) return { code: "MISSING_TYPE", missing } as const;
-        const lines = await insertLines(tx, { id: event.id, reference: event.reference! }, checked.lines, req.actor!);
-        return { code: "OK", lines } as const;
-      });
+      let created;
+      try {
+        created = await sql.begin(async (tx) => {
+          await refuseIfCancelled(tx, event.id, req.actor!.userId);
+          const missing = await findMissingTypeIds(tx, checked.lines.map((line) => line.equipmentTypeId));
+          if (missing.length > 0) return { code: "MISSING_TYPE", missing } as const;
+          const lines = await insertLines(tx, { id: event.id, reference: event.reference! }, checked.lines, req.actor!);
+          return { code: "OK", lines } as const;
+        });
+      } catch (error) {
+        if (error instanceof EventCancelledError) return refuse(res, 409, "EVENT_CANCELLED", error.message);
+        throw error;
+      }
       if (created.code === "MISSING_TYPE") return typeNotFound(res, created.missing);
       res.status(201).json({ items: created.lines.map(present) });
     } catch (error) {
@@ -178,7 +183,7 @@ export function requestLinesRouter(sql: Sql, limiter: RequestHandler = equipment
       if (query.data.eventId) {
         const scope = req.actor!.role === TECH_SUPPORT ? ALL_EVENTS : resolveAccessScope(req.actor!.role, req.actor!.userId, "events");
         event = await findEventForPlanning(sql, query.data.eventId, scope, req.actor!.userId);
-        if (!event || !event.reference) return eventNotFound(res);
+        if (!event || !event.reference) return eventNotFound(res, req.actor!.role);
       }
       const rows = await listLines(sql, {
         eventId: query.data.eventId,
@@ -213,7 +218,11 @@ export function requestLinesRouter(sql: Sql, limiter: RequestHandler = equipment
   router.get(`${BASE}/:id`, limiter, authenticate, requireRole(COORDINATOR, TECH_SUPPORT), async (req: ActorRequest, res: Response, next: NextFunction) => {
     try {
       const line = UUID.test(req.params.id!) ? await findLine(sql, req.params.id!) : null;
-      if (!line) return lineNotFound(res);
+      if (!line) return lineNotFound(res, req.actor!.role);
+      // A4: a coordinator reads only the lines of events assigned to them.
+      if (req.actor!.role === COORDINATOR && !(await findPlannableEvent(sql, line.eventId, req))) {
+        return lineNotFound(res, req.actor!.role);
+      }
       res.json({ ...present(line), history: await listLineHistory(sql, line.id) });
     } catch (error) {
       next(error);
@@ -244,7 +253,7 @@ export function requestLinesRouter(sql: Sql, limiter: RequestHandler = equipment
         if (missing.length > 0) return { code: "MISSING_TYPE", missing } as const;
         return { code: "OK", line: await updateLine(tx, current, checked.line, req.actor!) } as const;
       });
-      if (outcome.code === "GONE") return lineNotFound(res);
+      if (outcome.code === "GONE") return lineNotFound(res, req.actor!.role);
       if (outcome.code === "NOT_EDITABLE") return notEditable(res, outcome.status);
       if (outcome.code === "MISSING_TYPE") return typeNotFound(res, outcome.missing);
       res.json(present(outcome.line));
@@ -287,7 +296,7 @@ export function requestLinesRouter(sql: Sql, limiter: RequestHandler = equipment
         if (!isEditableByCoordinator(current.status)) return { code: "NOT_EDITABLE", status: current.status } as const;
         return { code: "OK", line: await markRemoved(tx, current, req.actor!) } as const;
       });
-      if (outcome.code === "GONE") return lineNotFound(res);
+      if (outcome.code === "GONE") return lineNotFound(res, req.actor!.role);
       if (outcome.code === "NOT_EDITABLE") return notRemovable(res, outcome.status);
       res.json(present(outcome.line));
     } catch (error) {
@@ -299,16 +308,16 @@ export function requestLinesRouter(sql: Sql, limiter: RequestHandler = equipment
   router.post(`${BASE}/:id/status`, limiter, authenticate, requireRole(TECH_SUPPORT), async (req: ActorRequest, res: Response, next: NextFunction) => {
     try {
       const id = req.params.id!;
-      if (!UUID.test(id)) return lineNotFound(res);
+      if (!UUID.test(id)) return lineNotFound(res, req.actor!.role);
       const checked = validateStatusChange(lineBodySchema.safeParse(req.body).data ?? {});
       if (!checked.ok) {
         refuse(res, 400, "VALIDATION_FAILED", "The status could not be changed. Check the highlighted fields.", checked.fields);
         return;
       }
       const existing = await findLine(sql, id);
-      if (!existing) return lineNotFound(res);
+      if (!existing) return lineNotFound(res, req.actor!.role);
       const event = await findEventForPlanning(sql, existing.eventId, ALL_EVENTS, req.actor!.userId);
-      if (!event) return eventNotFound(res);
+      if (!event) return eventNotFound(res, req.actor!.role);
 
       const outcome = await sql.begin(async (tx) => {
         const current = await lockLine(tx, id);
@@ -333,7 +342,7 @@ export function requestLinesRouter(sql: Sql, limiter: RequestHandler = equipment
         }
         return { code: "OK", line: updated } as const;
       });
-      if (outcome.code === "GONE") return lineNotFound(res);
+      if (outcome.code === "GONE") return lineNotFound(res, req.actor!.role);
       if (outcome.code === "MISSING_TYPE") return typeNotFound(res, outcome.missing);
       if (outcome.code === "NOT_PERMITTED") {
         refuse(

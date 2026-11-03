@@ -19,6 +19,8 @@ export type Role = (typeof ROLES)[number];
 export const accessScopeSchema = z.discriminatedUnion("scopeType", [
   z.object({ scopeType: z.literal("OWNED_BY_USER"), userId: z.string().uuid() }),
   z.object({ scopeType: z.literal("ALL") }),
+  // A4 (CR-05): an Event Coordinator's events are the ones assigned to them.
+  z.object({ scopeType: z.literal("ASSIGNED_TO_USER"), userId: z.string().uuid() }),
   z.object({ scopeType: z.literal("STAFF_OWNED_VENUES"), staffUserId: z.string().uuid() }),
   z.object({ scopeType: z.literal("STAFF_OWNED_EQUIPMENT"), staffUserId: z.string().uuid() }),
   z.object({ scopeType: z.literal("PUBLISHED_OPEN_REGISTRATION") }),

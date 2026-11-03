@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
   ARRANGEMENTS_UNAVAILABLE_MESSAGE,
-  NOT_ASSIGNED_MESSAGE,
   assessReadiness,
   equipmentOutstanding,
   flagsOutstanding,
@@ -270,9 +269,5 @@ describe("messages", () => {
     expect(ARRANGEMENTS_UNAVAILABLE_MESSAGE).toBe(
       "The venue and equipment arrangements could not be checked, so the event was not confirmed. Nothing was changed. Try again."
     );
-  });
-
-  it("names who may confirm (AC1)", () => {
-    expect(NOT_ASSIGNED_MESSAGE).toBe("Only the event's assigned coordinator can confirm its arrangements.");
   });
 });

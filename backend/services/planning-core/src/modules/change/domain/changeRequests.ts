@@ -100,9 +100,11 @@ const DECISION_MESSAGE = "Choose Approve or Reject.";
 const REJECT_REASON_MESSAGE = "Give a reason for rejecting the change.";
 
 /** S2 — the decision label a person reads, and the one the 409 names. */
-export const DECISION_LABELS = { APPROVED: "Approved", REJECTED: "Rejected" } as const;
+export const DECISION_LABELS = { APPROVED: "Approved", REJECTED: "Rejected", CLOSED: "Closed" } as const;
 
-export function alreadyDecidedMessage(status: "APPROVED" | "REJECTED", decidedAt: string): string {
+export function alreadyDecidedMessage(status: "APPROVED" | "REJECTED" | "CLOSED", decidedAt: string): string {
+  // F3 (W9-07): a request still pending when its event was cancelled was closed, not decided.
+  if (status === "CLOSED") return `This change request was closed on ${decidedAt} because the event was cancelled.`;
   return `This change request was already ${DECISION_LABELS[status]} on ${decidedAt}.`;
 }
 
@@ -160,4 +162,11 @@ export function staleFields(
 
 export function cannotApproveMessage(status: EventStatus): string {
   return `The event is ${EVENT_STATUS_LABELS[status]}, so the change can't be approved. You can still reject it.`;
+}
+
+/** S2, G2 — a request's changes: each field's proposed value under its name (a proposed null included). */
+export function proposedChanges(fields: readonly { fieldName: SignificantEventField; proposedValue: unknown }[]): ProposedChanges {
+  const changes: ProposedChanges = {};
+  for (const field of fields) changes[field.fieldName] = field.proposedValue;
+  return changes;
 }

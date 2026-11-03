@@ -19,10 +19,17 @@ resourcePolicy:
 
     # Which rows each role sees is A3's job, enforced by row-level security
     # (EN-07.2). This rule only says which roles may open an event at all.
-    - name: C3-D1-F2-view-as-staff
+    - name: C3-F2-view-as-staff
       actions: [view]
       effect: EFFECT_ALLOW
-      roles: [EVENT_COORDINATOR, VENUE_STAFF, TECH_SUPPORT_STAFF]
+      roles: [VENUE_STAFF, TECH_SUPPORT_STAFF]
+
+    # A4 (CR-05): a coordinator opens only the events assigned to them. Whether
+    # they may view others read-only is CQ-11; until it is answered, they may not.
+    - name: A4-D1-F2-the-assigned-coordinator-views
+      actions: [view]
+      effect: EFFECT_ALLOW
+      derivedRoles: [assigned_coordinator]
 
     - name: C3-F2-view-my-own-request
       actions: [view]
@@ -42,15 +49,16 @@ resourcePolicy:
       effect: EFFECT_ALLOW
       derivedRoles: [owner]
 
-    - name: F2-D2-history-for-coordinators
+    - name: A4-F2-D2-history-for-the-assigned-coordinator
       actions: [view_history, view_clarifications, view_reassignments]
       effect: EFFECT_ALLOW
-      roles: [EVENT_COORDINATOR]
+      derivedRoles: [assigned_coordinator]
 
-    - name: D1-D2-D4-D5-review-and-decide
+    # A4: only the assigned coordinator reviews and decides (D1 to D5).
+    - name: A4-D1-D2-D4-D5-the-assigned-coordinator-reviews-and-decides
       actions: [review, request_clarification, approve, reject]
       effect: EFFECT_ALLOW
-      roles: [EVENT_COORDINATOR]
+      derivedRoles: [assigned_coordinator]
 
     - name: D3-answer-a-clarification
       actions: [respond_to_clarification]
@@ -102,10 +110,10 @@ resourcePolicy:
       effect: EFFECT_ALLOW
       derivedRoles: [owner, assigned_coordinator]
 
-    - name: G2-S3-coordinators-assess-change-impact
+    - name: A4-G2-S3-the-assigned-coordinator-assesses-change-impact
       actions: [preview_change_impact, reconsider_arrangements]
       effect: EFFECT_ALLOW
-      roles: [EVENT_COORDINATOR]
+      derivedRoles: [assigned_coordinator]
 
     - name: S1-owner-requests-a-change
       actions: [request_change]

@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  NOT_ASSIGNED_TO_CONFIRM_MESSAGE,
   REASON_REQUIRED_MESSAGE,
   UNKNOWN_ARRANGEMENT_MESSAGE,
   flagReason,
@@ -137,9 +136,5 @@ describe("outstandingFlagsMessage (commit 259050d)", () => {
 describe("flagReason and messages", () => {
   it("prefixes the officer's reason so S3's flag list shows where the flag came from", () => {
     expect(flagReason("Move the chairs")).toBe("Safety review: Move the chairs");
-  });
-
-  it("tells a coordinator who is not assigned why they cannot mark an event Confirmed", () => {
-    expect(NOT_ASSIGNED_TO_CONFIRM_MESSAGE).toBe("Only the event's assigned coordinator can mark it Confirmed.");
   });
 });

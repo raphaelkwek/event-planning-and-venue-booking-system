@@ -1,8 +1,10 @@
 import { Router, type NextFunction, type RequestHandler, type Response } from "express";
 import type { Sql } from "postgres";
+import type { Role } from "@connectsphere/contracts";
+import { notInScopeMessage } from "../../identity/index.js";
 import { listSafetyReviewQueue } from "../../event/index.js";
 import { authenticate, requireRole, type ActorRequest } from "../auth/actor.js";
-import { NOT_ASSIGNED_TO_CONFIRM_MESSAGE, parseDecision } from "../domain/safetyReview.js";
+import { parseDecision } from "../domain/safetyReview.js";
 import { decide, markConfirmed, reviewFor } from "../repo/safetyReview.js";
 import { refuse } from "./errors.js";
 import { changeRateLimiter } from "./limiter.js";
@@ -18,6 +20,9 @@ const COORDINATOR = "EVENT_COORDINATOR";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const notFound = (res: Response) => refuse(res, 404, "EVENT_NOT_FOUND", "No event with that reference is available to you.");
+// A4: for a coordinator, an event not found is one not assigned to them, and the message says so.
+const notFoundFor = (res: Response, role: Role) =>
+  refuse(res, 404, "EVENT_NOT_FOUND", notInScopeMessage(role, "No event with that reference is available to you."));
 
 export function safetyReviewRouter(sql: Sql, limiter: RequestHandler = changeRateLimiter()) {
   const router = Router();
@@ -90,7 +95,7 @@ export function safetyReviewRouter(sql: Sql, limiter: RequestHandler = changeRat
   router.post("/api/v1/events/:id/mark-confirmed", limiter, authenticate, requireRole(COORDINATOR), async (req: ActorRequest, res: Response, next: NextFunction) => {
     try {
       const eventId = req.params.id!;
-      if (!UUID.test(eventId)) return notFound(res);
+      if (!UUID.test(eventId)) return notFoundFor(res, req.actor!.role);
       const correlationId = req.header("x-correlation-id") ?? null;
       const outcome = await sql.begin((tx) => markConfirmed(tx, eventId, { ...req.actor!, correlationId }));
       if (outcome.ok) {
@@ -100,9 +105,7 @@ export function safetyReviewRouter(sql: Sql, limiter: RequestHandler = changeRat
       }
       switch (outcome.code) {
         case "NOT_FOUND":
-          return notFound(res);
-        case "NOT_ASSIGNED":
-          return void refuse(res, 403, "ROLE_NOT_AUTHORISED", NOT_ASSIGNED_TO_CONFIRM_MESSAGE);
+          return notFoundFor(res, req.actor!.role);
         case "STATUS_NOT_PERMITTED":
           return void refuse(res, 409, "STATUS_TRANSITION_NOT_PERMITTED", outcome.message);
         case "SAFETY_CHECK_NOT_PASSED":

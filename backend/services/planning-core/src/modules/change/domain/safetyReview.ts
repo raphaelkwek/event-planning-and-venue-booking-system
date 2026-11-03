@@ -100,5 +100,3 @@ export const REQUEST_REASON_FLAG_PREFIX = "Safety review";
 export function flagReason(reason: string): string {
   return `${REQUEST_REASON_FLAG_PREFIX}: ${reason}`;
 }
-
-export const NOT_ASSIGNED_TO_CONFIRM_MESSAGE = "Only the event's assigned coordinator can mark it Confirmed.";
