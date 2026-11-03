@@ -11,6 +11,8 @@ export const PORTS = {
   notification: 8091 + offset,
   registration: 8092 + offset,
   web: 4173 + offset,
+  // EN-07: the Cerbos policy decision point every planning-core route asks (HTTP; gRPC on the next port).
+  pdp: 3592 + 2 * offset,
 };
 export const AUTH_URL = `http://${HOST}:${PORTS.auth}`;
 export const WEB_URL = `http://${HOST}:${PORTS.web}`;

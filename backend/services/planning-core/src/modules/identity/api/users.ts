@@ -1,16 +1,18 @@
-import { Router, type RequestHandler } from "express";
+import { Router, type NextFunction, type RequestHandler, type Response } from "express";
 import { identityRateLimiter } from "./limiter.js";
 import type { Sql } from "postgres";
 import { z } from "zod";
-import { verifyJwt, type AuthenticatedRequest } from "../../../shared/auth/verifyJwt.js";
-import { findRoleForUser, findUserBySupabaseId, findUsersByIds } from "../repo/users.js";
+import { verifyJwt } from "../../../shared/auth/verifyJwt.js";
+import { findUsersByIds } from "../repo/users.js";
+import { requireRole, resolveCaller, type CallerRequest } from "../auth/caller.js";
+import { ROLE_NOT_AUTHORISED_MESSAGE } from "../../../shared/authz/gate.js";
 
 /**
  * Looks users up by id, so the app can show a person — the submitting
  * organiser, the reviewing coordinator (B1, D1) — rather than an id. Other
  * services store only ids (plan.md §4); this is where those become names.
  *
- * Internal staff only, and only the fields needed to name someone.
+ * Internal staff only (Cerbos: user `view`), and only the fields needed to name someone.
  */
 
 const MAX_IDS = 100;
@@ -22,49 +24,40 @@ const idsSchema = z
 export function usersRouter(sql: Sql, limiter: RequestHandler = identityRateLimiter()) {
   const router = Router();
 
-  router.get("/api/v1/users", limiter, verifyJwt, async (req: AuthenticatedRequest, res) => {
-    const correlationId = req.header("x-correlation-id") ?? null;
+  router.get(
+    "/api/v1/users",
+    limiter,
+    verifyJwt,
+    // A user with no role was always refused here as not authorised, before EN-07 too.
+    resolveCaller(sql, { code: "ROLE_NOT_AUTHORISED", message: ROLE_NOT_AUTHORISED_MESSAGE }),
+    requireRole("user", "view"),
+    async (req: CallerRequest, res: Response, next: NextFunction) => {
+      const correlationId = req.header("x-correlation-id") ?? null;
+      const raw = typeof req.query.ids === "string" ? req.query.ids : "";
+      const parsed = idsSchema.safeParse(
+        raw
+          .split(",")
+          .map((id) => id.trim())
+          .filter((id) => id.length > 0)
+      );
+      if (!parsed.success) {
+        res.status(400).json({
+          error: {
+            code: "VALIDATION_FAILED",
+            message: parsed.error.issues[0]?.message ?? "The ids are not valid.",
+            correlationId,
+          },
+        });
+        return;
+      }
 
-    const caller = await findUserBySupabaseId(sql, req.auth!.supabaseUserId);
-    if (!caller || !caller.isActive) {
-      res.status(401).json({
-        error: { code: "UNAUTHENTICATED", message: "No active session for this token.", correlationId },
-      });
-      return;
+      try {
+        res.status(200).json({ items: await findUsersByIds(sql, [...new Set(parsed.data)]) });
+      } catch (error) {
+        next(error);
+      }
     }
-
-    const role = await findRoleForUser(sql, caller.id);
-    if (!role || role === "ATTENDEE") {
-      res.status(403).json({
-        error: {
-          code: "ROLE_NOT_AUTHORISED",
-          message: "Your role is not authorised to use this function.",
-          correlationId,
-        },
-      });
-      return;
-    }
-
-    const raw = typeof req.query.ids === "string" ? req.query.ids : "";
-    const parsed = idsSchema.safeParse(
-      raw
-        .split(",")
-        .map((id) => id.trim())
-        .filter((id) => id.length > 0)
-    );
-    if (!parsed.success) {
-      res.status(400).json({
-        error: {
-          code: "VALIDATION_FAILED",
-          message: parsed.error.issues[0]?.message ?? "The ids are not valid.",
-          correlationId,
-        },
-      });
-      return;
-    }
-
-    res.status(200).json({ items: await findUsersByIds(sql, [...new Set(parsed.data)]) });
-  });
+  );
 
   return router;
 }

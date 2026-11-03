@@ -15,8 +15,6 @@ import { changeRateLimiter } from "./limiter.js";
  * decides; only an Event Coordinator may try Mark Confirmed, and then only the event's assigned one
  * (A2, enforced here whatever the interface offers).
  */
-const SAFETY_OFFICER = "SAFETY_OFFICER";
-const COORDINATOR = "EVENT_COORDINATOR";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const notFound = (res: Response) => refuse(res, 404, "EVENT_NOT_FOUND", "No event with that reference is available to you.");
@@ -27,7 +25,7 @@ const notFoundFor = (res: Response, role: Role) =>
 export function safetyReviewRouter(sql: Sql, limiter: RequestHandler = changeRateLimiter()) {
   const router = Router();
 
-  router.get("/api/v1/safety-reviews", limiter, authenticate, requireRole(SAFETY_OFFICER), async (_req: ActorRequest, res: Response, next: NextFunction) => {
+  router.get("/api/v1/safety-reviews", limiter, authenticate, requireRole("event", "view_safety_queue"), async (_req: ActorRequest, res: Response, next: NextFunction) => {
     try {
       res.json({ events: await listSafetyReviewQueue(sql) });
     } catch (error) {
@@ -35,7 +33,7 @@ export function safetyReviewRouter(sql: Sql, limiter: RequestHandler = changeRat
     }
   });
 
-  router.get("/api/v1/events/:id/safety-review", limiter, authenticate, requireRole(SAFETY_OFFICER), async (req: ActorRequest, res: Response, next: NextFunction) => {
+  router.get("/api/v1/events/:id/safety-review", limiter, authenticate, requireRole("event", "view_safety_review"), async (req: ActorRequest, res: Response, next: NextFunction) => {
     try {
       const eventId = req.params.id!;
       if (!UUID.test(eventId)) return notFound(res);
@@ -48,7 +46,7 @@ export function safetyReviewRouter(sql: Sql, limiter: RequestHandler = changeRat
     }
   });
 
-  router.post("/api/v1/events/:id/safety-decision", limiter, authenticate, requireRole(SAFETY_OFFICER), async (req: ActorRequest, res: Response, next: NextFunction) => {
+  router.post("/api/v1/events/:id/safety-decision", limiter, authenticate, requireRole("event", "decide_safety"), async (req: ActorRequest, res: Response, next: NextFunction) => {
     try {
       const eventId = req.params.id!;
       if (!UUID.test(eventId)) return notFound(res);
@@ -92,7 +90,7 @@ export function safetyReviewRouter(sql: Sql, limiter: RequestHandler = changeRat
     }
   });
 
-  router.post("/api/v1/events/:id/mark-confirmed", limiter, authenticate, requireRole(COORDINATOR), async (req: ActorRequest, res: Response, next: NextFunction) => {
+  router.post("/api/v1/events/:id/mark-confirmed", limiter, authenticate, requireRole("event", "mark_confirmed"), async (req: ActorRequest, res: Response, next: NextFunction) => {
     try {
       const eventId = req.params.id!;
       if (!UUID.test(eventId)) return notFoundFor(res, req.actor!.role);

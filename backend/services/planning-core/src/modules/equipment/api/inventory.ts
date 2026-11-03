@@ -22,7 +22,6 @@ import { fieldsFromZod, refuse } from "./errors.js";
 import { equipmentRateLimiter } from "./limiter.js";
 import { equipmentTypeBodySchema, unavailabilityBodySchema } from "./schemas.js";
 
-const READERS = ["EVENT_COORDINATOR", "TECH_SUPPORT_STAFF"] as const;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function notFound(res: Response) {
@@ -79,7 +78,7 @@ function handleInventoryError(error: unknown, res: Response, next: NextFunction)
 export function inventoryRouter(sql: Sql, limiter: RequestHandler = equipmentRateLimiter()) {
   const router = Router();
 
-  router.get("/api/v1/equipment/types", limiter, authenticate, requireRole(...READERS), async (_req: ActorRequest, res: Response, next: NextFunction) => {
+  router.get("/api/v1/equipment/types", limiter, authenticate, requireRole("equipment_type", "view"), async (_req: ActorRequest, res: Response, next: NextFunction) => {
     try {
       const items = await listEquipmentTypes(sql);
       res.json({
@@ -102,7 +101,7 @@ export function inventoryRouter(sql: Sql, limiter: RequestHandler = equipmentRat
     }
   });
 
-  router.get("/api/v1/equipment/types/:id", limiter, authenticate, requireRole(...READERS), async (req: ActorRequest, res: Response, next: NextFunction) => {
+  router.get("/api/v1/equipment/types/:id", limiter, authenticate, requireRole("equipment_type", "view"), async (req: ActorRequest, res: Response, next: NextFunction) => {
     try {
       const record = UUID.test(req.params.id!) ? await detail(sql, req.params.id!) : null;
       if (!record) return notFound(res);
@@ -112,7 +111,7 @@ export function inventoryRouter(sql: Sql, limiter: RequestHandler = equipmentRat
     }
   });
 
-  router.post("/api/v1/equipment/types", limiter, authenticate, requireRole("TECH_SUPPORT_STAFF"), async (req: ActorRequest, res: Response, next: NextFunction) => {
+  router.post("/api/v1/equipment/types", limiter, authenticate, requireRole("equipment_type", "create"), async (req: ActorRequest, res: Response, next: NextFunction) => {
     const input = readEquipmentType(req, res);
     if (!input) return;
     try {
@@ -123,7 +122,7 @@ export function inventoryRouter(sql: Sql, limiter: RequestHandler = equipmentRat
     }
   });
 
-  router.put("/api/v1/equipment/types/:id", limiter, authenticate, requireRole("TECH_SUPPORT_STAFF"), async (req: ActorRequest, res: Response, next: NextFunction) => {
+  router.put("/api/v1/equipment/types/:id", limiter, authenticate, requireRole("equipment_type", "update"), async (req: ActorRequest, res: Response, next: NextFunction) => {
     if (!UUID.test(req.params.id!)) return notFound(res);
     const input = readEquipmentType(req, res);
     if (!input) return;
@@ -148,7 +147,7 @@ export function inventoryRouter(sql: Sql, limiter: RequestHandler = equipmentRat
     }
   });
 
-  router.post("/api/v1/equipment/types/:id/unavailability", limiter, authenticate, requireRole("TECH_SUPPORT_STAFF"), async (req: ActorRequest, res: Response, next: NextFunction) => {
+  router.post("/api/v1/equipment/types/:id/unavailability", limiter, authenticate, requireRole("equipment_type", "record_unavailability"), async (req: ActorRequest, res: Response, next: NextFunction) => {
     if (!UUID.test(req.params.id!)) return notFound(res);
     const shape = unavailabilityBodySchema.safeParse(req.body);
     if (!shape.success) {

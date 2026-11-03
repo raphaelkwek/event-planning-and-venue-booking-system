@@ -2,7 +2,9 @@ import { Router, type NextFunction, type RequestHandler, type Response } from "e
 import type { Sql } from "postgres";
 import type { Role } from "@connectsphere/contracts";
 import { notInScopeMessage } from "../../identity/index.js";
-import { authenticate, type ActorRequest } from "../auth/actor.js";
+import { authenticate, requireRole, type ActorRequest } from "../auth/actor.js";
+import { mayEver, POLICY_UNAVAILABLE_MESSAGE } from "../../../shared/authz/gate.js";
+import { PolicyUnavailableError } from "../../../shared/authz/pdp.js";
 import { alreadyDecidedMessage } from "../domain/changeRequests.js";
 import { previewChangeRequest } from "../repo/changeImpact.js";
 import { impactBody } from "./decisions.js";
@@ -28,11 +30,15 @@ function notFound(res: Response, role: Role) {
 export function changeImpactRouter(sql: Sql, limiter: RequestHandler = changeRateLimiter()) {
   const router = Router();
 
-  router.get("/api/v1/change-requests/:id/impact", limiter, authenticate, async (req: ActorRequest, res: Response, next: NextFunction) => {
+  router.get("/api/v1/change-requests/:id/impact", limiter, authenticate, requireRole("event", "view"), async (req: ActorRequest, res: Response, next: NextFunction) => {
     try {
       const requestId = req.params.id!;
       if (!UUID.test(requestId)) return notFound(res, req.actor!.role);
       const actor = req.actor!;
+      // Who may preview is the policies' (event preview_change_impact: the owner and the assigned
+      // coordinator). Asked before the transaction, as no HTTP call runs inside one; any other role
+      // gets the 404 of a request that does not exist.
+      if (!(await mayEver(actor, "event", "preview_change_impact"))) return notFound(res, actor.role);
 
       const outcome = await sql.begin("read only", (tx) => previewChangeRequest(tx, requestId, actor));
 
@@ -55,6 +61,7 @@ export function changeImpactRouter(sql: Sql, limiter: RequestHandler = changeRat
         }
       }
     } catch (error) {
+      if (error instanceof PolicyUnavailableError) return refuse(res, 503, "POLICY_UNAVAILABLE", POLICY_UNAVAILABLE_MESSAGE);
       next(error);
     }
   });

@@ -36,7 +36,7 @@ export function cancellationsRouter(sql: Sql, limiter: RequestHandler = changeRa
     PATH,
     limiter,
     authenticate,
-    requireRole("EVENT_ORGANISER", "EVENT_COORDINATOR"),
+    requireRole("event", "cancel"),
     async (req: ActorRequest, res: Response, next: NextFunction) => {
       try {
         const eventId = req.params.id!;

@@ -127,6 +127,9 @@ jobs:
       NOTIFICATION_PORT: "8091"
       REGISTRATION_PORT: "8092"
       PLANNING_CORE_URL: http://127.0.0.1:8090
+      # EN-07: the Cerbos PDP the step below starts. With it set and answering, planning-core asks
+      # the real policies here too, never its development-only local-policies mode.
+      CERBOS_URL: http://127.0.0.1:3592
       KAFKA_BROKERS: ""
       KAFKA_SASL_USERNAME: ""
       KAFKA_SASL_PASSWORD: ""
@@ -165,6 +168,12 @@ jobs:
           setsid nohup node gateway/ci/echo-upstream.mjs > gateway-logs/echo.log 2>&1 &
           for i in $(seq 1 30); do curl -fs http://127.0.0.1:9999/auth/v1/health && break; sleep 1; done
           curl -fsS http://127.0.0.1:9999/auth/v1/.well-known/jwks.json
+
+      - name: Start the Cerbos policy decision point (EN-07)
+        run: |
+          setsid nohup npx tsx backend/scripts/cerbos.ts server --config=backend/cerbos/config.yaml > gateway-logs/pdp.log 2>&1 &
+          for i in $(seq 1 60); do curl -fs http://127.0.0.1:3592/_cerbos/health && break; sleep 1; done
+          curl -fsS http://127.0.0.1:3592/_cerbos/health
 
       - name: Start planning-core, notification and the registration service
         run: |
@@ -231,7 +240,7 @@ jobs:
       - name: Print the Kong and service logs after a failure
         if: failure()
         run: |
-          for f in kong-a kong-b planning-core registration notification; do
+          for f in kong-a kong-b pdp planning-core registration notification; do
             echo "::group::$f"; tail -n 60 "gateway-logs/$f.log" || true; echo "::endgroup::"
           done
 

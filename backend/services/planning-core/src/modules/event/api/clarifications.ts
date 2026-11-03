@@ -32,7 +32,7 @@ export function clarificationsRouter(sql: Sql, limiter: RequestHandler = eventRa
   const router = Router();
 
   /** Visible to the owning organiser and to Event Coordinators, nobody else. */
-  router.get("/api/v1/events/:id/clarifications", limiter, ...authenticate, async (req: ActorRequest, res) => {
+  router.get("/api/v1/events/:id/clarifications", limiter, ...authenticate, requireRole("event", "view"), async (req: ActorRequest, res) => {
     const { userId, role, scope } = req.actor!;
 
     const event = await findEventInScope(sql, req.params.id, scope, userId);
@@ -47,7 +47,7 @@ export function clarificationsRouter(sql: Sql, limiter: RequestHandler = eventRa
   router.post(
     "/api/v1/events/:id/clarifications",
     limiter, ...authenticate,
-    requireRole("EVENT_COORDINATOR"),
+    requireRole("event", "request_clarification"),
     async (req: ActorRequest, res) => {
       const { userId, role, scope } = req.actor!;
       const parsed = clarificationBodySchema.safeParse(req.body);
@@ -116,7 +116,7 @@ export function clarificationsRouter(sql: Sql, limiter: RequestHandler = eventRa
   router.post(
     "/api/v1/events/:id/clarifications/respond",
     limiter, ...authenticate,
-    requireRole("EVENT_ORGANISER"),
+    requireRole("event", "respond_to_clarification"),
     async (req: ActorRequest, res) => {
       const { userId, role, scope } = req.actor!;
       const parsed = clarificationResponseBodySchema.safeParse(req.body);

@@ -118,7 +118,7 @@ export function bookingDecisionsRouter(sql: Sql) {
   const limiter = bookingRequestRateLimit();
 
   // M1: approve, confirming the booking.
-  router.post(`${BASE}/:id/approve`, limiter, authenticate, requireRole("VENUE_STAFF"), async (req: ActorRequest, res: Response, next: NextFunction) => {
+  router.post(`${BASE}/:id/approve`, limiter, authenticate, requireRole("booking_request", "approve"), async (req: ActorRequest, res: Response, next: NextFunction) => {
     try {
       const found = await decidable(sql, req, res);
       if (!found) return;
@@ -230,7 +230,7 @@ export function bookingDecisionsRouter(sql: Sql) {
   });
 
   // M2: reject, with a reason and any suggested alternative. The venue stays free.
-  router.post(`${BASE}/:id/reject`, limiter, authenticate, requireRole("VENUE_STAFF"), async (req: ActorRequest, res: Response, next: NextFunction) => {
+  router.post(`${BASE}/:id/reject`, limiter, authenticate, requireRole("booking_request", "reject"), async (req: ActorRequest, res: Response, next: NextFunction) => {
     try {
       const found = await decidable(sql, req, res);
       if (!found) return;

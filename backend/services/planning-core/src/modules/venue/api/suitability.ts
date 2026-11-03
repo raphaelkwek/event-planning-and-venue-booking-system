@@ -43,7 +43,7 @@ export function suitabilityRouter(sql: Sql, limiter: RequestHandler = suitabilit
     "/api/v1/venues/:id/suitability",
     limiter,
     authenticate,
-    requireRole("EVENT_COORDINATOR"),
+    requireRole("venue", "check_suitability"),
     async (req: ActorRequest, res: Response) => {
       const eventId = req.query.eventId;
       if (typeof eventId !== "string" || !UUID.test(eventId)) {

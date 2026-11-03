@@ -10,6 +10,12 @@ resourcePolicy:
       effect: EFFECT_ALLOW
       roles: [TECH_SUPPORT_STAFF]
 
+    # P1: Technical Support check a type's availability over a period.
+    - name: P1-tech-support-check-a-type-s-availability
+      actions: [check_availability]
+      effect: EFFECT_ALLOW
+      roles: [TECH_SUPPORT_STAFF]
+
     # O1: a coordinator picks equipment types when recording a request.
     - name: O1-P1-coordinators-and-tech-support-see-inventory
       actions: [view]

@@ -7,6 +7,7 @@ import { historyText, type ChangeableEvent, type ProposedChanges } from "../doma
 import { isSignificantEventField, KAFKA_TOPICS, type SignificantEventField } from "@connectsphere/contracts";
 import { recordFieldChanges } from "./eventHistory.js";
 import { writeOutbox } from "../events/outbox.js";
+import { asCaller } from "./requestRole.js";
 import { writeListingChanged } from "../events/listing.js";
 
 /**
@@ -146,6 +147,11 @@ function jsonOrNull(sql: Sql | TransactionSql, value: unknown) {
  * (C1). So even the Lead's scope, which is every event, stops short of other
  * people's drafts. A4: a coordinator's scope is the events actively assigned
  * to them; a draft is never assigned, and a reassigned event leaves at once.
+ *
+ * EN-07.2: the event.events and event.assignments RLS policies (migration
+ * event/0025) state this same rule in SQL, and every read below that applies it
+ * runs as the request role (requestRole.ts), so the database enforces it too.
+ * Change one, change the other: the RLS integration tests compare them.
  */
 function scopeCondition(sql: Sql | TransactionSql, scope: AccessScope, callerId: string) {
   switch (scope.scopeType) {
@@ -186,13 +192,13 @@ export async function findEventInScope(
   options: { lock?: "share" | "update" } = {}
 ): Promise<EventRow | null> {
   if (!isEventId(eventId)) return null;
-  const rows = await sql<RawEvent[]>`
+  const rows = await asCaller(sql, scope, callerId, (tx) => tx<RawEvent[]>`
     select e.*, a.coordinator_id as assigned_coordinator_id
     from event.events e
     left join event.assignments a on a.event_id = e.id and a.is_active
-    where e.id = ${eventId} and ${scopeCondition(sql, scope, callerId)}
-    ${options.lock === "update" ? sql`for update of e` : options.lock === "share" ? sql`for share of e` : sql``}
-  `;
+    where e.id = ${eventId} and ${scopeCondition(tx, scope, callerId)}
+    ${options.lock === "update" ? tx`for update of e` : options.lock === "share" ? tx`for share of e` : tx``}
+  `);
   const row = rows[0];
   if (!row) return null;
   if (!options.lock) return toEvent(row);
@@ -342,24 +348,27 @@ export async function listEventsInScope(
   callerId: string,
   page: { limit: number; after: PageCursor | null; kind?: EventListKind }
 ): Promise<EventsPage> {
-  const kindCondition =
-    page.kind === "drafts"
-      ? sql`e.status = 'DRAFT' and e.owner_id = ${callerId}`
-      : page.kind === "submitted"
-        ? sql`e.status <> 'DRAFT'`
-        : sql`true`;
-  const afterCondition = page.after
-    ? sql`(coalesce(e.submitted_at, e.last_saved_at), e.id) < (${page.after.sortAt}::timestamptz, ${page.after.id}::uuid)`
-    : sql`true`;
-  const rows = await sql<(RawEvent & { listed_at: string })[]>`
-    select e.*, a.coordinator_id as assigned_coordinator_id,
-      to_char(coalesce(e.submitted_at, e.last_saved_at) at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as listed_at
-    from event.events e
-    left join event.assignments a on a.event_id = e.id and a.is_active
-    where ${scopeCondition(sql, scope, callerId)} and ${kindCondition} and ${afterCondition}
-    order by coalesce(e.submitted_at, e.last_saved_at) desc, e.id desc
-    limit ${page.limit + 1}
-  `;
+  // EN-07.2: as the request role with the caller's claims, so RLS holds the list to the scope too.
+  const rows = await asCaller(sql, scope, callerId, (tx) => {
+    const kindCondition =
+      page.kind === "drafts"
+        ? tx`e.status = 'DRAFT' and e.owner_id = ${callerId}`
+        : page.kind === "submitted"
+          ? tx`e.status <> 'DRAFT'`
+          : tx`true`;
+    const afterCondition = page.after
+      ? tx`(coalesce(e.submitted_at, e.last_saved_at), e.id) < (${page.after.sortAt}::timestamptz, ${page.after.id}::uuid)`
+      : tx`true`;
+    return tx<(RawEvent & { listed_at: string })[]>`
+      select e.*, a.coordinator_id as assigned_coordinator_id,
+        to_char(coalesce(e.submitted_at, e.last_saved_at) at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as listed_at
+      from event.events e
+      left join event.assignments a on a.event_id = e.id and a.is_active
+      where ${scopeCondition(tx, scope, callerId)} and ${kindCondition} and ${afterCondition}
+      order by coalesce(e.submitted_at, e.last_saved_at) desc, e.id desc
+      limit ${page.limit + 1}
+    `;
+  });
   const shown = rows.slice(0, page.limit);
   const last = shown[shown.length - 1];
   return {
@@ -377,15 +386,16 @@ export async function listReviewQueue(
   statuses: readonly EventStatus[],
   coordinatorId: string
 ): Promise<EventRow[]> {
-  const rows = await sql<RawEvent[]>`
+  // EN-07.2: under the coordinator's own claims, so RLS holds the queue to their assignments too.
+  const rows = await asCaller(sql, { scopeType: "ASSIGNED_TO_USER", userId: coordinatorId }, coordinatorId, (tx) => tx<RawEvent[]>`
     select e.*, a.coordinator_id as assigned_coordinator_id
     from event.events e
     -- E3: an unassigned request waits in the Lead's queue, not here.
     -- A4: and a request assigned to another coordinator is in theirs.
     join event.assignments a on a.event_id = e.id and a.is_active and a.coordinator_id = ${coordinatorId}
-    where e.status in ${sql(statuses as string[])} and e.decided_at is null
+    where e.status in ${tx(statuses as string[])} and e.decided_at is null
     order by e.submitted_at asc
-  `;
+  `);
   return rows.map(toEvent);
 }
 

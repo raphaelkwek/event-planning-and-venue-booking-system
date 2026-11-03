@@ -57,7 +57,7 @@ export function eventDetailsRouter(sql: Sql) {
     "/api/v1/events/:id",
     eventDetailsRateLimit(),
     ...authenticate,
-    requireRole("EVENT_ORGANISER", "EVENT_COORDINATOR"),
+    requireRole("event", "update_details"),
     async (req: ActorRequest, res: Response, next: NextFunction) => {
       const actor = req.actor!;
       const event = await findEventInScope(sql, req.params.id!, actor.scope, actor.userId);

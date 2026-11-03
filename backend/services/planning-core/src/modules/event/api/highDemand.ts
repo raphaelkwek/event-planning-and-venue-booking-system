@@ -34,7 +34,7 @@ export function highDemandRouter(sql: Sql, limiter: RequestHandler = registratio
     "/api/v1/events/:id/high-demand",
     limiter,
     ...authenticate,
-    requireRole("EVENT_ORGANISER"),
+    requireRole("event", "configure_registration"),
     async (req: ActorRequest, res: Response, next: NextFunction) => {
       try {
         const actor = req.actor!;

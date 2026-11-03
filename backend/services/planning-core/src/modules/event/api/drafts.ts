@@ -21,7 +21,7 @@ export function draftsRouter(sql: Sql, limiter: RequestHandler = eventRateLimite
   router.post(
     "/api/v1/event-drafts",
     limiter, ...authenticate,
-    requireRole("EVENT_ORGANISER"),
+    requireRole("event", "create"),
     async (req: ActorRequest, res) => {
       const parsed = draftBodySchema.safeParse(req.body);
       if (!parsed.success) {
@@ -39,7 +39,7 @@ export function draftsRouter(sql: Sql, limiter: RequestHandler = eventRateLimite
   router.get(
     "/api/v1/event-drafts/:id",
     limiter, ...authenticate,
-    requireRole("EVENT_ORGANISER"),
+    requireRole("event", "view_draft"),
     async (req: ActorRequest, res) => {
       const draft = await findDraftForOwner(sql, req.params.id, req.actor!.userId);
       if (!draft) {
@@ -53,7 +53,7 @@ export function draftsRouter(sql: Sql, limiter: RequestHandler = eventRateLimite
   router.put(
     "/api/v1/event-drafts/:id",
     limiter, ...authenticate,
-    requireRole("EVENT_ORGANISER"),
+    requireRole("event", "update_draft"),
     async (req: ActorRequest, res) => {
       const parsed = draftBodySchema.safeParse(req.body);
       if (!parsed.success) {
@@ -76,7 +76,7 @@ export function draftsRouter(sql: Sql, limiter: RequestHandler = eventRateLimite
   router.post(
     "/api/v1/event-drafts/:id/submit",
     limiter, ...authenticate,
-    requireRole("EVENT_ORGANISER"),
+    requireRole("event", "submit_draft"),
     async (req: ActorRequest, res) => {
       const draft = await findDraftForOwner(sql, req.params.id, req.actor!.userId);
       if (!draft) {
