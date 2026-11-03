@@ -1,0 +1,112 @@
+# EN-16. Turns the planning-core and registration APIs from Deployments into Argo
+# Rollouts with a canary at 10%, 50% and 100%, and adds the analysis they run.
+#
+# One pod template, two kinds: the base keeps the Deployments (which run anywhere),
+# and this component rewrites their apiVersion and kind in place, adds the canary
+# strategy, and points each HorizontalPodAutoscaler at the Rollout. It needs the Argo
+# Rollouts CRDs in the cluster, so only the overlays use it.
+#
+# Without a traffic router the weights are met by pod counts: 10% of 2 replicas is
+# rounded up to 1 pod. For exact percentages, add an ingress-nginx or service-mesh
+# trafficRouting block once EN-18 settles the replica counts.
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+resources:
+  - ../../analysis
+patches:
+  - target:
+      kind: Deployment
+      name: planning-core
+    patch: |-
+      - op: replace
+        path: /apiVersion
+        value: argoproj.io/v1alpha1
+      - op: replace
+        path: /kind
+        value: Rollout
+      - op: add
+        path: /spec/strategy
+        value:
+          canary:
+            maxSurge: 1
+            maxUnavailable: 0
+            steps:
+              - setWeight: 10
+              - analysis:
+                  templates:
+                    - templateName: error-rate-and-p95
+                  args:
+                    - name: rollout
+                      value: planning-core
+                    - name: canary-hash
+                      valueFrom:
+                        podTemplateHashValue: Latest
+              - setWeight: 50
+              - analysis:
+                  templates:
+                    - templateName: error-rate-and-p95
+                  args:
+                    - name: rollout
+                      value: planning-core
+                    - name: canary-hash
+                      valueFrom:
+                        podTemplateHashValue: Latest
+              - setWeight: 100
+  - target:
+      kind: HorizontalPodAutoscaler
+      name: planning-core
+    patch: |-
+      - op: replace
+        path: /spec/scaleTargetRef/apiVersion
+        value: argoproj.io/v1alpha1
+      - op: replace
+        path: /spec/scaleTargetRef/kind
+        value: Rollout
+  - target:
+      kind: Deployment
+      name: registration
+    patch: |-
+      - op: replace
+        path: /apiVersion
+        value: argoproj.io/v1alpha1
+      - op: replace
+        path: /kind
+        value: Rollout
+      - op: add
+        path: /spec/strategy
+        value:
+          canary:
+            maxSurge: 1
+            maxUnavailable: 0
+            steps:
+              - setWeight: 10
+              - analysis:
+                  templates:
+                    - templateName: error-rate-and-p95
+                  args:
+                    - name: rollout
+                      value: registration
+                    - name: canary-hash
+                      valueFrom:
+                        podTemplateHashValue: Latest
+              - setWeight: 50
+              - analysis:
+                  templates:
+                    - templateName: error-rate-and-p95
+                  args:
+                    - name: rollout
+                      value: registration
+                    - name: canary-hash
+                      valueFrom:
+                        podTemplateHashValue: Latest
+              - setWeight: 100
+  - target:
+      kind: HorizontalPodAutoscaler
+      name: registration
+    patch: |-
+      - op: replace
+        path: /spec/scaleTargetRef/apiVersion
+        value: argoproj.io/v1alpha1
+      - op: replace
+        path: /spec/scaleTargetRef/kind
+        value: Rollout

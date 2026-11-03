@@ -1,0 +1,17 @@
+# Settings that are not secret. Anything secret is in the connectsphere-secrets
+# Secret, which is created outside git (deploy/k8s/README, documentation/deploy.md).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: connectsphere-config
+data:
+  NODE_ENV: production
+  LOG_LEVEL: info
+  PLANNING_CORE_PORT: "8090"
+  NOTIFICATION_PORT: "8091"
+  REGISTRATION_PORT: "8092"
+  # notification asks planning-core who a token belongs to (T2).
+  PLANNING_CORE_URL: http://planning-core:8090
+  # The mechanism is not a secret; the username and password are.
+  KAFKA_SASL_MECHANISM: plain
+  TEMPORAL_TASK_QUEUE: planning-core

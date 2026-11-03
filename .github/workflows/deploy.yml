@@ -1,0 +1,326 @@
+# EN-10 and EN-16 (ADR-0012): container images, Kubernetes manifests, Terraform,
+# GitOps and canary releases.
+#
+# This is its own workflow so that none of it is a required check on
+# ci.yml. `images` runs on every pull request and push to main; the jobs that
+# need a cluster (kind) run only when deploy/, a Dockerfile or this file
+# changes, and on main.
+name: Deploy
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Decides whether the slower cluster jobs are worth running.
+  changes:
+    name: Which deploy jobs apply
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    outputs:
+      deploy: ${{ steps.filter.outputs.deploy }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: filter
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if [ "$EVENT" != "pull_request" ]; then
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+            echo "Push to main: every deploy job runs."
+            exit 0
+          fi
+          changed="$(git diff --name-only "$BASE_SHA"...HEAD)"
+          echo "$changed"
+          if echo "$changed" | grep -Eq '^(deploy/|\.dockerignore|\.github/workflows/deploy\.yml|backend/scripts/(migrate\.ts|Dockerfile)|backend/services/[^/]+/Dockerfile|frontend/(Dockerfile|nginx\.conf|security-headers\.inc))'; then
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "deploy=false" >> "$GITHUB_OUTPUT"
+            echo "Nothing under deploy/ or any Dockerfile changed: the cluster jobs are skipped."
+          fi
+
+  # Builds every image with buildx and the GitHub Actions cache, starts it under
+  # the restrictions the manifests impose, and checks its health endpoint
+  # (deploy/ci/smoke-image.sh). On main it also pushes the image to GHCR, tagged
+  # with the commit sha.
+  images:
+    name: Image (${{ matrix.name }})
+    needs: changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: planning-core, file: backend/services/planning-core/Dockerfile }
+          - { name: registration, file: backend/services/registration/Dockerfile }
+          - { name: notification, file: backend/services/notification/Dockerfile }
+          - { name: web, file: frontend/Dockerfile }
+          - { name: migrate, file: backend/scripts/Dockerfile }
+    # A throwaway database for the smoke checks, as in ci.yml. It lives as long
+    # as this job; CLAUDE.md allows containers in CI only.
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: connectsphere_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci -d connectsphere_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      IMAGE: connectsphere-${{ matrix.name }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.file }}
+          load: true
+          # Public values the browser needs to sign in (Actions variables, not secrets).
+          # Only the web Dockerfile declares them; the others ignore them.
+          build-args: |
+            SUPABASE_URL=${{ vars.SUPABASE_URL }}
+            SUPABASE_ANON_KEY=${{ vars.SUPABASE_ANON_KEY }}
+          tags: ${{ env.IMAGE }}:ci
+          cache-from: type=gha,scope=${{ matrix.name }}
+          cache-to: type=gha,scope=${{ matrix.name }},mode=max
+          provenance: false
+
+      - name: Smoke check (starts under the manifests' restrictions, answers its health endpoint)
+        run: bash deploy/ci/smoke-image.sh "${{ matrix.name }}" "${IMAGE}:ci"
+
+      - name: Save the image for the cluster jobs
+        if: needs.changes.outputs.deploy == 'true'
+        run: docker save "${IMAGE}:ci" | gzip > "image-${{ matrix.name }}.tar.gz"
+
+      - name: Upload the image
+        if: needs.changes.outputs.deploy == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: image-${{ matrix.name }}
+          path: image-${{ matrix.name }}.tar.gz
+          retention-days: 1
+
+      # Only main publishes. A pull request never pushes, and a fork's token
+      # cannot write packages anyway.
+      - name: Log in to GHCR
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push to GHCR, tagged with the commit sha
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.file }}
+          push: true
+          # Public values the browser needs to sign in (Actions variables, not secrets).
+          # Only the web Dockerfile declares them; the others ignore them.
+          build-args: |
+            SUPABASE_URL=${{ vars.SUPABASE_URL }}
+            SUPABASE_ANON_KEY=${{ vars.SUPABASE_ANON_KEY }}
+          tags: ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE }}:${{ github.sha }}
+          cache-from: type=gha,scope=${{ matrix.name }}
+          provenance: false
+
+  # The manifests render and are valid Kubernetes, including the Argo Rollouts, Argo CD
+  # and External Secrets custom resources (their schemas come from the Datree CRDs
+  # catalog). kubeconform runs in strict mode: an unknown field fails.
+  manifests:
+    name: Manifests (kustomize and kubeconform)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      KUBECONFORM_VERSION: v0.7.0
+      KUBECONFORM_SHA256: c31518ddd122663b3f3aa874cfe8178cb0988de944f29c74a0b9260920d115d3
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install kubeconform
+        run: |
+          curl -sSfL -o kubeconform.tar.gz \
+            "https://github.com/yannh/kubeconform/releases/download/${KUBECONFORM_VERSION}/kubeconform-linux-amd64.tar.gz"
+          echo "${KUBECONFORM_SHA256}  kubeconform.tar.gz" | sha256sum --check
+          tar -xzf kubeconform.tar.gz kubeconform
+
+      - name: Validate every overlay, the Argo CD manifests and the optional ExternalSecret
+        run: |
+          set -euo pipefail
+          conform() {
+            ./kubeconform -strict -summary -kubernetes-version 1.33.0 \
+              -schema-location default \
+              -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \
+              "$@"
+          }
+          for dir in base overlays/staging overlays/production test/kind-staging test/canary-demo; do
+            out="rendered-$(echo "$dir" | tr / -).yaml"
+            echo "::group::deploy/k8s/$dir"
+            kubectl kustomize "deploy/k8s/$dir" > "$out"
+            conform "$out"
+            echo "::endgroup::"
+          done
+          echo "::group::deploy/argocd, deploy/k8s/optional and the test dependencies"
+          conform deploy/argocd deploy/k8s/optional deploy/k8s/test/deps deploy/k8s/test/canary-demo/prometheus.yaml
+          echo "::endgroup::"
+
+      - name: Check the rendered overlays (no Secret, every container hardened and sized)
+        run: python3 deploy/ci/check-rendered.py rendered-overlays-staging.yaml rendered-overlays-production.yaml
+
+  terraform:
+    name: Terraform (fmt, validate, tflint)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: deploy/terraform
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.8
+
+      - uses: terraform-linters/setup-tflint@v4
+        with:
+          tflint_version: v0.53.0
+
+      - name: terraform fmt -check
+        run: terraform fmt -check -recursive -diff
+
+      - name: terraform init -backend=false and validate (each environment)
+        run: |
+          set -euo pipefail
+          for env in staging production; do
+            echo "::group::$env"
+            (cd "environments/$env" && terraform init -backend=false -input=false && terraform validate)
+            echo "::endgroup::"
+          done
+
+      - name: tflint
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          tflint --init --config "$PWD/.tflint.hcl"
+          tflint --recursive --config "$PWD/.tflint.hcl"
+
+  # Cluster jobs. Each builds its own kind cluster so they run in parallel, and loads
+  # the images the images job built and smoke-tested.
+  kind-deploy:
+    name: kind smoke deploy (staging overlay)
+    needs: [changes, images]
+    if: needs.changes.outputs.deploy == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: image-*
+          merge-multiple: true
+      - uses: helm/kind-action@v1
+        with:
+          version: v0.29.0
+          node_image: kindest/node:v1.33.1
+          cluster_name: connectsphere
+      - name: Load the images
+        run: |
+          source deploy/ci/lib.sh
+          load_images connectsphere planning-core registration notification web migrate
+      - name: Deploy the staging overlay and check every service
+        run: bash deploy/ci/kind-deploy.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: evidence-kind-deploy
+          path: kind-deploy-evidence.md
+          if-no-files-found: ignore
+
+  argocd-sync:
+    name: Argo CD syncs the staging overlay (kind)
+    needs: [changes, images]
+    if: needs.changes.outputs.deploy == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: image-*
+          merge-multiple: true
+      - uses: helm/kind-action@v1
+        with:
+          version: v0.29.0
+          node_image: kindest/node:v1.33.1
+          cluster_name: connectsphere
+      - name: Load the images
+        run: |
+          source deploy/ci/lib.sh
+          load_images connectsphere planning-core registration notification web migrate
+      - name: Install Argo CD and watch it sync deploy/k8s/overlays/staging
+        env:
+          # A pull request's own commit, which Argo CD can fetch from the public repository;
+          # github.sha on a pull request is a merge commit that exists only on the runner.
+          REVISION: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: bash deploy/ci/argocd-sync.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: evidence-argocd-sync
+          path: |
+            argocd-sync-evidence.md
+            applied-application.yaml
+          if-no-files-found: ignore
+
+  canary-rollback:
+    name: Canary promotes a good release and rolls back a bad one (kind)
+    needs: [changes]
+    if: needs.changes.outputs.deploy == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: helm/kind-action@v1
+        with:
+          version: v0.29.0
+          node_image: kindest/node:v1.33.1
+          cluster_name: connectsphere
+      - name: Build the stand-in service and load it
+        run: |
+          docker build -t connectsphere-demo-app:ci deploy/k8s/test/canary-demo/app
+          kind load docker-image connectsphere-demo-app:ci --name connectsphere
+      - name: Run the canary demonstration
+        run: bash deploy/ci/canary-demo.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: evidence-canary-rollback
+          path: canary-demo-evidence.md
+          if-no-files-found: ignore
