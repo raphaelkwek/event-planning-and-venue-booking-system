@@ -10,7 +10,7 @@
 | Test Steps | 1. As C1, send `GET /api/v1/events/queue`.<br>2. As C2, send `GET /api/v1/events/queue`.<br>3. Run `npm test -w @connectsphere/planning-core -- tests/event/api/a4Cards.test.ts -t 'A4-T2 '` and read the named `A4-T2 ` result. |
 | Test Data | Actors C1, C2. E1 and E6 (C1's, awaiting a decision), E2 (C1's, Approved), E3 (unassigned), E4 (C2's). |
 | Expected Result | C1's queue holds exactly E6 then E1, oldest submission first. It leaves out E2 (decided), E3 (still in the Lead's queue) and E4 (C2's). C2's queue holds exactly E4. |
-| Created By | Shawmya, via Claude |
+| Created By | Shawmya |
 | Date of Creation | 2026-11-02 |
 
 > **Expected results are checked by the story owner** against A4's acceptance criteria before the code
@@ -23,5 +23,5 @@
 | Actual Result | C1's queue held E1 then E6, oldest first, and left out E2, E3 and E4. C2's queue held exactly E4. |
 | Status | Pass |
 | Remarks | Commit: a1ceeae, automated (`tests/event/api/a4Cards.test.ts`), on a throwaway Postgres (EN-06) · Evidence: the named test result · Defect: — |
-| Executed By | Shawmya, via Claude |
+| Executed By | Shawmya, via automated testing (CI) |
 | Date of Execution | 2026-11-02 |

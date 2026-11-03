@@ -4,6 +4,39 @@
 
 ---
 
+# A4 review: the assignment is re-checked under the row lock, and the spec and cards catch up
+
+**Timestamp:** 2026-11-03T11:05+08:00 (SGT)
+**Author:** Joash
+**Scope:** planning-core event module (`repo/events.ts`, `api/decisions.ts`, `api/events.ts`), the
+OpenAPI spec, A4's cards and traceability. Review fixes on PR #81; no migration.
+
+## Fixed
+
+- **A reassignment now refuses an action already waiting for the event's lock.** Under READ
+  COMMITTED a statement that waited for a row lock re-checks only the locked row, so the coordinator
+  scope's assignment test still saw the outgoing coordinator. With A4's separate 403 checks gone,
+  F5's confirmation and S2's decision could go through after the Lead (E4) moved the event.
+  - `findEventInScope` reads the assignment again, in a statement of its own, whenever it locks for
+    the coordinator scope.
+  - D4/D5 (approve, reject) and D1's claim-on-open read the scope only before their transaction; each
+    now reads it again under the lock inside it. The outgoing coordinator gets A4's 404.
+  - Opening an event no longer throws if it leaves the caller's scope before the re-read.
+- **OpenAPI:** the queue, open-an-event, G1, F5, S2, L1, L2, L3, O1 and S3 flag descriptions now say
+  that another coordinator's event is a 404, not a 403.
+
+## Tests
+
+- `tests/event/api/a4LockedScope.test.ts`: findEventForChange (update and share lock), F5, S2, D4,
+  D5 and D1, each queued behind an uncommitted reassignment. Throwaway database only.
+
+## Cards
+
+- A4-T15 is Blocked on F3 (#71), not Not Executed.
+- The cards' execution records name the CI run that passed them.
+
+---
+
 # fix: the race test's holds no longer expire in the past
 
 **Timestamp:** 2026-11-03T00:00+08:00 (SGT)
@@ -24,7 +57,7 @@
 # A4: coordinators act only on the events assigned to them (CR-05)
 
 **Timestamp:** 2026-11-02T23:59+08:00 (SGT)
-**Author:** Shawmya, via Claude
+**Author:** Shawmya
 **Scope:** contracts (`ASSIGNED_TO_USER` scope), planning-core (identity, event, change, venue,
 equipment modules), Cerbos policies, web app (All events), functional test cases. No migration.
 
@@ -64,10 +97,13 @@ equipment modules), Cerbos policies, web app (All events), functional test cases
   open the event page to do it, since it isn't assigned to them yet.
 - **Race:** the scope is checked when the action reads the event. A Lead reassignment committing
   in the same instant as the old coordinator's action may not stop it. G1 re-checks under lock.
+  (Review, 3 Nov: closed for F5, S2, D4, D5 and D1's claim; see the entry above. D2, L1, L3 and O1
+  still check before their transaction.)
 - **F3/F4** aren't on main; they should look the event up through the scope like the rest.
-- **OpenAPI** 404 descriptions not updated yet. RLS (EN-07.2) follows.
+- **OpenAPI** 404 descriptions updated in review (3 Nov). RLS (EN-07.2) follows.
 - `tests/race/invariants.test.ts` L3-T17 hard-codes 2026-11-02 with a 09:00 expiry, so it fails
-  from that evening on, on main too. Not changed here (L3 / EN-02.3).
+  from that evening on, on main too. Not changed here (L3 / EN-02.3). Fixed on main by #82, which
+  this branch has merged.
 
 ---
 

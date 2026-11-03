@@ -10,7 +10,7 @@
 | Test Steps | 1. As C1, send `GET /api/v1/assignments/unassigned`.<br>2. As C1, send `POST /api/v1/events/<E3>/assignment` with `{"coordinatorId":"<C1>"}`.<br>3. As C1, send `POST /api/v1/events/<E3>/approve`.<br>4. Read E3 and its assignments.<br>5. Run `npm test -w @connectsphere/planning-core -- tests/event/api/a4Cards.test.ts -t 'A4-T12 '` and read the named `A4-T12 ` result. |
 | Test Data | Actor C1. E3 (Submitted, unassigned). |
 | Expected Result | Steps 1 and 2 answer HTTP 403 `ROLE_NOT_AUTHORISED` (only the Lead assigns). Step 3 answers HTTP 404 `EVENT_NOT_FOUND`, "No event with that reference is assigned to you." E3 is still Submitted with no assignment, and is still in the Lead's unassigned queue. |
-| Created By | Shawmya, via Claude |
+| Created By | Shawmya |
 | Date of Creation | 2026-11-02 |
 
 > **Expected results are checked by the story owner** against A4's acceptance criteria before the code
@@ -23,5 +23,5 @@
 | Actual Result | The unassigned queue and the assignment answered 403 ROLE_NOT_AUTHORISED; approving E3 answered 404 EVENT_NOT_FOUND "No event with that reference is assigned to you.". Nothing changed and E3 was still in the Lead's queue. |
 | Status | Pass |
 | Remarks | Commit: a1ceeae, automated (`tests/event/api/a4Cards.test.ts`), on a throwaway Postgres (EN-06) · Evidence: the named test result · Defect: — |
-| Executed By | Shawmya, via Claude |
+| Executed By | Shawmya, via automated testing (CI) |
 | Date of Execution | 2026-11-02 |

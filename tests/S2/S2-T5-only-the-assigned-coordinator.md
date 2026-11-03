@@ -24,5 +24,5 @@
 | Actual Result | C2 got 404 CHANGE_REQUEST_NOT_FOUND "No change request with that id is on an event assigned to you.", the same as the unknown id. ORG, TS and VS got 403 ROLE_NOT_AUTHORISED. CR1 stayed PENDING and E1 was unchanged. |
 | Status | Pass |
 | Remarks | Commit: 6f59d76, automated, on a throwaway Postgres (EN-06) · Evidence: the named test result · Defect: — |
-| Executed By | Shawmya, via Claude |
+| Executed By | Shawmya, via automated testing (CI) |
 | Date of Execution | 2026-11-02 |

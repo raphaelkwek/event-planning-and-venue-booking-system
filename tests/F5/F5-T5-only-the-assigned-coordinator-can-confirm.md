@@ -10,7 +10,7 @@
 | Test Steps | 1. As C2, then ORG, VS, TS and ATT, send `POST /api/v1/events/<E1>/confirmation` with no body.<br>2. As C1, send `POST /api/v1/events/<random uuid>/confirmation`.<br>3. Read the event, latest history entry, arrangements and outbox with the queries in `tests/F5/README.md`.<br>4. Run `npm test -w @connectsphere/planning-core -- tests/change/api/f5Cards.test.ts -t 'F5-T5 '` and read the named `F5-T5 ` result. |
 | Test Data | Actors C2 (Event Coordinator, not assigned), ORG, VS, TS, ATT. Unknown id: a fresh random UUID. |
 | Expected Result | HTTP 404 `EVENT_NOT_FOUND`, "No event with that reference is assigned to you.", for C2, and the same code and message for the unknown id. HTTP 403 `ROLE_NOT_AUTHORISED` for ORG, VS, TS and ATT. Nothing written: E1's status, its history, its slots' status and flags, its reservations and the event outbox read exactly as before. |
-| Created By | Shawmya, via Claude |
+| Created By | Shawmya |
 | Date of Creation | 2026-10-20 |
 
 > **Expected results are checked by the story owner** against F5's acceptance criteria before the code
@@ -25,5 +25,5 @@
 | Actual Result | C2 got 404 EVENT_NOT_FOUND "No event with that reference is assigned to you.", and the unknown id the same code and message. ORG, VS, TS and ATT got 403 ROLE_NOT_AUTHORISED. E1, its history, slots, reservations and the outbox were unchanged. |
 | Status | Pass |
 | Remarks | Commit: 6f59d76, automated, on a throwaway Postgres (EN-06) · Evidence: the named test result · Defect: — |
-| Executed By | Shawmya, via Claude |
+| Executed By | Shawmya, via automated testing (CI) |
 | Date of Execution | 2026-11-02 |

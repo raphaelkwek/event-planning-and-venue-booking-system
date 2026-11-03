@@ -10,7 +10,7 @@
 | Test Steps | 1. Sign in as `coordinator@connectsphere.test`. Open "All events", then "Review queue".<br>2. In the address bar, go to `#/review/<A4 Two id>`.<br>3. Sign out. Sign in as `lead@connectsphere.test`. Read the navigation, then open the unassigned queue and the assignment overview.<br>4. Reassign `A4 One` to Coordinator Two. Sign out, sign in as `coordinator@connectsphere.test`, and reload "All events" and "Review queue". |
 | Test Data | Accounts from `tests/README.md`, password `ConnectSphere-Test-1234!`. |
 | Expected Result | Step 1: both screens show `A4 One` only. Step 2: the page shows "No event with that reference is assigned to you." and no detail of `A4 Two`. Step 3: the navigation offers the Lead's functions only (the unassigned queue, the assignment overview, and the screens every signed-in user has); it offers no "Review queue", no venue request and no equipment screen. The unassigned queue shows `A4 Three`; the overview shows `A4 One` with Coordinator One and `A4 Two` with Coordinator Two. Step 4: neither screen shows any of the three events. |
-| Created By | Shawmya, via Claude |
+| Created By | Shawmya |
 | Date of Creation | 2026-11-02 |
 
 > **Expected results are checked by the story owner** against A4's acceptance criteria before the code

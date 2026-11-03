@@ -22,5 +22,5 @@
 | Actual Result | Saving returned 404 EVENT_NOT_FOUND "No event with that reference is assigned to you."; the edit, removal and read returned 404 EQUIPMENT_LINE_NOT_FOUND "No equipment request line with that id is on an event assigned to you.". The line and its history were unchanged. |
 | Status | Pass |
 | Remarks | Commit: 6f59d76, automated, on a throwaway Postgres (EN-06) · Evidence: the named test result · Defect: — |
-| Executed By | Shawmya, via Claude |
+| Executed By | Shawmya, via automated testing (CI) |
 | Date of Execution | 2026-11-02 |
