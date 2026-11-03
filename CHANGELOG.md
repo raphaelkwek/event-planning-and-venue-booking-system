@@ -1,57 +1,270 @@
 # Changelog
 
-> **Convention — read before editing this file:** entries are newest-first. When adding a new entry, insert it directly below this header, above every existing entry. Never append to the bottom. This header itself never moves and is never treated as an entry.
+> **Newer entries live in `changelog/`, one file per change (since 3 Nov 2026).** Don't add entries to this file: one shared file made every pull request conflict at its top. Add `changelog/<YYYY-MM-DD>-<branch-or-slug>.md` instead, holding exactly what an entry below holds (implementation.md §11.2). `npm run changelog` prints the whole log, newest first: the files in `changelog/`, then the entries below, which are newest-first and kept as they were. This header is never treated as an entry.
 
 ---
 
-# Docs: test cards use §8.4's four statuses, and traceability rows point at tests that exist
+# EN-05: CDC spike, the schema-compatibility check, and an opt-in Debezium Server component
 
-**Timestamp:** 2026-11-03T04:10+08:00 (SGT)
+**Timestamp:** 2026-11-03T20:35+08:00 (SGT)
 **Author:** Joash
-**Scope:** `tests/*/` cards, `documentation/traceability/sprint-1.csv` to `sprint-4.csv`,
-`documentation/scripts/`. No application code.
+**Scope:** `backend/packages/contracts` (`src/compat/`, `schemas/`), `backend/scripts`, `.github/workflows/ci.yml`,
+`deploy/k8s/components/cdc`, `documentation/spikes/`, ADR-0008, `implementation.md` §3.3 and §3.4, `tests/EN-05/`.
+No migration, no route, and no change to planning-core, registration or notification code.
 
-## Changed
+An audit on 2 Nov found EN-05 (SPM-123) not built although Jira said Done. This is the card, starting
+with the spike it asks for.
 
-- 127 test cards (F2, J1, J2, K1, L6, O1, O2, Q1, Q2, S1, S2) had a Status such as
-  `Pass (automated, API level)`. implementation.md §8.4 allows `Pass`, `Fail`, `Not Executed` and
-  `Blocked` only, so Status is now `Pass` and the qualifier leads Remarks, for example
-  `Automated (API level) · Commit: …`. Nothing else in those cards changed.
-- 21 traceability rows named a test title that no longer exists. Six E1 rows and nine E2 rows
-  lost their tests when E3 (43cd4b5) and E4 (dde7534) replaced automatic assignment and retired
-  peer reassignment proposals: seven now point at the E3 or E4 test that covers the criterion, and
-  eight carry the marker `SUPERSEDED by E3 (CR-05)` or `SUPERSEDED by E4 (W9-FX-5)` in place of a
-  test name. Six rows had a cut-short or reworded title, or an unquoted comma that split the row
-  into five fields.
-- After main's EN-10 to EN-23, U1 and R1 to R4 rows and cards came in, both checks were run again.
-  Every card main added already had one of the four statuses, so none changed. 26 traceability
-  rows were flagged and repaired the same way:
-  - F1's CR-06 row and EN-13's T6 row name the titles their tests had before U1 and R2 reworded
-    them; they now name the current titles.
-  - 17 rows (EN-10 7, EN-16 3, EN-17 6, U1 1) named a CI job, a script, a promtool or Cerbos file,
-    which the checker cannot open as a test. They point at the card that describes the check, with
-    the card's heading as the name; EN-17's four T8 rows for the four promtool files became one.
-  - 4 EN-14 rows (the stack, the tag check, the report settings, axe) point at their cards the same
-    way, and the stack row is now one row each for T1 and T8.
-  - 3 EN-14 rows (fake auth, GoTrue endpoints, visual snapshots) now name each test in
-    `fake-supabase-auth.test.ts` and `visual.spec.ts` one by one.
-  - F1's row keeps its criterion text, which still says the Safety Officer's approval moves an
-    event to Confirmed. Since W9-31 the coordinator marks it Confirmed after the approval.
+## Decided
+
+- **The polling relay stays the publisher in every environment.** Development's Aiven free plan has no
+  Kafka Connect. On staging and production a Free-plan Supabase project offers a replication slot only
+  over an IPv6 direct connection (the pooler cannot replicate; the IPv4 add-on needs Pro), and nobody
+  has tried that from the Oracle node. `documentation/spikes/EN-05-cdc-spike.md` has the findings with
+  their sources and what was not checked. ADR-0008 has the decision note.
 
 ## Added
 
-- `documentation/scripts/normalise-card-status.ts` makes the card change and checks it
-  (`--check`), keeping each file's line endings.
-- `documentation/scripts/repoint-traceability-rows.ts` holds the 21 row repairs; it refuses a line
-  that is not as the audit found it.
-- `documentation/scripts/check-traceability.ts` fails when a traceability row has the wrong number
-  of fields or names a test that is not in its file. It runs in `npm run test:scripts`, as do the
-  other two scripts' tests.
+- **A backward-compatibility check of every message's schema, on every pull request.**
+  - `contracts` generates a JSON Schema file for the CloudEvents envelope and one for each message
+    type's `data` (35 files in `backend/packages/contracts/schemas/`). A test fails when they drift from
+    the zod schemas; `npm run schemas:generate` rewrites them.
+  - `npm run schemas:compat -- --base <ref>` compares them with the files at a git ref, using the rules
+    Confluent's and Redpanda's registries use: the new schema must accept every message the old one
+    did. A keyword it does not understand is a finding, not a pass. Removing a message type is breaking.
+  - The *Message schema compatibility* CI job runs both on every pull request.
+- **Redpanda's Schema Registry is asked the same question.** The *Schema registry and CDC* CI job
+  starts a throwaway Redpanda and asks it about a table of 36 cases, and about this branch's schemas
+  against the base branch's. It agrees with the checker on 33 cases. The three where it differs
+  (it refuses a property that becomes nullable through `anyOf`; it accepts a plain string that gains a
+  `format` and a constrained property added to an open object) are recorded in `cases.ts`, and the job
+  requires both verdicts.
+- **Debezium Server as a kustomize component** (`deploy/k8s/components/cdc`), with the outbox router and
+  a Kafka sink, for the deployment to include once its checks have been made. Nothing includes it.
+  The same CI job starts it, with the component's own configuration in a hardened container, against a
+  throwaway Postgres and Redpanda, writes one message of every type (a full and a minimal shape of each, including nulls and
+  empty arrays) into the outbox tables, and requires Kafka to hold what the relay's `prepareRow`
+  produces: the same topic, key and value, in order, and nothing for an `UPDATE`. The one difference is
+  the `content-type` header, which Debezium Server can only write as a JSON string, quotes included. A
+  second job renders the component and validates it with kubeconform.
+  - The router is in the image's `lib_opt`, which the server puts on its classpath only when
+    `ENABLE_DEBEZIUM_SCRIPTING` is true, and a literal `${...}` cannot be written in its configuration.
 
-## Known gap
+## Not done
 
-- Some cards still cite evidence that cannot be checked today. They are listed in the pull request
-  under "needs the owner's re-run" and were not rewritten.
+- Debezium does not replace the relay, and has not run against Supabase or on the Oracle node.
+- Registering the schemas in a deployed registry (staging's Redpanda).
+- Marking an outbox row published when CDC publishes it (`published_at` stays null).
+- A JSON Schema cannot hold zod refinements or a date-time's millisecond precision, so a change to those
+  is not checked.
+
+## Tests and cards
+
+- `backend/packages/contracts/tests/compat/`: the checker (100% of `src/compat`), the command with fake
+  and with real git, the committed files, and the example-message generator.
+- `tests/EN-05/`: nine cards, T1 to T9, and the criterion map.
+
+---
+
+# EN-03: the event store, an append-only and hash-chained stream of each event's history
+
+**Timestamp:** 2026-11-03T17:20+08:00 (SGT)
+**Author:** Joash
+**Scope:** EN-03 (SPM-121, ADR-0007). planning-core event module (`repo/eventStream.ts`,
+`repo/eventStreamVerification.ts`, `domain/eventStream.ts`, `repo/eventHistory.ts`, `repo/statusHistory.ts`,
+`api/transitionEvent.ts`), migrations `event/0022` and `event/0023`, `npm run event-store:verify`, a CI step, and
+`tests/EN-03/`. An audit on 2 Nov found EN-03 not built although Jira showed it Done; this builds it.
+
+**Reason:** ADR-0007 replaces the history table written beside the state, two writes that could drift apart, with an
+append-only stream per event whose entries are chained by hash, so the audit trail can't silently disagree with what
+happened or be edited afterwards.
+
+## Added
+
+- **`event.event_stream`** (0022): one row per history entry, `version` 1, 2, 3… per event, `unique(aggregate_id,
+  version)` as the optimistic guard, and `prev_hash` and `hash = sha256(prev_hash || canonical JSON)`. The canonical
+  form (PostgreSQL's `jsonb` text of the entry, time in UTC to the microsecond) is documented in the migration and in
+  implementation.md §4.9, and a test pins an example.
+- **Append-only.** Triggers refuse `UPDATE`, `DELETE` and `TRUNCATE`. The role the app connects as keeps only `SELECT`
+  and `INSERT` on the table; no other role has any privilege on it. In CI that role is a superuser, so there the
+  triggers are what refuse.
+- **One append.** `appendToStream` appends each entry (`event.append_to_stream` takes the version and the hash), writes
+  the `event_history` projection row from the stored entry with the same id, and writes the outbox row, in the caller's
+  transaction. `recordStatusChange` and `recordFieldChanges`, which every writer already used (F1's transition, D3, G1,
+  S2), now call it. It takes no lock, as every writer holds the event's row lock first, so §4.6's order is unchanged.
+- **Capture trigger** (0023): a history row inserted any other way is appended to the stream in the same statement, so
+  the projection can never hold an entry the stream lacks.
+- **Backfill** (0023): the existing history is copied into the stream, oldest first, in the order F2 already showed it
+  (time, then when recorded, then id), building each chain. It skips rows already copied, so it is idempotent.
+- **`npm run event-store:verify`**: recomputes every chain and checks every projection row against its entry. It exits
+  1 at the first broken link or mismatched row and names it.
+- **CI:** after the integration tests, the `Event store tamper check (EN-03)` step verifies the whole stream, edits one
+  entry on the runner's Postgres (`scripts/ci-tamper-event-stream.ts`, which refuses any other database), and fails
+  unless verify then names that entry.
+
+## Changed
+
+- **F2's status history and F5's confirmation time read the stream.** The screens show the same entries, in the same
+  order; F2's existing tests run unchanged.
+- `transitionEvent` hands its `event.status-changed` message to the append instead of writing it itself.
+
+## Tests
+
+- `tests/EN-03/` (19 cards). `tests/event/repo/eventStream.test.ts` (T1–T11), `tests/event/api/en03HistoryReads.test.ts`
+  (T12, T13), `tests/event/repo/eventStreamVerification.test.ts` (T14–T17, T19), the CI step (T14, T18), and
+  `tests/event/domain/eventStream.test.ts` (unit, 100% coverage and mutation score).
+
+## Not done
+
+- **Row-level security on `event_stream`** is EN-07's (event 0025–0027); the table needs a policy there.
+- The rest of the event row (drafts, review claims, assignments, cancellation details) is still stored as state, so the
+  stream holds the history, not yet the whole aggregate. There is no projection rebuild command, and G1's `If-Match`
+  still uses `events.version`.
+- **Shared database:** not migrated or verified here. Apply `event/0022` and `0023` with `npm run migrate:event`, then
+  run `npm run event-store:verify`.
+
+---
+
+# EN-21: software supply chain security (SPM-139)
+
+**Timestamp:** 2026-11-03T04:25+08:00 (SGT)
+**Author:** Joash
+**Scope:** .github/workflows/supply-chain.yml, .github/workflows/deploy.yml, .github/actions/sign-and-attest,
+.github/scripts, .trivyignore.yaml, .zap/rules.tsv, the five Dockerfiles, documentation/supply-chain.md.
+
+**Deploy:** nothing to deploy. The first push to main signs the images in GHCR for the first time;
+after it, follow documentation/supply-chain.md to verify one.
+
+## Added
+
+- A Supply chain workflow (its own file, not a required check): a CycloneDX SBOM for the npm workspace
+  (from package-lock.json, because `npm sbom` rejects the Atlaskit and React peer ranges) and for each
+  image; Trivy over the repository (dependencies, Dockerfiles, deploy/ Kubernetes and Terraform, secrets)
+  and over each image, failing on CRITICAL with a fix and reporting HIGH, with SARIF uploaded to code
+  scanning; a keyless cosign demonstration on pull requests (sign-blob of each SBOM, and sign, attest and
+  verify of an image in a registry that lives for the job); a passive ZAP baseline scan of the web and
+  API images on a throwaway Postgres; and a job that fails on an action not pinned by commit SHA.
+- On a push to main, deploy.yml signs each image it pushes to GHCR keylessly, attests its SBOM and
+  verifies both, through the same composite action the pull request runs.
+- .trivyignore.yaml (two EKS findings and one Temporal crate, each with a reason and an expiry) and
+  .zap/rules.tsv (the FAIL guards and the ignores, each with a reason).
+- documentation/supply-chain.md (how to verify a signature and an SBOM), documentation/evidence/EN-21/
+  (Trivy triage and ZAP findings), tests/EN-21/.
+
+## Changed
+
+- The images move to Node 20.20.2 on Alpine 3.23 or Debian bookworm, and nginx-unprivileged 1.31.7, by
+  digest, and upgrade the packages published since their base was built. The three service images drop
+  npm, npx, corepack and yarn; the migrate image keeps npm at a pinned 11.21.1. The first Trivy run found
+  CRITICAL findings with a fix in all five; after these changes only an upstream crate remains.
+
+## Not done / limits
+
+- Nothing is signed in GHCR until main runs deploy.yml; EN-21-T4 and T8 stay Not Executed until then.
+- The ZAP scan is unauthenticated and passive. The Medium and Low items it found are listed, not fixed.
+- The lockfile findings (body-parser, source-map-js and others) are listed, not fixed: a lockfile bump
+  touches every package. Node 20 is end of life and the images stay on it until the repository moves.
+
+---
+
+# Venue audit fixes: buffers against blocks, hold expiry fallback, venue-staff scope, stale flags
+
+**Timestamp:** 2026-11-03T03:55+08:00 (SGT)
+**Author:** Joash
+**Scope:** planning-core (venue module), migrations venue/0020 and venue/0021, root `package.json`,
+implementation.md §4.6.
+
+**Deploy:** run `npm run migrate -- venue` (0020, 0021) before deploying planning-core. 0020 fails,
+changing nothing, if a disrupted booking already has two pending replacements; the file gives the
+query that finds them. Schedule `npm run jobs:expire-holds` (every minute is enough) beside
+`jobs:complete-events`.
+
+## Fixed
+
+- H3: `PUT /api/v1/venues/:id` let any Venue Staff member edit any venue, including its setup and
+  turnaround time, which flagged that venue's bookings and notified their coordinators. Only the
+  venue's own Venue Staff can now update it; anyone else gets 404, as for I2, L3 and M1. Creating a
+  venue is unchanged.
+- M1: I2's disrupted-request check, L1's block check and J1's search compared a request's own
+  period with a block. They now compare its occupied period (H3), so a request ending where an
+  open-ended block starts, with turnaround after it, is flagged by I2, refused by L1 and left out
+  of J1, instead of being refused only at approval. J1's window is widened by the venue's own
+  times, which also unblocks J1-T18.
+- M5, L1: placing a hold takes the setup and turnaround time from the venue row it locks, and
+  requesting one checks for blocks and inserts in one transaction under that lock.
+- L3: recording or removing a block, and changing a venue's times, read the events they notify
+  through the transaction instead of the pool, so they can't wait on the pool while holding the
+  venue lock.
+- L2: one lock order for every venue path (venue, event, hold, request, slot), written in
+  implementation.md §4.6. Converting a hold, F5's read of an event's arrangements, and I2's and
+  H3's flagging each took two of these the other way round.
+- M4: an expired hold no longer depends on Temporal and Kafka. Every slot insert expires the
+  venue's overdue holds first, `PATCH /holds/:id/expiry` expires an overdue hold instead of
+  reviving it (409 `HOLD_NOT_HELD`), and the new `npm run jobs:expire-holds` sweeps the rest. All
+  three write the workflow's records and `venue-booking.hold-expired` message.
+- M3: a Requires Reconfirmation flag set by a change of times now clears when the arrangement it
+  overlapped is released, expires, is withdrawn or rejected, or is released by a cancellation,
+  unless another live overlap or an active block still causes it. F5 no longer refuses for good.
+- L5: a disrupted booking can have one pending replacement at a time (migration 0020); a second is
+  refused with 409 `BOOKING_REQUEST_DUPLICATE` naming the first.
+- L9: migration 0021 validates the two checks venue/0011 added NOT VALID.
+
+## Not changed
+
+- M2 (existing slots keep the buffers they were taken with), M6 (a block doesn't flag a hold that
+  is only Requested) and M9 (S3 multi-venue attendance) wait for team or PO rulings.
+- S3's own flags (`period_mismatch`, `unsuitable`, equipment's review flag) are still only set,
+  never re-assessed; that is the change module's and is left to its owner.
+- L6 (audit): another venue's Venue Staff still get 403 on approve or reject; M1-T11 asserts it.
+
+---
+
+
+---
+
+
+---
+
+# Audit fixes: async route errors, stack-trace leaks, rate limits, timeouts, hardening
+
+**Timestamp:** 2026-11-03T03:45+08:00 (SGT)
+**Author:** Joash
+**Scope:** planning-core, notification and registration services, contracts, OpenAPI, dependencies.
+
+**Deploy:** no migration. `DB_STATEMENT_TIMEOUT_MS=5000` is recommended but off by default, because a transaction-mode
+pooler may refuse the `statement_timeout` startup parameter; `JWT_ISSUER` / `JWT_AUDIENCE` if a stand-in auth server issues
+tokens with other claims.
+
+## Fixed
+
+- **C1:** a rejected promise in an async route handler no longer ends the process (and, under
+  `concurrently --kill-others-on-fail`, the whole dev stack). Express's router layer now passes it to
+  a final error handler that answers `500 INTERNAL_ERROR` in the error envelope with a generic
+  message and logs the detail with the correlation id. `unhandledRejection` is logged and the process
+  carries on; `uncaughtException` is logged and the process exits with 1. Same in the notification and registration services. `INTERNAL_ERROR` joins
+  `ERROR_CODES` and the OpenAPI `ErrorCode` enum.
+- **C1 trigger:** venue and layout capacities, setup and turnaround minutes, expected attendance,
+  `reminderLeadMinutes` and equipment quantities are bounded below Postgres's `int` range and refused
+  with `400 VALIDATION_FAILED` naming the field and the bound.
+- **G4:** the approval message's `layoutCapacity` is at most `MAX_VENUE_CAPACITY` (1 000 000), the
+  constant planning-core uses for venue capacities, so one message cannot make the registration
+  service insert millions of seat rows; an oversized one is skipped as invalid.
+- **H1:** errors no longer reach the caller as an HTML stack trace: a malformed JSON body is
+  `400 VALIDATION_FAILED`, an oversized one `413`, and `next(error)` routes in venue, equipment and
+  change get the envelope. `/readyz` returns a generic status and logs the database error. A 5xx is
+  logged as an error, not as a refusal.
+- **M11:** the event module's routes and the notification routes are rate-limited before
+  authentication (120 a minute per address, `RATE_LIMITED`). The R2/R4 registration-settings route shares the event
+  module's limiter instead of keeping a budget of its own, and the registration service's attendee routes
+  (R1 to R4) and every `/metrics` endpoint (EN-17) keep their own limiter, which already runs before the token check.
+- **L10:** `GET /api/v1/users/me` is limited per verified token subject, with a high per-address
+  flood ceiling, so the notification and registration services' calls for every user no longer share one budget.
+- **L8:** an opt-in 5 s statement timeout on the Postgres pools (`DB_STATEMENT_TIMEOUT_MS=5000`, off by default, on in CI) and a timeout on
+  the Supabase Auth calls (`SUPABASE_AUTH_TIMEOUT_MS`).
+- **L13:** helmet headers and no `X-Powered-By`; `verifyJwt` checks `aud` (`authenticated`) and `iss`
+  (`<SUPABASE_URL>/auth/v1`), both overridable.
+- **M12:** `npm audit fix` without `--force`.
+- The `replay.unit.test.ts` round-trip test passes on a Windows checkout with `core.autocrlf=true`.
 
 ---
 
@@ -221,6 +434,9 @@ deploy/ (k8s, terraform, argocd, ci), .github/workflows/deploy.yml, documentatio
   http_request_duration_seconds. The kind demonstration used a stand-in service, not planning-core.
 - kind has no Kafka, Supabase or Temporal: those paths are not exercised, and the worker runs at zero
   replicas there.
+
+---
+
 
 ---
 
@@ -440,6 +656,9 @@ Supabase Auth and assign the role; the CI seed adds `safety@connectsphere.test` 
     check then failed on main and on every branch.
   - **The fix:** the date is now far in the future, with a comment saying why it must stay there.
     Nothing in the app changes.
+
+---
+
 
 ---
 

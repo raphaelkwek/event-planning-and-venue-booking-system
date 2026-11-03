@@ -1,0 +1,24 @@
+story_id,acceptance_criterion,test_file,test_name
+EN-14,"A per-PR preview, or an ephemeral CI stack",tests/EN-14/EN-14-T1-the-ephemeral-stack-boots-from-nothing-in-ci.md,"EN-14-T1 — The ephemeral stack boots from nothing in CI, on the runner's own database"
+EN-14,"A per-PR preview, or an ephemeral CI stack",tests/EN-14/EN-14-T8-the-stack-runs-without-kafka.md,"EN-14-T8 — The services start and serve without Kafka, keeping their messages in the outbox"
+EN-14,"A per-PR preview, or an ephemeral CI stack",tests/e2e/support/fake-supabase-auth.test.ts,"assertTestHarnessOnly allows the harness: the flag, and a database on this machine"
+EN-14,"A per-PR preview, or an ephemeral CI stack",tests/e2e/support/fake-supabase-auth.test.ts,"assertTestHarnessOnly refuses without the flag, or with any other value"
+EN-14,"A per-PR preview, or an ephemeral CI stack",tests/e2e/support/fake-supabase-auth.test.ts,"assertTestHarnessOnly refuses a shared or remote database, a missing one, and a malformed one"
+EN-14,"A per-PR preview, or an ephemeral CI stack",tests/e2e/support/fake-supabase-auth.test.ts,assertTestHarnessOnly refuses a production process
+EN-14,"A per-PR preview, or an ephemeral CI stack",tests/e2e/support/fake-supabase-auth.test.ts,the fake GoTrue endpoints listens on the loopback address only
+EN-14,"A per-PR preview, or an ephemeral CI stack",tests/e2e/support/fake-supabase-auth.test.ts,"the fake GoTrue endpoints issues a token the services' own check accepts, with Supabase's claims"
+EN-14,"A per-PR preview, or an ephemeral CI stack",tests/e2e/support/fake-supabase-auth.test.ts,the fake GoTrue endpoints refuses a wrong password and an unknown email the same way
+EN-14,"A per-PR preview, or an ephemeral CI stack",tests/e2e/support/fake-supabase-auth.test.ts,the fake GoTrue endpoints refuses a request without the anon key
+EN-14,"A per-PR preview, or an ephemeral CI stack",tests/e2e/support/fake-supabase-auth.test.ts,"the fake GoTrue endpoints returns the user for a live session, and refuses it after logout"
+EN-14,"A per-PR preview, or an ephemeral CI stack",tests/e2e/support/fake-supabase-auth.test.ts,the fake GoTrue endpoints refuses a token it did not sign
+EN-14,"A per-PR preview, or an ephemeral CI stack",tests/e2e/support/fake-supabase-auth.test.ts,the fake GoTrue endpoints answers CORS preflights from the web app's origin only
+EN-14,"A per-PR preview, or an ephemeral CI stack",tests/e2e/support/fake-supabase-auth.test.ts,the fake GoTrue endpoints implements only the password grant
+EN-14,Playwright E2E tagged with story test ids,tests/EN-14/EN-14-T4-journeys-are-tagged-with-story-and-card-ids.md,"EN-14-T4 — Every journey is tagged with its story and card ids, and can be run by tag"
+EN-14,Playwright E2E tagged with story test ids,tests/EN-14/EN-14-T7-failures-leave-a-trace-a-video-and-a-report.md,"EN-14-T7 — A failed journey is retried once in CI and leaves a trace, a video, a screenshot and the HTML report"
+EN-14,axe accessibility checks,tests/EN-14/EN-14-T5-axe-checks-every-screen-visited.md,"EN-14-T5 — axe checks every screen a journey visits, and serious or critical violations fail the test"
+EN-14,"Visual snapshots at 360, 768 and 1280 px",tests/e2e/visual.spec.ts,EN-14-T6 sign-in screen
+EN-14,"Visual snapshots at 360, 768 and 1280 px",tests/e2e/visual.spec.ts,EN-14-T6 new event request form
+EN-14,"Visual snapshots at 360, 768 and 1280 px",tests/e2e/visual.spec.ts,EN-14-T6 organiser's approved request
+EN-14,"Visual snapshots at 360, 768 and 1280 px",tests/e2e/visual.spec.ts,EN-14-T6 coordinator's review of a request
+EN-14,"Visual snapshots at 360, 768 and 1280 px",tests/e2e/visual.spec.ts,EN-14-T6 venue detail
+EN-14,"Visual snapshots at 360, 768 and 1280 px",tests/e2e/visual.spec.ts,EN-14-T6 venue availability week

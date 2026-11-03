@@ -1,5 +1,5 @@
 # CI only: the canary demonstration's stand-in service (see server.js).
-FROM node:20.18.1-alpine3.21@sha256:24fb6aa7020d9a20b00d6da6d1714187c45ed00d1eb4adb01395843c338b9372
+FROM node:20.20.2-alpine3.23@sha256:fb4cd12c85ee03686f6af5362a0b0d56d50c58a04632e6c0fb8363f609372293
 WORKDIR /app
 COPY server.js .
 USER 1000:1000

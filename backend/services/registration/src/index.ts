@@ -3,9 +3,12 @@ import { config } from "./config.js";
 import { sql } from "./db.js";
 import { kafka } from "./kafka.js";
 import { logger } from "./logger.js";
+import { installProcessGuards } from "./processGuards.js";
 import { startConsumers, type RunningConsumers } from "./consumer/run.js";
 import { kafkaPublisher, OutboxRelay } from "./outbox/relay.js";
 import { REGISTRATION_OUTBOX_TABLE } from "./outbox/write.js";
+
+installProcessGuards();
 
 const server = app.listen(config.port, () => {
   logger.info(`registration listening on :${config.port}`);

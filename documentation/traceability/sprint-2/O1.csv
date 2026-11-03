@@ -1,0 +1,20 @@
+story_id,acceptance_criterion,test_file,test_name
+O1,"A request is made of line items; each line records equipment type, quantity, technical requirements/notes, and the required-from and required-to date/time",backend/services/planning-core/tests/equipment/api/o1Cards.test.ts,O1-T2 saves a request of two lines
+O1,Required-from and required-to default from the event's date and times and remain editable,backend/services/planning-core/tests/equipment/api/o1Cards.test.ts,O1-T3 keeps times the coordinator gives instead of the defaults
+O1,Required-from and required-to default from the event's date and times and remain editable,backend/services/planning-core/tests/equipment/api/o1Cards.test.ts,O1-T1 records a line and the times default from the event
+O1,Required-to must be later than required-from,backend/services/planning-core/tests/equipment/api/o1Cards.test.ts,O1-T4 refuses required-to equal to required-from and stores nothing
+O1,Required-to must be later than required-from,backend/services/planning-core/tests/equipment/api/o1Cards.test.ts,O1-T5 refuses required-to before required-from and stores nothing
+O1,Quantity must be a whole number greater than zero,backend/services/planning-core/tests/equipment/api/o1Cards.test.ts,O1-T7 refuses quantity 0 and stores nothing
+O1,Quantity must be a whole number greater than zero,backend/services/planning-core/tests/equipment/api/o1Cards.test.ts,"O1-T9 refuses negative, fractional and non-numeric quantities"
+O1,On save each line has status Submitted and is visible to Technical Support Staff,backend/services/planning-core/tests/equipment/api/o1Cards.test.ts,O1-T11 shows the saved lines to Technical Support
+O1,The requesting coordinator and timestamp are recorded,backend/services/planning-core/tests/equipment/api/o1Cards.test.ts,O1-T12 records the coordinator and the time as history
+O1,Lines may be edited by the assigned coordinator while their status is Submitted or Under Review,backend/services/planning-core/tests/equipment/api/o1Cards.test.ts,O1-T13 lets the coordinator edit a Submitted line
+O1,Lines may be edited by the assigned coordinator while their status is Submitted or Under Review,backend/services/planning-core/tests/equipment/api/o1Cards.test.ts,O1-T14 lets the coordinator edit an Under Review line
+O1,Lines may be removed by the assigned coordinator while their status is Submitted or Under Review,backend/services/planning-core/tests/equipment/api/o1Cards.test.ts,O1-T19 removes an Under Review line
+O1,A line with status Reserved cannot be edited or removed here,backend/services/planning-core/tests/equipment/api/o1Cards.test.ts,O1-T15 refuses to edit a Reserved line and changes nothing
+O1,A line with status Reserved cannot be edited or removed here,backend/services/planning-core/tests/equipment/api/o1Cards.test.ts,"O1-T20 refuses to remove a Reserved line that holds no active reservation, and changes nothing"
+O1,"Only the assigned coordinator may record, edit or remove lines",backend/services/planning-core/tests/equipment/api/o1Cards.test.ts,O1-T21 refuses a coordinator who is not assigned to the event
+O1,"Removing a line records the acting user, the timestamp, and the equipment type and quantity removed",backend/services/planning-core/tests/equipment/api/o1Cards.test.ts,O1-T18 removes a Submitted line by status and records the removal
+O1,A rejected save creates or changes no line item,backend/services/planning-core/tests/equipment/api/o1Cards.test.ts,O1-T10 creates none of a request's lines when one is invalid
+O1,A rejected save creates or changes no line item,backend/services/planning-core/tests/equipment/api/o1Cards.test.ts,O1-T17 changes nothing when an edit is invalid
+O1,"Line rules (quantity, times, editable statuses) are pure functions",backend/services/planning-core/tests/equipment/domain/requestLines.test.ts,validateLine (O1) refuses required-to equal to required-from

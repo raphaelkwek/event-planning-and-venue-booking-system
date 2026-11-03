@@ -1,3 +1,4 @@
+import { MAX_HEADCOUNT } from "../../../shared/limits.js";
 import { z } from "zod";
 import { equipmentRequirementsSchema, venueRequirementsSchema } from "@connectsphere/contracts";
 import type { DraftFields } from "../repo/drafts.js";
@@ -18,7 +19,7 @@ const requestFields = {
   description: z.string().nullish(),
   proposedStartAt: isoDateTime.nullish(),
   proposedEndAt: isoDateTime.nullish(),
-  expectedAttendance: z.number().nullish(),
+  expectedAttendance: z.number().max(MAX_HEADCOUNT, `Expected attendance must be a whole number from 1 to ${MAX_HEADCOUNT}.`).nullish(),
   venueRequirements: venueRequirementsSchema.nullish(),
   accessibilityNeeds: z.string().nullish(),
   equipmentRequired: z.boolean().nullish(),

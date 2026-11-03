@@ -71,7 +71,8 @@ Each Start here section ends with a prompt to paste into Claude Code. It tells t
 - read `CLAUDE.md`, `implementation.md` and the item's ADR;
 - write functional test cases first (`implementation.md` §8.4, rule 12);
 - stay inside its module;
-- add a traceability row and a CHANGELOG entry.
+- add its traceability rows to `documentation/traceability/sprint-<n>/<story-id>.csv` and its
+  changelog entry as a new file, `changelog/<YYYY-MM-DD>-<branch>.md` (`implementation.md` §8.2, §11.2).
 
 You're still accountable for what it writes (`implementation.md` §11, rule 10), so read the diff before you commit. Then add a line to the AI-usage log (PX-10): what the agent produced, and what you checked or changed.
 

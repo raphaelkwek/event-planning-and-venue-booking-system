@@ -18,7 +18,7 @@
 | Item | Content |
 |---|---|
 | Actual Result | After accepting, "Assigned coordinator" reads "Coordinator Two" and the nominee can Approve or Reject. The outgoing row (Coordinator One) is is_active false and the nominee's is true, and the organiser sees "Coordinator Two" as their point of contact. |
-| Status | Pass |
-| Remarks | Commit: b0ef6ee (working tree modified) · Evidence: tests/E2/evidence/E2-T2.png · Defect: — |
+| Status | Blocked |
+| Remarks | Retired by E4 (W9-FX-5, W9-59): coordinators no longer propose, accept or decline a reassignment; the Lead reassigns (E4). Proposing, accepting and declining answer 410 REASSIGNMENT_RETIRED, and migration event/0020 closed every pending proposal, so this case can no longer be run. The 2026-09-20 manual Pass is kept as it was: Commit: b0ef6ee (working tree modified) · Evidence: tests/E2/evidence/E2-T2.png · Defect: — · Not rerun |
 | Executed By | Sahanya |
 | Date of Execution | 2026-09-20 |

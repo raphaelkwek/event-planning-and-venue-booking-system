@@ -1,0 +1,4 @@
+story_id,acceptance_criterion,test_file,test_name
+EN-16,"Argo Rollouts canary at 10, 50 and 100%",tests/EN-16/EN-16-T1-the-api-rollouts-canary-at-10-50-and-100-percent.md,"EN-16-T1 — planning-core and registration deploy as Argo Rollouts with canary steps of 10%, 50% and 100%, each gated by an analysis"
+EN-16,Prometheus analysis of error rate and p95 gates the canary,tests/EN-16/EN-16-T2-a-good-release-is-promoted-by-prometheus-analysis.md,EN-16-T2 — A good release passes the Prometheus analysis at 10% and 50% and is promoted to 100%
+EN-16,Automatic rollback demonstrated,tests/EN-16/EN-16-T3-a-bad-release-is-rolled-back-automatically.md,EN-16-T3 — A bad release that passes its health check but answers 500 is aborted by the error-rate analysis and the stable version keeps serving

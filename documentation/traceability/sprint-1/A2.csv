@@ -1,0 +1,3 @@
+story_id,acceptance_criterion,test_file,test_name
+A2,"An attempt by a user whose role is not permitted is refused: the action does not execute and no record is created or modified",backend/services/planning-core/tests/event/api/decisions.test.ts,"refuses a role that is not an Event Coordinator (A2)"
+A2,"The refusal applies to a direct URL or API call, not only to hidden menu items",backend/services/planning-core/tests/event/api/review.test.ts,"refuses a role that is not an Event Coordinator (A2)"

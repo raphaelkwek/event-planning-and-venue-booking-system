@@ -1,12 +1,12 @@
 import { Router } from "express";
-import type { Sql } from "postgres";
+import type { Sql, TransactionSql } from "postgres";
 import { currentUserSchema, type CurrentUser } from "@connectsphere/contracts";
 import { authRouter } from "./api/auth.js";
 import { accessScopeRouter } from "./api/accessScope.js";
 import { usersMeRouter } from "./api/usersMe.js";
 import { usersRouter } from "./api/users.js";
-import { identityRateLimiter, loginRateLimiter } from "./api/limiter.js";
-import { findRoleForUser, findUserBySupabaseId, listActiveUsersWithRole } from "./repo/users.js";
+import { IP_FLOOD_LIMIT, identityRateLimiter, loginRateLimiter, subjectRateLimiter } from "./api/limiter.js";
+import { findActiveUserWithRole, findRoleForUser, findUserBySupabaseId, listActiveUsersWithRole } from "./repo/users.js";
 
 /**
  * The identity module's public interface (ADR-0004). Other modules import this
@@ -20,7 +20,7 @@ export function identityRouter(sql: Sql): Router {
   const reads = identityRateLimiter();
   router.use(authRouter(sql, loginRateLimiter()));
   router.use(accessScopeRouter(sql, reads));
-  router.use(usersMeRouter(sql, reads));
+  router.use(usersMeRouter(sql, identityRateLimiter({ limit: IP_FLOOD_LIMIT }), subjectRateLimiter()));
   router.use(usersRouter(sql, reads));
   return router;
 }
@@ -60,4 +60,12 @@ export interface ActiveCoordinator {
 
 export function listActiveCoordinators(sql: Sql): Promise<ActiveCoordinator[]> {
   return listActiveUsersWithRole(sql, "EVENT_COORDINATOR");
+}
+
+/**
+ * E3, E4: the coordinator if they are still an active Event Coordinator. Called inside the
+ * assigning transaction it share-locks their row, so deactivating them waits for the assignment.
+ */
+export function findActiveCoordinator(sql: Sql | TransactionSql, userId: string, options: { lock?: "share" } = {}): Promise<ActiveCoordinator | null> {
+  return findActiveUserWithRole(sql, userId, "EVENT_COORDINATOR", options);
 }

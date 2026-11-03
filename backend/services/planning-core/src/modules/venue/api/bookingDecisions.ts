@@ -1,8 +1,8 @@
 import { Router, type NextFunction, type Response } from "express";
-import type { Sql } from "postgres";
+import type { Sql, TransactionSql } from "postgres";
 import { findEventForPlanning, findEventReferences, type EventPlanningView } from "../../event/index.js";
 import { authenticate, requireRole, type ActorRequest } from "../auth/actor.js";
-import { layoutCapacityAt, notPendingMessage } from "../domain/bookingRequest.js";
+import { eventBookable, layoutCapacityAt, notBookableMessage, notPendingMessage } from "../domain/bookingRequest.js";
 import { bookingConflictMessage, NOT_VENUE_STAFF, readRejection, unavailableMessage } from "../domain/bookingDecision.js";
 import { VenueSlotConflictError } from "../domain/slotConflict.js";
 import { writeVenueOutbox } from "../events/outbox.js";
@@ -13,13 +13,16 @@ import {
   isVenueStaff,
   rejectBookingRequest,
   releaseReplacedBooking,
+  slotVenueId,
   type OverlappingBooking,
 } from "../repo/bookingDecisions.js";
 import { carryRequestFlagsToBooking } from "../repo/arrangementFlags.js";
-import { findBookingRequest, lockBookingRequest, type BookingRequest } from "../repo/bookingRequests.js";
+import { clearFlagsOfRequestEnded, findBookingRequest, lockBookingRequest, type BookingRequest } from "../repo/bookingRequests.js";
 import { confirmHeldSlotForRequest, HeldSlotNotHeldError, releaseHeldSlotForRequest } from "../repo/holds.js";
+import { clearFlagsOfEnded } from "../repo/bufferConflicts.js";
+import { expireOverdueHoldsAtVenue } from "../repo/holdExpiry.js";
 import { insertVenueSlot } from "../repo/slots.js";
-import { lockVenue } from "../repo/venues.js";
+import { lockVenue, type VenueRecord } from "../repo/venues.js";
 import { BASE, bookingRequestRateLimit, present, requestNotFound, UUID } from "./bookingRequests.js";
 import { refuse } from "./errors.js";
 
@@ -97,6 +100,19 @@ async function decidable(sql: Sql, req: ActorRequest, res: Response): Promise<{ 
   return { request, event };
 }
 
+/**
+ * Locks the request's venue and, for a replacement (L5), the disrupted booking's venue too, in
+ * ascending id order (§4.6), and returns the request's venue. A slot's venue never changes, so it is
+ * read before the locks.
+ */
+async function lockVenues(tx: TransactionSql, venueId: string, replacesBookingId: string | null): Promise<VenueRecord> {
+  const replacedVenueId = replacesBookingId ? await slotVenueId(tx, replacesBookingId) : null;
+  const ids = [...new Set([venueId, ...(replacedVenueId ? [replacedVenueId] : [])])].sort();
+  const locked = new Map<string, VenueRecord>();
+  for (const id of ids) locked.set(id, (await lockVenue(tx, id))!);
+  return locked.get(venueId)!;
+}
+
 export function bookingDecisionsRouter(sql: Sql) {
   const router = Router();
   const limiter = bookingRequestRateLimit();
@@ -114,11 +130,21 @@ export function bookingDecisionsRouter(sql: Sql) {
       const outcome = await sql
         .begin(async (tx) => {
           // The venue first, then the request: the order I2 takes them in when a block
-          // flags a pending request (implementation.md §4.6, rule 1). The other order
-          // deadlocks against a block recorded at the same moment.
+          // flags a pending request (implementation.md §4.6, lock order). The other order
+          // deadlocks against a block recorded at the same moment. A replacement (L5) also
+          // locks the disrupted booking's venue, which it releases, in ascending id order.
           // H3 (CR-01): the booking copies the venue's setup and turnaround time as it stands now.
-          const lockedVenue = (await lockVenue(tx, request.venueId))!;
+          const lockedVenue = await lockVenues(tx, request.venueId, request.replacesBookingId);
           const { setupMinutes, turnaroundMinutes } = lockedVenue;
+          // L4: the event's status is read again under a share lock, so a Completed or Cancelled event
+          // (changed since the request was made) gains no booking, and a cancellation waits for this approval.
+          // The event comes after the venue and before the holds and the request in the lock order (implementation.md §4.6).
+          const lockedEvent = await findEventForPlanning(tx, request.eventId, ALL_EVENTS, actor.userId, { lock: "share" });
+          if (!lockedEvent) return { code: "EVENT_GONE" } as const;
+          if (!eventBookable(lockedEvent.status)) return { code: "EVENT_NOT_BOOKABLE", status: lockedEvent.status } as const;
+          // M4: overdue holds at the venue expire first, so none refuses the booking. Holds are
+          // locked after the event, as the lock order requires.
+          await expireOverdueHoldsAtVenue(tx, request.venueId);
           const locked = (await lockBookingRequest(tx, request.id))!;
           if (locked.status !== "PENDING") return { code: "NOT_PENDING", locked } as const;
           const blocks = await activeBlocksOverlapping(tx, locked.venueId, startsAt, endsAt, setupMinutes, turnaroundMinutes);
@@ -127,6 +153,8 @@ export function bookingDecisionsRouter(sql: Sql) {
           // CR-02: release the disrupted booking first, so a replacement at the same venue can take its period.
           const replacedBookingId =
             locked.replacesBookingId && (await releaseReplacedBooking(tx, locked.replacesBookingId, actor.userId)) ? locked.replacesBookingId : null;
+          // M3: what a buffer change had flagged against the released booking clears.
+          if (replacedBookingId) await clearFlagsOfEnded(tx, [replacedBookingId], actor.userId);
           // L3: a request converted from a hold confirms the period the hold took,
           // rather than releasing it and inserting another (implementation.md §4.6, rule 3).
           let bookingId = await confirmHeldSlotForRequest(tx, locked.id, actor.userId).catch((error: unknown) => {
@@ -180,6 +208,10 @@ export function bookingDecisionsRouter(sql: Sql) {
         });
 
       switch (outcome.code) {
+        case "EVENT_GONE":
+          return requestNotFound(res, actor.role);
+        case "EVENT_NOT_BOOKABLE":
+          return refuse(res, 409, "EVENT_NOT_BOOKABLE", notBookableMessage(outcome.status));
         case "NOT_PENDING":
           return refuse(res, 409, "BOOKING_REQUEST_NOT_PENDING", notPendingMessage(request.reference, outcome.locked.status, "approved"));
         case "UNAVAILABLE":
@@ -208,11 +240,14 @@ export function bookingDecisionsRouter(sql: Sql) {
       const actor = req.actor!;
 
       const outcome = await sql.begin(async (tx) => {
+        // The venue, then the request, then its slot (§4.6): rejecting clears flags at the venue (M3).
+        await lockVenue(tx, request.venueId);
         const locked = (await lockBookingRequest(tx, request.id))!;
         if (locked.status !== "PENDING") return { code: "NOT_PENDING", locked } as const;
         await rejectBookingRequest(tx, locked.id, actor.userId, read.reason, read.suggestion);
         // L3: a request converted from a hold gives back the period the hold took.
         await releaseHeldSlotForRequest(tx, locked.id, actor.userId);
+        await clearFlagsOfRequestEnded(tx, locked.id, actor.userId);
         const rejected = (await findBookingRequest(tx, locked.id))!;
         await writeVenueOutbox(tx, {
           messageType: "venue-booking.request-rejected",

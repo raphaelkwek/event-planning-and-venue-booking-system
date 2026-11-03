@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BOOKING_REQUEST_STATUSES, BOOKING_REQUEST_STATUS_LABELS, SUITABILITY_STATUSES } from "../src/venueBooking.js";
+import { MAX_VENUE_CAPACITY, BOOKING_REQUEST_STATUSES, BOOKING_REQUEST_STATUS_LABELS, SUITABILITY_STATUSES } from "../src/venueBooking.js";
 import { parseCloudEvent } from "../src/cloudEvent.js";
 import { ERROR_CODES } from "../src/errorCodes.js";
 
@@ -122,6 +122,14 @@ describe("venue-booking.request-approved and venue-booking.request-rejected (M1,
     for (const bad of [{ layoutCapacity: 0 }, { layoutCapacity: -5 }, { layoutCapacity: 12.5 }, { layoutCapacity: "300" }, { layout: "" }]) {
       expect(() => parseCloudEvent(message("venue-booking.request-approved", { ...approved, layout: "Theatre", layoutCapacity: 300, ...bad }))).toThrow();
     }
+  });
+
+  it("G4: accepts the largest layout capacity and refuses one more, which would insert that many seat rows", () => {
+    const withCapacity = (layoutCapacity: number) => message("venue-booking.request-approved", { ...approved, layout: "Theatre", layoutCapacity });
+    expect(MAX_VENUE_CAPACITY).toBe(1_000_000);
+    expect(() => parseCloudEvent(withCapacity(MAX_VENUE_CAPACITY))).not.toThrow();
+    expect(() => parseCloudEvent(withCapacity(MAX_VENUE_CAPACITY + 1))).toThrow();
+    expect(() => parseCloudEvent(withCapacity(2_000_000_000))).toThrow();
   });
 
   it("accepts a rejection with its reason, and with or without a suggested alternative (M2-T5)", () => {
@@ -283,6 +291,22 @@ describe("L6: hold expiry messages", () => {
 
   it.each(cases)("accepts a valid %s and returns its data", (type, data) => {
     expect(parseCloudEvent(message(type, data)).data).toEqual(data);
+  });
+
+  it("hold-expiry-changed carries the notice fields W9-40 needs, and stays valid without them", () => {
+    const withNotice = {
+      ...changed,
+      previousExpiresAt: "2026-12-01T06:00:00.000Z",
+      venueName: "Lee Kong Chian Auditorium",
+      eventId: "00000000-0000-0000-0000-0000000000e1",
+      eventReference: "EVT-000001",
+      eventName: "Freshmen Orientation",
+      coordinatorId: "00000000-0000-0000-0000-0000000000c1",
+      startsAt: "2026-12-02T02:00:00.000Z",
+      endsAt: "2026-12-02T04:00:00.000Z",
+    };
+    expect(parseCloudEvent(message("venue-booking.hold-expiry-changed", withNotice)).data).toEqual(withNotice);
+    expect(parseCloudEvent(message("venue-booking.hold-expiry-changed", changed)).data).toEqual(changed);
   });
 
   it.each(cases)("refuses %s with any field missing", (type, data) => {
