@@ -1,8 +1,10 @@
 import type { NextFunction, Request, Response } from "express";
 import { createRemoteJWKSet, jwtVerify } from "jose";
 import { config } from "../config.js";
+import { expectedClaims } from "./jwtClaims.js";
 
 const jwks = createRemoteJWKSet(new URL(config.supabaseJwksUrl));
+const claims = expectedClaims(process.env);
 
 export interface AuthenticatedRequest extends Request {
   auth?: { supabaseUserId: string };
@@ -26,7 +28,7 @@ export async function verifyJwt(req: AuthenticatedRequest, res: Response, next: 
   }
 
   try {
-    const { payload } = await jwtVerify(header.slice("Bearer ".length), jwks);
+    const { payload } = await jwtVerify(header.slice("Bearer ".length), jwks, claims);
     if (typeof payload.sub !== "string") {
       throw new Error("Token has no subject");
     }

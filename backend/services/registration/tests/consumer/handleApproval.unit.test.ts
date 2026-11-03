@@ -57,6 +57,13 @@ describe("handleMessage (the seat builder)", () => {
     expect((await handleMessage(message("venue-booking.request-approved", { bookingId: "x" }), { sql: noDatabase })).outcome).toBe("invalid");
   });
 
+  it("skips an approval whose layout capacity is above the bound, before the database is used (G4)", async () => {
+    for (const layoutCapacity of [1_000_001, 2_000_000_000]) {
+      const result = await handleMessage(message("venue-booking.request-approved", { ...approved, layout: "Theatre", layoutCapacity }), { sql: noDatabase });
+      expect(result.outcome).toBe("invalid");
+    }
+  });
+
   it("ignores a message that is not an approval (EN-13-T8)", async () => {
     const rejected = { ...approved, reason: "Closed", suggestion: null };
     expect(await handleMessage(message("venue-booking.request-rejected", rejected), { sql: noDatabase })).toEqual({

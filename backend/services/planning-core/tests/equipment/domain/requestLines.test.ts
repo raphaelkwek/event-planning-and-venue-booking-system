@@ -100,7 +100,7 @@ describe("validateLine (O1)", () => {
       const result = validateLine(line({ quantity }), EVENT);
       expect(result).toEqual({
         ok: false,
-        fields: [{ field: "quantity", message: "Quantity must be a whole number greater than zero." }],
+        fields: [{ field: "quantity", message: "Quantity must be a whole number from 1 to 1000000." }],
       });
     },
   );
@@ -156,7 +156,7 @@ describe("validateNewLines (O1)", () => {
     const result = validateNewLines([line(), line({ quantity: 0 })], EVENT);
     expect(result).toEqual({
       ok: false,
-      fields: [{ field: "lines.1.quantity", message: "Quantity must be a whole number greater than zero." }],
+      fields: [{ field: "lines.1.quantity", message: "Quantity must be a whole number from 1 to 1000000." }],
     });
   });
 
@@ -242,7 +242,7 @@ describe("validateStatusChange (O2)", () => {
   it.each([0, -1, 1.5, "3", null, undefined])("refuses a substitute quantity of %s", (substituteQuantity) => {
     expect(validateStatusChange({ status: "SUBSTITUTED", substituteEquipmentTypeId: OTHER_TYPE, substituteQuantity })).toEqual({
       ok: false,
-      fields: [{ field: "substituteQuantity", message: "Substitute quantity must be a whole number greater than zero." }],
+      fields: [{ field: "substituteQuantity", message: "Substitute quantity must be a whole number from 1 to 1000000." }],
     });
   });
 

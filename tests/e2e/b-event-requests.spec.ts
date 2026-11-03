@@ -140,7 +140,7 @@ test.describe("B2 validation of a submission", () => {
     await enterStandardRequest(page, name, { attendance: "0" });
     await page.getByRole("button", { name: "Submit request" }).click();
 
-    await expectRefusedUnder(page, "Expected attendance", "Expected attendance must be a whole number greater than zero.");
+    await expectRefusedUnder(page, "Expected attendance", "Expected attendance must be a whole number from 1 to 1000000.");
     await expectNoRowIn(page, name);
   });
 
