@@ -312,13 +312,19 @@ describe("G2 cards: previewing the arrangements a pending change would affect", 
       refused.push(response.body.error);
     }
 
-    asC();
+    // An unknown id gets each caller the same answer as a request outside their scope. Each
+    // response has its own correlation id, so compare the code and message.
+    const sameAnswer = (a: { code: string; message: string }, b: { code: string; message: string }) =>
+      expect({ code: a.code, message: a.message }).toEqual({ code: b.code, message: b.message });
+    asO2();
     const unknown = await preview(randomUUID());
     expect(unknown.status).toBe(404);
-    // Each response has its own correlation id, so compare the code and message.
-    for (const error of refused) {
-      expect({ code: unknown.body.error.code, message: unknown.body.error.message }).toEqual({ code: error.code, message: error.message });
-    }
+    for (const error of refused) sameAnswer(unknown.body.error, error);
+    // A4: for a coordinator, that answer is A4's, as for C2 above.
+    asC();
+    const unknownToC = await preview(randomUUID());
+    expect(unknownToC.status).toBe(404);
+    sameAnswer(unknownToC.body.error, other.body.error);
 
     const decided = await fixture(DATE_MOVED);
     const approval = await decide(decided.cr);
