@@ -283,3 +283,6 @@ topic_research.md
 
 # Leftover EN-02.1 test venues exported from the shared database before deletion (10 Oct 2026)
 /Old Venues/
+
+# EN-22: vitest JSON reports that CI hands to the traceability job
+**/reports/vitest-*.json
