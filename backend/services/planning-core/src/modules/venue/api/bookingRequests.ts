@@ -323,6 +323,11 @@ export function bookingRequestsRouter(sql: Sql) {
       if (!event) return requestNotFound(res, req.actor!.role);
 
       const outcome = await sql.begin(async (tx) => {
+        // A4: the scope once more, under the event's row lock (`for share`), before the request and its slot
+        // (implementation.md §4.6). A Lead's reassignment (E4) that commits after the check above is seen here.
+        const actor = req.actor!;
+        const scope = resolveAccessScope(actor.role, actor.userId, "events");
+        if (!(await findEventForChange(tx, existing.eventId, scope, actor.userId, { lock: "share" }))) return { code: "NOT_FOUND" } as const;
         const locked = (await lockBookingRequest(tx, id))!;
         if (locked.status !== "PENDING") return { code: "NOT_PENDING", locked } as const;
         await withdrawBookingRequest(tx, id, req.actor!.userId);
@@ -331,6 +336,7 @@ export function bookingRequestsRouter(sql: Sql) {
         return { code: "WITHDRAWN", withdrawn: (await findBookingRequest(tx, id))! } as const;
       });
 
+      if (outcome.code === "NOT_FOUND") return requestNotFound(res, req.actor!.role);
       if (outcome.code === "NOT_PENDING") {
         return refuse(res, 409, "BOOKING_REQUEST_NOT_PENDING", notPendingMessage(outcome.locked.reference, outcome.locked.status, "withdrawn"));
       }
