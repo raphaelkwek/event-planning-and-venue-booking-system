@@ -90,6 +90,11 @@ test("EN-23-T3 the PDPA note covers every obligation with what the system does a
     assert.ok(section, `pdpa.md: no section for ${obligation}`);
     assert.ok(section.body.includes("**What the system does.**"), `${obligation}: no statement of what the system does`);
     assert.ok(section.body.includes("**Missing.**"), `${obligation}: no statement of what is missing`);
+    const does = /\*\*What the system does\.\*\* (.*)/.exec(section.body)![1]!;
+    assert.ok(
+      HAS_CITATION.test(does) || does.startsWith("None"),
+      `${obligation}: what the system does needs a file:line citation or the word None`,
+    );
   }
   assert.ok(HAS_CITATION.test(PDPA), "pdpa.md cites no code");
 });

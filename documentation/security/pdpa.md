@@ -34,7 +34,7 @@ Each obligation below says what the system does, with a citation, and what is mi
 
 ### Notification
 
-- **What the system does.** Nothing visible to the attendee.
+- **What the system does.** None. Nothing is shown to the attendee.
 - **Missing.** A notice, shown before or at sign-up, that states the purposes, who receives the data (the organiser of an event the attendee registers for, and ConnectSphere's staff) and how to reach the data protection officer. Add a link in the footer of the attendee app (EN-13 shell) and in the confirmation email.
 
 ### Access
@@ -44,7 +44,7 @@ Each obligation below says what the system does, with a citation, and what is mi
 
 ### Correction
 
-- **What the system does.** Nothing for attendees. Display names are set in the database or Supabase. Staff correct event data through the event edit route.
+- **What the system does.** None for attendees. Display names are set in the database or Supabase. Staff correct event data through the event edit route.
 - **Missing.** A way for an attendee to correct their name and email. Email changes must go through Supabase Auth so the sign-in and the identity row stay in step. Until then, a documented staff procedure.
 
 ### Accuracy
@@ -69,12 +69,12 @@ Each obligation below says what the system does, with a citation, and what is mi
 
 ### Data breach notification
 
-- **What the system does.** Nothing. There is no breach procedure, no alert tied to data access, and the logs are on standard output only. The EN-17 alerts watch availability and over-admission, not data disclosure.
+- **What the system does.** None. There is no breach procedure, no alert tied to data access, and the logs are on standard output only. The EN-17 alerts watch availability and over-admission, not data disclosure.
 - **Missing.** A written procedure: contain, assess within 30 days whether the breach is notifiable (significant harm to individuals, or affecting 500 or more people), and tell the PDPC and affected individuals as soon as practicable and within 3 calendar days of that assessment. Name who assesses and who notifies. Add the runbook `documentation/runbooks/RegistrationOverAdmission.md` step "log it under the breach procedure" to that procedure when it exists.
 
 ### Accountability
 
-- **What the system does.** The team documents decisions as ADRs and keeps this review.
+- **What the system does.** The team documents decisions as ADRs (for example `documentation/adr/0004-modular-core-instead-of-six-microservices.md:1`) and keeps this review.
 - **Missing.** A named data protection officer, with a contact address published in the notice; a record of the personal data held (this note is the start of it); a policy for handling access and correction requests; and a staff briefing before real data is loaded. *Decision needed:* who the DPO is for the project.
 
 ## Summary of what to do first
