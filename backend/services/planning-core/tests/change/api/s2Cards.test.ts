@@ -5,7 +5,7 @@ import { KAFKA_TOPICS, parseCloudEvent, type EventStatus } from "@connectsphere/
 import { notificationsFor } from "../../../../notification/src/domain/recipients.js";
 import { testDb } from "../../support/testDb.js";
 import { actorsWithPrefix } from "../../support/lineFixtures.js";
-import { deleteSeededEvents, seedEvent } from "../../support/seedEvent.js";
+import { deleteSeededEvents, seedEvent, setStatusDirect } from "../../support/seedEvent.js";
 import { EVENT_END, EVENT_START } from "../../support/eventDates.js";
 
 // The S2 cards (tests/S2): real Express app and migrated Postgres, with JWT verification and the
@@ -319,7 +319,7 @@ describe("S2 cards: deciding a change request", () => {
   });
 
   it("S2-T7 refuses an approval once the event is cancelled", async () => {
-    await sql`update event.events set status = 'CANCELLED' where id = ${e1.id}`;
+    await setStatusDirect(sql, e1.id, "CANCELLED");
     const before = await eventState(e1.id);
     expect(before.status).toBe("CANCELLED");
 

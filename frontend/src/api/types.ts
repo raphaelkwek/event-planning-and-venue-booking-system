@@ -58,6 +58,10 @@ export interface EventRecord {
   decidedBy: string | null;
   decidedAt: string | null;
   rejectionReason: string | null;
+  /** F3: why, by whom and when the event was cancelled; null unless it is Cancelled. */
+  cancellationReason: string | null;
+  cancelledBy: string | null;
+  cancelledAt: string | null;
   assignedCoordinatorId: string | null;
   /** G1: free text, such as a name, email and phone number. */
   contactDetails: string | null;
