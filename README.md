@@ -23,6 +23,8 @@
 
 Images, Kubernetes, Terraform, Argo CD and canary releases (EN-10, EN-16, ADR-0012) are in [documentation/deploy.md](documentation/deploy.md). Local development stays as above: no Docker.
 
+How the images are inventoried, scanned and signed (SBOMs, Trivy, cosign, a ZAP baseline scan; EN-21), and how to verify an image yourself, is in [documentation/supply-chain.md](documentation/supply-chain.md).
+
 ### Trying the stories in the browser
 
 Sign in at <http://localhost:5173> with any seeded account; the login screen lists them and they all

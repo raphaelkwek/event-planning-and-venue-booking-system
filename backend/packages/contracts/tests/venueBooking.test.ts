@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BOOKING_REQUEST_STATUSES, BOOKING_REQUEST_STATUS_LABELS, SUITABILITY_STATUSES } from "../src/venueBooking.js";
+import { MAX_VENUE_CAPACITY, BOOKING_REQUEST_STATUSES, BOOKING_REQUEST_STATUS_LABELS, SUITABILITY_STATUSES } from "../src/venueBooking.js";
 import { parseCloudEvent } from "../src/cloudEvent.js";
 import { ERROR_CODES } from "../src/errorCodes.js";
 
@@ -122,6 +122,14 @@ describe("venue-booking.request-approved and venue-booking.request-rejected (M1,
     for (const bad of [{ layoutCapacity: 0 }, { layoutCapacity: -5 }, { layoutCapacity: 12.5 }, { layoutCapacity: "300" }, { layout: "" }]) {
       expect(() => parseCloudEvent(message("venue-booking.request-approved", { ...approved, layout: "Theatre", layoutCapacity: 300, ...bad }))).toThrow();
     }
+  });
+
+  it("G4: accepts the largest layout capacity and refuses one more, which would insert that many seat rows", () => {
+    const withCapacity = (layoutCapacity: number) => message("venue-booking.request-approved", { ...approved, layout: "Theatre", layoutCapacity });
+    expect(MAX_VENUE_CAPACITY).toBe(1_000_000);
+    expect(() => parseCloudEvent(withCapacity(MAX_VENUE_CAPACITY))).not.toThrow();
+    expect(() => parseCloudEvent(withCapacity(MAX_VENUE_CAPACITY + 1))).toThrow();
+    expect(() => parseCloudEvent(withCapacity(2_000_000_000))).toThrow();
   });
 
   it("accepts a rejection with its reason, and with or without a suggested alternative (M2-T5)", () => {

@@ -262,7 +262,7 @@ describe("validateSubmission says exactly what is wrong (B2)", () => {
 
   it("explains a non-positive attendance differently from a missing one", () => {
     expect(validateSubmission(completeRequest({ expectedAttendance: 0 }), NOW)).toEqual([
-      { field: "expectedAttendance", message: "Expected attendance must be a whole number greater than zero." },
+      { field: "expectedAttendance", message: "Expected attendance must be a whole number from 1 to 1000000." },
     ]);
   });
 
