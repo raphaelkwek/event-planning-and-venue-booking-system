@@ -1,4 +1,5 @@
 import { randomBytes, randomUUID } from "node:crypto";
+import { activeTraceparent } from "@connectsphere/telemetry";
 import {
   formatActor,
   KAFKA_TOPICS,
@@ -22,9 +23,13 @@ export const REGISTRATION_OUTBOX_TABLE = "registration.outbox";
 /** The CloudEvents `source` of every message this service writes (§3.3). */
 export const REGISTRATION_SOURCE = "/connectsphere/registration";
 
-/** A new W3C traceparent per message, until ADR-0013's OpenTelemetry SDK supplies the active span's. */
+/**
+ * The W3C traceparent every message carries (implementation.md §3.3): the span active when the row is
+ * written, so the message belongs to the trace of the request that caused it (ADR-0013, EN-08). With no
+ * active span (the SDK is off, or work with no request) a new random one, so a message always has a valid one.
+ */
 export function newTraceparent(): string {
-  return `00-${randomBytes(16).toString("hex")}-${randomBytes(8).toString("hex")}-01`;
+  return activeTraceparent() ?? `00-${randomBytes(16).toString("hex")}-${randomBytes(8).toString("hex")}-01`;
 }
 
 export interface RegistrationMessage {

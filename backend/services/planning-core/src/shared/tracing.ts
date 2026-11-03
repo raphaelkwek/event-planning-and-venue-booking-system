@@ -1,11 +1,13 @@
 import { randomBytes } from "node:crypto";
+import { activeTraceparent } from "@connectsphere/telemetry";
 
 /**
- * A new W3C Trace Context `traceparent` (version 00, sampled). Every message
- * carries one (implementation.md §3.3). Until ADR-0013's OpenTelemetry SDK is
- * wired in, each request starts its own trace; the SDK will then supply the
- * active span's instead.
+ * The W3C Trace Context `traceparent` every message carries (implementation.md
+ * §3.3): the span active when the outbox row is written, so the message belongs
+ * to the trace of the request that caused it (ADR-0013, EN-08). With no active
+ * span (the SDK is off, or a job with no request) it is a new random one, as it
+ * was before the SDK existed, so a message always has a valid one.
  */
 export function newTraceparent(): string {
-  return `00-${randomBytes(16).toString("hex")}-${randomBytes(8).toString("hex")}-01`;
+  return activeTraceparent() ?? `00-${randomBytes(16).toString("hex")}-${randomBytes(8).toString("hex")}-01`;
 }
