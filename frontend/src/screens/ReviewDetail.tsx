@@ -30,6 +30,7 @@ import { EquipmentRequirementsView, VenueRequirementsView } from "../components/
 import { ChangeImpactView } from "../components/ChangeImpactView.js";
 import { OutstandingFlags } from "../components/OutstandingFlags.js";
 import { ConfirmArrangementsAction } from "../components/ConfirmArrangements.js";
+import { MarkConfirmedAction } from "../components/MarkConfirmed.js";
 import { CancelEventAction, CancelledNotice, canCancelEvent } from "../components/CancelEvent.js";
 
 /** G2 — what approving the pending change would affect, read-only; hidden once the request is decided or not visible to this user. */
@@ -318,6 +319,13 @@ export function ReviewDetail() {
         {event.assignedCoordinatorId === session.userId && (event.status === "APPROVED" || event.status === "PLANNING") && (
           <div style={{ marginTop: 12 }}>
             <ConfirmArrangementsAction eventId={event.id} token={session.token} onConfirmed={() => void load()} />
+          </div>
+        )}
+
+        {/* U1 — only the assigned coordinator, and only while the event is in Safety Review. */}
+        {event.assignedCoordinatorId === session.userId && event.status === "SAFETY_REVIEW" && (
+          <div style={{ marginTop: 12 }}>
+            <MarkConfirmedAction eventId={event.id} token={session.token} onConfirmed={() => void load()} />
           </div>
         )}
 

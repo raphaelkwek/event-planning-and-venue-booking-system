@@ -1,4 +1,5 @@
 import { app } from "./app.js";
+import { initFlags, shutdownFlags } from "./shared/flags/index.js";
 import { config } from "./shared/config.js";
 import { sql } from "./shared/db.js";
 import { logger } from "./shared/logger.js";
@@ -8,6 +9,9 @@ import { EVENT_OUTBOX_TABLE } from "./modules/event/index.js";
 import { CHANGE_OUTBOX_TABLE } from "./modules/change/index.js";
 import { EQUIPMENT_OUTBOX_TABLE } from "./modules/equipment/index.js";
 import { VENUE_OUTBOX_TABLE } from "./modules/venue/index.js";
+
+// EN-15: the flag provider is ready (or has fallen back to the defaults) before requests arrive.
+await initFlags();
 
 const server = app.listen(config.port, () => {
   logger.info(`${config.serviceName} listening on :${config.port}`);
@@ -38,6 +42,7 @@ async function shutdown(signal: string) {
   logger.info("shutting down", { signal });
   await new Promise<void>((resolve) => server.close(() => resolve()));
   await relay?.stop();
+  await shutdownFlags();
   await publisher?.disconnect();
   await sql.end({ timeout: 5 });
   process.exit(0);

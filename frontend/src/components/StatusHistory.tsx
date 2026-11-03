@@ -13,6 +13,7 @@ const ROLE_LABELS: Record<string, string> = {
   VENUE_STAFF: "Venue Staff",
   TECH_SUPPORT_STAFF: "Technical Support",
   ATTENDEE: "Attendee",
+  SAFETY_OFFICER: "Safety Officer",
   SYSTEM: "System",
 };
 

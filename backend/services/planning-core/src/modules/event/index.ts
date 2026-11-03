@@ -174,3 +174,27 @@ export {
 export { completeEventIfDue, type CompletionAttempt } from "./jobs/completeEvents.js";
 /** S3 — an approved change returns a Confirmed event to Planning (Week 9 W9-22), with history and its status message. */
 export { returnToPlanningAfterChange } from "./api/returnToPlanning.js";
+
+/**
+ * U1 (CR-06) — the Safety Officer's decision and the coordinator's Mark Confirmed. The change
+ * module checks who may act and reads and flags the arrangements; these apply F1's transitions,
+ * record the decision and write its message, in the caller's transaction.
+ */
+export {
+  markEventConfirmed,
+  recordSafetyDecision,
+  safetyDecisionRefusal,
+  type DecisionInput,
+  type MarkConfirmedOutcome,
+  type RecordDecisionOutcome,
+  type SafetyActor,
+} from "./api/safetyDecision.js";
+export { type SafetyDecisionKind } from "./domain/safetyDecision.js";
+export {
+  currentReviewStartedAt,
+  decisionForReview,
+  listSafetyReviewQueue,
+  type FlaggedArrangements,
+  type SafetyDecisionRecord,
+  type SafetyQueueEntry,
+} from "./repo/safetyDecisions.js";
