@@ -1,0 +1,22 @@
+# EN-05. Debezium Server publishes the outbox tables from Postgres's write-ahead
+# log, as an alternative to the polling relay in planning-core. OPT-IN: nothing
+# includes this component until the checks in README.md have been made against a
+# real Supabase project. The relay stays the publisher until then
+# (documentation/spikes/EN-05-cdc-spike.md).
+#
+# Include it from an overlay:
+#
+#   components:
+#     - ../../components/cdc
+#
+# A component is applied on top of the base, so it adds only the Deployment, the
+# claim and the generated config. Its Secret, connectsphere-cdc, is created by hand.
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+resources:
+  - deployment.yaml
+  - pvc.yaml
+configMapGenerator:
+  - name: debezium-server-config
+    files:
+      - application.properties
