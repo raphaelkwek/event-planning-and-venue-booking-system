@@ -214,7 +214,8 @@ jobs:
           tar -xzf gitleaks.tar.gz gitleaks
 
       - name: Scan the whole history for committed secrets
-        run: ./gitleaks git . --redact --no-banner --exit-code 1
+        # --verbose names the file, line, rule and commit of a finding; --redact still hides the value.
+        run: ./gitleaks git . --redact --verbose --no-banner --exit-code 1
 
   # EN-06.2 (SPM-167). Stryker plants small bugs in the domain code a pull
   # request changes and checks that some unit test fails for each. Below 80% it
