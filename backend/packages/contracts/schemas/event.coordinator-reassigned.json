@@ -1,0 +1,54 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "properties": {
+    "coordinatorId": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "coordinatorName": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "eventId": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "eventName": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "eventReference": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "ownerId": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "previousCoordinatorId": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "reassignedAt": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "reassignedBy": {
+      "format": "uuid",
+      "type": "string"
+    }
+  },
+  "required": [
+    "coordinatorId",
+    "coordinatorName",
+    "eventId",
+    "eventName",
+    "eventReference",
+    "ownerId",
+    "previousCoordinatorId",
+    "reassignedAt",
+    "reassignedBy"
+  ],
+  "type": "object"
+}

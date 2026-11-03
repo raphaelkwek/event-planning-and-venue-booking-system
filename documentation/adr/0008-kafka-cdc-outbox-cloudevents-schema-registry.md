@@ -117,3 +117,7 @@ So Aiven covers Sprint 2 and early Sprint 3, when only a few producers exist. Co
 6. Delete the Aiven service once nobody uses it.
 
 Unpublished outbox rows go to Confluent, and consumer inboxes make any replay harmless.
+
+## Decision note, 2026-11-03: EN-05's spike (SPM-123)
+
+**The polling relay stays the publisher in every environment.** Development's Aiven free plan has no Kafka Connect, and on staging and production a Free-plan Supabase project offers a replication slot only over an IPv6 direct connection (the pooler cannot replicate, and the IPv4 add-on needs Pro) that has not been tried from the Oracle node. Debezium Server is built as an opt-in component and proven in CI against a throwaway Postgres, but it replaces the relay nowhere yet. The backward-compatibility check is real: `npm run schemas:compat` runs on every pull request, and a CI job asks a throwaway Redpanda registry the same question. Details and sources: `documentation/spikes/EN-05-cdc-spike.md`.

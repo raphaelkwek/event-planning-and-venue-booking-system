@@ -10,6 +10,9 @@
   "scripts": {
     "dev": "concurrently --kill-others-on-fail --names core,notif,reg,web,worker --prefix-colors blue,magenta,cyan,green,yellow \"npm run dev -w @connectsphere/planning-core\" \"npm run dev -w @connectsphere/notification\" \"npm run dev -w @connectsphere/registration\" \"npm run dev -w @connectsphere/web\" \"npm run worker -w @connectsphere/planning-core\"",
     "kafka:check": "tsx backend/scripts/kafka-check.ts",
+    "schemas:generate": "tsx backend/scripts/schema-compat.ts generate",
+    "schemas:check": "tsx backend/scripts/schema-compat.ts check",
+    "schemas:compat": "tsx backend/scripts/schema-compat.ts compat",
     "temporal:check": "node --import tsx backend/scripts/temporal-check.ts",
     "migrate": "tsx backend/scripts/migrate.ts",
     "migrate:all": "tsx backend/scripts/migrate.ts all --seed",
