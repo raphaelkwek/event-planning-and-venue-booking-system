@@ -77,6 +77,17 @@ export async function rawRequest(
   };
 }
 
+/**
+ * A refusal that did not come from a service, so has no envelope: the API
+ * gateway's own 401 and 429 (EN-12) are `{"message": "..."}`, in Kong's words,
+ * so the screen says its own: sign in again, or wait.
+ */
+function gatewayRefusal(status: number, correlationId: string | null): ApiErrorEnvelope {
+  if (status === 429) return { code: "RATE_LIMITED", message: "Too many requests. Wait a few seconds and try again.", correlationId };
+  if (status === 401) return { code: "UNAUTHENTICATED", message: "Sign in again to continue.", correlationId };
+  return { code: "UNKNOWN", message: `The server refused this request (${status}).`, correlationId };
+}
+
 /** Sends a request, throwing ApiError on any refusal so screens can render it. */
 export async function request<T>(
   path: string,
@@ -88,11 +99,7 @@ export async function request<T>(
     const envelope = (body as { error?: ApiErrorEnvelope } | null)?.error;
     throw new ApiError(
       status,
-      envelope ?? {
-        code: "UNKNOWN",
-        message: `The server refused this request (${status}).`,
-        correlationId,
-      }
+      envelope ?? gatewayRefusal(status, correlationId)
     );
   }
 

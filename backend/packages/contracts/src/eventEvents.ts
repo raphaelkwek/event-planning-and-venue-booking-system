@@ -257,6 +257,12 @@ export const eventScheduleChangedPayloadSchema = z.object({
 export const eventListingChangedPayloadSchema = z.object({
   ...eventRef,
   ownerId: z.string().uuid(),
+  /**
+   * R5, R7: the event's assigned coordinator, who may see its registrations and
+   * add attendees; null while none is assigned. Written since R5, also on each
+   * change of coordinator (E2 to E4); a message written before then reads null.
+   */
+  assignedCoordinatorId: z.string().uuid().nullable().default(null),
   description: z.string().min(1).nullable(),
   status: eventStatusSchema,
   proposedStartAt: z.string().datetime().nullable(),
@@ -266,6 +272,12 @@ export const eventListingChangedPayloadSchema = z.object({
   registrationClosesAt: z.string().datetime().nullable(),
   /** R4: null when the organiser set none, and withdrawal is then allowed until the event starts. */
   withdrawalDeadlineAt: z.string().datetime().nullable(),
+  /**
+   * EN-19: attendees of a high-demand event queue in the registration service's
+   * waiting room and register with an admission token. A message published
+   * before the flag existed reads as not high-demand.
+   */
+  highDemand: z.boolean().default(false),
   changedAt: z.string().datetime(),
 });
 

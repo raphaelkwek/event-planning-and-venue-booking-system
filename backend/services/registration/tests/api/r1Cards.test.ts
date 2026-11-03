@@ -48,6 +48,7 @@ describe("GET /api/v1/open-events (R1)", () => {
       withdrawalDeadline: DEADLINE,
       placesRemaining: 3,
       isFull: false,
+      highDemand: false,
     });
     const detail = await request(app).get(`/api/v1/open-events/${event.eventId}`).set(asAttendee(me));
     expect(detail.status).toBe(200);
@@ -128,6 +129,7 @@ describe("GET /api/v1/open-events (R1)", () => {
         "description",
         "endsAt",
         "eventId",
+        "highDemand",
         "isFull",
         "name",
         "placesRemaining",

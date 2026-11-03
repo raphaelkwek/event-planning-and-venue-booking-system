@@ -27,9 +27,10 @@ Approved, Planning, Safety Review or Confirmed. The same rules apply as at submi
 required when registration is, the closing is later than the opening, and no later than the event's
 start.
 
-## What isn't built yet
+## The waitlist and manual additions (R6, R7)
 
-- **The waitlist (R6).** A refusal for capacity says a waitlist place can be offered
-  (`details.waitlistOffered: true`), and the event page says so, but joining it arrives with R6.
-- **Manual additions (R7).** R2-T13 needs them. The rule that keeps places remaining at zero, never
-  negative, is in the registration service's domain (`placesRemaining`) and unit-tested.
+- **The waitlist (R6).** A refusal for capacity offers a waitlist place
+  (`details.waitlistOffered: true`), and the event page's "Join the waitlist" takes it (R6-T1).
+- **Manual additions (R7).** R2-T13 is proven with R7-T12: an addition above capacity holds no
+  seat, places remaining stays at zero, and a seat freed by a withdrawal goes to that addition
+  before it becomes a place.

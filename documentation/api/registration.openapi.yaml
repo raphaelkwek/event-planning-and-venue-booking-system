@@ -3,9 +3,11 @@ info:
   title: ConnectSphere registration service
   version: 0.1.0
   description: |
-    The registration service (ADR-0005) is the public edge for attendees. It serves R1 to R4:
+    The registration service (ADR-0005) is the public edge for attendees. It serves R1 to R7:
     an attendee browses the events open for registration, registers, sees their registrations
-    and withdraws. It never reads planning-core's schema: it keeps its own copy of each event's
+    and withdraws, and waits on a full event's waitlist (R6); the owning organiser and the
+    assigned coordinator see an event's registrations and waitlist (R5, R6) and add attendees by
+    hand (R7). It never reads planning-core's schema: it keeps its own copy of each event's
     published fields and registration settings from planning-core's `event.listing-changed` and
     `event.cancelled` messages, and each event's seats and venues from the venue module's
     `venue-booking.request-approved` (EN-13).
@@ -13,11 +15,20 @@ info:
     **Who is calling.** Every route needs `Authorization: Bearer <Supabase JWT>`. Browsing checks
     the token against Supabase's signing keys only, so it keeps working while planning-core is
     down. Registering, withdrawing and my registrations ask identity (planning-core's
-    `GET /api/v1/users/me`) who the caller is, and only role `ATTENDEE` may use them; if identity
-    cannot be reached they are refused with `503`.
+    `GET /api/v1/users/me`) who the caller is, and only role `ATTENDEE` may use them; the
+    waitlist's attendee routes too. The organiser's routes (R5 to R7) admit any other role, then
+    only the event's owner and assigned coordinator. If identity cannot be reached they are
+    refused with `503`.
 
-    **Every route is rate limited** (120 requests a minute per address) before its token is
-    checked. Responses carry `Cache-Control: no-store` (ADR-0014) and `X-Correlation-Id`.
+    **Every route is rate limited** before its token is checked: 120 requests a minute per
+    address, and 240 for the waiting room, which is polled. Responses carry `Cache-Control:
+    no-store` (ADR-0014) and `X-Correlation-Id`, except the two browse routes
+    (`GET /api/v1/open-events` and `/{eventId}`), which carry `public, max-age=5,
+    stale-while-revalidate=30` so a CDN can serve them (EN-12, ADR-0011). They hold published
+    fields only, nothing about the caller.
+
+    **High-demand events (EN-19).** An event whose organiser flagged it high-demand takes
+    registrations only with an admission token from the waiting room (ADR-0011).
 
     Times are RFC 3339 UTC; refusal messages name them in Singapore time. The web app reaches
     this service through the `/registration` proxy prefix. `tests/api/openapiRoutes.unit.test.ts`
@@ -38,6 +49,12 @@ tags:
     description: R1 browse the events open for registration
   - name: Registrations
     description: R2 register, R3 my registrations, R4 withdraw
+  - name: Waitlist
+    description: R6 join, see and leave the waitlist
+  - name: Organiser
+    description: R5 an event's registrations, R6 its waitlist, R7 add an attendee by hand
+  - name: Waiting room
+    description: EN-19 the queue a high-demand event puts attendees in before they can register
 
 security:
   - bearerAuth: []
@@ -194,7 +211,18 @@ paths:
         last place cannot both get it. Accepted from the opening instant up to and including the
         closing instant. A refusal stores nothing and leaves places remaining unchanged.
         Attendees only.
+
+        **High-demand events (EN-19).** For an event whose organiser flagged it high-demand,
+        `X-Admission-Token` must carry the token the waiting room gave the attendee: signed, for
+        this event and this attendee, not expired, not used. It is spent by the registration it
+        admits. Without a good one the answer is `403` and nothing is stored.
       operationId: register
+      parameters:
+        - name: X-Admission-Token
+          in: header
+          required: false
+          schema: { type: string }
+          description: "EN-19: the admission token from `GET /api/v1/waiting-room/entries/{entryId}`. Required for a high-demand event, ignored for any other."
       requestBody:
         required: true
         content:
@@ -213,7 +241,15 @@ paths:
               schema: { $ref: "#/components/schemas/Registration" }
         "400": { $ref: "#/components/responses/ValidationFailed" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
-        "403": { $ref: "#/components/responses/NotAnAttendee" }
+        "403":
+          description: |
+            `ROLE_NOT_AUTHORISED` or `NO_ROLE_ASSIGNED`: only attendees register. For a high-demand
+            event: `ADMISSION_REQUIRED` (no token, or one that is malformed, forged, for another event
+            or attendee, or already used; `details.waitingRoom` is true) or `ADMISSION_EXPIRED` (the
+            token was good and its time is up: join the waiting room again).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
         "404":
           description: "`EVENT_NOT_FOUND`: no event open for registration has that id (not Confirmed, registration not enabled, cancelled, or unknown)."
           content:
@@ -233,7 +269,11 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
         "429": { $ref: "#/components/responses/RateLimited" }
-        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+        "503":
+          description: "`IDENTITY_UNAVAILABLE`: identity could not be asked who the caller is; or `WAITING_ROOM_UNAVAILABLE`: the event is high-demand and the service has no key to check admission tokens with. Nothing was changed."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
 
   /api/v1/registrations/{id}:
     parameters:
@@ -289,6 +329,351 @@ paths:
         "429": { $ref: "#/components/responses/RateLimited" }
         "503": { $ref: "#/components/responses/IdentityUnavailable" }
 
+  /api/v1/events/{eventId}/waitlist:
+    parameters:
+      - $ref: "#/components/parameters/EventId"
+    post:
+      tags: [Waitlist]
+      summary: Join the event's waitlist (R6)
+      description: |
+        Offered where registering was refused for capacity. Only while the event takes
+        registrations, its window is open and no place remains, never while the attendee holds a
+        registration for it, and once. Joining stores the attendee, the event, status
+        `WAITLISTED` and the time. Promotion is not automatic: when a place opens the attendee is
+        told, and registers through `POST /api/v1/registrations` like anyone else, first come first
+        served; registering ends the entry (status `REGISTERED`). Attendees only.
+      operationId: joinWaitlist
+      responses:
+        "201":
+          description: On the waitlist, with its place in the line.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WaitlistEntry" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/NotAnAttendee" }
+        "404":
+          description: "`EVENT_NOT_FOUND`: no event open for registration has that id."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "409":
+          description: |
+            `WAITLIST_PLACES_AVAILABLE`: places remain, so register instead (`details.placesRemaining`).
+            `REGISTRATION_DUPLICATE`: the attendee holds a registration, which the message and
+            `details.registrationReference` name. `WAITLIST_DUPLICATE`: already waiting; the message
+            and `details.waitlistReference` name the entry.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "422":
+          description: "`REGISTRATION_OUTSIDE_WINDOW`: registration is not open, so there is nothing to wait for."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+    get:
+      tags: [Organiser]
+      summary: The event's waitlist, in order (R6)
+      description: |
+        Every entry in the order it was joined, whatever its status, each waiting one with its place
+        in the line. The owning organiser and the assigned coordinator only; anyone else is answered
+        `404`, as for an unknown event. Names come from identity; if it can't be asked, the list
+        comes back without them and `namesAvailable` is false.
+      operationId: listEventWaitlist
+      parameters:
+        - $ref: "#/components/parameters/StaffLimit"
+        - $ref: "#/components/parameters/Cursor"
+      responses:
+        "200":
+          description: A page of the waitlist.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [event, waiting, items, nextCursor, namesAvailable]
+                properties:
+                  event: { $ref: "#/components/schemas/ManagedEvent" }
+                  waiting: { type: integer, minimum: 0 }
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/ManagedWaitlistEntry" }
+                  nextCursor: { type: [string, "null"] }
+                  namesAvailable: { type: boolean }
+        "400": { $ref: "#/components/responses/ValidationFailed" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/NotStaff" }
+        "404": { $ref: "#/components/responses/NotManaged" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
+  /api/v1/waitlist-entries:
+    get:
+      tags: [Waitlist]
+      summary: My waitlist entries (R6)
+      description: The signed-in attendee's own entries, newest first, whatever their status. Attendees only.
+      operationId: listMyWaitlistEntries
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
+      responses:
+        "200":
+          description: A page of my entries.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, nextCursor]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/WaitlistEntry" }
+                  nextCursor: { type: [string, "null"] }
+        "400": { $ref: "#/components/responses/ValidationFailed" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/NotAnAttendee" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
+  /api/v1/waitlist-entries/{id}/withdrawal:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [Waitlist]
+      summary: Leave the waitlist (R6)
+      description: At any time while waiting. The entry is kept with status `WITHDRAWN`, and later openings don't reach it. Attendees only, their own entries only.
+      operationId: leaveWaitlist
+      responses:
+        "200":
+          description: Left.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WaitlistEntry" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/NotAnAttendee" }
+        "404":
+          description: "`WAITLIST_ENTRY_NOT_FOUND`: no entry with that id is the caller's. Another attendee's answers the same."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "409":
+          description: "`WAITLIST_ENTRY_NOT_ACTIVE`: it is no longer waiting (left, cancelled, or ended by registering); `details.status` says which."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
+  /api/v1/events/{eventId}/registrations:
+    parameters:
+      - $ref: "#/components/parameters/EventId"
+    get:
+      tags: [Organiser]
+      summary: The registrations for an event I manage (R5)
+      description: |
+        Every registration in the order it was made, whatever its status, with the attendee's name,
+        the time and the status; a manual addition (R7) says who added it, why, and whether it went
+        over capacity. The totals count the records in each status, and places remaining is R2's.
+        Waitlist entries are counted apart (`waitlist.waiting`), never as registrations. The owning
+        organiser and the assigned coordinator only; anyone else is answered `404`, as for an
+        unknown event, so they receive no registration data. Names come from identity
+        (`GET /api/v1/users`) when the list is read; if it can't be asked, the list comes back
+        without them and `namesAvailable` is false.
+      operationId: listEventRegistrations
+      parameters:
+        - $ref: "#/components/parameters/StaffLimit"
+        - $ref: "#/components/parameters/Cursor"
+      responses:
+        "200":
+          description: A page of the list, and the totals over all of it.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [event, totals, waitlist, items, nextCursor, namesAvailable]
+                properties:
+                  event: { $ref: "#/components/schemas/ManagedEvent" }
+                  totals: { $ref: "#/components/schemas/RegistrationTotals" }
+                  waitlist:
+                    type: object
+                    required: [waiting]
+                    properties:
+                      waiting: { type: integer, minimum: 0 }
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/ManagedRegistration" }
+                  nextCursor: { type: [string, "null"] }
+                  namesAvailable: { type: boolean }
+        "400": { $ref: "#/components/responses/ValidationFailed" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/NotStaff" }
+        "404": { $ref: "#/components/responses/NotManaged" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
+  /api/v1/events/{eventId}/manual-registrations:
+    parameters:
+      - $ref: "#/components/parameters/EventId"
+    post:
+      tags: [Organiser]
+      summary: Add an attendee by hand (R7)
+      description: |
+        The owning organiser or the assigned coordinator adds the attendee whose account has this
+        email. Allowed when no place remains and after the window closes; refused for a cancelled,
+        rejected or completed event and for one with no confirmed venue booking. A free seat is
+        taken when there is one. With none, the addition is above capacity (D-01): it is saved only
+        with `confirmOverCapacity: true`, records `overCapacity`, and holds no seat until a
+        withdrawal hands it one. The capacity is the total of the confirmed bookings' layout
+        capacities (CQ-04). The attendee is told (`registration.added`) and can withdraw under R4.
+      operationId: addAttendee
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [attendeeEmail]
+              properties:
+                attendeeEmail: { type: string, format: email, maxLength: 254 }
+                reason: { type: [string, "null"], maxLength: 500, description: "Optional; blank means none." }
+                confirmOverCapacity: { type: boolean, default: false }
+      responses:
+        "201":
+          description: Added, with the capacity and the number of attendees it made.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ManagedRegistration"
+                  - type: object
+                    required: [capacity, totalAfter]
+                    properties:
+                      capacity: { type: integer, minimum: 0 }
+                      totalAfter: { type: integer, minimum: 1 }
+        "400": { $ref: "#/components/responses/ValidationFailed" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/NotStaff" }
+        "404": { $ref: "#/components/responses/NotManaged" }
+        "409":
+          description: |
+            `REGISTRATION_DUPLICATE`: the attendee already holds a registration, which the message and
+            `details.registrationReference` name. `REGISTRATION_OVER_CAPACITY_UNCONFIRMED`: no seat is
+            free; `details` gives `capacity`, `registered` and `totalAfter`, to show before confirming.
+            `REGISTRATION_EVENT_CLOSED`: the event is cancelled, rejected or completed.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "422":
+          description: |
+            `ATTENDEE_NOT_FOUND`: no active attendee account has that email.
+            `REGISTRATION_NO_CONFIRMED_BOOKING`: the event has no confirmed venue booking, so its
+            capacity is not known yet.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+        "503": { $ref: "#/components/responses/IdentityUnavailable" }
+
+  /api/v1/waiting-room/entries:
+    post:
+      tags: [Waiting room]
+      summary: Join the waiting room of a high-demand event (EN-19)
+      description: |
+        Gives the attendee a place in the event's queue: a slot at which they are admitted. The
+        event admits at most N attendees a second (`WAITING_ROOM_ADMIT_PER_SECOND`, default 100),
+        so the slot is the later of now and one admission interval after the previous joiner's.
+        Joining again while waiting or admitted returns the same place (`200`); after the turn has
+        expired, or the token has been used, it makes a new place at the back (`201`). Attendees
+        only. Limited to 240 requests a minute per address, before authentication.
+      operationId: joinWaitingRoom
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [eventId]
+              additionalProperties: false
+              properties:
+                eventId: { type: string, format: uuid }
+      responses:
+        "200":
+          description: The attendee already had a place; it is returned unchanged.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WaitingRoomPlace" }
+        "201":
+          description: A new place.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WaitingRoomPlace" }
+        "400": { $ref: "#/components/responses/ValidationFailed" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/NotAnAttendee" }
+        "404":
+          description: "`EVENT_NOT_FOUND`: no event open for registration has that id."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "409":
+          description: "`WAITING_ROOM_NOT_REQUIRED`: the event is not high-demand, so it has no waiting room; register for it directly."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "422":
+          description: "`REGISTRATION_OUTSIDE_WINDOW`: registration is not open, so there is nothing to queue for."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "429":
+          description: "`RATE_LIMITED`: more than 240 requests in a minute from one address."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "503":
+          description: "`IDENTITY_UNAVAILABLE`, or `WAITING_ROOM_UNAVAILABLE`: the service has no key to sign admission tokens with."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+
+  /api/v1/waiting-room/entries/{entryId}:
+    parameters:
+      - name: entryId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Waiting room]
+      summary: Where a place in the waiting room stands (EN-19)
+      description: |
+        The place's status, queue position and estimated wait, and, while the attendee is admitted,
+        the admission token to send as `X-Admission-Token` when registering. Poll it about every two
+        seconds. It needs only a valid Supabase token (checked locally, so a rush of polling does not
+        reach identity) and the entry id, which only the attendee who joined was given; the token it
+        returns is bound to that attendee. Limited to 240 requests a minute per address, before
+        authentication.
+      operationId: getWaitingRoomPlace
+      responses:
+        "200":
+          description: The place.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WaitingRoomPlace" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "404":
+          description: "`WAITING_ROOM_ENTRY_NOT_FOUND`: there is no place with that id."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "429":
+          description: "`RATE_LIMITED`: more than 240 requests in a minute from one address."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+
 components:
   securitySchemes:
     bearerAuth:
@@ -306,6 +691,15 @@ components:
       in: query
       description: The `nextCursor` of the previous page.
       schema: { type: string }
+    StaffLimit:
+      name: limit
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 100, default: 100 }
+    EventId:
+      name: eventId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
     RegistrationId:
       name: id
       in: path
@@ -333,6 +727,16 @@ components:
       content:
         application/json:
           schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+    NotStaff:
+      description: "`ROLE_NOT_AUTHORISED`: attendees don't manage events; `NO_ROLE_ASSIGNED`: the user has no role."
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+    NotManaged:
+      description: "`EVENT_NOT_FOUND`: no event the caller owns or coordinates has that id. An event they don't manage answers exactly the same."
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
     RateLimited:
       description: "`RATE_LIMITED`: more than 120 requests in a minute from one address."
       content:
@@ -356,7 +760,7 @@ components:
     OpenEvent:
       description: "R1: only published fields. No review comments, clarifications, notes, booking or equipment records."
       type: object
-      required: [eventId, reference, name, description, startsAt, endsAt, venues, registrationOpensAt, registrationClosesAt, withdrawalDeadline, placesRemaining, isFull]
+      required: [eventId, reference, name, description, startsAt, endsAt, venues, registrationOpensAt, registrationClosesAt, withdrawalDeadline, placesRemaining, isFull, highDemand]
       additionalProperties: false
       properties:
         eventId: { type: string, format: uuid }
@@ -373,6 +777,25 @@ components:
         withdrawalDeadline: { type: [string, "null"], format: date-time, description: "R4: the last instant to withdraw: the organiser's deadline, or the event's start." }
         placesRemaining: { type: integer, minimum: 0, description: "The layout capacity of the confirmed bookings, less the places taken. Never negative (D-01)." }
         isFull: { type: boolean }
+        highDemand: { type: boolean, description: "EN-19: attendees queue in the waiting room and register with an admission token." }
+
+    WaitingRoomPlace:
+      description: "EN-19: an attendee's place in an event's waiting room."
+      type: object
+      required: [entryId, eventId, status, position, estimatedWaitSeconds, admitAt, expiresAt, admissionToken]
+      additionalProperties: false
+      properties:
+        entryId: { type: string, format: uuid }
+        eventId: { type: string, format: uuid }
+        status:
+          type: string
+          enum: [WAITING, ADMITTED, EXPIRED, USED]
+          description: "WAITING until the slot; ADMITTED from the slot until the token expires; EXPIRED after (join again); USED once a registration has spent it."
+        position: { type: integer, minimum: 0, description: "1 for the next to be admitted; 0 once no longer waiting." }
+        estimatedWaitSeconds: { type: integer, minimum: 0, description: "Whole seconds until admission, rounded up; 0 once admitted." }
+        admitAt: { type: string, format: date-time }
+        expiresAt: { type: string, format: date-time, description: "When the admission token stops being accepted: the slot plus the token's life (default 300 s)." }
+        admissionToken: { type: [string, "null"], description: "Present only while ADMITTED." }
 
     Registration:
       type: object
@@ -404,6 +827,100 @@ components:
       type: string
       enum: [REGISTERED, WITHDRAWN, CANCELLED]
 
+    Person:
+      type: object
+      required: [id, name, email]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: [string, "null"], description: "Their display name, or their email when they have none; null when identity couldn't be asked." }
+        email: { type: [string, "null"] }
+
+    ManagedEvent:
+      type: object
+      required: [eventId, reference, name, status, startsAt]
+      properties:
+        eventId: { type: string, format: uuid }
+        reference: { type: string }
+        name: { type: string }
+        status: { type: string }
+        startsAt: { type: [string, "null"], format: date-time }
+
+    RegistrationTotals:
+      type: object
+      required: [registered, withdrawn, cancelled, manuallyAdded, addedOverCapacity, capacity, placesRemaining, overCapacityBy]
+      properties:
+        registered: { type: integer, minimum: 0 }
+        withdrawn: { type: integer, minimum: 0 }
+        cancelled: { type: integer, minimum: 0 }
+        manuallyAdded: { type: integer, minimum: 0, description: "Registered ones added by hand (R7)." }
+        addedOverCapacity: { type: integer, minimum: 0 }
+        capacity: { type: integer, minimum: 0, description: "The total of the confirmed bookings' layout capacities (CQ-04)." }
+        placesRemaining: { type: integer, minimum: 0, description: "As R1 and R2 count it; never negative (D-01)." }
+        overCapacityBy: { type: integer, minimum: 0 }
+
+    ManagedRegistration:
+      type: object
+      required: [id, reference, attendee, status, registeredAt, withdrawnAt, cancelledAt, manualAddition, holdsSeat]
+      properties:
+        id: { type: string, format: uuid }
+        reference: { type: string, pattern: "^REG-\\d{6}$" }
+        attendee: { $ref: "#/components/schemas/Person" }
+        status: { $ref: "#/components/schemas/RegistrationStatus" }
+        registeredAt: { type: string, format: date-time }
+        withdrawnAt: { type: [string, "null"], format: date-time }
+        cancelledAt: { type: [string, "null"], format: date-time }
+        manualAddition:
+          description: "Null for a self-registration (R7)."
+          type: [object, "null"]
+          required: [addedBy, reason, overCapacity]
+          properties:
+            addedBy: { $ref: "#/components/schemas/Person" }
+            reason: { type: [string, "null"] }
+            overCapacity: { type: boolean }
+        holdsSeat: { type: boolean, description: "False only for an addition above capacity still waiting for a seat." }
+
+    WaitlistStatus:
+      type: string
+      enum: [WAITLISTED, REGISTERED, WITHDRAWN, CANCELLED]
+
+    WaitlistEntry:
+      type: object
+      required: [id, reference, status, position, joinedAt, lastNotifiedAt, registeredAt, withdrawnAt, cancelledAt, event]
+      properties:
+        id: { type: string, format: uuid }
+        reference: { type: string, pattern: "^WL-\\d{6}$" }
+        status: { $ref: "#/components/schemas/WaitlistStatus" }
+        position: { type: [integer, "null"], minimum: 1, description: "Its place in the line while waiting; null once it has stopped." }
+        joinedAt: { type: string, format: date-time }
+        lastNotifiedAt: { type: [string, "null"], format: date-time, description: "When it was last told a place opened." }
+        registeredAt: { type: [string, "null"], format: date-time }
+        withdrawnAt: { type: [string, "null"], format: date-time }
+        cancelledAt: { type: [string, "null"], format: date-time }
+        event:
+          type: object
+          required: [eventId, reference, name, startsAt, endsAt]
+          properties:
+            eventId: { type: string, format: uuid }
+            reference: { type: string }
+            name: { type: string }
+            startsAt: { type: [string, "null"], format: date-time }
+            endsAt: { type: [string, "null"], format: date-time }
+
+    ManagedWaitlistEntry:
+      type: object
+      required: [id, reference, status, position, joinedAt, lastNotifiedAt, registeredAt, withdrawnAt, cancelledAt, attendee]
+      properties:
+        id: { type: string, format: uuid }
+        reference: { type: string, pattern: "^WL-\\d{6}$" }
+        status: { $ref: "#/components/schemas/WaitlistStatus" }
+        position: { type: [integer, "null"], minimum: 1 }
+        joinedAt: { type: string, format: date-time }
+        lastNotifiedAt: { type: [string, "null"], format: date-time }
+        registeredAt: { type: [string, "null"], format: date-time }
+        withdrawnAt: { type: [string, "null"], format: date-time }
+        cancelledAt: { type: [string, "null"], format: date-time }
+        attendee: { $ref: "#/components/schemas/Person" }
+
     Readiness:
       type: object
       required: [status, checks]
@@ -420,19 +937,32 @@ components:
       type: string
       description: The codes this service returns, from contracts' ERROR_CODES.
       enum:
+        - ADMISSION_EXPIRED
+        - ADMISSION_REQUIRED
+        - ATTENDEE_NOT_FOUND
         - EVENT_NOT_FOUND
         - IDENTITY_UNAVAILABLE
         - INTERNAL_ERROR
         - NO_ROLE_ASSIGNED
         - RATE_LIMITED
         - REGISTRATION_DUPLICATE
+        - REGISTRATION_EVENT_CLOSED
         - REGISTRATION_FULL
         - REGISTRATION_NOT_ACTIVE
         - REGISTRATION_NOT_FOUND
+        - REGISTRATION_NO_CONFIRMED_BOOKING
         - REGISTRATION_OUTSIDE_WINDOW
+        - REGISTRATION_OVER_CAPACITY_UNCONFIRMED
         - ROLE_NOT_AUTHORISED
         - UNAUTHENTICATED
         - VALIDATION_FAILED
+        - WAITING_ROOM_ENTRY_NOT_FOUND
+        - WAITING_ROOM_NOT_REQUIRED
+        - WAITING_ROOM_UNAVAILABLE
+        - WAITLIST_DUPLICATE
+        - WAITLIST_ENTRY_NOT_ACTIVE
+        - WAITLIST_ENTRY_NOT_FOUND
+        - WAITLIST_PLACES_AVAILABLE
         - WITHDRAWAL_DEADLINE_PASSED
 
     ErrorEnvelope:

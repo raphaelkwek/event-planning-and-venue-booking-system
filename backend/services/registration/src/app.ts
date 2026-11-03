@@ -12,6 +12,7 @@ import { logger } from "./logger.js";
 import { supabaseAuthenticator } from "./api/identity.js";
 import { registrationRateLimiter } from "./api/limiter.js";
 import { registrationRouter } from "./api/routes.js";
+import { waitingRoomRouter } from "./api/waitingRoom.js";
 import { createServiceMetrics } from "@connectsphere/observability";
 import { registerOverAdmissionGauges } from "./overAdmission.js";
 
@@ -22,6 +23,7 @@ import { registerOverAdmissionGauges } from "./overAdmission.js";
 export const app = express();
 // ADR-0016: the web app is on Vercel, another origin; first, so every answer carries the headers.
 app.use(corsFor(parseAllowedOrigins(process.env.CORS_ALLOWED_ORIGINS)));
+if (config.trustProxyHops > 0) app.set("trust proxy", config.trustProxyHops);
 
 // EN-08: first, so every route and every refusal gets a correlation id (the trace id, ADR-0013)
 // and is timed by route pattern (http_request_duration_seconds, the names EN-17's SLOs query).
@@ -39,6 +41,7 @@ app.use(express.json());
 
 // The correlation id (set above: the trace id) travels in the response, the log line and any message the request writes (§9).
 // Attendee data is never cached by the browser or a proxy (ADR-0014): logging out leaves nothing to show.
+// The one exception is the published listing in the browse routes, which set their own short public cache for the CDN (EN-12).
 app.use((req, res, next) => {
   const correlationId = res.getHeader("x-correlation-id") as string;
   // Taken now, while the request's span is the active one: the 'finish' event may run outside it.
@@ -61,6 +64,7 @@ app.use((req, res, next) => {
 
 app.use(healthRouter(sql, probeBroker));
 app.use(registrationRouter({ sql, auth: supabaseAuthenticator, limiter: registrationRateLimiter(config.rateLimitPerMinute) }));
+app.use(waitingRoomRouter({ sql, auth: supabaseAuthenticator }));
 
 // Last, so that anything a route rejects with or passes to next(error) ends in the envelope.
 app.use(errorHandler);

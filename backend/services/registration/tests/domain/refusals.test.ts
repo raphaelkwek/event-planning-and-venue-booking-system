@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
+  admissionExpiredMessage,
+  admissionRequiredMessage,
   capacityMessage,
   deadlineMessage,
   duplicateMessage,
   eventLabel,
   notActiveMessage,
   singaporeMoment,
+  waitingRoomNotRequiredMessage,
   windowMessage,
 } from "../../src/domain/refusals.js";
 
@@ -67,5 +70,23 @@ describe("the refusal messages", () => {
   it("R4-T4 name the registration and its status when it is not Registered", () => {
     expect(notActiveMessage("REG-000042", "WITHDRAWN")).toBe("Registration REG-000042 is Withdrawn, so it cannot be withdrawn.");
     expect(notActiveMessage("REG-000042", "CANCELLED")).toBe("Registration REG-000042 is Cancelled, so it cannot be withdrawn.");
+  });
+
+  it("EN-19-T4 say a high-demand event needs the waiting room first, naming the event", () => {
+    expect(admissionRequiredMessage(event)).toBe(
+      `${eventLabel(event)} is a high-demand event, so you must join its waiting room and be admitted before you can register. Nothing was changed.`,
+    );
+  });
+
+  it("EN-19-T8 say the attendee's turn has passed and to join again", () => {
+    expect(admissionExpiredMessage(event)).toBe(
+      `Your turn to register for ${eventLabel(event)} has passed. Join the waiting room again for a new place in the queue. Nothing was changed.`,
+    );
+  });
+
+  it("EN-19-T10 say an event that is not high-demand has no waiting room", () => {
+    expect(waitingRoomNotRequiredMessage(event)).toBe(
+      `${eventLabel(event)} is not a high-demand event, so it has no waiting room. You can register for it directly.`,
+    );
   });
 });

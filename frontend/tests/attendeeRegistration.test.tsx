@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { ApiError } from "../src/api/client.js";
-import type { OpenEvent, RegistrationView } from "../src/api/registration.js";
+import type { OpenEvent, RegistrationView, WaitlistEntryView } from "../src/api/registration.js";
 
 /**
  * R1 to R4 — the attendee surface (implementation.md §7.2) in the web app,
@@ -24,6 +24,7 @@ const symposium: OpenEvent = {
   withdrawalDeadline: "2026-12-14T10:00:00.000Z",
   placesRemaining: 3,
   isFull: false,
+  highDemand: false,
 };
 
 const registration = (over: Partial<RegistrationView> = {}): RegistrationView => ({
@@ -45,6 +46,20 @@ const registration = (over: Partial<RegistrationView> = {}): RegistrationView =>
   ...over,
 });
 
+const entry = (over: Partial<WaitlistEntryView> = {}): WaitlistEntryView => ({
+  id: "w-1",
+  reference: "WL-000007",
+  status: "WAITLISTED",
+  position: 1,
+  joinedAt: "2026-12-05T02:00:00.000Z",
+  lastNotifiedAt: null,
+  registeredAt: null,
+  withdrawnAt: null,
+  cancelledAt: null,
+  event: { eventId: "e-1", reference: "EVT-000123", name: "R Test Symposium", startsAt: symposium.startsAt, endsAt: symposium.endsAt },
+  ...over,
+});
+
 const refusal = (status: number, code: string, message: string, details?: Record<string, unknown>) =>
   new ApiError(status, { code, message, details, correlationId: null });
 
@@ -55,6 +70,9 @@ const api = vi.hoisted(() => ({
   listMyRegistrations: vi.fn(),
   withdrawRegistration: vi.fn(),
   saveRegistrationSettings: vi.fn(),
+  joinWaitlist: vi.fn(),
+  listMyWaitlist: vi.fn(),
+  leaveWaitlist: vi.fn(),
 }));
 vi.mock("../src/api/registration.js", () => api);
 vi.mock("../src/api/notifications.js", async () => {
@@ -77,6 +95,7 @@ beforeEach(() => {
   api.listOpenEvents.mockResolvedValue({ items: [symposium], nextCursor: null });
   api.getOpenEvent.mockResolvedValue(symposium);
   api.listMyRegistrations.mockResolvedValue({ items: [], nextCursor: null });
+  api.listMyWaitlist.mockResolvedValue({ items: [], nextCursor: null });
 });
 afterEach(() => {
   cleanup();
@@ -189,8 +208,35 @@ describe("Register (R2)", () => {
 
     expect(await screen.findByText(message)).toBeTruthy();
     expect(screen.getByText("You were not registered")).toBeTruthy();
-    expect((screen.getByRole("button", { name: "Join waitlist" }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole("button", { name: "Join the waitlist" }) as HTMLButtonElement).disabled).toBe(false);
     expect(api.getOpenEvent).toHaveBeenCalledTimes(2);
+  });
+
+  it("R6-T1 joins the waitlist from the capacity refusal, showing the entry and its place in line", async () => {
+    api.registerFor.mockRejectedValue(refusal(409, "REGISTRATION_FULL", "No places remaining.", { waitlistOffered: true }));
+    api.joinWaitlist.mockResolvedValue(entry());
+    await openAndRegister();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Join the waitlist" }));
+
+    const joined = await screen.findByText("You are on the waitlist");
+    expect(api.joinWaitlist).toHaveBeenCalledWith("token", "e-1");
+    expect(joined.closest("section")!.textContent).toContain("WL-000007: you are number 1 in line for R Test Symposium.");
+    expect(screen.queryByRole("button", { name: "Join the waitlist" })).toBeNull();
+  });
+
+  it("R6-T1 offers the waitlist, not Register, on a full event's page, and shows a refusal to join in the server's words", async () => {
+    api.getOpenEvent.mockResolvedValue({ ...symposium, placesRemaining: 0, isFull: true });
+    const message = "EVT-000123 “R Test Symposium” still has 1 place remaining, so register instead of joining the waitlist.";
+    api.joinWaitlist.mockRejectedValue(refusal(409, "WAITLIST_PLACES_AVAILABLE", message, { placesRemaining: 1 }));
+    signInAs("ATTENDEE", "#/open-events/e-1");
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Join the waitlist" }));
+
+    expect(await screen.findByText(message)).toBeTruthy();
+    expect(screen.getByText("You were not added to the waitlist")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Register" })).toBeNull();
   });
 
   it("R2-T6 R2-T8 shows a duplicate or out-of-window refusal in the server's words, with no waitlist offer", async () => {
@@ -201,7 +247,7 @@ describe("Register (R2)", () => {
       api.registerFor.mockRejectedValue(refusal(code === "REGISTRATION_DUPLICATE" ? 409 : 422, code!, message!));
       await openAndRegister();
       expect(await screen.findByText(message!)).toBeTruthy();
-      expect(screen.queryByRole("button", { name: "Join waitlist" })).toBeNull();
+      expect(screen.queryByRole("button", { name: "Join the waitlist" })).toBeNull();
       cleanup();
     }
   });
@@ -300,6 +346,48 @@ describe("My registrations (R3, R4)", () => {
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     expect(api.withdrawRegistration).not.toHaveBeenCalled();
     expect(within(rowOf("REG-000042")).getByRole("button", { name: "Withdraw" })).toBeTruthy();
+  });
+});
+
+describe("My waitlist entries (R6)", () => {
+  it("R6-T7 R6-T10 shows each entry's status, its place in line while waiting, and an opening it was told of", async () => {
+    api.listMyWaitlist.mockResolvedValue({
+      items: [
+        entry({ lastNotifiedAt: "2026-12-06T02:00:00.000Z" }),
+        entry({ id: "w-2", reference: "WL-000008", status: "REGISTERED", position: null, registeredAt: "2026-12-06T03:00:00.000Z" }),
+        entry({ id: "w-3", reference: "WL-000009", status: "CANCELLED", position: null, cancelledAt: "2026-12-07T02:00:00.000Z" }),
+      ],
+      nextCursor: null,
+    });
+    signInAs("ATTENDEE", "#/my-registrations");
+    render(<App />);
+
+    const list = await screen.findByRole("list", { name: "My waitlist entries" });
+    const items = within(list).getAllByRole("listitem");
+    expect(items[0]!.textContent).toContain("Waitlisted");
+    expect(items[0]!.textContent).toContain("Number 1 in line");
+    expect(items[0]!.textContent).toContain("A place opened on");
+    expect(within(items[0]!).getByRole("link", { name: "Register" }).getAttribute("href")).toBe("#/open-events/e-1");
+    expect(items[1]!.textContent).toContain("Registered");
+    expect(items[2]!.textContent).toContain("Cancelled");
+    expect(within(items[1]!).queryByRole("button", { name: "Leave the waitlist" })).toBeNull();
+  });
+
+  it("R6-T8 asks before leaving the waitlist, then shows the entry as left", async () => {
+    api.listMyWaitlist.mockResolvedValue({ items: [entry()], nextCursor: null });
+    api.leaveWaitlist.mockResolvedValue(entry({ status: "WITHDRAWN", position: null, withdrawnAt: "2026-12-06T02:00:00.000Z" }));
+    signInAs("ATTENDEE", "#/my-registrations");
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Leave the waitlist" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(dialog.textContent).toContain("You will no longer be told when a place opens");
+    expect(api.leaveWaitlist).not.toHaveBeenCalled();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Leave the waitlist" }));
+
+    await waitFor(() => expect(api.leaveWaitlist).toHaveBeenCalledWith("token", "w-1"));
+    const list = await screen.findByRole("list", { name: "My waitlist entries" });
+    await waitFor(() => expect(list.textContent).toContain("Left the waitlist"));
   });
 });
 

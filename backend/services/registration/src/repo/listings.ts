@@ -14,6 +14,8 @@ export interface Listing {
   name: string;
   description: string | null;
   ownerId: string;
+  /** R5, R7: the assigned coordinator, or null while none is (or none was published yet). */
+  assignedCoordinatorId: string | null;
   status: string;
   startsAt: string | null;
   endsAt: string | null;
@@ -21,6 +23,8 @@ export interface Listing {
   registrationOpensAt: string | null;
   registrationClosesAt: string | null;
   withdrawalDeadlineAt: string | null;
+  /** EN-19: registering needs an admission token from the waiting room. */
+  highDemand: boolean;
 }
 
 interface ListingRow {
@@ -29,6 +33,7 @@ interface ListingRow {
   name: string;
   description: string | null;
   owner_id: string;
+  assigned_coordinator_id: string | null;
   status: string;
   starts_at: Date | null;
   ends_at: Date | null;
@@ -36,6 +41,7 @@ interface ListingRow {
   registration_opens_at: Date | null;
   registration_closes_at: Date | null;
   withdrawal_deadline_at: Date | null;
+  high_demand: boolean;
 }
 
 const iso = (value: Date | null) => value?.toISOString() ?? null;
@@ -47,6 +53,7 @@ function toListing(row: ListingRow): Listing {
     name: row.name,
     description: row.description,
     ownerId: row.owner_id,
+    assignedCoordinatorId: row.assigned_coordinator_id,
     status: row.status,
     startsAt: iso(row.starts_at),
     endsAt: iso(row.ends_at),
@@ -54,6 +61,7 @@ function toListing(row: ListingRow): Listing {
     registrationOpensAt: iso(row.registration_opens_at),
     registrationClosesAt: iso(row.registration_closes_at),
     withdrawalDeadlineAt: iso(row.withdrawal_deadline_at),
+    highDemand: row.high_demand,
   };
 }
 
@@ -67,18 +75,20 @@ export async function applyListing(db: Db, data: EventListingChanged): Promise<b
   const sql = db as Sql;
   const rows = await sql`
     insert into registration.event_listings (
-      event_id, event_reference, name, description, owner_id, status, starts_at, ends_at,
-      registration_required, registration_opens_at, registration_closes_at, withdrawal_deadline_at, source_changed_at
+      event_id, event_reference, name, description, owner_id, assigned_coordinator_id, status, starts_at, ends_at,
+      registration_required, registration_opens_at, registration_closes_at, withdrawal_deadline_at, high_demand, source_changed_at
     ) values (
-      ${data.eventId}, ${data.eventReference}, ${data.eventName}, ${data.description}, ${data.ownerId}, ${data.status},
+      ${data.eventId}, ${data.eventReference}, ${data.eventName}, ${data.description}, ${data.ownerId},
+      ${data.assignedCoordinatorId}, ${data.status},
       ${data.proposedStartAt}, ${data.proposedEndAt}, ${data.registrationRequired}, ${data.registrationOpensAt},
-      ${data.registrationClosesAt}, ${data.withdrawalDeadlineAt}, ${data.changedAt}
+      ${data.registrationClosesAt}, ${data.withdrawalDeadlineAt}, ${data.highDemand}, ${data.changedAt}
     )
     on conflict (event_id) do update set
       event_reference = excluded.event_reference,
       name = excluded.name,
       description = excluded.description,
       owner_id = excluded.owner_id,
+      assigned_coordinator_id = excluded.assigned_coordinator_id,
       status = excluded.status,
       starts_at = excluded.starts_at,
       ends_at = excluded.ends_at,
@@ -86,6 +96,7 @@ export async function applyListing(db: Db, data: EventListingChanged): Promise<b
       registration_opens_at = excluded.registration_opens_at,
       registration_closes_at = excluded.registration_closes_at,
       withdrawal_deadline_at = excluded.withdrawal_deadline_at,
+      high_demand = excluded.high_demand,
       source_changed_at = excluded.source_changed_at,
       updated_at = now()
     where registration.event_listings.source_changed_at <= excluded.source_changed_at
@@ -104,9 +115,10 @@ export async function closeListing(db: Db, data: EventCancelled): Promise<void> 
   const sql = db as Sql;
   await sql`
     insert into registration.event_listings (
-      event_id, event_reference, name, owner_id, status, registration_required, source_changed_at
+      event_id, event_reference, name, owner_id, assigned_coordinator_id, status, registration_required, source_changed_at
     ) values (
-      ${data.eventId}, ${data.eventReference}, ${data.eventName}, ${data.ownerId}, 'CANCELLED', false, ${data.cancelledAt}
+      ${data.eventId}, ${data.eventReference}, ${data.eventName}, ${data.ownerId}, ${data.assignedCoordinatorId},
+      'CANCELLED', false, ${data.cancelledAt}
     )
     on conflict (event_id) do update set
       status = 'CANCELLED',
