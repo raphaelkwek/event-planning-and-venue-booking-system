@@ -22,6 +22,6 @@
 |---|---|
 | Actual Result | All three answered 404 EVENT_NOT_FOUND "No event with that reference is assigned to you.". E1, its history, clarifications and every outbox were unchanged. |
 | Status | Pass |
-| Remarks | Commit: a1ceeae, automated (`tests/event/api/a4Cards.test.ts`), on a throwaway Postgres (EN-06) · Evidence: the named test result · Defect: — |
+| Remarks | Automated (API level) · Commit: c944c5e · Evidence: `backend/services/planning-core/tests/event/api/a4Cards.test.ts` › A4 cards (tests/A4) › A4-T4 a coordinator not assigned to an event cannot ask for clarification, approve or reject it (D2, D4, D5), CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41598779764 · Defect: — |
 | Executed By | Shawmya, via automated testing (CI) |
-| Date of Execution | 2026-11-02 |
+| Date of Execution | 2026-11-03 |

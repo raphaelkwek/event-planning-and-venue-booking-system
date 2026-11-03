@@ -22,6 +22,6 @@
 |---|---|
 | Actual Result | C1: E1 in neither list; open and approve answered 404 EVENT_NOT_FOUND "No event with that reference is assigned to you.", E1 stayed Under Review. C2: E1 in both lists, opened with its content, and the approval made it Approved. |
 | Status | Pass |
-| Remarks | Commit: a1ceeae, automated (`tests/event/api/a4Cards.test.ts`), on a throwaway Postgres (EN-06). The automated run writes the reassignment as E4's repo does (the active assignment ends, C2's begins) rather than through the Lead's route, whose coordinator check needs real identity accounts; E4-T1 covers the route. · Evidence: the named test result · Defect: — |
+| Remarks | Automated (API level) · Commit: c944c5e · Evidence: `backend/services/planning-core/tests/event/api/a4Cards.test.ts` › A4 cards (tests/A4) › A4-T10 when the Lead reassigns an event, the previous coordinator loses it at once and the new coordinator gains it, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41598779764. The automated run writes the reassignment as E4's repo does (the active assignment ends, C2's begins) rather than through the Lead's route, whose coordinator check needs real identity accounts; E4-T1 covers the route. · Defect: — |
 | Executed By | Shawmya, via automated testing (CI) |
-| Date of Execution | 2026-11-02 |
+| Date of Execution | 2026-11-03 |

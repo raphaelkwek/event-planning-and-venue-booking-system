@@ -22,6 +22,6 @@
 |---|---|
 | Actual Result | C1's list held exactly E1, E2 and E6, each with C1 as assigned coordinator; no field of E3, E4 or E5 appeared. C2's list held exactly E4. |
 | Status | Pass |
-| Remarks | Commit: a1ceeae, automated (`tests/event/api/a4Cards.test.ts`), on a throwaway Postgres (EN-06) · Evidence: the named test result · Defect: — |
+| Remarks | Automated (API level) · Commit: c944c5e · Evidence: `backend/services/planning-core/tests/event/api/a4Cards.test.ts` › A4 cards (tests/A4) › A4-T1 a coordinator's event list holds only the events assigned to them, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41598779764 · Defect: — |
 | Executed By | Shawmya, via automated testing (CI) |
-| Date of Execution | 2026-11-02 |
+| Date of Execution | 2026-11-03 |

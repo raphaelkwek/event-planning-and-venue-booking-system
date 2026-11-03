@@ -22,6 +22,6 @@
 |---|---|
 | Actual Result | C1's queue held E1 then E6, oldest first, and left out E2, E3 and E4. C2's queue held exactly E4. |
 | Status | Pass |
-| Remarks | Commit: a1ceeae, automated (`tests/event/api/a4Cards.test.ts`), on a throwaway Postgres (EN-06) · Evidence: the named test result · Defect: — |
+| Remarks | Automated (API level) · Commit: c944c5e · Evidence: `backend/services/planning-core/tests/event/api/a4Cards.test.ts` › A4 cards (tests/A4) › A4-T2 a coordinator's review queue (D1) holds only the requests assigned to them, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41598779764 · Defect: — |
 | Executed By | Shawmya, via automated testing (CI) |
-| Date of Execution | 2026-11-02 |
+| Date of Execution | 2026-11-03 |

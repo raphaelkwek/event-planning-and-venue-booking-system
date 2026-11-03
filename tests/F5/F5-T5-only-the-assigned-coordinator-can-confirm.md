@@ -24,6 +24,6 @@
 |---|---|
 | Actual Result | C2 got 404 EVENT_NOT_FOUND "No event with that reference is assigned to you.", and the unknown id the same code and message. ORG, VS, TS and ATT got 403 ROLE_NOT_AUTHORISED. E1, its history, slots, reservations and the outbox were unchanged. |
 | Status | Pass |
-| Remarks | Commit: 6f59d76, automated, on a throwaway Postgres (EN-06) · Evidence: the named test result · Defect: — |
+| Remarks | Automated (API level) · Commit: c944c5e · Evidence: `backend/services/planning-core/tests/change/api/f5Cards.test.ts` › F5 cards (tests/F5) › F5-T5 only the assigned coordinator can confirm; an unknown event is not revealed, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41598779764 · Defect: — |
 | Executed By | Shawmya, via automated testing (CI) |
-| Date of Execution | 2026-11-02 |
+| Date of Execution | 2026-11-03 |

@@ -22,6 +22,6 @@
 |---|---|
 | Actual Result | As C2 every read answered 404 with A4's message and no id of E1, E2, EL1, BR1 or H1 in the body. As C1 every read answered 200. |
 | Status | Pass |
-| Remarks | Commit: a1ceeae, automated (`tests/event/api/a4Cards.test.ts`), on a throwaway Postgres (EN-06) · Evidence: the named test result · Defect: — |
+| Remarks | Automated (API level) · Commit: c944c5e · Evidence: `backend/services/planning-core/tests/event/api/a4Cards.test.ts` › A4 cards (tests/A4) › A4-T13 every read beneath an event not assigned to you returns no data, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41598779764 · Defect: — |
 | Executed By | Shawmya, via automated testing (CI) |
-| Date of Execution | 2026-11-02 |
+| Date of Execution | 2026-11-03 |

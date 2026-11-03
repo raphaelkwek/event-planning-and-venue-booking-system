@@ -21,7 +21,7 @@
 | Item | Content |
 |---|---|
 | Actual Result | |
-| Status | Blocked |
-| Remarks | Blocked: F3 (cancel an event, PR #71) and F4 (release on cancel, PR #72) are not on main yet, so there is no cancel request to send. Automate and run once F3 merges. |
-| Executed By | |
-| Date of Execution | |
+| Status | Pass |
+| Remarks | Automated (API level) · Commit: c944c5e · Evidence: `backend/services/planning-core/tests/event/api/a4Cards.test.ts` › A4 cards (tests/A4) › A4-T15 a coordinator not assigned to an event cannot cancel it (F3), so its arrangements are not released (F4), CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41598779764 · Defect: — |
+| Executed By | Shawmya, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

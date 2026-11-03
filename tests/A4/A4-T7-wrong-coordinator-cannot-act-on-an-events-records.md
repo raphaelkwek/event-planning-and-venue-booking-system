@@ -22,6 +22,6 @@
 |---|---|
 | Actual Result | Every request answered 404 with the record's code and A4's message from the README, and a random id got exactly the same answer. BR1, H1, EL1 and CR1 were unchanged. |
 | Status | Pass |
-| Remarks | Commit: a1ceeae, automated (`tests/event/api/a4Cards.test.ts`), on a throwaway Postgres (EN-06) · Evidence: the named test result · Defect: — |
+| Remarks | Automated (API level) · Commit: c944c5e · Evidence: `backend/services/planning-core/tests/event/api/a4Cards.test.ts` › A4 cards (tests/A4) › A4-T7 a coordinator not assigned to an event cannot act on its booking requests, holds, equipment lines or change requests (L2, L3, L6, O1, S2), CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41598779764 · Defect: — |
 | Executed By | Shawmya, via automated testing (CI) |
-| Date of Execution | 2026-11-02 |
+| Date of Execution | 2026-11-03 |

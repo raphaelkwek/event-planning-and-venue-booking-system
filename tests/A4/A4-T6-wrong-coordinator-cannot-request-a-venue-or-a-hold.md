@@ -22,6 +22,6 @@
 |---|---|
 | Actual Result | All four answered 404 EVENT_NOT_FOUND "No event with that reference is assigned to you.". E2 still had only BR1 and H1, no slot was added, and every outbox was unchanged. |
 | Status | Pass |
-| Remarks | Commit: a1ceeae, automated (`tests/event/api/a4Cards.test.ts`), on a throwaway Postgres (EN-06) · Evidence: the named test result · Defect: — |
+| Remarks | Automated (API level) · Commit: c944c5e · Evidence: `backend/services/planning-core/tests/event/api/a4Cards.test.ts` › A4 cards (tests/A4) › A4-T6 a coordinator not assigned to an event cannot request a venue (L1, L4, L5) or a hold (L3) for it, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41598779764 · Defect: — |
 | Executed By | Shawmya, via automated testing (CI) |
-| Date of Execution | 2026-11-02 |
+| Date of Execution | 2026-11-03 |

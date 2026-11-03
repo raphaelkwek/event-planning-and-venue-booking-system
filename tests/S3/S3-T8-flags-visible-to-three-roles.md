@@ -23,6 +23,6 @@
 |---|---|
 | Actual Result | O and C got 200 with the three flags. C2 got 404 EVENT_NOT_FOUND "No event with that reference is assigned to you."; O2 got 404 EVENT_NOT_FOUND, with nothing of E in the body. C's request for an unknown id got the same code and message as C2. |
 | Status | Pass |
-| Remarks | Commit: 6f59d76, automated, on a throwaway Postgres (EN-06) · Evidence: the named test result · Defect: — |
+| Remarks | Automated (API level) · Commit: c944c5e · Evidence: `backend/services/planning-core/tests/change/api/s3Cards.test.ts` › S3 cards: reconsidering the arrangements an approved change affects › S3-T8 the owner and the assigned coordinator see the flags; another organiser and another coordinator get 404, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41598779764 · Defect: — |
 | Executed By | Shawmya, via automated testing (CI) |
-| Date of Execution | 2026-11-02 |
+| Date of Execution | 2026-11-03 |

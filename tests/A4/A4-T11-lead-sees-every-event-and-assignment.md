@@ -22,6 +22,6 @@
 |---|---|
 | Actual Result | The Lead's list held E1, E2, E3, E4 and E6 and not E5; E4 and E3 opened with 200. The overview showed E1, E2, E6 with C1, E4 with C2 and E3 unassigned. |
 | Status | Pass |
-| Remarks | Commit: a1ceeae, automated (`tests/event/api/a4Cards.test.ts`), on a throwaway Postgres (EN-06) · Evidence: the named test result · Defect: — |
+| Remarks | Automated (API level) · Commit: c944c5e · Evidence: `backend/services/planning-core/tests/event/api/a4Cards.test.ts` › A4 cards (tests/A4) › A4-T11 the Lead sees every event and every assignment (E5), CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41598779764 · Defect: — |
 | Executed By | Shawmya, via automated testing (CI) |
-| Date of Execution | 2026-11-02 |
+| Date of Execution | 2026-11-03 |
