@@ -20,25 +20,27 @@
     "seed:auth": "tsx backend/services/planning-core/migrations/identity/seed/seed-auth-users.ts",
     "test-cases:reset": "tsx tests/fixtures/reset-test-data.ts",
     "test-cases:run": "playwright test --config tests/playwright.config.ts",
+    "test:e2e": "playwright test --config tests/playwright.config.ts",
     "jobs:schedule-hold-expiries": "tsx --env-file=.env backend/services/planning-core/src/temporal/runScheduleHoldExpiries.ts",
     "jobs:complete-events": "tsx --env-file=.env backend/services/planning-core/src/modules/event/jobs/runCompleteEvents.ts",
     "confluence:digest": "tsx documentation/scripts/confluence-digest.ts",
     "submission:build": "tsx documentation/scripts/build-submission.ts",
     "test": "npm run test --workspaces --if-present && npm run test:scripts",
-    "test:scripts": "tsx --test documentation/scripts/confluence-digest.test.ts documentation/scripts/normalise-card-status.test.ts documentation/scripts/check-traceability.test.ts documentation/scripts/repoint-traceability-rows.test.ts",
+    "test:scripts": "tsx --test documentation/scripts/confluence-digest.test.ts documentation/scripts/normalise-card-status.test.ts documentation/scripts/check-traceability.test.ts documentation/scripts/repoint-traceability-rows.test.ts documentation/scripts/traceability-matrix.test.ts documentation/scripts/dora.test.ts documentation/scripts/check-observability.test.ts documentation/scripts/check-docs.test.ts tests/e2e/support/fake-supabase-auth.test.ts .github/scripts/markdown-cell.test.mjs",
     "test:unit": "npm run test:unit --workspaces --if-present && npm run test:scripts",
     "test:mutation": "npm run test:mutation --workspaces --if-present",
     "policies:test": "tsx backend/scripts/cerbos.ts compile policies",
     "build": "npm run build --workspaces --if-present",
-    "typecheck": "npm run typecheck --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present && tsc -p tests/tsconfig.json",
     "lint:boundaries": "npm run lint:boundaries -w @connectsphere/planning-core",
-    "lint:api": "redocly lint documentation/api/planning-core.openapi.yaml documentation/api/notification.openapi.yaml",
+    "lint:api": "redocly lint documentation/api/planning-core.openapi.yaml documentation/api/notification.openapi.yaml documentation/api/registration.openapi.yaml",
     "lint": "eslint frontend backend tests documentation/scripts eslint.config.js && npm run lint:boundaries && npm run lint:api"
   },
   "dependencies": {
     "postgres": "^3.4.4"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.13.0",
     "@eslint/js": "^9.39.5",
     "@playwright/test": "^1.63.0",
     "@redocly/cli": "^2.57.0",
@@ -49,10 +51,12 @@
     "eslint": "^9.39.5",
     "eslint-plugin-react-hooks": "^5.2.0",
     "globals": "^17.13.0",
+    "jose": "^5.6.3",
     "kafkajs": "^2.2.4",
     "tsx": "^4.16.2",
     "typescript": "^5.5.3",
-    "typescript-eslint": "^8.71.0"
+    "typescript-eslint": "^8.71.0",
+    "yaml": "^2.9.1"
   },
   "engines": {
     "node": ">=20"

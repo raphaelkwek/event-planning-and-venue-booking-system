@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | Submission was refused with VALIDATION_FAILED; the field showed “The end date and time must be later than the start date and time.”; no event row was created. |
+| Actual Result | Refused with the end-time message on Proposed end; nothing stored. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
 | Status | Pass |
-| Remarks | Commit: b0ef6ee · Evidence: tests/B2/evidence/B2-T3-2026-09-20.png · Defect: — |
-| Executed By | Joash Lau Rong Wei |
-| Date of Execution | 2026-09-20 |
+| Remarks | Automated, browser E2E in CI (EN-14). Commit: 6080462 · Evidence: tests/e2e/b-event-requests.spec.ts › B2-T3 an end equal to the start is refused, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41513983925 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

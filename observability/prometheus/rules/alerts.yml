@@ -1,0 +1,156 @@
+# EN-17: multi-window, multi-burn-rate alerts (Google SRE Workbook, ch. 5).
+#   Fast: 14.4x the budget over BOTH 1h and 5m -> critical (2% of a 30-day budget in an hour).
+#   Slow: 6x the budget over BOTH 6h and 30m   -> warning  (5% of a 30-day budget in six hours).
+# The short window stops an alert that has already recovered from firing. Annotations are static on
+# purpose: promtool's unit tests compare them exactly. Every alert name has a runbook of the same
+# name in documentation/runbooks/ (checked in CI).
+groups:
+  - name: alerts_registration_latency
+    rules:
+      - alert: RegistrationLatencyBurnFast
+        expr: |
+          sli:registration_latency_slow:ratio_rate1h > 0.72
+          and
+          sli:registration_latency_slow:ratio_rate5m > 0.72
+        labels:
+          severity: critical
+          slo: registration_latency
+        annotations:
+          summary: "Registration requests slower than 800 ms: the registration latency error budget is burning at 14.4x or more."
+          description: "Objective: registration p95 <= 800 ms (95% of requests within 800 ms). At this rate the service spends 2% of the 30-day error budget in an hour (both the 1h and 5m windows are over 14.4 times the budget of 0.05)."
+          runbook_url: "https://github.com/raphaelkwek/event-planning-and-venue-booking-system/blob/main/documentation/runbooks/RegistrationLatencyBurnFast.md"
+          dashboard: "observability/grafana/dashboards/slo-registration.json"
+      - alert: RegistrationLatencyBurnSlow
+        expr: |
+          sli:registration_latency_slow:ratio_rate6h > 0.3
+          and
+          sli:registration_latency_slow:ratio_rate30m > 0.3
+        labels:
+          severity: warning
+          slo: registration_latency
+        annotations:
+          summary: "Registration requests slower than 800 ms: the registration latency error budget is burning at 6x or more."
+          description: "Objective: registration p95 <= 800 ms (95% of requests within 800 ms). At this rate the service spends 5% of the 30-day error budget in six hours (both the 6h and 30m windows are over 6 times the budget of 0.05)."
+          runbook_url: "https://github.com/raphaelkwek/event-planning-and-venue-booking-system/blob/main/documentation/runbooks/RegistrationLatencyBurnSlow.md"
+          dashboard: "observability/grafana/dashboards/slo-registration.json"
+  - name: alerts_staff_api_latency
+    rules:
+      - alert: StaffApiLatencyBurnFast
+        expr: |
+          sli:staff_api_latency_slow:ratio_rate1h > 0.72
+          and
+          sli:staff_api_latency_slow:ratio_rate5m > 0.72
+        labels:
+          severity: critical
+          slo: staff_api_latency
+        annotations:
+          summary: "Staff API requests slower than their objective (reads 400 ms, writes 800 ms): the staff api latency error budget is burning at 14.4x or more."
+          description: "Objective: staff API p95 <= 400 ms for reads and <= 800 ms for writes. At this rate the service spends 2% of the 30-day error budget in an hour (both the 1h and 5m windows are over 14.4 times the budget of 0.05)."
+          runbook_url: "https://github.com/raphaelkwek/event-planning-and-venue-booking-system/blob/main/documentation/runbooks/StaffApiLatencyBurnFast.md"
+          dashboard: "observability/grafana/dashboards/slo-staff-api.json"
+      - alert: StaffApiLatencyBurnSlow
+        expr: |
+          sli:staff_api_latency_slow:ratio_rate6h > 0.3
+          and
+          sli:staff_api_latency_slow:ratio_rate30m > 0.3
+        labels:
+          severity: warning
+          slo: staff_api_latency
+        annotations:
+          summary: "Staff API requests slower than their objective (reads 400 ms, writes 800 ms): the staff api latency error budget is burning at 6x or more."
+          description: "Objective: staff API p95 <= 400 ms for reads and <= 800 ms for writes. At this rate the service spends 5% of the 30-day error budget in six hours (both the 6h and 30m windows are over 6 times the budget of 0.05)."
+          runbook_url: "https://github.com/raphaelkwek/event-planning-and-venue-booking-system/blob/main/documentation/runbooks/StaffApiLatencyBurnSlow.md"
+          dashboard: "observability/grafana/dashboards/slo-staff-api.json"
+  - name: alerts_notification_freshness
+    rules:
+      - alert: NotificationFreshnessBurnFast
+        expr: |
+          sli:notification_freshness_late:ratio_rate1h > 0.144
+          and
+          sli:notification_freshness_late:ratio_rate5m > 0.144
+        labels:
+          severity: critical
+          slo: notification_freshness
+        annotations:
+          summary: "Notifications that took longer than 10 s to become visible: the notification freshness error budget is burning at 14.4x or more."
+          description: "Objective: 99% of notifications visible within 10 s of the commit. At this rate the service spends 2% of the 30-day error budget in an hour (both the 1h and 5m windows are over 14.4 times the budget of 0.01)."
+          runbook_url: "https://github.com/raphaelkwek/event-planning-and-venue-booking-system/blob/main/documentation/runbooks/NotificationFreshnessBurnFast.md"
+          dashboard: "observability/grafana/dashboards/slo-notification-freshness.json"
+      - alert: NotificationFreshnessBurnSlow
+        expr: |
+          sli:notification_freshness_late:ratio_rate6h > 0.06
+          and
+          sli:notification_freshness_late:ratio_rate30m > 0.06
+        labels:
+          severity: warning
+          slo: notification_freshness
+        annotations:
+          summary: "Notifications that took longer than 10 s to become visible: the notification freshness error budget is burning at 6x or more."
+          description: "Objective: 99% of notifications visible within 10 s of the commit. At this rate the service spends 5% of the 30-day error budget in six hours (both the 6h and 30m windows are over 6 times the budget of 0.01)."
+          runbook_url: "https://github.com/raphaelkwek/event-planning-and-venue-booking-system/blob/main/documentation/runbooks/NotificationFreshnessBurnSlow.md"
+          dashboard: "observability/grafana/dashboards/slo-notification-freshness.json"
+  - name: alerts_availability
+    rules:
+      - alert: AvailabilityBurnFast
+        expr: |
+          sli:availability_errors:ratio_rate1h > 0.0144
+          and
+          sli:availability_errors:ratio_rate5m > 0.0144
+        labels:
+          severity: critical
+          slo: availability
+        annotations:
+          summary: "Requests answered with a 5xx: the availability error budget is burning at 14.4x or more."
+          description: "Objective: 99.9% availability (non-5xx responses). At this rate the service spends 2% of the 30-day error budget in an hour (both the 1h and 5m windows are over 14.4 times the budget of 0.001)."
+          runbook_url: "https://github.com/raphaelkwek/event-planning-and-venue-booking-system/blob/main/documentation/runbooks/AvailabilityBurnFast.md"
+          dashboard: "observability/grafana/dashboards/slo-availability.json"
+      - alert: AvailabilityBurnSlow
+        expr: |
+          sli:availability_errors:ratio_rate6h > 0.006
+          and
+          sli:availability_errors:ratio_rate30m > 0.006
+        labels:
+          severity: warning
+          slo: availability
+        annotations:
+          summary: "Requests answered with a 5xx: the availability error budget is burning at 6x or more."
+          description: "Objective: 99.9% availability (non-5xx responses). At this rate the service spends 5% of the 30-day error budget in six hours (both the 6h and 30m windows are over 6 times the budget of 0.001)."
+          runbook_url: "https://github.com/raphaelkwek/event-planning-and-venue-booking-system/blob/main/documentation/runbooks/AvailabilityBurnSlow.md"
+          dashboard: "observability/grafana/dashboards/slo-availability.json"
+  - name: alerts_invariants
+    rules:
+      - alert: RegistrationOverAdmission
+        expr: |
+          registration_over_admission_seats > 0
+        labels:
+          severity: critical
+          slo: over_admission
+        annotations:
+          summary: "Registration found seat rows that break the one-seat-one-holder rule."
+          description: "Objective: zero over-admission. registration_over_admission_seats is above 0, which the schema's constraints should make impossible, so a constraint was dropped, left NOT VALID or bypassed."
+          runbook_url: "https://github.com/raphaelkwek/event-planning-and-venue-booking-system/blob/main/documentation/runbooks/RegistrationOverAdmission.md"
+          dashboard: "observability/grafana/dashboards/slo-over-admission.json"
+      - alert: RegistrationInvariantCheckFailing
+        expr: |
+          registration_invariant_check_success == 0
+        for: 10m
+        labels:
+          severity: warning
+          slo: over_admission
+        annotations:
+          summary: "The over-admission check has not been able to run for 10 minutes."
+          description: "registration_invariant_check_success is 0: the zero over-admission SLI cannot be read, which is not the same as it being zero. Usually the registration database is unreachable."
+          runbook_url: "https://github.com/raphaelkwek/event-planning-and-venue-booking-system/blob/main/documentation/runbooks/RegistrationInvariantCheckFailing.md"
+          dashboard: "observability/grafana/dashboards/slo-over-admission.json"
+      - alert: ServiceMetricsMissing
+        expr: |
+          up{job=~"connectsphere-(planning-core|registration|notification)"} == 0
+        for: 5m
+        labels:
+          severity: warning
+          slo: all
+        annotations:
+          summary: "Prometheus cannot scrape a ConnectSphere service."
+          description: "up is 0 for a ConnectSphere job for 5 minutes, so every SLO for that service is blind. The job label says which service."
+          runbook_url: "https://github.com/raphaelkwek/event-planning-and-venue-booking-system/blob/main/documentation/runbooks/ServiceMetricsMissing.md"
+          dashboard: "observability/grafana/dashboards/slo-availability.json"

@@ -7,7 +7,7 @@
 | `planning-core.openapi.yaml` | Every HTTP route planning-core serves (identity and event modules today) | OpenAPI 3.1, matches the code |
 | `events.asyncapi.yaml` | Kafka topics and message envelopes | Waiting on EN-04.1 (SPM-161), which replaces today's envelope with CloudEvents and topics per aggregate. Write it then, not before |
 | `notification.openapi.yaml` | The notification service: health, and T2's read and mark-as-read routes | OpenAPI 3.1, matches the code (its own route test) |
-| registration spec | The registration service | Written with EN-13 |
+| `registration.openapi.yaml` | The registration service: health, and R1 to R4's attendee routes | OpenAPI 3.1, matches the code (its own route test) |
 
 ## Rules
 

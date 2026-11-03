@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | The row read: EVT-001729 \| Annual Research Symposium \| 12/2/2026, 2:00:00 PM \| 150 \| Organiser One \| 9/20/2026, 3:27:00 PM \| Submitted \| You \| Open |
+| Actual Result | The row showed reference, name, proposed start, attendance 150, "Organiser One", submission time and status Submitted. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
 | Status | Pass |
-| Remarks | Commit: b0ef6ee (working tree modified) · Evidence: tests/D1/evidence/D1-T2.png · Defect: — |
-| Executed By | Chai Yichen |
-| Date of Execution | 2026-09-20 |
+| Remarks | Automated, browser E2E in CI (EN-14). Commit: 6080462 · Evidence: tests/e2e/d-review.spec.ts › D1-T2 each queue row shows the details a coordinator triages on, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41513983925 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

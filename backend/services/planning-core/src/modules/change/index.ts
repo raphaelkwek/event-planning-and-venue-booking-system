@@ -1,11 +1,13 @@
 import { Router } from "express";
 import type { Sql } from "postgres";
+import { safetyReviewRouter } from "./api/safetyReview.js";
 import { arrangementFlagsRouter } from "./api/arrangementFlags.js";
 import { cancellationsRouter } from "./api/cancellations.js";
 import { changeImpactRouter } from "./api/changeImpact.js";
 import { changeRequestsRouter } from "./api/changeRequests.js";
 import { confirmationsRouter } from "./api/confirmations.js";
 import { decisionsRouter } from "./api/decisions.js";
+import { featureFlagsRouter } from "./api/featureFlags.js";
 import { changeRateLimiter } from "./api/limiter.js";
 
 /** The module's outbox table, for the outbox relay (implementation.md §3.4). */
@@ -29,7 +31,9 @@ export function changeRouter(sql: Sql): Router {
   router.use(decisionsRouter(sql, limiter));
   router.use(confirmationsRouter(sql, limiter));
   router.use(arrangementFlagsRouter(sql, limiter));
+  router.use(safetyReviewRouter(sql, limiter));
   router.use(cancellationsRouter(sql, limiter));
   router.use(changeImpactRouter(sql, limiter));
+  router.use(featureFlagsRouter(limiter));
   return router;
 }
