@@ -5,6 +5,7 @@ describe("accessScopeSchema", () => {
   it.each([
     { scopeType: "OWNED_BY_USER", userId: "00000000-0000-0000-0000-000000000001" },
     { scopeType: "ALL" },
+    { scopeType: "ASSIGNED_TO_USER", userId: "00000000-0000-0000-0000-000000000002" },
     { scopeType: "STAFF_OWNED_VENUES", staffUserId: "00000000-0000-0000-0000-000000000002" },
     { scopeType: "STAFF_OWNED_EQUIPMENT", staffUserId: "00000000-0000-0000-0000-000000000003" },
     { scopeType: "PUBLISHED_OPEN_REGISTRATION" },
@@ -19,6 +20,10 @@ describe("accessScopeSchema", () => {
 
   it("rejects OWNED_BY_USER without a userId", () => {
     expect(() => accessScopeSchema.parse({ scopeType: "OWNED_BY_USER" })).toThrow();
+  });
+
+  it("rejects ASSIGNED_TO_USER without a userId (A4)", () => {
+    expect(() => accessScopeSchema.parse({ scopeType: "ASSIGNED_TO_USER" })).toThrow();
   });
 });
 

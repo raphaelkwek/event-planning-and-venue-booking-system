@@ -1,8 +1,10 @@
 import { Router, type NextFunction, type RequestHandler, type Response } from "express";
 import type { Sql } from "postgres";
+import type { Role } from "@connectsphere/contracts";
+import { notInScopeMessage } from "../../identity/index.js";
 import { authenticate, requireRole, type ActorRequest } from "../auth/actor.js";
 import { alreadyDecidedMessage, validateDecisionBody } from "../domain/changeRequests.js";
-import type { AppliedChangeImpact } from "../repo/changeImpact.js";
+import type { ChangeImpact } from "../domain/changeImpact.js";
 import { isEnabled } from "../../../shared/flags/index.js";
 import { decideChangeRequest } from "../repo/decisions.js";
 import { refuse } from "./errors.js";
@@ -21,9 +23,9 @@ const APPROVAL_PAUSED = "Approving change requests is switched off right now (fe
  * S3 — what an approval's response says about the arrangements (AC1–AC4): each confirmed booking,
  * held hold, pending booking request and reservation, the registration count, and each flag set.
  * Staff ids and who reserved equipment stay out: they are for the notification service, not the
- * screen.
+ * screen. G2's preview answers in the same shape, its flags being the ones approval would set.
  */
-export function impactBody(impact: AppliedChangeImpact) {
+export function impactBody(impact: ChangeImpact) {
   const bookingById = new Map(impact.bookings.map((booking) => [booking.id, booking]));
   const reservationById = new Map(impact.reservations.map((reservation) => [reservation.id, reservation]));
   return {
@@ -63,8 +65,8 @@ export function impactBody(impact: AppliedChangeImpact) {
   };
 }
 
-function notFound(res: Response) {
-  refuse(res, 404, "CHANGE_REQUEST_NOT_FOUND", "No change request with that id exists.");
+function notFound(res: Response, role: Role) {
+  refuse(res, 404, "CHANGE_REQUEST_NOT_FOUND", notInScopeMessage(role, "No change request with that id exists.", "change request"));
 }
 
 export function decisionsRouter(sql: Sql, limiter: RequestHandler = changeRateLimiter()) {
@@ -73,7 +75,7 @@ export function decisionsRouter(sql: Sql, limiter: RequestHandler = changeRateLi
   router.post(PATH, limiter, authenticate, requireRole(COORDINATOR), async (req: ActorRequest, res: Response, next: NextFunction) => {
     try {
       const requestId = req.params.id!;
-      if (!UUID.test(requestId)) return notFound(res);
+      if (!UUID.test(requestId)) return notFound(res, req.actor!.role);
       const actor = req.actor!;
 
       const body = validateDecisionBody(req.body);
@@ -102,9 +104,7 @@ export function decisionsRouter(sql: Sql, limiter: RequestHandler = changeRateLi
       }
       switch (outcome.code) {
         case "NOT_FOUND":
-          return notFound(res);
-        case "NOT_ASSIGNED":
-          return void refuse(res, 403, "ROLE_NOT_AUTHORISED", "Only the event's assigned coordinator can decide this change request.");
+          return notFound(res, actor.role);
         case "ALREADY_DECIDED":
           return void refuse(
             res,

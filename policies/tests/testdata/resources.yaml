@@ -30,7 +30,6 @@ resources:
       ownerId: org-1
       assignedCoordinatorId: coord-1
       venueStaffIds: [vs-1]
-      heldById: coord-1
   line_projectors:
     kind: equipment_request_line
     id: line-1
