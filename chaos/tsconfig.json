@@ -1,0 +1,8 @@
+{
+  "extends": "../backend/tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "types": ["node"]
+  },
+  "include": ["support", "experiments"]
+}
