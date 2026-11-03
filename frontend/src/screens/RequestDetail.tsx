@@ -65,17 +65,22 @@ export function RequestDetail() {
     setLoading(true);
     setError(null);
     try {
-      setEvent(await openEvent(session.token, id));
-      setClarifications((await listClarifications(session.token, id)).items);
-      setProposals((await listReassignmentProposals(session.token, id)).items);
-      // A failure here is shown beside the notice's place; it does not hide the page.
-      try {
-        setChangeRequests((await listChangeRequests(session.token, id)).items);
-        setChangesFailed(false);
-      } catch {
-        setChangeRequests([]);
-        setChangesFailed(true);
-      }
+      // The event first, then the three lists that follow it together: none depends on another (L11).
+      const opened = await openEvent(session.token, id);
+      // A failure of the change requests is shown beside the notice's place; it does not hide the page.
+      const [clarificationList, proposalList, changes] = await Promise.all([
+        listClarifications(session.token, id),
+        listReassignmentProposals(session.token, id),
+        listChangeRequests(session.token, id).then(
+          (list) => list.items,
+          () => null
+        ),
+      ]);
+      setEvent(opened);
+      setClarifications(clarificationList.items);
+      setProposals(proposalList.items);
+      setChangeRequests(changes ?? []);
+      setChangesFailed(changes === null);
     } catch (caught) {
       setError(caught);
     } finally {

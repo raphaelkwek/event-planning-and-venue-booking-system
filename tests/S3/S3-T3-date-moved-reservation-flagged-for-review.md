@@ -10,7 +10,7 @@
 | Test Steps | 1. As C, send `POST /api/v1/change-requests/<CR>/decision` with `{"decision":"APPROVE"}`.<br>2. As C, send `GET /api/v1/events/<E>/arrangement-flags`.<br>3. Read R1 through the equipment module's reservation read (or the repository) for its status, quantity and period.<br>4. Run `npm test -w @connectsphere/planning-core -- tests/change/api/s3Cards.test.ts -t 'S3-T3 '` (or the whole suite) and read the named `S3-T3 ` result. |
 | Test Data | `{"decision":"APPROVE"}`; CR proposes `proposedStartAt` `D 15:00` (event E moves from `D 14:00`–`D 18:00` to `D 15:00`–`D 18:00`), nothing else. |
 | Expected Result | Step 1 answers HTTP 200. Step 2 lists, among its flags, one for R1 with flag `FLAGGED_FOR_REVIEW` and the reason `The reservation is for <old period>, but the event is now <new period>.` Both periods are written in Singapore time, where the venues are, as the implementation's `formatPeriod` does: for example `D 14:00`–`D 18:00` UTC on 2 December 2026 reads `Wednesday 2 December 2026 22:00 to Thursday 3 December 2026 02:00`, and `D 15:00`–`D 18:00` reads `Wednesday 2 December 2026 23:00 to Thursday 3 December 2026 02:00`. In step 3, R1 is still RESERVED, its quantity is unchanged and its period is still `D 14:00`–`D 18:00`. |
-| Created By | Raphael, via Claude |
+| Created By | Raphael |
 | Date of Creation | 2026-10-28 |
 
 > **Expected results are checked by the PR reviewer** against S3's acceptance criteria.

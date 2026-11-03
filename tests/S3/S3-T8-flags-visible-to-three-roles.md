@@ -10,7 +10,7 @@
 | Test Steps | 1. As O, send `GET /api/v1/events/<E>/arrangement-flags`.<br>2. As C, send the same request.<br>3. As C2 (an Event Coordinator not assigned to E), send the same request.<br>4. As O2 (an organiser who does not own E), send the same request.<br>5. Send the same request as C for an event id that does not exist.<br>6. Run `npm test -w @connectsphere/planning-core -- tests/change/api/s3Cards.test.ts -t 'S3-T8 '` (or the whole suite) and read the named `S3-T8 ` result. |
 | Test Data | Actors O `organiser@connectsphere.test`, C `coordinator@connectsphere.test`, C2 `coordinator2@connectsphere.test`, O2 `organiser2@connectsphere.test`. |
 | Expected Result | Steps 1 and 2 answer HTTP 200 with the same three flags: for each, the arrangement type (booking or reservation), its reference, the venue or equipment name, the flag and the reason. Step 3 answers HTTP 404 `EVENT_NOT_FOUND`, "No event with that reference is assigned to you.". Step 4 answers HTTP 404 `EVENT_NOT_FOUND`. Neither body reveals that E or its flags exist. Step 5 answers HTTP 404 with the same code and message as step 3. |
-| Created By | Raphael, via Claude |
+| Created By | Raphael |
 | Date of Creation | 2026-10-28 |
 
 > **Expected results are checked by the PR reviewer** against S3's acceptance criteria.

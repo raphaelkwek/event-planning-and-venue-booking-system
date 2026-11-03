@@ -507,7 +507,7 @@ OpenAPI spec, A4's cards and traceability. Review fixes on PR #81; no migration.
 # F3: Cancel an event
 
 **Timestamp:** 2026-10-29T19:10+08:00 (SGT)
-**Author:** Raphael, via Claude
+**Author:** Raphael
 **Scope:** F3 (SPM-29, Sprint 4) and the customer's Week 9 answer W9-07. F4 (SPM-111) is stacked on this branch and adds the releases to
 the same transaction; the two should merge together (Gate B: "cancellation is one command with F4").
 - planning-core, event module: migrations `0012_event_cancellation.sql` and `0013_validate_event_cancellation.sql` (the reason, canceller and
@@ -532,7 +532,7 @@ the same transaction; the two should merge together (Gate B: "cancellation is on
 # G2: preview which arrangements a pending change would affect (SPM-31)
 
 **Timestamp:** 2026-10-29T12:00+08:00 (SGT)
-**Author:** Raphael, via Claude
+**Author:** Raphael
 **Scope:** planning-core (change, venue, equipment modules), web app. No migrations; needs S3's
 (venue/0019, equipment/0009).
 
@@ -718,7 +718,7 @@ equipment modules), Cerbos policies, web app (All events), functional test cases
 # S3: flag the arrangements an approved change affects (SPM-59)
 
 **Timestamp:** 2026-10-28T12:00+08:00 (SGT)
-**Author:** Raphael, via Claude
+**Author:** Raphael
 **Scope:** planning-core (change, venue, equipment, event modules), contracts, notification service,
 web app; migrations venue/0019 and equipment/0009.
 

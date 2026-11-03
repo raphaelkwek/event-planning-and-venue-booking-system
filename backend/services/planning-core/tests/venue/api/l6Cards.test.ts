@@ -445,6 +445,29 @@ describe("hold expiry (L6)", () => {
     expect(messages[0]!.data).toMatchObject({ holdId: h1.id, expiresAt: dayBefore("18:00"), reminderLeadMinutes: 60 });
   });
 
+  it("L6-T13 tells the holding coordinator what the new expiry is, in the message the change writes (W9-40)", async () => {
+    const venueId = await newVenue(VENUE_NAME, A.vs);
+    const e1 = await newEvent(A.c1);
+    const h1 = await heldHold({ eventId: e1.id, venueId, expiresAt: dayBefore("12:00"), lead: 60 });
+
+    asVs();
+    expect((await patchExpiry(h1.id, { expiresAt: dayBefore("18:00") })).status).toBe(200);
+
+    const [message] = await messagesOf(h1.id, "venue-booking.hold-expiry-changed");
+    expect(message!.data).toMatchObject({
+      holdId: h1.id,
+      holdReference: h1.reference,
+      venueId,
+      venueName: VENUE_NAME,
+      eventId: e1.id,
+      eventReference: e1.reference,
+      coordinatorId: A.c1,
+      expiresAt: dayBefore("18:00"),
+      previousExpiresAt: dayBefore("12:00"),
+      changedBy: A.vs,
+    });
+  });
+
   it("L6-T9 refuses a bad or unauthorised expiry change and stores nothing", async () => {
     const v = await newVenue(VENUE_NAME, A.vs);
     const v2 = await newVenue("L6 Other Hall", VS2_ID);

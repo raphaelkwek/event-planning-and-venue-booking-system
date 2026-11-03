@@ -1,0 +1,19 @@
+story_id,acceptance_criterion,test_file,test_name
+EN-18,k6 spike test (500 req/s for 100 seats gives exactly 100 registered),.github/workflows/load-chaos.yml,job: Load (k6 smoke and 500 req/s spike): step Spike (EN-18-T1)
+EN-18,k6 spike test (500 req/s for 100 seats gives exactly 100 registered),load/tests/evaluate.unit.test.ts,"evaluateSpike passes a clean spike: 100 registered, the rest refused full, and says whether the rate was held (EN-18-T1)"
+EN-18,k6 spike test (500 req/s for 100 seats gives exactly 100 registered),load/tests/evaluate.unit.test.ts,"seatChecks fails on over-admission, a seat claimed twice, an attendee registered twice, a seat claimed with no registration (EN-18-T1, T2)"
+EN-18,k6 spike test: 0 over-admission and the rest refused (REGISTRATION_FULL),load/tests/evaluate.unit.test.ts,"evaluateSpike fails when any attempt was rate-limited, errored or timed out instead of refused full (EN-18-T2)"
+EN-18,k6 spike test: 0 over-admission and the rest refused (REGISTRATION_FULL),.github/workflows/load-chaos.yml,job: Load (k6 smoke and 500 req/s spike): step Spike (EN-18-T2)
+EN-18,"Registration submit latency p95 of 800 ms or less at 500 req/s, recorded at the rate the runner achieved",.github/workflows/load-chaos.yml,"job: Load (k6 smoke and 500 req/s spike): step Spike, result.md (EN-18-T3)"
+EN-18,"Registration submit latency p95 of 800 ms or less at 500 req/s, recorded at the rate the runner achieved",load/tests/evaluate.unit.test.ts,"evaluateSpike reports a rate that was not sustained, without failing the invariants (EN-18-T3)"
+EN-18,"Soak and stress tests, with a small smoke run on pull requests",.github/workflows/load-chaos.yml,job: Load (k6 smoke and 500 req/s spike): step Smoke (EN-18-T4)
+EN-18,"Soak test, shorter in CI, run by workflow_dispatch",.github/workflows/load-chaos.yml,job: Load (k6 soak) (EN-18-T5)
+EN-18,"Soak test, shorter in CI, run by workflow_dispatch",load/tests/evaluate.unit.test.ts,"evaluateSoak fails on a ghost seat, a missing withdrawal, slow reads, a failed read or runaway memory (EN-18-T5)"
+EN-18,"Stress test (ramp to breaking), run by workflow_dispatch",.github/workflows/load-chaos.yml,"job: Load (k6 stress, ramp to breaking) (EN-18-T6)"
+EN-18,"Stress test (ramp to breaking), run by workflow_dispatch",load/tests/evaluate.unit.test.ts,evaluateStress names the highest step that held before the first that broke (EN-18-T6)
+EN-18,"Autoscaling tuned (CPU targets, minimum, maximum), with the reasoning documented",load/tests/sizing.unit.test.ts,sizeAutoscaling bounds the maximum by the connection budget: pods x pool at most 80% of the pooler (EN-18-T7)
+EN-18,"Autoscaling tuned (CPU targets, minimum, maximum), with the reasoning documented",load/tests/autoscaling.unit.test.ts,the committed HorizontalPodAutoscaler patch follows from the sizing inputs (EN-18-T7)
+EN-18,"Autoscaling tuned (CPU targets, minimum, maximum), with the reasoning documented",.github/workflows/load-chaos.yml,"job: Manifests (kubeconform, Chaos Mesh, autoscaling): step Render the autoscaling component and validate the result (EN-18-T7)"
+EN-18,Results committed as evidence,documentation/evidence/EN-18/README.md,write-up with the k6 summaries and the run URLs (EN-18-T8)
+EN-18,The registration pool size and the interim rate limit are settings that keep their old defaults,backend/services/registration/tests/config.unit.test.ts,"positiveIntFromEnv reads a positive whole number, ignoring surrounding spaces (EN-18)"
+EN-18,The registration pool size and the interim rate limit are settings that keep their old defaults,backend/services/registration/tests/config.unit.test.ts,registrationRateLimiter keeps 120 a minute when it is given no number (EN-18)

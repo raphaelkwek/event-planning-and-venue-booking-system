@@ -10,7 +10,7 @@
 | Test Steps | 1. As C, send `POST /api/v1/change-requests/<CR>/decision` with `{"decision":"APPROVE"}`.<br>2. As C, send `GET /api/v1/events/<E>` and read the status and history.<br>3. As C, send `GET /api/v1/events/<E>/arrangement-flags`.<br>4. Run `npm test -w @connectsphere/planning-core -- tests/change/api/s3Cards.test.ts -t 'S3-T7 '` (or the whole suite) and read the named `S3-T7 ` result. |
 | Test Data | `{"decision":"APPROVE"}`; CR proposes `proposedStartAt` `D 15:00` (event E moves from `D 14:00`–`D 18:00` to `D 15:00`–`D 18:00`), nothing else. |
 | Expected Result | Step 1 answers HTTP 200. In step 2 E's status is `PLANNING`, and its history has a status-change entry `CONFIRMED` → `PLANNING` with transition `RECONSIDER_AFTER_CHANGE` by C, as well as the `proposedStartAt` FIELD_CHANGE. Step 3 still lists the flags on B1, B2 and R1. As a follow-up, `POST /api/v1/events/<E>/confirmation` (F5) as C answers 422 `ARRANGEMENTS_NOT_READY` while the flags exist (see S3-T9). |
-| Created By | Raphael, via Claude |
+| Created By | Raphael |
 | Date of Creation | 2026-10-28 |
 
 > **Expected results are checked by the PR reviewer** against S3's acceptance criteria.

@@ -1,6 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import request from "supertest";
+import { parseCloudEvent } from "@connectsphere/contracts";
+import { notificationsFor } from "../../../../notification/src/domain/recipients.js";
 import { testDb } from "../../support/testDb.js";
 import { actorsWithPrefix, cleanLineFixtures, createBulkType, insertLineDirect } from "../../support/lineFixtures.js";
 import { seedEvent, setStatusDirect } from "../../support/seedEvent.js";
@@ -204,8 +206,22 @@ describe("F4 cards (tests/F4)", () => {
     expect(after.requests).toEqual([expect.objectContaining({ id: p.id, status: "WITHDRAWN", withdrawn_by: A.org })]);
   });
 
-  it("F4-T2 the venue's period is free again: I1's calendar no longer shows it, and a new booking for it can be stored", async () => {
+  it("F4-T2 the venue's period is free again: I1's calendar no longer shows it, J1's search offers it, and a new booking for it can be stored", async () => {
     const { event, v1 } = await fixture();
+    // J1 offers a venue only for a window inside its opening hours, so V1 is open around the clock here.
+    const allDay = { opensAt: "00:00", closesAt: "24:00" };
+    const week = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
+    await sql`update venue.venues set operating_hours = ${sql.json(Object.fromEntries(week.map((d) => [d, allDay])))} where id = ${v1.id}`;
+    const offered = async () => {
+      signedInAs(A.c2, "EVENT_COORDINATOR");
+      const search = await request(app)
+        .get("/api/v1/venues/search")
+        .query({ q: v1.name, from: EVENT_START, to: EVENT_END })
+        .set(bearer);
+      expect(search.status, search.text).toBe(200);
+      return (search.body.items as { id: string }[]).map((item) => item.id);
+    };
+    expect(await offered()).not.toContain(v1.id);
     signedInAs(A.vs, "VENUE_STAFF");
     const next = new Date(Date.parse(`${day}T00:00:00Z`) + 86_400_000).toISOString().slice(0, 10);
     const references = async () => {
@@ -221,6 +237,7 @@ describe("F4 cards (tests/F4)", () => {
     expect((await cancel(event.id)).status).toBe(200);
     signedInAs(A.vs, "VENUE_STAFF");
     expect(await references()).not.toContain(event.reference);
+    expect(await offered()).toEqual([v1.id]);
 
     const other = await seedEvent(sql, { ownerId: A.org2, status: "PLANNING", endsAt: new Date(EVENT_END), name: "F4-T2 next event" });
     await expect(slot(v1.id, other, "CONFIRMED", ref("BKR"))).resolves.toBeTruthy();
@@ -362,5 +379,112 @@ describe("F4 lock order: a block and a cancellation racing on one event and venu
     } finally {
       await watcher.end();
     }
+  });
+});
+
+// The narrow gap the lock order left (review of #72): a hold at a venue the cancellation did not lock,
+// committed between its venue locks and its event lock, had its venue locked after the event, out of
+// §4.6's order, so a block at that venue could deadlock with the cancellation. The cancellation now
+// re-reads the event's venues once it holds the event, and when one is new it writes nothing, lets go
+// and tries again, locking that venue first. This test commits such a hold while the cancellation waits
+// for the event, has a block hold the new venue, waits until the cancellation queues on it, then takes
+// the event lock as I2 does. Before the fix the cancellation held the event while it waited, so Postgres
+// aborted one of the two (40P01).
+describe("F4 lock order: a hold at a new venue that commits while the cancellation waits for the event", () => {
+  it("the cancellation tries again with that venue locked first, so a block there can still lock the event", async () => {
+    const { event, h } = await fixture();
+    const v3 = await newVenue(`F4 Annexe ${randomUUID().slice(0, 8)}`);
+    const newHold = ref("HLD");
+    const watcher = testDb();
+    const planner = testDb();
+    const blocker = testDb();
+    const blockedOn = async (pattern: string) => {
+      for (let i = 0; i < 100; i += 1) {
+        const [waiting] = await watcher<{ n: number }[]>`
+          select count(*)::int as n from pg_stat_activity
+          where datname = current_database() and wait_event_type = 'Lock' and query ilike ${pattern}
+        `;
+        if (waiting!.n > 0) return true;
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
+      return false;
+    };
+    let letBlockerGo!: () => void;
+    const blockerMayGo = new Promise<void>((resolve) => (letBlockerGo = resolve));
+    let venueHeld!: () => void;
+    const blockerHoldsVenue = new Promise<void>((resolve) => (venueHeld = resolve));
+    // A block at V3 that starts just after the hold commits: step 1 the venue row, step 2 (once let go) the
+    // event `for update`, as I2 does. It holds the venue `for no key update` rather than I2's `for update`,
+    // which still makes the cancellation's `for update` wait but lets the hold's foreign-key check (a key
+    // share lock on the venue) through, so the hold can be committed while the block already holds V3.
+    const block = blocker.begin(async (tx) => {
+      await tx`set local lock_timeout = '10s'`;
+      await tx`select id from venue.venues where id = ${v3.id} for no key update`;
+      venueHeld();
+      await blockerMayGo;
+      await tx`select id from event.events where id = ${event.id} for update`;
+    });
+    try {
+      await blockerHoldsVenue;
+      let cancellation!: Promise<request.Response>;
+      // The hold at V3 is written by a transaction holding the event `for share`, as L3's request does (L3 locks
+      // V3 first too; here the block stands in for one that takes V3 just after the hold commits).
+      await planner.begin(async (tx) => {
+        await tx`set local lock_timeout = '10s'`;
+        await tx`select id from event.events where id = ${event.id} for share`;
+        cancellation = cancel(event.id).then((response) => response);
+        expect(await blockedOn("%from event.events%")).toBe(true);
+        await tx`
+          insert into venue.holds (reference, event_id, venue_id, starts_at, ends_at, reminder_lead_minutes, status, requested_by,
+                                   created_by, updated_by)
+          values (${newHold}, ${event.id}, ${v3.id}, ${EVENT_START}, ${EVENT_END}, 1440, 'REQUESTED', ${A.c1}, ${A.c1}, ${A.c1})
+        `;
+      });
+
+      // The cancellation now waits for V3, which the block holds; then the block takes the event.
+      expect(await blockedOn("%from venue.venues%for update%")).toBe(true);
+      letBlockerGo();
+      await block;
+
+      const response = await cancellation;
+      expect(response.status, response.text).toBe(200);
+      expect([...response.body.released.holds].sort()).toEqual([h.reference, newHold].sort());
+      const [stored] = await sql<{ status: string }[]>`select status from venue.holds where reference = ${newHold}`;
+      expect(stored!.status).toBe("RELEASED");
+      expect((await state(event.id)).event).toMatchObject({ status: "CANCELLED" });
+    } finally {
+      letBlockerGo();
+      await block.catch(() => undefined);
+      await Promise.all([watcher.end(), planner.end(), blocker.end()]);
+    }
+  });
+});
+
+// Review note CQ-06 on #72 (not one of F4's acceptance criteria): `event.cancelled` listed only the
+// confirmed bookings, so the Venue Staff of a venue whose hold was released, or whose pending request
+// was withdrawn, were not told. The message now names those too, each with its venue, and the
+// notification service tells their staff as it tells a booked venue's.
+describe("CQ-06: the staff of a released hold's or withdrawn request's venue are told", () => {
+  it("event.cancelled names the hold and the pending request with their venues, and their staff's notice lists them", async () => {
+    const { event, v1, v2, h, p, b1 } = await fixture();
+    expect((await cancel(event.id)).status).toBe(200);
+
+    const rows = await sql`
+      select envelope from event.outbox where message_key = ${event.id} and envelope->>'type' = 'event.cancelled'
+    `;
+    expect(rows).toHaveLength(1);
+    const message = parseCloudEvent(rows[0]!.envelope);
+    expect(message.data).toMatchObject({
+      bookings: [{ reference: b1.reference, venueName: v1.name, staffIds: [A.vs] }],
+      holds: [{ reference: h.reference, venueId: v2.id, venueName: v2.name, startsAt: EVENT_START, endsAt: EVENT_END, staffIds: [A.vs] }],
+      requests: [{ reference: p.reference, venueId: v1.id, venueName: v1.name, staffIds: [A.vs] }],
+    });
+
+    const notices = notificationsFor({ id: message.id, type: message.type, time: message.time, subject: event.id, data: message.data as Record<string, unknown> });
+    const staffNotice = notices.filter((notice) => notice.recipientUserId === A.vs).map((notice) => notice.message);
+    expect(staffNotice).toHaveLength(1);
+    expect(staffNotice[0]).toContain(`Released: booking ${b1.reference} at ${v1.name}`);
+    expect(staffNotice[0]).toContain(`hold ${h.reference} at ${v2.name}`);
+    expect(staffNotice[0]).toContain(`Withdrawn: booking request ${p.reference} at ${v1.name}`);
   });
 });

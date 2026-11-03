@@ -1,0 +1,3 @@
+story_id,acceptance_criterion,test_file,test_name
+E3,The Lead assigns exactly one coordinator. Only active users holding the Event Coordinator role can be assigned; any other choice is refused and stores nothing.,backend/services/planning-core/tests/event/api/auditFixes.test.ts,"E3: a coordinator deactivated while the Lead assigns is refused, and nothing is stored"
+E3,The Lead assigns exactly one coordinator. Only active users holding the Event Coordinator role can be assigned; any other choice is refused and stores nothing.,backend/services/planning-core/tests/event/api/auditFixes.test.ts,"E3, E4: a user who is not an Event Coordinator is refused the same way"

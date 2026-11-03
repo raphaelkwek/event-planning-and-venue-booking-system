@@ -10,7 +10,7 @@
 | Test Steps | 1. Sign in as the assigned coordinator and open the change request's review page.<br>2. Read the "If this change is approved" section above the Approve and Reject actions.<br>3. Open the event page and read the "Outstanding flags" panel.<br>4. Back on the review page, reject the change with a reason, and read the page again.<br>5. On another event with a pending change to the venue requirements only, open its review page. |
 | Test Data | As in the steps. |
 | Expected Result | Step 2 lists both bookings, the reservation and "0 active registrations", saying which would be flagged and why: both bookings "Requires reconfirmation" with the period reason, the theatre booking also "Unsuitable" (`Expected attendance is now 150, but <venue> holds 100 in the Theatre layout.`), the reservation "Flagged for review". Step 3 shows no outstanding flags (viewing flagged nothing). In step 4 the section is gone, since the request is decided. Step 5 lists the arrangements and flags none. |
-| Created By | Raphael, via Claude |
+| Created By | Raphael |
 | Date of Creation | 2026-10-29 |
 
 > **Expected results are checked by the PR reviewer** against G2's acceptance criteria.

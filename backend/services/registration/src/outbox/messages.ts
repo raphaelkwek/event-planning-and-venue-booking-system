@@ -39,7 +39,14 @@ export function prepareRow(row: OutboxRow): PreparedMessage {
     throw new UnpublishableError((error as Error).message);
   }
   if (event.subject !== row.message_key) throw new UnpublishableError("the row's message_key is not the event's subject");
-  return { rowId: row.id, topic, key: row.message_key, value: JSON.stringify(event), headers: { "content-type": STRUCTURED_CONTENT_TYPE } };
+  return {
+    rowId: row.id,
+    topic,
+    key: row.message_key,
+    value: JSON.stringify(event),
+    // The trace context travels in the header as well as in the event (ADR-0013); the relay swaps in its publish span's.
+    headers: { "content-type": STRUCTURED_CONTENT_TYPE, traceparent: event.traceparent },
+  };
 }
 
 /** Messages per topic, each topic's in outbox order. */

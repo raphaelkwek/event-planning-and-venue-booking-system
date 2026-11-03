@@ -55,3 +55,13 @@ If step 1 or step 2 fails, the workflow unmarks the registrations. That undo can
 **What a reviewer should watch for:** non-deterministic calls (time, random, I/O) directly in workflow code, and a release that happens outside the core's cancellation transaction.
 
 **Implemented by:** EN-11 (SPM-129). Proved by EN-20 (chaos experiments 1 and 6).
+
+## Implementation note (3 Nov 2026)
+
+The CancelEvent workflow was never built, and nothing in the code runs F3 or F4 through Temporal. The decision above is unchanged; this records what was built instead.
+
+- **Cancellation is one core transaction.** F3's route (`POST /api/v1/events/{id}/cancellation`, PR #71) and F4's release (PR #72) cancel the event and release its venue bookings, holds, pending requests and equipment reservations in one `planning-core` transaction (ADR-0004), writing `event.cancelled` to the outbox in the same transaction. A failure rolls all of it back (F4 AC5).
+- **The other services act on `event.cancelled`.** The notification service tells the owner, the coordinator, the Venue Staff and the reservers. The registration service's consumer (R1–R4, PR #80, and R5–R7, PR #88; not merged on this date) cancels the event's registrations and waitlist entries and tells the attendees. There is no semantic lock: registrations are not marked `CANCEL_PENDING` first, so F4 AC4 is met only once that consumer runs, after the core commits.
+- **No compensation is needed** for the core's part, since nothing is released outside its transaction. What a reviewer should watch for is unchanged: no release outside that transaction.
+
+Author: Joash

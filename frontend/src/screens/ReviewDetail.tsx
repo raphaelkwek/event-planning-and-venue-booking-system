@@ -8,9 +8,7 @@ import Modal, { ModalBody, ModalFooter, ModalHeader, ModalTitle, ModalTransition
 import { useSignedIn } from "../auth/SessionContext.js";
 import { useUserNames } from "../shared/useUserNames.js";
 import {
-  acceptReassignment,
   approveEvent,
-  declineReassignment,
   listClarifications,
   listReassignmentProposals,
   openEvent,
@@ -114,17 +112,23 @@ export function ReviewDetail() {
     setLoading(true);
     setLoadError(null);
     try {
-      setEvent(await openEvent(session.token, id));
-      setClarifications((await listClarifications(session.token, id)).items);
-      setProposals((await listReassignmentProposals(session.token, id)).items);
-      // A failure here is shown beside the notice's place; it does not hide the page.
-      try {
-        setChangeRequests((await listChangeRequests(session.token, id)).items);
-        setChangesFailed(false);
-      } catch {
-        setChangeRequests([]);
-        setChangesFailed(true);
-      }
+      // The event first: a coordinator opening a Submitted one claims it for review (D1). The three
+      // lists that follow don't depend on each other, so they are fetched together (L11).
+      const opened = await openEvent(session.token, id);
+      // A failure of the change requests is shown beside the notice's place; it does not hide the page.
+      const [clarificationList, proposalList, changes] = await Promise.all([
+        listClarifications(session.token, id),
+        listReassignmentProposals(session.token, id),
+        listChangeRequests(session.token, id).then(
+          (list) => list.items,
+          () => null
+        ),
+      ]);
+      setEvent(opened);
+      setClarifications(clarificationList.items);
+      setProposals(proposalList.items);
+      setChangeRequests(changes ?? []);
+      setChangesFailed(changes === null);
     } catch (caught) {
       setLoadError(caught);
     } finally {
@@ -371,8 +375,8 @@ export function ReviewDetail() {
           </Button>
         </div>
 
-        {/* E2 — the pending state and the nominee's accept/decline, shown
-            beneath the action buttons once a proposal exists. */}
+        {/* E2 is retired (W9-FX-5): only the Lead reassigns, so a proposal is shown for the record
+            and nobody can accept or decline it. */}
         {pendingProposal && (
           <div style={{ marginTop: 24 }}>
             <SectionMessage appearance="information" title="Pending reassignment">
@@ -381,24 +385,6 @@ export function ReviewDetail() {
                 {formatInstant(pendingProposal.proposedAt)}.
               </p>
             </SectionMessage>
-            {pendingProposal.nomineeCoordinatorId === session.userId && (
-              <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-                <Button
-                  appearance="primary"
-                  isDisabled={busy}
-                  onClick={() => run(() => acceptReassignment(session.token, event.id))}
-                >
-                  Accept
-                </Button>
-                <Button
-                  appearance="subtle"
-                  isDisabled={busy}
-                  onClick={() => run(() => declineReassignment(session.token, event.id))}
-                >
-                  Decline
-                </Button>
-              </div>
-            )}
           </div>
         )}
       </aside>

@@ -96,6 +96,7 @@ test.describe("S2 decide a change request", () => {
     // Steps 2 and 3: reject the second, first without a reason.
     await openReviewPage(page, second.name);
     await page.getByRole("button", { name: "Reject change" }).click();
+    await expect(dialog).toBeVisible();
     await a11y("reject change dialog");
     await dialog.getByRole("button", { name: "Confirm rejection" }).click();
     await expect(dialog).toContainText("Give a reason for rejecting the change.");

@@ -8,7 +8,7 @@
 > |---|---|---|---|
 > | §4.6 | ~~Registration capacity counters~~ Rewritten for seat rows on 30 Oct 2026 (EN-13) | ADR-0005 (seat rows) | EN-13, done |
 > | §6 | Authorisation | ADR-0010 (Cerbos and RLS) | EN-07 |
-> | §9 | Logs written to a Kafka topic per service | ADR-0013 (OpenTelemetry, Grafana Loki) | EN-08 |
+> | §9 | ~~Logs written to a Kafka topic per service~~ Rewritten for OpenTelemetry on 3 Nov 2026 (EN-08) | ADR-0013 (OpenTelemetry, Grafana) | EN-08, done |
 >
 > §2 was rewritten for ADR-0004 on 2 Oct 2026, when EN-01 merged Identity and Event into `planning-core`. §3 was rewritten for ADR-0008 on 3 Oct 2026 (EN-04.1).
 
@@ -475,6 +475,7 @@ What a reviewer watches for, from ADR-0005: a registration path that reads capac
   3. writes the transition.
 
   There is no HTTP call and no residual window. If an arrangement changes after confirmation, S3 flags the event. The earlier instruction to "re-verify both arrangements inside the writing transaction" contradicted the rule below, and it no longer applies.
+- **A row locked `for update`/`for share` is rechecked after the wait, a row joined to it is not (audit, 3 Nov 2026).** Under `READ COMMITTED`, a statement that waits for a row lock re-evaluates only the locked row; every other table in the statement keeps the version the statement began with. So `select e.*, a.coordinator_id from event.events e left join event.assignments a ... for update of e` names the coordinator the Lead had *just replaced* when it queued behind that reassignment, and S2 and F5 let the outgoing coordinator through. After taking a lock, read whatever the decision rests on in a statement of its own (`findEventInScope` does so for the active assignment). The same goes for a check made before a transaction and acted on inside it, such as whether a coordinator is still active (E3, E4): make it inside, with the row share-locked.
 - **Never** hold a transaction open across an HTTP call to another service. Under ADR-0004 there is no exception: cross-module reads inside the core are function calls, and the only remote calls are to the registration and notification services, which never happen inside a core transaction.
 - Statement timeout: 5 s recommended, set with `DB_STATEMENT_TIMEOUT_MS=5000` on the Postgres pools (planning-core, notification, registration). It is off when the variable is unset, because the setting travels as a connection startup parameter and a transaction-mode pooler (Supavisor or pgbouncer, as Supabase uses) may reject it. CI sets 5000 against its own Postgres; turn it on against Supabase only after checking that connections still open. Connection pool max 10 per service.
 
@@ -535,6 +536,8 @@ The `message` is user-facing and must name the specific values the story require
 ### 7.1 Internal roles (Organiser, Coordinator, Venue Staff, Tech Support)
 
 Use **Atlassian Design System** components (`@atlaskit/*`) and do not restyle them. Rationale: it is the customer's stated preference, it gives us a dense data-first UI for free, and six people building screens from the same component set will produce something coherent without a design review.
+
+> **Theme, 3 Nov 2026 (#97).** The look comes from one theme, not from each screen: `@atlaskit/tokens` themed from our tokens (`frontend/src/theme/`) and the operations-console shell (`frontend/src/shell/`). Components are themed through their tokens, never restyled one by one. Colours in inline styles are tokens (`var(--cs-…)`), never hex. `documentation/design/ui-redesign.md` has the tokens and how to add a screen.
 
 Standard screen shapes:
 - **Queue/list screens** (D1 review queue, M1 booking queue, R5 registrations): `@atlaskit/dynamic-table` with column sort, status `@atlaskit/lozenge`, cursor pagination.
@@ -736,20 +739,32 @@ Note how D5-T3 and D5-T4 sit either side of the criterion's "at least one non-wh
 
 ## 9. Logging and observability
 
-Structured JSON to stdout **and** to `connectsphere.logs.<service>.v1`:
+Rewritten on 3 Nov 2026 for ADR-0013 (EN-08). How to read a trace and how to point the services at Grafana Cloud is in `documentation/observability.md`.
+
+Logs are structured JSON on stdout, one line per entry. There is no log topic in Kafka: traces and metrics go to Grafana over OTLP, and a line is joined to its trace by id.
 
 ```jsonc
-{ "ts": "...", "level": "info|warn|error", "service": "event-service",
-  "correlationId": "...", "userId": "... | null", "route": "POST /api/v1/events",
-  "durationMs": 42, "outcome": "success|refused|error", "code": "BOOKING_SLOT_CONFLICT | null",
-  "message": "..." }
+{ "ts": "...", "level": "info|warn|error", "service": "planning-core",
+  "correlationId": "...", "traceId": "...", "spanId": "...", "userId": "... | null",
+  "route": "POST /api/v1/events", "durationMs": 42, "outcome": "success|refused|error",
+  "code": "BOOKING_SLOT_CONFLICT | null", "message": "..." }
 ```
 
-Log every refusal with its `code` — refusals are correct behaviour under CP and we need to show they happen deliberately. **Never log** JWTs, passwords, or full attendee records. `correlationId` must appear in the HTTP response, the log line, and any message envelope produced during that request; that chain is what makes a Week 13 trace demonstration possible.
+Log every refusal with its `code` — refusals are correct behaviour under CP and we need to show they happen deliberately. **Never log** JWTs, passwords, or full attendee records.
+
+**The correlation id is the trace id.** `correlationId` is the id of the W3C trace the request or consumed message belongs to (32 hex characters), and the services fill it from the active span, so a log line written inside one carries `traceId`, `spanId` and the same `correlationId` without the code passing them. It appears in:
+
+- the HTTP response, as `x-correlation-id`, and in the error envelope's `correlationId`;
+- every log line written inside the request or the message's handling;
+- the `correlationid` attribute of every message envelope the request produces, and the `traceparent` attribute and Kafka header of each message, which let the next service continue the trace.
+
+A request that arrives with a `traceparent` continues that trace. A caller's own `x-correlation-id` is kept as the span attribute `connectsphere.client_correlation_id`; it is no longer the correlation id. With the SDK off (`OTEL_SDK_DISABLED=true`) the caller's id, or a UUID, is used as before.
+
+Every service starts the SDK in its `telemetry.ts` before anything else is imported, wraps its postgres.js pool with `instrumentSql`, and mounts `httpTelemetry` first. A new Kafka producer or consumer wraps its calls in `withProducerSpans` or `withConsumerSpan` (all from `@connectsphere/telemetry`), or the trace stops at it. Metrics: `http_request_duration_seconds` and `http_requests_total` by `service`, `method`, `route` (the pattern, never the URL) and `status` (`2xx`/`4xx`/`5xx`), the names EN-17's SLOs query.
 
 ## 10. Configuration and deployment
 
-All config from environment variables, documented in `.env.example`. No secrets in the repo, no `localhost` in code. Required per service: `PORT`, `DATABASE_URL`, `DATABASE_SCHEMA`, `KAFKA_BROKERS`, `KAFKA_SASL_MECHANISM`, `KAFKA_SASL_USERNAME`, `KAFKA_SASL_PASSWORD`, `KAFKA_SSL_CA_PATH` (Aiven only), `KAFKA_GROUP_SUFFIX` (laptops only), `NOTIFICATION_PORT` and, if planning-core runs elsewhere, `PLANNING_CORE_URL` (notification only), `SUPABASE_URL`, `SUPABASE_JWKS_URL`, `SERVICE_NAME`, `LOG_LEVEL`, `INTERNAL_TOKEN_SECRET`.
+All config from environment variables, documented in `.env.example`. No secrets in the repo, no `localhost` in code. Required per service: `PORT`, `DATABASE_URL`, `DATABASE_SCHEMA`, `KAFKA_BROKERS`, `KAFKA_SASL_MECHANISM`, `KAFKA_SASL_USERNAME`, `KAFKA_SASL_PASSWORD`, `KAFKA_SSL_CA_PATH` (Aiven only), `KAFKA_GROUP_SUFFIX` (laptops only), `NOTIFICATION_PORT` and, if planning-core runs elsewhere, `PLANNING_CORE_URL` (notification only), `SUPABASE_URL`, `SUPABASE_JWKS_URL`, `SERVICE_NAME`, `LOG_LEVEL`, `INTERNAL_TOKEN_SECRET`. Telemetry takes only the standard OpenTelemetry names, all optional: `OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_EXPORTER_OTLP_HEADERS`, `OTEL_RESOURCE_ATTRIBUTES` (`deployment.environment`), `OTEL_SERVICE_NAME`. Unset, nothing is exported (`.env.example`, §9).
 
 Cloud-readiness rules to follow now so the move is boring later: services are stateless (no in-process cache, no local disk writes, sessions in the token); health endpoints `/healthz` (liveness) and `/readyz` (readiness: it requires the database and reports whether the Kafka broker is reachable, without requiring it, because the outbox holds messages while Kafka is down; §3.4); graceful shutdown drains in-flight requests, lets the outbox relay finish its batch, and commits Kafka offsets; every service can run from its build (`npm run build`, then `npm run start -w <service>`), and `npm run dev` is for local work only. There is no Docker (ADR-0003): a deployment platform builds each service from its `package.json`.
 
