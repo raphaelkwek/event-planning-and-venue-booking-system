@@ -102,13 +102,10 @@ export type PreviewOutcome =
   | { ok: false; code: "NOT_FOUND" }
   | { ok: false; code: "ALREADY_DECIDED"; status: "APPROVED" | "REJECTED" | "CLOSED"; decidedAt: string };
 
-/** Who may see a request's preview: its event's owner, and Event Coordinators (the assigned one among them). */
-const PREVIEWERS: readonly Role[] = ["EVENT_ORGANISER", "EVENT_COORDINATOR"];
-
 /**
  * G2 — a change request's preview, for an actor who can see the request (S1's rule: the event in
- * the actor's A3 scope, so the owning organiser and Event Coordinators; anyone else, as for a
- * request that does not exist, gets NOT_FOUND). Only a Pending request has one: a decided request
+ * the actor's A3 scope; anyone else, as for a request that does not exist, gets NOT_FOUND). Which
+ * roles may preview at all is the policies' (EN-07): the route asks before this runs. Only a Pending request has one: a decided request
  * answers ALREADY_DECIDED, since S3 already reported what approval did.
  */
 export async function previewChangeRequest(
@@ -116,7 +113,6 @@ export async function previewChangeRequest(
   requestId: string,
   actor: { userId: string; role: Role }
 ): Promise<PreviewOutcome> {
-  if (!PREVIEWERS.includes(actor.role)) return { ok: false, code: "NOT_FOUND" };
   const request = await findRequest(tx, requestId);
   if (!request) return { ok: false, code: "NOT_FOUND" };
   const scope = resolveAccessScope(actor.role, actor.userId, "events");

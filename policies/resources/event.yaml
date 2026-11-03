@@ -107,8 +107,15 @@ resourcePolicy:
       effect: EFFECT_ALLOW
       derivedRoles: [owner, assigned_coordinator]
 
-    - name: A4-G2-S3-the-assigned-coordinator-assesses-change-impact
-      actions: [preview_change_impact, reconsider_arrangements]
+    # G2: the owner and the assigned coordinator see a change request's impact, as they see the
+    # request itself (S1). S3: only the assigned coordinator reconsiders the arrangements (A4).
+    - name: G2-the-owner-and-assigned-coordinator-preview-change-impact
+      actions: [preview_change_impact]
+      effect: EFFECT_ALLOW
+      derivedRoles: [owner, assigned_coordinator]
+
+    - name: A4-S3-the-assigned-coordinator-reconsiders-arrangements
+      actions: [reconsider_arrangements]
       effect: EFFECT_ALLOW
       derivedRoles: [assigned_coordinator]
 

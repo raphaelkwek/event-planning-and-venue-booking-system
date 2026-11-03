@@ -23,6 +23,7 @@ tests:
           cancel: EFFECT_ALLOW # F3
           update_details: EFFECT_ALLOW # G1
           request_change: EFFECT_ALLOW # S1
+          preview_change_impact: EFFECT_ALLOW # G2: the owner sees a change request's impact, as the request
       - principal: other_organiser # C2, D3, A3: no access to someone else's request
         resource: event_open
         actions:

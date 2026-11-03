@@ -42,6 +42,15 @@ interface ActorLike {
   actor?: { userId: string; role: string };
 }
 
+/**
+ * Whether the policies give the actor's role `action` on `kind` at all, for a route that must
+ * answer a role it doesn't serve with its own refusal (a 404, say) rather than the gate's 403.
+ * Throws PolicyUnavailableError when the PDP can't be asked; the route refuses with 503.
+ */
+export async function mayEver(actor: { userId: string; role: string }, kind: PolicyKind, action: string): Promise<boolean> {
+  return (await pdp.reach({ id: actor.userId, role: actor.role }, kind, action)) !== "NEVER";
+}
+
 export function permissionGate(permission: Permission, refusal: Refusal): PermissionGate {
   const gate = async (req: Request, res: Response, next: NextFunction) => {
     const actor = (req as Request & ActorLike).actor;
