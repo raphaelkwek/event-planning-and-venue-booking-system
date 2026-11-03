@@ -2,7 +2,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   buildMatrix,
   cardHeadline,
@@ -21,6 +22,8 @@ import {
   parseVitestReport,
   repoPath,
   reportKind,
+  traceabilityFiles,
+  traceabilityProblems,
   type Card,
   type CriterionRow,
 } from "./traceability-matrix.ts";
@@ -166,18 +169,54 @@ test("loadCards and loadCriterionRows read the files on disk (EN-22-T4)", () => 
     mkdirSync(join(dir, "tests", "S2"), { recursive: true });
     writeFileSync(join(dir, "tests", "S2", "S2-T1-x.md"), cardText("S2-T1", "Pass"));
     writeFileSync(join(dir, "tests", "S2", "README.md"), "# S2\n");
-    mkdirSync(join(dir, "trace"));
     const header = "story_id,acceptance_criterion,test_file,test_name\n";
-    writeFileSync(join(dir, "trace", "sprint-2.csv"), `${header}S2,AC,a.ts,t\nS2,AC,a.ts,t\n`);
-    writeFileSync(join(dir, "trace", "sprint-10.csv"), `${header}Z9,AC,b.ts,u\n`);
+    mkdirSync(join(dir, "trace", "sprint-2"), { recursive: true });
+    mkdirSync(join(dir, "trace", "sprint-10"));
+    writeFileSync(join(dir, "trace", "sprint-2", "S2.csv"), `${header}S2,AC,a.ts,t\nS2,AC,a.ts,t\n`);
+    writeFileSync(join(dir, "trace", "sprint-2", "A1.csv"), `${header}A1,AC,c.ts,v\n`);
+    writeFileSync(join(dir, "trace", "sprint-2", "notes.txt"), "ignored");
+    writeFileSync(join(dir, "trace", "sprint-10", "Z9.csv"), `${header}Z9,AC,b.ts,u\n`);
     writeFileSync(join(dir, "trace", "notes.csv"), "ignored");
 
     assert.deepEqual(loadCards(join(dir, "tests"), dir).map((c) => [c.id, c.file]), [["S2-T1", "tests/S2/S2-T1-x.md"]]);
     assert.deepEqual(loadCards(join(dir, "missing"), dir), []);
-    assert.deepEqual(loadCriterionRows(join(dir, "trace")).map((r) => [r.story, r.sprint]), [["S2", "S2"], ["Z9", "S10"]]);
+    assert.deepEqual(loadCriterionRows(join(dir, "trace")).map((r) => [r.story, r.sprint, r.row]), [["A1", "S2", 1], ["S2", "S2", 1], ["Z9", "S10", 1]]);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test("a sprint-N.csv from before the per-story layout is refused, not read or skipped", () => {
+  const dir = mkdtempSync(join(tmpdir(), "trace-legacy-"));
+  try {
+    mkdirSync(join(dir, "sprint-4"));
+    writeFileSync(join(dir, "sprint-4", "F3.csv"), "story_id,acceptance_criterion,test_file,test_name\nF3,AC,a.ts,t\n");
+    writeFileSync(join(dir, "sprint-4.csv"), "story_id,acceptance_criterion,test_file,test_name\nR5,AC,b.ts,u\n");
+    assert.throws(() => loadCriterionRows(dir), /sprint-4\.csv: traceability rows now go in sprint-<n>\/<STORY>\.csv/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("traceabilityProblems reports a file without the header and a row filed under another story", () => {
+  const dir = mkdtempSync(join(tmpdir(), "trace-problems-"));
+  try {
+    mkdirSync(join(dir, "sprint-4"));
+    writeFileSync(join(dir, "sprint-4", "F3.csv"), "story_id,acceptance_criterion,test_file,test_name\nF3,AC,a.ts,t\nF4,AC,b.ts,u\n");
+    writeFileSync(join(dir, "sprint-4", "R5.csv"), "story,criterion\nR5,AC\n");
+    assert.deepEqual(traceabilityProblems(dir), [
+      "sprint-4/F3.csv row 2: a row for F4 belongs in sprint-4/F4.csv",
+      "sprint-4/R5.csv: the first line must be story_id,acceptance_criterion,test_file,test_name",
+    ]);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("the repository's traceability files are one per story, each with the header and only its own rows", () => {
+  const dir = join(dirname(fileURLToPath(import.meta.url)), "..", "traceability");
+  assert.deepEqual(traceabilityProblems(dir), []);
+  assert.ok(traceabilityFiles(dir).length > 0);
 });
 
 // EN-22-T5 -----------------------------------------------------------------------------------
@@ -302,8 +341,8 @@ test("the CLI writes the Markdown, HTML and JSON matrix and prints the summary (
   const originalLog = console.log;
   const originalError = console.error;
   try {
-    mkdirSync(join(dir, "trace"));
-    writeFileSync(join(dir, "trace", "sprint-1.csv"), `story_id,acceptance_criterion,test_file,test_name\nS2,AC,${FILE_A},S2-T1 approves\nS2,AC2,,\n`);
+    mkdirSync(join(dir, "trace", "sprint-1"), { recursive: true });
+    writeFileSync(join(dir, "trace", "sprint-1", "S2.csv"),`story_id,acceptance_criterion,test_file,test_name\nS2,AC,${FILE_A},S2-T1 approves\nS2,AC2,,\n`);
     writeFileSync(join(dir, "results.json"), JSON.stringify(vitestReport));
     console.log = (line: string) => void logged.push(line);
     console.error = () => undefined;

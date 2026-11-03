@@ -1,0 +1,33 @@
+# EN-20 experiment 3: a slow database never causes over-admission.
+# NOT RUN in staging (no cluster). The same hypothesis ran in CI with Toxiproxy and a k6 burst:
+# documentation/evidence/EN-20/3-slow-database.md.
+#
+# Hypothesis: with 500 ms added to every packet between registration and its database, the gateway sheds
+# load, the seats are exact and the burn-rate alert fires. (The gateway, EN-12, and the alert, EN-17, are
+# not part of this branch; the seats half is what CI could test.)
+#
+# Replace the host with the database's pooler host (DATABASE_URL). Run a k6 spike beside it
+# (load/k6/spike.js against staging) and check the seat count afterwards.
+apiVersion: chaos-mesh.org/v1alpha1
+kind: NetworkChaos
+metadata:
+  name: exp3-registration-db-latency
+  namespace: connectsphere-staging
+  labels:
+    connectsphere.chaos/experiment: "3"
+spec:
+  action: delay
+  mode: all
+  selector:
+    namespaces:
+      - connectsphere-staging
+    labelSelectors:
+      app.kubernetes.io/name: registration
+  direction: to
+  externalTargets:
+    - replace-with-database-pooler-host
+  delay:
+    latency: 500ms
+    correlation: "100"
+    jitter: 0ms
+  duration: 10m

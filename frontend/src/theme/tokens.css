@@ -1,0 +1,202 @@
+/*
+ * ConnectSphere design tokens: the operations-console theme.
+ *
+ * Every colour, type size and motion value the shell and the screens use is defined here, once per
+ * theme. Atlaskit is themed from these through atlaskit.css, so its components and our own chrome
+ * always agree. documentation/design/ui-redesign.md has the table and the reasoning.
+ *
+ * Rules:
+ * - Colour means something. Status hues (neutral, info, discovery, warning, danger, success) are
+ *   used only for status. The one accent marks focus, the current place and links, nothing else.
+ * - Primary actions are "ink": light on dark, dark on light. They aren't the accent colour.
+ * - Every text pair below is checked for WCAG 2.2 AA (4.5:1) by frontend/tests/theme.test.ts.
+ *   Keep each value a six-digit hex so that test can read it.
+ */
+
+:root,
+:root[data-cs-theme="dark"] {
+  color-scheme: dark;
+
+  /* Surfaces, from the page canvas up to the overlay. */
+  --cs-canvas: #08090b;
+  --cs-surface: #0d0f12;
+  --cs-surface-raised: #13161a;
+  --cs-surface-overlay: #181c21;
+  --cs-surface-sunken: #050607;
+  --cs-surface-input: #0b0d10;
+  --cs-surface-hover: #171b20;
+  --cs-surface-pressed: #1d2228;
+
+  /* Hairlines. --cs-line-input outlines form fields, so it keeps 3:1 against the surface (WCAG 1.4.11). */
+  --cs-line: #1f242a;
+  --cs-line-strong: #2e343c;
+  --cs-line-input: #6b7480;
+
+  --cs-text: #eceef1;
+  --cs-text-subtle: #a8b0bb;
+  --cs-text-subtlest: #8a939e;
+  --cs-text-disabled: #5a616b;
+
+  /* Ink: primary buttons and other inverted surfaces. */
+  --cs-ink: #eceef1;
+  --cs-ink-hover: #ffffff;
+  --cs-ink-pressed: #cdd2d8;
+  --cs-on-ink: #0a0b0d;
+
+  /* The one accent. */
+  --cs-accent: #46d2e0;
+  --cs-accent-text: #46d2e0;
+  --cs-accent-wash: rgba(70, 210, 224, 0.1);
+  --cs-accent-line: rgba(70, 210, 224, 0.45);
+
+  /* Status: text on its own background, a bold fill (read with --cs-on-ink), and a rule. */
+  --cs-neutral-text: #c9cfd6;
+  --cs-neutral-bg: #1c2026;
+  --cs-neutral-bg-hover: #242930;
+  --cs-neutral-bg-pressed: #2b3139;
+  --cs-neutral-bold: #8a939e;
+  --cs-neutral-line: #3a414a;
+
+  --cs-info-text: #8db8ff;
+  --cs-info-bg: #0e1b30;
+  --cs-info-bold: #5a95f5;
+  --cs-info-line: #24467a;
+
+  --cs-discovery-text: #bfaeff;
+  --cs-discovery-bg: #1b1631;
+  --cs-discovery-bold: #9b85f7;
+  --cs-discovery-line: #3f3470;
+
+  --cs-warning-text: #f4c35a;
+  --cs-warning-bg: #261e0b;
+  --cs-warning-bold: #e8ae35;
+  --cs-warning-line: #5c4614;
+  --cs-on-warning: #0a0b0d;
+
+  --cs-danger-text: #ff9289;
+  --cs-danger-bg: #2b1212;
+  --cs-danger-bold: #f26d63;
+  --cs-danger-line: #6b2a26;
+
+  --cs-success-text: #6bd9a2;
+  --cs-success-bg: #0d2418;
+  --cs-success-bold: #3cbf7e;
+  --cs-success-line: #1e5a3c;
+
+  /* Texture and depth. */
+  --cs-grid: rgba(255, 255, 255, 0.035);
+  --cs-glow: rgba(70, 210, 224, 0.07);
+  --cs-blanket: rgba(2, 3, 4, 0.72);
+  --cs-shadow-raised: 0 0 0 1px #1f242a, 0 1px 2px rgba(0, 0, 0, 0.5);
+  --cs-shadow-overlay: 0 0 0 1px #2e343c, 0 24px 64px -16px rgba(0, 0, 0, 0.75);
+}
+
+:root[data-cs-theme="light"] {
+  color-scheme: light;
+
+  --cs-canvas: #f3f4f6;
+  --cs-surface: #ffffff;
+  --cs-surface-raised: #f8f9fa;
+  --cs-surface-overlay: #ffffff;
+  --cs-surface-sunken: #eceef1;
+  --cs-surface-input: #ffffff;
+  --cs-surface-hover: #eef0f3;
+  --cs-surface-pressed: #e4e7eb;
+
+  --cs-line: #e2e5e9;
+  --cs-line-strong: #c9ced5;
+  --cs-line-input: #7a828d;
+
+  --cs-text: #0e1114;
+  --cs-text-subtle: #4a525c;
+  --cs-text-subtlest: #626a75;
+  --cs-text-disabled: #a0a7b0;
+
+  --cs-ink: #0e1114;
+  --cs-ink-hover: #262b31;
+  --cs-ink-pressed: #000000;
+  --cs-on-ink: #ffffff;
+
+  --cs-accent: #00818f;
+  --cs-accent-text: #00707e;
+  --cs-accent-wash: rgba(0, 129, 143, 0.08);
+  --cs-accent-line: rgba(0, 112, 126, 0.45);
+
+  --cs-neutral-text: #3d4550;
+  --cs-neutral-bg: #e7e9ec;
+  --cs-neutral-bg-hover: #dcdfe3;
+  --cs-neutral-bg-pressed: #d0d4d9;
+  --cs-neutral-bold: #4a525c;
+  --cs-neutral-line: #c9ced5;
+
+  --cs-info-text: #0b4fb3;
+  --cs-info-bg: #e3eeff;
+  --cs-info-bold: #0b5fd6;
+  --cs-info-line: #a9c6f5;
+
+  --cs-discovery-text: #5b3cc4;
+  --cs-discovery-bg: #efeaff;
+  --cs-discovery-bold: #6a4bd8;
+  --cs-discovery-line: #cbbdf5;
+
+  --cs-warning-text: #7a4a00;
+  --cs-warning-bg: #fff1d6;
+  --cs-warning-bold: #f0b429;
+  --cs-warning-line: #ebc777;
+  --cs-on-warning: #0e1114;
+
+  --cs-danger-text: #b42318;
+  --cs-danger-bg: #fdecea;
+  --cs-danger-bold: #c9372c;
+  --cs-danger-line: #f1b5af;
+
+  --cs-success-text: #136c3e;
+  --cs-success-bg: #e3f5ea;
+  --cs-success-bold: #1a7a50;
+  --cs-success-line: #a6d8bb;
+
+  --cs-grid: rgba(14, 17, 20, 0.05);
+  --cs-glow: rgba(0, 129, 143, 0.06);
+  --cs-blanket: rgba(14, 17, 20, 0.44);
+  --cs-shadow-raised: 0 0 0 1px #e2e5e9, 0 1px 2px rgba(14, 17, 20, 0.06);
+  --cs-shadow-overlay: 0 0 0 1px #c9ced5, 0 24px 64px -16px rgba(14, 17, 20, 0.28);
+}
+
+/* What doesn't change between themes: type, space, shape and motion. */
+:root {
+  --cs-font-sans: "IBM Plex Sans Variable", "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+    sans-serif;
+  --cs-font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+
+  --cs-fs-label: 11px;
+  --cs-fs-small: 12px;
+  --cs-fs-dense: 13px;
+  --cs-fs-body: 14px;
+  --cs-fs-title: 26px;
+  --cs-track-label: 0.08em;
+  /* Page titles are set slightly condensed (IBM Plex Sans's width axis). */
+  --cs-stretch-title: 88%;
+
+  --cs-space-1: 4px;
+  --cs-space-2: 8px;
+  --cs-space-3: 12px;
+  --cs-space-4: 16px;
+  --cs-space-5: 24px;
+  --cs-space-6: 32px;
+
+  --cs-radius-sm: 2px;
+  --cs-radius: 4px;
+  --cs-radius-lg: 6px;
+
+  --cs-header-h: 52px;
+  --cs-rail-w: 216px;
+
+  --cs-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --cs-dur-fast: 120ms;
+  --cs-dur: 200ms;
+}
+
+/* The attendee surface (implementation.md §7.2) keeps the system font; FixedTheme also holds it light. */
+:root[data-cs-surface="attendee"] {
+  --cs-font-sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}

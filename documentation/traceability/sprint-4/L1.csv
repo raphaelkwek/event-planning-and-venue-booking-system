@@ -1,0 +1,2 @@
+story_id,acceptance_criterion,test_file,test_name
+L1,A refused request creates no booking record and changes no venue availability.,backend/services/planning-core/tests/venue/api/auditFixes.test.ts,"L1 refuses a request whose occupied period overlaps the block, and stores nothing; one that only touches it is raised"

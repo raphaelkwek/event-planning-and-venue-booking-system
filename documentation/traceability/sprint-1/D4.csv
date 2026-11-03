@@ -1,0 +1,13 @@
+story_id,acceptance_criterion,test_file,test_name
+D4,"Approve is available only when the event status is Under Review or Awaiting Clarification",backend/services/planning-core/tests/event/api/decisions.test.ts,"refuses to approve an event that has not been opened for review"
+D4,"Approve is available when the event status is Under Review",backend/services/planning-core/tests/event/api/decisions.test.ts,"approves an event that is Under Review, recording the coordinator and the time"
+D4,"Approve is available when the event status is Awaiting Clarification",backend/services/planning-core/tests/event/api/decisions.test.ts,"approves an event that is Awaiting Clarification"
+D4,"On approval the status changes to Approved and the approving coordinator and approval timestamp are recorded",backend/services/planning-core/tests/event/api/decisions.test.ts,"approves an event that is Under Review, recording the coordinator and the time"
+D4,"The approval outcome and its date are visible to the owning organiser",backend/services/planning-core/tests/event/api/decisions.test.ts,"shows the approval outcome and its date to the owning organiser"
+D4,"The organiser receives a notification of the approval",backend/services/planning-core/tests/event/api/decisions.test.ts,"notifies the organiser of the approval"
+D4,"Approval alone creates no venue booking and no equipment reservation",backend/services/planning-core/tests/event/api/decisions.test.ts,"creates no venue booking and no equipment reservation"
+D4,"An event that already carries a recorded decision cannot be approved again and no second approval timestamp is written",backend/services/planning-core/tests/event/api/decisions.test.ts,"cannot approve an event that already carries a decision, writing no second timestamp"
+D4,"A rejected event cannot subsequently be approved",backend/services/planning-core/tests/event/api/decisions.test.ts,"cannot approve an event that was already rejected"
+D4,"The approval writes a status history entry like any other transition (F1)",backend/services/planning-core/tests/event/api/decisions.test.ts,"writes a history entry for the approval (F1)"
+D4,"Only an Event Coordinator may approve (A2)",backend/services/planning-core/tests/event/api/decisions.test.ts,"refuses a role that is not an Event Coordinator (A2)"
+D4,"A double decision is refused at the repository level, writing no second decision timestamp",backend/services/planning-core/tests/event/repo/events.test.ts,"writes no second decision timestamp for an event already decided"
