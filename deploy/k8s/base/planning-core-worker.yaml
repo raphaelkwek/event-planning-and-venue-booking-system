@@ -1,0 +1,87 @@
+# The Temporal worker (EN-11, ADR-0009): the same image as the API, a different
+# command. It has no HTTP port, so it has no HTTP probes: Kubernetes restarts it
+# when the process exits. It needs the TEMPORAL_* keys in connectsphere-secrets;
+# without TEMPORAL_ADDRESS the worker logs one line and exits 0 (worker.ts), so
+# a cluster with no Temporal namespace should run it at zero replicas
+# (the kind smoke deploy does exactly that, deploy/ci/kind-deploy.sh).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: planning-core-worker
+spec:
+  replicas: 1
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: planning-core-worker
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: planning-core-worker
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 60
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: worker
+          image: ghcr.io/raphaelkwek/connectsphere-planning-core:latest
+          imagePullPolicy: IfNotPresent
+          command: ["node", "dist/temporal/worker.js"]
+          envFrom:
+            - configMapRef:
+                name: connectsphere-config
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef: { name: connectsphere-secrets, key: DATABASE_URL }
+            - name: SUPABASE_JWKS_URL
+              valueFrom:
+                secretKeyRef: { name: connectsphere-secrets, key: SUPABASE_JWKS_URL }
+            - name: TEMPORAL_ADDRESS
+              valueFrom:
+                secretKeyRef: { name: connectsphere-secrets, key: TEMPORAL_ADDRESS, optional: true }
+            - name: TEMPORAL_NAMESPACE
+              valueFrom:
+                secretKeyRef: { name: connectsphere-secrets, key: TEMPORAL_NAMESPACE, optional: true }
+            - name: TEMPORAL_API_KEY
+              valueFrom:
+                secretKeyRef: { name: connectsphere-secrets, key: TEMPORAL_API_KEY, optional: true }
+            - name: KAFKA_BROKERS
+              valueFrom:
+                secretKeyRef: { name: connectsphere-secrets, key: KAFKA_BROKERS, optional: true }
+            - name: KAFKA_SASL_USERNAME
+              valueFrom:
+                secretKeyRef: { name: connectsphere-secrets, key: KAFKA_SASL_USERNAME, optional: true }
+            - name: KAFKA_SASL_PASSWORD
+              valueFrom:
+                secretKeyRef: { name: connectsphere-secrets, key: KAFKA_SASL_PASSWORD, optional: true }
+          resources:
+            requests: { cpu: 100m, memory: 256Mi }
+            limits: { cpu: 500m, memory: 768Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: { sizeLimit: 128Mi }
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: planning-core-worker
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: planning-core-worker
