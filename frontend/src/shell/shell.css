@@ -439,9 +439,9 @@ html body .cs-rail__list > li {
   color: var(--cs-text-subtle);
 }
 
+/* Transform only: the palette's text keeps its full contrast from the first frame. */
 @keyframes cs-rise {
   from {
-    opacity: 0;
     transform: translateY(-6px) scale(0.985);
   }
 }

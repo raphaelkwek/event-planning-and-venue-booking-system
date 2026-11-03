@@ -233,6 +233,15 @@ html {
   scrollbar-color: var(--cs-line-strong) transparent;
 }
 
+/*
+ * Atlaskit's dialogs open and close without their fade. Half-way through a fade a dialog's text has
+ * half its contrast, and an accessibility check that reads it then (EN-14's run on the reject
+ * dialog did) fails a dialog that is fine. Opening a dialog needs no explaining, so it appears at once.
+ */
+html body section[role="dialog"][aria-modal="true"] {
+  animation: none !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

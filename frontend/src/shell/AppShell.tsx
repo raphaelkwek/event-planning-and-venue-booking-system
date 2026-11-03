@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import Button from "@atlaskit/button/new";
 import { useTheme } from "../theme/ThemeProvider.js";
@@ -36,9 +36,13 @@ function prefersReducedMotion(): boolean {
   return typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
-/** A short fade and lift when the screen changes (not when only its id does), skipped for reduced motion. */
+/**
+ * A short fade and lift when the screen changes (not when only its id does), skipped for reduced
+ * motion. Started before paint, so the new screen never shows a frame before it, and so a check that
+ * waits for running animations (EN-14's accessibility check) waits for this one too.
+ */
 function useScreenEntrance(target: { current: HTMLElement | null }, screen: string | null) {
-  useEffect(() => {
+  useLayoutEffect(() => {
     const element = target.current;
     if (!element || typeof element.animate !== "function" || prefersReducedMotion()) return;
     element.animate(
