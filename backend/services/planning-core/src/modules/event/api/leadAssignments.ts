@@ -28,7 +28,6 @@ import { refuse } from "./errors.js";
  * (A2); the Lead coordinates no event (W9-35).
  */
 
-const LEAD = "EVENT_COORDINATOR_LEAD";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const bodySchema = z.object({ coordinatorId: z.string().uuid() });
 
@@ -40,7 +39,7 @@ const nameOf = (coordinator: ActiveCoordinator) => coordinator.displayName ?? co
 export function leadAssignmentsRouter(sql: Sql, limiter: RequestHandler = eventRateLimiter()) {
   const router = Router();
 
-  router.get("/api/v1/assignments/unassigned", limiter, ...authenticate, requireRole(LEAD), async (_req: ActorRequest, res) => {
+  router.get("/api/v1/assignments/unassigned", limiter, ...authenticate, requireRole("event", "assign"), async (_req: ActorRequest, res) => {
     res.status(200).json({ items: await listUnassigned(sql) });
   });
 
@@ -51,12 +50,12 @@ export function leadAssignmentsRouter(sql: Sql, limiter: RequestHandler = eventR
     return coordinators.map((c) => ({ id: c.id, displayName: c.displayName, email: c.email, activeAssignments: counts.get(c.id) ?? 0 }));
   }
 
-  router.get("/api/v1/coordinators", limiter, ...authenticate, requireRole(LEAD), async (_req: ActorRequest, res) => {
+  router.get("/api/v1/coordinators", limiter, ...authenticate, requireRole("event", "assign"), async (_req: ActorRequest, res) => {
     res.status(200).json({ items: await coordinatorsWithLoad() });
   });
 
   // E5: every active event with its coordinator or none, filtered to one coordinator's if asked, and each coordinator's load.
-  router.get("/api/v1/assignments", limiter, ...authenticate, requireRole(LEAD), async (req: ActorRequest, res) => {
+  router.get("/api/v1/assignments", limiter, ...authenticate, requireRole("event", "view_assignments"), async (req: ActorRequest, res) => {
     const coordinatorId = typeof req.query.coordinatorId === "string" && req.query.coordinatorId !== "" ? req.query.coordinatorId : undefined;
     if (coordinatorId && !UUID.test(coordinatorId)) {
       return refuse(res, 400, "VALIDATION_FAILED", "The overview could not be filtered.", {
@@ -67,13 +66,13 @@ export function leadAssignmentsRouter(sql: Sql, limiter: RequestHandler = eventR
   });
 
   // E5: an event's assignment history, oldest first: who held it, who made each assignment, and when it began and ended.
-  router.get("/api/v1/events/:id/assignments", limiter, ...authenticate, requireRole(LEAD), async (req: ActorRequest, res) => {
+  router.get("/api/v1/events/:id/assignments", limiter, ...authenticate, requireRole("event", "view_assignments"), async (req: ActorRequest, res) => {
     const items = UUID.test(req.params.id!) ? await listAssignmentHistory(sql, req.params.id!) : null;
     if (!items) return refuse(res, 404, "EVENT_NOT_FOUND", "No event with that reference is available to you.");
     res.status(200).json({ items });
   });
 
-  router.post("/api/v1/events/:id/assignment", limiter, ...authenticate, requireRole(LEAD), async (req: ActorRequest, res) => {
+  router.post("/api/v1/events/:id/assignment", limiter, ...authenticate, requireRole("event", "assign"), async (req: ActorRequest, res) => {
     const lead = req.actor!;
     const correlationId = req.header("x-correlation-id") ?? null;
     const notFound = () => refuse(res, 404, "EVENT_NOT_FOUND", "No event with that reference is available to you.");
@@ -150,7 +149,7 @@ export function leadAssignmentsRouter(sql: Sql, limiter: RequestHandler = eventR
    * or Rejected (W9-20). The outgoing assignment is closed and kept, a pending
    * E2 proposal is closed unaccepted (W9-FX-5), and all three people are told.
    */
-  router.post("/api/v1/events/:id/reassignment", limiter, ...authenticate, requireRole(LEAD), async (req: ActorRequest, res) => {
+  router.post("/api/v1/events/:id/reassignment", limiter, ...authenticate, requireRole("event", "reassign"), async (req: ActorRequest, res) => {
     const lead = req.actor!;
     const correlationId = req.header("x-correlation-id") ?? null;
     const notFound = () => refuse(res, 404, "EVENT_NOT_FOUND", "No event with that reference is available to you.");

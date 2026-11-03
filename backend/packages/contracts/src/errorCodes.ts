@@ -71,6 +71,8 @@ export const ERROR_CODES = [
   // F3: a cancelled event refuses new equipment; a cancellation that fails changes nothing.
   "EVENT_CANCELLED",
   "CANCELLATION_FAILED",
+  // EN-07: the policy decision point could not be asked, so the request is refused (fail closed).
+  "POLICY_UNAVAILABLE",
 ] as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[number];

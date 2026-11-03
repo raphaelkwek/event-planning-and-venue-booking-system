@@ -13,7 +13,6 @@ import { changeRateLimiter } from "./limiter.js";
  * S2 — the assigned coordinator approves (applying the change with field history) or rejects
  * (with a reason) a Pending change request. The body is checked before any transaction opens.
  */
-const COORDINATOR = "EVENT_COORDINATOR";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const PATH = "/api/v1/change-requests/:id/decision";
 
@@ -70,7 +69,7 @@ function notFound(res: Response, role: Role) {
 export function decisionsRouter(sql: Sql, limiter: RequestHandler = changeRateLimiter()) {
   const router = Router();
 
-  router.post(PATH, limiter, authenticate, requireRole(COORDINATOR), async (req: ActorRequest, res: Response, next: NextFunction) => {
+  router.post(PATH, limiter, authenticate, requireRole("event", "decide_change"), async (req: ActorRequest, res: Response, next: NextFunction) => {
     try {
       const requestId = req.params.id!;
       if (!UUID.test(requestId)) return notFound(res, req.actor!.role);

@@ -106,7 +106,7 @@ export function decisionsRouter(sql: Sql) {
   router.post(
     "/api/v1/events/:id/approve",
     ...authenticate,
-    requireRole("EVENT_COORDINATOR"),
+    requireRole("event", "approve"),
     async (req: ActorRequest, res) => {
       await decide(req, res, "APPROVED", null);
     }
@@ -115,7 +115,7 @@ export function decisionsRouter(sql: Sql) {
   router.post(
     "/api/v1/events/:id/reject",
     ...authenticate,
-    requireRole("EVENT_COORDINATOR"),
+    requireRole("event", "reject"),
     async (req: ActorRequest, res) => {
       const parsed = rejectionBodySchema.safeParse(req.body);
       const reason = parsed.success ? parsed.data.reason : null;

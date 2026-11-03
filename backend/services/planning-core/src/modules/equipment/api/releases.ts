@@ -13,7 +13,6 @@ import { equipmentRateLimiter } from "./limiter.js";
 import { present } from "./presentLine.js";
 
 /** Q2 — Technical Support release a Reserved line's reservation, with a reason. */
-const TECH_SUPPORT = "TECH_SUPPORT_STAFF";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const ALL_EVENTS = { scopeType: "ALL" } as const;
 
@@ -26,7 +25,7 @@ export function releasesRouter(sql: Sql, limiter: RequestHandler = equipmentRate
     "/api/v1/equipment/request-lines/:id/release",
     limiter,
     authenticate,
-    requireRole(TECH_SUPPORT),
+    requireRole("equipment_request_line", "release"),
     async (req: ActorRequest, res: Response, next: NextFunction) => {
       try {
         const id = req.params.id!;

@@ -15,7 +15,6 @@ import { changeRateLimiter } from "./limiter.js";
  * readiness is read from the bookings and reservations themselves, never sent
  * by the client and never stored (AC4).
  */
-const COORDINATOR = "EVENT_COORDINATOR";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const PATH = "/api/v1/events/:id/confirmation";
 
@@ -26,7 +25,7 @@ function notFound(res: Response, role: Role) {
 export function confirmationsRouter(sql: Sql, limiter: RequestHandler = changeRateLimiter()) {
   const router = Router();
 
-  router.post(PATH, limiter, authenticate, requireRole(COORDINATOR), async (req: ActorRequest, res: Response, next: NextFunction) => {
+  router.post(PATH, limiter, authenticate, requireRole("event", "confirm"), async (req: ActorRequest, res: Response, next: NextFunction) => {
     try {
       const eventId = req.params.id!;
       if (!UUID.test(eventId)) return notFound(res, req.actor!.role);

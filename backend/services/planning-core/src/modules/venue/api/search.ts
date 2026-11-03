@@ -19,7 +19,6 @@ import { refuse } from "./errors.js";
  * An empty result is a 200 with a message restating the filters, not an error
  * (J1 AC7). A search with nothing chosen lists every active venue (J2 AC4).
  */
-const SEARCHERS = ["EVENT_COORDINATOR"] as const;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
@@ -51,7 +50,7 @@ export function searchRouter(sql: Sql, limiter: RequestHandler = searchRateLimit
     "/api/v1/venues/search",
     limiter,
     authenticate,
-    requireRole(...SEARCHERS),
+    requireRole("venue", "search"),
     guarded(async (req, res) => {
       const parsed = readSearchFilters(req.query);
       if (!parsed.ok) {
@@ -74,7 +73,7 @@ export function searchRouter(sql: Sql, limiter: RequestHandler = searchRateLimit
     "/api/v1/venues/search/options",
     limiter,
     authenticate,
-    requireRole(...SEARCHERS),
+    requireRole("venue", "search"),
     guarded(async (_req, res) => {
       res.json(await listCatalogueOptions(sql));
     }),
@@ -85,7 +84,7 @@ export function searchRouter(sql: Sql, limiter: RequestHandler = searchRateLimit
     "/api/v1/venues/search/prefill",
     limiter,
     authenticate,
-    requireRole(...SEARCHERS),
+    requireRole("venue", "search"),
     guarded(async (req, res) => {
       const eventId = req.query.eventId;
       if (typeof eventId !== "string" || eventId === "") {

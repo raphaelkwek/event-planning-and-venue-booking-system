@@ -27,6 +27,7 @@ export function reassignmentsRouter(sql: Sql) {
   router.get(
     "/api/v1/events/:id/reassignment-proposals",
     ...authenticate,
+    requireRole("event", "view"),
     async (req: ActorRequest, res) => {
       const { userId, role, scope } = req.actor!;
       const event = await findEventInScope(sql, req.params.id, scope, userId);
@@ -44,7 +45,7 @@ export function reassignmentsRouter(sql: Sql) {
   router.post(
     "/api/v1/events/:id/reassignment-proposals",
     ...authenticate,
-    requireRole("EVENT_COORDINATOR"),
+    requireRole("event", "propose_reassignment"),
     (_req: ActorRequest, res) => {
       refuse(res, 410, "REASSIGNMENT_RETIRED", REASSIGNMENT_RETIRED);
     }
@@ -53,7 +54,7 @@ export function reassignmentsRouter(sql: Sql) {
   router.post(
     "/api/v1/events/:id/reassignment-proposals/accept",
     ...authenticate,
-    requireRole("EVENT_COORDINATOR"),
+    requireRole("event", "respond_to_reassignment"),
     async (req: ActorRequest, res) => {
       await respondToProposal(req, res, sql, "ACCEPTED");
     }
@@ -62,7 +63,7 @@ export function reassignmentsRouter(sql: Sql) {
   router.post(
     "/api/v1/events/:id/reassignment-proposals/decline",
     ...authenticate,
-    requireRole("EVENT_COORDINATOR"),
+    requireRole("event", "respond_to_reassignment"),
     async (req: ActorRequest, res) => {
       await respondToProposal(req, res, sql, "DECLINED");
     }

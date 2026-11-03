@@ -17,10 +17,11 @@ resourcePolicy:
       effect: EFFECT_ALLOW
       roles: [EVENT_ORGANISER, EVENT_COORDINATOR, VENUE_STAFF, TECH_SUPPORT_STAFF]
 
-    - name: I2-venue-staff-record-unavailability
-      actions: [record_unavailability, remove_unavailability]
+    # I2: only the venue's own Venue Staff see, record and remove its unavailability.
+    - name: I2-the-venue-s-staff-record-unavailability
+      actions: [view_unavailability, record_unavailability, remove_unavailability]
       effect: EFFECT_ALLOW
-      roles: [VENUE_STAFF]
+      derivedRoles: [venue_manager]
 
     - name: J1-J2-K1-K2-coordinators-search-and-assess
       actions: [search, check_suitability, justify_unsuitable]

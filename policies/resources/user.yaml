@@ -1,0 +1,15 @@
+# Who may look people up by id (A2). Rule names cite the story.
+#
+# Reading your own profile (GET /users/me), your own access scope and signing out
+# need only a valid session, so they have no rule here; every other route does.
+apiVersion: api.cerbos.dev/v1
+resourcePolicy:
+  version: default
+  resource: user
+  rules:
+    # B1, D1: the console names the people on a request (the submitting organiser, the
+    # reviewing coordinator). Internal staff only; attendees never look staff up.
+    - name: B1-D1-internal-staff-name-people
+      actions: [view]
+      effect: EFFECT_ALLOW
+      roles: [EVENT_ORGANISER, EVENT_COORDINATOR, VENUE_STAFF, TECH_SUPPORT_STAFF, EVENT_COORDINATOR_LEAD]

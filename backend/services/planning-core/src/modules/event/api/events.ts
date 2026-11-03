@@ -46,7 +46,7 @@ export function eventsRouter(sql: Sql) {
   router.post(
     "/api/v1/events",
     ...authenticate,
-    requireRole("EVENT_ORGANISER"),
+    requireRole("event", "create"),
     async (req: ActorRequest, res) => {
       const parsed = submissionBodySchema.safeParse(req.body);
       if (!parsed.success) {
@@ -88,7 +88,7 @@ export function eventsRouter(sql: Sql) {
   router.get(
     "/api/v1/events/queue",
     ...authenticate,
-    requireRole("EVENT_COORDINATOR"),
+    requireRole("event", "review"),
     async (req: ActorRequest, res) => {
       const items = await listReviewQueue(sql, QUEUE_STATUSES, req.actor!.userId);
       res.status(200).json({ items, nextCursor: null });
@@ -102,7 +102,7 @@ export function eventsRouter(sql: Sql) {
    * coordinator opening the same request sees the first reviewer rather than
    * replacing them.
    */
-  router.get("/api/v1/events/:id", ...authenticate, async (req: ActorRequest, res) => {
+  router.get("/api/v1/events/:id", ...authenticate, requireRole("event", "view"), async (req: ActorRequest, res) => {
     const { userId, role, scope } = req.actor!;
 
     const event = await findEventInScope(sql, req.params.id, scope, userId);
@@ -137,7 +137,7 @@ export function eventsRouter(sql: Sql) {
     res.set("ETag", etag(shown.version)).status(200).json(shown);
   });
 
-  router.get("/api/v1/events", ...authenticate, async (req: ActorRequest, res) => {
+  router.get("/api/v1/events", ...authenticate, requireRole("event", "view"), async (req: ActorRequest, res) => {
     const kind = req.query.kind;
     const { userId, scope } = req.actor!;
 

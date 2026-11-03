@@ -17,6 +17,8 @@
     "lint:boundaries": "depcruise src --config .dependency-cruiser.mjs && tsx scripts/check-schema-boundaries.ts"
   },
   "dependencies": {
+    "@cerbos/core": "0.31.0",
+    "@cerbos/http": "0.28.1",
     "@connectsphere/contracts": "*",
     "@connectsphere/kafka": "*",
     "@temporalio/activity": "1.24.0",

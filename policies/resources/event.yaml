@@ -12,8 +12,9 @@ resourcePolicy:
       effect: EFFECT_ALLOW
       roles: [EVENT_ORGANISER]
 
-    - name: C2-edit-and-submit-my-draft
-      actions: [update_draft, submit_draft]
+    # C2: the draft editor opens (view_draft), saves and submits the owner's draft.
+    - name: C2-open-edit-and-submit-my-draft
+      actions: [view_draft, update_draft, submit_draft]
       effect: EFFECT_ALLOW
       derivedRoles: [owner]
 
@@ -77,6 +78,14 @@ resourcePolicy:
       actions: [assign, reassign]
       effect: EFFECT_ALLOW
       roles: [EVENT_COORDINATOR_LEAD]
+
+    # E2's proposal route is retired (E4, W9-59): every coordinator who calls it is
+    # told so (410 REASSIGNMENT_RETIRED). Cerbos lets coordinators reach it; the domain
+    # answers "no longer". The Lead reassigns instead.
+    - name: E2-coordinators-reach-the-retired-proposal-route
+      actions: [propose_reassignment]
+      effect: EFFECT_ALLOW
+      roles: [EVENT_COORDINATOR]
 
     - name: E2-only-the-nominee-accepts-or-declines
       actions: [respond_to_reassignment]

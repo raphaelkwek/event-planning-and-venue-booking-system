@@ -128,7 +128,7 @@ export function requestLinesRouter(sql: Sql, limiter: RequestHandler = equipment
   }
 
   // O1: record a request of one or more lines. Saved whole or not at all.
-  router.post(BASE, limiter, authenticate, requireRole(COORDINATOR), async (req: ActorRequest, res: Response, next: NextFunction) => {
+  router.post(BASE, limiter, authenticate, requireRole("equipment_request_line", "create"), async (req: ActorRequest, res: Response, next: NextFunction) => {
     try {
       const body = createLinesBodySchema.safeParse(req.body);
       if (!body.success) {
@@ -165,7 +165,7 @@ export function requestLinesRouter(sql: Sql, limiter: RequestHandler = equipment
   });
 
   // O1, O2: the lines of one event (coordinators), or of every event (Technical Support).
-  router.get(BASE, limiter, authenticate, requireRole(COORDINATOR, TECH_SUPPORT), async (req: ActorRequest, res: Response, next: NextFunction) => {
+  router.get(BASE, limiter, authenticate, requireRole("equipment_request_line", "view"), async (req: ActorRequest, res: Response, next: NextFunction) => {
     try {
       const query = listLinesQuerySchema.safeParse(req.query);
       if (!query.success) {
@@ -215,7 +215,7 @@ export function requestLinesRouter(sql: Sql, limiter: RequestHandler = equipment
     }
   });
 
-  router.get(`${BASE}/:id`, limiter, authenticate, requireRole(COORDINATOR, TECH_SUPPORT), async (req: ActorRequest, res: Response, next: NextFunction) => {
+  router.get(`${BASE}/:id`, limiter, authenticate, requireRole("equipment_request_line", "view"), async (req: ActorRequest, res: Response, next: NextFunction) => {
     try {
       const line = UUID.test(req.params.id!) ? await findLine(sql, req.params.id!) : null;
       if (!line) return lineNotFound(res, req.actor!.role);
@@ -230,7 +230,7 @@ export function requestLinesRouter(sql: Sql, limiter: RequestHandler = equipment
   });
 
   // O1: edit a line while it is Submitted or Under Review.
-  router.put(`${BASE}/:id`, limiter, authenticate, requireRole(COORDINATOR), async (req: ActorRequest, res: Response, next: NextFunction) => {
+  router.put(`${BASE}/:id`, limiter, authenticate, requireRole("equipment_request_line", "update"), async (req: ActorRequest, res: Response, next: NextFunction) => {
     try {
       const loaded = await loadForCoordinator(req, res);
       if (!loaded) return;
@@ -264,7 +264,7 @@ export function requestLinesRouter(sql: Sql, limiter: RequestHandler = equipment
 
   // O1: removal sets the REMOVED status and records who, when, the type and the quantity. Nothing is deleted.
   // Q2: a Reserved line can be removed too; its reservation is released first and the coordinator's notice says so.
-  router.post(`${BASE}/:id/removal`, limiter, authenticate, requireRole(COORDINATOR), async (req: ActorRequest, res: Response, next: NextFunction) => {
+  router.post(`${BASE}/:id/removal`, limiter, authenticate, requireRole("equipment_request_line", "remove"), async (req: ActorRequest, res: Response, next: NextFunction) => {
     try {
       const loaded = await loadForCoordinator(req, res);
       if (!loaded) return;
@@ -305,7 +305,7 @@ export function requestLinesRouter(sql: Sql, limiter: RequestHandler = equipment
   });
 
   // O2: Technical Support updates a line as arrangements are made; the assigned coordinator is told.
-  router.post(`${BASE}/:id/status`, limiter, authenticate, requireRole(TECH_SUPPORT), async (req: ActorRequest, res: Response, next: NextFunction) => {
+  router.post(`${BASE}/:id/status`, limiter, authenticate, requireRole("equipment_request_line", "update_status"), async (req: ActorRequest, res: Response, next: NextFunction) => {
     try {
       const id = req.params.id!;
       if (!UUID.test(id)) return lineNotFound(res, req.actor!.role);

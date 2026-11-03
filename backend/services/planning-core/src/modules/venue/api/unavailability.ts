@@ -167,7 +167,7 @@ export function unavailabilityRouter(sql: Sql) {
   const BASE = "/api/v1/venues/:id/unavailability";
 
   // I2: the venue's active blocks, for its Venue Staff to review and remove.
-  router.get(BASE, limiter, authenticate, requireRole("VENUE_STAFF"), async (req: ActorRequest, res: Response, next: NextFunction) => {
+  router.get(BASE, limiter, authenticate, requireRole("venue", "view_unavailability"), async (req: ActorRequest, res: Response, next: NextFunction) => {
     try {
       const venue = await staffVenue(sql, req, res);
       if (!venue) return;
@@ -178,7 +178,7 @@ export function unavailabilityRouter(sql: Sql) {
   });
 
   // I2-T4: before confirming, each booking, hold and request a block over this period would disrupt.
-  router.get(`${BASE}/impact`, limiter, authenticate, requireRole("VENUE_STAFF"), async (req: ActorRequest, res: Response, next: NextFunction) => {
+  router.get(`${BASE}/impact`, limiter, authenticate, requireRole("venue", "record_unavailability"), async (req: ActorRequest, res: Response, next: NextFunction) => {
     try {
       const venue = await staffVenue(sql, req, res);
       if (!venue) return;
@@ -192,7 +192,7 @@ export function unavailabilityRouter(sql: Sql) {
   });
 
   // I2: record a block, flagging what it disrupts and telling their coordinators.
-  router.post(BASE, limiter, authenticate, requireRole("VENUE_STAFF"), async (req: ActorRequest, res: Response, next: NextFunction) => {
+  router.post(BASE, limiter, authenticate, requireRole("venue", "record_unavailability"), async (req: ActorRequest, res: Response, next: NextFunction) => {
     try {
       const venue = await staffVenue(sql, req, res);
       if (!venue) return;
@@ -236,7 +236,7 @@ export function unavailabilityRouter(sql: Sql) {
   });
 
   // I2: remove a block. Its flags clear unless another active block still disrupts the same booking.
-  router.post(`${BASE}/:blockId/remove`, limiter, authenticate, requireRole("VENUE_STAFF"), async (req: ActorRequest, res: Response, next: NextFunction) => {
+  router.post(`${BASE}/:blockId/remove`, limiter, authenticate, requireRole("venue", "remove_unavailability"), async (req: ActorRequest, res: Response, next: NextFunction) => {
     try {
       const venue = await staffVenue(sql, req, res);
       if (!venue) return;

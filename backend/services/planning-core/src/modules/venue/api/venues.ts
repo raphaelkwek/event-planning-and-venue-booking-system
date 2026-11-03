@@ -24,7 +24,6 @@ import { fieldsFromZod, refuse } from "./errors.js";
  * transaction with its history entry, so a refusal stores nothing (H1 AC7)
  * and a success always records who, when and what changed (H1 AC5).
  */
-const READERS = ["EVENT_ORGANISER", "EVENT_COORDINATOR", "VENUE_STAFF", "TECH_SUPPORT_STAFF"] as const;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
@@ -74,17 +73,17 @@ function readVenue(req: ActorRequest, res: Response, defaults: Defaults): VenueI
 export function venuesRouter(sql: Sql, limiter: RequestHandler = venuesRateLimit()) {
   const router = Router();
 
-  router.get("/api/v1/venues", limiter, authenticate, requireRole(...READERS), async (_req: ActorRequest, res: Response) => {
+  router.get("/api/v1/venues", limiter, authenticate, requireRole("venue", "view"), async (_req: ActorRequest, res: Response) => {
     res.json({ items: await listVenues(sql) });
   });
 
-  router.get("/api/v1/venues/:id", limiter, authenticate, requireRole(...READERS), async (req: ActorRequest, res: Response) => {
+  router.get("/api/v1/venues/:id", limiter, authenticate, requireRole("venue", "view"), async (req: ActorRequest, res: Response) => {
     const venue = UUID.test(req.params.id!) ? await findVenue(sql, req.params.id!) : null;
     if (!venue) return notFound(res);
     res.json(venue);
   });
 
-  router.post("/api/v1/venues", limiter, authenticate, requireRole("VENUE_STAFF"), async (req: ActorRequest, res: Response) => {
+  router.post("/api/v1/venues", limiter, authenticate, requireRole("venue", "create"), async (req: ActorRequest, res: Response) => {
     const venue = readVenue(req, res, NEW_VENUE);
     if (!venue) return;
     const actor = req.actor!;
@@ -101,7 +100,7 @@ export function venuesRouter(sql: Sql, limiter: RequestHandler = venuesRateLimit
     res.status(201).json(created);
   });
 
-  router.put("/api/v1/venues/:id", limiter, authenticate, requireRole("VENUE_STAFF"), async (req: ActorRequest, res: Response) => {
+  router.put("/api/v1/venues/:id", limiter, authenticate, requireRole("venue", "update"), async (req: ActorRequest, res: Response) => {
     if (!UUID.test(req.params.id!)) return notFound(res);
     const current = await findVenue(sql, req.params.id!);
     if (!current) return notFound(res);

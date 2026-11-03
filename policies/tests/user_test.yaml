@@ -1,0 +1,26 @@
+# A2 for looking people up. Unlisted combinations must be denied.
+name: UserTestSuite
+description: Who may look people up by id (A2), derived from B1 and D1.
+tests:
+  - name: Every role against a person
+    input:
+      principals: [organiser, assigned_coordinator, venue_manager, tech_support, attendee, lead]
+      resources: [user_someone]
+      actions: [view]
+    expected:
+      - principal: organiser # B1: the console names the people on a request
+        resource: user_someone
+        actions: { view: EFFECT_ALLOW }
+      - principal: assigned_coordinator # D1
+        resource: user_someone
+        actions: { view: EFFECT_ALLOW }
+      - principal: venue_manager
+        resource: user_someone
+        actions: { view: EFFECT_ALLOW }
+      - principal: tech_support
+        resource: user_someone
+        actions: { view: EFFECT_ALLOW }
+      - principal: lead # E3, E5: names coordinators and organisers
+        resource: user_someone
+        actions: { view: EFFECT_ALLOW }
+      # attendee: none. Attendees never look staff up.

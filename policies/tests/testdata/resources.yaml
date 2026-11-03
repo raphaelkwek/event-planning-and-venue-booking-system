@@ -40,6 +40,10 @@ resources:
     kind: equipment_type
     id: type-1
     attr: {}
+  user_someone:
+    kind: user
+    id: user-1
+    attr: {}
   registration_att1:
     kind: registration
     id: registration-1

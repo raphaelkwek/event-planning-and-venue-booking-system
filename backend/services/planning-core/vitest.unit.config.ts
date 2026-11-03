@@ -18,6 +18,8 @@ export default defineConfig({
     // Forks are vitest 2's default; a per-file glob (poolMatchGlobs) for just the
     // Temporal tests did not take effect here on vitest 1.6.
     pool: "forks",
+    // EN-07: no Cerbos PDP in a unit run; route gates ask a double that reads policies/.
+    setupFiles: ["tests/support/unitPolicySetup.ts"],
     // SPM-116. `npm run test:unit` turns coverage on; CI fails below these.
     coverage: {
       provider: "v8",

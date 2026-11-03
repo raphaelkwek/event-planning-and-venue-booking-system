@@ -1,6 +1,7 @@
 import type { NextFunction, Response } from "express";
 import type { Role } from "@connectsphere/contracts";
 import { verifyJwt, type AuthenticatedRequest } from "../../../shared/auth/verifyJwt.js";
+import { permissionGate, type PermissionGate, type PolicyKind } from "../../../shared/authz/gate.js";
 import { IdentityRefusedError, IdentityUnavailableError, resolveCurrentUser } from "./identity.js";
 import { refuse } from "../api/errors.js";
 
@@ -29,13 +30,12 @@ async function resolveActor(req: ActorRequest, res: Response, next: NextFunction
 
 export const authenticate = [verifyJwt, resolveActor];
 
-/** A2: the server applies each function's permitted roles whether or not the screen offered it. */
-export function requireRole(...permitted: Role[]) {
-  return (req: ActorRequest, res: Response, next: NextFunction) => {
-    if (!permitted.includes(req.actor!.role)) {
-      refuse(res, 403, "ROLE_NOT_AUTHORISED", "Your role is not authorised to use this function.");
-      return;
-    }
-    next();
-  };
+/**
+ * A2 through the policies (EN-07, ADR-0010): the caller's role must be one the
+ * Cerbos policies permit for `action` on `kind`. The policy decision point
+ * answers; no route lists roles any more. A role no rule grants is refused with
+ * 403 ROLE_NOT_AUTHORISED, an unanswered check with 503 POLICY_UNAVAILABLE.
+ */
+export function requireRole(kind: PolicyKind, action: string): PermissionGate {
+  return permissionGate({ kind, action }, (_req, res, status, code, message) => refuse(res, status, code, message));
 }

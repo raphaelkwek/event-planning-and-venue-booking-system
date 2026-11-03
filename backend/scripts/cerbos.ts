@@ -1,23 +1,32 @@
 #!/usr/bin/env node
 /**
- * Runs the Cerbos CLI without Docker (EN-07.1, ADR-0010): downloads the pinned
- * release for this platform once, checks it against the release's published
- * SHA-256, caches it under node_modules/.cache/cerbos/, then runs it with the
- * arguments given. `npm run policies:test` uses it to compile the policies in
- * policies/ and run their tests.
+ * Runs the Cerbos CLI without Docker (EN-07, ADR-0010): downloads the pinned
+ * release once, checks it against the release's published SHA-256, caches it
+ * under node_modules/.cache/cerbos/, then runs it with the arguments given.
  *
- * Cerbos publishes Linux and macOS builds only. On Windows this explains the
- * options and exits non-zero rather than pretending the tests passed.
+ * - `npm run policies:test` compiles policies/ and runs its tests.
+ * - `npm run cerbos:start` (and so `npm run dev`) starts the policy decision
+ *   point (PDP) on policies/, at http://127.0.0.1:3592, which is CERBOS_URL's
+ *   local value. It reloads a policy when the file changes.
+ *
+ * Cerbos publishes Linux and macOS builds only. On Windows this runs the Linux
+ * build inside WSL when a Linux distribution is installed (WSL 2 forwards the
+ * port, so http://127.0.0.1:3592 works from Windows). Without one it says how
+ * to get one. For `server` it then exits 0, so `npm run dev` keeps running and
+ * every protected request is refused with 503 (fail closed); for anything else
+ * it exits 1 rather than pretending the policy tests passed.
  */
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { chmodSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 
 const VERSION = "0.56.0";
 const RELEASES = `https://github.com/cerbos/cerbos/releases/download/v${VERSION}`;
 const CACHE = join(process.cwd(), "node_modules", ".cache", "cerbos", VERSION);
 const BINARY = join(CACHE, "cerbos");
+const WINDOWS = process.platform === "win32";
+const SERVING = process.argv[2] === "server";
 
 function fail(message: string): never {
   console.error(message);
@@ -25,15 +34,9 @@ function fail(message: string): never {
 }
 
 function assetName(): string {
-  const os = { linux: "Linux", darwin: "Darwin" }[process.platform as string];
+  // On Windows the Linux build is fetched, to run inside WSL.
+  const os = WINDOWS ? "Linux" : { linux: "Linux", darwin: "Darwin" }[process.platform as string];
   const arch = { x64: "x86_64", arm64: "arm64" }[process.arch as string];
-  if (process.platform === "win32") {
-    fail(
-      "Cerbos has no Windows build, so the policy tests can't run natively here.\n" +
-        "They run in CI on every pull request (the 'Permission policy tests' step).\n" +
-        "To run them locally, use WSL: `wsl --install -d Ubuntu`, then run `npm run policies:test` inside it."
-    );
-  }
   if (!os || !arch) fail(`No Cerbos ${VERSION} build for ${process.platform}/${process.arch}.`);
   return `cerbos_${VERSION}_${os}_${arch}.tar.gz`;
 }
@@ -66,6 +69,55 @@ async function install(): Promise<void> {
   console.log(`Installed Cerbos ${VERSION} (SHA-256 verified) to ${CACHE}`);
 }
 
+/** The first installed WSL distribution that can run a Linux binary (Docker Desktop's can't). */
+function wslDistribution(): string | null {
+  const listed = spawnSync("wsl.exe", ["-l", "-q"]);
+  if (listed.status !== 0 || !listed.stdout) return null;
+  const names = listed.stdout
+    .toString("utf16le")
+    .split(/\r?\n/)
+    .map((name) => name.replace(/\0/g, "").trim())
+    .filter((name) => name.length > 0 && !name.startsWith("docker-desktop"));
+  return names[0] ?? null;
+}
+
+function toWslPath(distribution: string, windowsPath: string): string {
+  const converted = spawnSync("wsl.exe", ["-d", distribution, "-e", "wslpath", "-a", windowsPath], { encoding: "utf8" });
+  if (converted.status !== 0) fail(`WSL could not translate ${windowsPath}.`);
+  return converted.stdout.trim();
+}
+
+function noWsl(): never {
+  const message =
+    "Cerbos has no Windows build, and no WSL Linux distribution is installed to run its Linux build.\n" +
+    "Install one with `wsl --install -d Ubuntu`, then run this again. CI runs the policy tests and a PDP on every pull request.";
+  if (SERVING) {
+    console.warn(`${message}\nUntil then planning-core refuses every protected request with 503 POLICY_UNAVAILABLE (it fails closed).`);
+    process.exit(0);
+  }
+  fail(message);
+}
+
+/** A --config=… path or a path argument is a Windows path; WSL needs its own form of it. */
+function argsForWsl(distribution: string, args: string[]): string[] {
+  return args.map((arg) => {
+    const config = arg.match(/^--config=(.+)$/);
+    if (config) return `--config=${toWslPath(distribution, resolve(config[1]!))}`;
+    return existsSync(arg) ? toWslPath(distribution, resolve(arg)) : arg;
+  });
+}
+
+const args = process.argv.slice(2);
+// Look for WSL before downloading anything, so a machine without it isn't sent a binary it can't run.
+const distribution = WINDOWS ? wslDistribution() : null;
+if (WINDOWS && !distribution) noWsl();
 if (!existsSync(BINARY)) await install();
-const run = spawnSync(BINARY, process.argv.slice(2), { stdio: "inherit" });
+
+const run = distribution
+  ? spawnSync(
+      "wsl.exe",
+      ["-d", distribution, "--cd", toWslPath(distribution, process.cwd()), "-e", toWslPath(distribution, BINARY), ...argsForWsl(distribution, args)],
+      { stdio: "inherit" }
+    )
+  : spawnSync(BINARY, args, { stdio: "inherit" });
 process.exit(run.status ?? 1);
