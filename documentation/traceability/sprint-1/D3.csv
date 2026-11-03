@@ -1,0 +1,9 @@
+story_id,acceptance_criterion,test_file,test_name
+D3,"The organiser can see any outstanding clarification message on their own event",backend/services/planning-core/tests/event/api/clarifications.test.ts,"lets the owning organiser see the outstanding clarification"
+D3,"The organiser can reply with a message, amend the request fields, or both",backend/services/planning-core/tests/event/api/clarifications.test.ts,"accepts an amendment with no message"
+D3,"A response with neither a message nor an amendment is refused and no timestamp is recorded",backend/services/planning-core/tests/event/api/clarifications.test.ts,"refuses a response with neither a message nor an amendment, recording no timestamp"
+D3,"On response the event status returns to Under Review and the response timestamp is recorded",backend/services/planning-core/tests/event/api/clarifications.test.ts,"returns the event to Under Review and records the response time"
+D3,"The values as originally submitted are retained in the event history alongside the amended values",backend/services/planning-core/tests/event/api/clarifications.test.ts,"retains the value as originally submitted alongside the amended value"
+D3,"The coordinator who requested the clarification is notified that the organiser has responded",backend/services/planning-core/tests/event/api/clarifications.test.ts,"notifies the coordinator who asked for the clarification"
+D3,"An organiser who does not own the event cannot view or answer the clarification",backend/services/planning-core/tests/event/api/clarifications.test.ts,"gives an organiser who does not own the event no clarification content"
+D3,"The organiser can amend the request fields, including its venue requirements, with the originals retained in the history",backend/services/planning-core/tests/event/api/clarifications.test.ts,"lets the organiser amend the venue requirements, keeping the original in the history"

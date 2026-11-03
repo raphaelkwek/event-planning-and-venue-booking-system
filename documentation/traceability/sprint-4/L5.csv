@@ -1,0 +1,2 @@
+story_id,acceptance_criterion,test_file,test_name
+L5,"If the replacement request is rejected or withdrawn, the disrupted booking stays as it was, still flagged, and another replacement can be requested.",backend/services/planning-core/tests/venue/api/auditFixes.test.ts,"refuses a second pending replacement, naming the first, and allows another once it is withdrawn"
