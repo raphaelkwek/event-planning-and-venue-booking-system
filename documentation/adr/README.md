@@ -54,5 +54,6 @@ place (update its Status) rather than deleting it.
 | [0013](0013-opentelemetry-and-slos.md) | OpenTelemetry and SLOs | Accepted |
 | [0014](0014-two-front-ends-one-contract.md) | Two front ends, one contract | Accepted |
 | [0015](0015-contract-first-http-apis.md) | Contract-first HTTP APIs | Accepted |
+| [0016](0016-free-single-node-k3s-and-vercel.md) | Deploy staging and production on a free single-node k3s and Vercel | Accepted (3 Nov 2026); narrows 0012, notes on 0008 and 0009 |
 
 ADR-0004 to ADR-0015 were accepted on 2026-10-01 from the target architecture review (`documentation/proposals/2026-10-01-target-architecture-and-jira-plan.md`). Each names the enabler that implements it; that enabler's assignee owns the ADR and presents it in the Week 13 Q&A.

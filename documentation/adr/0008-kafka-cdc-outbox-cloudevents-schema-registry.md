@@ -117,3 +117,12 @@ So Aiven covers Sprint 2 and early Sprint 3, when only a few producers exist. Co
 6. Delete the Aiven service once nobody uses it.
 
 Unpublished outbox rows go to Confluent, and consumer inboxes make any replay harmless.
+
+## Note, 3 Nov 2026: the deployed environments (ADR-0016)
+
+Development keeps the hosted cluster this ADR chose. The deployed staging and production
+environments on the k3s VM each run their own single-node Redpanda in their namespace (the Kafka
+API, SASL/SCRAM over TLS from a cert-manager CA), because no free hosted Kafka has the headroom. The
+services reach it through the same `KAFKA_*` variables; topics are created on first use with three
+partitions, keyed by aggregate id as above. The topic layout, the outbox, CloudEvents and the inboxes
+are unchanged.

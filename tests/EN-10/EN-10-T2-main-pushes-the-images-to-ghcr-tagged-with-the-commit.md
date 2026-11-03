@@ -20,6 +20,6 @@
 |---|---|
 | Actual Result | Not run. The push step is conditioned on a push to main, so it cannot run on a pull request. Whether this repository lets the workflow token write packages is unknown until the first merge. |
 | Status | Not Executed |
-| Remarks | Commit: · Evidence: .github/workflows/deploy.yml › 'Push to GHCR, tagged with the commit sha' (runs only on push to main) · Defect: |
+| Remarks | Commit: · Evidence: .github/workflows/deploy.yml › 'Push to GHCR, tagged with the commit sha' (runs only on push to main). Since ADR-0016 the push is in .github/workflows/release.yml › jobs 'Build' and 'Publish' (one multi-arch index per image, tagged with the commit sha); see DEPLOY-T2 · Defect: |
 | Executed By |  |
 | Date of Execution |  |

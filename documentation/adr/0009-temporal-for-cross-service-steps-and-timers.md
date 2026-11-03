@@ -55,3 +55,12 @@ If step 1 or step 2 fails, the workflow unmarks the registrations. That undo can
 **What a reviewer should watch for:** non-deterministic calls (time, random, I/O) directly in workflow code, and a release that happens outside the core's cancellation transaction.
 
 **Implemented by:** EN-11 (SPM-129). Proved by EN-20 (chaos experiments 1 and 6).
+
+## Note, 3 Nov 2026: the deployed environments (ADR-0016)
+
+Development keeps the Temporal Cloud namespace this ADR chose. The deployed staging and production
+environments on the k3s VM each run the Temporal CLI's dev server in their namespace (`temporal
+server start-dev`, its SQLite file on a PersistentVolumeClaim), because Temporal Cloud has no free
+plan. The worker reaches it through the same `TEMPORAL_*` variables (`temporal:7233`, namespace
+`default`, no API key, so a plain connection inside the namespace). Workflows, versioning and replay
+tests are unchanged; there is one Temporal process per environment and no UI is exposed.
