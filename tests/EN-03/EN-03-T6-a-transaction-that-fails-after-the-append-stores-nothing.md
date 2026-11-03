@@ -19,8 +19,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | With an error thrown after the transition, the event stayed Under Review and had no stream entry, no history row and no outbox message. |
+| Status | Pass |
+| Remarks | Automated (integration, CI) · Commit: 7f31ecac5107ee470305a850ad7a6e881c900a90 · Evidence: backend/services/planning-core/tests/event/repo/eventStream.test.ts › the projections and the outbox (EN-03 criterion 2) › EN-03-T6 a transaction that fails after the append stores nothing, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41610286516 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

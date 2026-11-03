@@ -19,8 +19,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | The second append, started while the first was uncommitted, waited on the first and was then refused with "Another change to event … was recorded first, so this one was not stored." The event's stream held one entry (version 1, the first append's), one history row, and its chain verified. |
+| Status | Pass |
+| Remarks | Automated (integration, CI) · Commit: 7f31ecac5107ee470305a850ad7a6e881c900a90 · Evidence: backend/services/planning-core/tests/event/repo/eventStream.test.ts › the stream (EN-03 criterion 1) › EN-03-T3 two appends racing for the same version store exactly one, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41610286516 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

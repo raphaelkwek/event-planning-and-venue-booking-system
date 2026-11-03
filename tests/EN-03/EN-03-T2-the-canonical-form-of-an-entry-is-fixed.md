@@ -19,8 +19,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | The canonical text of the fixed entry equalled the documented string exactly (key order, spacing, null actor, escaped quote and newline, é kept, UTC time with six digits), and its hash equalled SHA-256 of 64 zeros plus that text. |
+| Status | Pass |
+| Remarks | Automated (integration, CI) · Commit: 7f31ecac5107ee470305a850ad7a6e881c900a90 · Evidence: backend/services/planning-core/tests/event/repo/eventStream.test.ts › the stream (EN-03 criterion 1) › EN-03-T2 the canonical form an entry is hashed over is fixed and documented, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41610286516 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

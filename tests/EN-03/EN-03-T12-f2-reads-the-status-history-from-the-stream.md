@@ -19,8 +19,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | After the event's event_history rows were deleted, GET /status-history returned 200 with a body identical to the one before: Draft → Submitted (Event Organiser, SUBMIT), Submitted → Under Review and Under Review → Approved (Event Coordinator), oldest first, each with the same fields as before EN-03. |
+| Status | Pass |
+| Remarks | Automated (API level) · Commit: 7f31ecac5107ee470305a850ad7a6e881c900a90 · Evidence: backend/services/planning-core/tests/event/api/en03HistoryReads.test.ts › F1 and F2 read the stream (EN-03 criterion 4) › EN-03-T12 F2's status history is read from the stream, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41610286516 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

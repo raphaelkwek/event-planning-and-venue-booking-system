@@ -19,8 +19,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | The backfill copied 4 rows. The stream held them with their own ids as versions 1–4 in time order (1 Oct, 2 Oct status, 2 Oct 12:00 field, 3 Oct) with their values, and the chain verified. |
+| Status | Pass |
+| Remarks | Automated (integration, CI) · Commit: 7f31ecac5107ee470305a850ad7a6e881c900a90 · Evidence: backend/services/planning-core/tests/event/repo/eventStream.test.ts › the backfill of the history written before the stream (EN-03 criterion 3) › EN-03-T9 the backfill copies an event's existing history into the stream in time order, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41610286516 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

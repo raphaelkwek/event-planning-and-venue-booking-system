@@ -19,8 +19,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | A direct insert into event_history became stream version 2 with the row's id and values, chained to version 1. A status change without a new status was refused, by the history insert and by the append alike (not as a lost race), and stored nothing in either table. |
+| Status | Pass |
+| Remarks | Automated (integration, CI) · Commit: 7f31ecac5107ee470305a850ad7a6e881c900a90 · Evidence: backend/services/planning-core/tests/event/repo/eventStream.test.ts › the projections and the outbox (EN-03 criterion 2) › EN-03-T8 a history row written without the append function still reaches the stream, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41610286516 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

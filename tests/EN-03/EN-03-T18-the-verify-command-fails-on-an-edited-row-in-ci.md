@@ -19,8 +19,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | The first npm run event-store:verify exited 0. ci-tamper-event-stream.ts edited one entry and printed it; the second run exited non-zero and printed "First broken link: event <id> version 1 (HASH_MISMATCH): …" naming that entry, which the step checked. |
+| Status | Pass |
+| Remarks | Automated (CI step) · Commit: 7f31ecac5107ee470305a850ad7a6e881c900a90 · Evidence: .github/workflows/ci.yml › step "Event store tamper check (EN-03)", CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41610286516 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

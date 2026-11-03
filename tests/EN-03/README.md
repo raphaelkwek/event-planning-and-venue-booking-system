@@ -41,3 +41,9 @@ The cases were written from the acceptance criteria in the plan
 
 The stories whose behaviour EN-03 must not change (F1, F2, D3, G1, S2, F3, F5 and the rest) keep
 their own cards and tests, which run unchanged.
+
+## Latest run
+
+All 19 cards: **Pass**, from CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41610286516 on commit `7f31eca` (2026-11-03). T1–T17 and T19 are integration tests on the CI job's throwaway Postgres; T14 and T18 are also the `Event store tamper check (EN-03)` step, which ran `npm run event-store:verify` on everything the integration suite wrote, edited one entry, and saw the command fail naming it.
+
+**Not covered here:** the shared database has not been migrated or verified (no `.env` was used). Row-level security on the stream is EN-07's.
