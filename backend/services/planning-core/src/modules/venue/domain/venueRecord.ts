@@ -1,4 +1,5 @@
 import type { ErrorField } from "@connectsphere/contracts";
+import { MAX_HEADCOUNT, MAX_SETUP_MINUTES, isWholeBetween } from "../../../shared/limits.js";
 
 /**
  * H1 — the rules for a venue record, pure so that every one is unit-tested.
@@ -33,8 +34,8 @@ export interface VenueInput {
 
 export type VenueValidation = { ok: true; venue: VenueInput } | { ok: false; fields: ErrorField[] };
 
-const WHOLE_ABOVE_ZERO = (value: number) => Number.isInteger(value) && value > 0;
-const WHOLE_FROM_ZERO = (value: number) => Number.isInteger(value) && value >= 0;
+const CAPACITY = (value: number) => isWholeBetween(value, 1, MAX_HEADCOUNT);
+const MINUTES = (value: number) => isWholeBetween(value, 0, MAX_SETUP_MINUTES);
 const TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
 const CAPITALISED: Record<Day, string> = {
   monday: "Monday",
@@ -59,8 +60,8 @@ export function validateVenue(input: VenueInput): VenueValidation {
 
   if (!name) fields.push({ field: "name", message: "Enter the venue's name." });
   if (!building) fields.push({ field: "building", message: "Enter the building or location." });
-  if (!WHOLE_ABOVE_ZERO(input.maxCapacity)) {
-    fields.push({ field: "maxCapacity", message: "Maximum capacity must be a whole number greater than zero." });
+  if (!CAPACITY(input.maxCapacity)) {
+    fields.push({ field: "maxCapacity", message: `Maximum capacity must be a whole number from 1 to ${MAX_HEADCOUNT}.` });
   }
 
   const layouts = input.layouts.map((layout) => ({ name: layout.name.trim(), capacity: layout.capacity }));
@@ -71,8 +72,8 @@ export function validateVenue(input: VenueInput): VenueValidation {
     if (!layout.name) fields.push({ field: `layouts[${i}].name`, message: "Enter the layout's name." });
     else if (seen.has(key)) fields.push({ field: `layouts[${i}].name`, message: "Each layout can be recorded once." });
     seen.add(key);
-    if (!WHOLE_ABOVE_ZERO(layout.capacity)) {
-      fields.push({ field: `layouts[${i}].capacity`, message: "Layout capacity must be a whole number greater than zero." });
+    if (!CAPACITY(layout.capacity)) {
+      fields.push({ field: `layouts[${i}].capacity`, message: `Layout capacity must be a whole number from 1 to ${MAX_HEADCOUNT}.` });
     }
   });
 
@@ -88,11 +89,11 @@ export function validateVenue(input: VenueInput): VenueValidation {
     }
   }
 
-  if (!WHOLE_FROM_ZERO(input.setupMinutes)) {
-    fields.push({ field: "setupMinutes", message: "Setup time must be a whole number of minutes, 0 or more." });
+  if (!MINUTES(input.setupMinutes)) {
+    fields.push({ field: "setupMinutes", message: `Setup time must be a whole number of minutes from 0 to ${MAX_SETUP_MINUTES}.` });
   }
-  if (!WHOLE_FROM_ZERO(input.turnaroundMinutes)) {
-    fields.push({ field: "turnaroundMinutes", message: "Turnaround time must be a whole number of minutes, 0 or more." });
+  if (!MINUTES(input.turnaroundMinutes)) {
+    fields.push({ field: "turnaroundMinutes", message: `Turnaround time must be a whole number of minutes from 0 to ${MAX_SETUP_MINUTES}.` });
   }
 
   if (fields.length > 0) return { ok: false, fields };

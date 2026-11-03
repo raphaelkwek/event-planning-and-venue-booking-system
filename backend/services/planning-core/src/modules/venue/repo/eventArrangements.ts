@@ -10,6 +10,7 @@ import type { TransactionSql } from "postgres";
  * M1 decision, an I2 flag or an L2 withdrawal on them waits until the event's
  * status has changed, and the confirmation decides on what is still true when
  * it commits (implementation.md §4.7). The caller has already locked the event.
+ * Requests are taken before slots, the order every path takes (§4.6, lock order).
  */
 
 /**
@@ -53,6 +54,28 @@ const flagsOf = (row: { requires_reconfirmation: boolean; period_mismatch: boole
 ];
 
 export async function venueArrangementsForEvent(tx: TransactionSql, eventId: string): Promise<VenueArrangements> {
+  // Requests before slots: the lock order M1 takes (a request, then the slot its hold took) and S3
+  // takes (implementation.md §4.6). Slots first deadlocked against an approval of a converted hold (L2, audit).
+  const requests = await tx<
+    {
+      id: string;
+      reference: string;
+      venue_name: string;
+      starts_at: Date;
+      ends_at: Date;
+      requires_reconfirmation: boolean;
+      period_mismatch: boolean;
+      unsuitable: boolean;
+    }[]
+  >`
+    select r.id, r.reference, v.name as venue_name, r.starts_at, r.ends_at, r.requires_reconfirmation, r.period_mismatch,
+           r.unsuitable
+    from venue.booking_requests r join venue.venues v on v.id = r.venue_id
+    where r.event_id = ${eventId} and r.status = 'PENDING'
+    order by r.starts_at, r.reference
+    for share of r
+  `;
+
   const slots = await tx<
     {
       id: string;
@@ -73,26 +96,6 @@ export async function venueArrangementsForEvent(tx: TransactionSql, eventId: str
     where s.event_id = ${eventId} and s.status in ('HELD', 'CONFIRMED')
     order by s.starts_at, s.reference
     for share of s
-  `;
-
-  const requests = await tx<
-    {
-      id: string;
-      reference: string;
-      venue_name: string;
-      starts_at: Date;
-      ends_at: Date;
-      requires_reconfirmation: boolean;
-      period_mismatch: boolean;
-      unsuitable: boolean;
-    }[]
-  >`
-    select r.id, r.reference, v.name as venue_name, r.starts_at, r.ends_at, r.requires_reconfirmation, r.period_mismatch,
-           r.unsuitable
-    from venue.booking_requests r join venue.venues v on v.id = r.venue_id
-    where r.event_id = ${eventId} and r.status = 'PENDING'
-    order by r.starts_at, r.reference
-    for share of r
   `;
 
   const venueIds = [...new Set(slots.map((slot) => slot.venue_id))];

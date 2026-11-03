@@ -1,0 +1,5 @@
+story_id,acceptance_criterion,test_file,test_name
+C3,"The organiser's event list shows the status of every request, with Draft visually distinct from Submitted and later statuses",backend/services/planning-core/tests/event/api/drafts.test.ts,"shows the status of every request, with drafts distinct from submitted ones"
+C3,"The list can be filtered to show only drafts or only submitted-and-later requests",backend/services/planning-core/tests/event/api/drafts.test.ts,"can be filtered to drafts only"
+C3,"A draft row shows its last-saved date/time and displays no assigned coordinator, no review outcome, and no event reference number",backend/services/planning-core/tests/event/api/drafts.test.ts,"shows a draft row with its last-saved time, no reference and no coordinator"
+C3,"The list contains only the signed-in organiser's own requests",backend/services/planning-core/tests/event/api/drafts.test.ts,"lists no other organiser's requests (A3)"

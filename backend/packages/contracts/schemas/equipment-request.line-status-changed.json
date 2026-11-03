@@ -1,0 +1,120 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "properties": {
+    "changedAt": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "changedBy": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "coordinatorId": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "equipmentTypeName": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "eventId": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "eventName": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "eventReference": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "lineId": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "newStatus": {
+      "enum": [
+        "SUBMITTED",
+        "UNDER_REVIEW",
+        "CONFIRMED",
+        "UNAVAILABLE",
+        "SUBSTITUTED",
+        "RESERVED",
+        "REMOVED"
+      ],
+      "type": "string"
+    },
+    "previousStatus": {
+      "enum": [
+        "SUBMITTED",
+        "UNDER_REVIEW",
+        "CONFIRMED",
+        "UNAVAILABLE",
+        "SUBSTITUTED",
+        "RESERVED",
+        "REMOVED"
+      ],
+      "type": "string"
+    },
+    "quantity": {
+      "exclusiveMinimum": 0,
+      "type": "integer"
+    },
+    "reason": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "released": {
+      "type": "boolean"
+    },
+    "reservedQuantity": {
+      "anyOf": [
+        {
+          "exclusiveMinimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "substituteEquipmentTypeName": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "substituteQuantity": {
+      "anyOf": [
+        {
+          "exclusiveMinimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "changedAt",
+    "changedBy",
+    "coordinatorId",
+    "equipmentTypeName",
+    "eventId",
+    "eventName",
+    "eventReference",
+    "lineId",
+    "newStatus",
+    "previousStatus",
+    "quantity",
+    "reason",
+    "substituteEquipmentTypeName",
+    "substituteQuantity"
+  ],
+  "type": "object"
+}

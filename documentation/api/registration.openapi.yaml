@@ -568,24 +568,25 @@ components:
       type: string
       description: The codes this service returns, from contracts' ERROR_CODES.
       enum:
-        - UNAUTHENTICATED
-        - NO_ROLE_ASSIGNED
-        - VALIDATION_FAILED
-        - ROLE_NOT_AUTHORISED
+        - ADMISSION_EXPIRED
+        - ADMISSION_REQUIRED
         - EVENT_NOT_FOUND
         - IDENTITY_UNAVAILABLE
+        - INTERNAL_ERROR
+        - NO_ROLE_ASSIGNED
         - RATE_LIMITED
-        - REGISTRATION_FULL
         - REGISTRATION_DUPLICATE
-        - REGISTRATION_OUTSIDE_WINDOW
-        - REGISTRATION_NOT_FOUND
+        - REGISTRATION_FULL
         - REGISTRATION_NOT_ACTIVE
-        - WITHDRAWAL_DEADLINE_PASSED
-        - ADMISSION_REQUIRED
-        - ADMISSION_EXPIRED
+        - REGISTRATION_NOT_FOUND
+        - REGISTRATION_OUTSIDE_WINDOW
+        - ROLE_NOT_AUTHORISED
+        - UNAUTHENTICATED
+        - VALIDATION_FAILED
+        - WAITING_ROOM_ENTRY_NOT_FOUND
         - WAITING_ROOM_NOT_REQUIRED
         - WAITING_ROOM_UNAVAILABLE
-        - WAITING_ROOM_ENTRY_NOT_FOUND
+        - WITHDRAWAL_DEADLINE_PASSED
 
     ErrorEnvelope:
       type: object

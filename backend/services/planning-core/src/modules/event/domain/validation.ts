@@ -1,3 +1,4 @@
+import { MAX_HEADCOUNT, isWholeBetween } from "../../../shared/limits.js";
 /**
  * B2 — validation applied at submission, whether the request is submitted
  * directly (B1) or from a draft (C2).
@@ -89,10 +90,10 @@ export function validateSubmission(
   const attendance = candidate.expectedAttendance;
   if (attendance === null || attendance === undefined) {
     errors.push({ field: "expectedAttendance", message: "Expected attendance is required." });
-  } else if (!Number.isInteger(attendance) || attendance <= 0) {
+  } else if (!isWholeBetween(attendance, 1, MAX_HEADCOUNT)) {
     errors.push({
       field: "expectedAttendance",
-      message: "Expected attendance must be a whole number greater than zero.",
+      message: `Expected attendance must be a whole number from 1 to ${MAX_HEADCOUNT}.`,
     });
   }
 

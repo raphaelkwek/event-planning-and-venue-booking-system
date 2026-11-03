@@ -1,0 +1,29 @@
+# EN-21. Findings Trivy is told to accept, each with a reason and a date after which it is reported
+# again. A new finding is never added here to make the build green: fix it, or explain it.
+misconfigurations:
+  # EN-10's Terraform leaves the EKS API endpoint public with the CIDR list open (0.0.0.0/0) until
+  # the team knows the network it will be reached from. deploy/terraform/README.md says to set
+  # endpoint_public_access_cidrs before the first apply; nothing has been applied (no AWS account).
+  - id: AWS-0040
+    paths:
+      - deploy/terraform/modules/eks/main.tf
+    statement: EKS API endpoint is public by design until a team CIDR is known; set endpoint_public_access_cidrs before the first apply.
+    expired_at: 2026-12-31
+  - id: AWS-0041
+    paths:
+      - deploy/terraform/modules/eks/main.tf
+    statement: The CIDR list defaults to 0.0.0.0/0 until a team CIDR is known; set endpoint_public_access_cidrs before the first apply.
+    expired_at: 2026-12-31
+
+vulnerabilities:
+  # The `zip` crate is in Temporal's native core (@temporalio/core-bridge). Its Cargo.lock ships in
+  # the npm package, and the crate is compiled in only for the SDK's "ephemeral server" feature, which
+  # unzips a development Temporal server that createLocal() downloads in tests. Nothing in this
+  # repository calls it and the services connect to a Temporal server they are given. The fix needs a
+  # release of @temporalio/* that bumps the crate to 9.0.5 or later; take it when one exists. The three
+  # HIGH findings on the same crate stay in the report.
+  - id: CVE-2026-115905
+    paths:
+      - app/node_modules/@temporalio/core-bridge/Cargo.lock
+    statement: Compiled in for the Temporal SDK's ephemeral development server only; not used by planning-core. Needs an upstream Temporal release.
+    expired_at: 2026-12-15

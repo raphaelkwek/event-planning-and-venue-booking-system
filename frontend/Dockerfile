@@ -10,8 +10,8 @@
 # (/identity, /event, ...) that the Ingress routes to the services, so no
 # service address is compiled in either.
 
-ARG NODE_IMAGE=node:20.18.1-alpine3.21@sha256:24fb6aa7020d9a20b00d6da6d1714187c45ed00d1eb4adb01395843c338b9372
-ARG NGINX_IMAGE=nginxinc/nginx-unprivileged:1.27.3-alpine@sha256:9e7238f579a54582263a960d1b0094b4a3ecce641342eda3f8e2ff82b1703d2b
+ARG NODE_IMAGE=node:20.20.2-alpine3.23@sha256:fb4cd12c85ee03686f6af5362a0b0d56d50c58a04632e6c0fb8363f609372293
+ARG NGINX_IMAGE=nginxinc/nginx-unprivileged:1.31.7-alpine@sha256:b5047b9b76845eac124358373c6852377c52e4b05834a47647e955dd91cb8f1e
 
 FROM ${NODE_IMAGE} AS build
 WORKDIR /app
@@ -34,6 +34,10 @@ ENV SUPABASE_URL=${SUPABASE_URL} SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
 RUN npm run build -w @connectsphere/web
 
 FROM ${NGINX_IMAGE} AS runtime
+# EN-21 (Trivy): security fixes published since the pinned base image was built. The base image
+# runs as uid 101, so switch to root for this one layer; `USER 101` below puts it back.
+USER root
+RUN apk upgrade --no-cache
 LABEL org.opencontainers.image.source="https://github.com/raphaelkwek/event-planning-and-venue-booking-system"       org.opencontainers.image.title="connectsphere-web"
 COPY frontend/nginx.conf /etc/nginx/conf.d/default.conf
 COPY frontend/security-headers.inc /etc/nginx/conf.d/security-headers.inc

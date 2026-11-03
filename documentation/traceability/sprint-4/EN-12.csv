@@ -1,0 +1,33 @@
+story_id,acceptance_criterion,test_file,test_name
+EN-12,"Kong in DB-less mode with declarative config in gateway/kong.yml, validated",gateway/tests/kongConfig.test.mjs,"EN-12-T14 keeps staff behind jwt and per-user limits, public behind per-address limits, all on Redis"
+EN-12,"Kong in DB-less mode with declarative config in gateway/kong.yml, validated",gateway/tests/kongConfig.test.mjs,EN-12-T14 stamps trace headers on every route with global plugins
+EN-12,"Kong in DB-less mode with declarative config in gateway/kong.yml, validated",gateway/tests/kongConfig.test.mjs,"EN-12-T14 routes only /api/v1, never a health, readiness or metrics path"
+EN-12,"Kong in DB-less mode with declarative config in gateway/kong.yml, validated",gateway/tests/kongConfig.test.mjs,"EN-12-T14 gives staff and public services separate upstream pools, each defined"
+EN-12,"Kong in DB-less mode with declarative config in gateway/kong.yml, validated",gateway/tests/kongConfig.test.mjs,"EN-12-T14 the sign-in route is public, POST only, and longer than the staff prefix it sits under"
+EN-12,"Kong in DB-less mode with declarative config in gateway/kong.yml, validated",gateway/tests/kongConfig.test.mjs,"EN-12-T14 holds no key or secret, and has the marker the rendering step fills"
+EN-12,"Kong in DB-less mode with declarative config in gateway/kong.yml, validated",gateway/tests/kongConfig.test.mjs,EN-12-T14 the CI-only echo services carry the same plugins as the real ones
+EN-12,"Kong routes requests to planning-core, notification and the registration service",gateway/tests/integration/gateway.int.mjs,EN-12-T2 routes each prefix to its own upstream with the prefix stripped
+EN-12,Kong verifies Supabase JWTs against the JWKS,gateway/tests/integration/gateway.int.mjs,"EN-12-T3 refuses no token, a malformed token, a wrong key, an expired token and an unknown key id, and lets a valid token through"
+EN-12,Kong verifies Supabase JWTs against the JWKS,gateway/tests/render.test.mjs,EN-12-T4 turns each JWKS key into a credential by kid and picks up a rotation
+EN-12,Kong verifies Supabase JWTs against the JWKS,gateway/tests/render.test.mjs,EN-12-T4 refuses a key it cannot use rather than render a config that accepts nothing
+EN-12,Kong verifies Supabase JWTs against the JWKS,gateway/tests/render.test.mjs,EN-12-T4 renders the template with the credentials under the consumer and nothing else changed
+EN-12,Kong verifies Supabase JWTs against the JWKS,gateway/tests/render.test.mjs,"EN-12-T4 points upstreams and Redis elsewhere, lowers the limits and appends the CI echo only when asked"
+EN-12,Kong verifies Supabase JWTs against the JWKS,gateway/tests/render.test.mjs,EN-12-T4 refuses a template that has drifted from the script and limits that make no sense
+EN-12,Kong verifies Supabase JWTs against the JWKS,gateway/tests/render.test.mjs,EN-12-T4 a file with Windows line endings renders the same as one with Unix endings
+EN-12,Separate staff and public routes,gateway/tests/integration/gateway.int.mjs,EN-12-T5 keeps staff and public routes apart and exposes no health endpoint
+EN-12,"Per-IP rate limits backed by Redis, 429 with Retry-After",gateway/tests/integration/gateway.int.mjs,EN-12-T6 limits a public route per address and answers 429 with Retry-After
+EN-12,"Per-IP rate limits backed by Redis, 429 with Retry-After",gateway/tests/integration/gateway.int.mjs,EN-12-T7 shares one count between two Kong instances through Redis
+EN-12,Per-user rate limits backed by Redis,gateway/tests/integration/gateway.int.mjs,"EN-12-T8 limits a staff route per user, not per address"
+EN-12,Per-user rate limits backed by Redis,gateway/tests/integration/gateway.int.mjs,EN-12-T9 overwrites a client-sent x-user-id with the token's subject
+EN-12,Trace headers,gateway/tests/integration/gateway.int.mjs,EN-12-T10 generates or propagates traceparent and x-correlation-id
+EN-12,"A CDN in front of the SPA and the browse API, never caching personal data",backend/services/registration/tests/api/cdnCache.test.ts,"EN-12-T11 marks the browse list and an event's page as a five second public cache, and nothing in them is about the caller"
+EN-12,"A CDN in front of the SPA and the browse API, never caching personal data",backend/services/registration/tests/api/cdnCache.test.ts,EN-12-T11 leaves a refusal from the browse routes uncacheable
+EN-12,"A CDN in front of the SPA and the browse API, never caching personal data",backend/services/registration/tests/api/cdnCache.test.ts,"EN-12-T11 sends everything under /api/ that is not the browse listing as no-store, refusals included"
+EN-12,"A CDN in front of the SPA and the browse API, never caching personal data",gateway/tests/integration/gateway.int.mjs,EN-12-T11 serves the browse API as cacheable and everything personal as no-store
+EN-12,"A CDN in front of the SPA and the browse API, never caching personal data",gateway/tests/cdn.test.mjs,EN-12-T12 caches only the browse API and the fingerprinted assets
+EN-12,"A CDN in front of the SPA and the browse API, never caching personal data",gateway/tests/cdn.test.mjs,"EN-12-T12 sends every personal path to the gateway uncached, and the order puts the browse path first"
+EN-12,"A CDN in front of the SPA and the browse API, never caching personal data",gateway/tests/cdn.test.mjs,"EN-12-T12 keeps the browse cache short, without cookies, headers or other query strings"
+EN-12,"A CDN in front of the SPA and the browse API, never caching personal data",gateway/tests/cdn.test.mjs,EN-12-T12 reaches the gateway over HTTPS only and forwards the viewer's token without caching on it
+EN-12,"A CDN in front of the SPA and the browse API, never caching personal data",gateway/tests/cdn.test.mjs,EN-12-T12 serves a long life for fingerprinted assets and revalidates the entry page
+EN-12,"Kong in DB-less mode with declarative config in gateway/kong.yml, validated",.github/workflows/gateway.yml,EN-12-T1 Kong configuration job: kong config parse of the committed and the rendered file
+EN-12,Kong and Redis deployable as code (validated only),.github/workflows/gateway.yml,EN-12-T13 Kubernetes manifests job: kustomize and kubeconform
