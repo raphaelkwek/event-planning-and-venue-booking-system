@@ -113,7 +113,7 @@ const assignments = (eventId: string) =>
   `;
 const outbox = (eventId: string, type: string) =>
   sql<{ envelope: { data: Record<string, unknown> } }[]>`
-    select envelope from event.outbox where message_key = ${eventId} and envelope->>'type' = ${type}
+    select envelope from event.outbox where message_key = ${eventId} and envelope->>'type' = ${type} order by seq
   `;
 
 describe("submission assigns no coordinator (E3, replacing E1)", () => {
