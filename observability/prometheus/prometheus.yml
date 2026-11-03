@@ -1,0 +1,35 @@
+# EN-17: how Prometheus finds ConnectSphere and loads its rules. Nothing here has been deployed:
+# CI validates the file with `promtool check config --syntax-only` (the target hostnames and the
+# token file belong to whichever environment runs Prometheus).
+#
+# Each service answers GET /metrics on its own port. /metrics is rate-limited and, in production, is off
+# unless METRICS_TOKEN is set, so Prometheus must send that token. Keep the endpoint off the gateway.
+global:
+  scrape_interval: 15s
+  evaluation_interval: 30s
+
+rule_files:
+  - rules/recording.yml
+  - rules/alerts.yml
+
+scrape_configs:
+  - job_name: connectsphere-planning-core
+    metrics_path: /metrics
+    authorization:
+      credentials_file: /etc/prometheus/secrets/metrics_token
+    static_configs:
+      - targets: ["planning-core:8090"]
+
+  - job_name: connectsphere-notification
+    metrics_path: /metrics
+    authorization:
+      credentials_file: /etc/prometheus/secrets/metrics_token
+    static_configs:
+      - targets: ["notification:8091"]
+
+  - job_name: connectsphere-registration
+    metrics_path: /metrics
+    authorization:
+      credentials_file: /etc/prometheus/secrets/metrics_token
+    static_configs:
+      - targets: ["registration:8092"]

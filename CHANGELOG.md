@@ -4,6 +4,48 @@
 
 ---
 
+# EN-23, EN-17: Threat model, PDPA and ASVS review; SLOs, alerts, dashboards and runbooks
+
+**Timestamp:** 2026-11-02T23:55+08:00 (SGT)
+**Author:** Joash
+**Scope:** EN-23 (threat model, PDPA, ASVS) and EN-17 (SLOs), ADR-0013. Backend: planning-core,
+registration, notification, a new `backend/packages/observability`. No migration.
+
+**Deploy:** set `METRICS_TOKEN` on each service and in Prometheus's credentials file. Without it
+`/metrics` answers 404 in production.
+
+## Added
+
+- **EN-08 was not built.** Jira marks it Done, but the code had no OpenTelemetry, no metrics and no
+  `/metrics`. This adds the minimum the SLOs need: a `prom-client` package that times every route by
+  pattern, and a rate-limited `GET /metrics` (off in production unless `METRICS_TOKEN` is set) in
+  planning-core, registration and notification. Tracing, Tempo and Loki are still not built.
+- Two SLI metrics: `notification_visibility_lag_seconds` (commit to visible) and
+  `registration_over_admission_seats` (read from the seat table's invariants), with
+  `registration_invariant_check_success`.
+- `observability/prometheus`: recording rules and multi-window, multi-burn-rate alerts (14.4x over
+  1h and 5m, 6x over 6h and 30m), a scrape config, and `promtool` unit tests for each alert firing and
+  staying quiet. `observability/grafana/dashboards`: five dashboards. `documentation/runbooks`: one
+  per alert. `documentation/slos.md`: each SLO, its SLI query, error budget and alert.
+- CI job `Observability (promtool, dashboards, runbooks)`: `promtool check rules`, `check config`
+  and `test rules` from the `prom/prometheus` image, then a check that dashboards use emitted
+  metrics and every alert has a runbook. Nothing is deployed.
+- `documentation/security/`: `threat-model.md` (a STRIDE table per C4 container, and 15 ranked
+  gaps), `pdpa.md` (the PDPA obligations against attendee data) and `asvs-l2.md` (ASVS 4.0.3 Level 2,
+  V1 to V14). A script test checks that every `file:line` it cites exists.
+- `/metrics` is in the planning-core and notification OpenAPI files.
+
+## Not yet
+
+- The gaps the threat model lists are findings, not fixes. C1 (async errors), H1 (stack traces),
+  M11 (rate limits), H3 (venue edit scope) and the body-parser bump are being fixed in another pull
+  request; the rest are open.
+- The registration latency SLI has no data until R2 adds a registration route.
+
+---
+
+---
+
 # EN-15, EN-22: feature flags; traceability matrix and DORA metrics from CI
 
 **Timestamp:** 2026-11-02T23:45+08:00 (SGT)
