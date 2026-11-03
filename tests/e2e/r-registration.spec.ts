@@ -95,6 +95,18 @@ async function registerFromEventPage(page: Page, event: FxEvent) {
   return created.body;
 }
 
+/**
+ * The browse routes may be cached for a few seconds (EN-12: max-age 5, stale-while-revalidate 30), so
+ * the places remaining shown right after a registration can be the previous count. A person reloads;
+ * so does this, until the page shows the count, and fails if it never does.
+ */
+async function expectPlaces(page: Page, text: string) {
+  await expect(async () => {
+    await page.reload();
+    await expect(eventPage(page)).toContainText(text, { timeout: 4_000 });
+  }).toPass({ timeout: 60_000, intervals: [1_000, 2_000, 3_000] });
+}
+
 /** The text of a registration's row: `REG-… · Registered <day>, <time>`. */
 const registeredAs = (registeredAt: Date) => `Registered ${singaporeMoment(registeredAt)}`;
 const withdrawnAs = (withdrawnAt: Date) => `Withdrawn ${singaporeMoment(withdrawnAt)}`;
@@ -257,6 +269,7 @@ test.describe("R1 browse the events open for registration", () => {
         "description",
         "endsAt",
         "eventId",
+        "highDemand",
         "isFull",
         "name",
         "placesRemaining",
@@ -375,7 +388,7 @@ test.describe("R2 register for an event", () => {
 
     await page.reload();
     await expect(page.getByRole("heading", { name: event.name, level: 1 })).toBeVisible();
-    await expect(eventPage(page)).toContainText("2 places remaining");
+    await expectPlaces(page, "2 places remaining");
     const again = await captureResponse<Envelope>(page, "POST", "/registrations", () => registerButton(page).click());
     expect(again.status).toBe(409);
     expect(again.body.error?.code).toBe("REGISTRATION_DUPLICATE");
@@ -387,7 +400,7 @@ test.describe("R2 register for an event", () => {
     const rows = await registrationsOf(event.eventId, ATTENDEE_ID);
     expect(rows).toHaveLength(1);
     expect(rows[0]!.reference).toBe(first.reference);
-    await expect(eventPage(page)).toContainText("2 places remaining");
+    await expectPlaces(page, "2 places remaining");
   });
 
   test("R2-T8 boundary: before registration opens the attempt is refused naming the window, and nothing is stored", { tag: ["@R2", "@R2-T8"] }, async ({ page, a11y }) => {
@@ -407,7 +420,7 @@ test.describe("R2 register for an event", () => {
     await a11y("registration refused");
 
     expect(await registrationsOf(event.eventId, ATTENDEE_ID)).toHaveLength(0);
-    await expect(eventPage(page)).toContainText("3 places remaining");
+    await expectPlaces(page, "3 places remaining");
   });
 
   test("R2-T11 the owning organiser sets the registration window; another organiser and an invalid window are refused", { tag: ["@R2", "@R2-T11"] }, async ({ page, a11y }) => {
@@ -626,7 +639,7 @@ test.describe("R4 withdraw a registration", () => {
 
     // Step 1: open the event and note the places remaining.
     await openEventFromEvents(page, event.name);
-    await expect(eventPage(page)).toContainText("1 place remaining");
+    await expectPlaces(page, "1 place remaining");
     await a11y("open event");
 
     // Step 2: withdraw (R4-T1 steps 1 to 3).
@@ -641,7 +654,7 @@ test.describe("R4 withdraw a registration", () => {
 
     // Step 3: open the event again.
     await openEventFromEvents(page, event.name);
-    await expect(eventPage(page)).toContainText("2 places remaining");
+    await expectPlaces(page, "2 places remaining");
     await expect(eventPage(page)).not.toContainText("1 place remaining");
   });
 
@@ -665,7 +678,7 @@ test.describe("R4 withdraw a registration", () => {
     expect(rows[0]!.status).toBe("REGISTERED");
     expect(rows[0]!.withdrawn_at).toBeNull();
     await openEventFromEvents(page, event.name);
-    await expect(eventPage(page)).toContainText("2 places remaining");
+    await expectPlaces(page, "2 places remaining");
   });
 
   test("R4-T6 boundary: a withdrawal after the deadline is refused naming it; the registration stays Registered", { tag: ["@R4", "@R4-T6"] }, async ({ page, a11y }) => {
@@ -706,7 +719,7 @@ test.describe("R4 withdraw a registration", () => {
     expect(rows[0]!.status).toBe("REGISTERED");
     expect(rows[0]!.withdrawn_at).toBeNull();
     await openEventFromEvents(page, event.name);
-    await expect(eventPage(page)).toContainText("2 places remaining");
+    await expectPlaces(page, "2 places remaining");
   });
 
   test("R4-T8 the owning organiser sets the withdrawal deadline; one after the event start is refused", { tag: ["@R4", "@R4-T8"] }, async ({ page, a11y }) => {
