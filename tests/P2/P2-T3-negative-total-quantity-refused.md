@@ -9,7 +9,7 @@
 | Pre-conditions | 1. Standard environment running and test data reset (`tests/README.md`).<br>2. Signed in as `techsupport@connectsphere.test`.<br>3. No equipment type named `P2 Negative Quantity` exists. |
 | Test Steps | 1. Click "Equipment", then "New equipment type".<br>2. Enter the test data.<br>3. Click "Save equipment type".<br>4. Confirm the form remains open and the field-level refusal is shown; no equipment type is created. |
 | Test Data | Name: `P2 Negative Quantity` · Description: `Boundary test record` · Technical characteristic: `Category` = `Test` · Total quantity: `-1` |
-| Expected Result | The save is refused with "Total quantity must be a whole number of zero or greater." against Total quantity. The form retains the entered values for correction. No `P2 Negative Quantity` equipment type appears in the equipment list. |
+| Expected Result | The save is refused with "Total quantity must be a whole number from 0 to 1000000." against Total quantity. The form retains the entered values for correction. No `P2 Negative Quantity` equipment type appears in the equipment list. |
 | Created By | Yichen, via Codex |
 | Date of Creation | 2026-10-07 |
 
