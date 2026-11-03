@@ -217,10 +217,11 @@ function vercelCli(log, mask) {
   return join(tools, "node_modules", "vercel", typeof bin === "string" ? bin : bin.vercel ?? bin.vc);
 }
 
-export async function deployWeb({ environment, token, apiOrigin, space, log, mask }) {
+export async function deployWeb({ environment, token, apiOrigin, space, log, mask, cwd }) {
   const project = environment === "production" ? "connectsphere" : "connectsphere-staging";
   const cli = vercelCli(log, mask);
-  const vc = (args, extra = {}) => run(process.execPath, [cli, ...args, "--token", token], { mask, env: { VERCEL_TELEMETRY_DISABLED: "1", ...extra.env }, ...extra });
+  // cwd: a clean checkout to build in; vercel build runs vercel.json's `npm ci` there.
+  const vc = (args, extra = {}) => run(process.execPath, [cli, ...args, "--token", token], { mask, cwd, ...extra, env: { VERCEL_TELEMETRY_DISABLED: "1", ...extra.env } });
   const added = vc(["project", "add", project], { allowFailure: true });
   if (added.status !== 0 && !/already exists/i.test(added.output)) throw new DeployError(`Vercel would not create ${project}: ${added.output.split("\n").slice(-3).join(" ")}`);
   vc(["link", "--yes", "--project", project]);

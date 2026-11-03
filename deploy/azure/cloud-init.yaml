@@ -15,5 +15,6 @@ swap:
 runcmd:
   - systemctl enable --now docker
   # The admin user (uid 1000, from az vm create --admin-username) runs docker without sudo.
-  - usermod -aG docker "$(getent passwd 1000 | cut -d: -f1)"
+  # Quoted as a whole: "cut -d: -f1" unquoted would be read as a YAML mapping.
+  - 'usermod -aG docker "$(getent passwd 1000 | cut -d: -f1)"'
   - install -d -m 0755 /etc/connectsphere

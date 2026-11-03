@@ -153,7 +153,19 @@ async function main() {
     }
   }
 
-  const webOrigin = args.webOrigin ?? (await deployWeb({ environment: args.env, token: loaded.vercelToken, apiOrigin: `https://${api}`, space: loaded.space, log, mask }));
+  // The web app is built in a throwaway worktree of this commit, so vercel build's `npm ci` leaves
+  // this checkout's node_modules alone.
+  let webOrigin = args.webOrigin;
+  if (!webOrigin) {
+    const tree = mkdtempSync(join(tmpdir(), "connectsphere-web-"));
+    rmSync(tree, { recursive: true, force: true });
+    run("git", ["worktree", "add", "--detach", tree, "HEAD"], { mask });
+    try {
+      webOrigin = await deployWeb({ environment: args.env, token: loaded.vercelToken, apiOrigin: `https://${api}`, space: loaded.space, log, mask, cwd: tree });
+    } finally {
+      run("git", ["worktree", "remove", "--force", tree], { mask, allowFailure: true });
+    }
+  }
   await configureAuthUrls({ token: loaded.supabaseAccessToken, supabaseUrl: loaded.space.SUPABASE_URL, webOrigin, log });
 
   // The env file goes over stdin, never as an argument, and stays readable by the admin user only.
