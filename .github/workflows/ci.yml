@@ -406,6 +406,7 @@ jobs:
             "$DEBEZIUM_IMAGE"
           for i in $(seq 1 90); do
             curl -sf http://127.0.0.1:8089/q/health/live && echo && exit 0
+            if [ -z "$(docker ps -q --filter name=debezium)" ]; then echo "::error::Debezium Server exited"; break; fi
             sleep 2
           done
           docker logs debezium

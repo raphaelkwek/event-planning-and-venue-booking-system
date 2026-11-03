@@ -87,8 +87,14 @@ The alternative is the IPv4 add-on, which needs the Pro plan.
      fails closed: a keyword it does not understand is a finding, not a pass. It runs in the
      *Message schema compatibility* job on every pull request.
   3. A second job starts a throwaway Redpanda in CI and asks its real registry about a table of
-     compatible and incompatible changes, and about this branch's schemas against the base branch's.
-     The registry's answers must equal the checker's.
+     36 compatible and incompatible changes, and about this branch's schemas against the base branch's.
+     On its first run the registry gave the checker's answer for 31 of the 34 cases then in the table.
+     Redpanda refuses a property that becomes nullable through `anyOf` (the checker accepts it, as JSON
+     Schema's meaning says to), and accepts a plain string that gains a `format` and a constrained
+     property added to an open object (the checker refuses both, as Confluent's rules do). Each such case
+     records Redpanda's verdict in `cases.ts`, and the job requires both verdicts. The branch-against-base
+     comparison is the registry's own, so it is what decides whether a deployed registry would accept
+     a change.
 - **This meets the card's third criterion in spirit.** The check is real and gates every pull request,
   but the registry it consults is a throwaway container, not the long-lived registry of a deployed
   environment. Registering schemas in the staging cluster's registry is a deployment step that was not
