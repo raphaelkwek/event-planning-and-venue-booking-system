@@ -1,0 +1,118 @@
+# Debezium Server (EN-05). One replica: a replication slot has one consumer, so
+# the old pod must stop before a new one starts (Recreate), and a second replica
+# would only fail to take the slot.
+#
+# The pod uses the node's network (hostNetwork). Supabase's direct connection is
+# IPv6 only on the Free plan, and a k3s pod has an IPv6 address only if the
+# cluster was created dual-stack. The node's own address works if the node has
+# outbound IPv6. NetworkPolicies do not apply to a host-network pod.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: debezium-server
+  labels:
+    app.kubernetes.io/name: debezium-server
+    app.kubernetes.io/component: cdc
+spec:
+  replicas: 1
+  revisionHistoryLimit: 3
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: debezium-server
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: debezium-server
+        app.kubernetes.io/component: cdc
+    spec:
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 185
+        runAsGroup: 185
+        fsGroup: 185
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: debezium-server
+          # The tag is replaced by the overlay's `images` (pin a digest there).
+          image: quay.io/debezium/server:3.7.0.Final
+          imagePullPolicy: IfNotPresent
+          env:
+            # The replication connection. Not the DATABASE_URL the apps use: that one goes through
+            # the pooler, which cannot replicate. Create this Secret by hand (README).
+            - name: CDC_DB_HOST
+              valueFrom:
+                secretKeyRef: { name: connectsphere-cdc, key: CDC_DB_HOST }
+            - name: CDC_DB_USER
+              valueFrom:
+                secretKeyRef: { name: connectsphere-cdc, key: CDC_DB_USER }
+            - name: CDC_DB_PASSWORD
+              valueFrom:
+                secretKeyRef: { name: connectsphere-cdc, key: CDC_DB_PASSWORD }
+            - name: CDC_DB_NAME
+              valueFrom:
+                secretKeyRef: { name: connectsphere-cdc, key: CDC_DB_NAME, optional: true }
+            - name: CDC_DB_SSLMODE
+              valueFrom:
+                secretKeyRef: { name: connectsphere-cdc, key: CDC_DB_SSLMODE, optional: true }
+            # The same Kafka settings as the other services.
+            - name: KAFKA_BROKERS
+              valueFrom:
+                secretKeyRef: { name: connectsphere-secrets, key: KAFKA_BROKERS }
+            - name: KAFKA_SASL_USERNAME
+              valueFrom:
+                secretKeyRef: { name: connectsphere-secrets, key: KAFKA_SASL_USERNAME, optional: true }
+            - name: KAFKA_SASL_PASSWORD
+              valueFrom:
+                secretKeyRef: { name: connectsphere-secrets, key: KAFKA_SASL_PASSWORD, optional: true }
+            # Overlays set these to match the cluster's listener. In-cluster Redpanda without
+            # authentication is PLAINTEXT.
+            - name: KAFKA_SECURITY_PROTOCOL
+              value: PLAINTEXT
+            # The outbox router is in the image's lib_opt directory, which the start-up script puts on
+            # the classpath only when this is true (it also enables script-based filters, which this
+            # configuration does not use). Without it the server cannot load the router.
+            - name: ENABLE_DEBEZIUM_SCRIPTING
+              value: "true"
+            - name: JAVA_OPTS_APPEND
+              value: -Xmx384m
+          startupProbe:
+            httpGet: { host: 127.0.0.1, path: /q/health/live, port: 8089 }
+            periodSeconds: 5
+            failureThreshold: 36
+          livenessProbe:
+            httpGet: { host: 127.0.0.1, path: /q/health/live, port: 8089 }
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          resources:
+            requests: { cpu: 100m, memory: 384Mi }
+            limits: { cpu: "1", memory: 768Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          volumeMounts:
+            - name: config
+              mountPath: /debezium/config
+              readOnly: true
+            - name: data
+              mountPath: /debezium/data
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: config
+          configMap:
+            name: debezium-server-config
+        - name: data
+          persistentVolumeClaim:
+            claimName: debezium-server-offsets
+        - name: tmp
+          emptyDir: {}

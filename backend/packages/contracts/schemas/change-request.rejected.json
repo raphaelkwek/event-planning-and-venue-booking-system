@@ -1,0 +1,63 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "properties": {
+    "changeRequestId": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "decidedAt": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "decidedBy": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "eventId": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "eventName": {
+      "type": "string"
+    },
+    "eventReference": {
+      "type": "string"
+    },
+    "fields": {
+      "items": {
+        "enum": [
+          "proposedStartAt",
+          "proposedEndAt",
+          "expectedAttendance",
+          "venueRequirements",
+          "equipmentRequired",
+          "equipmentRequirements"
+        ],
+        "type": "string"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "ownerId": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "reason": {
+      "minLength": 1,
+      "type": "string"
+    }
+  },
+  "required": [
+    "changeRequestId",
+    "decidedAt",
+    "decidedBy",
+    "eventId",
+    "eventName",
+    "eventReference",
+    "fields",
+    "ownerId",
+    "reason"
+  ],
+  "type": "object"
+}

@@ -1,0 +1,44 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "properties": {
+    "eventId": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "eventName": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "eventReference": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "nomineeCoordinatorId": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "outgoingCoordinatorId": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "proposalId": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "resolvedAt": {
+      "format": "date-time",
+      "type": "string"
+    }
+  },
+  "required": [
+    "eventId",
+    "eventName",
+    "eventReference",
+    "nomineeCoordinatorId",
+    "outgoingCoordinatorId",
+    "proposalId",
+    "resolvedAt"
+  ],
+  "type": "object"
+}

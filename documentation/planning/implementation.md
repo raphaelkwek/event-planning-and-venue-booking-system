@@ -193,7 +193,7 @@ Every message is a **CloudEvents 1.0** event in structured mode:
 - **`data` carries the facts a consumer needs, not the whole aggregate.** Include ids and the changed values. Never put a JWT, password or full user record in it.
 - **`data` fields are additive only.**
   - Removing or retyping a field is a breaking change. It needs a new `type` (e.g. `event.submitted.v2`) in a reviewed `contracts` PR.
-  - From EN-05, the schema registry's compatibility check refuses a breaking change in CI.
+  - From EN-05, the *Message schema compatibility* CI job refuses a breaking change. The checked schemas are the JSON Schema files in `backend/packages/contracts/schemas/`, generated from the zod schemas: run `npm run schemas:generate` after changing a schema and commit the result, and `npm run schemas:compat -- --base origin/main` shows what CI will say.
 - **Timestamps are RFC 3339 UTC with milliseconds,** in `time` and in `data`. Never local time, never epoch integers.
 - **Every `type` has a zod schema in `MESSAGE_DATA_SCHEMAS`,** and an example message in `tests/cloudEvent.test.ts`. A type without both fails the contract test, and producing one fails review.
 - **Producers validate before writing the outbox row, and consumers validate on receipt,** both with `parseCloudEvent`.
@@ -264,7 +264,7 @@ create index on <schema>.outbox (seq) where published_at is null;
 - **It shuts down gracefully.** On SIGTERM it finishes the batch in flight before closing Kafka and the database.
 - **Without `KAFKA_*`, planning-core runs without the relay,** and messages wait in the outbox.
 - **It converts rows written before CloudEvents** using §3.3's mapping. The backlog that existed when the relay arrived was skipped by migration `event/0006` (team decision, 3 Oct 2026).
-- **It's the fallback:** if EN-05's spike shows Supabase allows a logical replication slot, Debezium change data capture replaces it.
+- **It is the publisher in every environment.** EN-05's spike (3 Nov 2026, `documentation/spikes/EN-05-cdc-spike.md`) found that development's Kafka cannot run Debezium, and that on staging and production a Supabase Free project's replication slot is reachable only over IPv6 and has not been tried. Debezium Server is built as an opt-in component (`deploy/k8s/components/cdc`) that CI proves puts the same message on Kafka as the relay does, but it replaces the relay nowhere yet.
 
 ### 3.5 Consumers
 
