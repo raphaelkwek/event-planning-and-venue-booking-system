@@ -12,8 +12,11 @@ export function resolveAccessScope(role: Role, userId: string, resource: Resourc
     switch (role) {
       case "EVENT_ORGANISER":
         return { scopeType: "OWNED_BY_USER", userId };
-      // E5: the Lead, like a coordinator, sees every event, to oversee every assignment.
+      // A4 (CR-05): a coordinator works only on the events the Lead assigned to them,
+      // and sees no other (CQ-11 is open; the story owner chose no read-only view).
       case "EVENT_COORDINATOR":
+        return { scopeType: "ASSIGNED_TO_USER", userId };
+      // E5: the Lead sees every event, to oversee every assignment.
       case "EVENT_COORDINATOR_LEAD":
         return { scopeType: "ALL" };
       case "ATTENDEE":
@@ -36,4 +39,20 @@ export function resolveAccessScope(role: Role, userId: string, resource: Resourc
   }
 
   return { scopeType: "NONE" };
+}
+
+/** The records that belong to an event, which A4's refusal names in place of the event. */
+export type EventRecordKind = "booking request" | "hold" | "equipment request line" | "change request";
+
+/**
+ * A4 — what a 404 says when the events scope found nothing. A coordinator is
+ * told the event (or the record on it) is not assigned to them, in the same
+ * words whether it exists or not, so the refusal reveals nothing
+ * (implementation.md §6). Every other role keeps the module's own wording.
+ */
+export function notInScopeMessage(role: Role, otherwise: string, record?: EventRecordKind): string {
+  if (role !== "EVENT_COORDINATOR") return otherwise;
+  return record
+    ? `No ${record} with that id is on an event assigned to you.`
+    : "No event with that reference is assigned to you.";
 }

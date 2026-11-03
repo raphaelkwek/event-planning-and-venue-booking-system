@@ -1,8 +1,8 @@
 import { Router, type NextFunction, type RequestHandler, type Response } from "express";
 import type { Sql } from "postgres";
-import { KAFKA_TOPICS, type ErrorField, type EventStatus } from "@connectsphere/contracts";
+import { KAFKA_TOPICS, type ErrorField, type EventStatus, type Role } from "@connectsphere/contracts";
 import { checkProposedChange, findEventForChange, type EventForChange } from "../../event/index.js";
-import { resolveAccessScope } from "../../identity/index.js";
+import { notInScopeMessage, resolveAccessScope } from "../../identity/index.js";
 import { authenticate, requireRole, type ActorRequest } from "../auth/actor.js";
 import { isChangeable, normaliseInstants, notChangeableMessage, validateChangeBody } from "../domain/changeRequests.js";
 import { writeOutbox } from "../events/outbox.js";
@@ -24,8 +24,8 @@ const ORGANISER = "EVENT_ORGANISER";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const PATH = "/api/v1/events/:id/change-requests";
 
-function eventNotFound(res: Response) {
-  refuse(res, 404, "EVENT_NOT_FOUND", "No event with that id exists.");
+function eventNotFound(res: Response, role: Role) {
+  refuse(res, 404, "EVENT_NOT_FOUND", notInScopeMessage(role, "No event with that id exists."));
 }
 
 /** The event under the A3 scope rule: another organiser's event is simply not found. */
@@ -66,7 +66,7 @@ export function changeRequestsRouter(sql: Sql, limiter: RequestHandler = changeR
   router.post(PATH, limiter, authenticate, requireRole(ORGANISER), async (req: ActorRequest, res: Response, next: NextFunction) => {
     try {
       const eventId = req.params.id!;
-      if (!UUID.test(eventId)) return eventNotFound(res);
+      if (!UUID.test(eventId)) return eventNotFound(res, req.actor!.role);
       const actor = req.actor!;
       const body = validateChangeBody(req.body);
       const scope = resolveAccessScope(actor.role, actor.userId, "events");
@@ -127,7 +127,7 @@ export function changeRequestsRouter(sql: Sql, limiter: RequestHandler = changeR
 
       switch (outcome.code) {
         case "NOT_FOUND":
-          return eventNotFound(res);
+          return eventNotFound(res, req.actor!.role);
         case "NOT_OWNER":
           return void refuse(res, 403, "ROLE_NOT_AUTHORISED", "Only the event's organiser can request a change.");
         case "INVALID":
@@ -145,7 +145,7 @@ export function changeRequestsRouter(sql: Sql, limiter: RequestHandler = changeR
   router.get(PATH, limiter, authenticate, async (req: ActorRequest, res: Response, next: NextFunction) => {
     try {
       const event = await findInScope(sql, req);
-      if (!event) return eventNotFound(res);
+      if (!event) return eventNotFound(res, req.actor!.role);
       res.json({ items: await listForEvent(sql, event.id) });
     } catch (error) {
       next(error);

@@ -65,14 +65,19 @@ test.describe("F2 status and status history", () => {
     await a11y("coordinator review detail");
   });
 
-  test("F2-T3 an Event Coordinator who is not assigned to the event also sees its history", { tag: ["@F2", "@F2-T3"] }, async ({ page }) => {
+  test("F2-T3 an Event Coordinator who is not assigned to the event does not see it or its history", { tag: ["@F2", "@F2-T3"] }, async ({ page }) => {
+    // A4 (CR-05) revised the card: A3's "coordinators see every event" is superseded.
     const event = await approvedRequest();
     await signIn(page, "coordinator2");
-    await openFromAllEvents(page, event.name);
+    await page.getByRole("link", { name: "All events" }).click();
+    await expect(page.getByRole("heading", { name: "All events" })).toBeVisible();
+    await expect(page.getByText(event.name)).toHaveCount(0);
 
-    await expect(statusPanel(page)).toContainText("Coordinator One");
-    await expect(statusPanel(page)).toContainText("Approved");
-    await expectApprovedHistory(page);
+    await page.goto(`/#/review/${event.id}`);
+    await expect(page.getByText("No event with that reference is assigned to you.")).toBeVisible();
+    await expect(page.getByText(event.name)).toHaveCount(0);
+    await expect(page.getByText("Status history")).toHaveCount(0);
+    await expect(page.getByText("Coordinator One")).toHaveCount(0);
   });
 
   test("F2-T5 history entries are chronological and show the previous and new status, role and time", { tag: ["@F2", "@F2-T5"] }, async ({ page }) => {
@@ -221,11 +226,14 @@ test.describe("F5 confirm the arrangements", () => {
     await dialog.getByRole("button", { name: "Cancel" }).click();
     await expect(statusPanel(page).getByText("Approved", { exact: true })).toBeVisible();
 
-    // A different coordinator opening the event is offered no "Confirm arrangements".
+    // A different coordinator can't open the event at all (A4), so is offered no "Confirm arrangements".
     await signOut(page);
     await signIn(page, "coordinator2");
-    await openFromAllEvents(page, event.name);
-    await expect(statusPanel(page).getByText("Approved", { exact: true })).toBeVisible();
+    await page.getByRole("link", { name: "All events" }).click();
+    await expect(page.getByRole("heading", { name: "All events" })).toBeVisible();
+    await expect(page.getByText(event.name)).toHaveCount(0);
+    await page.goto(`/#/review/${event.id}`);
+    await expect(page.getByText("No event with that reference is assigned to you.")).toBeVisible();
     await expect(page.getByRole("button", { name: "Confirm arrangements" })).toHaveCount(0);
 
     // Step 3: Technical Support reserve the line in full (Q1-T1's steps).

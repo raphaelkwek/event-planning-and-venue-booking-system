@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import Button from "@atlaskit/button/new";
 import Lozenge from "../shared/Lozenge.js";
 import DynamicTable from "@atlaskit/dynamic-table";
 import { useSignedIn } from "../auth/SessionContext.js";
@@ -11,16 +10,14 @@ import { formatInstant, STATUS_APPEARANCE, STATUS_LABELS } from "../shared/statu
 import { Refusal } from "../components/Refusal.js";
 import { AssignedTo } from "../components/AssignedTo.js";
 
-type Filter = "all" | "mine";
-
 /**
- * A3 — a coordinator's list is every event in the system, whoever it is
- * assigned to and whatever its status, with their own assignments marked. The
- * review queue (D1) is narrower: only what still awaits a decision.
+ * A4 (CR-05) — a coordinator's list is every event assigned to them, whatever its
+ * status. The server returns no other (A3's "every event in the system" is
+ * superseded), so there is nothing left to filter. The review queue (D1) is
+ * narrower: only what still awaits a decision.
  */
 export function AllEvents() {
   const session = useSignedIn();
-  const [filter, setFilter] = useState<Filter>("all");
   const [items, setItems] = useState<EventListItem[]>([]);
   const [error, setError] = useState<unknown>(null);
   const [loading, setLoading] = useState(true);
@@ -33,8 +30,6 @@ export function AllEvents() {
       .finally(() => setLoading(false));
   }, [session.token]);
 
-  const shown = filter === "mine" ? items.filter((item) => item.assignedCoordinatorId === session.userId) : items;
-
   const head = {
     cells: [
       { key: "reference", content: "Reference" },
@@ -46,7 +41,7 @@ export function AllEvents() {
     ],
   };
 
-  const rows = shown.map((item) => ({
+  const rows = items.map((item) => ({
     key: item.id,
     cells: [
       { key: "reference", content: item.reference ?? "—" },
@@ -72,22 +67,13 @@ export function AllEvents() {
     <div>
       <h2 style={{ marginBottom: 16 }}>All events</h2>
 
-      <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-        <Button appearance={filter === "all" ? "primary" : "default"} onClick={() => setFilter("all")}>
-          Every event
-        </Button>
-        <Button appearance={filter === "mine" ? "primary" : "default"} onClick={() => setFilter("mine")}>
-          Assigned to me
-        </Button>
-      </div>
-
       <Refusal error={error} />
 
       <DynamicTable
         head={head}
         rows={rows}
         isLoading={loading}
-        emptyView={<p>{filter === "mine" ? "No events are assigned to you." : "There are no events yet."}</p>}
+        emptyView={<p>No events are assigned to you.</p>}
       />
     </div>
   );

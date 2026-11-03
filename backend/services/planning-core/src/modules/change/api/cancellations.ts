@@ -1,5 +1,7 @@
 import { Router, type NextFunction, type RequestHandler, type Response } from "express";
 import type { Sql } from "postgres";
+import type { Role } from "@connectsphere/contracts";
+import { notInScopeMessage } from "../../identity/index.js";
 import { authenticate, requireRole, type ActorRequest } from "../auth/actor.js";
 import { CANCELLATION_FAILED_MESSAGE, NOT_PERMITTED_TO_CANCEL_MESSAGE, validateCancellationBody } from "../domain/cancellation.js";
 import { cancelEvent } from "../repo/cancelEvent.js";
@@ -9,14 +11,16 @@ import { changeRateLimiter } from "./limiter.js";
 
 /**
  * F3 — the owning organiser or the assigned coordinator cancels an event, with
- * a reason. The whole cancellation is one transaction: if any part fails, the
- * event keeps its status and nothing is changed (F4 AC5).
+ * a reason, and F4 releases what it holds. The whole cancellation is one
+ * transaction: if any part fails, the event keeps its status and nothing is
+ * released (F4 AC5).
  */
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const PATH = "/api/v1/events/:id/cancellation";
 
-function notFound(res: Response) {
-  refuse(res, 404, "EVENT_NOT_FOUND", "No event with that reference is available to you.");
+/** A3: an event outside the caller's scope is not found; A4: for a coordinator, not assigned to them. */
+function notFound(res: Response, role: Role) {
+  refuse(res, 404, "EVENT_NOT_FOUND", notInScopeMessage(role, "No event with that reference is available to you."));
 }
 
 export function cancellationsRouter(sql: Sql, limiter: RequestHandler = changeRateLimiter()) {
@@ -30,7 +34,7 @@ export function cancellationsRouter(sql: Sql, limiter: RequestHandler = changeRa
     async (req: ActorRequest, res: Response, next: NextFunction) => {
       try {
         const eventId = req.params.id!;
-        if (!UUID.test(eventId)) return notFound(res);
+        if (!UUID.test(eventId)) return notFound(res, req.actor!.role);
         // AC2 — checked before any transaction, so without a reason nothing is changed.
         const body = validateCancellationBody(req.body);
         if (!body.ok) {
@@ -48,11 +52,13 @@ export function cancellationsRouter(sql: Sql, limiter: RequestHandler = changeRa
         }
 
         if (outcome.ok) {
-          return void res.status(200).json({ event: outcome.event, closedChangeRequest: outcome.closedChangeRequest });
+          return void res
+            .status(200)
+            .json({ event: outcome.event, closedChangeRequest: outcome.closedChangeRequest, released: outcome.released });
         }
         switch (outcome.code) {
           case "NOT_FOUND":
-            return notFound(res);
+            return notFound(res, req.actor!.role);
           case "NOT_PERMITTED":
             return void refuse(res, 403, "ROLE_NOT_AUTHORISED", NOT_PERMITTED_TO_CANCEL_MESSAGE);
           case "STATUS_NOT_PERMITTED":

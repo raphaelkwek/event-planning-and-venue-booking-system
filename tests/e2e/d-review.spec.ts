@@ -94,13 +94,22 @@ test.describe("D1 review queue", () => {
     await a11y("review detail");
   });
 
-  test("D1-T6 a second coordinator opening a request under review sees the first reviewer", { tag: ["@D1", "@D1-T6"] }, async ({ page }) => {
+  test("D1-T6 a coordinator cannot open a request assigned to another coordinator, and claims nothing", { tag: ["@D1", "@D1-T6"] }, async ({ page, a11y }) => {
+    // A4 (CR-05) revised the card: a second coordinator no longer sees the first reviewer, because
+    // the request isn't theirs to open.
     const request = await underReviewRequest();
 
     await signIn(page, "coordinator2");
-    await openFromQueue(page, request);
-    await expect(page.getByText("Already under review")).toBeVisible();
-    await expect(page.getByText("Coordinator One opened this request first")).toBeVisible();
+    await page.getByRole("link", { name: "Review queue" }).click();
+    await expect(page.getByRole("heading", { name: "Review queue" })).toBeVisible();
+    await expect(page.getByText(request.name)).toHaveCount(0);
+
+    await page.goto(`/#/review/${request.id}`);
+    await expect(page.getByText("No event with that reference is assigned to you.")).toBeVisible();
+    await expect(page.getByText("HTTP 404")).toBeVisible();
+    await expect(page.getByText(request.name)).toHaveCount(0);
+    await expect(page.getByText("Already under review")).toHaveCount(0);
+    await a11y("review refused");
 
     const [row] = await query<{ reviewing_coordinator_id: string }>(
       "select reviewing_coordinator_id from event.events where id = $1",
@@ -160,7 +169,8 @@ test.describe("D2 ask for clarification", () => {
     await expect(status(page)).toHaveText("Under Review");
   });
 
-  test("D2-T5 the clarification is visible to the owning organiser and to Event Coordinators", { tag: ["@D2", "@D2-T5"] }, async ({ page, a11y }) => {
+  test("D2-T5 the clarification is visible to the owning organiser and to the assigned Event Coordinator", { tag: ["@D2", "@D2-T5"] }, async ({ page, a11y }) => {
+    // A4 (CR-05) revised the card: only the assigned coordinator sees the clarification, not "Event Coordinators" at large.
     const request = await awaitingRequest();
 
     await signIn(page, "organiser");
@@ -172,9 +182,15 @@ test.describe("D2 ask for clarification", () => {
     await a11y("request page awaiting response");
 
     await signOut(page);
-    await signIn(page, "coordinator2");
+    await signIn(page, "coordinator");
     await openReview(page, request);
     await expect(clarifications(page).filter({ hasText: "Please confirm the expected attendance." })).toHaveCount(1);
+
+    await signOut(page);
+    await signIn(page, "coordinator2");
+    await page.goto(`/#/review/${request.id}`);
+    await expect(page.getByText("No event with that reference is assigned to you.")).toBeVisible();
+    await expect(page.getByText("Please confirm the expected attendance.")).toHaveCount(0);
   });
 
   test("D2-T8 several clarifications on one request are kept in order", { tag: ["@D2", "@D2-T8"] }, async ({ page }) => {

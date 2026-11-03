@@ -177,21 +177,24 @@ test.describe("A3 access scope", () => {
     await a11y("request refused");
   });
 
-  test("A3-T4 a coordinator's event list contains every event, whoever owns it, and no drafts", { tag: ["@A3", "@A3-T4"] }, async ({ page, a11y }) => {
+  test("A3-T4 a coordinator's event list contains the events assigned to them, whoever owns them, and no other", { tag: ["@A3", "@A3-T4"] }, async ({ page, a11y }) => {
+    // A4 (CR-05) revised the card: the list holds only the coordinator's own assignments.
     const approved = await approvedRequest();
-    const others = await submitRequest({ name: uniqueName("Organiser two's symposium") }, "organiser2");
+    const unassigned = await submitRequest({ name: uniqueName("Organiser two's symposium") }, "organiser2");
+    const elsewhere = await assignedRequest({ name: uniqueName("Assigned elsewhere") }, "coordinator2");
     const draft = await saveDraft({ name: uniqueName("Unfinished idea") });
 
     await signIn(page, "coordinator");
     await page.getByRole("link", { name: "All events" }).click();
     await expect(page.getByRole("heading", { name: "All events" })).toBeVisible();
     await expect(rowWith(page, approved.name)).toContainText("Approved");
-    await expect(rowWith(page, others.name)).toContainText("Submitted");
+    await expect(page.getByText(unassigned.name)).toHaveCount(0);
+    await expect(page.getByText(elsewhere.name)).toHaveCount(0);
     await expect(page.getByText(draft.name)).toHaveCount(0);
     await a11y("all events");
   });
 
-  test("A3-T5 a coordinator can tell the events assigned to them from the rest", { tag: ["@A3", "@A3-T5"] }, async ({ page }) => {
+  test("A3-T5 a coordinator's lists show only their own events, each marked as theirs", { tag: ["@A3", "@A3-T5"] }, async ({ page }) => {
     // Since E3 the Lead assigns each request, which replaces the card's EVENT_COORDINATOR_POOL setting.
     const first = await assignedRequest({ name: uniqueName("First assigned request") }, "coordinator");
     const second = await assignedRequest({ name: uniqueName("Second assigned request") }, "coordinator2");
@@ -199,11 +202,12 @@ test.describe("A3 access scope", () => {
     await signIn(page, "coordinator");
     await page.getByRole("link", { name: "Review queue" }).click();
     await expect(rowWith(page, first.name)).toContainText("You");
-    await expect(rowWith(page, second.name)).toContainText("Coordinator Two");
+    await expect(page.getByText(second.name)).toHaveCount(0);
 
     await page.getByRole("link", { name: "All events" }).click();
-    await page.getByRole("button", { name: "Assigned to me" }).click();
-    await expect(rowWith(page, first.name)).toBeVisible();
+    await expect(rowWith(page, first.name)).toContainText("You");
     await expect(page.getByText(second.name)).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Every event" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Assigned to me" })).toHaveCount(0);
   });
 });

@@ -144,8 +144,8 @@ export const eventArrangementsConfirmedPayloadSchema = z.object({
 /**
  * F3 — the event was cancelled, with its reason. It names everyone F3 notifies:
  * the owner, the assigned coordinator, the Venue Staff of each booked venue and
- * whoever reserved each reservation. With F4, each booking and reservation
- * listed has been released in the same transaction. A cancelled draft has no
+ * whoever reserved each reservation. Each booking and reservation listed was
+ * released in the same transaction (F4). A cancelled draft has no
  * reference and nobody else to tell, so it writes no message.
  */
 export const eventCancelledPayloadSchema = z.object({

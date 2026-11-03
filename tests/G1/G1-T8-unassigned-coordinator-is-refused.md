@@ -7,18 +7,20 @@
 | Test Case ID | G1-T8 |
 | Test Scenario | A coordinator who isn't assigned to the event can't edit it, and nothing is stored |
 | Pre-conditions | 1. Standard environment running and test data reset.<br>2. FX-APPROVED completed. Note its id, and which coordinator its "Assigned coordinator" field names.<br>3. Signed in as the *other* seeded coordinator. |
-| Test Steps | 1. Open the request from "All events" and look for "Edit details".<br>2. Open the API console and send `PATCH /event/api/v1/events/<id>` with body `{"purpose": "Not mine to change"}`.<br>3. In the SQL editor, read its purpose and count its field-change history. |
+| Test Steps | 1. Look for the request in "All events".<br>2. Open the API console and send `PATCH /event/api/v1/events/<id>` with body `{"purpose": "Not mine to change"}`.<br>3. In the SQL editor, read its purpose and count its field-change history. |
 | Test Data | Account: whichever of `coordinator@connectsphere.test` / `coordinator2@connectsphere.test` is not assigned |
-| Expected Result | The page offers no "Edit details". The API returns `403` with code `ROLE_NOT_AUTHORISED` and a message that only the owning organiser or the assigned coordinator can edit the event's details. The purpose is still `Share faculty research`, with no field-change history. |
+| Expected Result | The request is not listed. The API returns `404` with code `EVENT_NOT_FOUND` and "No event with that reference is assigned to you.". The purpose is still `Share faculty research`, with no field-change history. |
 | Created By | Seann Khoo |
 | Date of Creation | 2026-10-11 |
+
+> **Revised for A4 (CR-05) on 2 Nov 2026.** A coordinator who isn't assigned no longer sees the event, and the API answers 404 as for an unknown event.
 
 ## Execution record
 
 | Item | Content |
 |---|---|
-| Actual Result | As coordinator2@connectsphere.test (not assigned), the page offered no "Edit details". The API returned 403 ROLE_NOT_AUTHORISED: "Only the owning organiser or the assigned coordinator can edit this event's details." The purpose stayed "Share faculty research", with no field-change history. |
-| Status | Pass |
-| Remarks | Commit: 21956ca · Evidence: tests/G1/evidence/G1-T8.png · Defect: — |
-| Executed By | Yichen, via automated testing |
-| Date of Execution | 2026-10-14 |
+| Actual Result | |
+| Status | Not Executed |
+| Remarks | Expected result revised for A4 (CR-05) on 2026-11-02; the earlier run checked the superseded behaviour. Re-run against the A4 build. |
+| Executed By | |
+| Date of Execution | |

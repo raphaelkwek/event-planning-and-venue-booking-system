@@ -193,8 +193,9 @@ describe("requesting a hold (L3)", () => {
 
     signedInAs("EVENT_COORDINATOR", OTHER_COORDINATOR);
     const other = await requestHold(holdBody(event.id, venueId));
-    expect(other.status).toBe(403);
-    expect(other.body.error).toMatchObject({ code: "ROLE_NOT_AUTHORISED", message: "Only the event's assigned coordinator can request a hold for it." });
+    // A4: an event not assigned to the coordinator is not found, as an unknown one is.
+    expect(other.status).toBe(404);
+    expect(other.body.error).toMatchObject({ code: "EVENT_NOT_FOUND", message: "No event with that reference is assigned to you." });
 
     signedInAs("EVENT_ORGANISER", OWNER);
     expect((await requestHold(holdBody(event.id, venueId))).body.error.code).toBe("ROLE_NOT_AUTHORISED");
@@ -487,7 +488,10 @@ describe("converting and releasing (L3)", () => {
     asCoordinator();
     expect((await convert(held.id)).body.error.code).toBe("EVENT_NOT_BOOKABLE");
     signedInAs("EVENT_COORDINATOR", OTHER_COORDINATOR);
-    expect((await convert(held.id)).body.error.code).toBe("ROLE_NOT_AUTHORISED");
+    expect((await convert(held.id)).body.error).toMatchObject({
+      code: "HOLD_NOT_FOUND",
+      message: "No hold with that id is on an event assigned to you.",
+    });
     expect(await holdRow(held.id)).toMatchObject({ status: "HELD" });
   });
 
@@ -551,7 +555,7 @@ describe("converting and releasing (L3)", () => {
     const requested = (await requestHold(holdBody(event.id, seminar))).body;
 
     signedInAs("EVENT_COORDINATOR", OTHER_COORDINATOR);
-    expect((await release(held.id)).status).toBe(403);
+    expect((await release(held.id)).status).toBe(404); // A4: not on an event assigned to them
 
     asCoordinator();
     expect((await release(held.id)).body).toMatchObject({ status: "RELEASED", releasedBy: COORDINATOR });
