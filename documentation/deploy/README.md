@@ -1,5 +1,116 @@
 # Staging and production: the runbook (ADR-0016)
 
+There are two ways to run the live environments. Both are free, and in both the two environments
+differ only in credentials and hostnames:
+
+- **Hugging Face Spaces (the one in use, ADR-0016 amendment of 3 Nov 2026).** Each environment's
+  backend is one public Docker Space on the free CPU Basic tier (2 vCPU, 16 GB, no card). The web app
+  is on Vercel, and each environment has its own Supabase project. You deploy from your laptop with
+  `npm run deploy:space`.
+- **Oracle Cloud k3s (the scale-up option).** One Always Free Ampere VM with k3s, deployed by
+  `release.yml` through GitHub environments. That path needs an Oracle card and repository Admin. It is
+  documented in full below, from "The Oracle k3s path".
+
+## The Hugging Face path
+
+### Checklist
+
+1. **Supabase, twice.** Create `connectsphere-staging` and `connectsphere-production` (Southeast Asia,
+   Singapore). From each project's **Connect** and **Settings → API**, fill
+   `C:\Users\Joash Lau\connectsphere-secrets\staging.env` and `production.env`:
+   - `DB_PASSWORD`;
+   - `DATABASE_URL`, the transaction pooler URI;
+   - `MIGRATE_DATABASE_URL`, the session pooler URI;
+   - `SUPABASE_URL`, `SUPABASE_ANON_KEY` and `SUPABASE_SERVICE_ROLE_KEY`.
+
+   Paste the URIs exactly as Supabase shows them, with `[YOUR-PASSWORD]` still in them. The script puts
+   `DB_PASSWORD` in, URL-encoded.
+2. **Hugging Face token.** huggingface.co → Settings → Access Tokens → **New token**, type *Write*. Put
+   it in `shared.env` as `HF_TOKEN`.
+3. **Vercel token.** vercel.com → Account Settings → Tokens. Put it in `shared.env` as `VERCEL_TOKEN`.
+4. `npm run deploy:space -- --env staging`, then check staging.
+5. `npm run deploy:space -- --env production`. It refuses unless the staging Space is running and healthy.
+6. In each Supabase project, Authentication → URL Configuration: set the **Site URL** to the
+   environment's web origin (the script prints it), and add `<web origin>/**` under **Redirect URLs**.
+   Then `npm run lead:create` (step 7 below) with `--redirect-to <web origin>`.
+7. Add both Space URLs (the script prints them) to `deploy/space/spaces.txt` and commit, so the
+   keep-awake job pings them.
+
+The secrets folder is outside the repository and is never committed. Only `deploy-space.mjs` reads it,
+and it never prints a value: every line it or a tool prints is masked. A blank key stops it with a
+message naming the key.
+
+### What `deploy:space` does
+
+1. Asks Hugging Face who the token belongs to. The Space is `<you>/connectsphere-<env>`, at
+   `https://<you>-connectsphere-<env>.hf.space`.
+2. Builds the web app with `VITE_API_BASE_URL` set to that Space, and deploys it with the Vercel CLI
+   (`vercel@65.10.0`, `--token`) to the Vercel project `connectsphere-staging` or `connectsphere`, which it
+   creates if missing. It reads the project's production origin, the `*.vercel.app` alias.
+3. Creates the Space if missing (Docker SDK, **public**: the SPA must reach it without a Hugging Face
+   token, and every API call still needs a Supabase token). It then sets the Space secrets
+   `DATABASE_URL`, `MIGRATE_DATABASE_URL`, `SUPABASE_URL`, `SUPABASE_ANON_KEY` and
+   `SUPABASE_SERVICE_ROLE_KEY`, and the variable `CORS_ALLOWED_ORIGINS` (the web origin, and nothing else).
+4. Pushes the Space repository: `deploy/space/Dockerfile` at its root and the committed source it builds
+   (`git archive HEAD`, so only what is committed deploys). Hugging Face builds the image.
+5. Waits for the Space to reach RUNNING, then smoke-tests it:
+   - `/healthz`;
+   - the API routes answer 401 with the error envelope;
+   - nothing else is routed;
+   - CORS allows the web origin only.
+
+   Then it smoke-tests the web app (the shell, built for the Space).
+
+### Inside the Space
+
+One container, as uid 1000, with one public port (7860). `deploy/space/start.sh`:
+
+- checks the settings;
+- makes a TLS certificate and a random Kafka password (both live only as long as the container);
+- runs every migration against the **session pooler**;
+- then starts these under supervisord:
+  - planning-core, its Temporal worker, registration and notification;
+  - Redpanda (SASL/SCRAM over TLS, on 127.0.0.1), the Temporal dev server and Cerbos;
+  - **Caddy** on 7860, routing `/identity`, `/event`, `/venue` and `/equipment` (planning-core),
+    `/notification` and `/registration` under `/api/v1`, with the prefix stripped, as the k3s Ingress does.
+    Health, readiness and metrics stay internal; Caddy itself answers a static `/healthz`.
+
+Known limits:
+
+- **The disk is ephemeral.** Redpanda's topics and Temporal's workflows start empty after every restart
+  or rebuild. Supabase holds all the data, and the outbox relay republishes anything not yet published.
+  A hold-expiry or completion timer scheduled before a restart is lost until the event is touched again.
+- **Port 6543 may be blocked.** A Space's outbound traffic may not allow Supabase's transaction-pooler
+  port. If `start.sh` cannot reach `DATABASE_URL`, the services use the session pooler too, and the log
+  says so by name. Port 5432 is reported open for Spaces; if even that is blocked, the Space cannot run
+  and the script stops at the smoke test.
+- **Sleep.** A free Space sleeps after about 48 hours without traffic. `.github/workflows/keep-awake.yml`
+  hits each URL in `deploy/space/spaces.txt` every 6 hours, needing no secret. A sleeping Space wakes
+  on the first request, in a minute or two.
+- **Rebuild on deploy.** Each `deploy:space` rebuilds the image on Hugging Face (several minutes), and
+  setting secrets restarts the Space.
+
+Look inside: the Space's page → **Logs** (container), which shows every process's output. Roll back:
+check out an earlier commit and run `deploy:space` again. Production uses exactly the commit you run it
+from, so run staging and production from the same commit.
+
+CI (`deploy.yml`, job "Space image") builds the image from the same Space repository the script pushes.
+It runs it as a Space runs it, against a throwaway Postgres and never Supabase, with `DATABASE_URL`
+pointing at a closed port, and checks:
+
+- the fallback and the migrations;
+- every process running;
+- each service ready with Kafka reachable;
+- the worker connected;
+- the routes and CORS through Caddy.
+
+What CI cannot show: Hugging Face's own build, its egress rules, and sleep.
+
+## The Oracle k3s path (the scale-up option)
+
+The rest of this page is the k3s path on one Oracle Cloud Always Free Ampere VM, deployed by
+`release.yml`. It is kept for when an Oracle account and repository Admin are available.
+
 ConnectSphere's two live environments cost nothing. The backend runs on one Oracle Cloud Always Free
 Ampere VM (arm64, ap-singapore-1) with k3s, one namespace per environment. The web app is on Vercel
 (Hobby), with one project per environment. Each environment has its own Supabase project. The two
@@ -35,7 +146,7 @@ Vercel ── connectsphere-staging ──► calls api.staging…   Supabase �
 
 ---
 
-## 1. Oracle Cloud: the account and the VM
+### 1. Oracle Cloud: the account and the VM
 
 1. Sign up at <https://signup.cloud.oracle.com> with **Singapore (ap-singapore-1)** as the home region.
    The home region cannot be changed later, and Always Free Ampere capacity is only in the home region.
@@ -86,7 +197,7 @@ in `rules.v4` (so a reboot keeps them):
 Do not flush the rules or disable the firewall: Oracle's own rules (for example to the metadata
 service) are in the same file.
 
-## 2. Supabase: one project per environment
+### 2. Supabase: one project per environment
 
 Never point either environment at the team's shared project. Create two new ones (a free account may
 own two active free projects; if yours already has one, make the second under a new organisation):
@@ -125,7 +236,7 @@ reset, confirmation), but an unset Site URL sends those links to localhost.
 
 A free project is paused after a week without activity. Unpause it from the dashboard; the data stays.
 
-## 3. Vercel: the account and two projects
+### 3. Vercel: the account and two projects
 
 1. Sign up at <https://vercel.com/signup> (Hobby). You don't need to connect Git: the workflow
    deploys with the CLI, and `vercel.json` sets `git.deploymentEnabled: false` so Vercel never builds
@@ -155,7 +266,7 @@ The build runs on the GitHub runner (`vercel build`), with `vercel.json`'s insta
 and the environment's `VITE_API_BASE_URL`, `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`, then
 `vercel deploy --prebuilt --prod`. Nothing is configured in Vercel's own environment variables.
 
-## 4. Deploy keys and the bootstrap
+### 4. Deploy keys and the bootstrap
 
 On your laptop, make one key pair per environment (no passphrase: the workflow uses them unattended):
 
@@ -196,7 +307,7 @@ Check a key from your laptop: `ssh -i connectsphere-staging-deploy cs-deploy@<pu
 
 The Applications show an error until the first release creates the `deploy-state` branch. That is expected.
 
-## 5. GitHub environments (Raphael, as the repository owner)
+### 5. GitHub environments (Raphael, as the repository owner)
 
 Environments need **admin** on the repository, and Joash has Write. Raphael either creates the two
 environments as below, or gives Joash Admin (Settings → Collaborators → Role) so he can.
@@ -246,7 +357,7 @@ the VM's IP, and set `API_HOST` to `api.staging.connectsphere-<something>.duckdn
 `api.connectsphere-<something>.duckdns.org` (DuckDNS answers for every name under yours, and is on the
 Public Suffix List, so its limit is your own).
 
-## 6. The first release
+### 6. The first release
 
 1. Merge a pull request to main (or **Actions → Release → Run workflow** on main).
 2. `Build` and `Publish` push five images and sign them. **The first time only**, Raphael opens
@@ -262,7 +373,7 @@ Public Suffix List, so its limit is your own).
 4. `Deploy production` waits for the required reviewer. Approve it in the run (**Review deployments**).
    It then does the same with **the same commit and the same digests** under `environments/production`.
 
-## 7. The first Lead in each environment
+### 7. The first Lead in each environment
 
 Once an environment's first release has run its migrations, create its first Event Coordinator Lead
 from your laptop. The script never reads `.env` (that points at the shared project), refuses to run
@@ -305,7 +416,7 @@ with u as (insert into identity.users (supabase_user_id, email, is_active, displ
 insert into identity.user_roles (user_id, role) select id, 'EVENT_COORDINATOR_LEAD' from u;
 ```
 
-## 8. Promote, roll back, look inside
+### 8. Promote, roll back, look inside
 
 - **Promote:** every merge to main builds once and deploys staging. Production gets that release only
   when its reviewer approves the waiting `Deploy production` job. A release that is never approved never
@@ -327,7 +438,7 @@ insert into identity.user_roles (user_id, role) select id, 'EVENT_COORDINATOR_LE
 - **Restart the VM:** `sudo reboot`. k3s, the firewall rules and every workload come back on their own;
   both environments are down for the minute or two it takes.
 
-## What CI shows on a pull request, and what it does not
+### What CI shows on a pull request, and what it does not
 
 | Shown in CI | Not shown until the accounts exist |
 |---|---|

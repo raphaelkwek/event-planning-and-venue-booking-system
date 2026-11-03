@@ -56,3 +56,28 @@ What is not free with enough headroom: hosted Kafka (Aiven's free plan has five 
 **What a reviewer should watch for:** a change that makes staging and production differ in anything but credentials and hostnames (the Manifests job's parity check fails on it); a workflow step that prints a secret (the repository and its logs are public); and anything that makes the cluster reach the team's shared Supabase project.
 
 **Implemented by:** the pull request "feat(deploy): free staging and production on k3s and Vercel", stacked on EN-21 (#85) and EN-10 (#75). Runbook: `documentation/deploy/README.md`.
+
+## Amendment, 3 Nov 2026: Hugging Face Spaces instead of the Oracle VM (Joash)
+
+**Context.** Oracle's Always Free tier needs a payment card to sign up, and Joash will not give one.
+Hugging Face's free CPU Basic Docker Spaces (2 vCPU, 16 GB) need none, and Joash has an account.
+
+**Decision.** Each environment's backend is one public Docker Space, `connectsphere-staging` and
+`connectsphere-production`; they differ only in their Space secrets and variables. One container runs
+everything: the four Node processes, Redpanda, the Temporal dev server and Cerbos under supervisord,
+with Caddy on the one public port (7860) routing the same public prefixes as the k3s Ingress.
+Migrations run at container start, against the session pooler. Joash deploys from his laptop with
+`npm run deploy:space`, which reads the values from a folder outside the repository and never prints
+one. A GitHub Actions cron keeps the Spaces awake. The k3s and Oracle path stays in the repository,
+validated in CI, as the scale-up option; `release.yml` runs it once Raphael grants Admin.
+
+**Consequences, beyond the ones above.**
+- **Ephemeral disk.** Redpanda and Temporal lose their state on every restart and rebuild. Supabase
+  holds the data, and the outbox republishes; timers scheduled before a restart are lost.
+- **Egress.** A Space's outbound ports are filtered. Supabase's 5432 is reported open, and 6543 may not
+  be, so the services fall back to the session pooler.
+- **No signed images.** The Space is built by Hugging Face from the committed source, not from the
+  signed GHCR images, so EN-21's signatures do not cover it.
+- **Deploys are not gated by GitHub.** Production waits for a healthy staging Space, not for a
+  reviewer's approval.
+- **Sleep.** A Space sleeps after about 48 hours idle and takes a minute or two to wake.

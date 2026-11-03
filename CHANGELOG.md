@@ -4,6 +4,45 @@
 
 ---
 
+# Deploy: the backend on Hugging Face Spaces (ADR-0016 amendment)
+
+**Timestamp:** 2026-11-03T21:50+08:00 (SGT)
+**Author:** Joash
+**Scope:** deploy/space (Dockerfile, start.sh, supervisord.conf, Caddyfile, Redpanda config, deploy-space.mjs),
+deploy/ci/space-smoke.sh, .github/workflows/deploy.yml (Space image), .github/workflows/keep-awake.yml,
+deploy/release/smoke-api.sh, documentation/deploy/README.md, ADR-0016's amendment, tests/DEPLOY.
+
+**Deploy:** fill `C:\Users\Joash Lau\connectsphere-secrets\` (two Supabase projects, the HF and Vercel tokens),
+then `npm run deploy:space -- --env staging`, then `--env production` (documentation/deploy/README.md).
+
+## Added
+
+- One free CPU Basic Docker Space per environment, public. One container runs planning-core, its worker,
+  registration and notification, plus Redpanda (SASL/SCRAM over TLS), the Temporal dev server and Cerbos,
+  under supervisord. Caddy on port 7860 routes the k3s Ingress's public prefixes, plus a static /healthz.
+- start.sh runs the migrations against the session pooler before anything starts. It falls back to the
+  session pooler for the services if the transaction pooler's port is blocked on the Space.
+- `npm run deploy:space -- --env staging|production` deploys from the laptop and never prints a value. It
+  builds the SPA on Vercel, creates the Space, sets its secrets and its CORS origin, pushes the committed
+  source, waits for it to run and smoke-tests it. Production goes only while staging is up.
+- CI's Space image job builds the image from the same Space repository and runs it as a Space would,
+  against a throwaway Postgres. A cron hits each listed Space's /healthz every 6 hours to keep it awake.
+- DEPLOY-T17 and T18, with traceability rows.
+
+## Changed
+
+- The runbook leads with the Hugging Face path and a short checklist. The Oracle k3s path and
+  `release.yml` stay as the documented scale-up option.
+
+## Not done / limits
+
+- No Space has been created yet: HF_TOKEN and VERCEL_TOKEN are still blank, so the egress probe (5432 and
+  6543) and the first deploy wait for them.
+- Ephemeral disk: Redpanda and Temporal start empty after a restart. The Space is built from source, so
+  EN-21's image signatures do not cover it.
+
+---
+
 # Deploy: free staging and production on k3s and Vercel (ADR-0016)
 
 **Timestamp:** 2026-11-03T17:35+08:00 (SGT)

@@ -142,7 +142,11 @@ export function spaceReadme(environment) {
  * committed, with LF line endings even on a Windows checkout (start.sh must run in the container).
  */
 export function writeContext(dir, environment, repoRoot = process.cwd(), ref = "HEAD") {
-  const archive = spawnSync("git", ["archive", "--format=tar", ref, "--", ...CONTEXT_PATHS], { cwd: repoRoot, maxBuffer: 512 * 1024 * 1024 });
+  // core.autocrlf would convert to CRLF on a Windows checkout; the blobs are stored with LF.
+  const archive = spawnSync("git", ["-c", "core.autocrlf=false", "-c", "core.eol=lf", "archive", "--format=tar", ref, "--", ...CONTEXT_PATHS], {
+    cwd: repoRoot,
+    maxBuffer: 512 * 1024 * 1024,
+  });
   if (archive.status !== 0) throw new DeployError("git archive failed; run from the repository");
   mkdirSync(dir, { recursive: true });
   const tarFile = join(dir, ".context.tar");
