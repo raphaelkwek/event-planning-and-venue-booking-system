@@ -125,6 +125,16 @@ EN-13,Seats created from the venue booking's approval (the Jira card calls it bo
 EN-13,Seats created from the venue booking's approval (the Jira card calls it booking.confirmed).,backend/services/planning-core/tests/venue/domain/bookingRequest.test.ts,"gives null when the venue has no such layout, so no seats are built from a guess (EN-13)"
 EN-13,Seats created from the venue booking's approval (the Jira card calls it booking.confirmed).,backend/packages/contracts/tests/venueBooking.test.ts,accepts an approval with or without the layout the registration service builds seats from (EN-13)
 EN-13,Seats created from the venue booking's approval (the Jira card calls it booking.confirmed).,backend/packages/contracts/tests/venueBooking.test.ts,"refuses a layout capacity that is not a positive whole number, or a blank layout (EN-13)"
+EN-10,"Images built in CI only, non-root, multi-stage, no secrets, health endpoint answers",.github/workflows/deploy.yml,"job: Image (planning-core, registration, notification, web, migrate) (EN-10-T1)"
+EN-10,"Images pushed to GHCR from main, tagged with the commit sha",.github/workflows/deploy.yml,"step: Push to GHCR, tagged with the commit sha (EN-10-T2)"
+EN-10,Kubernetes manifests validated with kubeconform -strict including CRD schemas,.github/workflows/deploy.yml,job: Manifests (kustomize and kubeconform) (EN-10-T3)
+EN-10,Kind smoke deploy of the staging overlay,deploy/ci/kind-deploy.sh,job: kind smoke deploy (staging overlay) (EN-10-T4)
+EN-10,Migration Job using npm run migrate,deploy/ci/smoke-image.sh,job: Image (migrate) (EN-10-T5)
+EN-10,"Terraform for the cluster, network and Redis validated in CI",.github/workflows/deploy.yml,"job: Terraform (fmt, validate, tflint) (EN-10-T6)"
+EN-10,Argo CD syncs staging from the config repo,deploy/ci/argocd-sync.sh,job: Argo CD syncs the staging overlay (kind) (EN-10-T7)
+EN-16,"Argo Rollouts canary at 10, 50 and 100%",deploy/ci/check-rendered.py,job: Manifests (kustomize and kubeconform) (EN-16-T1)
+EN-16,Prometheus analysis of error rate and p95 gates the canary,deploy/ci/canary-demo.sh,job: Canary promotes a good release and rolls back a bad one (kind) (EN-16-T2)
+EN-16,Automatic rollback demonstrated,deploy/ci/canary-demo.sh,job: Canary promotes a good release and rolls back a bad one (kind) (EN-16-T3)
 EN-17,"SLOs are written down, each defined against telemetry the services emit (documentation/slos.md).",backend/packages/observability/tests/metrics.unit.test.ts,"EN-17-T1 records a matched GET, a failing POST and an unknown path"
 EN-17,"SLOs are written down, each defined against telemetry the services emit (documentation/slos.md).",backend/services/planning-core/tests/shared/metrics.unit.test.ts,"EN-17-T1 /metrics shows duration and count for a route that answered, and for an unknown path"
 EN-17,"SLOs are written down, each defined against telemetry the services emit (documentation/slos.md).",backend/services/registration/tests/metrics.unit.test.ts,EN-17-T2 /metrics shows the HTTP metrics and the over-admission gauge
