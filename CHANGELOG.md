@@ -58,6 +58,8 @@ set it behaves as before. The autoscaling component is not wired into an overlay
 - Experiments 1 and 6, the staging Chaos Mesh runs, the browse-from-cache half of experiment 4, and the gateway and
   burn-rate alert in experiment 3.
 
+---
+
 # R1–R4: attendees browse, register, see and withdraw their registrations (PR #80)
 
 **Timestamp:** 2026-11-03T03:50+08:00 (SGT)

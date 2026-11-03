@@ -166,6 +166,8 @@ describe("POST /api/v1/registrations/:id/withdrawal (R4)", () => {
   it("R4-T10 registering again after withdrawing makes a new registration, under the same capacity and window rules", async () => {
     const { event, me, registration } = await registered({ seats: 1 });
     await withdrawAs(me, registration.id);
+    // Later than the first, so "newest first" has one answer (the same instant would order by id).
+    clock.now = new Date(DURING.getTime() + 60_000);
 
     const again = await registerAs(me, event.eventId);
     expect(again.status).toBe(201);

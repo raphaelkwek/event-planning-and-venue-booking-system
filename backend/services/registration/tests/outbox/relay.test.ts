@@ -63,11 +63,8 @@ async function insertRows(n: number, envelope = withdrawn) {
   for (let i = 0; i < n; i++) {
     const key = randomUUID();
     keys.push(key);
-    await sql.unsafe(`insert into ${TABLE} (topic, message_key, envelope) values ($1, $2, $3::jsonb)`, [
-      "connectsphere.registration.v1",
-      key,
-      JSON.stringify(envelope(key)),
-    ]);
+    // sql.json, not a JSON string: a string bound to jsonb is stored as a JSON string, which the relay rightly sets aside.
+    await sql`insert into ${sql.unsafe(TABLE)} (topic, message_key, envelope) values (${"connectsphere.registration.v1"}, ${key}, ${sql.json(envelope(key) as never)})`;
   }
   return keys;
 }
