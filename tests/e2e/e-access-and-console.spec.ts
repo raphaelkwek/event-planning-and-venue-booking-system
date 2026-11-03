@@ -18,6 +18,7 @@ import {
   query,
 } from "./support/seed-events.js";
 import { createEquipmentType, requestEquipment, reserveInFull, setLineStatus } from "./support/seed-arrangements.js";
+import { ensureIdentityBudget } from "./support/seed-registration.js";
 import { PERIOD_TEXT, requestBooking } from "./support/seed-venues.js";
 import {
   consoleCall,
@@ -110,6 +111,7 @@ test.describe("A3 what each role is shown", () => {
 
     try {
       // Step 1: sign in as the attendee. Step 2: the list of events open for registration.
+      await ensureIdentityBudget(60);
       await signIn(page, "attendee");
       await page.getByRole("navigation", { name: "Attendee" }).getByRole("link", { name: "Events", exact: true }).click();
       await expect(page.getByRole("heading", { name: "Events", exact: true })).toBeVisible();

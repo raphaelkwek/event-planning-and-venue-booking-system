@@ -304,14 +304,7 @@ test.describe("J1 filter venues against event requirements", () => {
     await expect(page.locator("pre")).toContainText('"items": [');
   });
 
-  /**
-   * J1-T18 asserts the card whole. The search does not widen the window by a venue's own setup and
-   * turnaround time yet (repo/venueSearch.ts still adds 0 minutes, "until H3 lands"), so the first
-   * search returns FX Seminar Room as well and the test is expected to fail: it is the evidence of
-   * that defect. The `observed` annotation holds what the screen listed.
-   */
-  test("J1-T18 the requested window is widened by the venue's own setup and turnaround time", { tag: ["@J1", "@J1-T18"] }, async ({ page }, testInfo) => {
-    test.fail(true, "Defect: the search widens the window by 0 minutes, not by the venue's own setup and turnaround time (CR-01, H3).");
+  test("J1-T18 the requested window is widened by the venue's own setup and turnaround time", { tag: ["@J1", "@J1-T18"] }, async ({ page }) => {
     const fx = await fxVenues();
     await fxCommitments(fx);
 
@@ -329,7 +322,6 @@ test.describe("J1 filter venues against event requirements", () => {
     await field(page, "Building / location").fill(fx.science);
     await setWindow(page, monday("16:00"), monday("17:00"));
     await search(page);
-    testInfo.annotations.push({ type: "observed 16:00-17:00", description: (await ownRows(page, fx)).join(" | ") });
     await expectOwn(page, fx, fx.auditorium);
 
     await setWindow(page, monday("16:30"), monday("17:30"));

@@ -63,7 +63,7 @@ export async function venueNobodyLooksAfter(name: string): Promise<{ id: string;
     `insert into venue.venues (name, building, max_capacity, layouts, facilities, accessibility_features, operating_hours, status, created_by, updated_by)
      values ($1, 'Business School, Level 3', 500, '[{"name":"Theatre","capacity":500},{"name":"Banquet","capacity":350}]'::jsonb,
              array['Projector','Wireless microphones','Stage lighting','Livestream'], array['Step-free access','Hearing loop'],
-             $2::jsonb, 'ACTIVE', $3::uuid, $3::uuid)
+             $2::text::jsonb, 'ACTIVE', $3::uuid, $3::uuid)
      returning id`,
     [name, everyDay, ACCOUNTS.venuestaff.id],
   );
