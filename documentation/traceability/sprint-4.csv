@@ -125,6 +125,16 @@ EN-13,Seats created from the venue booking's approval (the Jira card calls it bo
 EN-13,Seats created from the venue booking's approval (the Jira card calls it booking.confirmed).,backend/services/planning-core/tests/venue/domain/bookingRequest.test.ts,"gives null when the venue has no such layout, so no seats are built from a guess (EN-13)"
 EN-13,Seats created from the venue booking's approval (the Jira card calls it booking.confirmed).,backend/packages/contracts/tests/venueBooking.test.ts,accepts an approval with or without the layout the registration service builds seats from (EN-13)
 EN-13,Seats created from the venue booking's approval (the Jira card calls it booking.confirmed).,backend/packages/contracts/tests/venueBooking.test.ts,"refuses a layout capacity that is not a positive whole number, or a blank layout (EN-13)"
+EN-10,"Images built in CI only, non-root, multi-stage, no secrets, health endpoint answers",.github/workflows/deploy.yml,"job: Image (planning-core, registration, notification, web, migrate) (EN-10-T1)"
+EN-10,"Images pushed to GHCR from main, tagged with the commit sha",.github/workflows/deploy.yml,"step: Push to GHCR, tagged with the commit sha (EN-10-T2)"
+EN-10,Kubernetes manifests validated with kubeconform -strict including CRD schemas,.github/workflows/deploy.yml,job: Manifests (kustomize and kubeconform) (EN-10-T3)
+EN-10,Kind smoke deploy of the staging overlay,deploy/ci/kind-deploy.sh,job: kind smoke deploy (staging overlay) (EN-10-T4)
+EN-10,Migration Job using npm run migrate,deploy/ci/smoke-image.sh,job: Image (migrate) (EN-10-T5)
+EN-10,"Terraform for the cluster, network and Redis validated in CI",.github/workflows/deploy.yml,"job: Terraform (fmt, validate, tflint) (EN-10-T6)"
+EN-10,Argo CD syncs staging from the config repo,deploy/ci/argocd-sync.sh,job: Argo CD syncs the staging overlay (kind) (EN-10-T7)
+EN-16,"Argo Rollouts canary at 10, 50 and 100%",deploy/ci/check-rendered.py,job: Manifests (kustomize and kubeconform) (EN-16-T1)
+EN-16,Prometheus analysis of error rate and p95 gates the canary,deploy/ci/canary-demo.sh,job: Canary promotes a good release and rolls back a bad one (kind) (EN-16-T2)
+EN-16,Automatic rollback demonstrated,deploy/ci/canary-demo.sh,job: Canary promotes a good release and rolls back a bad one (kind) (EN-16-T3)
 H3,Only Venue Staff can change setup and turnaround times (A2); H1: Venue Staff update the record for their own venue.,backend/services/planning-core/tests/venue/api/venues.test.ts,"answers 404 to Venue Staff of another venue, and changes nothing, times included (H3 audit fix)"
 H3,"Availability, holds, booking approval, conflict flags and unavailability blocks compare occupied periods, not the advertised start and end times.",backend/services/planning-core/tests/venue/api/auditFixes.test.ts,"I2 flags a pending request whose turnaround reaches an open-ended block, naming the overlap"
 L1,A refused request creates no booking record and changes no venue availability.,backend/services/planning-core/tests/venue/api/auditFixes.test.ts,"L1 refuses a request whose occupied period overlaps the block, and stores nothing; one that only touches it is raised"

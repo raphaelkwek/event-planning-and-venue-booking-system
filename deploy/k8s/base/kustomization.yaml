@@ -1,0 +1,17 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - configmap.yaml
+  - planning-core.yaml
+  - planning-core-worker.yaml
+  - registration.yaml
+  - notification.yaml
+  - web.yaml
+  - ingress.yaml
+  - networkpolicies.yaml
+  - migrate-job.yaml
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: connectsphere
+    includeSelectors: false
+    includeTemplates: true
