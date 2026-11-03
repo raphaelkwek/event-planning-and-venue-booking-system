@@ -108,7 +108,7 @@ async function waitFor(what: string, done: () => boolean | Promise<boolean>, tim
   throw new Error(`Timed out waiting for ${what}.`);
 }
 
-/** The header as a plain string: Debezium Server may JSON-encode header values. */
+/** The header as a plain string: Debezium Server writes header values as JSON, so the text arrives in quotes. */
 function plainHeader(raw: string | undefined): string | undefined {
   if (raw === undefined) return undefined;
   try {
@@ -121,6 +121,7 @@ function plainHeader(raw: string | undefined): string | undefined {
 
 async function main(): Promise<number> {
   const problems: string[] = [];
+  let headerNoteShown = false;
 
   // Debezium creates its slot a moment after its health check passes; rows written before that are not captured.
   await waitFor(`replication slot ${SLOT} to be active`, async () => {
@@ -186,6 +187,10 @@ async function main(): Promise<number> {
     const differences: string[] = [];
     if (message.topic !== want.topic) differences.push(`topic ${message.topic} != ${want.topic}`);
     if (message.key !== want.key) differences.push(`key ${JSON.stringify(message.key)} != ${JSON.stringify(want.key)}`);
+    if (message.headers["content-type"] !== undefined && message.headers["content-type"] !== CONTENT_TYPE && !headerNoteShown) {
+      headerNoteShown = true;
+      console.log(`note: the content-type header is ${message.headers["content-type"]}, JSON-encoded by Debezium Server; the relay sets the bare text.`);
+    }
     if (plainHeader(message.headers["content-type"]) !== CONTENT_TYPE) {
       differences.push(`content-type header ${JSON.stringify(message.headers["content-type"])} != ${JSON.stringify(CONTENT_TYPE)}`);
     }
