@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 /**
- * Turns CHANGELOG.md into a Confluence-pasteable table (Date | Author | Item | Notes).
+ * Turns the changelog into a Confluence-pasteable table (Date | Author | Item | Notes).
  *
- * CHANGELOG.md is the single point of authorship for "what got done, when" — this script
+ * The changelog is every changelog/<YYYY-MM-DD>-<slug>.md fragment (one per change, since
+ * 3 Nov 2026) and then the older entries in CHANGELOG.md; `npm run changelog` prints it whole.
+ * It is the single point of authorship for "what got done, when" — this script
  * derives the Confluence sprint table from it instead of that table being hand-typed a
  * second time. Run it whenever you're ready to update Confluence; paste stdout straight
  * into a Confluence page (it auto-converts pasted markdown tables) or write it to a file
@@ -13,14 +15,16 @@
  *
  *   --since   Only include entries timestamped at/after this date (any Date.parse-able value).
  *   --order   asc (chronological, default) or desc (newest-first, matching CHANGELOG.md itself).
- *   --file    Changelog to read. Defaults to CHANGELOG.md in the current directory.
+ *   --file    Read only this file. Defaults to the whole log: changelog/ and CHANGELOG.md in the
+ *             current directory.
  *   --out     Write the table to this file instead of stdout.
  *   --format  ship (default): Date | Author | Item | Notes — what shipped, one row per entry.
  *             standup: Timestamp | Name | Completed | Blockers | To-do — Blockers/To-do are
  *             pulled only from a real "## Known gap" / "## Follow-up(s)" section in the entry,
  *             never invented. Not a replacement for a person's own daily self-report.
  */
-import { readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
 export interface ChangelogEntry {
@@ -140,6 +144,64 @@ export function parseChangelog(markdown: string): ChangelogEntry[] {
   return entries;
 }
 
+// ---------------------------------------------------------------------------------------------
+// Fragments: changelog/<YYYY-MM-DD>-<branch-or-slug>.md, one per change, so that two pull
+// requests never edit the same lines. Each holds exactly what a CHANGELOG.md entry holds (or a
+// few such entries, newest first, separated by "---").
+
+export const FRAGMENT_NAME = /^\d{4}-\d{2}-\d{2}-[A-Za-z0-9._-]+\.md$/;
+
+export interface Fragment {
+  name: string;
+  text: string;
+}
+
+/** The fragments in a changelog/ folder. Any other file there (a README) is not a fragment. */
+export function readFragments(dir: string): Fragment[] {
+  if (!existsSync(dir)) return [];
+  return readdirSync(dir)
+    .filter((name) => FRAGMENT_NAME.test(name))
+    .map((name) => ({ name, text: readFileSync(join(dir, name), "utf8") }));
+}
+
+const fragmentEntries = (fragment: Fragment) => parseChangelog(`---\n\n${fragment.text}`);
+
+/** When a fragment was written: its newest entry's Timestamp, or else the date in its name. */
+function fragmentTime(fragment: Fragment): number {
+  const times = fragmentEntries(fragment).flatMap((e) => (e.timestampMs === null ? [] : [e.timestampMs]));
+  return times.length > 0 ? Math.max(...times) : Date.parse(`${fragment.name.slice(0, 10)}T00:00+08:00`) || 0;
+}
+
+/**
+ * The whole log, newest first: CHANGELOG.md's header, the fragments (newest first), then
+ * CHANGELOG.md's own entries, which are kept as they were when fragments began.
+ */
+export function combineChangelog(changelog: string, fragments: Fragment[]): string {
+  const lines = changelog.split("\n");
+  const first = lines.findIndex((_, i) => isEntryBoundary(lines, i));
+  const header = (first === -1 ? lines : lines.slice(0, first)).join("\n").trimEnd();
+  const older = first === -1 ? "" : lines.slice(first).join("\n").trimEnd();
+  const newer = [...fragments]
+    .sort((a, b) => fragmentTime(b) - fragmentTime(a) || b.name.localeCompare(a.name))
+    .map((fragment) => `---\n\n${fragment.text.trim()}`);
+  return `${[header, ...newer, older].filter((part) => part !== "").join("\n\n")}\n`;
+}
+
+/** The whole log of the repository at `root`: changelog/ and CHANGELOG.md. */
+export function readCombinedChangelog(root: string): string {
+  return combineChangelog(readFileSync(join(root, "CHANGELOG.md"), "utf8"), readFragments(join(root, "changelog")));
+}
+
+/** Why a fragment is not a usable entry: no "# Title", no readable Timestamp, or no Author. */
+export function fragmentProblems(fragment: Fragment): string[] {
+  const entries = fragmentEntries(fragment);
+  if (entries.length === 0) return [`${fragment.name}: no entry (it must start with a "# Title" line)`];
+  return entries.flatMap((e) => [
+    ...(e.timestampMs === null ? [`${fragment.name}: "${e.title}" has no readable **Timestamp:**`] : []),
+    ...(e.author === "" ? [`${fragment.name}: "${e.title}" has no **Author:**`] : []),
+  ]);
+}
+
 export function filterSince(entries: ChangelogEntry[], sinceMs: number | null): ChangelogEntry[] {
   if (sinceMs === null) return entries;
   return entries.filter((e) => e.timestampMs !== null && e.timestampMs >= sinceMs);
@@ -205,13 +267,13 @@ function getFlag(args: string[], name: string, fallback?: string): string | unde
 
 function main() {
   const args = process.argv.slice(2);
-  const file = getFlag(args, "file", "CHANGELOG.md") as string;
+  const file = getFlag(args, "file");
   const order = getFlag(args, "order", "asc") as "asc" | "desc";
   const sinceRaw = getFlag(args, "since");
   const outPath = getFlag(args, "out");
   const format = getFlag(args, "format", "ship") as "ship" | "standup";
 
-  const markdown = readFileSync(file, "utf8");
+  const markdown = file ? readFileSync(file, "utf8") : readCombinedChangelog(process.cwd());
   let entries = parseChangelog(markdown);
 
   if (sinceRaw) {

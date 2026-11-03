@@ -292,6 +292,9 @@ topic_research.md
 # Leftover EN-02.1 test venues exported from the shared database before deletion (10 Oct 2026)
 /Old Venues/
 
+# EN-18, EN-20: what the load and chaos runs write (their evidence is copied to documentation/evidence by hand)
+load/out/
+chaos/out/
 # EN-22: vitest JSON reports that CI hands to the traceability job
 **/reports/vitest-*.json
 

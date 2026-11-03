@@ -1,0 +1,9 @@
+story_id,acceptance_criterion,test_file,test_name
+EN-21,"SBOM: a CycloneDX SBOM per image and for the npm workspace, uploaded as artifacts",.github/workflows/supply-chain.yml,"jobs: SBOM (npm workspace); Image (<name>) SBOM, Trivy, signing (EN-21-T1)"
+EN-21,"Trivy scans the filesystem (dependencies, IaC across deploy/ and the Dockerfiles, secrets); fails on CRITICAL with a fix; reports HIGH; SARIF to code scanning",.github/workflows/supply-chain.yml,"job: Trivy (filesystem: dependencies, IaC, secrets) (EN-21-T2)"
+EN-21,Trivy scans each built image on the same terms,.github/workflows/supply-chain.yml,"jobs: Image (<name>) SBOM, Trivy, signing (EN-21-T3)"
+EN-21,"cosign: keyless signing of the images pushed to GHCR on main, SBOM attestations, and a verify step after signing",.github/workflows/release.yml,"step: Sign, attest and verify (cosign, keyless), on a push to main (EN-21-T4)"
+EN-21,"cosign on pull requests: sign-blob the SBOMs and sign, attest and verify an image in a throwaway registry",.github/workflows/supply-chain.yml,"steps: Sign the SBOM as a blob; Sign, attest and verify an image in a local registry (EN-21-T5)"
+EN-21,"ZAP baseline against the running web app and planning-core API on a throwaway database, with a rules file and an uploaded report",.github/workflows/supply-chain.yml,job: ZAP baseline (web app and planning-core API) (EN-21-T6)
+EN-21,Third-party actions the pipeline adds are pinned by commit SHA,.github/scripts/check-action-pins.mjs,job: Actions are pinned by commit SHA (EN-21-T7)
+EN-21,A guide explains how to verify an image's signature and SBOM,documentation/supply-chain.md,"commands run in step Sign, attest and verify; whole guide checked after the first push to main (EN-21-T8)"

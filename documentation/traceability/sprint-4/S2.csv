@@ -1,0 +1,2 @@
+story_id,acceptance_criterion,test_file,test_name
+S2,"Only the assigned coordinator can decide the request, and only while its status is Pending.",backend/services/planning-core/tests/event/api/auditFixes.test.ts,"S2: the outgoing coordinator's approval, queued behind the reassignment, is not found (A4) and decides nothing"

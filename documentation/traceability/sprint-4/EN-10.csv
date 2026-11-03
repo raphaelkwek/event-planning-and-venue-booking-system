@@ -1,0 +1,8 @@
+story_id,acceptance_criterion,test_file,test_name
+EN-10,"Images built in CI only, non-root, multi-stage, no secrets, health endpoint answers",.github/workflows/deploy.yml,"job: Image (planning-core, registration, notification, web, migrate) (EN-10-T1)"
+EN-10,"Images pushed to GHCR from main, tagged with the commit sha",.github/workflows/release.yml,"jobs: Build and Publish, tagged with the commit sha (EN-10-T2; moved from deploy.yml by ADR-0016)"
+EN-10,Kubernetes manifests validated with kubeconform -strict including CRD schemas,.github/workflows/deploy.yml,job: Manifests (kustomize and kubeconform) (EN-10-T3)
+EN-10,Kind smoke deploy of the staging overlay,deploy/ci/kind-deploy.sh,job: kind smoke deploy (staging overlay) (EN-10-T4)
+EN-10,Migration Job using npm run migrate,deploy/ci/smoke-image.sh,job: Image (migrate) (EN-10-T5)
+EN-10,"Terraform for the cluster, network and Redis validated in CI",.github/workflows/deploy.yml,"job: Terraform (fmt, validate, tflint) (EN-10-T6)"
+EN-10,Argo CD syncs staging from the config repo,deploy/ci/argocd-sync.sh,job: Argo CD syncs the staging overlay (kind) (EN-10-T7)
