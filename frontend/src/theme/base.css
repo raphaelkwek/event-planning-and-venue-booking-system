@@ -1,0 +1,233 @@
+/*
+ * Element defaults for the operations console: type, links, focus, tables and the other things
+ * every screen is made of. Screens keep their markup; this is what makes them read alike.
+ */
+
+html {
+  background: var(--cs-canvas);
+}
+
+html body {
+  margin: 0;
+  background: var(--cs-canvas);
+  color: var(--cs-text);
+  font-family: var(--cs-font-sans);
+  font-size: var(--cs-fs-body);
+  line-height: 1.45;
+  font-optical-sizing: auto;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: var(--cs-accent);
+  color: var(--cs-on-ink);
+}
+
+/* Headings. Screens title themselves with an h2; h3 is a section label with a rule after it. */
+html body :is(h1, h2) {
+  color: var(--cs-text);
+  font-family: var(--cs-font-sans);
+  font-weight: 600;
+  font-size: var(--cs-fs-title);
+  line-height: 1.15;
+  letter-spacing: -0.018em;
+  font-stretch: var(--cs-stretch-title);
+  margin-top: 0;
+}
+
+html body h3 {
+  display: flex;
+  align-items: center;
+  gap: var(--cs-space-3);
+  color: var(--cs-text-subtle);
+  font-family: var(--cs-font-sans);
+  font-size: var(--cs-fs-label);
+  font-weight: 600;
+  line-height: 16px;
+  letter-spacing: var(--cs-track-label);
+  text-transform: uppercase;
+  margin-bottom: var(--cs-space-3);
+}
+
+html body h3::after {
+  content: "";
+  flex: 1;
+  min-width: var(--cs-space-5);
+  height: 1px;
+  background: var(--cs-line);
+}
+
+html body :is(h4, h5, h6) {
+  color: var(--cs-text);
+  font-size: var(--cs-fs-dense);
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+html body p {
+  margin-top: 0;
+}
+
+/* Links: the accent, underlined, so a link never relies on colour alone (WCAG 1.4.1). */
+html body a {
+  color: var(--cs-accent-text);
+  text-decoration: underline;
+  text-decoration-color: var(--cs-accent-line);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+html body a:hover {
+  color: var(--cs-accent-text);
+  text-decoration-color: currentColor;
+}
+
+/* Keyboard focus is always visible. Atlaskit's controls draw their own ring in the same colour. */
+:where(a, button, summary, select, [tabindex]:not([tabindex="-1"]), input[type="checkbox"], input[type="radio"]):focus-visible {
+  outline: 2px solid var(--cs-accent);
+  outline-offset: 2px;
+}
+
+:where(main):focus {
+  outline: none;
+}
+
+html body :is(code, kbd, samp) {
+  font-family: var(--cs-font-mono);
+  font-size: 0.92em;
+}
+
+html body code {
+  padding: 1px 4px;
+  border: 1px solid var(--cs-line);
+  border-radius: var(--cs-radius-sm);
+  background: var(--cs-surface-sunken);
+  color: var(--cs-text);
+}
+
+html body pre {
+  font-family: var(--cs-font-mono);
+  font-size: var(--cs-fs-small);
+  line-height: 1.55;
+  color: var(--cs-text);
+  background: var(--cs-surface-sunken);
+  border: 1px solid var(--cs-line);
+  border-radius: var(--cs-radius);
+}
+
+html body hr {
+  border: 0;
+  border-top: 1px solid var(--cs-line);
+}
+
+/* Definition lists: a small capitals label over its value. */
+html body dt {
+  font-size: var(--cs-fs-label);
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--cs-text-subtle);
+}
+
+html body dd {
+  color: var(--cs-text);
+}
+
+html body label {
+  color: var(--cs-text-subtle);
+}
+
+/* Ids, counts, dates and times (marked by shell/tables.ts): mono, tabular figures. */
+[data-cs-cell="ref"],
+[data-cs-cell="num"],
+[data-cs-cell="time"] {
+  font-family: var(--cs-font-mono);
+  font-size: 0.93em;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+}
+
+[data-cs-cell="ref"] {
+  color: var(--cs-text);
+  font-weight: 500;
+}
+
+[data-cs-cell="empty"] {
+  color: var(--cs-text-subtlest);
+}
+
+/*
+ * Tables, Atlaskit's dynamic table and plain ones alike: tight rows, hairline rules, capitals in
+ * the header, a header that sticks under the command bar, and a row highlight on hover and focus.
+ * The selectors outrank Atlaskit's single-class rules.
+ */
+html body :is(.cs-main, .cs-modal-scope) table {
+  border-collapse: separate;
+  border-spacing: 0;
+  width: 100%;
+  font-size: var(--cs-fs-dense);
+  font-variant-numeric: tabular-nums;
+}
+
+html body .cs-main table > thead > tr > :is(th, td) {
+  position: sticky;
+  top: var(--cs-sticky-top, var(--cs-header-h));
+  z-index: 2;
+  background: var(--cs-surface);
+  color: var(--cs-text-subtle);
+  font-size: var(--cs-fs-label);
+  font-weight: 600;
+  line-height: 16px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  text-align: left;
+  padding: var(--cs-space-2) 10px;
+  border: 0;
+  border-bottom: 1px solid var(--cs-line-strong);
+  vertical-align: bottom;
+}
+
+html body .cs-main table > tbody > tr > :is(td, th) {
+  padding: 7px 10px;
+  border: 0;
+  border-bottom: 1px solid var(--cs-line);
+  vertical-align: middle;
+}
+
+html body .cs-main table > tbody > tr:hover > :is(td, th),
+html body .cs-main table > tbody > tr:focus-within > :is(td, th) {
+  background: var(--cs-surface-hover);
+}
+
+html body .cs-main table > tbody > tr:focus-within > :is(td, th):first-child {
+  box-shadow: inset 2px 0 0 var(--cs-accent);
+}
+
+html body .cs-main table caption {
+  text-align: left;
+  color: var(--cs-text-subtle);
+  font-size: var(--cs-fs-small);
+  padding-bottom: var(--cs-space-2);
+}
+
+/* Native date and time pickers follow the theme. */
+html body input {
+  color-scheme: inherit;
+}
+
+/* Scrollbars that belong to the theme. */
+html {
+  scrollbar-color: var(--cs-line-strong) transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

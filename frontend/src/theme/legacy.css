@@ -1,0 +1,76 @@
+/*
+ * The legacy colour bridge.
+ *
+ * Screens written before the redesign set a few light-theme colours inline, for example
+ * style={{ color: "#626F86" }}. Rather than edit every screen (and collide with every open pull
+ * request that touches one), each of those colours is mapped here to the token that means the same
+ * thing. A browser writes an inline colour into the style attribute as rgb(), so each rule matches
+ * that text: "#626F86" is "rgb(98, 111, 134)". An inline style loses to !important.
+ *
+ * New code uses the tokens directly, for example color: "var(--cs-text-subtle)". When a screen is
+ * next edited, replace its inline hex with the token and the rule here can go once nothing uses it.
+ * frontend/tests/theme.test.ts fails if a screen adds an inline colour this file doesn't map.
+ */
+
+/* Subtle text: #626F86 */
+[style^="color: rgb(98, 111, 134)"],
+[style*="; color: rgb(98, 111, 134)"] {
+  color: var(--cs-text-subtle) !important;
+}
+
+/* Body text: #172B4D */
+[style^="color: rgb(23, 43, 77)"],
+[style*="; color: rgb(23, 43, 77)"] {
+  color: var(--cs-text) !important;
+}
+
+/* Error and required-field text: #AE2E24, #AE2A19, #BF2600 */
+[style^="color: rgb(174, 46, 36)"],
+[style*="; color: rgb(174, 46, 36)"],
+[style^="color: rgb(174, 42, 25)"],
+[style*="; color: rgb(174, 42, 25)"],
+[style^="color: rgb(191, 38, 0)"],
+[style*="; color: rgb(191, 38, 0)"] {
+  color: var(--cs-danger-text) !important;
+}
+
+/* Link-styled buttons: #0055CC, #0C66E4 */
+[style^="color: rgb(0, 85, 204)"],
+[style*="; color: rgb(0, 85, 204)"],
+[style^="color: rgb(12, 102, 228)"],
+[style*="; color: rgb(12, 102, 228)"] {
+  color: var(--cs-accent-text) !important;
+}
+
+/* Hairlines: #DFE1E6, in any border property */
+[style*="solid rgb(223, 225, 230)"] {
+  border-color: var(--cs-line) !important;
+}
+
+/* A stronger outline: #8590A2 */
+[style*="solid rgb(133, 144, 162)"] {
+  border-color: var(--cs-line-input) !important;
+}
+
+/* Panels: #FFFFFF, #F7F8F9, #F4F5F7 */
+[style*="background: rgb(255, 255, 255)"],
+[style*="background-color: rgb(255, 255, 255)"] {
+  background: var(--cs-surface) !important;
+}
+
+[style*="background: rgb(247, 248, 249)"],
+[style*="background-color: rgb(247, 248, 249)"],
+[style*="background: rgb(244, 245, 247)"],
+[style*="background-color: rgb(244, 245, 247)"] {
+  background: var(--cs-surface-raised) !important;
+}
+
+/* I2's flagged booking on the availability calendar: #FFEBE6 behind, #DE350B rule */
+[style*="background: rgb(255, 235, 230)"],
+[style*="background-color: rgb(255, 235, 230)"] {
+  background: var(--cs-danger-bg) !important;
+}
+
+[style*="solid rgb(222, 53, 11)"] {
+  border-color: var(--cs-danger-bold) !important;
+}
