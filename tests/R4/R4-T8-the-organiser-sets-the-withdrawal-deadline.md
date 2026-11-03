@@ -19,6 +19,6 @@
 |---|---|
 | Actual Result |  |
 | Status | Not Executed |
-| Remarks | Proven by backend/services/planning-core/tests/event/api/registrationSettings.test.ts › R4-T8 a deadline after the event start is refused, naming the field; nothing is stored, and frontend/tests/registrationSettings.test.tsx, passed in CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41513315276 (commit d43fab5). UI walk-through in Chrome pending at the sprint review. |
+| Remarks | Proven by backend/services/planning-core/tests/event/api/registrationSettings.test.ts › R4-T8 a deadline after the event start is refused, naming the field; nothing is stored, and frontend/tests/registrationSettings.test.tsx, passed in CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41602701323 (commit 4f9ab08). UI walk-through in Chrome pending at the sprint review. |
 | Executed By |  |
 | Date of Execution |  |

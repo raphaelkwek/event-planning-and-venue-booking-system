@@ -19,6 +19,6 @@
 |---|---|
 | Actual Result |  |
 | Status | Not Executed |
-| Remarks | Covered by backend/services/registration/tests/api/r1Cards.test.ts › R1-T3 does not list a Confirmed event whose registration is not enabled (API level), and the screen in frontend/tests/attendeeRegistration.test.tsx against a stubbed API, not yet run: CI's integration job stops at planning-core's unrelated L3-T17 date failure (fixed by PR #82) before it reaches the registration step (commit d43fab5). UI walk-through in Chrome pending at the sprint review. |
+| Remarks | Proven by backend/services/registration/tests/api/r1Cards.test.ts › R1-T3 does not list a Confirmed event whose registration is not enabled (API level), and the screen in frontend/tests/attendeeRegistration.test.tsx against a stubbed API, passed in CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41602701323 (commit 4f9ab08). UI walk-through in Chrome pending at the sprint review. |
 | Executed By |  |
 | Date of Execution |  |
