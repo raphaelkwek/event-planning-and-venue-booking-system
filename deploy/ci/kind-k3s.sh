@@ -188,7 +188,8 @@ CURL_EXTRA="--resolve ${API_HOST}:18443:127.0.0.1 --insecure" bash deploy/releas
 endlog
 
 log "The migrate Job a second time applies nothing"
-kubectl -n "$NS" create job migrate-again --from=job/migrate
+# The same rendered Job under another name (`kubectl create job --from` takes only CronJobs).
+yq 'select(.kind == "Job" and .metadata.name == "migrate") | .metadata.name = "migrate-again"' "$WORK/rendered.yaml" | kubectl apply -f -
 kubectl -n "$NS" wait --for=condition=complete job/migrate-again --timeout=300s
 again="$(kubectl -n "$NS" logs job/migrate-again | grep -c '^apply ' || true)"
 [ "$again" = 0 ] || { echo "::error::the second migrate run applied ${again} files"; exit 1; }
