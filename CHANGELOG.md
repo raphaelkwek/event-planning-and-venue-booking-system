@@ -34,14 +34,21 @@ with the spike it asks for.
     did. A keyword it does not understand is a finding, not a pass. Removing a message type is breaking.
   - The *Message schema compatibility* CI job runs both on every pull request.
 - **Redpanda's Schema Registry is asked the same question.** The *Schema registry and CDC* CI job
-  starts a throwaway Redpanda and requires its answer to equal the checker's for a table of 40 cases,
-  and for this branch's schemas against the base branch's.
+  starts a throwaway Redpanda and asks it about a table of 36 cases, and about this branch's schemas
+  against the base branch's. It agrees with the checker on 33 cases. The three where it differs
+  (it refuses a property that becomes nullable through `anyOf`; it accepts a plain string that gains a
+  `format` and a constrained property added to an open object) are recorded in `cases.ts`, and the job
+  requires both verdicts.
 - **Debezium Server as a kustomize component** (`deploy/k8s/components/cdc`), with the outbox router and
   a Kafka sink, for the deployment to include once its checks have been made. Nothing includes it.
   The same CI job starts it, with the component's own configuration in a hardened container, against a
-  throwaway Postgres and Redpanda, writes one message of every type into the outbox tables, and
-  requires Kafka to hold what the relay's `prepareRow` produces. A second job renders the component and
-  validates it with kubeconform.
+  throwaway Postgres and Redpanda, writes one message of every type (62 messages, including nulls and
+  empty arrays) into the outbox tables, and requires Kafka to hold what the relay's `prepareRow`
+  produces: the same topic, key and value, in order, and nothing for an `UPDATE`. The one difference is
+  the `content-type` header, which Debezium Server can only write as a JSON string, quotes included. A
+  second job renders the component and validates it with kubeconform.
+  - The router is in the image's `lib_opt`, which the server puts on its classpath only when
+    `ENABLE_DEBEZIUM_SCRIPTING` is true, and a literal `${...}` cannot be written in its configuration.
 
 ## Not done
 

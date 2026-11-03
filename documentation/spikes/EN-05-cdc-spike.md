@@ -111,6 +111,17 @@ The alternative is the IPv4 add-on, which needs the Pro plan.
 |---|---|---|
 | Spike | This document, ADR-0008 note, `implementation.md` §3.4 | A run against a real Supabase project |
 | Debezium | Component with the outbox router, a CI proof against a throwaway Postgres and Redpanda, manifests validated by kustomize and kubeconform | A run on the Oracle node; a run against Supabase; removing the relay |
+
+What building it found, because the documentation does not say:
+
+- The outbox router is in the image's `lib_opt` directory, which `run.sh` puts on the classpath only when
+  `ENABLE_DEBEZIUM_SCRIPTING=true` (or the Chronicle queue is enabled). Without it the server will not start.
+- Debezium Server expands a configuration value twice, so a literal `${...}` cannot be written. The router
+  keeps the topic with a regex group instead of the `${routedByValue}` placeholder.
+- The router's value has to be the `envelope` column as text (`table.expand.json.payload=false`) and the format
+  `simplestring`, or the CloudEvent arrives wrapped in a JSON string.
+- Topic, key and value then equal the relay's (the value as a parsed JSON document). The one difference is the `content-type`
+  header, which Debezium Server writes as a JSON string, quotes included.
 | Schema check | Generated schema files, checker, command, pull-request job, Redpanda cross-check | Registering the schemas in a deployed registry |
 
 ### Before CDC replaces the relay anywhere

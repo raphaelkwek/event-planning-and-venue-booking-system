@@ -11,6 +11,18 @@ schema registry. The spike's answer is in `documentation/spikes/EN-05-cdc-spike.
 | The Debezium outbox router replaces the relay | Debezium Server as an opt-in kustomize component, proven in CI against a throwaway Postgres and Redpanda. The relay is **not** replaced: it stays the publisher in every environment until the component has run against a real Supabase project. | EN-05-T8, EN-05-T9 |
 | CI checks backward compatibility against the schema registry | A checker of the CloudEvents data schemas against the base branch, run on every pull request, and a job that asks a real Redpanda Schema Registry the same question | EN-05-T2 to EN-05-T7 |
 
+## Run it
+
+```bash
+npm run schemas:check                         # the committed schema files match contracts
+npm run schemas:generate                      # rewrite them after changing a schema
+npm run schemas:compat -- --base origin/main  # what the pull-request job will say
+npm run test:unit -w @connectsphere/contracts # the checker, the command and the example messages
+```
+
+The Redpanda and Debezium Server checks (EN-05-T7, T8) run only in CI, in the *Schema registry and CDC*
+job: there is no Docker locally (ADR-0012). `deploy/k8s/components/cdc/README.md` explains the component.
+
 | Card | Scenario |
 |---|---|
 | EN-05-T1 | The spike answers both questions with sources, and the decision is written into ADR-0008 |

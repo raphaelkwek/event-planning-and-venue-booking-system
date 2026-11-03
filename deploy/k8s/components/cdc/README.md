@@ -10,7 +10,9 @@ the checks below pass. Author: Joash.
 Debezium Server reads the outbox tables from Postgres's write-ahead log through a logical replication
 slot and publishes each new row to Kafka. It needs no Kafka Connect. Its outbox router turns a row into
 the Kafka message the relay would have sent: the row's `topic`, `message_key` as the key, and the
-CloudEvent in `envelope` as the value, with the CloudEvents `content-type` header. The whole
+CloudEvent in `envelope` as the value. **One difference:** it also sets a `content-type` header, but
+Debezium Server can only write header values as JSON, so the header is `"application/cloudevents+json;
+charset=UTF-8"` with the quotes, where the relay sets the bare text. No consumer here reads it. The whole
 configuration is `application.properties`. The router sits in the image's `lib_opt` directory, which the
 start-up script adds to the classpath only when `ENABLE_DEBEZIUM_SCRIPTING` is `true`; the Deployment sets it.
 
@@ -19,7 +21,7 @@ start-up script adds to the classpath only when `ENABLE_DEBEZIUM_SCRIPTING` is `
 - `backend/scripts/cdc-parity-check.ts` starts this exact image and `application.properties` against a
   throwaway Postgres (`wal_level=logical`) and Redpanda, writes one message of every type into the
   outbox tables, and requires Kafka to hold what the relay's `prepareRow` produces: topic, key, value
-  and header. It also checks per-event ordering and that an `UPDATE` publishes nothing.
+  and the header (unwrapped from its JSON quotes). It also checks per-event ordering and that an `UPDATE` publishes nothing.
 - `kubectl kustomize` and kubeconform check that `deploy/k8s/test/cdc` renders into valid objects.
 - **Not proven:** that Supabase gives a Free-plan project a slot, that the Oracle node reaches
   Supabase's IPv6 address, or that the pod starts with the node's network. Nothing here has touched the
