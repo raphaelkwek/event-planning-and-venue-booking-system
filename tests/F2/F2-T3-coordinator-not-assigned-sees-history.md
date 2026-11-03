@@ -19,8 +19,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Expected result revised for A4 (CR-05) on 2026-11-03; the earlier run checked the superseded behaviour. Re-run against the A4 build. |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | Coordinator Two did not find the approved event in "All events", and its address showed "No event with that reference is assigned to you." with no event name, status history or assigned coordinator. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
+| Status | Pass |
+| Remarks | Automated, browser E2E in CI (EN-14). Commit: 6f5ed43 · Evidence: tests/e2e/f-status-and-confirmation.spec.ts › F2-T3 an Event Coordinator who is not assigned to the event does not see it or its history, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41604122084 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

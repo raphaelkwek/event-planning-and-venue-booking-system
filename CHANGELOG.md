@@ -43,8 +43,7 @@ fixes found by axe). No service code and no migration.
 - Main's A4 (a coordinator acts only on the events assigned to them) changed what six cards mean, so
   six journeys now check A4's behaviour: A3-T4, A3-T5, D1-T6, D2-T5, F2-T3 and the "different
   coordinator" step of F5-T21. Another coordinator's event is not listed and its address answers 404
-  "No event with that reference is assigned to you." Their cards were revised to match and are re-recorded
-  from the CI run of the merge.
+  "No event with that reference is assigned to you." Their cards were revised to match and re-recorded Pass from the merge's CI run 41604122084 (101 passed, snapshots unchanged).
 
 ## Not yet
 

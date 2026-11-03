@@ -19,8 +19,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Expected result revised for A4 (CR-05) on 2026-11-02; the earlier run checked the superseded behaviour. Re-run against the A4 build. |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | Coordinator Two's Review queue did not list the request; opening its address showed "No event with that reference is assigned to you." (HTTP 404) and no detail; the stored reviewer stayed Coordinator One. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
+| Status | Pass |
+| Remarks | Automated, browser E2E in CI (EN-14). Commit: 6f5ed43 · Evidence: tests/e2e/d-review.spec.ts › D1-T6 a coordinator cannot open a request assigned to another coordinator, and claims nothing, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41604122084 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |
