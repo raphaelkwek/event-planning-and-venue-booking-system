@@ -338,7 +338,7 @@ test.describe("F3 and F4 cancel an event (the screens, not the notifications)", 
     const openDay = async () => {
       await page.getByRole("navigation").getByRole("link", { name: "Venues", exact: true }).click();
       await rowWith(page, venue.name).getByRole("link", { name: "View" }).click();
-      await page.getByRole("button", { name: "Availability" }).click();
+      await page.getByRole("button", { name: "Availability", exact: true }).click();
       await expect(page.getByText("Availability. Times are Singapore time.")).toBeVisible();
       await page.getByLabel("From", { exact: true }).fill("2027-03-02");
       await page.getByLabel("To", { exact: true }).fill("2027-03-02");
