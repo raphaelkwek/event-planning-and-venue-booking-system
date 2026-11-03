@@ -1,5 +1,6 @@
 import express from "express";
 import { randomUUID } from "node:crypto";
+import { corsFor, parseAllowedOrigins } from "./shared/cors.js";
 import { logger } from "./shared/logger.js";
 import { sql } from "./shared/db.js";
 import { healthRouter } from "./shared/health.js";
@@ -18,6 +19,8 @@ import { changeRouter } from "./modules/change/index.js";
  */
 export const app = express();
 
+// ADR-0016: the web app is on Vercel, another origin; first, so every answer carries the headers.
+app.use(corsFor(parseAllowedOrigins(process.env.CORS_ALLOWED_ORIGINS)));
 app.use(express.json());
 
 app.use((req, res, next) => {
