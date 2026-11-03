@@ -9,8 +9,9 @@ import { changeRateLimiter } from "./limiter.js";
 
 /**
  * F3 — the owning organiser or the assigned coordinator cancels an event, with
- * a reason. The whole cancellation is one transaction: if any part fails, the
- * event keeps its status and nothing is changed (F4 AC5).
+ * a reason, and F4 releases what it holds. The whole cancellation is one
+ * transaction: if any part fails, the event keeps its status and nothing is
+ * released (F4 AC5).
  */
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const PATH = "/api/v1/events/:id/cancellation";
@@ -48,7 +49,9 @@ export function cancellationsRouter(sql: Sql, limiter: RequestHandler = changeRa
         }
 
         if (outcome.ok) {
-          return void res.status(200).json({ event: outcome.event, closedChangeRequest: outcome.closedChangeRequest });
+          return void res
+            .status(200)
+            .json({ event: outcome.event, closedChangeRequest: outcome.closedChangeRequest, released: outcome.released });
         }
         switch (outcome.code) {
           case "NOT_FOUND":

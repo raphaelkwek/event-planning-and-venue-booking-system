@@ -74,8 +74,9 @@ export function CancelEventAction({ eventId, token, onCancelled }: { eventId: st
             </ModalHeader>
             <ModalBody>
               <p>
-                The event becomes Cancelled and can't be edited or arranged any further. A change request still pending is
-                closed. Its organiser, its coordinator, the Venue Staff of each booked venue and the Technical Support Staff who
+                The event becomes Cancelled and can't be edited or arranged any further. Its venue bookings and holds are
+                released, its pending venue requests withdrawn and its equipment reservations released, so others can use
+                them. A change request still pending is closed. Its organiser, its coordinator, the Venue Staff of each booked venue and the Technical Support Staff who
                 reserved equipment are told, with your reason. This can't be undone.
               </p>
               <Refusal error={serverReason ? null : error} />
