@@ -1,4 +1,4 @@
-import type { SignificantEventField } from "@connectsphere/contracts";
+import { isSignificantEventField, type SignificantEventField } from "@connectsphere/contracts";
 import type { ProposedChanges } from "../../event/index.js";
 import { formatPeriod } from "./formatPeriod.js";
 
@@ -163,4 +163,24 @@ export function valuesAfterChange(
     proposedEndAt: instant(pick("proposedEndAt")),
     expectedAttendance: attendance(pick("expectedAttendance")),
   };
+}
+
+/**
+ * S3 and G2 — the impact of `changes` over the event's `current` values: the values after the
+ * change, and the significant fields it touches. S3 applies the result on approval; G2 shows it,
+ * for a pending request, without writing anything. One function, so the preview names exactly the
+ * flags and reasons approval would set.
+ */
+export function assessProposedChange(input: {
+  bookings: readonly ImpactBooking[];
+  reservations: readonly ImpactReservation[];
+  current: Parameters<typeof valuesAfterChange>[0];
+  changes: ProposedChanges;
+}): ChangeImpact {
+  return assessChangeImpact({
+    bookings: input.bookings,
+    reservations: input.reservations,
+    after: valuesAfterChange(input.current, input.changes),
+    changedFields: Object.keys(input.changes).filter(isSignificantEventField),
+  });
 }

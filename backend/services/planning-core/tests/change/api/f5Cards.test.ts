@@ -5,7 +5,7 @@ import { KAFKA_TOPICS, parseCloudEvent, type EventStatus } from "@connectsphere/
 import { notificationsFor } from "../../../../notification/src/domain/recipients.js";
 import { testDb } from "../../support/testDb.js";
 import { actorsWithPrefix, cleanLineFixtures, createBulkType, insertLineDirect } from "../../support/lineFixtures.js";
-import { seedEvent } from "../../support/seedEvent.js";
+import { seedEvent, setStatusDirect } from "../../support/seedEvent.js";
 import { EVENT_END, EVENT_START } from "../../support/eventDates.js";
 import { disruptedBy, flagDisruptions, insertBlock } from "../../../src/modules/venue/repo/unavailability.js";
 
@@ -256,7 +256,7 @@ describe("F5 cards (tests/F5)", () => {
     const [draft] = await sql<{ id: string }[]>`select id from event.events where owner_id = ${A.org}`;
     await sql`update event.events set status = 'DRAFT' where id = ${draft!.id}`;
     const hidden = await refusedLeavingNothing(draft!.id, 404, "EVENT_NOT_FOUND");
-    expect(hidden.body.error.message).toBe("No event with that reference is available to you.");
+    expect(hidden.body.error.message).toBe("No event with that reference is assigned to you.");
 
     const labels: [EventStatus, string][] = [
       ["SUBMITTED", "Submitted"],
@@ -273,7 +273,7 @@ describe("F5 cards (tests/F5)", () => {
       // Built Approved, so Q1's route can reserve the line, then moved to the status under test
       // directly: most of these statuses can't be reached through a story yet, or not from Approved.
       const { event } = await fixture();
-      await sql`update event.events set status = ${status} where id = ${event.id}`;
+      await setStatusDirect(sql, event.id, status);
       const response = await refusedLeavingNothing(event.id, 409, "STATUS_TRANSITION_NOT_PERMITTED");
       expect(response.body.error.message).toBe(`This event is ${label} and cannot move to Safety Review.`);
     }
@@ -281,9 +281,10 @@ describe("F5 cards (tests/F5)", () => {
 
   it("F5-T5 only the assigned coordinator can confirm; an unknown event is not revealed", async () => {
     const { event } = await fixture();
+    // A4: another coordinator gets the same 404 as for an event that isn't there.
     signedInAs(A.c2, "EVENT_COORDINATOR");
-    const notAssigned = await refusedLeavingNothing(event.id, 403, "ROLE_NOT_AUTHORISED");
-    expect(notAssigned.body.error.message).toBe("Only the event's assigned coordinator can confirm its arrangements.");
+    const notAssigned = await refusedLeavingNothing(event.id, 404, "EVENT_NOT_FOUND");
+    expect(notAssigned.body.error.message).toBe("No event with that reference is assigned to you.");
     for (const [userId, role] of [
       [A.org, "EVENT_ORGANISER"],
       [A.vs, "VENUE_STAFF"],
@@ -296,7 +297,7 @@ describe("F5 cards (tests/F5)", () => {
     asC1();
     const unknown = await confirm(randomUUID());
     expect(unknown.status).toBe(404);
-    expect(unknown.body.error.code).toBe("EVENT_NOT_FOUND");
+    expect(unknown.body.error).toMatchObject({ code: "EVENT_NOT_FOUND", message: notAssigned.body.error.message });
     expect((await confirm("not-a-uuid")).status).toBe(404);
   });
 

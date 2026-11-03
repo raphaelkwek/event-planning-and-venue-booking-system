@@ -14,7 +14,7 @@ import {
 import { lockEventDetails, saveEventDetails } from "../repo/eventDetails.js";
 import { recordFieldChanges } from "../repo/eventHistory.js";
 import { findEventInScope } from "../repo/events.js";
-import { refuse } from "./errors.js";
+import { eventNotFound, refuse } from "./errors.js";
 
 /**
  * G1 — the owning organiser or the assigned coordinator edits an event's
@@ -60,7 +60,7 @@ export function eventDetailsRouter(sql: Sql) {
     async (req: ActorRequest, res: Response, next: NextFunction) => {
       const actor = req.actor!;
       const event = await findEventInScope(sql, req.params.id!, actor.scope, actor.userId);
-      if (!event) return refuse(res, 404, "EVENT_NOT_FOUND", "No event with that reference is available to you.");
+      if (!event) return eventNotFound(res, actor.role);
       if (!mayEditDetails(actor, event)) return refuse(res, 403, "ROLE_NOT_AUTHORISED", NOT_PERMITTED);
       if (!detailsEditableIn(event.status)) return refuse(res, 409, "EVENT_NOT_EDITABLE", notEditableMessage(event.status));
 
