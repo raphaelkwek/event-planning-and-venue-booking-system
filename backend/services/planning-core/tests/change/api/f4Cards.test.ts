@@ -204,8 +204,22 @@ describe("F4 cards (tests/F4)", () => {
     expect(after.requests).toEqual([expect.objectContaining({ id: p.id, status: "WITHDRAWN", withdrawn_by: A.org })]);
   });
 
-  it("F4-T2 the venue's period is free again: I1's calendar no longer shows it, and a new booking for it can be stored", async () => {
+  it("F4-T2 the venue's period is free again: I1's calendar no longer shows it, J1's search offers it, and a new booking for it can be stored", async () => {
     const { event, v1 } = await fixture();
+    // J1 offers a venue only for a window inside its opening hours, so V1 is open around the clock here.
+    const allDay = { opensAt: "00:00", closesAt: "24:00" };
+    const week = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
+    await sql`update venue.venues set operating_hours = ${sql.json(Object.fromEntries(week.map((d) => [d, allDay])))} where id = ${v1.id}`;
+    const offered = async () => {
+      signedInAs(A.c2, "EVENT_COORDINATOR");
+      const search = await request(app)
+        .get("/api/v1/venues/search")
+        .query({ q: v1.name, from: EVENT_START, to: EVENT_END })
+        .set(bearer);
+      expect(search.status, search.text).toBe(200);
+      return (search.body.items as { id: string }[]).map((item) => item.id);
+    };
+    expect(await offered()).not.toContain(v1.id);
     signedInAs(A.vs, "VENUE_STAFF");
     const next = new Date(Date.parse(`${day}T00:00:00Z`) + 86_400_000).toISOString().slice(0, 10);
     const references = async () => {
@@ -221,6 +235,7 @@ describe("F4 cards (tests/F4)", () => {
     expect((await cancel(event.id)).status).toBe(200);
     signedInAs(A.vs, "VENUE_STAFF");
     expect(await references()).not.toContain(event.reference);
+    expect(await offered()).toEqual([v1.id]);
 
     const other = await seedEvent(sql, { ownerId: A.org2, status: "PLANNING", endsAt: new Date(EVENT_END), name: "F4-T2 next event" });
     await expect(slot(v1.id, other, "CONFIRMED", ref("BKR"))).resolves.toBeTruthy();
