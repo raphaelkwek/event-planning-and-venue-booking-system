@@ -7,7 +7,7 @@
 > | Section | What still reflects the old design | ADR | Rewrite owner |
 > |---|---|---|---|
 > | §4.6 | ~~Registration capacity counters~~ Rewritten for seat rows on 30 Oct 2026 (EN-13) | ADR-0005 (seat rows) | EN-13, done |
-> | §6 | Authorisation | ADR-0010 (Cerbos and RLS) | EN-07 |
+> | §6 | ~~Authorisation~~ Rewritten for Cerbos and RLS on 3 Nov 2026 (EN-07) | ADR-0010 (Cerbos and RLS) | EN-07, done |
 > | §9 | Logs written to a Kafka topic per service | ADR-0013 (OpenTelemetry, Grafana Loki) | EN-08 |
 >
 > §2 was rewritten for ADR-0004 on 2 Oct 2026, when EN-01 merged Identity and Event into `planning-core`. §3 was rewritten for ADR-0008 on 3 Oct 2026 (EN-04.1).
@@ -492,10 +492,33 @@ The `message` is user-facing and must name the specific values the story require
 
 ## 6. Authorisation
 
-- The gateway verifies the JWT and applies the coarse role check. **Every service re-checks.** Defence in depth — a service must never assume it was called through the gateway.
-- Role claim values are exactly: `EVENT_ORGANISER`, `EVENT_COORDINATOR`, `VENUE_STAFF`, `TECH_SUPPORT_STAFF`, `ATTENDEE`.
-- Access scope (A3) is a **query-time filter in the repo layer**, not a post-filter in the API layer and never in the UI. A user outside the scope gets `404`, not a filtered-empty `200`.
-- Services connect to Postgres with a service role, which **bypasses RLS**. Enable RLS anyway as a second line of defence, but the authoritative check is in our code — be ready to say this in the Q&A.
+Rewritten for ADR-0010 on 3 Nov 2026 (EN-07). Cerbos decides **who may take an action**; Postgres
+row-level security decides **which rows a caller reaches**; each module's `domain/` decides **when**
+(status rules). The generated matrix keeps the first two consistent.
+
+- **Roles** are exactly contracts' `ROLES`: `EVENT_ORGANISER`, `EVENT_COORDINATOR`, `VENUE_STAFF`,
+  `TECH_SUPPORT_STAFF`, `ATTENDEE`, `EVENT_COORDINATOR_LEAD`, `SAFETY_OFFICER`.
+- **Every route names a policy action, never a list of roles.** `requireRole("event", "approve")` in a
+  module's `auth/actor.ts` asks the Cerbos PDP at `CERBOS_URL` whether the caller's role may ever take
+  that action (`src/shared/authz/`). Never: `403 ROLE_NOT_AUTHORISED`. No answer within 2 s:
+  `503 POLICY_UNAVAILABLE`. **It fails closed.** A new action goes in `policies/resources/` with a policy
+  test, and `routePermissions.unit.test.ts` fails on a route without a gate.
+- **Session-only routes** (sign-out, `/users/me`, `/access-scope`, `/permissions/check`,
+  `/feature-flags`) need a valid token and no action; `tests/support/routeTable.ts` lists them.
+- **The staff console asks the same policies.** `POST /api/v1/permissions/check` answers, for the
+  verified caller, which of the screens' actions their role may take; the navigation and the route guard
+  use it. The PDP is never exposed: only the services reach it.
+- **Access scope (A3, A4)** is still a query-time filter in the repo layer, so a caller outside it gets
+  `404`, not a filtered-empty `200`. Since EN-07.2 **Postgres enforces it too**: every scoped read runs
+  as `connectsphere_request` with `SET LOCAL ROLE` and the claims `app.user_id` and `app.access_scope`,
+  set with `set_config(…, true)` inside the read's transaction (`event/repo/requestRole.ts`, migration
+  `event/0025`). Transaction-local claims are what Supabase's transaction pooler needs; never use a
+  session-level `SET`. A missing `WHERE` clause can no longer leak another organiser's event.
+- **Who bypasses RLS.** The service's login role owns the tables and RLS is not forced, so the migrator,
+  the outbox relay, the Temporal worker and the scheduled jobs, which act for the system rather than a
+  caller, read every row. Only code running for a caller switches to the request role.
+- **Every service re-checks.** Defence in depth: a service must never assume it was called through the
+  gateway (EN-12), which will ask the same PDP when it exists.
 - Service-to-service calls carry a short-lived internal token plus the original `correlationId` and acting user, so the audit trail survives the hop.
 
 ## 7. Frontend
@@ -717,7 +740,7 @@ Log every refusal with its `code` — refusals are correct behaviour under CP an
 
 ## 10. Configuration and deployment
 
-All config from environment variables, documented in `.env.example`. No secrets in the repo, no `localhost` in code. Required per service: `PORT`, `DATABASE_URL`, `DATABASE_SCHEMA`, `KAFKA_BROKERS`, `KAFKA_SASL_MECHANISM`, `KAFKA_SASL_USERNAME`, `KAFKA_SASL_PASSWORD`, `KAFKA_SSL_CA_PATH` (Aiven only), `KAFKA_GROUP_SUFFIX` (laptops only), `NOTIFICATION_PORT` and, if planning-core runs elsewhere, `PLANNING_CORE_URL` (notification only), `SUPABASE_URL`, `SUPABASE_JWKS_URL`, `SERVICE_NAME`, `LOG_LEVEL`, `INTERNAL_TOKEN_SECRET`.
+All config from environment variables, documented in `.env.example`. No secrets in the repo, no `localhost` in code. Required per service: `PORT`, `DATABASE_URL`, `CERBOS_URL` (planning-core, EN-07), `DATABASE_SCHEMA`, `KAFKA_BROKERS`, `KAFKA_SASL_MECHANISM`, `KAFKA_SASL_USERNAME`, `KAFKA_SASL_PASSWORD`, `KAFKA_SSL_CA_PATH` (Aiven only), `KAFKA_GROUP_SUFFIX` (laptops only), `NOTIFICATION_PORT` and, if planning-core runs elsewhere, `PLANNING_CORE_URL` (notification only), `SUPABASE_URL`, `SUPABASE_JWKS_URL`, `SERVICE_NAME`, `LOG_LEVEL`, `INTERNAL_TOKEN_SECRET`.
 
 Cloud-readiness rules to follow now so the move is boring later: services are stateless (no in-process cache, no local disk writes, sessions in the token); health endpoints `/healthz` (liveness) and `/readyz` (readiness: it requires the database and reports whether the Kafka broker is reachable, without requiring it, because the outbox holds messages while Kafka is down; §3.4); graceful shutdown drains in-flight requests, lets the outbox relay finish its batch, and commits Kafka offsets; every service can run from its build (`npm run build`, then `npm run start -w <service>`), and `npm run dev` is for local work only. There is no Docker (ADR-0003): a deployment platform builds each service from its `package.json`.
 
