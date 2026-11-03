@@ -88,7 +88,7 @@ test.describe("A4 coordinators see only their own events", () => {
     // Step 3: the Lead's navigation offers the Lead's functions only.
     await signOut(page);
     await signIn(page, "lead");
-    const nav = page.getByRole("banner").getByRole("navigation");
+    const nav = page.getByRole("navigation", { name: "Primary" });
     await expect(nav.getByRole("link")).toHaveText([/^Unassigned$/, /^Assignments$/, /^Notifications/, /^API console$/]);
     for (const absent of [
       "Review queue",
@@ -146,7 +146,7 @@ test.describe("U1 the Safety Officer's queue, review and decision", () => {
 
     // Step 1: the Safety Officer's navigation offers the Safety queue.
     await signIn(page, "safety");
-    await expect(page.getByRole("banner").getByRole("link", { name: "Safety queue", exact: true })).toBeVisible();
+    await expect(page.getByRole("navigation", { name: "Primary" }).getByRole("link", { name: "Safety queue", exact: true })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Safety queue" })).toBeVisible();
 
     // Step 2: the queue lists both; E1's review shows the factors; a decision to request changes needs a reason.
