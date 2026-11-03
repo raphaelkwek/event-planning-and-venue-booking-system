@@ -72,6 +72,13 @@ vi.mock("../../src/modules/identity/repo/users.js", async (actual) => ({
   findRoleForUser: async (_sql: unknown, id: string) => [...subjects.values()].find((p) => p.id === id)?.role ?? null,
 }));
 
+// Each module limits requests per address, and every request here comes from one. The limits are a
+// different control (they run before authentication) with tests of their own, so they are lifted.
+vi.mock("express-rate-limit", async (actual) => ({
+  ...(await actual<object>()),
+  rateLimit: () => (_req: unknown, _res: unknown, next: () => void) => next(),
+}));
+
 const { app } = await import("../../src/app.js");
 
 const sql = testDb();
@@ -109,6 +116,11 @@ async function buildWorld(owner: string, coordinator: string, staff: string): Pr
     insert into change.change_requests (event_id, event_reference, requested_by, reason, created_by, updated_by)
     values (${event.id}, ${event.reference}, ${owner}, 'Matrix change', ${owner}, ${owner})
     returning id
+  `;
+  // S1: a change request always proposes at least one field; this one, more guests.
+  await sql`
+    insert into change.change_request_fields (request_id, field_name, current_value, proposed_value)
+    values (${change!.id}, 'expectedAttendance', ${sql.json(150)}, ${sql.json(160)})
   `;
   const blockFrom = new Date(new Date(EVENT_END).getTime() + 7 * 24 * 3600 * 1000);
   const [block] = await sql<{ id: string }[]>`

@@ -13,20 +13,25 @@ export type PermissionState =
   | { status: "ready"; allowed: ReadonlySet<string> }
   | { status: "failed"; message: string };
 
+const LOADING: PermissionState = { status: "loading" };
+
+/**
+ * The answer is kept with the token it was asked for, so the next person to sign in on this tab
+ * never sees, even for one render, the screens the previous person's role was allowed (A1).
+ */
 export function usePermissions(token: string | null, checks: readonly PermissionCheck[]): PermissionState {
-  const [state, setState] = useState<PermissionState>({ status: "loading" });
+  const [answer, setAnswer] = useState<{ token: string; state: PermissionState } | null>(null);
 
   useEffect(() => {
     if (!token) return;
     let live = true;
-    setState({ status: "loading" });
     checkPermissions(token, [...checks])
-      .then((allowed) => live && setState({ status: "ready", allowed }))
+      .then((allowed) => live && setAnswer({ token, state: { status: "ready", allowed } }))
       .catch((error: unknown) => {
         if (!live) return;
         const message =
           error instanceof ApiError ? error.message : "Your permissions could not be checked. Reload the page to try again.";
-        setState({ status: "failed", message });
+        setAnswer({ token, state: { status: "failed", message } });
       });
     return () => {
       live = false;
@@ -34,5 +39,5 @@ export function usePermissions(token: string | null, checks: readonly Permission
     // `checks` is a module-level constant, so only a new token (another sign-in) asks again.
   }, [token, checks]);
 
-  return state;
+  return answer && answer.token === token ? answer.state : LOADING;
 }
