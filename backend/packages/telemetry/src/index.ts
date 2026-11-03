@@ -5,3 +5,4 @@ export * from "./http.js";
 export * from "./postgres.js";
 export * from "./kafka.js";
 export * from "./sdk.js";
+export * from "./testing.js";
