@@ -41,6 +41,33 @@ OpenAPI spec, A4's cards and traceability. Review fixes on PR #81; no migration.
 
 ---
 
+# F4: Release the arrangements of a cancelled event
+
+**Timestamp:** 2026-10-29T19:30+08:00 (SGT); revised 2026-11-03T10:57+08:00 (SGT) for the review of #72
+**Author:** Raphael; review fixes by Joash
+**Scope:** F4 (SPM-111, Sprint 4). Stacked on F3; merge the two together.
+- planning-core, change module: F3's cancellation now releases the event's bookings and holds, withdraws its pending venue requests and
+  releases its equipment reservations in the same transaction, through L4's `releaseVenueArrangementsForEvent` and Q2's
+  `releaseEventReservations`, each recording `event cancelled`, the user and the time. Any failure rolls the whole cancellation back
+  (500 `CANCELLATION_FAILED`). The response's `released` lists what was released; `registrations` is always 0, because registrations live
+  in the registration service.
+- planning-core, venue module: `lockVenuesForEvent`, which locks the rows of the event's venues in ascending id.
+- **Lock order (review of #72).** The cancellation now locks the pending change request, then the event's venues, then the event, then its
+  holds, requests and slots, the venue module's order in implementation.md §4.6. It used to lock the event before its venues, while I2's
+  block locks the venue and then the events it returns to Planning, so a block and a cancellation of an event booked at that venue could
+  deadlock (`40P01`, a 500 for one user). `f4Cards.test.ts` › `F4 lock order` races the two deterministically: it holds a block's venue
+  lock, waits until the cancellation queues behind it, then takes the event lock as I2 does.
+- notification: the cancellation notices say the bookings and equipment were released.
+- web: the cancellation dialog says what will be released.
+- Tests: `tests/F4/` (F4-T1 to F4-T8), `tests/change/api/f4Cards.test.ts`.
+- **AC4 is not met by F4 itself.** EN-13's registration service merged on 30 Oct (#73). Cancelling the event's registrations and waitlist
+  entries, and telling the attendees, is done by that service's consumer of `event.cancelled`, built in R1–R4 (#80) and R5–R7 (#88). F4-T7
+  is Blocked until they merge, and its trace row no longer claims coverage. ADR-0009's CancelEvent workflow is not built; that consumer
+  takes its place.
+- No migration of its own; deploy with F3.
+
+---
+
 # F3: Cancel an event
 
 **Timestamp:** 2026-10-29T19:10+08:00 (SGT)

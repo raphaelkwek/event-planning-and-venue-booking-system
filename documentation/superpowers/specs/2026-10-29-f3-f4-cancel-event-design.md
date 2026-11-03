@@ -95,6 +95,9 @@ nothing stays committed to an event that will not happen.
 
    Any error rolls back all of it (F4-AC5). The route answers 500 with "The event was not cancelled…", and the event keeps its
    status. The lock order is event, venue rows, equipment rows, the same as F5 and S3, so they cannot deadlock.
+   **Revised 3 Nov 2026 (review of #72):** that order deadlocks with I2's block, which locks the venue and then the events it
+   returns to Planning. The cancellation now locks the change request, the venue rows (ascending id), the event, then holds,
+   requests and slots, then equipment rows: the venue module's order in implementation.md §4.6.
 5. **New work refused (F3-AC5).**
    - **Venue, event and change requests:** they already refuse a Cancelled event, and the cards prove it.
    - **Equipment** gains the check:
@@ -159,11 +162,13 @@ Cards in `tests/F4/`:
 | F4-T4 | 5 | With the equipment release forced to fail, the response is 500; E is still Planning, and B1, H, P, R1, R2 and CR are unchanged, with no message |
 | F4-T5 | 6 | Each released record keeps its row: status Released (or Withdrawn), the reason "event cancelled", the user and the time |
 | F4-T6 | 7 | Calling the release functions again changes no row and no timestamp; a second cancellation gives 409 with nothing changed |
-| F4-T7 | 4 | `released.registrations` is 0, and no attendee is notified (EN-13 not built) |
+| F4-T7 | 4 | Registrations and waitlist entries are Cancelled and attendees told, by the registration service's consumer of `event.cancelled` (revised 3 Nov 2026: Blocked on R1–R4 #80 and R5–R7 #88; EN-13 merged on 30 Oct in #73) |
 | F4-T8 | all | Browser walkthrough (manual) |
 
 ## 5. Out of scope
 
-- Registrations and the waitlist, attendee notices, and the CancelEvent Temporal workflow: these wait for EN-13 (§3.7).
+- Registrations and the waitlist, attendee notices, and the CancelEvent Temporal workflow: these wait for EN-13 (§3.7). Revised
+  3 Nov 2026: EN-13 merged on 30 Oct (#73); R1–R4 (#80) and R5–R7 (#88) cancel registrations and waitlist entries from
+  `event.cancelled`, in place of the workflow.
 - Closing the venue request race (§3.5).
 - Undoing a cancellation: no story defines one.
