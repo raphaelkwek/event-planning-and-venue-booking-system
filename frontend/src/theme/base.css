@@ -237,8 +237,10 @@ html {
  * Atlaskit's dialogs open and close without their fade. Half-way through a fade a dialog's text has
  * half its contrast, and an accessibility check that reads it then (EN-14's run on the reject
  * dialog did) fails a dialog that is fine. Opening a dialog needs no explaining, so it appears at once.
+ * The fade runs on the portal's wrapper around the dialog and its blanket, not on the section itself.
  */
-html body section[role="dialog"][aria-modal="true"] {
+html body section[role="dialog"][aria-modal="true"],
+html body .atlaskit-portal > div:has(section[role="dialog"][aria-modal="true"]) {
   animation: none !important;
 }
 
