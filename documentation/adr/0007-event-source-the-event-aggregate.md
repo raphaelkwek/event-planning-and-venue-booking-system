@@ -48,3 +48,11 @@ Today the history is a second table (`event.event_history`) written next to the 
 **What a reviewer should watch for:** any code that updates an event's state without appending to the stream, or that edits a stream row.
 
 **Implemented by:** EN-03 (SPM-121).
+
+## As built (EN-03, 3 Nov 2026)
+
+- `event.event_stream` (`migrations/event/0022`) holds every history entry: F1's status changes and D3, G1 and S2's field changes. Its version guard, hash chain, canonical form and append-only triggers are described in implementation.md §4.9.
+- `event.event_history` stays as the stream's projection. One append (`repo/eventStream.ts`) writes the entry, the projection row and the outbox row in the caller's transaction. A trigger appends any history row written another way, so the two can't drift.
+- `0023` migrated the existing history into the stream, oldest first, in the order F2 already showed it.
+- F2's status history and F5's confirmation time read the stream. `npm run event-store:verify` is the tamper check.
+- **Not built yet.** The rest of the event row (drafts, review claims, assignments, cancellation details) is still stored as state, so "the current state comes from the stream" holds for the history, not yet for the whole aggregate. There is no projection rebuild command, and `If-Match` still uses `events.version` (G1), not the stream's version. Row-level security on the stream is EN-07's.

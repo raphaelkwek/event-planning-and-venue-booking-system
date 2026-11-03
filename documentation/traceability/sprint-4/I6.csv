@@ -1,0 +1,6 @@
+story_id,acceptance_criterion,test_file,test_name
+I6,"When the flag is cleared, the calendar no longer shows it the next time it is loaded.",backend/services/planning-core/tests/venue/api/auditFixes.test.ts,"releasing the other hold clears the booking's flag, so F5 no longer sees it"
+I6,"When the flag is cleared, the calendar no longer shows it the next time it is loaded.",backend/services/planning-core/tests/venue/api/auditFixes.test.ts,"the other hold expiring clears it, through the sweep with no worker"
+I6,"When the flag is cleared, the calendar no longer shows it the next time it is loaded.",backend/services/planning-core/tests/venue/api/auditFixes.test.ts,withdrawing the other request clears it
+I6,"When the flag is cleared, the calendar no longer shows it the next time it is loaded.",backend/services/planning-core/tests/venue/api/auditFixes.test.ts,rejecting the other request clears it
+I6,"When the flag is cleared, the calendar no longer shows it the next time it is loaded.",backend/services/planning-core/tests/venue/api/auditFixes.test.ts,"cancelling the other event, which releases its arrangements (F4), clears it"

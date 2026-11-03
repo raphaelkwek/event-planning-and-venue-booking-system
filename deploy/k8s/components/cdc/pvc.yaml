@@ -1,0 +1,14 @@
+# Where Debezium Server keeps its offsets file. Tiny; losing it costs nothing but a
+# resume from the slot (application.properties).
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: debezium-server-offsets
+  labels:
+    app.kubernetes.io/name: debezium-server
+    app.kubernetes.io/component: cdc
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 64Mi

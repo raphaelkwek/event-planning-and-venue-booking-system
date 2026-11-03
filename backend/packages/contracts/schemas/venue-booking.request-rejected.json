@@ -1,0 +1,90 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "properties": {
+    "bookingRequestId": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "coordinatorId": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "decidedAt": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "decidedBy": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "endsAt": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "eventId": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "eventName": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "eventReference": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "ownerId": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "reason": {
+      "type": "string"
+    },
+    "reference": {
+      "pattern": "^BKR-\\d{6}$",
+      "type": "string"
+    },
+    "startsAt": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "suggestion": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "venueId": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "venueName": {
+      "minLength": 1,
+      "type": "string"
+    }
+  },
+  "required": [
+    "bookingRequestId",
+    "coordinatorId",
+    "decidedAt",
+    "decidedBy",
+    "endsAt",
+    "eventId",
+    "eventName",
+    "eventReference",
+    "ownerId",
+    "reason",
+    "reference",
+    "startsAt",
+    "suggestion",
+    "venueId",
+    "venueName"
+  ],
+  "type": "object"
+}

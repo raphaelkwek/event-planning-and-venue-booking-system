@@ -1,5 +1,6 @@
 import type { TransactionSql } from "postgres";
 import { withdrawBookingRequest } from "./bookingRequests.js";
+import { clearFlagsOfEnded } from "./bufferConflicts.js";
 import { releaseHeldSlotForRequest, releaseHoldsForEvent } from "./holds.js";
 import { lockVenue } from "./slots.js";
 
@@ -81,6 +82,14 @@ export async function releaseVenueArrangementsForEvent(tx: TransactionSql, event
     )
     select reference from released order by starts_at, reference
   `;
+
+  // M3 (audit): other events' arrangements a buffer change flagged against these are cleared.
+  const ended = await tx<{ id: string }[]>`
+    select id from venue.venue_slots where event_id = ${eventId} and status = 'RELEASED'
+    union all
+    select id from venue.booking_requests where event_id = ${eventId} and status = 'WITHDRAWN'
+  `;
+  await clearFlagsOfEnded(tx, ended.map((row) => row.id), actorUserId);
 
   return { bookings: bookings.map((b) => b.reference), holds, requests: pending.map((r) => r.reference) };
 }

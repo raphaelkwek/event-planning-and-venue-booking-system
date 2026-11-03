@@ -102,7 +102,7 @@ describe("P2 equipment type inventory", () => {
     expect(listing.status).toBe(200);
     if (status === 400) {
       expect(response.body.error.fields).toContainEqual({
-        field: "totalQuantity", message: "Total quantity must be a whole number of zero or greater.",
+        field: "totalQuantity", message: "Total quantity must be a whole number from 0 to 1000000.",
       });
       expect(listing.body.items.some((item: { name: string }) => item.name === name)).toBe(false);
       expect(await sql`select * from equipment.inventory_history where actor_user_id = ${TECH}`).toHaveLength(0);

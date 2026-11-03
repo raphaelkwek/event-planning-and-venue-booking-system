@@ -15,6 +15,7 @@ import {
   notPendingMessage,
   notSuitableMessage,
   readBookingRequest,
+  replacementPendingMessage,
   suitabilityRecord,
   type BookingRequestInput,
 } from "../domain/bookingRequest.js";
@@ -25,8 +26,8 @@ import { writeVenueOutbox } from "../events/outbox.js";
 import { activeBlocksOverlapping } from "../repo/bookingDecisions.js";
 import { listBookingsForEvent } from "../repo/eventBookings.js";
 import { conflictsOfRequests, type RequestConflict } from "../repo/requestConflicts.js";
-import { lockVenue } from "../repo/slots.js";
 import {
+  clearFlagsOfRequestEnded,
   DuplicateBookingRequestError,
   findBookingRequest,
   insertBookingRequest,
@@ -34,11 +35,12 @@ import {
   listForEvent,
   listPendingForStaff,
   lockBookingRequest,
+  PendingReplacementError,
   venueStaffIds,
   withdrawBookingRequest,
   type BookingRequest,
 } from "../repo/bookingRequests.js";
-import { findVenue } from "../repo/venues.js";
+import { findVenue, lockVenue } from "../repo/venues.js";
 import { refuse } from "./errors.js";
 
 /**
@@ -149,24 +151,33 @@ export async function submitBookingRequest(
 
   try {
     const created = await sql.begin(async (tx) => {
-      // The venue, then the event, then the hook's hold (implementation.md §4.6 lock order). The venue
-      // lock serialises with I2 recording a block, for direct requests and hold conversion alike.
-      await lockVenue(tx, venue.id);
+      // The venue first, before the event and before the hook locks a hold (L3's conversion): every path
+      // takes the venue row, then the event, then the hold, then the request, then the slot
+      // (implementation.md §4.6, lock order). It also serialises with I2 recording a block. H3: the block
+      // is compared with the request's occupied period, using the times read under the lock.
+      const lockedVenue = (await lockVenue(tx, venue.id))!;
       // A4: the scope and status once more, under the event's row lock (`for share`). A Lead's
       // reassignment (E4) or a cancellation (F3) that commits while this waits is seen here.
-      const locked = await findEventForChange(tx, event.id, resolveAccessScope(actor.role, actor.userId, "events"), actor.userId, {
+      const lockedEvent = await findEventForChange(tx, event.id, resolveAccessScope(actor.role, actor.userId, "events"), actor.userId, {
         lock: "share",
       });
-      if (!locked) throw new RefusedInTransaction({ status: 404, code: "EVENT_NOT_FOUND", message: notInScopeMessage(actor.role, EVENT_NOT_FOUND) });
-      if (!eventBookable(locked.status)) {
-        throw new RefusedInTransaction({ status: 409, code: "EVENT_NOT_BOOKABLE", message: notBookableMessage(locked.status) });
+      if (!lockedEvent) throw new RefusedInTransaction({ status: 404, code: "EVENT_NOT_FOUND", message: notInScopeMessage(actor.role, EVENT_NOT_FOUND) });
+      if (!eventBookable(lockedEvent.status)) {
+        throw new RefusedInTransaction({ status: 409, code: "EVENT_NOT_BOOKABLE", message: notBookableMessage(lockedEvent.status) });
       }
       const before = await hooks.before?.(tx);
       if (before) throw new RefusedInTransaction(before);
       if (input.replacesBookingId && !(await isReplaceableBooking(tx, input.replacesBookingId, event.id))) {
         throw new RefusedInTransaction({ status: 422, code: "REPLACEMENT_NOT_VALID", message: REPLACEMENT_NOT_VALID });
       }
-      const blocks = await activeBlocksOverlapping(tx, venue.id, new Date(input.startsAt), new Date(input.endsAt), 0, 0);
+      const blocks = await activeBlocksOverlapping(
+        tx,
+        venue.id,
+        new Date(input.startsAt),
+        new Date(input.endsAt),
+        lockedVenue.setupMinutes,
+        lockedVenue.turnaroundMinutes,
+      );
       if (blocks.length > 0) {
         throw new RefusedInTransaction({ status: 409, code: "VENUE_UNAVAILABLE", message: requestBlockedMessage(venue.name, blocks) });
       }
@@ -211,6 +222,9 @@ export async function submitBookingRequest(
     if (error instanceof RefusedInTransaction) return { ok: false, ...error.refusal };
     if (error instanceof DuplicateBookingRequestError) {
       return refused(409, "BOOKING_REQUEST_DUPLICATE", duplicateMessage(error.references));
+    }
+    if (error instanceof PendingReplacementError) {
+      return refused(409, "BOOKING_REQUEST_DUPLICATE", replacementPendingMessage(error.reference));
     }
     throw error;
   }
@@ -323,6 +337,8 @@ export function bookingRequestsRouter(sql: Sql) {
       if (!event) return requestNotFound(res, req.actor!.role);
 
       const outcome = await sql.begin(async (tx) => {
+        // The venue, then the request, then its slot (§4.6): withdrawing clears flags at the venue (M3).
+        await lockVenue(tx, existing.venueId);
         // A4: the scope once more, under the event's row lock (`for share`), before the request and its slot
         // (implementation.md §4.6). A Lead's reassignment (E4) that commits after the check above is seen here.
         const actor = req.actor!;
@@ -333,6 +349,7 @@ export function bookingRequestsRouter(sql: Sql) {
         await withdrawBookingRequest(tx, id, req.actor!.userId);
         // L3-T14: a request converted from a hold frees the period the hold took.
         await releaseHeldSlotForRequest(tx, id, req.actor!.userId);
+        await clearFlagsOfRequestEnded(tx, id, req.actor!.userId);
         return { code: "WITHDRAWN", withdrawn: (await findBookingRequest(tx, id))! } as const;
       });
 
