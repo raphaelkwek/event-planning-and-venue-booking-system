@@ -4,7 +4,16 @@ import { ARRANGEMENT_LABELS, FLAG_LABELS } from "../shared/changeRequests.js";
 import { formatInstant } from "../shared/status.js";
 
 /** S3 — the arrangements an approved change was assessed against (bookings, holds, booking requests, reservations), with any flag set on each. */
-export function ChangeImpactView({ impact }: { impact: ChangeImpact }) {
+export function ChangeImpactView({
+  impact,
+  heading = "Affected arrangements",
+  emptyText = "No venue bookings or equipment reservations are affected.",
+}: {
+  impact: ChangeImpact;
+  /** G2 uses "If this change is approved" for the preview. */
+  heading?: string;
+  emptyText?: string;
+}) {
   const flagsOf = (arrangement: FlaggedArrangement, id: string) =>
     impact.flags.filter((flag) => flag.arrangement === arrangement && flag.id === id);
 
@@ -26,8 +35,8 @@ export function ChangeImpactView({ impact }: { impact: ChangeImpact }) {
 
   return (
     <section aria-labelledby="change-impact-heading" style={{ marginBottom: 16 }}>
-      <h3 id="change-impact-heading">Affected arrangements</h3>
-      {empty && <p>No venue bookings or equipment reservations are affected.</p>}
+      <h3 id="change-impact-heading">{heading}</h3>
+      {empty && <p>{emptyText}</p>}
       {rows.length > 0 && (
         <ul style={{ paddingLeft: 0, listStyle: "none" }}>
           {rows.map((row) => (

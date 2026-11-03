@@ -30,6 +30,7 @@ import {
 } from "../repo/requestLines.js";
 import { releaseReservation } from "../repo/releases.js";
 import { fieldsFromZod, refuse } from "./errors.js";
+import { EventCancelledError, refuseIfCancelled } from "./eventGuard.js";
 import { equipmentRateLimiter } from "./limiter.js";
 import { present } from "./presentLine.js";
 import { createLinesBodySchema, lineBodySchema, listLinesQuerySchema } from "./schemas.js";
@@ -146,12 +147,19 @@ export function requestLinesRouter(sql: Sql, limiter: RequestHandler = equipment
         return;
       }
 
-      const created = await sql.begin(async (tx) => {
-        const missing = await findMissingTypeIds(tx, checked.lines.map((line) => line.equipmentTypeId));
-        if (missing.length > 0) return { code: "MISSING_TYPE", missing } as const;
-        const lines = await insertLines(tx, { id: event.id, reference: event.reference! }, checked.lines, req.actor!);
-        return { code: "OK", lines } as const;
-      });
+      let created;
+      try {
+        created = await sql.begin(async (tx) => {
+          await refuseIfCancelled(tx, event.id, req.actor!.userId);
+          const missing = await findMissingTypeIds(tx, checked.lines.map((line) => line.equipmentTypeId));
+          if (missing.length > 0) return { code: "MISSING_TYPE", missing } as const;
+          const lines = await insertLines(tx, { id: event.id, reference: event.reference! }, checked.lines, req.actor!);
+          return { code: "OK", lines } as const;
+        });
+      } catch (error) {
+        if (error instanceof EventCancelledError) return refuse(res, 409, "EVENT_CANCELLED", error.message);
+        throw error;
+      }
       if (created.code === "MISSING_TYPE") return typeNotFound(res, created.missing);
       res.status(201).json({ items: created.lines.map(present) });
     } catch (error) {

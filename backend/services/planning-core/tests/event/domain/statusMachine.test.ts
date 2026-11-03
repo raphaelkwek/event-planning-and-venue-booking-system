@@ -123,6 +123,10 @@ const EXPECTED: Record<EventAction, { from: EventStatus[]; to: EventStatus }> = 
   VENUE_BLOCKED: { from: ["CONFIRMED"], to: "PLANNING" },
   COMPLETE: { from: ["CONFIRMED"], to: "COMPLETED" },
   RECONSIDER_AFTER_CHANGE: { from: ["CONFIRMED"], to: "PLANNING" },
+  CANCEL: {
+    from: ["DRAFT", "SUBMITTED", "UNDER_REVIEW", "AWAITING_CLARIFICATION", "APPROVED", "PLANNING", "SAFETY_REVIEW", "CONFIRMED"],
+    to: "CANCELLED",
+  },
 };
 
 describe("every status against every action (F1)", () => {
@@ -152,10 +156,11 @@ describe("Safety Review, Confirmed and Completed (F1, CR-06)", () => {
     ]);
   });
 
-  it("leaves Safety Review only through the Safety Officer's decisions", () => {
+  it("leaves Safety Review only through the Safety Officer's decisions, or by being cancelled (F3)", () => {
     expect(actions.filter((action) => transitionRule(action).from.includes("SAFETY_REVIEW"))).toEqual([
       "APPROVE_SAFETY",
       "REQUEST_SAFETY_CHANGES",
+      "CANCEL",
     ]);
   });
 
@@ -174,11 +179,12 @@ describe("Safety Review, Confirmed and Completed (F1, CR-06)", () => {
     ).toEqual([]);
   });
 
-  it("leaves Confirmed only by completing, or for Planning when its venue is blocked (I3) or a change is approved (S3)", () => {
+  it("leaves Confirmed only by completing, or for Planning when its venue is blocked (I3) or a change is approved (S3), or by cancelling (F3)", () => {
     expect(actions.filter((action) => transitionRule(action).from.includes("CONFIRMED"))).toEqual([
       "VENUE_BLOCKED",
       "COMPLETE",
       "RECONSIDER_AFTER_CHANGE",
+      "CANCEL",
     ]);
     expect(transitionRule("VENUE_BLOCKED").to).toBe("PLANNING");
   });
@@ -221,12 +227,13 @@ describe("an approved change to a Confirmed event (S3, Week 9 W9-22)", () => {
     }
   });
 
-  it("is, with I3's blocked venue, the only way back from Confirmed other than completion", () => {
+  it("is, with I3's blocked venue, the only way back from Confirmed other than completion and cancellation", () => {
     const actions = Object.keys(EXPECTED) as EventAction[];
     expect(actions.filter((action) => transitionRule(action).from.includes("CONFIRMED"))).toEqual([
       "VENUE_BLOCKED",
       "COMPLETE",
       "RECONSIDER_AFTER_CHANGE",
+      "CANCEL",
     ]);
   });
 });
@@ -254,5 +261,24 @@ describe("decisions are final (D4, D5)", () => {
         awaiting.includes(transitionRule(action).to)
     );
     expect(reopening).toEqual([]);
+  });
+});
+
+describe("cancellation (F3 AC1)", () => {
+  it("cancels from every status except Completed, Rejected and Cancelled", () => {
+    const refused = EVENT_STATUSES.filter((status) => !evaluateTransition(status, "CANCEL").permitted);
+    expect(refused.sort()).toEqual(["CANCELLED", "COMPLETED", "REJECTED"]);
+  });
+
+  it("names the statuses when it refuses cancelling a completed event", () => {
+    expect(evaluateTransition("COMPLETED", "CANCEL")).toEqual({
+      permitted: false,
+      message: "This event is Completed and cannot move to Cancelled.",
+    });
+  });
+
+  it("leaves a cancelled event with no way out", () => {
+    const leaving = (Object.keys(EXPECTED) as EventAction[]).filter((action) => transitionRule(action).from.includes("CANCELLED"));
+    expect(leaving).toEqual([]);
   });
 });

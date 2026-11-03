@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   assessChangeImpact,
+  assessProposedChange,
   type ImpactBooking,
   type ImpactReservation,
   type ImpactValues,
@@ -293,5 +294,36 @@ describe("valuesAfterChange (S3)", () => {
     expect(valuesAfterChange({ ...current, expectedAttendance: null }, {})).toEqual({ ...current, expectedAttendance: null });
     expect(valuesAfterChange(current, { expectedAttendance: "many" })).toEqual({ ...current, expectedAttendance: null });
     expect(valuesAfterChange({}, {})).toEqual({ proposedStartAt: null, proposedEndAt: null, expectedAttendance: null });
+  });
+});
+
+describe("assessProposedChange (S3 and G2)", () => {
+  const current = {
+    proposedStartAt: "2026-12-02T06:00:00.000Z",
+    proposedEndAt: "2026-12-02T10:00:00.000Z",
+    expectedAttendance: 80,
+  };
+
+  it("assesses the arrangements against the current values with the changes laid over them", () => {
+    const changes = { proposedStartAt: "2026-12-02T07:00:00.000Z", expectedAttendance: 150 };
+    expect(assessProposedChange({ bookings: [booking()], reservations: [reservation()], current, changes })).toEqual(
+      assessChangeImpact({
+        bookings: [booking()],
+        reservations: [reservation()],
+        after: { ...current, proposedStartAt: "2026-12-02T07:00:00.000Z", expectedAttendance: 150 },
+        changedFields: ["proposedStartAt", "expectedAttendance"],
+      })
+    );
+  });
+
+  it("counts only significant fields as changed, so another key in the changes flags nothing", () => {
+    const out = assessProposedChange({
+      bookings: [booking({ layoutCapacity: 10 })],
+      reservations: [reservation()],
+      current: { ...current, proposedStartAt: "2026-12-02T05:00:00.000Z" },
+      changes: { name: "Renamed", venueRequirements: "Stage with a lectern" } as never,
+    });
+    expect(out.bookingFlags).toEqual([]);
+    expect(out.reservationFlags).toEqual([]);
   });
 });
