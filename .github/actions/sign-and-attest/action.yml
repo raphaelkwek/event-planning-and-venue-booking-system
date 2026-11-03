@@ -102,15 +102,22 @@ runs:
         cosign verify-attestation "$IMAGE" --type cyclonedx --certificate-identity "$IDENTITY" --certificate-oidc-issuer "$issuer" > attestation.json
         echo "ok: CycloneDX attestation verifies for ${IDENTITY}"
         # Read the SBOM back out of the attestation the way documentation/supply-chain.md says to,
-        # and check it is the one that was attested.
-        jq -r '.payload' attestation.json | base64 -d | jq '.predicate' > sbom-from-attestation.json
+        # and check it is the one that was attested. cosign prints one attestation per line, and a
+        # digest that an earlier run already attested (a rebuild of identical layers gives the same
+        # digest) has several, so each is read and the one just made must be among them.
         attested="$(jq '.components | length' "$SBOM")"
-        extracted="$(jq '.components | length' sbom-from-attestation.json)"
-        if [ "$attested" != "$extracted" ] || [ "$extracted" = "0" ]; then
-          echo "::error::the SBOM read from the attestation (${extracted} components) is not the one attested (${attested})"
+        : > attested-counts.txt
+        while IFS= read -r line; do
+          [ -n "$line" ] || continue
+          jq -r '.payload' <<< "$line" | base64 -d | jq '.predicate' > sbom-from-attestation.json
+          jq '.components | length' sbom-from-attestation.json >> attested-counts.txt
+        done < attestation.json
+        found="$(wc -l < attested-counts.txt | tr -d ' ')"
+        if [ "$attested" = "0" ] || ! grep -qx "$attested" attested-counts.txt; then
+          echo "::error::none of the ${found} attestation(s) on the image holds the SBOM just attested (${attested} components; found $(paste -sd, attested-counts.txt))"
           exit 1
         fi
-        echo "ok: the SBOM read back from the attestation has ${extracted} components, as attested"
+        echo "ok: the SBOM read back from the attestation has ${attested} components, as attested (${found} attestation(s) on this digest)"
         # A verifier must refuse anyone else's signature.
         if cosign verify "$IMAGE" --certificate-identity "${IDENTITY}-somebody-else" --certificate-oidc-issuer "$issuer" > /dev/null 2>&1; then
           echo "::error::cosign accepted a wrong identity"
