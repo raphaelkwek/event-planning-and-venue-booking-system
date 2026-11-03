@@ -18,7 +18,7 @@
 | Item | Content |
 |---|---|
 | Actual Result | At 120 attendees the route answered SUITABLE. At 121 it answered NOT_SUITABLE with exactly one reason, required 121 and available 120. |
-| Status | Pass (automated, API level) |
-| Remarks | Commit: a5038c9 · Evidence: backend/services/planning-core/tests/venue/api/suitability.test.ts › treats attendance equal to capacity as suitable and one over as not (K1-T3), CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/38065630198 · Defect: — |
+| Status | Pass |
+| Remarks | Automated (API level) · Commit: a5038c9 · Evidence: backend/services/planning-core/tests/venue/api/suitability.test.ts › treats attendance equal to capacity as suitable and one over as not (K1-T3), CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/38065630198 · Defect: — |
 | Executed By | Joash, via automated testing (CI) |
 | Date of Execution | 2026-10-10 |

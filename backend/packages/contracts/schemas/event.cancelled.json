@@ -72,6 +72,50 @@
       "minLength": 1,
       "type": "string"
     },
+    "holds": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "endsAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "reference": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "staffIds": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "startsAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "venueId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "venueName": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "endsAt",
+          "reference",
+          "staffIds",
+          "startsAt",
+          "venueId",
+          "venueName"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
     "ownerId": {
       "format": "uuid",
       "type": "string"
@@ -79,6 +123,50 @@
     "reason": {
       "minLength": 1,
       "type": "string"
+    },
+    "requests": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "endsAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "reference": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "staffIds": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "startsAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "venueId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "venueName": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "endsAt",
+          "reference",
+          "staffIds",
+          "startsAt",
+          "venueId",
+          "venueName"
+        ],
+        "type": "object"
+      },
+      "type": "array"
     },
     "reservations": {
       "items": {

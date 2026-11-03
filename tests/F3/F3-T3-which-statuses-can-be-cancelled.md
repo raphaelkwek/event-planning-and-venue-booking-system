@@ -10,7 +10,7 @@
 | Test Steps | 1. As O, cancel each event in an allowed status, noting each status code.<br>2. As O, cancel the Completed, Rejected and Cancelled events, reading each event before and after.<br>3. Run `npm test -w @connectsphere/planning-core -- tests/change/api/f3Cards.test.ts -t 'F3-T3 '` and read the named `F3-T3 ` result. |
 | Test Data | `{"reason":"The speaker withdrew."}` |
 | Expected Result | Every step 1 request answers 200 with `previousStatus` the event's old status. Every step 2 request answers 409 `STATUS_TRANSITION_NOT_PERMITTED` with the message `This event is <Completed / Rejected / Cancelled> and cannot move to Cancelled.`, and changes nothing. |
-| Created By | Raphael, via Claude |
+| Created By | Raphael |
 | Date of Creation | 2026-10-29 |
 
 > **Expected results are checked by the PR reviewer** against F3's acceptance criteria.

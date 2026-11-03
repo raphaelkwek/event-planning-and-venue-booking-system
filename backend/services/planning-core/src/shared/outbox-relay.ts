@@ -1,4 +1,5 @@
 import type { Sql } from "postgres";
+import { withProducerSpans } from "@connectsphere/telemetry";
 import { logger } from "./logger.js";
 import { newTraceparent } from "./tracing.js";
 import {
@@ -146,9 +147,13 @@ export class OutboxRelay {
       for (const [topic, messages] of groupByTopic(ready)) {
         const ids = messages.map((m) => m.rowId);
         try {
-          await this.publisher.publish(
+          // One PRODUCER span per message, a child of the transaction that wrote its row (the row's
+          // traceparent), and the span's own traceparent in the Kafka header (EN-08, ADR-0013).
+          await withProducerSpans(
             topic,
             messages.map(({ key, value, headers }) => ({ key, value, headers })),
+            (traced) => this.publisher.publish(topic, traced),
+            { continueFromHeader: true },
           );
           await tx`update ${tx(table)} set published_at = now() where id in ${tx(ids)}`;
           result.published += ids.length;

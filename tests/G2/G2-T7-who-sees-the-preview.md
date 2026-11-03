@@ -10,7 +10,7 @@
 | Test Steps | 1. As O, send `GET /api/v1/change-requests/<CR>/impact`.<br>2. As C, send the same request.<br>3. As C2 (an Event Coordinator not assigned to E), send the same request.<br>4. As O2 (an organiser who does not own E), send the same request.<br>5. As VS, send the same request.<br>6. As C, send the request for a change request id that does not exist.<br>7. On the fresh FX-G2, as C, approve CR with `POST /api/v1/change-requests/<CR>/decision` `{"decision":"APPROVE"}`, then send `GET /api/v1/change-requests/<CR>/impact`.<br>8. Run `npm test -w @connectsphere/planning-core -- tests/change/api/g2Cards.test.ts -t 'G2-T7 '` (or the whole suite) and read the named `G2-T7 ` result. |
 | Test Data | Actors O `organiser@connectsphere.test`, C `coordinator@connectsphere.test`, C2 `coordinator2@connectsphere.test`, O2 `organiser2@connectsphere.test`, VS `venuestaff@connectsphere.test`. |
 | Expected Result | Steps 1 and 2 answer HTTP 200 with the same `impact` (B1, B2, R1, `activeRegistrations` 0 and the three flags of G2-T3). Step 3 answers HTTP 404 `CHANGE_REQUEST_NOT_FOUND` with the message `No change request with that id is on an event assigned to you.` (A4, CR-05), and the body does not reveal E's id or reference. Steps 4 and 5 answer HTTP 404 `CHANGE_REQUEST_NOT_FOUND` with the message `No change request with that id exists.`, and the body does not reveal E's id or reference. Step 6 answers HTTP 404 with step 3's code and message (A4: a coordinator's unknown id reads the same as another coordinator's request). In step 7 the approval answers 200 and the preview answers HTTP 409 `CHANGE_REQUEST_ALREADY_DECIDED` with the message `This change request was already Approved on <decidedAt>.` and `details` `{"status":"APPROVED","decidedAt":"<decidedAt>"}`, `<decidedAt>` being the approval's `changeRequest.decidedAt`. |
-| Created By | Raphael, via Claude |
+| Created By | Raphael |
 | Date of Creation | 2026-10-29 |
 
 > **Expected results are checked by the PR reviewer** against G2's acceptance criteria.
@@ -19,8 +19,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Expected result for step 3 revised for A4 (CR-05) on 2026-11-03 (an unassigned coordinator no longer sees the preview). Waits for CI. Commit: · Evidence: · Defect: — |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | O and C each got 200 with the same `impact` (B1, B2, R1, `activeRegistrations` 0 and G2-T3's three flags). C2 got 404 `CHANGE_REQUEST_NOT_FOUND` "No change request with that id is on an event assigned to you."; O2 and VS got 404 `CHANGE_REQUEST_NOT_FOUND` "No change request with that id exists."; none of the bodies named E's id or reference. An unknown id got O2 the same code and message as O2 and VS, and got C the same as C2. On the fresh fixture the approval answered 200 and the preview 409 `CHANGE_REQUEST_ALREADY_DECIDED` "This change request was already Approved on <decidedAt>." with `details` `{"status":"APPROVED","decidedAt":"<decidedAt>"}`. |
+| Status | Pass |
+| Remarks | Automated (API level) · Commit: 7773de0 · Evidence: `backend/services/planning-core/tests/change/api/g2Cards.test.ts` › `G2-T7 the owner and the assigned coordinator see the preview, others get 404 and a decided request 409`, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41608364237 · Expected result for step 3 revised for A4 (CR-05) on 2026-11-03 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

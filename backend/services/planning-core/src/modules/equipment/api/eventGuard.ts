@@ -1,5 +1,6 @@
 import type { TransactionSql } from "postgres";
-import { findEventForChange } from "../../event/index.js";
+import type { AccessScope } from "@connectsphere/contracts";
+import { findEventForChange, type EventForChange } from "../../event/index.js";
 
 /**
  * F3 AC5 — no new equipment request or reservation is raised against a cancelled
@@ -22,4 +23,26 @@ export class EventCancelledError extends Error {
 export async function refuseIfCancelled(tx: TransactionSql, eventId: string, callerId: string): Promise<void> {
   const event = await findEventForChange(tx, eventId, ALL_EVENTS, callerId, { lock: "share" });
   if (event?.status === "CANCELLED") throw new EventCancelledError();
+}
+
+/**
+ * A4 — the event in the caller's scope, locked `for share` inside the write's transaction, before any
+ * line or type lock (Q1's order: event, line, type). The scope was checked before the transaction too,
+ * but a Lead's reassignment (E4) that commits in between takes the event out of the outgoing
+ * coordinator's scope, and this check, made once the lock is held, sees it. Null when out of scope.
+ */
+export function lockEventInScope(tx: TransactionSql, eventId: string, scope: AccessScope, callerId: string): Promise<EventForChange | null> {
+  return findEventForChange(tx, eventId, scope, callerId, { lock: "share" });
+}
+
+/** O1: `lockEventInScope`, refusing a cancelled event as `refuseIfCancelled` does (F3 AC5). */
+export async function lockUncancelledEventInScope(
+  tx: TransactionSql,
+  eventId: string,
+  scope: AccessScope,
+  callerId: string
+): Promise<EventForChange | null> {
+  const event = await lockEventInScope(tx, eventId, scope, callerId);
+  if (event?.status === "CANCELLED") throw new EventCancelledError();
+  return event;
 }

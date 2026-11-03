@@ -18,7 +18,7 @@
 | Item | Content |
 |---|---|
 | Actual Result | With no layout and minimum capacity 100 the search returned Auditorium, Late Studio and Lecture Hall (Late Studio's maximum is exactly 100), and not Seminar Room. |
-| Status | Pass (automated, API level) |
-| Remarks | Commit: cb3b9d8 · Evidence: backend/services/planning-core/tests/venue/repo/venueSearch.test.ts › compares with the maximum capacity when no layout is chosen (J1-T2) , CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/38427990873 · Defect: — |
+| Status | Pass |
+| Remarks | Automated (API level) · Commit: cb3b9d8 · Evidence: backend/services/planning-core/tests/venue/repo/venueSearch.test.ts › compares with the maximum capacity when no layout is chosen (J1-T2) , CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/38427990873 · Defect: — |
 | Executed By | Joash, via automated testing (CI) |
 | Date of Execution | 2026-10-13 |

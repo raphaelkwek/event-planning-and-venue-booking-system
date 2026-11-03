@@ -1,9 +1,11 @@
 import { Partitioners, type Kafka } from "kafkajs";
 import type { Sql } from "postgres";
 import { KAFKA_TOPICS } from "@connectsphere/contracts";
+import { withProducerSpans } from "@connectsphere/telemetry";
 import { logger } from "../logger.js";
-import { handleMessage, type OutgoingMessage, type Outcome } from "./handleMessage.js";
-import { consumerGroup, toIncoming, waitUntilDue } from "./kafkaMessages.js";
+import type { OutgoingMessage, Outcome } from "./handleMessage.js";
+import { consumerGroup, waitUntilDue } from "./kafkaMessages.js";
+import { consumeTraced } from "./consumeTraced.js";
 import { NOT_BEFORE_HEADER } from "../domain/retryPolicy.js";
 
 /**
@@ -31,9 +33,12 @@ const log = (outcome: Outcome, topic: string, key: string | null) => {
 export async function startConsumers(kafka: Kafka, sql: Sql, groupSuffix: string): Promise<RunningConsumers> {
   let stopping = false;
   const producer = kafka.producer({ allowAutoTopicCreation: false, createPartitioner: Partitioners.DefaultPartitioner });
-  const publish = async (topic: string, message: OutgoingMessage) => {
-    await producer.send({ topic, acks: -1, messages: [{ key: message.key, value: message.value, headers: message.headers }] });
-  };
+  // A retry or a dead letter is a PRODUCER span under the consumer span that decided it, so a message
+  // that fails keeps its place in the trace (EN-08).
+  const publish = (topic: string, message: OutgoingMessage) =>
+    withProducerSpans(topic, [message], async (traced) => {
+      await producer.send({ topic, acks: -1, messages: traced.map(({ key, value, headers }) => ({ key, value, headers })) });
+    });
 
   const notifier = kafka.consumer({ groupId: consumerGroup("event-notifier", groupSuffix) });
   const retryWorker = kafka.consumer({ groupId: consumerGroup("retry-worker", groupSuffix) });
@@ -55,17 +60,25 @@ export async function startConsumers(kafka: Kafka, sql: Sql, groupSuffix: string
     throw error;
   }
 
+  const notifierGroup = consumerGroup("event-notifier", groupSuffix);
+  const retryGroup = consumerGroup("retry-worker", groupSuffix);
   await notifier.run({
-    eachMessage: async ({ topic, message }) => {
-      const incoming = toIncoming(topic, message);
-      log(await handleMessage(incoming, { sql, publish }), topic, incoming.key);
+    eachMessage: async ({ topic, partition, message }) => {
+      await consumeTraced({ topic, partition, group: notifierGroup, message }, { sql, publish }, (outcome, incoming) =>
+        log(outcome, topic, incoming.key),
+      );
     },
   });
   await retryWorker.run({
-    eachMessage: async ({ topic, message, heartbeat }) => {
-      const incoming = toIncoming(topic, message);
-      await waitUntilDue(Number(incoming.headers[NOT_BEFORE_HEADER] ?? 0), heartbeat, () => stopping);
-      log(await handleMessage(incoming, { sql, publish }), topic, incoming.key);
+    eachMessage: async ({ topic, partition, message, heartbeat }) => {
+      // The wait is outside the span: a retried message holds for seconds, and that is not processing time.
+      const dueAt = Number(message.headers?.[NOT_BEFORE_HEADER]?.toString() ?? 0);
+      await waitUntilDue(dueAt, heartbeat, () => stopping);
+      // The back-off is deliberate, so it is not lag: kafka_consumer_lag_seconds counts from when the retry was due.
+      const countedFrom = String(Math.max(Number(message.timestamp), dueAt));
+      await consumeTraced({ topic, partition, group: retryGroup, message: { ...message, timestamp: countedFrom } }, { sql, publish }, (outcome, incoming) =>
+        log(outcome, topic, incoming.key),
+      );
     },
   });
 

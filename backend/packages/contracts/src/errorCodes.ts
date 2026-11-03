@@ -18,6 +18,7 @@ export const ERROR_CODES = [
   "BOOKING_REQUEST_DUPLICATE",
   "BOOKING_REQUEST_NOT_FOUND",
   "BOOKING_REQUEST_NOT_PENDING",
+  "CANCELLATION_CONTENDED", // F4: every attempt found the event's venue arrangements changing under it, so nothing was cancelled.
   "CANCELLATION_FAILED", // F3: a cancelled event refuses new equipment; a cancellation that fails changes nothing.
   "CHANGE_REQUEST_ALREADY_DECIDED",
   "CHANGE_REQUEST_ALREADY_PENDING",
