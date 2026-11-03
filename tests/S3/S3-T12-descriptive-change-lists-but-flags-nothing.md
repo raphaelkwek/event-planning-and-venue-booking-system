@@ -10,7 +10,7 @@
 | Test Steps | 1. As C, send `POST /api/v1/change-requests/<CR>/decision` with `{"decision":"APPROVE"}`.<br>2. As C, send `GET /api/v1/events/<E>/arrangement-flags`.<br>3. Send `GET /api/v1/events/<E>` and read the status.<br>4. Run `npm test -w @connectsphere/planning-core -- tests/change/api/s3Cards.test.ts -t 'S3-T12 '` (or the whole suite) and read the named `S3-T12 ` result. |
 | Test Data | `{"decision":"APPROVE"}`; the change above. |
 | Expected Result | Step 1 answers HTTP 200: `impact.bookings` lists B1 and B2, `impact.reservations` lists R1, `impact.activeRegistrations` is 0 and `impact.flags` is empty. Step 2 answers HTTP 200 with an empty list. In step 3 E's status is unchanged, and no `change-request.arrangements-flagged` message is written. |
-| Created By | Raphael, via Claude |
+| Created By | Raphael |
 | Date of Creation | 2026-10-28 |
 
 > **Expected results are checked by the PR reviewer** against S3's acceptance criteria.

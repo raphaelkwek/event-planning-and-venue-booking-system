@@ -10,7 +10,7 @@
 | Test Steps | 1. Run `npm test -w @connectsphere/web -- tests/significantFields.test.ts` and read the named `G2-T1 ` result.<br>2. Read `frontend/src/shared/changeRequests.ts` and `frontend/src/api/changeRequests.ts`. |
 | Test Data | `SIGNIFICANT_EVENT_FIELDS` and `SIGNIFICANT_FIELD_LABELS` in `backend/packages/contracts/src`. |
 | Expected Result | The test passes. The web app's `SIGNIFICANT_FIELD_LABELS` is the contracts object itself (not a copy), its keys are exactly `SIGNIFICANT_EVENT_FIELDS` (`proposedStartAt`, `proposedEndAt`, `expectedAttendance`, `venueRequirements`, `equipmentRequired`, `equipmentRequirements`), and no source file under `frontend/src` declares its own list of the six field names. In step 2 both files import the list and the field type from `@connectsphere/contracts`. |
-| Created By | Raphael, via Claude |
+| Created By | Raphael |
 | Date of Creation | 2026-10-29 |
 
 > **Expected results are checked by the PR reviewer** against G2's acceptance criteria.
