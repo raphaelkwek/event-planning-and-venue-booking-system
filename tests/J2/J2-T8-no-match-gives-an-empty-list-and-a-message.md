@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result |  |
-| Status | Not Executed |
-| Remarks | Not recorded: no test asserts the empty-result message naming the search 'zzzz-no-such-venue'. UI walk-through in Chrome pending at the sprint review |
-| Executed By |  |
-| Date of Execution |  |
+| Actual Result | An empty list and a message naming the search text; no error. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
+| Status | Pass |
+| Remarks | Automated, browser E2E in CI (EN-14). Commit: 6080462 · Evidence: tests/e2e/h-venues.spec.ts › J2-T8 a search that matches nothing gives an empty list and a message naming the search, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41513983925 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

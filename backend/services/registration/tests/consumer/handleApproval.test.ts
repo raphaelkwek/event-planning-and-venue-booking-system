@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import postgres from "postgres";
 import { handleMessage } from "../../src/consumer/handleApproval.js";
 import { claimSeat, seatCounts } from "../../src/repo/seats.js";
+import { venuesOf } from "../../src/repo/venues.js";
 
 /**
  * EN-13 done-checks, against the real registration schema (implementation.md
@@ -17,13 +18,16 @@ const eventIds: string[] = [];
 const messageIds: string[] = [];
 
 afterAll(async () => {
+  if (eventIds.length) await sql`delete from registration.event_venues where event_id in ${sql(eventIds)}`;
   if (eventIds.length) await sql`delete from registration.seats where event_id in ${sql(eventIds)}`;
   if (messageIds.length) await sql`delete from registration.consumed_messages where message_id in ${sql(messageIds)}`;
   await sql.end();
 });
 
 /** A valid venue-booking.request-approved CloudEvent, as the relay publishes it. */
-function approval(over: { layoutCapacity?: number; replacedBookingId?: string; eventId?: string } = {}) {
+function approval(
+  over: { layoutCapacity?: number; replacedBookingId?: string; eventId?: string; venueName?: string; venueLocation?: string | undefined } = {},
+) {
   const eventId = over.eventId ?? randomUUID();
   const id = randomUUID();
   const bookingId = randomUUID();
@@ -36,7 +40,8 @@ function approval(over: { layoutCapacity?: number; replacedBookingId?: string; e
     eventReference: "EVT-000123",
     eventName: "Annual Research Symposium",
     venueId: randomUUID(),
-    venueName: "Lee Kong Chian Auditorium",
+    venueName: over.venueName ?? "Lee Kong Chian Auditorium",
+    ...("venueLocation" in over ? (over.venueLocation === undefined ? {} : { venueLocation: over.venueLocation }) : { venueLocation: "School of Computing, Level 1" }),
     startsAt: "2026-12-02T06:00:00.000Z",
     endsAt: "2026-12-02T10:00:00.000Z",
     coordinatorId: randomUUID(),
@@ -66,7 +71,7 @@ function approval(over: { layoutCapacity?: number; replacedBookingId?: string; e
 describe("handleMessage (the seat builder)", () => {
   it("builds the event's seats from an approval's layout capacity (EN-13-T1)", async () => {
     const a = approval({ layoutCapacity: 40 });
-    expect(await handleMessage(a.value, { sql })).toEqual({ outcome: "built", seats: 40, retired: 0 });
+    expect(await handleMessage(a.value, { sql })).toEqual({ outcome: "built", seats: 40, retired: 0, moved: 0 });
     expect((await seatCounts(sql, a.eventId)).PUBLIC.free).toBe(40);
   });
 
@@ -84,13 +89,49 @@ describe("handleMessage (the seat builder)", () => {
     expect(rows.map((r) => r.consumer)).toEqual(["registration.seat-builder"]);
   });
 
-  it("retires the free seats of the booking an approval replaced, keeping a held seat (CR-02) (EN-13-T6)", async () => {
+  // Fixed by R2 (audit M10): before, the replacement built its full 6 seats beside the held one, so a
+  // 6-seat venue gave the event 7 places. The held seat now moves onto the new booking, which adds only 5.
+  it("retires the replaced booking's free seats, moves the held seat onto the new booking, and builds only the rest of its capacity (CR-02, R2) (EN-13-T6)", async () => {
     const first = approval({ layoutCapacity: 10 });
     await handleMessage(first.value, { sql });
-    await claimSeat(sql, { eventId: first.eventId, pool: "PUBLIC", attendeeId: randomUUID() });
+    const held = await claimSeat(sql, { eventId: first.eventId, pool: "PUBLIC", attendeeId: randomUUID() });
     const second = approval({ layoutCapacity: 6, eventId: first.eventId, replacedBookingId: first.bookingId });
-    expect(await handleMessage(second.value, { sql })).toEqual({ outcome: "built", seats: 6, retired: 9 });
-    expect(await seatCounts(sql, first.eventId)).toEqual({ PUBLIC: { free: 6, claimed: 1 }, VIP: { free: 0, claimed: 0 } });
+    expect(await handleMessage(second.value, { sql })).toEqual({ outcome: "built", seats: 5, retired: 9, moved: 1 });
+    expect(await seatCounts(sql, first.eventId)).toEqual({ PUBLIC: { free: 5, claimed: 1 }, VIP: { free: 0, claimed: 0 } });
+    const [moved] = await sql`select booking_id, seat_no, status from registration.seats where id = ${held!.id}`;
+    expect(moved).toEqual({ booking_id: second.bookingId, seat_no: 1, status: "CLAIMED" });
+  });
+
+  it("keeps every held seat when the new venue is smaller than the attendees already holding seats, adding none (R2, D-01)", async () => {
+    const first = approval({ layoutCapacity: 4 });
+    await handleMessage(first.value, { sql });
+    for (let i = 0; i < 3; i++) await claimSeat(sql, { eventId: first.eventId, pool: "PUBLIC", attendeeId: randomUUID() });
+    const second = approval({ layoutCapacity: 2, eventId: first.eventId, replacedBookingId: first.bookingId });
+    expect(await handleMessage(second.value, { sql })).toEqual({ outcome: "built", seats: 0, retired: 1, moved: 3 });
+    expect(await seatCounts(sql, first.eventId)).toEqual({ PUBLIC: { free: 0, claimed: 3 }, VIP: { free: 0, claimed: 0 } });
+  });
+
+  it("counts a chain of replacements correctly: the second replacement moves the seats the first one moved (CR-02, R2)", async () => {
+    const first = approval({ layoutCapacity: 5 });
+    await handleMessage(first.value, { sql });
+    await claimSeat(sql, { eventId: first.eventId, pool: "PUBLIC", attendeeId: randomUUID() });
+    const second = approval({ layoutCapacity: 4, eventId: first.eventId, replacedBookingId: first.bookingId });
+    await handleMessage(second.value, { sql });
+    await claimSeat(sql, { eventId: first.eventId, pool: "PUBLIC", attendeeId: randomUUID() });
+    const third = approval({ layoutCapacity: 3, eventId: first.eventId, replacedBookingId: second.bookingId });
+    expect(await handleMessage(third.value, { sql })).toEqual({ outcome: "built", seats: 1, retired: 2, moved: 2 });
+    expect(await seatCounts(sql, first.eventId)).toEqual({ PUBLIC: { free: 1, claimed: 2 }, VIP: { free: 0, claimed: 0 } });
+  });
+
+  it("records the venue attendees see, with its location, and stops listing a replaced one (R1-T1, R1-T2)", async () => {
+    const first = approval({ layoutCapacity: 3 });
+    await handleMessage(first.value, { sql });
+    expect(await venuesOf(sql, [first.eventId])).toEqual(
+      new Map([[first.eventId, [{ name: "Lee Kong Chian Auditorium", location: "School of Computing, Level 1" }]]]),
+    );
+    const second = approval({ layoutCapacity: 3, eventId: first.eventId, replacedBookingId: first.bookingId, venueName: "Seminar Room 2-1", venueLocation: undefined });
+    await handleMessage(second.value, { sql });
+    expect(await venuesOf(sql, [first.eventId])).toEqual(new Map([[first.eventId, [{ name: "Seminar Room 2-1", location: null }]]]));
   });
 
   it("gives an event with two venues the total of their seats (CQ-04) (EN-13-T5)", async () => {

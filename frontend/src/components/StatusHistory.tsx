@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import Lozenge from "@atlaskit/lozenge";
+import Lozenge from "../shared/Lozenge.js";
 import { useSignedIn } from "../auth/SessionContext.js";
 import { getStatusHistory, type StatusHistoryEntry } from "../api/statusHistory.js";
 import { formatInstant, STATUS_APPEARANCE, STATUS_LABELS } from "../shared/status.js";
@@ -13,6 +13,7 @@ const ROLE_LABELS: Record<string, string> = {
   VENUE_STAFF: "Venue Staff",
   TECH_SUPPORT_STAFF: "Technical Support",
   ATTENDEE: "Attendee",
+  SAFETY_OFFICER: "Safety Officer",
   SYSTEM: "System",
 };
 

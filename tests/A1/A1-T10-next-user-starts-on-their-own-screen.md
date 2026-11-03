@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | "My requests" opened at /#/requests and the review queue heading was not present at any point after signing in. |
+| Actual Result | After the coordinator signed out and the organiser signed in, "My requests" opened at `#/requests`; a page observer confirmed the review queue was never drawn. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
 | Status | Pass |
-| Remarks | Commit: b0ef6ee (working tree modified) · Evidence: tests/A1/evidence/A1-T10.png · Defect: — |
-| Executed By | Seann Khoo |
-| Date of Execution | 2026-09-20 |
+| Remarks | Automated, browser E2E in CI (EN-14). Commit: 6080462 · Evidence: tests/e2e/a-sign-in-and-access.spec.ts › A1-T10 after signing out, the next user starts on their own screen, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41513983925 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

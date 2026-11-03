@@ -112,6 +112,12 @@ describe("venue-booking.request-approved and venue-booking.request-rejected (M1,
     expect(parseCloudEvent(message("venue-booking.request-approved", approved)).data).toEqual(approved);
   });
 
+  it("accepts an approval with or without the venue's location, which attendees see (R1)", () => {
+    const located = { ...approved, venueLocation: "School of Computing, Level 1" };
+    expect(parseCloudEvent(message("venue-booking.request-approved", located)).data).toEqual(located);
+    expect(() => parseCloudEvent(message("venue-booking.request-approved", { ...approved, venueLocation: "" }))).toThrow(/venueLocation/);
+  });
+
   it("refuses a layout capacity that is not a positive whole number, or a blank layout (EN-13)", () => {
     for (const bad of [{ layoutCapacity: 0 }, { layoutCapacity: -5 }, { layoutCapacity: 12.5 }, { layoutCapacity: "300" }, { layout: "" }]) {
       expect(() => parseCloudEvent(message("venue-booking.request-approved", { ...approved, layout: "Theatre", layoutCapacity: 300, ...bad }))).toThrow();

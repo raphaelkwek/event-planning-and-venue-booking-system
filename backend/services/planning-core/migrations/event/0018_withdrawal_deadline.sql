@@ -1,0 +1,11 @@
+-- R4: the withdrawal deadline the organiser sets for an event. Null means none
+-- was set, and attendees may then withdraw until the event starts.
+--
+-- The rule that it is no later than the event's start is checked when the
+-- organiser saves it (domain/registrationSettings.ts), not by a constraint: an
+-- approved change to the start (S2) must not fail because of it, and the
+-- registration service holds withdrawals to whichever comes first.
+--
+-- The registration window itself (registration_required, registration_opens_at,
+-- registration_closes_at) has been on the event since B1.
+alter table event.events add column withdrawal_deadline_at timestamptz;

@@ -19,8 +19,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Expected result revised for A4 (CR-05) on 2026-11-02; the earlier run checked the superseded behaviour. Re-run against the A4 build. |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | "All events" listed the coordinator's own approved event and none of the unassigned, other-coordinator or draft events. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
+| Status | Pass |
+| Remarks | Automated, browser E2E in CI (EN-14). Commit: 6f5ed43 · Evidence: tests/e2e/a-sign-in-and-access.spec.ts › A3-T4 a coordinator's event list contains the events assigned to them, whoever owns them, and no other, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41604122084 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

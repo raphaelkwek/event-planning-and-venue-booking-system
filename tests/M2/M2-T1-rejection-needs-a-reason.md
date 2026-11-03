@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | empty: "Enter the reason for rejecting the request." shown, request PENDING with no decided_at; three spaces: "Enter the reason for rejecting the request." shown, request PENDING with no decided_at. With "X" it was rejected: REJECTED, reason "X". |
+| Actual Result | Empty and blank reasons were refused with the request still Pending and no decision time; a one-character reason rejected it. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
 | Status | Pass |
-| Remarks | Commit: ba2d786 · Evidence: tests/M2/evidence/M2-T1.png · Defect: — |
-| Executed By | Yichen, via automated testing |
-| Date of Execution | 2026-10-19 |
+| Remarks | Automated, browser E2E in CI (EN-14). Commit: 6080462 · Evidence: tests/e2e/l-bookings.spec.ts › M2-T1 rejection needs a reason with at least one non-whitespace character, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41513983925 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

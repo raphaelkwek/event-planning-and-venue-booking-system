@@ -142,6 +142,23 @@ export const eventArrangementsConfirmedPayloadSchema = z.object({
 });
 
 /**
+ * U1 — the Safety Officer's decision on an event in Safety Review (CR-06). It names the owner and
+ * the assigned coordinator, whom the decision notifies, and the arrangements a request for changes
+ * flagged.
+ */
+export const eventSafetyDecisionRecordedPayloadSchema = z.object({
+  ...eventRef,
+  ownerId: z.string().uuid(),
+  coordinatorId: z.string().uuid().nullable(),
+  decision: z.enum(["APPROVE", "REQUEST_CHANGES", "REJECT"]),
+  reason: z.string().nullable(),
+  decidedBy: z.string().uuid(),
+  decidedAt: z.string().datetime(),
+  flaggedBookingReferences: z.array(z.string()),
+  flaggedEquipment: z.array(z.string()),
+});
+
+/**
  * F3 — the event was cancelled, with its reason. It names everyone F3 notifies:
  * the owner, the assigned coordinator, the Venue Staff of each booked venue and
  * whoever reserved each reservation. Each booking and reservation listed was
@@ -208,6 +225,32 @@ export const eventScheduleChangedPayloadSchema = z.object({
   changedAt: z.string().datetime(),
 });
 
+/**
+ * R1 to R4 — what an attendee may see of an event, and its registration
+ * settings, as they stand after the change. The event module writes it in the
+ * transaction of every change to any of these: each status change, an approved
+ * change to the date or times (S2), an edit of the description (G1), and the
+ * organiser's registration settings. The registration service keeps its own
+ * copy from it, so it never reads the event schema (ADR-0005). A snapshot, so a
+ * consumer applies the newest `changedAt` and ignores an older one. Only
+ * published fields: no purpose, notes, comments or arrangements. A draft has no
+ * reference and is never listed, so it writes none.
+ */
+export const eventListingChangedPayloadSchema = z.object({
+  ...eventRef,
+  ownerId: z.string().uuid(),
+  description: z.string().min(1).nullable(),
+  status: eventStatusSchema,
+  proposedStartAt: z.string().datetime().nullable(),
+  proposedEndAt: z.string().datetime().nullable(),
+  registrationRequired: z.boolean(),
+  registrationOpensAt: z.string().datetime().nullable(),
+  registrationClosesAt: z.string().datetime().nullable(),
+  /** R4: null when the organiser set none, and withdrawal is then allowed until the event starts. */
+  withdrawalDeadlineAt: z.string().datetime().nullable(),
+  changedAt: z.string().datetime(),
+});
+
 /** Validators keyed by messageType, for producers and consumers alike. */
 export const EVENT_PAYLOAD_SCHEMAS = {
   "event.submitted": eventSubmittedPayloadSchema,
@@ -221,9 +264,11 @@ export const EVENT_PAYLOAD_SCHEMAS = {
   "event.reassignment-accepted": eventReassignmentAcceptedPayloadSchema,
   "event.reassignment-declined": eventReassignmentDeclinedPayloadSchema,
   "event.arrangements-confirmed": eventArrangementsConfirmedPayloadSchema,
+  "event.safety-decision-recorded": eventSafetyDecisionRecordedPayloadSchema,
   "event.cancelled": eventCancelledPayloadSchema,
   "event.status-changed": eventStatusChangedPayloadSchema,
   "event.schedule-changed": eventScheduleChangedPayloadSchema,
+  "event.listing-changed": eventListingChangedPayloadSchema,
 } as const;
 
 export type EventMessageType = keyof typeof EVENT_PAYLOAD_SCHEMAS;

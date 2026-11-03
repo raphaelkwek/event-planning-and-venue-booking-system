@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import Button from "@atlaskit/button/new";
-import Lozenge from "@atlaskit/lozenge";
+import Lozenge from "../shared/Lozenge.js";
 import TextArea from "@atlaskit/textarea";
 import Textfield from "@atlaskit/textfield";
 import SectionMessage from "@atlaskit/section-message";
@@ -135,6 +135,10 @@ export function RequestDetail() {
           {canEditDetails(event, session) && (
             <Button onClick={() => navigate(`/events/${event.id}/details`)}>Edit details</Button>
           )}
+          {/* R2, R4: the window and withdrawal deadline are the owning organiser's to set, while details are editable. */}
+          {canEditDetails(event, session) && event.ownerId === session.userId && (
+            <Button onClick={() => navigate(`/events/${event.id}/registration`)}>Registration settings</Button>
+          )}
           {canRequestChange && !requestingChange && (
             <Button onClick={() => setRequestingChange(true)}>Request a change</Button>
           )}
@@ -256,10 +260,12 @@ export function RequestDetail() {
               onChange={(e) => setReply((e.target as HTMLTextAreaElement).value)}
             />
             <div style={{ marginTop: 8, maxWidth: 240 }}>
-              <label style={{ fontSize: 12, fontWeight: 600 }}>
+              {/* Labelled with htmlFor/id: unlabelled, axe reports a critical "label" violation (EN-14). */}
+              <label htmlFor="amend-attendance" style={{ fontSize: 12, fontWeight: 600 }}>
                 Amend expected attendance (optional)
               </label>
               <Textfield
+                id="amend-attendance"
                 type="number"
                 value={amendedAttendance}
                 onChange={(e) => setAmendedAttendance((e.target as HTMLInputElement).value)}

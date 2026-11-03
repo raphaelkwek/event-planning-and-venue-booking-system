@@ -7,6 +7,7 @@ import { historyText, type ChangeableEvent, type ProposedChanges } from "../doma
 import { isSignificantEventField, KAFKA_TOPICS, type SignificantEventField } from "@connectsphere/contracts";
 import { recordFieldChanges } from "./eventHistory.js";
 import { writeOutbox } from "../events/outbox.js";
+import { writeListingChanged } from "../events/listing.js";
 
 /**
  * B1, C1–C3, D1, D4, D5 — the event aggregate, which a request belongs to from
@@ -32,6 +33,8 @@ export interface EventFields {
 }
 
 export interface EventRow extends EventFields {
+  /** R4: the organiser's withdrawal deadline; null when none is set. */
+  withdrawalDeadlineAt: string | null;
   id: string;
   /** Null until the request is submitted (C3). */
   reference: string | null;
@@ -73,6 +76,7 @@ export interface RawEvent {
   registration_required: boolean | null;
   registration_opens_at: Date | null;
   registration_closes_at: Date | null;
+  withdrawal_deadline_at?: Date | null;
   status: EventStatus;
   submitted_at: Date | null;
   last_saved_at: Date;
@@ -107,6 +111,7 @@ export function toEvent(row: RawEvent): EventRow {
     registrationRequired: row.registration_required,
     registrationOpensAt: row.registration_opens_at?.toISOString() ?? null,
     registrationClosesAt: row.registration_closes_at?.toISOString() ?? null,
+    withdrawalDeadlineAt: row.withdrawal_deadline_at?.toISOString() ?? null,
     status: row.status,
     submittedAt: row.submitted_at?.toISOString() ?? null,
     lastSavedAt: row.last_saved_at.toISOString(),
@@ -238,6 +243,8 @@ export async function applyApprovedChange(
       previous.proposed_start_at as previous_start_at, previous.proposed_end_at as previous_end_at
   `;
   if (row && scheduleMoved(row)) await writeScheduleChanged(tx, event.id, row, actor);
+  // R1: attendees see the event's date and times.
+  await writeListingChanged(tx, event.id, actor, null);
   await recordFieldChanges(
     tx,
     event.id,
