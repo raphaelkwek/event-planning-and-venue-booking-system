@@ -66,8 +66,6 @@ with the spike it asks for.
 
 ---
 
----
-
 # EN-03: the event store, an append-only and hash-chained stream of each event's history
 
 **Timestamp:** 2026-11-03T17:20+08:00 (SGT)
@@ -127,8 +125,6 @@ happened or be edited afterwards.
 
 ---
 
----
-
 # EN-21: software supply chain security (SPM-139)
 
 **Timestamp:** 2026-11-03T04:25+08:00 (SGT)
@@ -168,8 +164,6 @@ after it, follow documentation/supply-chain.md to verify one.
 - The ZAP scan is unauthenticated and passive. The Medium and Low items it found are listed, not fixed.
 - The lockfile findings (body-parser, source-map-js and others) are listed, not fixed: a lockfile bump
   touches every package. Node 20 is end of life and the images stay on it until the repository moves.
-
----
 
 ---
 
