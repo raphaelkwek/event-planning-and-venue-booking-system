@@ -244,3 +244,35 @@ jobs:
             backend/services/notification/reports/mutation/
             backend/services/registration/reports/mutation/
           if-no-files-found: ignore
+
+  # EN-05 (SPM-123, ADR-0008). A producer must not silently break a consumer, so
+  # a message's data may only change in a backward-compatible way: every message
+  # that was valid on the base branch must still be valid. The schemas are the
+  # JSON Schema files generated from `contracts`; the checker follows the rules
+  # Confluent's and Redpanda's registries use (backend/packages/contracts/
+  # src/compat). The registry job below asks a real Redpanda the same question.
+  schema-compat:
+    name: Message schema compatibility
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: The committed schema files are what contracts generates
+        run: npm run schemas:check
+
+      - name: Compare with the pull request's base branch
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: npm run schemas:compat -- --base "$BASE_SHA"
