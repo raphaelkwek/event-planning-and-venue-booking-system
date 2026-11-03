@@ -118,14 +118,22 @@ export function eventsRouter(sql: Sql) {
       return;
     }
 
-    const opened = await sql.begin((tx) =>
-      transitionEvent(tx, event.id, "OPEN_FOR_REVIEW", { userId, role }, { set: reviewColumns(tx, userId) })
+    // A4: the scope once more, under the row lock. If the Lead reassigned the request while this
+    // waited, the outgoing coordinator neither claims it nor sees it.
+    const opened = await sql.begin(async (tx) =>
+      (await findEventInScope(tx, event.id, scope, userId, { lock: "update" }))
+        ? transitionEvent(tx, event.id, "OPEN_FOR_REVIEW", { userId, role }, { set: reviewColumns(tx, userId) })
+        : null
     );
 
     // If another coordinator claimed it between our read and the transition, the
     // transition is refused and changes nothing; re-read so this coordinator
     // sees the first reviewer (D1).
-    const shown = opened.ok ? opened.event : (await findEventInScope(sql, event.id, scope, userId))!;
+    const shown = opened?.ok ? opened.event : await findEventInScope(sql, event.id, scope, userId);
+    if (!shown) {
+      eventNotFound(res, role);
+      return;
+    }
     res.set("ETag", etag(shown.version)).status(200).json(shown);
   });
 

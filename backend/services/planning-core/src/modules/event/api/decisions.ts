@@ -8,6 +8,9 @@ import { transitionEvent } from "./transitionEvent.js";
 import { rejectionBodySchema } from "./schemas.js";
 import { eventNotFound, refuse } from "./errors.js";
 
+/** The event left the caller's scope while the decision waited for its row lock (A4). */
+const OUT_OF_SCOPE = { ok: false, outOfScope: true } as const;
+
 /**
  * D4, D5 — approving and rejecting an event request.
  *
@@ -16,9 +19,10 @@ import { eventNotFound, refuse } from "./errors.js";
  * decision cannot be decided again, and two coordinators deciding at once
  * cannot both succeed. "Cannot be decided twice" holds because the transition
  * table has no way back into Under Review or Awaiting Clarification from a
- * decided status (tested in statusMachine.test.ts). The scope is checked once,
- * before the transaction: a coordinator's is the events assigned to them (A4), so
- * any other event is not found. The history entry and the organiser's notification are
+ * decided status (tested in statusMachine.test.ts). The scope is checked before
+ * the transaction and again under the row lock inside it: a coordinator's is the
+ * events assigned to them (A4), so any other event, or one the Lead reassigns
+ * meanwhile, is not found. The history entry and the organiser's notification are
  * written in the same transaction, so a refusal leaves no trace and a success
  * leaves no half-finished state.
  */
@@ -41,6 +45,10 @@ export function decisionsRouter(sql: Sql) {
     }
 
     const result = await sql.begin(async (tx) => {
+      // A4: the scope once more, under the row lock. A Lead's reassignment that commits while
+      // this waits takes the event out of the outgoing coordinator's scope, so they can't decide it.
+      if (!(await findEventInScope(tx, event.id, scope, userId, { lock: "update" }))) return OUT_OF_SCOPE;
+
       const decided = await transitionEvent(
         tx,
         event.id,
@@ -80,6 +88,10 @@ export function decisionsRouter(sql: Sql) {
       return decided;
     });
 
+    if ("outOfScope" in result) {
+      eventNotFound(res, role);
+      return;
+    }
     if (!result.ok) {
       // F1 — a refused transition stores nothing, and names the status the
       // event is in and the one it could not move to.
