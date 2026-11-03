@@ -11,7 +11,8 @@ import { describe, expect, it } from "vitest";
 
 const THEME = join(__dirname, "..", "src", "theme");
 const SRC = join(__dirname, "..", "src");
-const tokensCss = readFileSync(join(THEME, "tokens.css"), "utf8");
+// Line endings are normalised: a Windows checkout may have CRLF.
+const tokensCss = readFileSync(join(THEME, "tokens.css"), "utf8").replace(/\r\n/g, "\n");
 const legacyCss = readFileSync(join(THEME, "legacy.css"), "utf8");
 
 function block(selectorStart: string): Record<string, string> {

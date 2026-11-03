@@ -195,3 +195,8 @@
   --cs-dur-fast: 120ms;
   --cs-dur: 200ms;
 }
+
+/* The attendee surface (implementation.md §7.2) keeps the system font; FixedTheme also holds it light. */
+:root[data-cs-surface="attendee"] {
+  --cs-font-sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}

@@ -12,9 +12,11 @@
  * frontend/tests/theme.test.ts fails if a screen adds an inline colour this file doesn't map.
  */
 
-/* Subtle text: #626F86 */
+/* Subtle text: #626F86, #44546F */
 [style^="color: rgb(98, 111, 134)"],
-[style*="; color: rgb(98, 111, 134)"] {
+[style*="; color: rgb(98, 111, 134)"],
+[style^="color: rgb(68, 84, 111)"],
+[style*="; color: rgb(68, 84, 111)"] {
   color: var(--cs-text-subtle) !important;
 }
 
@@ -42,8 +44,9 @@
   color: var(--cs-accent-text) !important;
 }
 
-/* Hairlines: #DFE1E6, in any border property */
-[style*="solid rgb(223, 225, 230)"] {
+/* Hairlines: #DFE1E6, #DCDFE4, in any border property */
+[style*="solid rgb(223, 225, 230)"],
+[style*="solid rgb(220, 223, 228)"] {
   border-color: var(--cs-line) !important;
 }
 

@@ -69,6 +69,13 @@ export const ERROR_CODES = [
   // E4: the Lead reassigns only an event that has a coordinator; E2's proposals are retired.
   "EVENT_NOT_ASSIGNED",
   "REASSIGNMENT_RETIRED",
+  // R2 to R4: the registration service's refusals.
+  "REGISTRATION_FULL",
+  "REGISTRATION_DUPLICATE",
+  "REGISTRATION_OUTSIDE_WINDOW",
+  "REGISTRATION_NOT_FOUND",
+  "REGISTRATION_NOT_ACTIVE",
+  "WITHDRAWAL_DEADLINE_PASSED",
   // U1: the Safety Officer's decision, and the coordinator's Mark Confirmed that only a passed check allows.
   "SAFETY_CHECK_NOT_PASSED",
   "SAFETY_DECISION_ALREADY_RECORDED",
