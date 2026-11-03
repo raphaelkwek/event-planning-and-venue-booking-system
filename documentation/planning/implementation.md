@@ -536,6 +536,8 @@ The `message` is user-facing and must name the specific values the story require
 
 Use **Atlassian Design System** components (`@atlaskit/*`) and do not restyle them. Rationale: it is the customer's stated preference, it gives us a dense data-first UI for free, and six people building screens from the same component set will produce something coherent without a design review.
 
+> **Theme, 3 Nov 2026 (#97).** The look comes from one theme, not from each screen: `@atlaskit/tokens` themed from our tokens (`frontend/src/theme/`) and the operations-console shell (`frontend/src/shell/`). Components are themed through their tokens, never restyled one by one. Colours in inline styles are tokens (`var(--cs-…)`), never hex. `documentation/design/ui-redesign.md` has the tokens and how to add a screen.
+
 Standard screen shapes:
 - **Queue/list screens** (D1 review queue, M1 booking queue, R5 registrations): `@atlaskit/dynamic-table` with column sort, status `@atlaskit/lozenge`, cursor pagination.
 - **Detail screens**: two-column — content left, metadata/status/history right.
