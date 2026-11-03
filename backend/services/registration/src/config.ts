@@ -1,3 +1,5 @@
+import { readSigningKey, readWaitingRoomSettings } from "./domain/waitingRoom.js";
+
 function required(name: string): string {
   const value = process.env[name];
   if (!value) throw new Error(`Missing required environment variable: ${name}`);
@@ -42,5 +44,21 @@ export const config = {
   /** Supabase's signing keys: browsing verifies the token here, without asking identity (R1, ADR-0005). */
   supabaseJwksUrl: process.env.SUPABASE_JWKS_URL?.trim() ?? "",
   /** Where identity answers "who is this token?" for registering, withdrawing and my registrations: planning-core's GET /api/v1/users/me. */
+  /**
+   * How many proxies (the gateway, a load balancer) sit in front of this service. Behind them every request
+   * arrives from the proxy's address, so the per-address limits would count all attendees together; with
+   * this set, Express reads the client's address from X-Forwarded-For, skipping that many hops. 0 (the
+   * default) trusts no header, so a client cannot choose its own key.
+   */
+  trustProxyHops: Number.parseInt(process.env.TRUST_PROXY_HOPS ?? "0", 10) || 0,
   planningCoreUrl: process.env.PLANNING_CORE_URL ?? `http://127.0.0.1:${process.env.PLANNING_CORE_PORT ?? 8090}`,
+  /**
+   * EN-19, the waiting room: how many attendees a flagged event admits a second, how long an admission token
+   * lasts, and the key it is signed with. An invalid value stops the service starting. With no key set,
+   * flagged events cannot take registrations (WAITING_ROOM_UNAVAILABLE) rather than take them unchecked.
+   */
+  waitingRoom: {
+    ...readWaitingRoomSettings(process.env),
+    signingKey: readSigningKey(process.env),
+  },
 };

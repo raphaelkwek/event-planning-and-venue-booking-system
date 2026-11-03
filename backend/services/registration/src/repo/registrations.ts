@@ -3,7 +3,7 @@ import type { RegistrationStatus } from "@connectsphere/contracts";
 import type { Db } from "./seats.js";
 
 /**
- * R2 to R4 — attendees' registrations (migration 0003). The registration schema
+ * R2 to R7 — attendees' registrations (migrations 0003 and 0005). The registration schema
  * only, one function per query. Nothing is deleted: a withdrawal and a
  * cancellation are conditional updates of the status.
  */
@@ -18,6 +18,11 @@ export interface Registration {
   registeredAt: string;
   withdrawnAt: string | null;
   cancelledAt: string | null;
+  /** R7: who added it by hand, or null for a self-registration. */
+  addedBy: string | null;
+  additionReason: string | null;
+  /** R7, D-01: added when no seat was free, so it took the event above capacity. */
+  addedOverCapacity: boolean;
 }
 
 interface RegistrationRow {
@@ -30,9 +35,13 @@ interface RegistrationRow {
   registered_at: Date;
   withdrawn_at: Date | null;
   cancelled_at: Date | null;
+  added_by: string | null;
+  addition_reason: string | null;
+  added_over_capacity: boolean;
 }
 
-const COLUMNS = "id, reference, event_id, attendee_id, seat_id, status, registered_at, withdrawn_at, cancelled_at";
+const COLUMNS =
+  "id, reference, event_id, attendee_id, seat_id, status, registered_at, withdrawn_at, cancelled_at, added_by, addition_reason, added_over_capacity";
 
 function toRegistration(row: RegistrationRow): Registration {
   return {
@@ -45,6 +54,9 @@ function toRegistration(row: RegistrationRow): Registration {
     registeredAt: row.registered_at.toISOString(),
     withdrawnAt: row.withdrawn_at?.toISOString() ?? null,
     cancelledAt: row.cancelled_at?.toISOString() ?? null,
+    addedBy: row.added_by,
+    additionReason: row.addition_reason,
+    addedOverCapacity: row.added_over_capacity,
   };
 }
 
@@ -93,6 +105,86 @@ export async function insertRegistration(
     if (pg.code === "23505" && pg.constraint_name === ONE_ACTIVE) throw new DuplicateRegistrationError();
     throw error;
   }
+}
+
+/**
+ * R7: stores a registration the owning organiser or the assigned coordinator
+ * added, holding the seat claimed for it, or none when none was free (above
+ * capacity, D-01). The same unique index refuses a duplicate.
+ */
+export async function insertManualRegistration(
+  db: Db,
+  input: { eventId: string; attendeeId: string; seatId: string | null; at: Date; addedBy: string; reason: string | null },
+): Promise<Registration> {
+  const sql = db as Sql;
+  try {
+    const [row] = await sql<RegistrationRow[]>`
+      insert into registration.registrations (
+        event_id, attendee_id, seat_id, registered_at, added_by, addition_reason, added_over_capacity, created_by, updated_by
+      ) values (
+        ${input.eventId}, ${input.attendeeId}, ${input.seatId}, ${input.at}, ${input.addedBy}, ${input.reason},
+        ${input.seatId === null}, ${input.addedBy}, ${input.addedBy}
+      )
+      returning ${sql.unsafe(COLUMNS)}
+    `;
+    return toRegistration(row!);
+  } catch (error) {
+    const pg = error as { code?: string; constraint_name?: string };
+    if (pg.code === "23505" && pg.constraint_name === ONE_ACTIVE) throw new DuplicateRegistrationError();
+    throw error;
+  }
+}
+
+/** Where a page of an event's registrations starts: after this one, in registration order. */
+export interface EventRegistrationCursor {
+  registeredAt: string;
+  id: string;
+}
+
+/**
+ * R5: the event's registrations in the order they were made, whatever their
+ * status. One more than `limit` is returned, so the caller knows whether there
+ * is a next page.
+ */
+export async function listRegistrationsOfEvent(
+  db: Db,
+  eventId: string,
+  limit: number,
+  after: EventRegistrationCursor | null,
+): Promise<Registration[]> {
+  const sql = db as Sql;
+  const rows = await sql<RegistrationRow[]>`
+    select ${sql.unsafe(COLUMNS)} from registration.registrations
+    where event_id = ${eventId}
+      ${after ? sql`and (registered_at, id) > (${after.registeredAt}::timestamptz, ${after.id}::uuid)` : sql``}
+    order by registered_at, id
+    limit ${limit + 1}
+  `;
+  return rows.map(toRegistration);
+}
+
+/** R5: how many of the event's registrations are in each status, and how many were added by hand. */
+export interface RegistrationCounts {
+  registered: number;
+  withdrawn: number;
+  cancelled: number;
+  manuallyAdded: number;
+  addedOverCapacity: number;
+}
+
+export async function registrationCountsOf(db: Db, eventId: string): Promise<RegistrationCounts> {
+  const sql = db as Sql;
+  const [row] = await sql<RegistrationCounts[]>`
+    select
+      count(*) filter (where status = 'REGISTERED')::int as registered,
+      count(*) filter (where status = 'WITHDRAWN')::int as withdrawn,
+      count(*) filter (where status = 'CANCELLED')::int as cancelled,
+      count(*) filter (where status = 'REGISTERED' and added_by is not null)::int as "manuallyAdded",
+      count(*) filter (where status = 'REGISTERED' and added_over_capacity)::int as "addedOverCapacity"
+    from registration.registrations
+    where event_id = ${eventId}
+  `;
+  return row!;
 }
 
 /** R3: one registration, only if it is the attendee's own; another's is not found. */

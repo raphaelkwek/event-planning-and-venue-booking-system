@@ -113,7 +113,7 @@ const assignments = (eventId: string) =>
   `;
 const outbox = (eventId: string, type: string) =>
   sql<{ envelope: { data: Record<string, unknown> } }[]>`
-    select envelope from event.outbox where message_key = ${eventId} and envelope->>'type' = ${type}
+    select envelope from event.outbox where message_key = ${eventId} and envelope->>'type' = ${type} order by seq
   `;
 
 describe("submission assigns no coordinator (E3, replacing E1)", () => {
@@ -613,5 +613,20 @@ describe("GET /api/v1/assignments, the Lead's overview (E5)", () => {
     }
     signedInAs(LEAD, "EVENT_COORDINATOR_LEAD");
     expect((await history("00000000-0000-0000-0000-0000000000ff")).status).toBe(404);
+  });
+});
+
+describe("event.listing-changed on a change of coordinator (R5, R7)", () => {
+  it("publishes the event's listing with the coordinator the Lead assigns, then with the one they reassign it to", async () => {
+    const event = await submitted();
+    signedInAs(LEAD, "EVENT_COORDINATOR_LEAD");
+
+    expect((await assign(event.id, COORDINATOR)).status).toBe(201);
+    const afterAssign = await outbox(event.id, "event.listing-changed");
+    expect((await request(app).post(`/api/v1/events/${event.id}/reassignment`).set(bearer).send({ coordinatorId: OTHER_COORDINATOR })).status).toBe(201);
+    const afterReassign = await outbox(event.id, "event.listing-changed");
+
+    expect(afterAssign.map((m) => m.envelope.data.assignedCoordinatorId)).toContain(COORDINATOR);
+    expect(afterReassign.at(-1)!.envelope.data).toMatchObject({ eventId: event.id, ownerId: ORGANISER, assignedCoordinatorId: OTHER_COORDINATOR });
   });
 });

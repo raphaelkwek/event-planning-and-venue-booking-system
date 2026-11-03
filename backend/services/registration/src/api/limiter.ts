@@ -19,3 +19,20 @@ export function registrationRateLimiter(limit = DEFAULT_LIMIT_PER_MINUTE): Reque
     handler: (_req, res) => refuse(res, 429, "RATE_LIMITED", "Too many requests. Wait a minute and try again."),
   });
 }
+
+/**
+ * EN-19: the waiting room's own budget per client address, 240 a minute: a
+ * browser polls its place about every 2 seconds (30 a minute), and several
+ * attendees can share one address (a campus network). Applied before the
+ * token is checked or identity asked, so a flood is turned away without
+ * costing either. The gateway limits per address in front of this (EN-12).
+ */
+export function waitingRoomRateLimiter(): RequestHandler {
+  return rateLimit({
+    windowMs: 60_000,
+    limit: 240,
+    standardHeaders: "draft-8",
+    legacyHeaders: false,
+    handler: (_req, res) => refuse(res, 429, "RATE_LIMITED", "Too many requests. Wait a few seconds and try again."),
+  });
+}

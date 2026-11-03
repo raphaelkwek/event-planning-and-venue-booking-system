@@ -44,6 +44,8 @@ export class IdentityUnavailableError extends Error {
 
 export interface CallerRequest extends Request {
   caller?: CurrentUser;
+  /** The caller's bearer token, for asking identity about other people on their behalf (R5, R7). */
+  token?: string;
 }
 
 function bearer(req: Request): string | null {
@@ -64,15 +66,28 @@ export function signedIn(auth: Authenticator): RequestHandler {
   };
 }
 
-/** R2 to R4: an attendee, as identity knows them. Any other role is refused (A2). */
+/** R2 to R4, R6: an attendee, as identity knows them. Any other role is refused (A2). */
 export function attendeeOnly(auth: Authenticator): RequestHandler {
+  return identified(auth, (caller) => caller.role === "ATTENDEE", "Only attendees register for events.");
+}
+
+/**
+ * R5 to R7: internal staff, as identity knows them. An attendee is refused (A2);
+ * whether this member of staff manages the event is the route's to check.
+ */
+export function staffOnly(auth: Authenticator): RequestHandler {
+  return identified(auth, (caller) => caller.role !== "ATTENDEE", "Only the event's organiser or coordinator manages its registrations.");
+}
+
+function identified(auth: Authenticator, admits: (caller: CurrentUser) => boolean, refusal: string): RequestHandler {
   return (req: CallerRequest, res: Response, next: NextFunction) => {
     const token = bearer(req);
     if (!token) return refuse(res, 401, "UNAUTHENTICATED", NO_TOKEN);
     auth.identify(token).then(
       (caller) => {
-        if (caller.role !== "ATTENDEE") return refuse(res, 403, "ROLE_NOT_AUTHORISED", "Only attendees register for events.");
+        if (!admits(caller)) return refuse(res, 403, "ROLE_NOT_AUTHORISED", refusal);
         req.caller = caller;
+        req.token = token;
         next();
       },
       (error: unknown) => {

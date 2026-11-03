@@ -6,7 +6,7 @@ import Spinner from "@atlaskit/spinner";
 import { useSignedIn } from "../auth/SessionContext.js";
 import { ApiError } from "../api/client.js";
 import { openEvent } from "../api/events.js";
-import { saveRegistrationSettings, type RegistrationSettings as Settings } from "../api/registration.js";
+import { saveRegistrationSettings, setHighDemand as saveHighDemand, type RegistrationSettings as Settings } from "../api/registration.js";
 import type { EventRecord } from "../api/types.js";
 import { Refusal } from "../components/Refusal.js";
 import { formatMoment, fromInputs, toInputs } from "../shared/singaporeTime.js";
@@ -16,6 +16,9 @@ import { formatMoment, fromInputs, toInputs } from "../shared/singaporeTime.js";
  * event, the registration window (R2) and an optional withdrawal deadline
  * (R4), in Singapore time. The server applies the rules and names each field
  * in error; the save carries the version this screen loaded (If-Match).
+ * EN-19: the same screen lets the organiser flag the event high-demand, which
+ * puts attendees in a waiting room before they can register. It is saved on
+ * its own, so a window being edited is not saved by accident.
  */
 
 type Moment = { date: string; time: string };
@@ -61,12 +64,17 @@ export function RegistrationSettings() {
   const [saveError, setSaveError] = useState<unknown>(null);
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [highDemand, setHighDemand] = useState(false);
+  const [flagError, setFlagError] = useState<unknown>(null);
+  const [flagSaved, setFlagSaved] = useState(false);
+  const [flagSaving, setFlagSaving] = useState(false);
 
   const load = useCallback(async () => {
     try {
       const loaded = await openEvent(session.token, id!);
       setEvent(loaded);
       setForm(formOf(loaded));
+      setHighDemand(loaded.highDemand === true);
     } catch (e) {
       setLoadError(e);
     }
@@ -91,6 +99,23 @@ export function RegistrationSettings() {
       setSaveError(error);
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function onSaveHighDemand() {
+    if (!event) return;
+    setFlagSaving(true);
+    setFlagError(null);
+    setFlagSaved(false);
+    try {
+      const next = await saveHighDemand(session.token, event.id, event.version, highDemand);
+      setEvent(next);
+      setHighDemand(next.highDemand === true);
+      setFlagSaved(true);
+    } catch (error) {
+      setFlagError(error);
+    } finally {
+      setFlagSaving(false);
     }
   }
 
@@ -147,6 +172,27 @@ export function RegistrationSettings() {
         </SectionMessage>
       )}
       {saveError !== null && <Refusal error={saveError} />}
+      <form aria-labelledby="high-demand-heading" style={{ marginTop: 32 }} onSubmit={(e) => { e.preventDefault(); void onSaveHighDemand(); }}>
+        <h2 id="high-demand-heading">High-demand event</h2>
+        <p>
+          <label>
+            <input type="checkbox" checked={highDemand} onChange={(e) => setHighDemand(e.currentTarget.checked)} /> This is a high-demand event
+          </label>
+        </p>
+        <p style={{ color: "#44546F" }}>
+          Attendees are put in a queue before they can register and are let in at a steady rate, so a rush when registration opens cannot
+          swamp the seats. They are registered automatically when it is their turn. Turn this on before registration opens.
+        </p>
+        <Button type="submit" isDisabled={flagSaving}>
+          Save high-demand setting
+        </Button>
+      </form>
+      {flagSaved && (
+        <SectionMessage appearance="success" title="High-demand setting saved.">
+          <p>{highDemand ? "Attendees now queue to register for this event." : "Attendees register for this event directly."}</p>
+        </SectionMessage>
+      )}
+      {flagError !== null && <Refusal error={flagError} />}
     </section>
   );
 }

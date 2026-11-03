@@ -24,14 +24,14 @@ const event = {
   version: 4,
 } as unknown as EventRecord;
 
-const mocks = vi.hoisted(() => ({ openEvent: vi.fn(), saveRegistrationSettings: vi.fn() }));
+const mocks = vi.hoisted(() => ({ openEvent: vi.fn(), saveRegistrationSettings: vi.fn(), setHighDemand: vi.fn() }));
 vi.mock("../src/api/events.js", async () => {
   const actual = await vi.importActual<typeof import("../src/api/events.js")>("../src/api/events.js");
   return { ...actual, openEvent: mocks.openEvent };
 });
 vi.mock("../src/api/registration.js", async () => {
   const actual = await vi.importActual<typeof import("../src/api/registration.js")>("../src/api/registration.js");
-  return { ...actual, saveRegistrationSettings: mocks.saveRegistrationSettings };
+  return { ...actual, saveRegistrationSettings: mocks.saveRegistrationSettings, setHighDemand: mocks.setHighDemand };
 });
 vi.mock("../src/api/notifications.js", async () => {
   const actual = await vi.importActual<typeof import("../src/api/notifications.js")>("../src/api/notifications.js");
@@ -43,6 +43,7 @@ const { App } = await import("../src/App.js");
 beforeEach(() => {
   mocks.openEvent.mockReset().mockResolvedValue(event);
   mocks.saveRegistrationSettings.mockReset();
+  mocks.setHighDemand.mockReset();
   sessionStorage.setItem(
     "connectsphere.session",
     JSON.stringify({ userId: "user-id", email: "organiser@connectsphere.test", role: "EVENT_ORGANISER", token: "token", lastLoginAt: "2026-10-04T01:00:00.000Z" }),
@@ -128,5 +129,49 @@ describe("Registration settings (R2, R4)", () => {
       registrationClosesAt: null,
       withdrawalDeadlineAt: null,
     });
+  });
+
+  it("EN-19-T15 flags the event high-demand and shows the server's refusal when the version is stale", async () => {
+    mocks.setHighDemand.mockRejectedValueOnce(
+      new ApiError(412, {
+        code: "EVENT_VERSION_MISMATCH",
+        message: "This event was changed after you opened it, so nothing was saved. Load the latest version, then make your change again.",
+        correlationId: null,
+      }),
+    );
+    render(<App />);
+    const box = (await screen.findByLabelText(/This is a high-demand event/)) as HTMLInputElement;
+    expect(box.checked).toBe(false);
+    expect(screen.getByText(/Attendees are put in a queue before they can register/)).toBeTruthy();
+
+    fireEvent.click(box);
+    fireEvent.click(screen.getByRole("button", { name: "Save high-demand setting" }));
+
+    expect(await screen.findByText(/This event was changed after you opened it, so nothing was saved/)).toBeTruthy();
+    expect(mocks.setHighDemand).toHaveBeenCalledWith("token", "e-1", 4, true);
+    expect(screen.queryByText("High-demand setting saved.")).toBeNull();
+    expect(mocks.saveRegistrationSettings).not.toHaveBeenCalled();
+
+    mocks.setHighDemand.mockResolvedValueOnce({ ...event, highDemand: true, version: 5 });
+    fireEvent.click(screen.getByRole("button", { name: "Save high-demand setting" }));
+
+    expect(await screen.findByText("High-demand setting saved.")).toBeTruthy();
+    expect(screen.getByText("Attendees now queue to register for this event.")).toBeTruthy();
+    expect(mocks.setHighDemand).toHaveBeenLastCalledWith("token", "e-1", 4, true);
+  });
+
+  it("EN-19-T15 loads the saved flag, and takes it off with the version the last save returned", async () => {
+    mocks.openEvent.mockResolvedValue({ ...event, highDemand: true });
+    mocks.setHighDemand.mockResolvedValue({ ...event, highDemand: false, version: 5 });
+    render(<App />);
+    const box = (await screen.findByLabelText(/This is a high-demand event/)) as HTMLInputElement;
+    await waitFor(() => expect(box.checked).toBe(true));
+
+    fireEvent.click(box);
+    fireEvent.click(screen.getByRole("button", { name: "Save high-demand setting" }));
+
+    expect(await screen.findByText("Attendees register for this event directly.")).toBeTruthy();
+    expect(mocks.setHighDemand).toHaveBeenCalledWith("token", "e-1", 4, false);
+    expect(box.checked).toBe(false);
   });
 });

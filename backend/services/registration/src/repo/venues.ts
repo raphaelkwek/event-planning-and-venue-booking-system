@@ -44,6 +44,20 @@ export async function replaceVenue(db: Db, bookingId: string): Promise<void> {
 }
 
 /** Each event's confirmed venues, in the order they are used, then by name. */
+/**
+ * R7 (CQ-04): the event's capacity, the total of its confirmed bookings' layout
+ * capacities, and how many confirmed bookings it has. With none, the capacity
+ * is not known yet, and a manual addition is refused.
+ */
+export async function capacityOf(db: Db, eventId: string): Promise<{ capacity: number; confirmedBookings: number }> {
+  const sql = db as Sql;
+  const [row] = await sql<{ capacity: number; confirmed_bookings: number }[]>`
+    select coalesce(sum(layout_capacity), 0)::int as capacity, count(*)::int as confirmed_bookings
+    from registration.event_venues where event_id = ${eventId} and status = 'CONFIRMED'
+  `;
+  return { capacity: row!.capacity, confirmedBookings: row!.confirmed_bookings };
+}
+
 export async function venuesOf(db: Db, eventIds: readonly string[]): Promise<Map<string, PublicVenue[]>> {
   const venues = new Map<string, PublicVenue[]>(eventIds.map((id) => [id, []]));
   if (eventIds.length === 0) return venues;

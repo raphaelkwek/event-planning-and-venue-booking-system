@@ -42,6 +42,8 @@ import { OpenEvents } from "./screens/OpenEvents.js";
 import { OpenEventDetail } from "./screens/OpenEventDetail.js";
 import { MyRegistrations } from "./screens/MyRegistrations.js";
 import { RegistrationSettings } from "./screens/RegistrationSettings.js";
+import { WaitingRoom } from "./screens/WaitingRoom.js";
+import { EventRegistrations } from "./screens/EventRegistrations.js";
 import { SafetyQueue } from "./screens/SafetyQueue.js";
 import { SafetyReviewDetail } from "./screens/SafetyReviewDetail.js";
 
@@ -196,6 +198,8 @@ const ROUTES: {
   { path: "/assignments/:eventId", element: <AssignmentDetail />, roles: ["EVENT_COORDINATOR_LEAD"] },
   // R2, R4: the owning organiser sets the registration window and the withdrawal deadline; the server allows only the owner.
   { path: "/events/:id/registration", element: <RegistrationSettings />, roles: ["EVENT_ORGANISER"] },
+  // R5 to R7: an event's registrations, its waitlist and manual additions; the server admits only the owner and the assigned coordinator.
+  { path: "/events/:id/registrations", element: <EventRegistrations />, roles: ["EVENT_ORGANISER", "EVENT_COORDINATOR"] },
   // R1 to R4: the attendee surface (implementation.md §7.2), served by the registration service.
   {
     path: "/open-events",
@@ -204,6 +208,8 @@ const ROUTES: {
     nav: { label: "Events", to: "/open-events" },
   },
   { path: "/open-events/:eventId", element: <OpenEventDetail />, roles: ["ATTENDEE"] },
+  // EN-19: the queue a high-demand event puts attendees in before they can register.
+  { path: "/open-events/:eventId/waiting-room", element: <WaitingRoom />, roles: ["ATTENDEE"] },
   {
     path: "/my-registrations",
     element: <MyRegistrations />,

@@ -1,0 +1,61 @@
+  # CI ONLY. Appended to the RENDERED configuration by `render-config.mjs --with-ci-echo`; never
+  # part of gateway/kong.yml. They point at gateway/ci/echo-upstream.mjs, which answers with the
+  # headers it received, so the integration tests can see exactly what a service would be sent.
+  # Their plugins are those of staff-notification and public-registration (gateway/tests checks
+  # that they stay equal), with a limit high enough that the header tests never meet it.
+  - name: staff-ci-echo
+    url: http://{{ECHO_TARGET}}
+    routes:
+      - name: staff-ci-echo
+        paths: [/ci-echo-staff]
+        strip_path: true
+    plugins:
+      - name: jwt
+        config:
+          key_claim_name: kid
+          claims_to_verify: [exp]
+          header_names: [authorization]
+          uri_param_names: []
+          cookie_names: []
+      - name: rate-limiting
+        config:
+          minute: 1000
+          limit_by: header
+          header_name: x-user-id
+          policy: redis
+          fault_tolerant: true
+          hide_client_headers: false
+          error_code: 429
+          error_message: Too many requests. Wait a minute and try again.
+          redis:
+            host: redis
+            port: 6379
+            database: 0
+            timeout: 2000
+      - name: response-transformer
+        config:
+          add:
+            headers:
+              - "Cache-Control:no-store"
+
+  - name: public-ci-echo
+    url: http://{{ECHO_TARGET}}
+    routes:
+      - name: public-ci-echo
+        paths: [/ci-echo-public]
+        strip_path: true
+    plugins:
+      - name: rate-limiting
+        config:
+          minute: 1000
+          limit_by: ip
+          policy: redis
+          fault_tolerant: true
+          hide_client_headers: false
+          error_code: 429
+          error_message: Too many requests. Wait a minute and try again.
+          redis:
+            host: redis
+            port: 6379
+            database: 0
+            timeout: 2000
