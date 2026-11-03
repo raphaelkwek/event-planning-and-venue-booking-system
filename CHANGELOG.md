@@ -1,6 +1,6 @@
 # Changelog
 
-> **Convention — read before editing this file:** entries are newest-first. When adding a new entry, insert it directly below this header, above every existing entry. Never append to the bottom. This header itself never moves and is never treated as an entry.
+> **Newer entries live in `changelog/`, one file per change (since 3 Nov 2026).** Don't add entries to this file: one shared file made every pull request conflict at its top. Add `changelog/<YYYY-MM-DD>-<branch-or-slug>.md` instead, holding exactly what an entry below holds (implementation.md §11.2). `npm run changelog` prints the whole log, newest first: the files in `changelog/`, then the entries below, which are newest-first and kept as they were. This header is never treated as an entry.
 
 ---
 
