@@ -4,7 +4,7 @@ import type { Role } from "@connectsphere/contracts";
 import { notInScopeMessage } from "../../identity/index.js";
 import { authenticate, requireRole, type ActorRequest } from "../auth/actor.js";
 import { alreadyDecidedMessage, validateDecisionBody } from "../domain/changeRequests.js";
-import type { AppliedChangeImpact } from "../repo/changeImpact.js";
+import type { ChangeImpact } from "../domain/changeImpact.js";
 import { decideChangeRequest } from "../repo/decisions.js";
 import { refuse } from "./errors.js";
 import { changeRateLimiter } from "./limiter.js";
@@ -21,9 +21,9 @@ const PATH = "/api/v1/change-requests/:id/decision";
  * S3 — what an approval's response says about the arrangements (AC1–AC4): each confirmed booking,
  * held hold, pending booking request and reservation, the registration count, and each flag set.
  * Staff ids and who reserved equipment stay out: they are for the notification service, not the
- * screen.
+ * screen. G2's preview answers in the same shape, its flags being the ones approval would set.
  */
-export function impactBody(impact: AppliedChangeImpact) {
+export function impactBody(impact: ChangeImpact) {
   const bookingById = new Map(impact.bookings.map((booking) => [booking.id, booking]));
   const reservationById = new Map(impact.reservations.map((reservation) => [reservation.id, reservation]));
   return {

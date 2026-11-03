@@ -2,7 +2,7 @@ import type { TransactionSql } from "postgres";
 import { KAFKA_TOPICS, SIGNIFICANT_EVENT_FIELDS, type ErrorField, type Role, type SignificantEventField } from "@connectsphere/contracts";
 import { applyApprovedChange, checkProposedChange, findEventForChange, type ProposedChanges } from "../../event/index.js";
 import { resolveAccessScope } from "../../identity/index.js";
-import { cannotApproveMessage, isChangeable, staleFields } from "../domain/changeRequests.js";
+import { cannotApproveMessage, isChangeable, proposedChanges, staleFields } from "../domain/changeRequests.js";
 import { writeOutbox } from "../events/outbox.js";
 import { flagArrangementsForChange, type AppliedChangeImpact } from "./changeImpact.js";
 import { lockRequest, recordDecision, type ChangeRequestRecord } from "./changeRequests.js";
@@ -25,7 +25,7 @@ export type DecidedEvent = { id: string } & Partial<Record<SignificantEventField
 export type DecisionOutcome =
   | { ok: true; request: ChangeRequestRecord; event?: DecidedEvent; impact?: AppliedChangeImpact }
   | { ok: false; code: "NOT_FOUND" }
-  | { ok: false; code: "ALREADY_DECIDED"; status: "APPROVED" | "REJECTED"; decidedAt: string }
+  | { ok: false; code: "ALREADY_DECIDED"; status: "APPROVED" | "REJECTED" | "CLOSED"; decidedAt: string }
   | { ok: false; code: "NO_LONGER_VALID"; message: string; fields: ErrorField[]; status?: string };
 
 /** The event module reports a proposed value on its own field name; the request names it under `changes`. */
@@ -52,8 +52,7 @@ export async function decideChangeRequest(
     return { ok: false, code: "ALREADY_DECIDED", status: request.status, decidedAt: request.decidedAt! };
   }
 
-  const changes: ProposedChanges = {};
-  for (const field of request.fields) changes[field.fieldName] = field.proposedValue;
+  const changes: ProposedChanges = proposedChanges(request.fields);
 
   // One instant for the decision and the history rows it writes.
   const at = new Date();
