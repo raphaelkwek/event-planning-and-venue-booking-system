@@ -39,8 +39,12 @@ afterAll(async () => {
   await sql.end();
 });
 
-/** A time on Monday 2 Nov 2026, Singapore time. */
-const at = (hhmm: string) => new Date(`2026-11-02T${hhmm}:00+08:00`);
+/**
+ * A time on Monday 4 Nov 2030, Singapore time. It must stay in the future:
+ * L3-T17 places holds that expire at 09:00 on this day, and placeHold refuses
+ * an expiry that has already passed. Until 2 Nov 2026 this was that very day.
+ */
+const at = (hhmm: string) => new Date(`2030-11-04T${hhmm}:00+08:00`);
 const minutesAfter = (start: Date, minutes: number) => new Date(start.getTime() + minutes * 60_000);
 
 async function newVenue(): Promise<string> {
