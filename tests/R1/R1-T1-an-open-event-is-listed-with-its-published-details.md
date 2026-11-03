@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result |  |
-| Status | Not Executed |
-| Remarks | Proven by backend/services/registration/tests/api/r1Cards.test.ts › R1-T1 lists an open event with its name, description, date, times, venue, location and places remaining (API level), and the screen in frontend/tests/attendeeRegistration.test.tsx against a stubbed API, passed in CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41602701323 (commit 4f9ab08). UI walk-through in Chrome pending at the sprint review. |
-| Executed By |  |
-| Date of Execution |  |
+| Actual Result | The attendee's Events list showed the card for the test symposium with its description, `Wednesday 16 December 2026, 14:00–18:00`, `Lee Kong Chian Auditorium — School of Computing, Level 1` and `3 places remaining`; the event page showed the same values and a Register button. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
+| Status | Pass |
+| Remarks | Automated (browser, Playwright) · Commit: ceb525b · Evidence: tests/e2e/r-registration.spec.ts › R1-T1 an open event is listed with its published details, and its page shows the same with Register, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41688315679 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-04 |

@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result |  |
-| Status | Not Executed |
-| Remarks | Proven by backend/services/registration/tests/api/r1Cards.test.ts › R1-T8 sends only the published fields: nothing internal, no booking, layout, owner or equipment (API level), and the screen in frontend/tests/attendeeRegistration.test.tsx against a stubbed API, passed in CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41602701323 (commit 4f9ab08). UI walk-through in Chrome pending at the sprint review. |
-| Executed By |  |
-| Date of Execution |  |
+| Actual Result | The event page showed no review, clarification, coordinator, booking, layout or equipment text. From the API console, GET /registration/api/v1/open-events returned 200 and the event object carried exactly the twelve published fields, with venues carrying only name and location. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
+| Status | Pass |
+| Remarks | Automated (browser, Playwright) · Commit: ceb525b · Evidence: tests/e2e/r-registration.spec.ts › R1-T8 internal information is not shown: the page and the API response carry only the published fields, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41688315679 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-04 |

@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: — · Evidence: — · Defect: — · Story: P2, Sprint 2 |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | The organiser, coordinator, Venue Staff and attendee each sent the card's PUT from the API console and each got 403 ROLE_NOT_AUTHORISED; Technical Support then reopened the type and found name, description, characteristics and total unchanged and no unavailability; the history held only the original creation row and none for those users. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
+| Status | Pass |
+| Remarks | Automated (browser, Playwright) · Commit: ceb525b · Evidence: tests/e2e/q-equipment-and-changes.spec.ts › P2-T12 inventory changes attempted by every other active role are refused and store nothing, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41688315679 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-04 |

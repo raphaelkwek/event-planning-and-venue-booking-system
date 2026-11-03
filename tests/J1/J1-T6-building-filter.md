@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: cb3b9d8 · Evidence: partial only. At API level, building filter 'J1T SCIENCE' returned Auditorium and Seminar Room; 'j1t arts building' returned Lecture Hall only (the inactive Old Gym was not returned); 'Nowhere Hall' returned no venue (backend/services/planning-core/tests/venue/repo/venueSearch.test.ts › matches the building by part of its name, ignoring case (J1-T6) ; backend/services/planning-core/tests/venue/api/venueSearch.test.ts › answers a search that matches nothing with 200, an empty list and a message restating the filters (J1-T20) , CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/38427990873). Not covered by any automated test: the empty-result message for this card's filters. UI walk-through in Chrome pending at the sprint review · Defect: — |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | The building filter `science` (any case) listed FX Auditorium and FX Seminar Room; `FX ARTS BUILDING` listed FX Lecture Hall only (the inactive FX Old Gym absent); `Nowhere Hall` listed no venue and the empty-result message. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
+| Status | Pass |
+| Remarks | Automated (browser, Playwright) · Commit: ceb525b · Evidence: tests/e2e/j-venue-search.spec.ts › J1-T6 the building filter keeps only venues there, ignoring case, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41688315679 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-04 |

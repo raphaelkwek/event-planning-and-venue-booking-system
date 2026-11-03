@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result |  |
-| Status | Not Executed |
-| Remarks | Proven by backend/services/registration/tests/api/r4Cards.test.ts › R4-T1 withdraws my registration: Withdrawn, with its time, and the record kept (API level), and the screen in frontend/tests/attendeeRegistration.test.tsx against a stubbed API, passed in CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41602701323 (commit 4f9ab08). UI walk-through in Chrome pending at the sprint review. |
-| Executed By |  |
-| Date of Execution |  |
+| Actual Result | My registrations → Withdraw opened a dialog saying the place will be released; confirming returned 200 and the row showed Withdrawn and `Withdrawn <day>, <time>` with no Withdraw button; SQL returned the row with status WITHDRAWN and withdrawn_at later than registered_at (not deleted). Run on CI's throwaway stack, with unique names in place of the card's literal names. |
+| Status | Pass |
+| Remarks | Automated (browser, Playwright) · Commit: ceb525b · Evidence: tests/e2e/r-registration.spec.ts › R4-T1 an attendee withdraws their registration after confirming; it becomes Withdrawn and is not deleted, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41688315679 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-04 |

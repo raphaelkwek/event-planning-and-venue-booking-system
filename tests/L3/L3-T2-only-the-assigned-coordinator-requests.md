@@ -19,8 +19,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Expected result revised for A4 (CR-05) on 2026-11-02; the earlier run checked the superseded behaviour. Re-run against the A4 build. |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | The other coordinator's Venue requests page showed the not-assigned message and no event detail, and their console hold request returned 404 EVENT_NOT_FOUND with that message; the organiser's page showed the event and no Request a hold or Request a venue button; SQL showed no hold. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
+| Status | Pass |
+| Remarks | Automated (browser, Playwright) · Commit: ceb525b · Evidence: tests/e2e/e-access-and-console.spec.ts › L3-T2 a coordinator who isn't assigned to the event, and the event's organiser, cannot request a hold, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41688315679 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-04 |

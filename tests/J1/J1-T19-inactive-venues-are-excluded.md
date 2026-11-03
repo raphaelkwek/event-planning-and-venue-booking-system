@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: cb3b9d8 · Evidence: partial only. At API level, minimum capacity 400 returned no venue (the inactive Old Gym holds 500 and was not returned); Stage lighting, Theatre, minimum capacity 250 also returned no venue (backend/services/planning-core/tests/venue/repo/venueSearch.test.ts › never returns an inactive venue, whatever else it matches (J1-T19) ; backend/services/planning-core/tests/venue/api/venueSearch.test.ts › answers a search that matches nothing with 200, an empty list and a message restating the filters (J1-T20) , CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/38427990873). Not covered by any automated test: the empty-result message for this card's filters. UI walk-through in Chrome pending at the sprint review · Defect: — |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | Minimum capacity 400 listed no venue (the inactive FX Old Gym, 500, was absent) and showed the empty-result message restating minimum capacity 400. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
+| Status | Pass |
+| Remarks | Automated (browser, Playwright) · Commit: ceb525b · Evidence: tests/e2e/j-venue-search.spec.ts › J1-T19 inactive venues are excluded, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41688315679 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-04 |

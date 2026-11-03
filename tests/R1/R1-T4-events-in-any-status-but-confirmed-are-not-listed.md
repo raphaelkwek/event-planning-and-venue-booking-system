@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result |  |
-| Status | Not Executed |
-| Remarks | Proven by backend/services/registration/tests/api/r1Cards.test.ts › R1-T4 lists no event in any status but Confirmed, even with registration open (API level), and the screen in frontend/tests/attendeeRegistration.test.tsx against a stubbed API, passed in CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41602701323 (commit 4f9ab08). UI walk-through in Chrome pending at the sprint review. |
-| Executed By |  |
-| Date of Execution |  |
+| Actual Result | Only the Confirmed symposium was listed; none of the nine events in Draft, Submitted, Under Review, Approved, Planning, Safety Review, Rejected, Cancelled and Completed appeared, and the list held exactly one event. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
+| Status | Pass |
+| Remarks | Automated (browser, Playwright) · Commit: ceb525b · Evidence: tests/e2e/r-registration.spec.ts › R1-T4 events in any status but Confirmed are not listed, even with registration open, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41688315679 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-04 |

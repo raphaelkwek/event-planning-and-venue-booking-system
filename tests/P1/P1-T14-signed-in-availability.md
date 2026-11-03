@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: — · Evidence: — · Defect: — · Story: P1, Sprint 2 · Full real sign-in/browser procedure remains pending |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | After running the card's availability fixture, Technical Support checked 18:00–22:00 on 15 December 2026 for 6, then 5, then 6 again: each check showed `Available quantity: 5`, with `Shortfall quantity: 1` for 6 and 0 for 5; the repeated check was identical. The database showed the two reservations (4 and 5), total 10, no inventory history and no unavailability. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
+| Status | Pass |
+| Remarks | Automated (browser, Playwright) · Commit: ceb525b · Evidence: tests/e2e/q-equipment-and-changes.spec.ts › P1-T14 a signed-in technical support user sees the numeric result of peak usage and repeated checks agree, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41688315679 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-04 |

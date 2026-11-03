@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result |  |
-| Status | Not Executed |
-| Remarks | Not recorded: the repo test (J1-T9) asserts Hearing loop, Accessible toilet, and Step-free access with Hearing loop, but not the card's last step (Accessible toilet, Step-free access and Hearing loop together). UI walk-through in Chrome pending at the sprint review |
-| Executed By |  |
-| Date of Execution |  |
+| Actual Result | Hearing loop listed FX Auditorium and FX Lecture Hall; Accessible toilet alone listed FX Lecture Hall; Accessible toilet with Step-free access and Hearing loop listed FX Lecture Hall only. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
+| Status | Pass |
+| Remarks | Automated (browser, Playwright) · Commit: ceb525b · Evidence: tests/e2e/j-venue-search.spec.ts › J1-T9 every required accessibility feature must be present, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41688315679 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-04 |

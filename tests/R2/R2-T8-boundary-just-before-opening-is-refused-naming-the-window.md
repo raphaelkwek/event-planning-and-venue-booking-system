@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result |  |
-| Status | Not Executed |
-| Remarks | Proven by backend/services/registration/tests/api/r2Cards.test.ts › R2-T8 refuses a registration a millisecond before opening, naming the window, storing nothing (API level), and the screen in frontend/tests/attendeeRegistration.test.tsx against a stubbed API, passed in CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41602701323 (commit 4f9ab08). UI walk-through in Chrome pending at the sprint review. |
-| Executed By |  |
-| Date of Execution |  |
+| Actual Result | The event was listed; Register returned 422 REGISTRATION_OUTSIDE_WINDOW and the page showed `Registration for … opens on <day>, <time> and closes on <day>, <time>, so you cannot register now.` with the stored window; SQL found no registration and the page still read 3 places. Run on CI's throwaway stack, with unique names in place of the card's literal names. The organiser steps use a request on 2 December 2030, the card's time of day. |
+| Status | Pass |
+| Remarks | Automated (browser, Playwright) · Commit: ceb525b · Evidence: tests/e2e/r-registration.spec.ts › R2-T8 boundary: before registration opens the attempt is refused naming the window, and nothing is stored, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41688315679 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-04 |
