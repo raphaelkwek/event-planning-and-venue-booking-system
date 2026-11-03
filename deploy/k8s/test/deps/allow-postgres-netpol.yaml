@@ -1,0 +1,18 @@
+# CI only. The staging namespace denies all egress by default (base/networkpolicies.yaml)
+# and its allow rule excludes private ranges, so reaching the test database needs its
+# own rule. Applied by deploy/ci after the namespace exists.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: test-allow-postgres
+  namespace: connectsphere-staging
+spec:
+  podSelector: {}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: test-deps
+      ports:
+        - { protocol: TCP, port: 5432 }

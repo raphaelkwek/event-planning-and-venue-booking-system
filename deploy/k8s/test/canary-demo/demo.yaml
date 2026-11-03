@@ -1,0 +1,96 @@
+# CI only: a Rollout with the same canary steps as the real overlays (10%, analyse, 50%,
+# analyse, 100%), running the stand-in service, plus a steady trickle of requests so the
+# canary has traffic to be judged on. The AnalysisTemplate it references is the real one
+# (deploy/k8s/analysis/error-rate-and-p95.yaml), with shorter timers (kustomization.yaml).
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: canary-demo
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: demo-app
+spec:
+  selector: { app: demo-app }
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: demo-app
+spec:
+  replicas: 4
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels: { app: demo-app }
+  strategy:
+    canary:
+      maxSurge: 1
+      maxUnavailable: 0
+      steps:
+        - setWeight: 10
+        - analysis:
+            templates:
+              - templateName: error-rate-and-p95
+            args:
+              - name: rollout
+                value: demo-app
+              - name: canary-hash
+                valueFrom:
+                  podTemplateHashValue: Latest
+        - setWeight: 50
+        - analysis:
+            templates:
+              - templateName: error-rate-and-p95
+            args:
+              - name: rollout
+                value: demo-app
+              - name: canary-hash
+                valueFrom:
+                  podTemplateHashValue: Latest
+        - setWeight: 100
+  template:
+    metadata:
+      labels: { app: demo-app }
+      annotations:
+        prometheus.io/scrape: "true"
+    spec:
+      containers:
+        - name: demo-app
+          image: connectsphere-demo-app:ci
+          imagePullPolicy: IfNotPresent
+          env:
+            - { name: VERSION, value: "1" }
+            - { name: MODE, value: good }
+          ports:
+            - { name: http, containerPort: 8080 }
+          readinessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 2
+          resources:
+            requests: { cpu: 20m, memory: 32Mi }
+            limits: { cpu: 200m, memory: 96Mi }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: loadgen
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: loadgen }
+  template:
+    metadata:
+      labels: { app: loadgen }
+    spec:
+      containers:
+        - name: loadgen
+          image: busybox:1.37.0
+          command: ["sh", "-c", "while true; do wget -q -O /dev/null -T 2 http://demo-app/ || true; sleep 0.05; done"]
+          resources:
+            requests: { cpu: 10m, memory: 8Mi }
+            limits: { cpu: 100m, memory: 32Mi }
