@@ -1,0 +1,11 @@
+story_id,acceptance_criterion,test_file,test_name
+D1,"The queue lists every event with status Submitted, Under Review, or Awaiting Clarification that has no recorded decision",backend/services/planning-core/tests/event/repo/events.test.ts,"drops an event from the queue once it carries a decision"
+D1,"Each row shows event reference, name, proposed date and time, expected attendance, submitting organiser, submission timestamp, and current status",backend/services/planning-core/tests/event/api/review.test.ts,"shows a submitted request with the details a coordinator triages on"
+D1,"The queue is ordered by submission timestamp, oldest first, by default",backend/services/planning-core/tests/event/api/review.test.ts,"orders the queue oldest submission first"
+D1,"Opening a request shows the full submitted content, including accessibility, venue, and equipment requirements",backend/services/planning-core/tests/event/api/review.test.ts,"shows the full submitted content, including requirements"
+D1,"Opening a request with status Submitted changes it to Under Review and records the reviewing coordinator and the timestamp",backend/services/planning-core/tests/event/api/review.test.ts,"moves a Submitted request to Under Review, recording the reviewer and time"
+D1,"If the request is already Under Review by another coordinator, the reviewer on the record is not overwritten",backend/services/planning-core/tests/event/api/review.test.ts,"opening a request twice at once, as from two tabs, records the review once"
+D1,"Requests with status Draft never appear in the queue",backend/services/planning-core/tests/event/api/review.test.ts,"never shows a draft in the queue"
+D1,"Each row shows the submitting organiser",frontend/tests/names.test.tsx,"names the submitting organiser in the review queue"
+D1,"If the request is already Under Review by another coordinator, the name of that coordinator is displayed",frontend/tests/names.test.tsx,"names the coordinator who opened the request first"
+D1,"Opening a request shows the full submitted content, including venue and equipment requirements",frontend/tests/requestBody.test.ts,"restores saved requirements into the form"
