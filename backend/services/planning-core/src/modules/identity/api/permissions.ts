@@ -73,7 +73,7 @@ export function permissionsRouter(sql: Sql, limiter: RequestHandler = identityRa
         res.status(200).json({ results });
       } catch (error) {
         if (!(error instanceof PolicyUnavailableError)) return next(error);
-        logger.error("permission check failed closed", { correlationId, code: "POLICY_UNAVAILABLE", message: error.message });
+        logger.error("permission check failed closed", { correlationId, code: "POLICY_UNAVAILABLE", cause: error.message });
         res.status(503).json({ error: { code: "POLICY_UNAVAILABLE", message: POLICY_UNAVAILABLE_MESSAGE, correlationId } });
       }
     }

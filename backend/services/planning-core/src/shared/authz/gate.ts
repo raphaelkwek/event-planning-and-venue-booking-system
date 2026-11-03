@@ -64,7 +64,7 @@ export function permissionGate(permission: Permission, refusal: Refusal): Permis
       logger.error("permission check failed closed", {
         correlationId: req.header("x-correlation-id") ?? null,
         code: "POLICY_UNAVAILABLE",
-        message: error.message,
+        cause: error.message,
       });
       refusal(req, res, 503, "POLICY_UNAVAILABLE", POLICY_UNAVAILABLE_MESSAGE);
     }
