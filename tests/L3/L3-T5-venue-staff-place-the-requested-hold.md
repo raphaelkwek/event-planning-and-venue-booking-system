@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | Step 1 listed HLD-000044 with the event reference, venue, 14:00–18:00. Step 2 showed "HLD-000044 placed. It expires on Tuesday 1 December 2026, 18:00.". Step 3: the coordinator's Holds table shows it Held. Step 4: status HELD, placed_by Venue Staff One, placed_at 2026-10-20T02:59:18.619Z, slot HLD-000044 HELD. |
+| Actual Result | Placed with an expiry: Held with a slot, shown on the calendar as "Held" with the event reference. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
 | Status | Pass |
-| Remarks | Commit: 01a891e · Evidence: tests/L3/evidence/L3-T5.png · Environment: local throwaway Postgres + hosted Supabase Auth · Defect: — |
-| Executed By | Yichen, via automated testing |
-| Date of Execution | 2026-10-20 |
+| Remarks | Automated, browser E2E in CI (EN-14). Commit: 6080462 · Evidence: tests/e2e/l-bookings.spec.ts › L3-T5 Venue Staff place a requested hold with an expiry; it becomes Held, recording who placed it and when, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41513983925 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

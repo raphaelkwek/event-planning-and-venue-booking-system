@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | Submission succeeded as EVT-001888 with status Submitted, and the detail screen showed “Equipment requirements — None required”. |
+| Actual Result | With "Equipment is required" unticked the request was accepted and stored as needing no equipment. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
 | Status | Pass |
-| Remarks | Commit: b0ef6ee · Evidence: tests/B2/evidence/B2-T14-2026-09-20.png · Defect: — |
-| Executed By | Joash Lau Rong Wei |
-| Date of Execution | 2026-09-20 |
+| Remarks | Automated, browser E2E in CI (EN-14). Commit: 6080462 · Evidence: tests/e2e/b-event-requests.spec.ts › B1-T1 an organiser submits a complete request, which needs no equipment, and the Lead can assign it, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41513983925 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

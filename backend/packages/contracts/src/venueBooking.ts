@@ -87,6 +87,11 @@ export const bookingRequestApprovedPayloadSchema = z.object({
    */
   layout: z.string().min(1).optional(),
   layoutCapacity: z.number().int().positive().max(MAX_VENUE_CAPACITY).optional(),
+  /**
+   * R1: the venue's building or location, which attendees see beside its name.
+   * Optional so approvals published before R1 still parse.
+   */
+  venueLocation: z.string().min(1).optional(),
 });
 
 /** M2: the request is Rejected, with its reason and any suggested alternative. */

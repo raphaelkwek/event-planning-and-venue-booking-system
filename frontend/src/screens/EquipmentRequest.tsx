@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import Button from "@atlaskit/button/new";
 import DynamicTable from "@atlaskit/dynamic-table";
-import Lozenge from "@atlaskit/lozenge";
+import Lozenge from "../shared/Lozenge.js";
 import SectionMessage from "@atlaskit/section-message";
 import Modal, { ModalBody, ModalFooter, ModalHeader, ModalTitle, ModalTransition } from "@atlaskit/modal-dialog";
 import { useSignedIn } from "../auth/SessionContext.js";
@@ -344,7 +344,8 @@ export function EquipmentRequest() {
               <Button appearance="subtle" onClick={() => setRemoving(null)}>
                 Cancel
               </Button>
-              <Button appearance="danger" isDisabled={busy} onClick={() => void confirmRemoval()}>
+              {/* "warning", like Reject elsewhere: Atlaskit's "danger" white on #DD3A10 is 4.29:1, below WCAG AA (EN-14 axe). */}
+              <Button appearance="warning" isDisabled={busy} onClick={() => void confirmRemoval()}>
                 Remove line
               </Button>
             </ModalFooter>

@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import Button from "@atlaskit/button/new";
-import Lozenge from "@atlaskit/lozenge";
+import Lozenge from "../shared/Lozenge.js";
 import { useSignedIn } from "../auth/SessionContext.js";
 import { DAY_LABELS, DAYS, getVenue, type Venue } from "../api/venues.js";
 import { Refusal } from "../components/Refusal.js";

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import Lozenge from "@atlaskit/lozenge";
+import Lozenge from "../shared/Lozenge.js";
 import { useSignedIn } from "../auth/SessionContext.js";
 import { ApiError } from "../api/client.js";
 import { listArrangementFlags, type OutstandingFlag } from "../api/changeRequests.js";

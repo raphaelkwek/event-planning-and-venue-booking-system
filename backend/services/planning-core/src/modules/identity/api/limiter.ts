@@ -54,7 +54,7 @@ export function identityRateLimiter({ limit = 120 }: LimitOptions = {}): Request
 }
 
 /**
- * `/users/me` is how the notification service learns who a token belongs to, and
+ * `/users/me` is how the notification and registration services learn who a token belongs to, and
  * it does so from one address for every user, so one per-address budget would
  * give all of them a single 120 a minute (the SPA polls every 30 s). Two limits
  * replace it:

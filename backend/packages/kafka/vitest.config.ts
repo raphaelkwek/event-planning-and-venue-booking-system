@@ -7,6 +7,9 @@ import { defineConfig } from "vitest/config";
  */
 export default defineConfig({
   test: {
+    // EN-22: CI also writes a JSON report, which the traceability job reads.
+    reporters: process.env.CI ? ["default", "json"] : ["default"],
+    outputFile: { json: "reports/vitest-unit.json" },
     environment: "node",
     include: ["tests/**/*.test.ts"],
     coverage: {

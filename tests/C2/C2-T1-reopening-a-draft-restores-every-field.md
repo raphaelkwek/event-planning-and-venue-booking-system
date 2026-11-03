@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | Every field came back exactly as saved: Event name "Annual Research Symposium"; Purpose "Share faculty research"; Description "A one-day symposium for the school of computing."; Proposed start "2026-12-02T14:00"; Proposed end "2026-12-02T18:00"; Expected attendance "150"; Accessibility needs "Step-free access to the stage"; Registration opens "2026-11-20T09:00"; Registration closes "2026-12-01T17:00"; both checkboxes ticked. |
+| Actual Result | Reopened from My requests, every saved field showed exactly the value saved. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
 | Status | Pass |
-| Remarks | Commit: b0ef6ee (working tree modified) · Evidence: tests/C2/evidence/C2-T1.png · Defect: — |
-| Executed By | Shawmya |
-| Date of Execution | 2026-09-20 |
+| Remarks | Automated, browser E2E in CI (EN-14). Commit: 6080462 · Evidence: tests/e2e/b-event-requests.spec.ts › C2-T1 reopening a draft restores every saved field exactly, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41513983925 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

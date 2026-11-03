@@ -7,6 +7,7 @@ import { eventsRouter } from "../../../src/modules/event/api/events.js";
 import { clarificationsRouter } from "../../../src/modules/event/api/clarifications.js";
 import { decisionsRouter } from "../../../src/modules/event/api/decisions.js";
 import { reassignmentsRouter } from "../../../src/modules/event/api/reassignments.js";
+import { registrationSettingsRouter } from "../../../src/modules/event/api/registrationSettings.js";
 
 /**
  * M11: every route of these routers is limited before it authenticates or touches
@@ -35,6 +36,7 @@ const routers: [string, (limiter: RequestHandler) => Router, number][] = [
   ["clarificationsRouter", (l) => clarificationsRouter(untouched, l), 3],
   ["decisionsRouter", (l) => decisionsRouter(untouched, l), 2],
   ["reassignmentsRouter", (l) => reassignmentsRouter(untouched, l), 4],
+  ["registrationSettingsRouter", (l) => registrationSettingsRouter(untouched, l), 1],
 ];
 
 describe.each(routers)("M11: %s", (_name, build, expectedRoutes) => {

@@ -1,4 +1,4 @@
-import Lozenge from "@atlaskit/lozenge";
+import Lozenge from "../shared/Lozenge.js";
 import type { RequestConflict } from "../api/bookingRequests.js";
 import { formatPeriod } from "../shared/singaporeTime.js";
 

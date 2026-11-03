@@ -35,6 +35,9 @@ export {
   type ReservationFlagInput,
 } from "./repo/reservationFlags.js";
 
+/** U1 — the change module reads the equipment factors the Safety Officer weighs, with placement notes; read only. */
+export { equipmentSafetyFactors, type EquipmentSafetyFactor } from "./repo/safetyFactors.js";
+
 /**
  * The equipment module's public interface (ADR-0004). Other modules import
  * this file and nothing else under modules/equipment; `npm run lint:boundaries`

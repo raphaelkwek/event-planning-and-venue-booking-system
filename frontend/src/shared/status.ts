@@ -161,3 +161,16 @@ export const HOLD_APPEARANCE: Record<keyof typeof HOLD_LABELS, LozengeAppearance
   RELEASED: "default",
   EXPIRED: "removed",
 };
+
+/** R3: a registration's status, each with its own colour. */
+export const REGISTRATION_STATUS_LABELS = {
+  REGISTERED: "Registered",
+  WITHDRAWN: "Withdrawn",
+  CANCELLED: "Cancelled",
+} as const;
+
+export const REGISTRATION_STATUS_APPEARANCE: Record<keyof typeof REGISTRATION_STATUS_LABELS, LozengeAppearance> = {
+  REGISTERED: "success",
+  WITHDRAWN: "default",
+  CANCELLED: "removed",
+};

@@ -16,4 +16,8 @@ export const config = {
   dbStatementTimeoutMs: Number(process.env.DB_STATEMENT_TIMEOUT_MS ?? 0),
   /** Appended to every consumer group on a laptop, e.g. dev-sk (§3.1); empty when deployed. */
   groupSuffix: process.env.KAFKA_GROUP_SUFFIX?.trim() ?? "",
+  /** Supabase's signing keys: browsing verifies the token here, without asking identity (R1, ADR-0005). */
+  supabaseJwksUrl: process.env.SUPABASE_JWKS_URL?.trim() ?? "",
+  /** Where identity answers "who is this token?" for registering, withdrawing and my registrations: planning-core's GET /api/v1/users/me. */
+  planningCoreUrl: process.env.PLANNING_CORE_URL ?? `http://127.0.0.1:${process.env.PLANNING_CORE_PORT ?? 8090}`,
 };

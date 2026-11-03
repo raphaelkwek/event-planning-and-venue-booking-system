@@ -44,6 +44,7 @@ export const ERROR_CODES = [
   "CHANGE_REQUEST_NOT_FOUND",
   "CHANGE_REQUEST_ALREADY_DECIDED",
   "CHANGE_REQUEST_NO_LONGER_VALID",
+  "FEATURE_DISABLED",
   "EVENT_NOT_BOOKABLE",
   "VENUE_INACTIVE",
   "BOOKING_REQUEST_DUPLICATE",
@@ -70,6 +71,17 @@ export const ERROR_CODES = [
   "REASSIGNMENT_RETIRED",
   // Anything a route did not expect: a 500 with a generic message, the detail only in the log.
   "INTERNAL_ERROR",
+  // R2 to R4: the registration service's refusals.
+  "REGISTRATION_FULL",
+  "REGISTRATION_DUPLICATE",
+  "REGISTRATION_OUTSIDE_WINDOW",
+  "REGISTRATION_NOT_FOUND",
+  "REGISTRATION_NOT_ACTIVE",
+  "WITHDRAWAL_DEADLINE_PASSED",
+  // U1: the Safety Officer's decision, and the coordinator's Mark Confirmed that only a passed check allows.
+  "SAFETY_CHECK_NOT_PASSED",
+  "SAFETY_DECISION_ALREADY_RECORDED",
+  "ARRANGEMENT_FLAGS_OUTSTANDING",
   // F3: a cancelled event refuses new equipment; a cancellation that fails changes nothing.
   "EVENT_CANCELLED",
   "CANCELLATION_FAILED",

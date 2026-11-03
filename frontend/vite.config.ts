@@ -17,6 +17,7 @@ export default defineConfig(({ mode }) => {
   // The two prefixes stay so the app's API calls did not have to change.
   const planningCore = `http://127.0.0.1:${env.PLANNING_CORE_PORT || 8090}`;
   const notification = `http://127.0.0.1:${env.NOTIFICATION_PORT || 8091}`;
+  const registration = `http://127.0.0.1:${env.REGISTRATION_PORT || 8092}`;
 
   return {
     plugins: [react()],
@@ -49,6 +50,12 @@ export default defineConfig(({ mode }) => {
           target: planningCore,
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/equipment/, ""),
+        },
+        // The registration service (R1 to R4, ADR-0005): the attendee API.
+        "/registration": {
+          target: registration,
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/registration/, ""),
         },
         // The notification service (T2).
         "/notification": {

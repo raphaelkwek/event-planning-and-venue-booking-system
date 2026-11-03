@@ -2,6 +2,7 @@ import "./shared/asyncErrors.js";
 import express from "express";
 import helmet from "helmet";
 import { randomUUID } from "node:crypto";
+import { createServiceMetrics } from "@connectsphere/observability";
 import { logger } from "./shared/logger.js";
 import { errorHandler } from "./shared/errorHandler.js";
 import { sql } from "./shared/db.js";
@@ -23,6 +24,13 @@ export const app = express();
 
 // The API serves JSON only, so the default helmet headers (and no X-Powered-By) are safe for the SPA, which is served elsewhere.
 app.use(helmet());
+
+// EN-17: timed first, so every route and every refusal is counted. /metrics is
+// rate-limited, and off in production unless METRICS_TOKEN is set.
+const metrics = createServiceMetrics({ service: "planning-core", token: process.env.METRICS_TOKEN });
+app.use(metrics.middleware);
+app.use(metrics.router);
+
 app.use(express.json());
 
 app.use((req, res, next) => {

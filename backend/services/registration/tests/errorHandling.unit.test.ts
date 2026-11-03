@@ -34,6 +34,16 @@ describe("registration error handling", () => {
     expect(unhandled).not.toHaveBeenCalled();
   });
 
+  it("the attendee routes answer in the envelope, behind helmet, the correlation id and no-store", async () => {
+    const res = await request(app).get("/api/v1/registrations");
+    expect(res.status).toBe(401);
+    expect(res.body.error).toMatchObject({ code: "UNAUTHENTICATED", correlationId: res.headers["x-correlation-id"] });
+    expect(res.headers["x-correlation-id"]).toBeTruthy();
+    expect(res.headers["cache-control"]).toBe("no-store");
+    expect(res.headers["x-content-type-options"]).toBe("nosniff");
+    expect(res.headers["x-powered-by"]).toBeUndefined();
+  });
+
   it("/readyz does not return the database error", async () => {
     const res = await request(app).get("/readyz");
     expect(res.status).toBe(503);
