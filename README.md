@@ -20,6 +20,10 @@
 6. `npm test` — runs every workspace's test suite (unit and integration) and the script tests. Before you push, also run what CI runs on every pull request: `npm run lint` (ESLint plus the module boundary checks), `npm run typecheck` and `npm run test:unit`, which also checks coverage: domain code must stay at 100%. If the repo sits in OneDrive and Vitest can't clear an old `coverage/` folder (EPERM), delete the folder, or add `-- --coverage.clean=false` when running one workspace.
 7. `npm run dev` — starts planning-core on `:8090` and the web app on <http://localhost:5173> in one terminal, each line prefixed with where it came from. The Vite dev server proxies `/identity/*` and `/event/*` to planning-core, so the browser only ever talks to one origin and planning-core needs no CORS. To run just one: `npm run dev -w @connectsphere/planning-core` (or `web`).
 
+### Deploying
+
+Images, Kubernetes, Terraform, Argo CD and canary releases (EN-10, EN-16, ADR-0012) are in [documentation/deploy.md](documentation/deploy.md). Local development stays as above: no Docker.
+
 ### Trying the stories in the browser
 
 Sign in at <http://localhost:5173> with any seeded account; the login screen lists them and they all

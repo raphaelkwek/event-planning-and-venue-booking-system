@@ -1,0 +1,133 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: planning-core
+spec:
+  replicas: 2
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: planning-core
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: planning-core
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: planning-core
+          # Replaced by the overlay's `images` (the commit sha).
+          image: ghcr.io/raphaelkwek/connectsphere-planning-core:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8090
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: connectsphere-config
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef: { name: connectsphere-secrets, key: DATABASE_URL }
+            - name: SUPABASE_URL
+              valueFrom:
+                secretKeyRef: { name: connectsphere-secrets, key: SUPABASE_URL }
+            - name: SUPABASE_ANON_KEY
+              valueFrom:
+                secretKeyRef: { name: connectsphere-secrets, key: SUPABASE_ANON_KEY }
+            - name: SUPABASE_JWKS_URL
+              valueFrom:
+                secretKeyRef: { name: connectsphere-secrets, key: SUPABASE_JWKS_URL }
+            - name: SUPABASE_SERVICE_ROLE_KEY
+              valueFrom:
+                secretKeyRef: { name: connectsphere-secrets, key: SUPABASE_SERVICE_ROLE_KEY, optional: true }
+            # Kafka is optional: without these keys the process runs without its
+            # consumer or relay and /readyz reports kafka as not_configured.
+            - name: KAFKA_BROKERS
+              valueFrom:
+                secretKeyRef: { name: connectsphere-secrets, key: KAFKA_BROKERS, optional: true }
+            - name: KAFKA_SASL_USERNAME
+              valueFrom:
+                secretKeyRef: { name: connectsphere-secrets, key: KAFKA_SASL_USERNAME, optional: true }
+            - name: KAFKA_SASL_PASSWORD
+              valueFrom:
+                secretKeyRef: { name: connectsphere-secrets, key: KAFKA_SASL_PASSWORD, optional: true }
+          startupProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 3
+            failureThreshold: 30
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+          # Ready means the database answers (implementation.md section 10). The
+          # broker is reported but not required.
+          readinessProbe:
+            httpGet: { path: /readyz, port: http }
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          resources:
+            requests: { cpu: 100m, memory: 192Mi }
+            limits: { cpu: 500m, memory: 512Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: { sizeLimit: 64Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: planning-core
+spec:
+  selector:
+    app.kubernetes.io/name: planning-core
+  ports:
+    - name: http
+      port: 8090
+      targetPort: http
+---
+# EN-18 tunes these numbers; they exist now so the pods scale at all.
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: planning-core
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: planning-core
+  minReplicas: 2
+  maxReplicas: 6
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target: { type: Utilization, averageUtilization: 70 }
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: planning-core
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: planning-core
