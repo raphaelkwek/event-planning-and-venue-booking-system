@@ -1,4 +1,4 @@
-import { Router, type Response } from "express";
+import { Router, type RequestHandler, type Response } from "express";
 import type { Sql } from "postgres";
 import { KAFKA_TOPICS } from "@connectsphere/contracts";
 import { authenticate, requireRole, type ActorRequest } from "../auth/actor.js";
@@ -14,6 +14,7 @@ import {
   resolveProposalDecline,
 } from "../repo/assignments.js";
 import { writeOutbox } from "../events/outbox.js";
+import { eventRateLimiter } from "./eventRateLimiter.js";
 import { eventNotFound, refuse } from "./errors.js";
 
 /**
@@ -21,12 +22,12 @@ import { eventNotFound, refuse } from "./errors.js";
  * retired proposing (the Lead reassigns, api/leadAssignments.ts). This only
  * ever acts on an assignment that already exists.
  */
-export function reassignmentsRouter(sql: Sql) {
+export function reassignmentsRouter(sql: Sql, limiter: RequestHandler = eventRateLimiter()) {
   const router = Router();
 
   router.get(
     "/api/v1/events/:id/reassignment-proposals",
-    ...authenticate,
+    limiter, ...authenticate,
     requireRole("event", "view"),
     async (req: ActorRequest, res) => {
       const { userId, role, scope } = req.actor!;
@@ -44,7 +45,7 @@ export function reassignmentsRouter(sql: Sql) {
   // proposal made before the retirement may still be accepted or declined below.
   router.post(
     "/api/v1/events/:id/reassignment-proposals",
-    ...authenticate,
+    limiter, ...authenticate,
     requireRole("event", "propose_reassignment"),
     (_req: ActorRequest, res) => {
       refuse(res, 410, "REASSIGNMENT_RETIRED", REASSIGNMENT_RETIRED);
@@ -53,7 +54,7 @@ export function reassignmentsRouter(sql: Sql) {
 
   router.post(
     "/api/v1/events/:id/reassignment-proposals/accept",
-    ...authenticate,
+    limiter, ...authenticate,
     requireRole("event", "respond_to_reassignment"),
     async (req: ActorRequest, res) => {
       await respondToProposal(req, res, sql, "ACCEPTED");
@@ -62,7 +63,7 @@ export function reassignmentsRouter(sql: Sql) {
 
   router.post(
     "/api/v1/events/:id/reassignment-proposals/decline",
-    ...authenticate,
+    limiter, ...authenticate,
     requireRole("event", "respond_to_reassignment"),
     async (req: ActorRequest, res) => {
       await respondToProposal(req, res, sql, "DECLINED");

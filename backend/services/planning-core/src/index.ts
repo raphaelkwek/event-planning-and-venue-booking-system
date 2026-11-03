@@ -4,12 +4,15 @@ import { configurePolicyDecisionPoint } from "./shared/authz/startup.js";
 import { config } from "./shared/config.js";
 import { sql } from "./shared/db.js";
 import { logger } from "./shared/logger.js";
+import { installProcessGuards } from "./shared/processGuards.js";
 import { kafka, kafkaPublisher } from "./shared/kafka/client.js";
 import { OutboxRelay } from "./shared/outbox-relay.js";
 import { EVENT_OUTBOX_TABLE } from "./modules/event/index.js";
 import { CHANGE_OUTBOX_TABLE } from "./modules/change/index.js";
 import { EQUIPMENT_OUTBOX_TABLE } from "./modules/equipment/index.js";
 import { VENUE_OUTBOX_TABLE } from "./modules/venue/index.js";
+
+installProcessGuards();
 
 // EN-15: the flag provider is ready (or has fallen back to the defaults) before requests arrive.
 await initFlags();

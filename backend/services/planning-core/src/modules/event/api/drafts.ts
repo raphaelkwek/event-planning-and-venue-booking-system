@@ -1,4 +1,5 @@
-import { Router } from "express";
+import { Router, type RequestHandler } from "express";
+import { eventRateLimiter } from "./eventRateLimiter.js";
 import type { Sql } from "postgres";
 import { authenticate, requireRole, type ActorRequest } from "../auth/actor.js";
 import { findDraftForOwner, findOwnedRequest, insertDraft, updateDraft } from "../repo/drafts.js";
@@ -14,12 +15,12 @@ import type { EventFields } from "../repo/events.js";
  * the only way to edit one; once submitted it is no longer reachable here
  * (C2), because the queries are scoped to the Draft status.
  */
-export function draftsRouter(sql: Sql) {
+export function draftsRouter(sql: Sql, limiter: RequestHandler = eventRateLimiter()) {
   const router = Router();
 
   router.post(
     "/api/v1/event-drafts",
-    ...authenticate,
+    limiter, ...authenticate,
     requireRole("event", "create"),
     async (req: ActorRequest, res) => {
       const parsed = draftBodySchema.safeParse(req.body);
@@ -37,7 +38,7 @@ export function draftsRouter(sql: Sql) {
 
   router.get(
     "/api/v1/event-drafts/:id",
-    ...authenticate,
+    limiter, ...authenticate,
     requireRole("event", "view_draft"),
     async (req: ActorRequest, res) => {
       const draft = await findDraftForOwner(sql, req.params.id, req.actor!.userId);
@@ -51,7 +52,7 @@ export function draftsRouter(sql: Sql) {
 
   router.put(
     "/api/v1/event-drafts/:id",
-    ...authenticate,
+    limiter, ...authenticate,
     requireRole("event", "update_draft"),
     async (req: ActorRequest, res) => {
       const parsed = draftBodySchema.safeParse(req.body);
@@ -74,7 +75,7 @@ export function draftsRouter(sql: Sql) {
   /** C2 — submitting from a draft applies the full B2 validation. */
   router.post(
     "/api/v1/event-drafts/:id/submit",
-    ...authenticate,
+    limiter, ...authenticate,
     requireRole("event", "submit_draft"),
     async (req: ActorRequest, res) => {
       const draft = await findDraftForOwner(sql, req.params.id, req.actor!.userId);

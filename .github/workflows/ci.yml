@@ -148,6 +148,8 @@ jobs:
       # The runner's own database. These are throwaway credentials for a
       # container nobody else can reach, not secrets.
       DATABASE_URL: postgres://ci:ci@127.0.0.1:5432/connectsphere_ci
+      # Off by default; on here so CI proves the 5 s statement timeout is accepted by Postgres (implementation.md 4.7).
+      DB_STATEMENT_TIMEOUT_MS: "5000"
       # Tests replace token checks with stubs, so nothing calls Supabase or Kafka.
       # The services still read these when they load, hence placeholders that
       # cannot reach anything (.invalid, port 1).

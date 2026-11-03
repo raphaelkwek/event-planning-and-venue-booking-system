@@ -1,4 +1,4 @@
-import { Router, type Response } from "express";
+import { Router, type RequestHandler, type Response } from "express";
 import type { Sql } from "postgres";
 import { KAFKA_TOPICS } from "@connectsphere/contracts";
 import { authenticate, requireRole, type ActorRequest } from "../auth/actor.js";
@@ -6,6 +6,7 @@ import { decisionColumns, findEventInScope } from "../repo/events.js";
 import { writeOutbox } from "../events/outbox.js";
 import { transitionEvent } from "./transitionEvent.js";
 import { rejectionBodySchema } from "./schemas.js";
+import { eventRateLimiter } from "./eventRateLimiter.js";
 import { eventNotFound, refuse } from "./errors.js";
 
 /** The event left the caller's scope while the decision waited for its row lock (A4). */
@@ -26,7 +27,7 @@ const OUT_OF_SCOPE = { ok: false, outOfScope: true } as const;
  * written in the same transaction, so a refusal leaves no trace and a success
  * leaves no half-finished state.
  */
-export function decisionsRouter(sql: Sql) {
+export function decisionsRouter(sql: Sql, limiter: RequestHandler = eventRateLimiter()) {
   const router = Router();
 
   async function decide(
@@ -105,7 +106,7 @@ export function decisionsRouter(sql: Sql) {
   /** D4 — approval alone creates no venue booking and no equipment reservation. */
   router.post(
     "/api/v1/events/:id/approve",
-    ...authenticate,
+    limiter, ...authenticate,
     requireRole("event", "approve"),
     async (req: ActorRequest, res) => {
       await decide(req, res, "APPROVED", null);
@@ -114,7 +115,7 @@ export function decisionsRouter(sql: Sql) {
 
   router.post(
     "/api/v1/events/:id/reject",
-    ...authenticate,
+    limiter, ...authenticate,
     requireRole("event", "reject"),
     async (req: ActorRequest, res) => {
       const parsed = rejectionBodySchema.safeParse(req.body);
