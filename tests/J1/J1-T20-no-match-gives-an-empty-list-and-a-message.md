@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: cb3b9d8 · Evidence: partial only. At API level, building 'J1T', minimum capacity 500, Theatre, Projector, window 14 Dec 12:00-14:00 returned 200 with an empty list, no error, five applied filters and the message 'No active venue matches all of these filters: available from 2026-12-14 12:00 to 2026-12-14 14:00 (Singapore time); minimum capacity 500 (Theatre layout); building or location containing "J1T"; layout Theatre; facilities Projector.' (backend/services/planning-core/tests/venue/api/venueSearch.test.ts › answers a search that matches nothing with 200, an empty list and a message restating the filters (J1-T20) , CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/38427990873). Not covered by any automated test: that the message is informational rather than a red error, and that changing a filter and searching again shows the new result. UI walk-through in Chrome pending at the sprint review · Defect: — |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | No result, no error, and an information message restating every filter; relaxing a filter returned the venue. (2027 dates and the run's own building name.) Run on CI's throwaway stack, with unique names in place of the card's literal names. |
+| Status | Pass |
+| Remarks | Automated, browser E2E in CI (EN-14). Commit: 6080462 · Evidence: tests/e2e/h-venues.spec.ts › J1-T20 when nothing matches, the list is empty and a message restates every filter, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41513983925 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

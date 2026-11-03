@@ -1,0 +1,30 @@
+# EN-10. Production follows main too, but a person presses Sync: there is no
+# automated policy, so a merge does not reach production by itself.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: connectsphere-production
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: connectsphere
+  source:
+    repoURL: https://github.com/raphaelkwek/event-planning-and-venue-booking-system.git
+    targetRevision: main
+    path: deploy/k8s/overlays/production
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: connectsphere-production
+  syncPolicy:
+    syncOptions:
+      - ServerSideApply=true
+  ignoreDifferences:
+    - group: argoproj.io
+      kind: Rollout
+      jsonPointers:
+        - /spec/replicas
+    - group: apps
+      kind: Deployment
+      jsonPointers:
+        - /spec/replicas

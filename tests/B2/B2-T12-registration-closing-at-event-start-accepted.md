@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | Registration closing exactly at event start was accepted as Submitted with EVT-001887. |
+| Actual Result | The request was accepted and submitted. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
 | Status | Pass |
-| Remarks | Commit: b0ef6ee · Evidence: tests/B2/evidence/B2-T12-2026-09-20.png · Defect: — |
-| Executed By | Joash Lau Rong Wei |
-| Date of Execution | 2026-09-20 |
+| Remarks | Automated, browser E2E in CI (EN-14). Commit: 6080462 · Evidence: tests/e2e/b-event-requests.spec.ts › B2-T12 registration closing exactly at the event start is accepted, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41513983925 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

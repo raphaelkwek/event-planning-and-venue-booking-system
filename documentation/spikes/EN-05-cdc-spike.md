@@ -81,7 +81,7 @@ The alternative is the IPv4 add-on, which needs the Pro plan.
 - So the project has **no registry server that CI can ask on every pull request**. What was built
   instead:
   1. `contracts` generates a JSON Schema file for the CloudEvents envelope and for each message type's
-     `data` (30 files, committed). A test fails if they drift from the zod schemas.
+     `data` (35 files, committed). A test fails if they drift from the zod schemas.
   2. `npm run schemas:compat -- --base <ref>` compares them with the files at the base ref, using the
      rules the two registries share: the new schema must accept every message the old one did. It
      fails closed: a keyword it does not understand is a finding, not a pass. It runs in the

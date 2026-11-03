@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | 16:00–19:00's dialog read "Record this unavailability?Lee Kong Chian Auditorium: Wednesday 2 December 2026, 16:00–19:00, Maintenance: Stage rigging inspectionIt will disrupt these. Each stays booked but will require reconfirmation, and its coordinator will be told that alternative arrangements are required.Booking BKR-001114 for EVT-009045, Wednesday 2 December 2026, 16:00–18:00CancelRecord unavailability". 18:00–19:00's read "Record this unavailability?Lee Kong Chian Auditorium: Wednesday 2 December 2026, 18:00–19:00, Maintenance: Stage rigging inspectionNothing is booked, held or requested in this period.CancelRecord unavailability". Nothing was recorded, and the booking isn't flagged. |
+| Actual Result | The disrupted booking was listed with its reference, event reference and 16:00–18:00; a block starting at 18:00 listed none; no block was recorded before confirming. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
 | Status | Pass |
-| Remarks | Commit: a9a9cc4 · Evidence: tests/I2/evidence/I2-T4.png · Defect: — |
-| Executed By | Yichen, via automated testing |
-| Date of Execution | 2026-10-19 |
+| Remarks | Automated, browser E2E in CI (EN-14). Commit: 6080462 · Evidence: tests/e2e/l-bookings.spec.ts › I2-T4 before confirming, Venue Staff see each confirmed booking a block would disrupt; one it only touches is not listed, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41513983925 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

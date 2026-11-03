@@ -7,6 +7,9 @@ import { defineConfig } from "vitest/config";
  */
 export default defineConfig({
   test: {
+    // EN-22: CI also writes a JSON report, which the traceability job reads.
+    reporters: process.env.CI ? ["default", "json"] : ["default"],
+    outputFile: { json: "reports/vitest-unit.json" },
     environment: "node",
     include: ["tests/**/domain/**/*.test.ts", "tests/**/*.unit.test.ts"],
     // SPM-116. `npm run test:unit` turns coverage on; CI fails below these.
@@ -19,11 +22,12 @@ export default defineConfig({
         "src/**/domain/**": { lines: 100, branches: 100, functions: 100, statements: 100 },
         // Elsewhere the seat SQL, the consumer's transaction and the Kafka wiring
         // are covered by integration tests against a database, which CI runs.
-        // These floors sit just under today's unit-only figures (33.3% lines, 68% branches, 20% functions outside domain/, which has its own 100% floor) and should only ever go up.
-        lines: 33,
-        statements: 33,
-        branches: 68,
-        functions: 20,
+        // These floors sit just under today's unit-only figures as CI measures them (53.8% lines, 75.5% branches,
+        // 40% functions after R1 to R4; domain/ has its own 100% floor) and should only ever go up.
+        lines: 53,
+        statements: 53,
+        branches: 75,
+        functions: 39,
       },
     },
   },

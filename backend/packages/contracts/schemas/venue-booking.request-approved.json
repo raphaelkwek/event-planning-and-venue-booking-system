@@ -73,6 +73,10 @@
       "format": "uuid",
       "type": "string"
     },
+    "venueLocation": {
+      "minLength": 1,
+      "type": "string"
+    },
     "venueName": {
       "minLength": 1,
       "type": "string"

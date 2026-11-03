@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | The request page showed status "Submitted", reference EVT-001717 and submitted 9/20/2026, 3:26:22 PM. "My requests" held exactly one row: EVT-001717Annual Research SymposiumSubmitted—9/20/2026, 3:26:22 PMCoordinator OneView |
+| Actual Result | The complete draft submitted and showed Submitted with its submission time. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
 | Status | Pass |
-| Remarks | Commit: b0ef6ee (working tree modified) · Evidence: tests/C2/evidence/C2-T3.png · Defect: — |
-| Executed By | Shawmya |
-| Date of Execution | 2026-09-20 |
+| Remarks | Automated, browser E2E in CI (EN-14). Commit: 6080462 · Evidence: tests/e2e/b-event-requests.spec.ts › C2-T3 submitting a complete draft moves it to Submitted, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41513983925 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

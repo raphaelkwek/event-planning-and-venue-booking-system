@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | Refused with "EVENT_NOT_FOUNDNo event with that reference is available to you.HTTP 404 · correlation 165acac1-a8a9-40b0-a892-82c74ad0681c". Neither the name, purpose nor description of the other organiser's request was shown. |
+| Actual Result | The direct link to Organiser Two's request showed the not-found refusal and none of its data. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
 | Status | Pass |
-| Remarks | Commit: b0ef6ee (working tree modified) · Evidence: tests/A3/evidence/A3-T2.png · Defect: — |
-| Executed By | Seann Khoo |
-| Date of Execution | 2026-09-20 |
+| Remarks | Automated, browser E2E in CI (EN-14). Commit: 6080462 · Evidence: tests/e2e/a-sign-in-and-access.spec.ts › A3-T2 an organiser opening another organiser's request by direct link gets no event data, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41513983925 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

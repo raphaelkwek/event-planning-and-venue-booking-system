@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | UI walk-through in Chrome pending at the sprint review |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | Organiser, Venue Staff and Technical Support saw no "Check suitability" and were redirected from its route; their API calls and the attendee's got 403 ROLE_NOT_AUTHORISED with no assessment. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
+| Status | Pass |
+| Remarks | Automated, browser E2E in CI (EN-14). Commit: 6080462 · Evidence: tests/e2e/h-venues.spec.ts › K1-T12 roles other than Event Coordinator cannot check suitability, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41513983925 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-03 |

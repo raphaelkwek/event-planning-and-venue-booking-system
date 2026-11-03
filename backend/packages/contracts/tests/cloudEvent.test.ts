@@ -100,6 +100,17 @@ const EXAMPLE_DATA: Record<EventMessageType, Record<string, unknown>> = {
       },
     ],
   },
+  "event.safety-decision-recorded": {
+    ...ref,
+    ownerId: organiser,
+    coordinatorId: coordinator,
+    decision: "REQUEST_CHANGES",
+    reason: "Move the chairs away from the east exit",
+    decidedBy: "00000000-0000-0000-0000-000000000010",
+    decidedAt: at,
+    flaggedBookingReferences: ["BKR-000001"],
+    flaggedEquipment: ["Folding Chairs x 40"],
+  },
   "event.cancelled": {
     ...ref,
     ownerId: organiser,
@@ -123,7 +134,7 @@ const EXAMPLE_DATA: Record<EventMessageType, Record<string, unknown>> = {
     ownerId: organiser,
     previousStatus: "SAFETY_REVIEW",
     newStatus: "CONFIRMED",
-    action: "APPROVE_SAFETY",
+    action: "MARK_CONFIRMED",
     proposedStartAt: "2026-11-20T01:00:00.000Z",
     proposedEndAt: "2026-11-20T09:00:00.000Z",
     changedAt: at,
@@ -136,6 +147,19 @@ const EXAMPLE_DATA: Record<EventMessageType, Record<string, unknown>> = {
     previousEndAt: "2026-11-20T09:00:00.000Z",
     proposedStartAt: "2026-11-21T01:00:00.000Z",
     proposedEndAt: "2026-11-21T09:00:00.000Z",
+    changedAt: at,
+  },
+  "event.listing-changed": {
+    ...ref,
+    ownerId: organiser,
+    description: "A week of welcome activities for new students.",
+    status: "CONFIRMED",
+    proposedStartAt: "2026-11-20T01:00:00.000Z",
+    proposedEndAt: "2026-11-20T09:00:00.000Z",
+    registrationRequired: true,
+    registrationOpensAt: "2026-11-01T01:00:00.000Z",
+    registrationClosesAt: "2026-11-19T10:00:00.000Z",
+    withdrawalDeadlineAt: null,
     changedAt: at,
   },
 };
@@ -234,6 +258,28 @@ describe("parseCloudEvent: the event's status and schedule (EN-11)", () => {
     expect(() => parseCloudEvent(exampleMessage("event.schedule-changed", without(scheduleChanged, "proposedEndAt")))).toThrow(
       /proposedEndAt/,
     );
+  });
+});
+
+describe("parseCloudEvent: the event's listing (R1 to R4)", () => {
+  const listing = EXAMPLE_DATA["event.listing-changed"];
+
+  it("accepts a listing with a withdrawal deadline, and one without registration whose window is empty", () => {
+    const withDeadline = { ...listing, withdrawalDeadlineAt: "2026-11-18T10:00:00.000Z" };
+    expect(parseCloudEvent(exampleMessage("event.listing-changed", withDeadline)).data).toEqual(withDeadline);
+    const none = { ...listing, registrationRequired: false, registrationOpensAt: null, registrationClosesAt: null };
+    expect(parseCloudEvent(exampleMessage("event.listing-changed", none)).data).toEqual(none);
+  });
+
+  it("refuses a listing without its registration settings or its status, which the attendee list filters on", () => {
+    for (const field of ["registrationRequired", "withdrawalDeadlineAt", "status", "changedAt"]) {
+      expect(() => parseCloudEvent(exampleMessage("event.listing-changed", without(listing, field))), field).toThrow(new RegExp(field));
+    }
+  });
+
+  it("refuses a listing that is not a snapshot of a submitted event: no reference, or a status outside the event statuses", () => {
+    expect(() => parseCloudEvent(exampleMessage("event.listing-changed", { ...listing, eventReference: "" }))).toThrow(/eventReference/);
+    expect(() => parseCloudEvent(exampleMessage("event.listing-changed", { ...listing, status: "OPEN" }))).toThrow(/status/);
   });
 });
 

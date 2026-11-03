@@ -11,6 +11,7 @@ import {
   type Variant,
 } from "../packages/contracts/tests/helpers/schemaInstances.js";
 import { prepareRow } from "../services/planning-core/src/shared/outbox/messages.js";
+import { prepareRow as prepareRegistrationRow } from "../services/registration/src/outbox/messages.js";
 import { newTraceparent } from "../services/planning-core/src/shared/tracing.js";
 
 // EN-05 (SPM-123), CI only. Proves that Debezium Server with the outbox router
@@ -43,6 +44,8 @@ const MODULES = [
   { prefix: "equipment-request.", table: "equipment.outbox", topic: KAFKA_TOPICS.equipmentRequest, source: "/connectsphere/planning-core/equipment" },
   { prefix: "change-request.", table: "change.outbox", topic: KAFKA_TOPICS.event, source: "/connectsphere/planning-core/change" },
   { prefix: "venue-booking.", table: "venue.outbox", topic: KAFKA_TOPICS.venueBooking, source: "/connectsphere/planning-core/venue" },
+  // The registration service has its own outbox and its own relay (src/outbox/messages.ts), so its rows are compared with that one.
+  { prefix: "registration.", table: "registration.outbox", topic: KAFKA_TOPICS.registration, source: "/connectsphere/registration" },
 ] as const;
 
 interface Expected {
@@ -95,7 +98,8 @@ async function writeRow(label: string, type: MessageType, variant: Variant, subj
       returning id
     `,
   );
-  const prepared = prepareRow({ id: row!.id, topic: module.topic, message_key: subject, envelope: event }, newTraceparent);
+  const outboxRow = { id: row!.id, topic: module.topic, message_key: subject, envelope: event };
+  const prepared = module.prefix === "registration." ? prepareRegistrationRow(outboxRow) : prepareRow(outboxRow, newTraceparent);
   return { label, rowId: row!.id, topic: module.topic, key: subject, value: JSON.parse(prepared.value), eventId: event.id };
 }
 
