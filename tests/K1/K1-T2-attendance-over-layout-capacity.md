@@ -18,7 +18,7 @@
 | Item | Content |
 |---|---|
 | Actual Result | For 150 attendees in the Theatre layout the route answered NOT_SUITABLE with exactly one reason, LAYOUT_CAPACITY, required 150 and available 120. |
-| Status | Pass (automated, API level) |
-| Remarks | Commit: a5038c9 · Evidence: backend/services/planning-core/tests/venue/api/suitability.test.ts › lists attendance 150 against layout capacity 120 as the one reason (K1-T2), CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/38065630198 · Defect: — |
+| Status | Pass |
+| Remarks | Automated (API level) · Commit: a5038c9 · Evidence: backend/services/planning-core/tests/venue/api/suitability.test.ts › lists attendance 150 against layout capacity 120 as the one reason (K1-T2), CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/38065630198 · Defect: — |
 | Executed By | Joash, via automated testing (CI) |
 | Date of Execution | 2026-10-10 |

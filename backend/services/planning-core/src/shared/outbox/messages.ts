@@ -92,7 +92,10 @@ export function prepareRow(row: OutboxRow, newTraceparent: () => string): Prepar
     topic,
     key: row.message_key,
     value: JSON.stringify(event),
-    headers: { "content-type": STRUCTURED_CONTENT_TYPE },
+    // The trace context travels in the header as well as in the event, so a consumer (and any tool
+    // that reads Kafka headers) continues the trace without parsing the payload (ADR-0013). The relay
+    // replaces it with the publish span's own when it sends.
+    headers: { "content-type": STRUCTURED_CONTENT_TYPE, traceparent: event.traceparent },
   };
 }
 

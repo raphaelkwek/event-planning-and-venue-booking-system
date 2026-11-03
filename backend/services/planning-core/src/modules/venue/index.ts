@@ -37,9 +37,12 @@ export { releaseHoldsForEvent } from "./repo/holds.js";
  */
 export {
   EVENT_CANCELLED,
+  liveVenueIdsForEvent,
   lockVenuesForEvent,
   releaseVenueArrangementsForEvent,
+  releasedForVenueStaff,
   type ReleasedArrangements,
+  type ReleasedAtVenue,
 } from "./repo/eventRelease.js";
 
 /** L6, for the HoldExpiry workflow's activities (src/temporal): remind a hold's coordinator, and expire it. */

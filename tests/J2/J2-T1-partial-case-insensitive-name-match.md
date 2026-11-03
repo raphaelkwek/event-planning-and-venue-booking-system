@@ -18,7 +18,7 @@
 | Item | Content |
 |---|---|
 | Actual Result | 'audit' returned Auditorium; 'HALL' returned Lecture Hall; 'ecture' returned Lecture Hall. |
-| Status | Pass (automated, API level) |
-| Remarks | Commit: cb3b9d8 · Evidence: backend/services/planning-core/tests/venue/repo/venueSearch.test.ts › matches part of the name, ignoring case (J2-T1) , CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/38427990873 · Defect: — |
+| Status | Pass |
+| Remarks | Automated (API level) · Commit: cb3b9d8 · Evidence: backend/services/planning-core/tests/venue/repo/venueSearch.test.ts › matches part of the name, ignoring case (J2-T1) , CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/38427990873 · Defect: — |
 | Executed By | Joash, via automated testing (CI) |
 | Date of Execution | 2026-10-13 |

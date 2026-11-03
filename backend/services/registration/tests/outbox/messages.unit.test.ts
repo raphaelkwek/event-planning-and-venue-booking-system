@@ -35,7 +35,8 @@ describe("prepareRow", () => {
       topic: "connectsphere.registration.v1",
       key: registrationId,
       value: JSON.stringify(envelope),
-      headers: { "content-type": "application/cloudevents+json; charset=UTF-8" },
+      // EN-08: the event's traceparent also travels as a header (the relay swaps in its publish span's).
+      headers: { "content-type": "application/cloudevents+json; charset=UTF-8", traceparent: envelope.traceparent },
     });
   });
 

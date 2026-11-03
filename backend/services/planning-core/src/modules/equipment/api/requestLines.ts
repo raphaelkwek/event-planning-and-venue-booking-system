@@ -31,7 +31,7 @@ import {
 } from "../repo/requestLines.js";
 import { releaseReservation } from "../repo/releases.js";
 import { fieldsFromZod, refuse } from "./errors.js";
-import { EventCancelledError, refuseIfCancelled } from "./eventGuard.js";
+import { EventCancelledError, lockEventInScope, lockUncancelledEventInScope } from "./eventGuard.js";
 import { equipmentRateLimiter } from "./limiter.js";
 import { present } from "./presentLine.js";
 import { createLinesBodySchema, lineBodySchema, listLinesQuerySchema } from "./schemas.js";
@@ -106,10 +106,12 @@ const eventTimes = (event: EventPlanningView): EventTimes => ({
   endsAt: instant(event.proposedEndAt),
 });
 
+/** The caller's events scope (A3; A4: for a coordinator, the events assigned to them). */
+const coordinatorScope = (req: ActorRequest) => resolveAccessScope(req.actor!.role, req.actor!.userId, "events");
+
 /** The event, if it is in the caller's scope (A4: for a coordinator, assigned to them); null when not, or with no reference yet. */
 async function findPlannableEvent(sql: Sql, eventId: string, req: ActorRequest): Promise<EventPlanningView | null> {
-  const scope = resolveAccessScope(req.actor!.role, req.actor!.userId, "events");
-  const event = await findEventForPlanning(sql, eventId, scope, req.actor!.userId);
+  const event = await findEventForPlanning(sql, eventId, coordinatorScope(req), req.actor!.userId);
   return event && event.reference ? event : null;
 }
 
@@ -147,7 +149,9 @@ export function requestLinesRouter(sql: Sql, limiter: RequestHandler = equipment
       let created;
       try {
         created = await sql.begin(async (tx) => {
-          await refuseIfCancelled(tx, event.id, req.actor!.userId);
+          if (!(await lockUncancelledEventInScope(tx, event.id, coordinatorScope(req), req.actor!.userId))) {
+            return { code: "NOT_FOUND" } as const;
+          }
           const missing = await findMissingTypeIds(tx, checked.lines.map((line) => line.equipmentTypeId));
           if (missing.length > 0) return { code: "MISSING_TYPE", missing } as const;
           const lines = await insertLines(tx, { id: event.id, reference: event.reference! }, checked.lines, req.actor!);
@@ -157,6 +161,7 @@ export function requestLinesRouter(sql: Sql, limiter: RequestHandler = equipment
         if (error instanceof EventCancelledError) return refuse(res, 409, "EVENT_CANCELLED", error.message);
         throw error;
       }
+      if (created.code === "NOT_FOUND") return eventNotFound(res, req.actor!.role);
       if (created.code === "MISSING_TYPE") return typeNotFound(res, created.missing);
       res.status(201).json({ items: created.lines.map(present) });
     } catch (error) {
@@ -246,6 +251,8 @@ export function requestLinesRouter(sql: Sql, limiter: RequestHandler = equipment
       }
 
       const outcome = await sql.begin(async (tx) => {
+        // A4: the event, in scope and locked, before the line (event, line, type).
+        if (!(await lockEventInScope(tx, loaded.event.id, coordinatorScope(req), req.actor!.userId))) return { code: "GONE" } as const;
         const current = await lockLine(tx, loaded.line.id);
         if (!current) return { code: "GONE" } as const;
         if (!isEditableByCoordinator(current.status)) return { code: "NOT_EDITABLE", status: current.status } as const;
@@ -269,6 +276,8 @@ export function requestLinesRouter(sql: Sql, limiter: RequestHandler = equipment
       const loaded = await loadForCoordinator(req, res);
       if (!loaded) return;
       const outcome = await sql.begin(async (tx) => {
+        // A4: the event, in scope and locked, before the line and the reservation's type (event, line, type).
+        if (!(await lockEventInScope(tx, loaded.event.id, coordinatorScope(req), req.actor!.userId))) return { code: "GONE" } as const;
         const current = await lockLine(tx, loaded.line.id);
         if (!current) return { code: "GONE" } as const;
         if (current.status === "RESERVED" && current.reservation) {

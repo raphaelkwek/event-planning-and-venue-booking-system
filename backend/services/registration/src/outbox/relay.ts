@@ -1,5 +1,6 @@
 import { Partitioners, type Kafka } from "kafkajs";
 import type { Sql } from "postgres";
+import { withProducerSpans } from "@connectsphere/telemetry";
 import { logger } from "../logger.js";
 import { backoffMs, groupByTopic, prepareRow, UnpublishableError, type OutboxRow, type PreparedMessage } from "./messages.js";
 
@@ -83,7 +84,14 @@ export class OutboxRelay {
       for (const [topic, messages] of groupByTopic(ready)) {
         const ids = messages.map((m) => m.rowId);
         try {
-          await publisher.publish(topic, messages.map(({ key, value, headers }) => ({ key, value, headers })));
+          // One PRODUCER span per message, a child of the transaction that wrote its row (the row's
+          // traceparent), and the span's own traceparent in the Kafka header (EN-08, ADR-0013).
+          await withProducerSpans(
+            topic,
+            messages.map(({ key, value, headers }) => ({ key, value, headers })),
+            (traced) => publisher.publish(topic, traced),
+            { continueFromHeader: true },
+          );
           await tx`update ${tx(table)} set published_at = now() where id in ${tx(ids)}`;
           result.published += ids.length;
         } catch (error) {

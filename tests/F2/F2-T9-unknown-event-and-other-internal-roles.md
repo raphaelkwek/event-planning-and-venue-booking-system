@@ -18,7 +18,7 @@
 | Item | Content |
 |---|---|
 | Actual Result | As a coordinator, an unknown event id answered 404 EVENT_NOT_FOUND on both routes; as Venue Staff and as Technical Support, the history answered 403 ROLE_NOT_AUTHORISED. |
-| Status | Pass (automated, API level) |
-| Remarks | Commit: 00ae997 · Evidence: backend/services/planning-core/tests/event/api/f2StatusAndHistory.test.ts › answers 404 for an unknown or malformed id on /status-history; refuses the history to VENUE_STAFF, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/38196125896 · Defect: — |
+| Status | Pass |
+| Remarks | Automated (API level) · Commit: 00ae997 · Evidence: backend/services/planning-core/tests/event/api/f2StatusAndHistory.test.ts › answers 404 for an unknown or malformed id on /status-history; refuses the history to VENUE_STAFF, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/38196125896 · Defect: — |
 | Executed By | Joash, via automated testing (CI) |
 | Date of Execution | 2026-10-12 |

@@ -10,7 +10,7 @@
 | Test Steps | 1. As C, send `POST /api/v1/change-requests/<CR>/decision` with `{"decision":"APPROVE"}`.<br>2. As C, send `GET /api/v1/events/<E>/arrangement-flags`.<br>3. Read B2's status through the venue module.<br>4. Run `npm test -w @connectsphere/planning-core -- tests/change/api/s3Cards.test.ts -t 'S3-T5 '` (or the whole suite) and read the named `S3-T5 ` result. |
 | Test Data | `{"decision":"APPROVE"}`; CR proposes `expectedAttendance` 150 (E has 80), nothing else. |
 | Expected Result | Step 1 answers HTTP 200. Step 2 lists exactly one flag, for B1, `UNSUITABLE`; B2 and R1 have none. In step 3, B2 is CONFIRMED with no flag. `impact.bookings` still lists both B1 and B2 (AC1 lists every booking, flagged or not). |
-| Created By | Raphael, via Claude |
+| Created By | Raphael |
 | Date of Creation | 2026-10-28 |
 
 > **Expected results are checked by the PR reviewer** against S3's acceptance criteria.

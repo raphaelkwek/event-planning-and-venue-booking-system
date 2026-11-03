@@ -18,7 +18,7 @@
 | Item | Content |
 |---|---|
 | Actual Result | For accessibility needs Hearing loop and Braille signage the route answered NOT_SUITABLE with exactly one reason, ACCESSIBILITY, missing Braille signage, the venue offering Step-free entrance and Hearing loop. |
-| Status | Pass (automated, API level) |
-| Remarks | Commit: a5038c9 · Evidence: backend/services/planning-core/tests/venue/api/suitability.test.ts › names the absent accessibility feature and what the venue offers, and nothing else (K1-T5), CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/38065630198 · Defect: — |
+| Status | Pass |
+| Remarks | Automated (API level) · Commit: a5038c9 · Evidence: backend/services/planning-core/tests/venue/api/suitability.test.ts › names the absent accessibility feature and what the venue offers, and nothing else (K1-T5), CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/38065630198 · Defect: — |
 | Executed By | Joash, via automated testing (CI) |
 | Date of Execution | 2026-10-10 |
