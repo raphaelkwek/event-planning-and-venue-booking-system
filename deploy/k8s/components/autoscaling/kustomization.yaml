@@ -1,0 +1,61 @@
+# EN-18. The tuned numbers for the registration service's autoscaling, as a component an overlay adds after the
+# base (and after the canary component, whose Rollout it also matches). Where each number comes from is in
+# sizing.json, load/support/sizing.ts and documentation/evidence/EN-18/README.md; load/tests/autoscaling.unit.test.ts
+# fails if a number here drifts from them.
+#
+# NOT YET WIRED INTO AN OVERLAY. The base manifests it patches are in pull request #75, which is not merged. When it is,
+# add `- ../../components/autoscaling` to each overlay's `components`. The production overlay's own patch sets
+# minReplicas 3 and maxReplicas 10 for every API after the components, so production keeps those two numbers;
+# 10 pods x 5 connections is still inside the connection budget.
+#
+# What it changes against #75's defaults, and why:
+#  - the CPU request 100m -> 500m, so the HPA's percentage means something: at 100m, 70% is 70m, which one pod
+#    exceeds at about 35 requests a second, so the pods would scale to their maximum at a fraction of the load;
+#  - the CPU limit 500m -> 1000m, because one Node process uses up to one core (the stress runs saturated it at
+#    roughly 400 to 500 requests a second): at 500m the pod would be throttled at about half of that;
+#  - the pool size, set explicitly so the connection budget (pods x pool) is visible next to the maximum;
+#  - the scale-up and scale-down behaviour.
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+patches:
+  - target:
+      kind: Rollout|Deployment
+      name: registration
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/cpu
+        value: 500m
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/cpu
+        value: 1000m
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: REGISTRATION_DB_POOL_MAX
+          value: "5"
+  - target:
+      kind: HorizontalPodAutoscaler
+      name: registration
+    patch: |-
+      - op: replace
+        path: /spec/minReplicas
+        value: 2
+      - op: replace
+        path: /spec/maxReplicas
+        value: 8
+      - op: replace
+        path: /spec/metrics/0/resource/target/averageUtilization
+        value: 70
+      - op: add
+        path: /spec/behavior
+        value:
+          scaleUp:
+            stabilizationWindowSeconds: 0
+            selectPolicy: Max
+            policies:
+              - { type: Pods, value: 2, periodSeconds: 30 }
+              - { type: Percent, value: 100, periodSeconds: 30 }
+          scaleDown:
+            stabilizationWindowSeconds: 300
+            policies:
+              - { type: Pods, value: 1, periodSeconds: 60 }

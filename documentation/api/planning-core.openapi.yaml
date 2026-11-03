@@ -368,7 +368,12 @@ paths:
     get:
       tags: [Events]
       summary: My requests, drafts included (C3)
-      description: Filtered by the caller's A3 scope in the query itself.
+      description: |
+        Filtered by the caller's A3 scope in the query itself. Paged (L7, implementation.md section 5):
+        `limit` rows at a time, 25 unless asked otherwise and 100 at most, newest first (a submitted
+        request by its submission time, a draft by its last save). `nextCursor` is the cursor of the
+        next page, or null on the last; hand it back as `cursor` unchanged. A row added while someone
+        pages is never shown twice and none is skipped.
       operationId: listEvents
       parameters:
         - name: kind
@@ -376,9 +381,19 @@ paths:
           required: false
           description: "`drafts` for my drafts only, `submitted` to leave drafts out. Omit for both."
           schema: { type: string, enum: [drafts, submitted] }
+        - name: limit
+          in: query
+          required: false
+          description: Rows per page, a whole number from 1 to 100.
+          schema: { type: integer, minimum: 1, maximum: 100, default: 25 }
+        - name: cursor
+          in: query
+          required: false
+          description: The `nextCursor` of the previous page. Opaque.
+          schema: { type: string }
       responses:
         "200":
-          description: Newest submission first.
+          description: Newest first.
           content:
             application/json:
               schema:
@@ -388,7 +403,12 @@ paths:
                   items:
                     type: array
                     items: { $ref: "#/components/schemas/EventListItem" }
-                  nextCursor: { type: "null" }
+                  nextCursor: { type: [string, "null"], description: "The cursor of the next page; null on the last page." }
+        "400":
+          description: "`VALIDATION_FAILED`: `limit` is not a whole number from 1 to 100, or `cursor` is not one this service issued."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "503": { $ref: "#/components/responses/IdentityUnavailable" }
@@ -815,8 +835,8 @@ paths:
       description: |
         Retired by E4 (W9-FX-5, W9-59): the Event Coordinator Lead reassigns events
         (`POST /api/v1/events/{id}/reassignment`). Every proposal is refused with 410 and nothing is
-        stored. A proposal made before the retirement can still be accepted or declined until the
-        Lead reassigns the event, which closes it.
+        stored. A proposal pending at the retirement was closed, unaccepted, by migration
+        event/0020; the Lead's reassignment closes any other.
       operationId: proposeReassignment
       deprecated: true
       responses:
@@ -887,17 +907,22 @@ paths:
       - $ref: "#/components/parameters/RecordId"
     post:
       tags: [Reassignment]
-      summary: Accept the proposal naming me (E2)
+      summary: Accept the proposal naming me (E2, retired by E4)
+      description: |
+        Retired by E4 (W9-FX-5, W9-59): a proposal can no longer take an event from its coordinator
+        without the Lead. Every accept is refused with 410 and nothing changes; the Lead reassigns
+        events (`POST /api/v1/events/{id}/reassignment`). Migration event/0020 closed each proposal
+        that was still pending.
       operationId: acceptReassignment
+      deprecated: true
       responses:
-        "200":
-          description: Accepted; the caller is now the assigned coordinator.
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/ReassignmentProposal" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
-        "404": { $ref: "#/components/responses/NotFound" }
+        "410":
+          description: "`REASSIGNMENT_RETIRED`: coordinators no longer accept reassignment proposals; the Lead reassigns (E4)."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
         "503": { $ref: "#/components/responses/IdentityUnavailable" }
 
   /api/v1/events/{id}/reassignment-proposals/decline:
@@ -905,17 +930,21 @@ paths:
       - $ref: "#/components/parameters/RecordId"
     post:
       tags: [Reassignment]
-      summary: Decline the proposal naming me (E2)
+      summary: Decline the proposal naming me (E2, retired by E4)
+      description: |
+        Retired with the accept (W9-FX-5): migration event/0020 closed each proposal that was still
+        pending and none can be made, so there is nothing to decline. Every decline is refused with
+        410 and nothing changes.
       operationId: declineReassignment
+      deprecated: true
       responses:
-        "200":
-          description: Declined; the assignment is unchanged.
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/ReassignmentProposal" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
-        "404": { $ref: "#/components/responses/NotFound" }
+        "410":
+          description: "`REASSIGNMENT_RETIRED`: coordinators no longer answer reassignment proposals; the Lead reassigns (E4)."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
         "503": { $ref: "#/components/responses/IdentityUnavailable" }
 
   /api/v1/assignments/unassigned:
@@ -2861,8 +2890,11 @@ paths:
         "409":
           description: |
             `BOOKING_REQUEST_NOT_PENDING`, naming the request's status; `VENUE_SLOT_CONFLICT`, naming
-            each overlapping event and its occupied period; or `VENUE_UNAVAILABLE`, naming each period
-            of recorded unavailability with its type and reason.
+            each overlapping event and its occupied period; `VENUE_UNAVAILABLE`, naming each period
+            of recorded unavailability with its type and reason; or `EVENT_NOT_BOOKABLE`, when the
+            event is no longer Approved, Planning, Safety Review or Confirmed (it was Cancelled or
+            Completed since the request was made). The event's status is read again under a share lock,
+            so a booking is never confirmed for an event that is over.
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }

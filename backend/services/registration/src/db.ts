@@ -8,7 +8,7 @@ import { config } from "./config.js";
  */
 export const sql = instrumentSql(
   postgres(config.databaseUrl, {
-    max: 5,
+    max: config.dbPoolMax,
     idle_timeout: 20,
     connect_timeout: 5,
     prepare: false,
