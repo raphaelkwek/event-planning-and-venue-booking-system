@@ -1,7 +1,8 @@
 import type { Response } from "express";
 import type { ZodError } from "zod";
-import type { ErrorCode, ErrorField } from "@connectsphere/contracts";
+import type { ErrorCode, ErrorField, Role } from "@connectsphere/contracts";
 import { logger } from "../../../shared/logger.js";
+import { notInScopeMessage } from "../../identity/index.js";
 
 /**
  * The single error envelope from implementation.md §5. Every refusal goes
@@ -34,6 +35,14 @@ export function refuse(
       correlationId,
     },
   });
+}
+
+/**
+ * A3 — an event outside the caller's scope is simply not found, never refused
+ * as forbidden. A4 — a coordinator is told it is not assigned to them.
+ */
+export function eventNotFound(res: Response, role: Role) {
+  refuse(res, 404, "EVENT_NOT_FOUND", notInScopeMessage(role, "No event with that reference is available to you."));
 }
 
 /** Turns a shape failure into the same `fields[]` B2's rule failures use. */

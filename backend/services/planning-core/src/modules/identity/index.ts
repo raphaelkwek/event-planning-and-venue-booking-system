@@ -45,8 +45,11 @@ export async function lookUpCaller(sql: Sql, supabaseUserId: string): Promise<Ca
   return { outcome: "FOUND", user: currentUserSchema.parse({ id: user.id, email: user.email, role }) };
 }
 
-/** A3 — the access-scope rule a module's repo layer applies for a role and resource. */
-export { resolveAccessScope } from "./domain/accessScope.js";
+/**
+ * A3 — the access-scope rule a module's repo layer applies for a role and resource.
+ * A4 — the 404 message for an event, or a record on one, the scope did not find.
+ */
+export { notInScopeMessage, resolveAccessScope, type EventRecordKind } from "./domain/accessScope.js";
 
 /** E3, E5: who may be assigned an event — the active Event Coordinators, named. */
 export interface ActiveCoordinator {
