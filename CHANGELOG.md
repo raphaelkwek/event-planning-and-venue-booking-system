@@ -54,6 +54,80 @@ fixes found by axe). No service code and no migration.
 
 ---
 
+---
+
+# EN-23, EN-17: Threat model, PDPA and ASVS review; SLOs, alerts, dashboards and runbooks
+
+**Timestamp:** 2026-11-02T23:55+08:00 (SGT)
+**Author:** Joash
+**Scope:** EN-23 (threat model, PDPA, ASVS) and EN-17 (SLOs), ADR-0013. Backend: planning-core,
+registration, notification, a new `backend/packages/observability`. No migration.
+
+**Deploy:** set `METRICS_TOKEN` on each service and in Prometheus's credentials file. Without it
+`/metrics` answers 404 in production.
+
+## Added
+
+- **EN-08 was not built.** Jira marks it Done, but the code had no OpenTelemetry, no metrics and no
+  `/metrics`. This adds the minimum the SLOs need: a `prom-client` package that times every route by
+  pattern, and a rate-limited `GET /metrics` (off in production unless `METRICS_TOKEN` is set) in
+  planning-core, registration and notification. Tracing, Tempo and Loki are still not built.
+- Two SLI metrics: `notification_visibility_lag_seconds` (commit to visible) and
+  `registration_over_admission_seats` (read from the seat table's invariants), with
+  `registration_invariant_check_success`.
+- `observability/prometheus`: recording rules and multi-window, multi-burn-rate alerts (14.4x over
+  1h and 5m, 6x over 6h and 30m), a scrape config, and `promtool` unit tests for each alert firing and
+  staying quiet. `observability/grafana/dashboards`: five dashboards. `documentation/runbooks`: one
+  per alert. `documentation/slos.md`: each SLO, its SLI query, error budget and alert.
+- CI job `Observability (promtool, dashboards, runbooks)`: `promtool check rules`, `check config`
+  and `test rules` from the `prom/prometheus` image, then a check that dashboards use emitted
+  metrics and every alert has a runbook. Nothing is deployed.
+- `documentation/security/`: `threat-model.md` (a STRIDE table per C4 container, and 15 ranked
+  gaps), `pdpa.md` (the PDPA obligations against attendee data) and `asvs-l2.md` (ASVS 4.0.3 Level 2,
+  V1 to V14). A script test checks that every `file:line` it cites exists.
+- `/metrics` is in the planning-core and notification OpenAPI files.
+
+## Not yet
+
+- The gaps the threat model lists are findings, not fixes. C1 (async errors), H1 (stack traces),
+  M11 (rate limits), H3 (venue edit scope) and the body-parser bump are being fixed in another pull
+  request; the rest are open.
+- The registration latency SLI has no data until R2 adds a registration route.
+
+---
+
+---
+
+# EN-15, EN-22: feature flags; traceability matrix and DORA metrics from CI
+
+**Timestamp:** 2026-11-02T23:45+08:00 (SGT)
+**Author:** Joash
+**Scope:** planning-core (shared/flags, change module), contracts, web app, CI workflows,
+documentation scripts. No migration.
+
+## Added
+
+- EN-15: feature flags through OpenFeature with the flagd provider. The source is a flagd at
+  `FLAGD_HOST`, else the committed `flags/flags.flagd.json`, else the defaults in
+  `shared/flags/definitions.ts`. `change-approval` defaults to on. With it off, S2's approve is
+  refused with 403 `FEATURE_DISABLED`; reject still works. `GET /api/v1/feature-flags` (signed in,
+  rate limited) feeds the change-decision screen, which disables Approve. How to add and flip a
+  flag: `documentation/feature-flags.md`.
+- CI runs a real flagd (container, CI only) for one provider test (EN-15-T8).
+- EN-22: `documentation/scripts/traceability-matrix.ts` builds the story, criterion, test, last
+  result matrix (Markdown, HTML, JSON) from the traceability CSVs, the vitest JSON, Playwright JSON
+  and node:test JUnit results, and the cards' statuses. The new `traceability` CI job runs it on
+  every pull request and push to main, writes the summary to the job summary and uploads the matrix.
+  Missing tests, names that do not exist and non-standard card statuses are warnings.
+- EN-22: `documentation/scripts/dora.ts` and the weekly `dora.yml` workflow compute deployment
+  frequency, lead time, change failure rate and time to restore from the GitHub API. Snapshot and
+  dashboard page: `documentation/evidence/EN-22/`.
+- Cards `tests/EN-15/` and `tests/EN-22/`; traceability rows in `sprint-4.csv`.
+
+## Changed
+
+- Every vitest config also writes a JSON report when `CI` is set, and CI uploads them.
+- New error code `FEATURE_DISABLED`.
 # EN-10 and EN-16: container images, Kubernetes, Terraform, GitOps and canary releases (SPM-128, SPM-134)
 
 **Timestamp:** 2026-11-02T23:55+08:00 (SGT)
@@ -204,6 +278,47 @@ the same transaction; the two should merge together (Gate B: "cancellation is on
 
 - The web app takes the significant fields from `@connectsphere/contracts` instead of its own
   copies, so G1, S1 and S2 use one list (G2 AC1). The web bundle grows by about 66 KB (zod).
+
+---
+
+# U1: The Safety Officer's operational safety check (CR-06)
+
+**Timestamp:** 2026-11-02T23:50+08:00 (SGT)
+**Author:** Joash
+**Scope:** U1, CR-06 and the Week 9 answers CQ-08 and CQ-10. planning-core (change, event, venue,
+equipment, identity modules), contracts, notification service, web app, Cerbos policies; migrations
+identity 0005 and 0006, event 0014 and 0015.
+
+**Deploy:** run `npm run migrate -- identity` (0005, 0006) and `npm run migrate -- event` (0014, 0015) before
+deploying planning-core, and deploy the notification service with it. Create the Safety Officer accounts in
+Supabase Auth and assign the role; the CI seed adds `safety@connectsphere.test` to the SQL seed only.
+
+## Added
+
+- The `SAFETY_OFFICER` role (identity, contracts, Cerbos, role navigation).
+- The Safety Officer's queue of events in Safety Review, and a review showing expected attendance,
+  accessibility needs, each booked venue's period, booked layout and capacity, and the equipment with its
+  placement notes. The venue record gains no fields (CQ-10).
+- One decision per review: approve, request changes or reject, with a reason required for the last two.
+  Recorded in `event.safety_decisions` with the officer, time, decision and reason.
+- Request changes returns the event to Planning and flags the venue bookings and equipment reservations the
+  officer names, using S3's flags. Reject (CQ-08) returns it to Planning too, as a rejection of the arrangement
+  as a whole; the event is not rejected or cancelled and its arrangements stay in place.
+- Approval, and Mark Confirmed after it, refuse while any arrangement flag is outstanding (commit 259050d).
+- The assigned coordinator's Mark Confirmed, allowed only once the current review is approved.
+- `event.safety-decision-recorded`; the assigned coordinator and the owning organiser are notified.
+- F1 transitions `REJECT_SAFETY_ARRANGEMENT` and `MARK_CONFIRMED`.
+- Screens: the Safety queue, the review with its decision form, and Mark Confirmed on the coordinator's event page.
+
+## Changed
+
+- `APPROVE_SAFETY` now keeps the event in Safety Review (Week 9 answer W9-31) instead of confirming it. Only
+  `MARK_CONFIRMED` makes an event Confirmed.
+
+## Not yet
+
+- Events confirmed before this release are not reviewed (the Week 9 answer). Clearing a flag a safety review
+  set is done as for S3's flags.
 
 ---
 

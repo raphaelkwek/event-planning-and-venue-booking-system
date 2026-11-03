@@ -34,6 +34,8 @@ import { EquipmentRequests } from "./screens/EquipmentRequests.js";
 import { UnassignedQueue } from "./screens/UnassignedQueue.js";
 import { AssignmentDetail } from "./screens/AssignmentDetail.js";
 import { AssignmentsOverview } from "./screens/AssignmentsOverview.js";
+import { SafetyQueue } from "./screens/SafetyQueue.js";
+import { SafetyReviewDetail } from "./screens/SafetyReviewDetail.js";
 
 const ROLE_LABELS: Record<Role, string> = {
   EVENT_ORGANISER: "Event Organiser",
@@ -42,6 +44,7 @@ const ROLE_LABELS: Record<Role, string> = {
   TECH_SUPPORT_STAFF: "Technical Support",
   ATTENDEE: "Attendee",
   EVENT_COORDINATOR_LEAD: "Event Coordinator Lead",
+  SAFETY_OFFICER: "Safety Officer",
 };
 
 const EVERY_ROLE: Role[] = [
@@ -51,6 +54,7 @@ const EVERY_ROLE: Role[] = [
   "TECH_SUPPORT_STAFF",
   "ATTENDEE",
   "EVENT_COORDINATOR_LEAD",
+  "SAFETY_OFFICER",
 ];
 
 /**
@@ -182,6 +186,14 @@ const ROUTES: {
     nav: { label: "Assignments", to: "/assignments" },
   },
   { path: "/assignments/:eventId", element: <AssignmentDetail />, roles: ["EVENT_COORDINATOR_LEAD"] },
+  // U1: the Safety Officer's queue and the review of one event, with its decision form.
+  {
+    path: "/safety",
+    element: <SafetyQueue />,
+    roles: ["SAFETY_OFFICER"],
+    nav: { label: "Safety queue", to: "/safety" },
+  },
+  { path: "/safety/:eventId", element: <SafetyReviewDetail />, roles: ["SAFETY_OFFICER"] },
   // T2: every role reads its own notifications.
   {
     path: "/notifications",
@@ -202,6 +214,7 @@ function landingFor(role: Role): string {
   if (role === "EVENT_COORDINATOR") return "/queue";
   if (role === "TECH_SUPPORT_STAFF") return "/equipment";
   if (role === "EVENT_COORDINATOR_LEAD") return "/assignments/unassigned";
+  if (role === "SAFETY_OFFICER") return "/safety";
   return "/console";
 }
 
