@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import Lozenge from "../shared/Lozenge.js";
 import type { ChangeImpact, FlaggedArrangement } from "../api/changeRequests.js";
 import { ARRANGEMENT_LABELS, FLAG_LABELS } from "../shared/changeRequests.js";
@@ -8,11 +9,14 @@ export function ChangeImpactView({
   impact,
   heading = "Affected arrangements",
   emptyText = "No venue bookings or equipment reservations are affected.",
+  registrations,
 }: {
   impact: ChangeImpact;
   /** G2 uses "If this change is approved" for the preview. */
   heading?: string;
   emptyText?: string;
+  /** D1: the registration count, read from the registration service; the impact body cannot know it. */
+  registrations?: ReactNode;
 }) {
   const flagsOf = (arrangement: FlaggedArrangement, id: string) =>
     impact.flags.filter((flag) => flag.arrangement === arrangement && flag.id === id);
@@ -53,7 +57,7 @@ export function ChangeImpactView({
           ))}
         </ul>
       )}
-      <p>Registrations: {impact.activeRegistrations}</p>
+      {registrations}
     </section>
   );
 }

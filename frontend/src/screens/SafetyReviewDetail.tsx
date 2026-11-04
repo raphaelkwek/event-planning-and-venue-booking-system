@@ -10,6 +10,7 @@ import {
   getSafetyReview,
   recordSafetyDecision,
   type SafetyDecisionKind,
+  type SafetyDecisionRecord,
   type SafetyReview,
 } from "../api/safetyReviews.js";
 import { formatPeriod } from "../shared/singaporeTime.js";
@@ -47,6 +48,9 @@ export function SafetyReviewDetail() {
   const [bookingIds, setBookingIds] = useState<string[]>([]);
   const [reservationIds, setReservationIds] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
+  // D2: a decision that returns the event to Planning takes it out of Safety Review, so its review can
+  // no longer be read (409). The outcome comes from the decision's own response instead of a re-read.
+  const [leftReview, setLeftReview] = useState<SafetyDecisionRecord["decision"] | null>(null);
 
   const load = useCallback(() => {
     if (!eventId) return;
@@ -69,7 +73,7 @@ export function SafetyReviewDetail() {
     if (!eventId) return;
     setBusy(true);
     try {
-      await recordSafetyDecision(session.token, eventId, {
+      const recorded = await recordSafetyDecision(session.token, eventId, {
         decision,
         reason,
         ...(decision === "REQUEST_CHANGES" ? { flagBookingIds: bookingIds, flagReservationIds: reservationIds } : {}),
@@ -78,7 +82,9 @@ export function SafetyReviewDetail() {
       setBookingIds([]);
       setReservationIds([]);
       setDecision("APPROVE");
-      load();
+      setError(null);
+      if (recorded.event.status === "SAFETY_REVIEW") load();
+      else setLeftReview(recorded.decision.decision);
     } catch (caught) {
       setError(caught);
     } finally {
@@ -93,7 +99,7 @@ export function SafetyReviewDetail() {
         <p>
           <Link to="/safety">Back to the safety queue</Link>
         </p>
-        <Refusal error={error} />
+        <Refusal error={error} plain />
       </div>
     );
   }
@@ -193,7 +199,11 @@ export function SafetyReviewDetail() {
       )}
 
       <h3>Your decision</h3>
-      {decided ? (
+      {leftReview ? (
+        <SectionMessage appearance="success" title={leftReview === "REJECT" ? "Safety arrangement rejected" : "Changes requested"}>
+          <p>The decision is recorded. The event is back in Planning, and its coordinator and the organiser are notified.</p>
+        </SectionMessage>
+      ) : decided ? (
         <SectionMessage appearance="information" title="A decision is recorded for this review">
           <p>
             {decided.decision === "APPROVE" ? "Approved" : decided.decision === "REJECT" ? "Rejected" : "Changes requested"}
@@ -254,7 +264,7 @@ export function SafetyReviewDetail() {
           {reasonError && <p role="alert" style={{ color: "#AE2E24", margin: "4px 0 0" }}>{reasonError}</p>}
 
           <div style={{ marginTop: 12 }}>
-            <Refusal error={error} />
+            <Refusal error={error} plain />
           </div>
           <div style={{ marginTop: 12 }}>
             <Button appearance="primary" type="submit" isDisabled={busy}>

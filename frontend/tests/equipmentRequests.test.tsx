@@ -105,7 +105,7 @@ describe("F4: lines of a cancelled event (D4)", () => {
     expect(screen.getByRole("button", { name: "Update Projectors for EVT-000124" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Reserve Projectors for EVT-000124" })).toBeTruthy();
     // The Confirmed lozenge is not shown for the cancelled line.
-    expect(screen.getAllByText("Confirmed")).toHaveLength(1);
+    expect(screen.getAllByText("Confirmed").filter((element) => element.tagName !== "OPTION")).toHaveLength(1);
   });
 });
 
