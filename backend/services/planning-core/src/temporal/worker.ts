@@ -8,6 +8,10 @@ import { connectionOptionsFor, temporalSettingsFromEnv } from "./domain/settings
  * workflow from the event topic, and (L6) the one that starts each placed
  * hold's HoldExpiry workflow from the venue-booking topic.
  *
+ * When it starts, before the consumers, it re-creates the timer of every Confirmed event and
+ * Held hold (reconcileTimers.ts): a redeploy can lose Temporal's state, and the database knows
+ * which timers there should be.
+ *
  * Without TEMPORAL_ADDRESS it says so and exits 0, so `npm run dev`
  * (concurrently --kill-others-on-fail) keeps the API and web app running on a
  * laptop with no namespace. Settings that are present but wrong are logged as
@@ -27,16 +31,23 @@ if (settings.status !== "configured") {
 }
 
 // Loaded only once Temporal is configured: these read DATABASE_URL and KAFKA_* when imported.
-const [{ Client, Connection }, { NativeConnection, Worker }, { sql }, { logger }, { kafka }, { completeEventIfDue }, { expireHoldIfDue, remindHoldIfDue }] =
-  await Promise.all([
-    import("@temporalio/client"),
-    import("@temporalio/worker"),
-    import("../shared/db.js"),
-    import("../shared/logger.js"),
-    import("../shared/kafka/client.js"),
-    import("../modules/event/index.js"),
-    import("../modules/venue/index.js"),
-  ]);
+const [
+  { Client, Connection },
+  { NativeConnection, Worker },
+  { sql },
+  { logger },
+  { kafka },
+  { completeEventIfDue, listAwaitingCompletion },
+  { expireHoldIfDue, listHeldHolds, remindHoldIfDue },
+] = await Promise.all([
+  import("@temporalio/client"),
+  import("@temporalio/worker"),
+  import("../shared/db.js"),
+  import("../shared/logger.js"),
+  import("../shared/kafka/client.js"),
+  import("../modules/event/index.js"),
+  import("../modules/venue/index.js"),
+]);
 const { createCompletionActivities } = await import("./activities/completion.js");
 const { createHoldExpiryActivities } = await import("./activities/holdExpiry.js");
 const { bundleCompletionWorkflows } = await import("./workflowBundle.js");
@@ -44,6 +55,7 @@ const { temporalScheduler } = await import("./completionConsumer.js");
 const { startCompletionConsumer } = await import("./runCompletionConsumer.js");
 const { holdExpiryScheduler } = await import("./holdExpiryConsumer.js");
 const { startHoldExpiryConsumer } = await import("./runHoldExpiryConsumer.js");
+const { reconcileTimers } = await import("./reconcileTimers.js");
 
 const options = connectionOptionsFor(settings);
 const nativeConnection = await NativeConnection.connect(options);
@@ -63,12 +75,23 @@ const worker = await Worker.create({
 
 const clientConnection = await Connection.connect(options);
 const client = new Client({ connection: clientConnection, namespace: settings.namespace });
+const completionScheduler = temporalScheduler(client, settings.taskQueue);
+const expiryScheduler = holdExpiryScheduler(client, settings.taskQueue);
+
+// Before the consumers start: they then apply any message still waiting, in order, after this, so
+// each timer's last signal comes from its newest message or, failing one, from the database. The
+// workflows this starts run once the worker polls, below.
+await reconcileTimers(
+  { awaitingCompletion: () => listAwaitingCompletion(sql), heldHolds: () => listHeldHolds(sql) },
+  { completion: completionScheduler, holdExpiry: expiryScheduler }
+);
+
 const consumer = kafka
-  ? await startCompletionConsumer(kafka, temporalScheduler(client, settings.taskQueue), process.env.KAFKA_GROUP_SUFFIX?.trim() ?? "")
+  ? await startCompletionConsumer(kafka, completionScheduler, process.env.KAFKA_GROUP_SUFFIX?.trim() ?? "")
   : null;
 if (!consumer) logger.warn("event-completion consumer not started: this process has no Kafka settings");
 const holdConsumer = kafka
-  ? await startHoldExpiryConsumer(kafka, holdExpiryScheduler(client, settings.taskQueue), process.env.KAFKA_GROUP_SUFFIX?.trim() ?? "")
+  ? await startHoldExpiryConsumer(kafka, expiryScheduler, process.env.KAFKA_GROUP_SUFFIX?.trim() ?? "")
   : null;
 if (!holdConsumer) logger.warn("hold-expiry consumer not started: this process has no Kafka settings");
 

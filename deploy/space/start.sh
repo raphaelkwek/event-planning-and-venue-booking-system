@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # ADR-0016 amendment: the Space's entrypoint. It checks the settings the Space's secrets provide,
-# derives the in-container ones, makes the broker's certificate and Kafka user (the disk is
-# ephemeral, so this happens at every start), runs the migrations against the session pooler, and
-# only then starts every process under supervisord. It prints variable names, never values.
+# derives the in-container ones, makes the broker's certificate and Kafka user (Redpanda's disk is
+# the container's, so this happens at every start), picks where Temporal keeps its state, runs the
+# migrations against the session pooler, and only then starts every process under supervisord. It
+# prints variable names, never values.
 set -euo pipefail
 
 missing=()
@@ -44,6 +45,28 @@ export LOG_LEVEL="${LOG_LEVEL:-info}" XDG_DATA_HOME="$RUN/caddy" XDG_CONFIG_HOME
 # set 512M in their env files (deploy/azure).
 export REDPANDA_MEMORY="${REDPANDA_MEMORY:-1G}"
 
+# Temporal's state (EN-11): its workflows and timers. The Azure VM's deploy gate mounts a named
+# volume per environment here, so they survive a redeploy; the image owns the directory to uid 1000.
+# Without a volume (a Space) the directory is the container's own and goes with it. Either way the
+# worker re-creates every timer when it starts, and sweeps.sh completes and expires what is overdue.
+TEMPORAL_STATE_DIR=/var/lib/connectsphere/temporal
+if [ -d "$TEMPORAL_STATE_DIR" ] && [ -w "$TEMPORAL_STATE_DIR" ]; then
+  export TEMPORAL_DB_FILE="$TEMPORAL_STATE_DIR/temporal.db"
+elif [ -d "$TEMPORAL_STATE_DIR" ] && [ "$(stat -c %d "$TEMPORAL_STATE_DIR")" != "$(stat -c %d "$(dirname "$TEMPORAL_STATE_DIR")")" ]; then
+  # A volume is mounted but uid 1000 can't write it: falling back would lose the timers on the next
+  # redeploy without anyone noticing, so stop, and let the deploy gate's readiness wait fail the release.
+  echo "start.sh: ${TEMPORAL_STATE_DIR} is a mounted volume that uid $(id -u) cannot write (owner uid $(stat -c %u "$TEMPORAL_STATE_DIR")); give it to uid 1000 or remove the empty volume" >&2
+  exit 1
+else
+  echo "start.sh: ${TEMPORAL_STATE_DIR} is not writable by uid $(id -u); Temporal keeps its state in ${RUN} instead, which a redeploy loses" >&2
+  export TEMPORAL_DB_FILE="$RUN/temporal.db"
+fi
+if [ -s "$TEMPORAL_DB_FILE" ]; then
+  echo "start.sh: Temporal's state: ${TEMPORAL_DB_FILE}, kept from the last container"
+else
+  echo "start.sh: Temporal's state: ${TEMPORAL_DB_FILE}, new"
+fi
+
 # Supabase's transaction pooler listens on 6543, which a Space's egress may not allow. If it cannot
 # be reached, the services use the session pooler (5432), as the migrations do.
 reachable() { # <postgres URL>
@@ -68,5 +91,5 @@ if ! (cd /app && DATABASE_URL="$MIGRATE_DATABASE_URL" node migrate.mjs all > "$R
 fi
 echo "start.sh: migrations applied: $(grep -c '^apply ' "$RUN/migrate.log" || true) files"
 
-echo "start.sh: starting the services, Redpanda, Temporal, Cerbos and Caddy on :7860"
+echo "start.sh: starting the services, the sweeps, Redpanda, Temporal, Cerbos and Caddy on :7860"
 exec supervisord -c /app/deploy/space/supervisord.conf

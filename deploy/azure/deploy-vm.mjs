@@ -12,8 +12,9 @@
 // --lead <email> (invite the first Event Coordinator Lead).
 //
 // The VM runs one container per environment, the single-container image of deploy/space (the
-// services, the worker, Redpanda, Temporal, Cerbos and Caddy on 7860), staging on 127.0.0.1:7861
-// and production on 127.0.0.1:7862, and a host Caddy on 80 and 443 that takes the certificates and
+// services, the worker, the sweeps, Redpanda, Temporal, Cerbos and Caddy on 7860), staging on
+// 127.0.0.1:7861 and production on 127.0.0.1:7862, each with Temporal's state on its own named
+// volume (connectsphere-<env>-temporal), and a host Caddy on 80 and 443 that takes the certificates and
 // routes by host. Values come from C:\Users\Joash Lau\connectsphere-secrets\ (shared.env, <env>.env),
 // go to the VM over SSH into /etc/connectsphere/<env>.env (mode 600), and are never printed.
 import { spawnSync } from "node:child_process";
@@ -38,6 +39,26 @@ export const PORTS = { staging: 7861, production: 7862 };
 const CADDY_IMAGE = "docker.io/library/caddy:2.10.2@sha256:c3d7ee5d2b11f9dc54f947f68a734c84e9c9666c92c88a7f30b9cba5da182adb";
 // Two environments share 4 GB: Redpanda reserves less than on a Space.
 const REDPANDA_MEMORY = "512M";
+/** Where the image's start.sh keeps Temporal's SQLite file (EN-11); the deploy gate mounts the same. */
+export const TEMPORAL_STATE_DIR = "/var/lib/connectsphere/temporal";
+
+/** The environment's named volume for Temporal's state: it outlives the container, so timers survive a redeploy. */
+export function temporalVolume(environment) {
+  return `connectsphere-${environment}-temporal`;
+}
+
+/**
+ * Replaces the environment's container, as the deploy gate does: stop it (so Temporal closes its
+ * file), remove it, and start the image with the env file and Temporal's volume.
+ */
+export function replaceContainerCommand(environment, image, envPath) {
+  const container = `connectsphere-${environment}`;
+  return (
+    `docker stop -t 30 ${container} > /dev/null 2>&1; docker rm -f ${container} > /dev/null 2>&1; ` +
+    `docker run -d --name ${container} --restart unless-stopped --env-file ${envPath} ` +
+    `-v ${temporalVolume(environment)}:${TEMPORAL_STATE_DIR} -p 127.0.0.1:${PORTS[environment]}:7860 ${image} > /dev/null`
+  );
+}
 
 /** The environment's public API host. sslip.io resolves a name with the IP in it to that IP. */
 export function apiHost(environment, { host, domain }) {
@@ -187,8 +208,8 @@ async function main() {
   if (upload.status !== 0) throw new DeployError(`could not write ${envPath}: ${mask(upload.stderr ?? "").trim()}`);
   log(`wrote ${envPath} (mode 660, the admin user and the deploy gate only): ${Object.keys(loaded.space).join(", ")}, CORS_ALLOWED_ORIGINS, REDPANDA_MEMORY`);
 
-  ssh(`docker rm -f ${container} > /dev/null 2>&1; docker run -d --name ${container} --restart unless-stopped --env-file ${envPath} -p 127.0.0.1:${PORTS[args.env]}:7860 ${image} > /dev/null`);
-  log(`started ${container} from ${image}`);
+  ssh(replaceContainerCommand(args.env, image, envPath));
+  log(`started ${container} from ${image}, with Temporal's state on the volume ${temporalVolume(args.env)}`);
 
   // The host Caddy: both environments' hosts, certificates from Let's Encrypt (ZeroSSL as Caddy's fallback).
   const caddyfile = spawnSync("ssh", ["-i", key, "-o", "BatchMode=yes", `${user}@${host}`, "cat > /etc/connectsphere/Caddyfile"], { input: hostCaddyfile({ host, domain: args.domain }), encoding: "utf8" });

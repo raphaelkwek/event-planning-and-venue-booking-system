@@ -438,7 +438,7 @@ jobs:
           shellcheck --version | head -2
           shellcheck -x deploy/oracle/bootstrap.sh deploy/oracle/connectsphere-deploy deploy/oracle/make-deployer-kubeconfig.sh \
             deploy/release/smoke-api.sh deploy/release/smoke-web.sh deploy/ci/kind-k3s.sh deploy/ci/smoke-image.sh \
-            deploy/ci/space-smoke.sh deploy/space/start.sh deploy/azure/create-vm.sh \
+            deploy/ci/space-smoke.sh deploy/space/start.sh deploy/space/sweeps.sh deploy/azure/create-vm.sh \
             deploy/azure/connectsphere-vm-deploy deploy/azure/setup-deploy-user.sh
 
   # ADR-0016 amendment: the Hugging Face Space image. Built from exactly the Space repository that

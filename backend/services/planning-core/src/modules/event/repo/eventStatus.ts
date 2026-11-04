@@ -129,3 +129,24 @@ export async function listDueForCompletion(sql: Sql, now?: Date): Promise<string
   `;
   return rows.map((row) => row.id);
 }
+
+/** An event the CompleteEvent timer waits for, and the end it waits until (RFC 3339). */
+export interface AwaitingCompletion {
+  eventId: string;
+  endsAt: string;
+}
+
+/**
+ * EN-11 — every event that may complete and has an end to wait for, whether or not the end has
+ * passed: the CompleteEvent timers there should be. The Temporal worker re-creates them from this
+ * when it starts, as a redeploy may have lost them; an overdue one then completes at once.
+ */
+export async function listAwaitingCompletion(sql: Sql): Promise<AwaitingCompletion[]> {
+  const rows = await sql<{ id: string; proposed_end_at: Date }[]>`
+    select id, proposed_end_at from event.events
+    where status in ${sql(transitionRule("COMPLETE").from as string[])}
+      and proposed_end_at is not null
+    order by proposed_end_at, id
+  `;
+  return rows.map((row) => ({ eventId: row.id, endsAt: row.proposed_end_at.toISOString() }));
+}

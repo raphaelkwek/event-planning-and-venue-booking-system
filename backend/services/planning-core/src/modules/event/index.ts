@@ -200,6 +200,8 @@ export {
 } from "./api/cancelEvent.js";
 /** EN-11 — the completion workflow's step: complete one event if its end has passed (ADR-0009). */
 export { completeEventIfDue, type CompletionAttempt } from "./jobs/completeEvents.js";
+/** EN-11 — the worker re-creates a CompleteEvent timer for each of these when it starts. */
+export { listAwaitingCompletion, type AwaitingCompletion } from "./repo/eventStatus.js";
 /** S3 — an approved change returns a Confirmed event to Planning (Week 9 W9-22), with history and its status message. */
 export { returnToPlanningAfterChange } from "./api/returnToPlanning.js";
 

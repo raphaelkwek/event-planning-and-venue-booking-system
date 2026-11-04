@@ -6,8 +6,11 @@
 # Inside: planning-core, its Temporal worker, registration and notification; Redpanda (SASL/SCRAM
 # over TLS), the Temporal dev server and the Cerbos PDP; Caddy on 7860, the Space's one public port,
 # routing the same public prefixes as the k3s Ingress. supervisord keeps them running; start.sh runs
-# the migrations first. The disk is ephemeral: Redpanda and Temporal start empty after a restart,
-# and Supabase holds the data (the outbox relay republishes anything not yet published).
+# the migrations first. Supabase holds the data (the outbox relay republishes anything not yet
+# published). Redpanda starts empty after a restart. Temporal keeps its SQLite file in
+# /var/lib/connectsphere/temporal, which the Azure VM mounts as a named volume per environment, so
+# its workflows and timers survive a redeploy there; a Space has no volume, so there they don't, and
+# the worker re-creates the timers when it starts and the sweeps (sweeps.sh) catch up regardless.
 
 ARG NODE_IMAGE=node:20.20.2-bookworm-slim@sha256:2cf067cfed83d5ea958367df9f966191a942351a2df77d6f0193e162b5febfc0
 
@@ -51,6 +54,9 @@ RUN cerbos compile /connectsphere/policies-under-test \
  && rm -rf /connectsphere/policies-under-test
 COPY deploy/cerbos/config.yaml /connectsphere/config.yaml
 COPY deploy/space /app/deploy/space
+# Temporal's state, for uid 1000: an empty named volume mounted here takes this owner when Docker
+# first fills it from the image, so the deploy gate's volume is writable without a chown.
+RUN install -d -o 1000 -g 1000 -m 0750 /var/lib/connectsphere/temporal
 
 ENV NODE_ENV=production HOME=/home/node
 # Hugging Face runs the container as uid 1000, which the node image's `node` user is.

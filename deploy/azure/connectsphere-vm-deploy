@@ -13,7 +13,9 @@
 #                    GHCR_USER and GHCR_TOKEN, which are used for the pull and never stored. Writes the
 #                    environment's env file (mode 660, group connectsphere), pulls the image, replaces
 #                    the container (migrations run as it starts), and waits until every service is
-#                    ready. Prints key names and states, never a value.
+#                    ready. Prints key names and states, never a value. The container keeps
+#                    Temporal's state on the named volume connectsphere-<env>-temporal, which
+#                    outlives it, so workflows and timers survive the replacement (EN-11).
 #   health           Each service's /readyz, Cerbos, and the container's processes.
 #
 # Run by hand: sudo -u cs-deploy connectsphere-vm-deploy staging health
@@ -27,6 +29,9 @@ case "$ENVIRONMENT" in
 esac
 CONTAINER="connectsphere-${ENVIRONMENT}"
 ENV_FILE="/etc/connectsphere/${ENVIRONMENT}.env"
+# Where the image's start.sh keeps Temporal's SQLite file; the image owns it to uid 1000, and an
+# empty volume mounted there takes that owner.
+TEMPORAL_STATE_DIR=/var/lib/connectsphere/temporal
 # The OTEL_* settings are optional (EN-08): without them the services export no telemetry.
 SETTINGS=(DATABASE_URL MIGRATE_DATABASE_URL SUPABASE_URL SUPABASE_ANON_KEY SUPABASE_SERVICE_ROLE_KEY CORS_ALLOWED_ORIGINS REDPANDA_MEMORY TRUST_PROXY_HOPS OTEL_EXPORTER_OTLP_ENDPOINT OTEL_EXPORTER_OTLP_HEADERS OTEL_RESOURCE_ATTRIBUTES)
 REQUIRED=(DATABASE_URL MIGRATE_DATABASE_URL SUPABASE_URL SUPABASE_ANON_KEY SUPABASE_SERVICE_ROLE_KEY CORS_ALLOWED_ORIGINS)
@@ -105,10 +110,16 @@ deploy() {
   fi
   DOCKER_CONFIG="$config" docker pull -q "$image" > /dev/null
   echo "pulled ${image}"
+  # Stop first, so Temporal closes its file on the volume before the container goes.
+  docker stop -t 30 "$CONTAINER" > /dev/null 2>&1 || true
   docker rm -f "$CONTAINER" > /dev/null 2>&1 || true
-  docker run -d --name "$CONTAINER" --restart unless-stopped --env-file "$ENV_FILE" -p "127.0.0.1:${PORT}:7860" "$image" > /dev/null
-  echo "started ${CONTAINER}; migrations run as it starts"
+  docker run -d --name "$CONTAINER" --restart unless-stopped --env-file "$ENV_FILE" -v "${CONTAINER}-temporal:${TEMPORAL_STATE_DIR}" -p "127.0.0.1:${PORT}:7860" "$image" > /dev/null
+  echo "started ${CONTAINER} with Temporal's state on the volume ${CONTAINER}-temporal; migrations run as it starts"
   wait_ready
+  # Where start.sh put Temporal's state: on the volume, "kept from the last container" or "new".
+  local logs
+  logs="$(docker logs "$CONTAINER" 2>&1 || true)"
+  grep -F "start.sh: Temporal's state" <<< "$logs" || echo "connectsphere-vm-deploy: start.sh did not say where Temporal's state is" >&2
   echo "${CONTAINER} is ready on ${image}"
 }
 
