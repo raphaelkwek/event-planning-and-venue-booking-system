@@ -1,6 +1,6 @@
 # ADR-0012: Containers on managed Kubernetes, GitOps, Terraform
 
-**Status:** Accepted. Supersedes ADR-0003's no-Docker rule; ADR-0003's hosted-Kafka choice continues under ADR-0008.
+**Status:** Accepted. Supersedes ADR-0003's no-Docker rule; ADR-0003's hosted-Kafka choice continues under ADR-0008. Narrowed by ADR-0016 (3 Nov 2026): the deployed environments run on a free single-node k3s, and EKS is the scale-up path.
 **Date:** 2026-10-01
 **Owner:** whoever takes EN-10 (SPM-128), not yet assigned. The owner presents this in the Week 13 Q&A.
 **Approval:** team decision (Gate D), reported 1 Oct 2026. See the gate log in `documentation/proposals/2026-10-01-target-architecture-and-jira-plan.md` §8.

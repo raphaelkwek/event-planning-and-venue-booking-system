@@ -1,0 +1,5 @@
+# Replaces the root .dockerignore for deploy/cerbos/Dockerfile only (BuildKit reads
+# <Dockerfile>.dockerignore): the context is the policies and the PDP's config, nothing else.
+*
+!policies
+!deploy/cerbos/config.yaml

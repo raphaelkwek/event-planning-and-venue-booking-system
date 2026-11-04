@@ -6,6 +6,8 @@ import { FixedTheme, ThemeProvider } from "./theme/ThemeProvider.js";
 import { AppShell } from "./shell/AppShell.js";
 import { LoginFrame } from "./shell/LoginFrame.js";
 import { Login } from "./screens/Login.js";
+import { SetPassword } from "./screens/SetPassword.js";
+import { SET_PASSWORD_PATH } from "./api/password.js";
 import { MyRequests } from "./screens/MyRequests.js";
 import { DraftEditor } from "./screens/DraftEditor.js";
 import { RequestDetail } from "./screens/RequestDetail.js";
@@ -264,6 +266,14 @@ function Shell() {
   // Asked once the permissions are in, so the screen they open asks for its data first, as before.
   const unread = useUnreadCount(permissions.status === "loading" ? null : (session?.token ?? null), location.pathname);
 
+  // ADR-0016: invite and password-reset links land here, signed in to the app or not.
+  if (location.pathname === SET_PASSWORD_PATH) {
+    return (
+      <LoginFrame>
+        <SetPassword />
+      </LoginFrame>
+    );
+  }
   if (!session) {
     return (
       <LoginFrame>

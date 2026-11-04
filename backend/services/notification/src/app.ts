@@ -1,5 +1,6 @@
 import "./asyncErrors.js";
 import express from "express";
+import { corsFor, parseAllowedOrigins } from "./cors.js";
 import { httpTelemetry } from "@connectsphere/telemetry";
 import { config } from "./config.js";
 import helmet from "helmet";
@@ -18,6 +19,8 @@ import { metrics } from "./metrics.js";
  * listening and starts the consumers.
  */
 export const app = express();
+// ADR-0016: the web app is on Vercel, another origin; first, so every answer carries the headers.
+app.use(corsFor(parseAllowedOrigins(process.env.CORS_ALLOWED_ORIGINS)));
 // EN-08: the correlation id (the trace id) on every response, and http_request_duration_seconds by route pattern.
 app.use(httpTelemetry({ service: config.serviceName }));
 app.use(helmet());

@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { useLocation } from "react-router-dom";
 import Button from "@atlaskit/button/new";
 import Textfield from "@atlaskit/textfield";
 import SectionMessage from "@atlaskit/section-message";
@@ -21,6 +22,8 @@ const SEED_PASSWORD = "ConnectSphere-Test-1234!";
 
 export function Login() {
   const { signIn } = useSession();
+  // ADR-0016: the Set your password screen sends the user here with a notice.
+  const notice = (useLocation().state as { notice?: string } | null)?.notice;
   const [email, setEmail] = useState("organiser@connectsphere.test");
   const [password, setPassword] = useState(SEED_PASSWORD);
   const [error, setError] = useState<unknown>(null);
@@ -43,6 +46,13 @@ export function Login() {
     <div style={{ maxWidth: 420, margin: "64px auto", padding: 16 }}>
       <h1 style={{ marginBottom: 4 }}>ConnectSphere</h1>
       <p style={{ marginTop: 0, color: "#626F86" }}>Sign in to continue.</p>
+      {notice ? (
+        <div style={{ marginBottom: 16 }}>
+          <SectionMessage appearance="success">
+            <p style={{ margin: 0 }}>{notice}</p>
+          </SectionMessage>
+        </div>
+      ) : null}
 
       <form onSubmit={onSubmit}>
         <label htmlFor="email">Email</label>

@@ -1,0 +1,243 @@
+# ADR-0016: deploy one release to one environment. release.yml calls it twice, with
+# `environment: staging` and then `environment: production`; the steps are the same, and the
+# two environments differ only in what the GitHub environment holds (documentation/deploy/README.md):
+#
+#   variables  API_HOST, WEB_ORIGIN, SUPABASE_URL, SUPABASE_ANON_KEY, DEPLOY_SSH_HOST, DEPLOY_SSH_KNOWN_HOSTS
+#   secrets    DATABASE_URL, MIGRATE_DATABASE_URL, SUPABASE_SERVICE_ROLE_KEY, KAFKA_SASL_PASSWORD,
+#              DEPLOY_SSH_KEY, VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID
+#
+# The repository is public, so its logs are too: no step prints a secret, the Secret's env file
+# is written to the runner's temp directory with mode 0600 and goes to the VM on stdin, and the
+# deploy gate on the VM prints key names only.
+name: Deploy an environment
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: staging or production
+        required: true
+        type: string
+      release:
+        description: 'The release as JSON: {"commit": "<sha>", "images": {"<name>": "<image>@sha256:..."}}'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  deploy:
+    name: ${{ inputs.environment }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    environment:
+      name: ${{ inputs.environment }}
+      url: ${{ vars.WEB_ORIGIN }}
+    # One deploy per environment at a time, never cancelled half way.
+    concurrency:
+      group: deploy-${{ inputs.environment }}
+      cancel-in-progress: false
+    permissions:
+      # Pushes the deploy state to the deploy-state branch (never main).
+      contents: write
+      packages: read
+    env:
+      ENVIRONMENT: ${{ inputs.environment }}
+      RELEASE: ${{ inputs.release }}
+      API_HOST: ${{ vars.API_HOST }}
+      WEB_ORIGIN: ${{ vars.WEB_ORIGIN }}
+      SSH_HOST: ${{ vars.DEPLOY_SSH_HOST }}
+    steps:
+      - name: Check the environment is filled in (names only)
+        env:
+          V_SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          V_SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY }}
+          V_DEPLOY_SSH_KNOWN_HOSTS: ${{ vars.DEPLOY_SSH_KNOWN_HOSTS }}
+          S_DATABASE_URL: ${{ secrets.DATABASE_URL != '' }}
+          S_MIGRATE_DATABASE_URL: ${{ secrets.MIGRATE_DATABASE_URL != '' }}
+          S_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY != '' }}
+          S_KAFKA_SASL_PASSWORD: ${{ secrets.KAFKA_SASL_PASSWORD != '' }}
+          S_DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY != '' }}
+          S_VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN != '' }}
+          S_VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID != '' }}
+          S_VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID != '' }}
+        run: |
+          missing=()
+          for name in API_HOST WEB_ORIGIN SSH_HOST V_SUPABASE_URL V_SUPABASE_ANON_KEY V_DEPLOY_SSH_KNOWN_HOSTS; do
+            [ -n "${!name}" ] || missing+=("variable ${name#V_}")
+          done
+          for name in S_DATABASE_URL S_MIGRATE_DATABASE_URL S_SUPABASE_SERVICE_ROLE_KEY S_KAFKA_SASL_PASSWORD S_DEPLOY_SSH_KEY S_VERCEL_TOKEN S_VERCEL_ORG_ID S_VERCEL_PROJECT_ID; do
+            [ "${!name}" = true ] || missing+=("secret ${name#S_}")
+          done
+          if [ "${#missing[@]}" -gt 0 ]; then
+            printf '::error::the %s environment has no %s\n' "$ENVIRONMENT" "${missing[@]}"
+            exit 1
+          fi
+          echo "The ${ENVIRONMENT} environment has every value (documentation/deploy/README.md, step 5)."
+
+      - name: Check out the release's commit
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ fromJSON(inputs.release).commit }}
+          persist-credentials: false
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 20
+
+      - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+        with:
+          cosign-release: v3.1.4
+
+      # Read access to GHCR, so the signatures can be fetched even while the packages are private.
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # The cluster pulls by digest; check each was signed by the Release workflow on main
+      # before it is written anywhere.
+      - name: Verify every image's signature
+        env:
+          IDENTITY: ${{ github.server_url }}/${{ github.repository }}/.github/workflows/release.yml@refs/heads/main
+        run: |
+          jq -r '.images | to_entries[] | .value' <<< "$RELEASE" | while read -r ref; do
+            cosign verify "$ref" --certificate-identity "$IDENTITY" \
+              --certificate-oidc-issuer https://token.actions.githubusercontent.com > /dev/null
+            echo "verified ${ref}"
+          done
+
+      - name: SSH to the deploy gate
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          KNOWN_HOSTS: ${{ vars.DEPLOY_SSH_KNOWN_HOSTS }}
+        run: |
+          install -d -m 0700 "$RUNNER_TEMP/ssh"
+          printf '%s\n' "$DEPLOY_SSH_KEY" > "$RUNNER_TEMP/ssh/key"
+          chmod 600 "$RUNNER_TEMP/ssh/key"
+          # The host key is pinned (no trust on first use).
+          printf '%s\n' "$KNOWN_HOSTS" > "$RUNNER_TEMP/ssh/known_hosts"
+          cat > "$RUNNER_TEMP/ssh/config" <<EOF
+          Host gate
+            HostName ${SSH_HOST}
+            User cs-deploy
+            IdentityFile ${RUNNER_TEMP}/ssh/key
+            IdentitiesOnly yes
+            UserKnownHostsFile ${RUNNER_TEMP}/ssh/known_hosts
+            StrictHostKeyChecking yes
+            ServerAliveInterval 30
+            ConnectTimeout 20
+          EOF
+          ssh -F "$RUNNER_TEMP/ssh/config" gate status
+
+      - name: Write the Secret (connectsphere-secrets) through the gate
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          MIGRATE_DATABASE_URL: ${{ secrets.MIGRATE_DATABASE_URL }}
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          KAFKA_SASL_PASSWORD: ${{ secrets.KAFKA_SASL_PASSWORD }}
+        run: |
+          trap 'rm -f "$RUNNER_TEMP/connectsphere.env"' EXIT
+          node deploy/release/secret-env.mjs --out "$RUNNER_TEMP/connectsphere.env"
+          ssh -F "$RUNNER_TEMP/ssh/config" gate apply-secret < "$RUNNER_TEMP/connectsphere.env"
+
+      - name: Commit the release to environments/${{ inputs.environment }} on deploy-state
+        id: state
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          remote="https://x-access-token:${GH_TOKEN}@github.com/${REPOSITORY}.git"
+          commit="$(jq -r .commit <<< "$RELEASE")"
+          printf '%s' "$RELEASE" > "$RUNNER_TEMP/release.json"
+          for attempt in 1 2 3 4 5; do
+            rm -rf "$RUNNER_TEMP/state"
+            if git ls-remote --exit-code --heads "$remote" deploy-state > /dev/null; then
+              git clone --quiet --depth 20 --branch deploy-state "$remote" "$RUNNER_TEMP/state"
+            else
+              # The first release creates the branch, with nothing but the deploy state.
+              git init --quiet -b deploy-state "$RUNNER_TEMP/state"
+              git -C "$RUNNER_TEMP/state" remote add origin "$remote"
+              printf '%s\n' "# deploy-state" "" "Written only by .github/workflows/release.yml (ADR-0016)." \
+                "Argo CD on the k3s VM follows environments/<environment>; see documentation/deploy/README.md on main." \
+                > "$RUNNER_TEMP/state/README.md"
+            fi
+            node deploy/release/write-state.mjs --environment "$ENVIRONMENT" --release "$RUNNER_TEMP/release.json" \
+              --api-host "$API_HOST" --web-origin "$WEB_ORIGIN" --out "$RUNNER_TEMP/state/environments/${ENVIRONMENT}"
+            git -C "$RUNNER_TEMP/state" add -A
+            if git -C "$RUNNER_TEMP/state" diff --cached --quiet; then
+              echo "environments/${ENVIRONMENT} already holds this release"
+            else
+              git -C "$RUNNER_TEMP/state" commit --quiet -m "deploy(${ENVIRONMENT}): ${commit}" \
+                -m "Release run ${GITHUB_SERVER_URL}/${REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+            fi
+            if git -C "$RUNNER_TEMP/state" push --quiet origin HEAD:deploy-state; then
+              break
+            fi
+            [ "$attempt" -lt 5 ] || { echo "::error::could not push the deploy state"; exit 1; }
+            echo "deploy-state moved under us; trying again"
+            sleep $((attempt * 5))
+          done
+          state="$(git -C "$RUNNER_TEMP/state" rev-parse HEAD)"
+          echo "commit=${state}" >> "$GITHUB_OUTPUT"
+          echo "deploy-state ${state}: environments/${ENVIRONMENT} at ${commit}"
+
+      - name: Wait for Argo CD to sync it (migrations first, as a PreSync hook)
+        env:
+          STATE: ${{ steps.state.outputs.commit }}
+        run: ssh -F "$RUNNER_TEMP/ssh/config" gate sync "$STATE"
+
+      - name: Smoke test inside the cluster (/healthz and /readyz of each service)
+        run: ssh -F "$RUNNER_TEMP/ssh/config" gate health
+
+      - name: Smoke test the public API (TLS, routes, CORS)
+        run: bash deploy/release/smoke-api.sh "https://${API_HOST}" "$WEB_ORIGIN"
+
+      - name: Build and deploy the web app to Vercel
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          VERCEL_TELEMETRY_DISABLED: "1"
+          VITE_API_BASE_URL: https://${{ vars.API_HOST }}
+          VITE_SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY }}
+        run: |
+          set -euo pipefail
+          npm install --global --no-audit --no-fund vercel@65.10.0 > /dev/null
+          vercel pull --yes --environment=production --token "$VERCEL_TOKEN" > /dev/null
+          vercel build --prod --token "$VERCEL_TOKEN"
+          url="$(vercel deploy --prebuilt --prod --token "$VERCEL_TOKEN")"
+          echo "deployed ${url}, aliased to ${WEB_ORIGIN}"
+
+      - name: Smoke test the web app
+        run: bash deploy/release/smoke-web.sh "$WEB_ORIGIN" "$API_HOST"
+
+      - name: Summary
+        if: always()
+        env:
+          STATE: ${{ steps.state.outputs.commit }}
+        run: |
+          {
+            echo "### ${ENVIRONMENT}"
+            echo
+            echo "- Release: \`$(jq -r .commit <<< "$RELEASE")\`"
+            echo "- deploy-state: \`${STATE:-not written}\`"
+            echo "- API: https://${API_HOST}"
+            echo "- Web: ${WEB_ORIGIN}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: What the cluster says (on failure)
+        if: failure() && steps.state.outcome != 'skipped'
+        run: ssh -F "$RUNNER_TEMP/ssh/config" gate status || true

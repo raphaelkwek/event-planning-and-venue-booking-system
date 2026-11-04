@@ -6,19 +6,20 @@ page says what the pipeline records about them, what it refuses, and how to chec
 | Question | Answer | Where |
 |---|---|---|
 | What is in this image? | A CycloneDX SBOM per image, and one for the npm workspace | `Supply chain` workflow, artifacts `sbom-*`; on main also attached to the image as a signed attestation |
-| Is it the image we built? | A keyless cosign signature that names the workflow and branch that built it | `Deploy` workflow on main, verified below |
+| Is it the image we built? | A keyless cosign signature that names the workflow and branch that built it | `Release` workflow on main (`release.yml`, ADR-0016), verified below |
 | Does it contain a known serious flaw? | Trivy fails the build on a CRITICAL finding that has a fix; HIGH is reported | `Supply chain` workflow, job logs, code scanning |
 | Does the running app give things away? | A passive ZAP baseline scan of the web app and the API | `Supply chain` workflow, artifact `zap-report` |
 | Can someone swap an action under us? | Third-party actions are pinned by commit SHA, and a job checks it | `Actions are pinned by commit SHA` job |
 
-The files: `.github/workflows/supply-chain.yml`, `.github/workflows/deploy.yml` (the signing step),
+The files: `.github/workflows/supply-chain.yml`, `.github/workflows/release.yml` (the publish job),
 `.github/actions/sign-and-attest/action.yml`, `.github/scripts/`, `.trivyignore.yaml` and
 `.zap/rules.tsv`. Findings and what was done about them are in `documentation/evidence/EN-21/`.
 
 ## Verify an image's signature and SBOM
 
-Images are published to GHCR by the `Deploy` workflow on every push to main, tagged with the commit
-sha (EN-10), and are signed right after the push. You need [`cosign`](https://docs.sigstore.dev/cosign/system_config/installation/)
+Images are published to GHCR by the `Release` workflow on every push to main (ADR-0016): one
+multi-arch index per image (linux/amd64 and linux/arm64), tagged with the commit sha and signed right
+after it is created. Since ADR-0016 the `Deploy` workflow pushes nothing. You need [`cosign`](https://docs.sigstore.dev/cosign/system_config/installation/)
 3.x. You do not need a GitHub login if the package is public; otherwise run `docker login ghcr.io`
 first (a GitHub token with `read:packages`). The package's visibility is a setting of the
 organisation or account that owns the repository, not something this repository controls.
@@ -26,21 +27,21 @@ organisation or account that owns the repository, not something this repository 
 ```bash
 OWNER=raphaelkwek
 REPO=event-planning-and-venue-booking-system
-IMAGE=ghcr.io/$OWNER/connectsphere-planning-core        # or -registration, -notification, -web, -migrate
+IMAGE=ghcr.io/$OWNER/connectsphere-planning-core        # or -registration, -notification, -migrate, -cerbos
 SHA=<a commit sha on main>
 
 # 1. Resolve the tag to the digest. A tag can move; a digest cannot, and the signature is on the digest.
 DIGEST=$(docker buildx imagetools inspect $IMAGE:$SHA --format '{{json .Manifest.Digest}}' | tr -d '"')
 # (or: crane digest $IMAGE:$SHA)
 
-# 2. Verify the signature: it must have been made by the Deploy workflow, on main, of this repository.
+# 2. Verify the signature: it must have been made by the Release workflow, on main, of this repository.
 cosign verify $IMAGE@$DIGEST \
-  --certificate-identity "https://github.com/$OWNER/$REPO/.github/workflows/deploy.yml@refs/heads/main" \
+  --certificate-identity "https://github.com/$OWNER/$REPO/.github/workflows/release.yml@refs/heads/main" \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 
 # 3. Verify the SBOM attestation the same way.
 cosign verify-attestation $IMAGE@$DIGEST --type cyclonedx \
-  --certificate-identity "https://github.com/$OWNER/$REPO/.github/workflows/deploy.yml@refs/heads/main" \
+  --certificate-identity "https://github.com/$OWNER/$REPO/.github/workflows/release.yml@refs/heads/main" \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com > attestation.json
 
 # 4. Read the SBOM out of the attestation (the payload is base64 of an in-toto statement).
@@ -128,7 +129,7 @@ as in the cluster, on a Postgres built from every migration inside the job.
 
 - **Actions:** pin to a full commit SHA with the tag in a trailing comment. Resolve a tag with
   `gh api repos/<owner>/<repo>/git/ref/tags/<tag>` (an annotated tag needs one more hop through `git/tags/<sha>`).
-  `node .github/scripts/check-action-pins.mjs` fails on anything else in `supply-chain.yml`, `deploy.yml` (whose image job holds `id-token: write`) and the composite action. The check is a job on the pull request, not a branch protection, so it advises; making it required is a repository setting.
+  `node .github/scripts/check-action-pins.mjs` fails on anything else in `supply-chain.yml`, `deploy.yml`, `release.yml` (whose publish job holds `id-token: write`), `deploy-environment.yml` and the composite action. The check is a job on the pull request, not a branch protection, so it advises; making it required is a repository setting.
 - **Trivy and syft:** the version and SHA-256 are in `.github/scripts/install-supply-chain-tools.sh`.
   Take the hash from the release's checksums file. They are installed as binaries, not as actions, so
   there is no moving tag to trust: Trivy's own action was compromised in March 2026.

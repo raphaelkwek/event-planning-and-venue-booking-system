@@ -1,0 +1,119 @@
+# ADR-0016. Turns the EN-10 base into what runs on the free single-node k3s VM:
+#
+# - the web app is not here (it is on Vercel), so its Deployment, Service, HPA, PDB and
+#   the three ingress-nginx Ingresses go, and one Traefik Ingress takes the API routes;
+# - each namespace runs its own Redpanda (Kafka API, SASL/SCRAM over TLS), Temporal dev
+#   server and Cerbos PDP, because no free hosted Kafka or Temporal has the headroom;
+# - the services reach them through the same KAFKA_*, TEMPORAL_* and CERBOS_URL settings
+#   they already read (the addresses are fixed short names, so both namespaces match);
+# - the migrate Job reads MIGRATE_DATABASE_URL, Supabase's session pooler.
+#
+# The canary component (EN-16) is not used here: its analysis needs EN-17's Prometheus,
+# which the VM does not run yet, so plain rolling updates replace it.
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+resources:
+  - ingress.yaml
+  - internal-tls.yaml
+  - redpanda.yaml
+  - temporal.yaml
+  - cerbos.yaml
+  - networkpolicies.yaml
+patches:
+  # The web app is served by Vercel, not the cluster.
+  - patch: |-
+      $patch: delete
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: web
+  - patch: |-
+      $patch: delete
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: web
+  - patch: |-
+      $patch: delete
+      apiVersion: autoscaling/v2
+      kind: HorizontalPodAutoscaler
+      metadata:
+        name: web
+  - patch: |-
+      $patch: delete
+      apiVersion: policy/v1
+      kind: PodDisruptionBudget
+      metadata:
+        name: web
+  # The base's ingress-nginx Ingresses; ingress.yaml has the Traefik one.
+  - patch: |-
+      $patch: delete
+      apiVersion: networking.k8s.io/v1
+      kind: Ingress
+      metadata:
+        name: web
+  - patch: |-
+      $patch: delete
+      apiVersion: networking.k8s.io/v1
+      kind: Ingress
+      metadata:
+        name: planning-core
+  - patch: |-
+      $patch: delete
+      apiVersion: networking.k8s.io/v1
+      kind: Ingress
+      metadata:
+        name: notification
+  # Settings that point at the in-cluster services. CORS_ALLOWED_ORIGINS is the
+  # environment's Vercel origin, written by the deploy state (deploy/release/write-state.mjs).
+  - patch: |-
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: connectsphere-config
+      data:
+        KAFKA_SASL_MECHANISM: scram-sha-256
+        KAFKA_SSL_CA_PATH: /etc/connectsphere/kafka/ca.crt
+        CERBOS_URL: http://cerbos:3592
+        CORS_ALLOWED_ORIGINS: ""
+  # Every Kafka client trusts the namespace's internal CA (internal-tls.yaml). Only the
+  # ca.crt item of the broker's Secret is mounted, never its key.
+  - path: kafka-ca-planning-core.yaml
+  - path: kafka-ca-planning-core-worker.yaml
+  - path: kafka-ca-registration.yaml
+  - path: kafka-ca-notification.yaml
+  # The migrator uses prepared statements and one session, which Supabase's transaction
+  # pooler refuses, and the direct host is IPv6-only, so it gets the session pooler URL.
+  - target:
+      kind: Job
+      name: migrate
+    patch: |-
+      - op: test
+        path: /spec/template/spec/containers/0/env/0/name
+        value: DATABASE_URL
+      - op: replace
+        path: /spec/template/spec/containers/0/env/0/valueFrom/secretKeyRef/key
+        value: MIGRATE_DATABASE_URL
+  # k3s runs Traefik in kube-system, not ingress-nginx in its own namespace.
+  - target:
+      kind: NetworkPolicy
+      name: allow-from-ingress-controller
+    patch: |-
+      - op: replace
+        path: /spec/podSelector/matchExpressions/0/values
+        value: [planning-core, notification, registration]
+      - op: replace
+        path: /spec/ingress/0/from
+        value:
+          - namespaceSelector:
+              matchLabels:
+                kubernetes.io/metadata.name: kube-system
+            podSelector:
+              matchLabels:
+                app.kubernetes.io/name: traefik
+      - op: replace
+        path: /spec/ingress/0/ports
+        value:
+          - { protocol: TCP, port: 8090 }
+          - { protocol: TCP, port: 8091 }
+          - { protocol: TCP, port: 8092 }

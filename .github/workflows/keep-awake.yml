@@ -1,0 +1,38 @@
+# ADR-0016 amendment: Hugging Face puts a free Space to sleep after about 48 hours without traffic.
+# Every 6 hours this asks each Space listed in deploy/space/spaces.txt for its static /healthz
+# (Caddy's own answer; it reaches no service). No secret is needed: the Spaces are public.
+name: Keep the Spaces awake
+
+on:
+  schedule:
+    - cron: "17 */6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ping:
+    name: Ping each Space's /healthz
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - name: Ping
+        run: |
+          urls="$(grep -Ev '^\s*(#|$)' deploy/space/spaces.txt || true)"
+          if [ -z "$urls" ]; then
+            echo "No Space is listed in deploy/space/spaces.txt yet."
+            exit 0
+          fi
+          failed=0
+          for url in $urls; do
+            # A sleeping Space wakes on the first request and may take minutes to answer.
+            if curl -fsS --retry 12 --retry-delay 20 --retry-all-errors --max-time 30 "${url%/}/healthz" > /dev/null; then
+              echo "awake: ${url}" | tee -a "$GITHUB_STEP_SUMMARY"
+            else
+              echo "::warning::${url} did not answer /healthz"
+              failed=1
+            fi
+          done
+          exit "$failed"

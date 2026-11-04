@@ -1,0 +1,82 @@
+# ADR-0016, for EN-07 (ADR-0010). A Cerbos policy decision point per namespace, serving the
+# repository's policies/ from the connectsphere-cerbos image (deploy/cerbos/Dockerfile: the
+# policies are compiled and their tests run when the image is built, and the image is signed
+# like the others). CERBOS_URL in the ConfigMap points at it. Nothing reads CERBOS_URL yet,
+# so until EN-07's checks call it this Deployment only costs a few megabytes.
+apiVersion: v1
+kind: Service
+metadata:
+  name: cerbos
+spec:
+  selector:
+    app.kubernetes.io/name: cerbos
+  ports:
+    - name: http
+      port: 3592
+      targetPort: http
+    - name: grpc
+      port: 3593
+      targetPort: grpc
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cerbos
+spec:
+  replicas: 1
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cerbos
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: cerbos
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: cerbos
+          # Replaced by the deploy state's digest.
+          image: ghcr.io/raphaelkwek/connectsphere-cerbos:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 3592
+              protocol: TCP
+            - name: grpc
+              containerPort: 3593
+              protocol: TCP
+          startupProbe:
+            httpGet: { path: /_cerbos/health, port: http }
+            periodSeconds: 2
+            failureThreshold: 30
+          readinessProbe:
+            httpGet: { path: /_cerbos/health, port: http }
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /_cerbos/health, port: http }
+            periodSeconds: 20
+          resources:
+            requests: { cpu: 25m, memory: 48Mi }
+            limits: { cpu: 250m, memory: 128Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: cache
+              mountPath: /.cache
+      volumes:
+        - name: tmp
+          emptyDir: { sizeLimit: 16Mi }
+        - name: cache
+          emptyDir: { sizeLimit: 16Mi }

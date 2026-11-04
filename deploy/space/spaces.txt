@@ -1,0 +1,4 @@
+# ADR-0016 amendment: the public Hugging Face Spaces the keep-awake workflow pings, one URL per line.
+# deploy:space prints each Space's URL when it first deploys; add it here. Public addresses, not secrets.
+# https://<owner>-connectsphere-staging.hf.space
+# https://<owner>-connectsphere-production.hf.space

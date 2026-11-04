@@ -1,0 +1,144 @@
+# ADR-0016. The base denies everything and its egress rule excludes private ranges, so each
+# in-cluster dependency gets an explicit pair of rules: who may call it, and that it may be
+# called. k3s enforces NetworkPolicy with its embedded controller.
+#
+# Kafka clients to Redpanda.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-kafka-clients-to-redpanda
+spec:
+  podSelector:
+    matchExpressions:
+      - key: app.kubernetes.io/name
+        operator: In
+        values: [planning-core, planning-core-worker, registration, notification]
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: redpanda
+      ports:
+        - { protocol: TCP, port: 9092 }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-redpanda-from-kafka-clients
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: redpanda
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values: [planning-core, planning-core-worker, registration, notification]
+      ports:
+        - { protocol: TCP, port: 9092 }
+---
+# planning-core's worker (and the API, which may start workflows) to Temporal.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-planning-core-to-temporal
+spec:
+  podSelector:
+    matchExpressions:
+      - key: app.kubernetes.io/name
+        operator: In
+        values: [planning-core, planning-core-worker]
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: temporal
+      ports:
+        - { protocol: TCP, port: 7233 }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-temporal-from-planning-core
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: temporal
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values: [planning-core, planning-core-worker]
+      ports:
+        - { protocol: TCP, port: 7233 }
+---
+# The services that will ask Cerbos for decisions (EN-07).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-services-to-cerbos
+spec:
+  podSelector:
+    matchExpressions:
+      - key: app.kubernetes.io/name
+        operator: In
+        values: [planning-core, planning-core-worker, registration, notification]
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: cerbos
+      ports:
+        - { protocol: TCP, port: 3592 }
+        - { protocol: TCP, port: 3593 }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-cerbos-from-services
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: cerbos
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values: [planning-core, planning-core-worker, registration, notification]
+      ports:
+        - { protocol: TCP, port: 3592 }
+        - { protocol: TCP, port: 3593 }
+---
+# cert-manager answers Let's Encrypt's HTTP-01 challenge from a short-lived solver pod in
+# this namespace, behind Traefik on port 80.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-acme-solver-from-traefik
+spec:
+  podSelector:
+    matchLabels:
+      acme.cert-manager.io/http01-solver: "true"
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: traefik
+      ports:
+        - { protocol: TCP, port: 8089 }

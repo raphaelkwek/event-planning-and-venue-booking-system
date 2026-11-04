@@ -1,0 +1,6 @@
+enable_sasl: true
+superusers:
+  - connectsphere
+auto_create_topics_enabled: true
+default_topic_partitions: 3
+default_topic_replications: 1
