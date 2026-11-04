@@ -85,8 +85,16 @@ deploy() {
     count=$((count + 1))
   done
   for key in "${REQUIRED[@]}"; do [ -n "${seen[$key]:-}" ] || refuse "${key} is missing"; done
-  (umask 007 && cp "$dir/env" "$ENV_FILE")
-  chmod 660 "$ENV_FILE"
+  # Write a new file beside the old one and rename it over: only a file's owner may chmod it, and
+  # the old file may be the admin user's (deploy:vm writes it too). The group-writable directory
+  # lets either user replace it.
+  local staged
+  staged="$(mktemp "${ENV_FILE}.XXXXXX")"
+  # shellcheck disable=SC2064 # expand now, as above.
+  trap "rm -rf '$dir' '$staged'" EXIT
+  cat "$dir/env" > "$staged"
+  chmod 660 "$staged"
+  mv -f "$staged" "$ENV_FILE"
   echo "${ENV_FILE}: ${count} settings (${!seen[*]})"
 
   config="$dir/docker"
