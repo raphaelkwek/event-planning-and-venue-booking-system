@@ -1,0 +1,31 @@
+@startuml hold-states
+title Hold (L1 to L6, CR-04): a tentative claim on a venue period, with an expiry
+' Hand-written from modules/venue/repo/holds.ts and holdExpiry.ts and modules/venue/domain/hold.ts;
+' statuses in backend/packages/contracts/src/venueHolds.ts. The timers are the HoldExpiry workflow
+' (planning-core/src/temporal/workflows/holdExpiry.ts).
+hide empty description
+skinparam shadowing false
+
+state "Requested" as REQUESTED
+state "Held" as HELD
+state "Converted" as CONVERTED
+state "Released" as RELEASED
+state "Expired" as EXPIRED
+
+[*] --> REQUESTED : coordinator asks for a hold (one live hold per event and venue)
+REQUESTED --> HELD : Venue Staff place it, with an expiry (inserts a HELD slot)
+REQUESTED --> RELEASED : released before it is placed, or the event is cancelled (F4)
+HELD --> CONVERTED : converted into a booking request (the slot stays Held, now under the request's reference, until M1 approves it)
+HELD --> RELEASED : released, or the event is cancelled (the slot is released)
+HELD --> EXPIRED : the expiry is reached, by the HoldExpiry timer, the jobs:expire-holds sweep or a slot insert at the venue (the slot is Expired)
+CONVERTED --> [*]
+RELEASED --> [*]
+EXPIRED --> [*]
+
+note right of HELD
+  A reminder goes out at the expiry minus the lead time.
+  Venue Staff may move the expiry (PATCH /holds/{id}/expiry);
+  the timers restart. The expiry is decided under the hold's
+  row lock with the database clock, so an early or late timer is harmless.
+end note
+@enduml

@@ -1,0 +1,39 @@
+@startuml registration-states
+title Registration (R2 to R7) and waitlist entry (R6)
+' Hand-written from the registration service: src/service/*, src/domain/registrationRules.ts and waitlistRules.ts;
+' statuses in backend/packages/contracts/src/registrationEvents.ts. A seat is a row (ADR-0005).
+hide empty description
+skinparam shadowing false
+
+state "Registration" as reg {
+  state "Registered" as REGISTERED
+  state "Withdrawn" as WITHDRAWN
+  state "Cancelled" as CANCELLED
+  [*] --> REGISTERED : R2 claims a free seat (FOR UPDATE SKIP LOCKED); R7 may add above capacity, with no seat
+  REGISTERED --> WITHDRAWN : R4, before the withdrawal deadline, frees the seat
+  REGISTERED --> CANCELLED : the event is cancelled (R3, F4)
+  WITHDRAWN --> [*]
+  CANCELLED --> [*]
+}
+
+state "Waitlist entry" as wait {
+  state "Waitlisted" as WAITLISTED
+  state "Registered" as PROMOTED
+  state "Withdrawn" as LEFT
+  state "Cancelled" as WCANCELLED
+  [*] --> WAITLISTED : R6, when the event is full
+  WAITLISTED --> PROMOTED : the attendee registers (R2) or is added (R7); the entry names that registration
+  WAITLISTED --> LEFT : the attendee leaves the waitlist
+  WAITLISTED --> WCANCELLED : the event is cancelled
+  PROMOTED --> [*]
+  LEFT --> [*]
+  WCANCELLED --> [*]
+}
+
+note bottom of reg
+  At most one Registered row per attendee and event, and per seat
+  (partial unique indexes). Registering again after withdrawing is a new row.
+  Nobody is promoted automatically: a withdrawal or a capacity increase that opens a
+  place only notifies the waiting attendees (R6), who then register for themselves.
+end note
+@enduml
