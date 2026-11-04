@@ -9,7 +9,14 @@ import { ANON_KEY, AUTH_URL, HOST, PORTS } from "./stack.js";
  * rate limits.
  */
 const PLANNING_CORE = { host: HOST, port: PORTS.planningCore };
-const SEED_ADDRESS = process.platform === "linux" ? "127.0.0.2" : undefined;
+/**
+ * planning-core limits requests per address (120 a minute on the event routes). Seeding for many
+ * journeys in a row would spend one address's budget, so each call leaves from the next of 32
+ * loopback addresses (127.0.2.1 to 127.0.2.32), as the preview proxy does for the browser.
+ */
+const SEED_ADDRESSES = Array.from({ length: 32 }, (_, i) => `127.0.2.${i + 1}`);
+let nextSeedAddress = 0;
+const seedAddress = () => (process.platform === "linux" ? SEED_ADDRESSES[nextSeedAddress++ % SEED_ADDRESSES.length] : undefined);
 
 const tokens = new Map<AccountKey, string>();
 
@@ -46,7 +53,7 @@ export async function call<T = unknown>(
         ...PLANNING_CORE,
         method,
         path,
-        localAddress: SEED_ADDRESS,
+        localAddress: seedAddress(),
         headers: {
           Authorization: `Bearer ${token}`,
           ...(payload ? { "Content-Type": "application/json", "Content-Length": Buffer.byteLength(payload) } : {}),

@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: cb3b9d8 · Evidence: partial only. At API level, Sunday 13 Dec 10:00-12:00, Monday 14 Dec 07:00-09:00 and Monday 21:00 to Tuesday 09:00 each returned no venue (backend/services/planning-core/tests/venue/repo/venueSearch.test.ts › excludes a venue that is closed, opens later, or is closed overnight during the window (J1-T15) ; backend/services/planning-core/tests/venue/api/venueSearch.test.ts › answers a search that matches nothing with 200, an empty list and a message restating the filters (J1-T20) , CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/38427990873). Not covered by any automated test: the empty-result message for this card's filters. UI walk-through in Chrome pending at the sprint review · Defect: — |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | Sunday 10:00–12:00, Monday 07:00–09:00 and Monday 21:00 to Tuesday 09:00 each listed no venue and showed the empty-result message. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
+| Status | Pass |
+| Remarks | Automated (browser, Playwright) · Commit: aa700c3 · Evidence: tests/e2e/j-venue-search.spec.ts › J1-T15 a venue closed during the window is excluded, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41694828373 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-04 |

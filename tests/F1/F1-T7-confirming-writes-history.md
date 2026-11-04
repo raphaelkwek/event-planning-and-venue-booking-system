@@ -25,8 +25,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | Not run: F5's confirmation action (Sprint 4) does not exist, so there is no way to perform step 1. |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: — · Defect: — · Awaiting F5 (Sprint 4). |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | The assigned coordinator confirmed the arrangements from the event page (status Safety Review); the newest status change read APPROVED → SAFETY_REVIEW, the coordinator's user id, EVENT_COORDINATOR, CONFIRM_ARRANGEMENTS, with a non-empty occurred_at. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
+| Status | Pass |
+| Remarks | Automated (browser, Playwright) · Commit: aa700c3 · Evidence: tests/e2e/u-safety-and-assignment.spec.ts › F1-T7 confirming the arrangements writes a history entry from Approved to Safety Review, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41694828373 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-04 |

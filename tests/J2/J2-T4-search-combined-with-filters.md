@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: cb3b9d8 · Evidence: partial only. At API level, search 'science' with minimum capacity 100 returned Auditorium only; adding Hearing loop returned Auditorium only; adding the window 14 Dec 10:30-11:30 returned no venue (Auditorium's booking overlaps) (backend/services/planning-core/tests/venue/repo/venueSearch.test.ts › combines with the filters, and the result satisfies both (J2-T4) , CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/38427990873). Not covered by any automated test: the message restating the search and the filters. UI walk-through in Chrome pending at the sprint review · Defect: — |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | The text search `fx science` with minimum capacity 100 listed FX Auditorium only; adding Hearing loop still listed FX Auditorium only; adding the window 10:30–11:30 on the booked day listed no venue, with a message restating the search and filters. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
+| Status | Pass |
+| Remarks | Automated (browser, Playwright) · Commit: aa700c3 · Evidence: tests/e2e/j-venue-search.spec.ts › J2-T4 the text search combined with J1's filters returns only venues satisfying both, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41694828373 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-04 |

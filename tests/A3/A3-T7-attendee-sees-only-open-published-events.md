@@ -24,8 +24,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | Not run: the attendee event list (R1, Sprint 3) and registration windows (F5, Sprint 4) do not exist, so there is nowhere to perform the steps. |
-| Status | Not Executed |
-| Remarks | Commit: b0ef6ee (working tree modified) · Evidence: — · Defect: — · Was recorded Blocked on 2026-09-20; re-recorded as Not Executed because the case depends on unbuilt future stories rather than on something broken. |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | The attendee's Events list showed the Confirmed open event (description, date and times, venue and location, `3 places remaining`) and not the Approved event; its page showed only published fields and a Register button, with no clarification thread, review comment, coordinator note or rejection reason. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
+| Status | Pass |
+| Remarks | Automated (browser, Playwright) · Commit: aa700c3 · Evidence: tests/e2e/e-access-and-console.spec.ts › A3-T7 an attendee sees only events open to them, and only their published fields, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41694828373 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-04 |
