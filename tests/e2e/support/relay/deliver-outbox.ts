@@ -54,6 +54,8 @@ export interface Delivery {
   type: string;
   consumer: string;
   outcome: string;
+  /** Why the notification consumer retried or dead-lettered the message (its error header), when it did. */
+  error?: string;
 }
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "..");
@@ -79,7 +81,7 @@ async function main() {
   if (!options.eventId) throw new Error("eventId is required");
   const to = new Set<Consumer>(options.to ?? ["notification"]);
 
-  const [{ prepareRow: preparePlanningCoreRow }, { prepareRow: prepareRegistrationRow }, notification, seatBuilder, listings, { KAFKA_TOPICS }] =
+  const [{ prepareRow: preparePlanningCoreRow }, { prepareRow: prepareRegistrationRow }, notification, seatBuilder, listings, { KAFKA_TOPICS }, { ERROR_HEADER }] =
     await Promise.all([
       load("backend/services/planning-core/src/shared/outbox/messages.ts"),
       load("backend/services/registration/src/outbox/messages.ts"),
@@ -87,6 +89,7 @@ async function main() {
       load("backend/services/registration/src/consumer/handleApproval.ts"),
       load("backend/services/registration/src/consumer/handleListing.ts"),
       load("backend/packages/contracts/src/index.ts"),
+      load("backend/services/notification/src/domain/retryPolicy.ts"),
     ]);
 
   /** The topics each consumer subscribes to (each service's consumer/run.ts). */
@@ -128,11 +131,19 @@ async function main() {
           }
         }
         if (to.has("notification") && NOTIFICATION_TOPICS.has(message.topic)) {
+          // A message the consumer retries or dead-letters goes to Kafka with the error in a header; keep it.
+          let error: string | undefined;
           const outcome = await notification.handleMessage(
             { topic: message.topic, key: message.key, value: message.value, headers: message.headers },
-            { sql, publish: async () => undefined },
+            {
+              sql,
+              publish: async (_topic: string, sent: { headers: Record<string, string> }) => {
+                error = sent.headers[ERROR_HEADER] ?? error;
+              },
+            },
           );
           record("notification", outcome);
+          if (error) deliveries[deliveries.length - 1]!.error = error;
         }
       }
     }
