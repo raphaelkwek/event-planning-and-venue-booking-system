@@ -635,7 +635,7 @@ A test that only passes against data already sitting in the shared database fail
 - **`src/**/domain/**` must stay at 100%** of lines, branches, functions and statements, in line with the target above. If a line genuinely can't be covered, say why in a comment in the test file; never lower the threshold.
 - **Everything else has a floor** just under today's unit-only figures. Raise a floor when coverage rises; never lower one to get a build through.
 
-CI shows a coverage table in the job summary and uploads the HTML reports as the `coverage-reports` artifact.
+CI shows a coverage table in the job summary and uploads the HTML reports as the `coverage-reports` artifact. Each workspace's figure, and why it is below 100%, is in `documentation/testing/coverage.md`.
 
 ### 8.2 The sprint test kit — build it *before* the sprint
 

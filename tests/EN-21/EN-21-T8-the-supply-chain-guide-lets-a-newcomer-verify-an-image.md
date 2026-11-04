@@ -8,11 +8,15 @@
 | Test Scenario | documentation/supply-chain.md lets a newcomer verify an image's signature and SBOM |
 | Pre-conditions | 1. This pull request merged and a push to main has published and signed the images.<br>2. A machine with `cosign` installed and no GitHub login. |
 | Test Steps | 1. Open documentation/supply-chain.md.<br>2. Follow the commands for one image: find the digest, `cosign verify`, `cosign verify-attestation`, extract the SBOM, and read a package list from it.<br>3. Repeat with a wrong identity and check it is refused. |
-| Test Data | `ghcr.io/raphaelkwek/connectsphere-planning-core:<merge commit sha>`. |
+| Test Data | `ghcr.io/joass1/connectsphere-planning-core:<merge commit sha>`. |
 | Expected Result | Each command works as written, the SBOM is extracted and readable, and the wrong identity is refused. |
 | Acceptance criterion | A documentation/supply-chain.md explaining how to verify an image's signature and SBOM. |
 | Created By | Joash |
 | Date of Creation | 2026-11-03 |
+
+> **Revised 2026-11-04.** The repository moved to `joass1/` on 4 Nov 2026, so the image is
+> `ghcr.io/joass1/connectsphere-planning-core` and the guide's `OWNER` is `joass1` (corrected in
+> documentation/supply-chain.md in the same change).
 
 ## Execution record
 
