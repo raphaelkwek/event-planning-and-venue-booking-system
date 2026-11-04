@@ -159,7 +159,17 @@ kubectl -n "$NS" get deploy,sts,job,pods,svc,ingress,certificate,pvc,networkpoli
 endlog
 
 log "The gate's health checks (database ok and Kafka reachable for each service)"
-"${GATE[@]}" health | tee "$WORK/health.out"
+# A service's pods turn Ready before its Kafka client has reconnected: the clients first tried
+# while Redpanda was still starting and are backing off. Ask the gate again for up to 3 minutes;
+# the last answer decides.
+healthy=false
+for attempt in $(seq 1 12); do
+  if "${GATE[@]}" health > "$WORK/health.out" 2>&1; then healthy=true; break; fi
+  echo "health attempt ${attempt} not yet: $(grep -c 'is not ready\|is not serving' "$WORK/health.out" || true) check(s) pending; retrying in 15 s"
+  sleep 15
+done
+cat "$WORK/health.out"
+[ "$healthy" = true ] || { echo "::error::the gate's health checks did not pass within 3 minutes"; exit 1; }
 endlog
 
 log "The Temporal worker connects to the in-cluster Temporal and starts its Kafka consumers"
