@@ -19,8 +19,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Waits for CI on the F3 pull request. Commit: · Evidence: · Defect: — |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | After O cancelled E, O's edit answered 409 `EVENT_NOT_EDITABLE` and O's change request 409 `EVENT_NOT_CHANGEABLE`; C's booking request 409 `EVENT_NOT_BOOKABLE`, C's hold 409 `EVENT_NOT_HOLDABLE`, C's equipment lines and T's reservation of L2 each 409 `EVENT_CANCELLED` `This event has been cancelled, so no equipment can be requested or reserved for it.` E's row, history count, slots, holds, booking requests, lines, reservations, change requests and event-outbox count were unchanged. |
+| Status | Pass |
+| Remarks | Automated (API level) · Commit: 5eb3bfd · Evidence: `backend/services/planning-core/tests/change/api/f3Cards.test.ts` › F3 cards (tests/F3) › F3-T6 a cancelled event refuses an edit, a change request, a venue request, a hold, equipment lines and a reservation, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41767254259 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-04 |

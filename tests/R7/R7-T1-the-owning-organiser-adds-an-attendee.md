@@ -19,6 +19,6 @@
 |---|---|
 | Actual Result |  |
 | Status | Not Executed |
-| Remarks | Proven at API level by backend/services/registration/tests/api/r7Cards.test.ts › R7-T1 adds an attendee for the owning organiser: Registered, manual, who, when and why, and the attendee is told, which passed in CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41523834657 (commit d7abf51). UI walk-through in Chrome pending at the sprint review. |
+| Remarks | Steps 1 to 3 and My registrations in step 4 ran in the browser on CI's throwaway stack: the dialog showed `Capacity 3` and `With this addition: 1 attendee`; the addition answered 201 (`Attendee One was added: registration REG-…`), the row read `Attendee One`, the time, `Registered`, `Added by Organiser One` and `“Keynote speaker's guest”`, places remaining 2; Attendee One's My registrations listed the registration. Step 4's notice (`Organiser One added you to …`) is not proven: notifications are built from Kafka messages, which CI's stack runs without. Proven by tests/e2e/r-management.spec.ts › R7-T1 the owning organiser adds an attendee, seeing the capacity and the new total first, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41767254259 (commit 5eb3bfd). UI walk-through in Chrome pending at the sprint review. |
 | Executed By |  |
 | Date of Execution |  |

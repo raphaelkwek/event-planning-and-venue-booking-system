@@ -19,8 +19,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Waits for the G2 implementation. Commit: · Evidence: · Defect: — |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | The preview answered 200 with exactly three `impact.flags`: B1 and B2 (`BOOKING`, reference, venue name) `REQUIRES_RECONFIRMATION` with `The booking is for <old period>, but the event is now <new period>.`, and R1 (`EQUIPMENT`, its id as reference, its equipment type name) `FLAGGED_FOR_REVIEW` with `The reservation is for <old period>, but the event is now <new period>.`, periods as `formatPeriod` writes them; no `UNSUITABLE` flag. |
+| Status | Pass |
+| Remarks | Automated (API level) · Commit: 5eb3bfd · Evidence: `backend/services/planning-core/tests/change/api/g2Cards.test.ts` › G2 cards: previewing the arrangements a pending change would affect › G2-T3 a moved date previews Requires Reconfirmation and Flagged for review with the period reasons, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41767254259 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-04 |

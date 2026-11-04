@@ -21,6 +21,6 @@
 |---|---|
 | Actual Result | |
 | Status | Not Executed |
-| Remarks | Waits for the S1 implementation and migration change/0001 on the shared database, applied after the S1 PR merges (`npm run migrate -- change`). Commit: · Evidence: · Defect: — |
+| Remarks | Steps 1 to 4 and the request page of step 5 ran in the browser on CI's throwaway stack: Send request with nothing changed said `You haven't changed anything.` and sent nothing; attendance 180 with no reason was refused beside Reason; with `More people registered` the page showed `Change requested on <date>: expected attendance (Pending)` and no Request a change; the coordinator's review page showed the same pending notice and reason. The coordinator's notification is not proven: notifications are built from Kafka messages, which CI's stack runs without. Proven by tests/e2e/s-changes.spec.ts › S1-T13 the organiser requests a change: nothing changed, a missing reason, then the pending notice, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41767254259 (commit 5eb3bfd). UI walk-through in Chrome pending at the sprint review. |
 | Executed By | |
 | Date of Execution | |

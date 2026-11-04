@@ -19,8 +19,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Waits for the G2 implementation. Commit: · Evidence: · Defect: — |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | The preview answered 200 with exactly one `impact.flags` entry: B1 (`BOOKING`, its reference, V1's name) `UNSUITABLE` with `Expected attendance is now 150, but <V1's name> holds 100 in the Theatre layout.`, so no flag on B2 or R1 and no period flag. `impact.bookings` listed B1 and B2. |
+| Status | Pass |
+| Remarks | Automated (API level) · Commit: 5eb3bfd · Evidence: `backend/services/planning-core/tests/change/api/g2Cards.test.ts` › G2 cards: previewing the arrangements a pending change would affect › G2-T4 attendance 150 previews only the 100-seat booking as Unsuitable, naming both numbers, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41767254259 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-04 |

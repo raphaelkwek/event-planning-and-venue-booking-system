@@ -19,8 +19,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Waits for CI on the F3 pull request. Commit: · Evidence: · Defect: — |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | The cancellation answered 200 with `closedChangeRequest` CR `CLOSED`, `closedReason` `The event was cancelled.`, `decidedBy` O and `rejectionReason` null. C's approval of CR then answered 409 `CHANGE_REQUEST_ALREADY_DECIDED` with `details.status` `CLOSED` and `This change request was closed on <decidedAt> because the event was cancelled.`, quoting the closed request's `decidedAt`. |
+| Status | Pass |
+| Remarks | Automated (API level) · Commit: 5eb3bfd · Evidence: `backend/services/planning-core/tests/change/api/f3Cards.test.ts` › F3 cards (tests/F3) › F3-T8 the pending change request is Closed because the event was cancelled, and can no longer be decided, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41767254259 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-04 |

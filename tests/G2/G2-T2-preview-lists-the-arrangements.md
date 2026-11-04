@@ -19,8 +19,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Waits for the G2 implementation. Commit: · Evidence: · Defect: — |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | As C, previewing CR (start moved to `D 15:00`) answered 200. `impact.bookings` had exactly two entries, B1 and B2, each `BOOKING` with its reference, its venue's name (V1, V2) and the period `D 14:00`–`D 18:00`; `impact.reservations` was exactly R1 with its equipment type name, quantity 4 and period `D 14:00`–`D 18:00`; `impact.activeRegistrations` was 0. CR was still `PENDING`. |
+| Status | Pass |
+| Remarks | Automated (API level) · Commit: 5eb3bfd · Evidence: `backend/services/planning-core/tests/change/api/g2Cards.test.ts` › G2 cards: previewing the arrangements a pending change would affect › G2-T2 a pending date change previews both bookings, the reservation and the registration count, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41767254259 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-04 |

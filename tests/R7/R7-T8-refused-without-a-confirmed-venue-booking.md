@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result |  |
-| Status | Not Executed |
-| Remarks | Proven at API level by backend/services/registration/tests/api/r7Cards.test.ts › R7-T8 refuses an addition while the event has no confirmed venue booking, which passed in CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41523834657 (commit d7abf51). UI walk-through in Chrome pending at the sprint review. |
-| Executed By |  |
-| Date of Execution |  |
+| Actual Result | For the event with no confirmed booking, confirming the dialog answered 422 `REGISTRATION_NO_CONFIRMED_BOOKING` and the dialog showed `EVT-R… “…” has no confirmed venue booking, so its capacity is not known yet and nobody can be added.`; no registration was stored. Run on CI's throwaway stack, with unique names in place of the card's literal names. The dialog first shows `Capacity 0` and offers Add over capacity; the refusal comes when that is confirmed. |
+| Status | Pass |
+| Remarks | Automated (browser, Playwright) · Commit: 5eb3bfd · Evidence: tests/e2e/r-management.spec.ts › R7-T8 an addition is refused while the event has no confirmed venue booking, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41767254259 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-04 |

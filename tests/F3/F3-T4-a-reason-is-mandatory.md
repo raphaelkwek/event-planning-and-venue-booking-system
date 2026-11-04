@@ -19,8 +19,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Waits for CI on the F3 pull request. Commit: · Evidence: · Defect: — |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | As O, each of no reason, an empty reason and a reason of spaces answered 400 `VALIDATION_FAILED` with the single field error `reason`, `Give a reason for cancelling the event.` E's row (still `PLANNING`), its history count, slots, equipment lines, reservations, change requests and E's event-outbox count were the same after the three requests as before. |
+| Status | Pass |
+| Remarks | Automated (API level) · Commit: 5eb3bfd · Evidence: `backend/services/planning-core/tests/change/api/f3Cards.test.ts` › F3 cards (tests/F3) › F3-T4 without a reason, or with a blank one, nothing changes, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41767254259 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-04 |

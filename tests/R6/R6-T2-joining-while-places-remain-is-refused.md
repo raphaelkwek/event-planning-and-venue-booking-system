@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result |  |
-| Status | Not Executed |
-| Remarks | Proven at API level by backend/services/registration/tests/api/r6Cards.test.ts › R6-T2 refuses to waitlist while places remain, storing nothing, which passed in CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41523834657 (commit d7abf51). UI walk-through in Chrome pending at the sprint review. |
-| Executed By |  |
-| Date of Execution |  |
+| Actual Result | From the API console, POST /registration/api/v1/events/<EVENT_ID>/waitlist answered 409 `WAITLIST_PLACES_AVAILABLE` with `EVT-R… “…” still has 3 places remaining, so register instead of joining the waitlist.`; no waitlist entry was stored, and the event's page offered Register and no Join the waitlist. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
+| Status | Pass |
+| Remarks | Automated (browser, Playwright) · Commit: 5eb3bfd · Evidence: tests/e2e/r-management.spec.ts › R6-T2 joining while places remain is refused; the event offers Register, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41767254259 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-04 |

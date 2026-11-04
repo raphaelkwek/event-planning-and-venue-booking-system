@@ -19,8 +19,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Waits for migrations venue/0019 and equipment/0009 on a CI database. Commit: · Evidence: · Defect: — |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | The approval answered 200; `impact.bookings` included P as `BOOKING_REQUEST` at Venue Three and `impact.flags` included P `REQUIRES_RECONFIRMATION` with the reason `The booking request is for <old period>, but the event is now <new period>.` M1 approval by VS answered 200, P was `APPROVED` and its booking `CONFIRMED` for `D 14:00`–`D 18:00` with the period flag set. The flag list showed that booking (`BOOKING`, P's reference, Venue Three) with the same flag and reason, and no booking-request flag. F5 answered 422 `ARRANGEMENTS_NOT_READY` with it in `details.flags`. |
+| Status | Pass |
+| Remarks | Automated (API level) · Commit: 5eb3bfd · Evidence: `backend/services/planning-core/tests/change/api/s3Cards.test.ts` › S3 cards: reconsidering the arrangements an approved change affects › S3-T14 a pending request flagged at approval stays flagged once M1 confirms it, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41767254259 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-04 |

@@ -19,8 +19,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Waits for the S3 implementation and migrations venue/0019 and equipment/0009. Commit: · Evidence: · Defect: — |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | The approval answered 200 with `impact.flags` exactly B1 `UNSUITABLE`, reason `Expected attendance is now 150, but <V1's name> holds 100 in the Theatre layout.`; `GET .../arrangement-flags` answered 200 with only that flag. B1 was still `CONFIRMED` for `D 14:00`–`D 18:00`, flagged unsuitable, with neither period flag column set, and R1 was not flagged for review. |
+| Status | Pass |
+| Remarks | Automated (API level) · Commit: 5eb3bfd · Evidence: `backend/services/planning-core/tests/change/api/s3Cards.test.ts` › S3 cards: reconsidering the arrangements an approved change affects › S3-T4 attendance 150 makes the 100-seat booking Unsuitable, naming both numbers, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41767254259 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-04 |

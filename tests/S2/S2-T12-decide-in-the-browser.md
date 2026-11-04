@@ -21,6 +21,6 @@
 |---|---|
 | Actual Result | |
 | Status | Not Executed |
-| Remarks | Waits for the S2 implementation and migrations change/0002 and change/0003 on the shared database, applied after the S2 PR merges (`npm run migrate -- change`). Commit: · Evidence: · Defect: — |
+| Remarks | Steps 1 to 4 and the request pages of step 5 ran in the browser on CI's throwaway stack: the approval (dialog `expected attendance: 150 → 180`) showed `Change approved on <date>` and 180; Confirm rejection without a reason was refused with `Give a reason for rejecting the change.`; with `No larger hall` the page showed `Change rejected on <date>: No larger hall` and 150; neither page then offered Approve change or Reject change; the organiser saw both outcomes with the values and Request a change offered again. The organiser's two notifications are not proven: notifications are built from Kafka messages, which CI's stack runs without. Proven by tests/e2e/s-changes.spec.ts › S2-T12 the coordinator approves one change and rejects another with a reason, and the organiser sees both, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41767254259 (commit 5eb3bfd). UI walk-through in Chrome pending at the sprint review. |
 | Executed By | |
 | Date of Execution | |

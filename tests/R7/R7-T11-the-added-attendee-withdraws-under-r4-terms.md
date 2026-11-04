@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result |  |
-| Status | Not Executed |
-| Remarks | Proven at API level by backend/services/registration/tests/api/r7Cards.test.ts › R7-T11 lets the added attendee withdraw under R4's terms, deadline included, which passed in CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41523834657 (commit d7abf51). UI walk-through in Chrome pending at the sprint review. |
-| Executed By |  |
-| Date of Execution |  |
+| Actual Result | After the organiser added Attendee One, the event showed `2 places remaining`; Attendee One withdrew the added registration from My registrations (200), the row showed `Withdrawn` and the stored withdrawal time, and the event then showed `3 places remaining`. On an event whose withdrawal deadline had passed, the withdrawal of an added registration answered 422 `WITHDRAWAL_DEADLINE_PASSED`, the dialog named the deadline, and after Keep my place the row and the database still read Registered with no withdrawal. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
+| Status | Pass |
+| Remarks | Automated (browser, Playwright) · Commit: 5eb3bfd · Evidence: tests/e2e/r-management.spec.ts › R7-T11 the added attendee withdraws under R4's terms, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41767254259 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-04 |

@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result |  |
-| Status | Not Executed |
-| Remarks | Proven at API level by backend/services/registration/tests/api/r7Cards.test.ts › R7-T7 takes the total of every confirmed venue as the capacity, which passed in CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41523834657 (commit d7abf51). UI walk-through in Chrome pending at the sprint review. |
-| Executed By |  |
-| Date of Execution |  |
+| Actual Result | With venues of 2 and 3 seats and 4 taken, the dialog showed `Capacity 5` and `With this addition: 5 attendees` with no over-capacity warning; Add attendee answered 201, the row read `Added by Organiser One`, the totals `Registered 5`, `Withdrawn 0`, `Places remaining 0`, `Capacity 5`, `Added by hand 1`, and the database recorded it not over capacity, holding a seat. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
+| Status | Pass |
+| Remarks | Automated (browser, Playwright) · Commit: 5eb3bfd · Evidence: tests/e2e/r-management.spec.ts › R7-T7 with several venues the capacity is their total, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41767254259 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-04 |
