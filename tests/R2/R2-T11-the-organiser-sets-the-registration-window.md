@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result |  |
-| Status | Not Executed |
-| Remarks | Proven by backend/services/planning-core/tests/event/api/registrationSettings.test.ts › R2-T11 R4-T8 the owner sets the window and the deadline, with history and the listing message, and frontend/tests/registrationSettings.test.tsx, passed in CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41602701323 (commit 4f9ab08). UI walk-through in Chrome pending at the sprint review. |
-| Executed By |  |
-| Date of Execution |  |
+| Actual Result | Registration closing before opening was refused with `Registration closing must be later than registration opening.` under Registration closes and nothing was saved; a closing after the event start was refused too; a valid closing saved with `Registration settings saved.` and the new window (checked through the API). Organiser Two opening the settings address saw that no event with that reference is available, with nothing changed. Run on CI's throwaway stack, with unique names in place of the card's literal names. The request is on 2 December 2030, the card's time of day. |
+| Status | Pass |
+| Remarks | Automated (browser, Playwright) · Commit: aa700c3 · Evidence: tests/e2e/r-registration.spec.ts › R2-T11 the owning organiser sets the registration window; another organiser and an invalid window are refused, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41694828373 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-04 |

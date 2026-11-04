@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: cb3b9d8 · Evidence: partial only. At API level, for EVENT_ORGANISER, VENUE_STAFF, TECH_SUPPORT_STAFF and ATTENDEE, GET /api/v1/venues/search (and /search/options and /search/prefill) returned 403 ROLE_NOT_AUTHORISED with no items. A signed-in EVENT_COORDINATOR received 200 with an items list in the empty-search test (backend/services/planning-core/tests/venue/api/venueSearch.test.ts › refuses %s and returns no venues (policy action search on venue; J1-T24) ; backend/services/planning-core/tests/venue/api/venueSearch.test.ts › lists every active venue for an empty search, with the row fields J2 shows , CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/38427990873). Not covered by any automated test: that the four other roles have no “Find a venue” link. UI walk-through in Chrome pending at the sprint review · Defect: — |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | The organiser, Venue Staff, Technical Support and the attendee had no `Find a venue` link and got 403 ROLE_NOT_AUTHORISED from GET /venue/api/v1/venues/search in the API console; the coordinator got 200 with an items list. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
+| Status | Pass |
+| Remarks | Automated (browser, Playwright) · Commit: aa700c3 · Evidence: tests/e2e/j-venue-search.spec.ts › J1-T24 only Event Coordinators can search; every other role is refused by the server, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41694828373 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-04 |

@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: — · Evidence: — · Defect: — · Story: P2, Sprint 2 |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | Technical Support created an equipment type (20), raised it to 24 and marked 3 units unavailable with a reason; the history query returned three rows in order (TYPE_CREATED 0→20, TYPE_UPDATED 20→24, UNAVAILABILITY_RECORDED 0→3), each with Technical Support's user id, role TECH_SUPPORT_STAFF and a timestamp from this run. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
+| Status | Pass |
+| Remarks | Automated (browser, Playwright) · Commit: aa700c3 · Evidence: tests/e2e/q-equipment-and-changes.spec.ts › P2-T11 creating and updating inventory and recording unavailability each capture the actor, time, previous and new quantity, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41694828373 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-04 |

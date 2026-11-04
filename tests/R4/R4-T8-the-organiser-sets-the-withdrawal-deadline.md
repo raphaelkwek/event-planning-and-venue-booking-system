@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result |  |
-| Status | Not Executed |
-| Remarks | Proven by backend/services/planning-core/tests/event/api/registrationSettings.test.ts › R4-T8 a deadline after the event start is refused, naming the field; nothing is stored, and frontend/tests/registrationSettings.test.tsx, passed in CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41602701323 (commit 4f9ab08). UI walk-through in Chrome pending at the sprint review. |
-| Executed By |  |
-| Date of Execution |  |
+| Actual Result | A withdrawal deadline after the event start was refused under Withdrawal deadline with `The withdrawal deadline must be no later than the event start.` and nothing was saved; 13:00 saved with `Registration settings saved.` (checked through the API); clearing it saved with no deadline and the screen said attendees can withdraw until the event starts. Run on CI's throwaway stack, with unique names in place of the card's literal names. The request is on 2 December 2030, the card's time of day. |
+| Status | Pass |
+| Remarks | Automated (browser, Playwright) · Commit: aa700c3 · Evidence: tests/e2e/r-registration.spec.ts › R4-T8 the owning organiser sets the withdrawal deadline; one after the event start is refused, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41694828373 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-04 |

@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result |  |
-| Status | Not Executed |
-| Remarks | Proven by backend/services/registration/tests/api/r4Cards.test.ts › R4-T6 refuses a withdrawal a millisecond after the deadline, naming it; status and places unchanged (API level), and the screen in frontend/tests/attendeeRegistration.test.tsx against a stubbed API, passed in CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41602701323 (commit 4f9ab08). UI walk-through in Chrome pending at the sprint review. |
-| Executed By |  |
-| Date of Execution |  |
+| Actual Result | With the withdrawal deadline two minutes after the fixture, the test waited until it had passed, then Withdraw returned 422 WITHDRAWAL_DEADLINE_PASSED and the dialog showed `The withdrawal deadline for … was <moment>, so registration REG-… can no longer be withdrawn.`; after Keep my place the row was still Registered, SQL showed REGISTERED with no withdrawn_at, and places remaining was unchanged. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
+| Status | Pass |
+| Remarks | Automated (browser, Playwright) · Commit: aa700c3 · Evidence: tests/e2e/r-registration.spec.ts › R4-T6 boundary: a withdrawal after the deadline is refused naming it; the registration stays Registered, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41694828373 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-04 |

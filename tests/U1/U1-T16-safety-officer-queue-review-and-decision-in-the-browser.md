@@ -20,8 +20,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | Not run in a browser. The queue, the review with its decision form and the Mark Confirmed button are covered at component level by frontend/tests/safetyReview.test.tsx (what each screen shows and sends), not the signed-in walk-through. |
-| Status | Not Executed |
-| Remarks | Partly proven by frontend/tests/safetyReview.test.tsx, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41475757839. UI walk-through in Chrome pending at the sprint review · Defect: — |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | The Safety Officer's navigation offered the Safety queue, which listed both events waiting (`Awaiting your decision`); E1's review showed attendance 150, the accessibility needs, the booked venue with Theatre and its layouts (Theatre (300), Classroom (120), Banquet (180)), and the equipment with its placement note. Request changes without a reason was refused with `Give a reason when you request changes or reject the safety arrangement.` and changed nothing; with a reason it was recorded and the event returned to Planning. The coordinator's Mark Confirmed on the other event showed `The Safety Officer has not approved this event's safety arrangements, so it cannot be marked Confirmed.`; another coordinator was not offered it; after the Safety Officer approved (queue entry `Approved, awaiting Mark Confirmed`) Mark Confirmed moved the event to Confirmed. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
+| Status | Pass |
+| Remarks | Automated (browser, Playwright) · Commit: aa700c3 · Evidence: tests/e2e/u-safety-and-assignment.spec.ts › U1-T16 Safety Officer queue, review and decision in the browser, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41694828373 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-04 |
