@@ -19,11 +19,11 @@ state "Registration" as reg {
 state "Waitlist entry" as wait {
   state "Waitlisted" as WAITLISTED
   state "Registered" as PROMOTED
-  state "Left the waitlist" as LEFT
+  state "Withdrawn" as LEFT
   state "Cancelled" as WCANCELLED
   [*] --> WAITLISTED : R6, when the event is full
-  WAITLISTED --> PROMOTED : a place opens (withdrawal or more capacity); a registration is created
-  WAITLISTED --> LEFT : the attendee leaves
+  WAITLISTED --> PROMOTED : the attendee registers (R2) or is added (R7); the entry names that registration
+  WAITLISTED --> LEFT : the attendee leaves the waitlist
   WAITLISTED --> WCANCELLED : the event is cancelled
   PROMOTED --> [*]
   LEFT --> [*]
@@ -33,5 +33,7 @@ state "Waitlist entry" as wait {
 note bottom of reg
   At most one Registered row per attendee and event, and per seat
   (partial unique indexes). Registering again after withdrawing is a new row.
+  Nobody is promoted automatically: a withdrawal or a capacity increase that opens a
+  place only notifies the waiting attendees (R6), who then register for themselves.
 end note
 @enduml

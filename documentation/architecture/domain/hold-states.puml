@@ -14,10 +14,10 @@ state "Expired" as EXPIRED
 
 [*] --> REQUESTED : coordinator asks for a hold (one live hold per event and venue)
 REQUESTED --> HELD : Venue Staff place it, with an expiry (inserts a HELD slot)
-REQUESTED --> RELEASED : released before it is placed
-HELD --> CONVERTED : converted into a booking request's booking
-HELD --> RELEASED : released (the slot is released)
-HELD --> EXPIRED : the HoldExpiry timer fires at the expiry (the slot is Expired)
+REQUESTED --> RELEASED : released before it is placed, or the event is cancelled (F4)
+HELD --> CONVERTED : converted into a booking request (the slot stays Held, now under the request's reference, until M1 approves it)
+HELD --> RELEASED : released, or the event is cancelled (the slot is released)
+HELD --> EXPIRED : the expiry is reached, by the HoldExpiry timer, the jobs:expire-holds sweep or a slot insert at the venue (the slot is Expired)
 CONVERTED --> [*]
 RELEASED --> [*]
 EXPIRED --> [*]
