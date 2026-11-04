@@ -65,6 +65,20 @@ plan. The worker reaches it through the same `TEMPORAL_*` variables (`temporal:7
 `default`, no API key, so a plain connection inside the namespace). Workflows, versioning and replay
 tests are unchanged; there is one Temporal process per environment and no UI is exposed.
 
+## Note, 4 Nov 2026: timers survive a redeploy
+
+"Processes survive pod restarts" held on k3s, where Temporal's SQLite file is on a
+PersistentVolumeClaim, but not on the Azure VM: there it was in the container's `/tmp`, and every
+merge to main replaced the container. On 4 Nov a Confirmed event stayed Confirmed 30 minutes past its
+end. Now, on the VM, Temporal's file is on a named volume per environment
+(`connectsphere-<env>-temporal`), which outlives the container. Wherever the worker runs, it also
+re-creates every CompleteEvent and HoldExpiry timer from the database when it starts, with the
+consumers' workflow ids. The VM's container also runs F1's completion sweep and L6's hold-expiry
+sweep every five minutes, so a lost timer delays a completion or an expiry by at most that long. The
+decision is unchanged; see `documentation/deploy/README.md`, "What survives a redeploy".
+
+Author: Joash
+
 ## Implementation note (3 Nov 2026)
 
 The CancelEvent workflow was never built, and nothing in the code runs F3 or F4 through Temporal. The decision above is unchanged; this records what was built instead.

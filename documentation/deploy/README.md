@@ -38,10 +38,44 @@ In all three, staging and production differ only in credentials and hostnames.
   - an inner Caddy on 7860 that routes only the public API prefixes, plus a static `/healthz`.
 
   Migrations run when the container starts, against the environment's own Supabase session pooler.
-  The container's disk is its own, so Redpanda and Temporal start empty after a restart; Supabase
-  holds the data.
+  Temporal keeps its state on the environment's named volume, `connectsphere-<env>-temporal`; see
+  [What survives a redeploy](#what-survives-a-redeploy).
 - **Cost:** about USD 31–38 a month for the VM, USD 4.4 for the static IP and USD 2.5 for the 32 GB
   disk. That is about **USD 40 a month**; nothing else in the resource group bills by the hour.
+
+### What survives a redeploy
+
+Every merge to main redeploys staging: the deploy gate stops the container, removes it, and starts
+the new image. Until 4 Nov 2026 Temporal kept its SQLite file in the container's `/tmp`, so every
+redeploy lost every workflow and timer. That day an event confirmed before a redeploy stayed
+Confirmed 30 minutes past its end, until the completion sweep was run by hand.
+
+| What | After a redeploy on the VM | How |
+|---|---|---|
+| Events, holds, bookings, users: all the data | Kept | Supabase holds it, outside the VM. |
+| Temporal's workflows and timers: F1's completion of each Confirmed event, L6's reminder and expiry of each hold | Kept | Temporal's SQLite file is `/var/lib/connectsphere/temporal/temporal.db`, on the named volume `connectsphere-staging-temporal` or `connectsphere-production-temporal`. The gate and `deploy:vm` mount it, and it outlives every container. The image owns the directory to uid 1000, the user supervisord runs Temporal as, and an empty volume takes that owner. `start.sh` logs `Temporal's state: …, kept from the last container` or `…, new`. |
+| A timer Temporal doesn't have anyway (its state was lost or reset, or the worker was down when the message came) | Re-created when the worker starts | The worker lists every Confirmed event with an end and every Held hold from the database, and signal-with-starts each workflow with the consumers' own ids, before its Kafka consumers start. A timer whose time passed while it was gone finishes at once; one that is still there is told what it already has, and ignores it. The worker logs `timers reconciled` with the counts. |
+| An event past its end, or a hold past its expiry, that no timer acted on | Completed or expired within five minutes | The container's `sweeps` program runs F1's completion sweep and L6's hold-expiry sweep at start and every five minutes (`deploy/space/sweeps.sh`). Each logs `completion sweep finished` or `hold expiry sweep finished` with its outcome. |
+| Redpanda's topics and consumer offsets | Lost | The broker's TLS certificate and Kafka password are made anew at each start, so its data stays in the container. The outbox relay republishes anything not yet published; a consumer group starts at the newest message. A notification for a message that was published but not yet consumed when the container went is not sent. |
+
+A reminder that fell due while the worker was down is sent when the worker re-creates the hold's
+timer, if the hold hasn't expired by then; otherwise the hold just expires.
+
+**Check it:**
+- `docker volume inspect connectsphere-staging-temporal`;
+- `docker logs connectsphere-staging 2>&1 | grep -E "Temporal's state|timers reconciled|sweep finished"`.
+
+**Run a sweep by hand** (`docker exec` doesn't get `start.sh`'s settings, so give it the JWKS URL):
+
+```bash
+docker exec connectsphere-staging sh -c 'cd /app/backend/services/planning-core && SUPABASE_JWKS_URL="$SUPABASE_URL/auth/v1/.well-known/jwks.json" node dist/modules/event/jobs/runCompleteEvents.js'
+```
+
+`dist/modules/venue/jobs/runExpireHolds.js` is the hold-expiry sweep.
+
+**Start Temporal empty** (say, after a workflow change that cannot replay): stop and remove the
+container, run `docker volume rm connectsphere-staging-temporal`, and deploy again. The worker
+re-creates every timer from the database.
 
 ### Checklist
 
@@ -99,6 +133,8 @@ forwarding, no other environment. The gate:
 
 - accepts only `deploy <ghcr.io/…/connectsphere-space@sha256:…>` and `health`;
 - accepts only the listed settings on stdin;
+- stops the old container before removing it, and starts the new one with Temporal's volume
+  (`connectsphere-<env>-temporal`), so workflows and timers survive the redeploy;
 - writes `/etc/connectsphere/<env>.env` (mode 660, group `connectsphere`);
 - prints key names, never values.
 
@@ -158,7 +194,8 @@ the secrets folder; everything it or a tool prints is masked.
 - **Logs and status:**
   - `ssh -i ~/.ssh/connectsphere-azure azureuser@<ip> docker logs --tail 100 connectsphere-staging`;
   - `docker exec connectsphere-staging supervisorctl -c /app/deploy/space/supervisord.conf status`;
-  - `docker stats --no-stream`.
+  - `docker stats --no-stream`;
+  - Temporal's state, the reconcile and the sweeps: see [What survives a redeploy](#what-survives-a-redeploy).
 - **Roll back:** check out the earlier commit and run `deploy:vm` again. That commit's image is reused
   if it is still on the VM.
 - **Memory:** `docker stats` shows each container's use. If 4 GB is not enough, first lower
@@ -583,8 +620,10 @@ One container, as uid 1000, with one public port (7860). `deploy/space/start.sh`
 Known limits:
 
 - **The disk is ephemeral.** Redpanda's topics and Temporal's workflows start empty after every restart
-  or rebuild. Supabase holds all the data, and the outbox relay republishes anything not yet published.
-  A hold-expiry or completion timer scheduled before a restart is lost until the event is touched again.
+  or rebuild: a free Space has no volume to keep Temporal's file on, as the VM does. Supabase holds all
+  the data, and the outbox relay republishes anything not yet published. A completion or hold-expiry
+  timer lost in a restart is re-created when the worker starts, and the sweeps complete or expire
+  anything overdue within five minutes (see [What survives a redeploy](#what-survives-a-redeploy)).
 - **Port 6543 may be blocked.** A Space's outbound traffic may not allow Supabase's transaction-pooler
   port. If `start.sh` cannot reach `DATABASE_URL`, the services use the session pooler too, and the log
   says so by name. Port 5432 is reported open for Spaces; if even that is blocked, the Space cannot run
@@ -606,7 +645,9 @@ pointing at a closed port, and checks:
 - the fallback and the migrations;
 - every process running;
 - each service ready with Kafka reachable;
-- the worker connected;
+- the worker connected and re-created the timers, and both sweeps ran;
+- with Temporal's state on a named volume, as the VM's gate runs it: the volume is owned by the uid
+  that runs Temporal, and a workflow started before the container is replaced still runs after it;
 - the routes and CORS through Caddy.
 
 What CI cannot show: Hugging Face's own build, its egress rules, and sleep.
