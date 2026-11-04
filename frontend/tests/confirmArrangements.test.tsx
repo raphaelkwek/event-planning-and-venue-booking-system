@@ -128,6 +128,13 @@ describe("confirming", () => {
     expect(confirmations()).toHaveLength(0);
   });
 
+  it("names the Safety Officers among those notified (D-02)", async () => {
+    asCoordinator();
+    fireEvent.click(await screen.findByRole("button", { name: "Confirm arrangements" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText(/the Safety Officers, the Venue Staff of each booked venue and the Technical Support Staff who reserved equipment are notified/)).toBeTruthy();
+  });
+
   it("on success closes the dialog and shows Safety Review, with no further Confirm (F5 AC8)", async () => {
     asCoordinator();
     fireEvent.click(await screen.findByRole("button", { name: "Confirm arrangements" }));

@@ -1,6 +1,6 @@
 import { Router } from "express";
 import type { Sql, TransactionSql } from "postgres";
-import { currentUserSchema, type CurrentUser } from "@connectsphere/contracts";
+import { currentUserSchema, type CurrentUser, type Role } from "@connectsphere/contracts";
 import { authRouter } from "./api/auth.js";
 import { accessScopeRouter } from "./api/accessScope.js";
 import { usersMeRouter } from "./api/usersMe.js";
@@ -66,6 +66,15 @@ export interface ActiveCoordinator {
 
 export function listActiveCoordinators(sql: Sql): Promise<ActiveCoordinator[]> {
   return listActiveUsersWithRole(sql, "EVENT_COORDINATOR");
+}
+
+/**
+ * Team decision D-02 (clarifications.md): the ids of every active holder of `role`, for a message
+ * that must name the Leads, Safety Officers or Technical Support Staff it notifies (implementation.md
+ * §3.5). Called inside the transaction that writes the message, so it reads the same snapshot.
+ */
+export async function listActiveUserIdsWithRole(sql: Sql | TransactionSql, role: Role): Promise<string[]> {
+  return (await listActiveUsersWithRole(sql, role)).map((user) => user.id);
 }
 
 /**

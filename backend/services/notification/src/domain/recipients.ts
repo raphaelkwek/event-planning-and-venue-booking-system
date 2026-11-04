@@ -151,7 +151,19 @@ function removedBlock(d: Record<string, string>): string {
     : `The unavailability of ${d.venueName} on ${blockPeriodAndReason(d)} was removed.`;
 }
 
+/** D-02: everyone a message names under `key`, in order; none when a message written before D-02 has no such list. */
+function named(d: Record<string, unknown>, key: string): string[] {
+  return (d[key] as string[] | undefined) ?? [];
+}
+
 const RULES: Record<string, Rule> = {
+  // E3, team decision D-02 (clarifications.md): each active Lead the message names hears that a new
+  // request waits in the unassigned queue. A submission written before D-02 names none.
+  "event.submitted": (d, event) =>
+    named(d, "leadIds").map((leadId) => [
+      leadId,
+      `Event request ${event} was submitted and is waiting in your unassigned queue to be assigned a coordinator.`,
+    ]),
   // B1 asks for the coordinator assigned on submission to hear that a request
   // awaits review. event.submitted does not name that coordinator; this
   // message, written in the same transaction, does (E1).
@@ -188,6 +200,13 @@ const RULES: Record<string, Rule> = {
   ],
   // O2: the event's assigned coordinator learns what Technical Support decided about a line.
   "equipment-request.line-status-changed": (d, event) => [[d.coordinatorId!, equipmentLineMessage(d, event)]],
+  // O1, D-02: each active Technical Support member the message names hears of a new line, with when it is needed.
+  "equipment-request.line-submitted": (d, event) =>
+    named(d, "technicalSupportIds").map((staffId) => [
+      staffId,
+      `New equipment request for ${event}: ${d.equipmentTypeName} × ${d.quantity}, needed ${period(d.requiredFrom!, d.requiredTo!)}. ` +
+        "It is waiting in your Equipment requests list.",
+    ]),
   // L1: the venue's Venue Staff learn a request is waiting for them. The message names them.
   "venue-booking.request-submitted": (d, event) =>
     (d.staffIds as unknown as string[]).map((staffId) => [
@@ -298,7 +317,8 @@ const RULES: Record<string, Rule> = {
     [d.attendeeId!, `${event} has been cancelled, so your place on its waitlist (${d.waitlistReference}) is cancelled.`],
   ],
   // F5: the owner, the Venue Staff of each booked venue (once per booking), and each Technical
-  // Support Staff member who reserved equipment (once, listing what they reserved).
+  // Support Staff member who reserved equipment (once, listing what they reserved). D-02: then each
+  // active Safety Officer the message names, whose Safety Review queue the event is now in (U1).
   "event.arrangements-confirmed": (d, event) => arrangementsConfirmed(d as unknown as ArrangementsConfirmed, event),
   // U1 (CR-06): the Safety Officer's decision; the assigned coordinator and the owning organiser are
   // told, once each (a coordinator who also owns the event hears once).
@@ -360,6 +380,8 @@ interface ArrangementsConfirmed {
   ownerId: string;
   bookings: { reference: string; venueName: string; startsAt: string; endsAt: string; staffIds: string[] }[];
   reservations: { equipmentTypeName: string; reservedQuantity: number; reservedBy: string }[];
+  /** D-02; absent from messages written before it. */
+  safetyOfficerIds?: string[];
 }
 
 function arrangementsConfirmed(d: ArrangementsConfirmed, event: string): Array<[string, string]> {
@@ -378,6 +400,9 @@ function arrangementsConfirmed(d: ArrangementsConfirmed, event: string): Array<[
       .map((reservation) => `${reservation.equipmentTypeName} × ${reservation.reservedQuantity}`)
       .join(", ");
     notices.push([reserver, `${event} has confirmed its arrangements, including the equipment you reserved: ${reserved}. ${inReview}`]);
+  }
+  for (const officer of d.safetyOfficerIds ?? []) {
+    notices.push([officer, `${event} has its venue and equipment arrangements confirmed and is waiting in your Safety Review queue.`]);
   }
   return notices;
 }

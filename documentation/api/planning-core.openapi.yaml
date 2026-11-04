@@ -1945,7 +1945,9 @@ paths:
         as the catalogue spells them where a name matches ignoring case. Accessibility needs are
         free text on the event, so each comma, semicolon or line-separated need is matched to a
         catalogue feature; a need that matches none is not turned into a filter and is returned in
-        `unmatchedAccessibility` instead.
+        `unmatchedAccessibility` instead. D5 (staging dry run, 4 Nov 2026): facilities are free text
+        on the event too, so a facility that no venue records (matched ignoring case) is not a
+        filter either, and is returned in `unmatchedFacilities`.
       operationId: getVenueSearchPrefill
       parameters:
         - { name: eventId, in: query, required: true, schema: { type: string, format: uuid } }
@@ -4076,7 +4078,7 @@ components:
         accessibilityFeatures: { type: array, items: { type: string } }
     VenueSearchPrefill:
       type: object
-      required: [eventId, reference, filters, unmatchedAccessibility]
+      required: [eventId, reference, filters, unmatchedAccessibility, unmatchedFacilities]
       properties:
         eventId: { type: string, format: uuid }
         reference: { type: [string, "null"] }
@@ -4094,6 +4096,10 @@ components:
           type: array
           items: { type: string }
           description: Accessibility needs on the event that match no catalogue feature.
+        unmatchedFacilities:
+          type: array
+          items: { type: string }
+          description: D5 — facilities on the event that no venue in the catalogue records, so not used as a filter.
     VenueSuitability:
       type: object
       required: [venueId, venueName, eventId, eventReference, status, reasons, warnings]

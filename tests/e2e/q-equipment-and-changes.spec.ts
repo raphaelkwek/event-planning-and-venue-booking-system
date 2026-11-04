@@ -455,7 +455,7 @@ test.describe("S3 reconsider the arrangements an approved change affects", () =>
     await expect(reservation.filter({ hasText: "Flagged for review" })).toContainText(`The reservation is for ${WAS}, but the event is now ${NOW}.`);
   }
 
-  // AC8 is read as "the assigned Event Coordinator" (documentation/clarifications.md, D-02, 4 Nov 2026), as A4 and W9-35
+  // AC8 is read as "the assigned Event Coordinator" (documentation/clarifications.md, D-03, 4 Nov 2026), as A4 and W9-35
   // scope coordinators to the events assigned to them; CQ-11 is still open with the customer.
   test("S3-T13 the coordinator approves a change and sees what it flagged; confirming is refused; the owner sees the flags, nobody else does, and the staff are told", { tag: ["@S3", "@S3-T13"] }, async ({ page, a11y }) => {
     test.fail(

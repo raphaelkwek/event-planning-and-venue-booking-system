@@ -173,7 +173,9 @@ describe("P1 equipment availability through the real fetch client", () => {
     render(<App />);
     await fill();
     fireEvent.click(screen.getByRole("button", { name: "Check availability" }));
-    expect(await screen.findByText("Equipment service unreachable.")).toBeTruthy();
+    // D10: a request that never reached the service is told in plain words, not the browser's.
+    expect(await screen.findByText("ConnectSphere couldn't be reached. Check your connection, then try again.")).toBeTruthy();
+    expect(screen.queryByText("Equipment service unreachable.")).toBeNull();
     expect(screen.queryByText("Available quantity: 6")).toBeNull();
   });
 

@@ -35,9 +35,29 @@ export const equipmentLineStatusChangedPayloadSchema = z.object({
   changedAt: z.string().datetime(),
 });
 
+/**
+ * O1, team decision D-02 (clarifications.md, 4 Nov 2026): a coordinator saved a new line, which is
+ * now waiting for Technical Support. One message per line, keyed by the line. It names every active
+ * Technical Support Staff member at the save, whom the notification service tells.
+ */
+export const equipmentLineSubmittedPayloadSchema = z.object({
+  eventId: z.string().uuid(),
+  eventReference: z.string().min(1),
+  eventName: z.string().min(1),
+  lineId: z.string().uuid(),
+  equipmentTypeName: z.string().min(1),
+  quantity: z.number().int().positive(),
+  requiredFrom: z.string().datetime(),
+  requiredTo: z.string().datetime(),
+  requestedBy: z.string().uuid(),
+  requestedAt: z.string().datetime(),
+  technicalSupportIds: z.array(z.string().uuid()),
+});
+
 /** Validators keyed by messageType, for producers and consumers alike. */
 export const EQUIPMENT_REQUEST_PAYLOAD_SCHEMAS = {
   "equipment-request.line-status-changed": equipmentLineStatusChangedPayloadSchema,
+  "equipment-request.line-submitted": equipmentLineSubmittedPayloadSchema,
 } as const;
 
 export type EquipmentRequestMessageType = keyof typeof EQUIPMENT_REQUEST_PAYLOAD_SCHEMAS;

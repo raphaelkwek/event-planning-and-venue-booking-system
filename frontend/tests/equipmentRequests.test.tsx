@@ -38,6 +38,11 @@ let onChange: (id: string, body: Record<string, unknown>) => Response;
 let onReserve: (id: string, body: Record<string, unknown>) => Response;
 let onRelease: (id: string, body: Record<string, unknown>) => Response;
 let listCalls: URL[];
+/** D6: once set, a reload of the lines never answers, as a slow one hasn't yet. */
+let holdList: boolean;
+/** D6: once set, each reload of the lines waits until the test answers it, in any order. */
+let deferList: boolean;
+let deferred: ((items: ReturnType<typeof line>[]) => void)[];
 
 const fetchMock = vi.fn(async (path: string, init?: RequestInit) => {
   const url = new URL(path, "http://app.test");
@@ -50,6 +55,8 @@ const fetchMock = vi.fn(async (path: string, init?: RequestInit) => {
   if (statusRoute && method === "POST") return onChange(statusRoute[1]!, JSON.parse(init!.body as string));
   if (url.pathname === "/equipment/api/v1/equipment/request-lines" && method === "GET") {
     listCalls.push(url);
+    if (holdList) return new Promise<Response>(() => undefined);
+    if (deferList) return new Promise<Response>((resolve) => deferred.push((items) => resolve(reply({ items, nextCursor: null }))));
     const status = url.searchParams.get("status");
     return reply({ items: status ? lines.filter((entry) => entry.status === status) : lines, nextCursor: null });
   }
@@ -74,6 +81,9 @@ const statusPosts = () => fetchMock.mock.calls.filter(([path, init]) => init?.me
 beforeEach(() => {
   lines = [line({ id: "l1" }), line({ id: "l2", equipmentTypeName: "Projectors", quantity: 2, eventReference: "EVT-000124", status: "UNDER_REVIEW" })];
   listCalls = [];
+  holdList = false;
+  deferList = false;
+  deferred = [];
   onChange = (id, body) => reply(line({ id, ...body, status: body.status }));
   onReserve = (id, body) => {
     const reservation = { id: "r1", equipmentTypeId: CHAIRS, equipmentTypeName: "Folding Chairs", requestedQuantity: 40, reservedQuantity: body.quantity ?? 40, reservedBy: TECH, reservedAt: "2026-10-15T02:00:00.000Z" };
@@ -106,6 +116,69 @@ describe("F4: lines of a cancelled event (D4)", () => {
     expect(screen.getByRole("button", { name: "Reserve Projectors for EVT-000124" })).toBeTruthy();
     // The Confirmed lozenge is not shown for the cancelled line.
     expect(screen.getAllByText("Confirmed").filter((element) => element.tagName !== "OPTION")).toHaveLength(1);
+  });
+});
+
+describe("D6: the list follows each action's own answer, not a reload", () => {
+  it("shows a line's new status as soon as the change is saved, while the list is still reloading", async () => {
+    render(<App />);
+    fireEvent.click(await screen.findByRole("button", { name: "Update Folding Chairs for EVT-000123" }));
+    holdList = true;
+    fireEvent.change(screen.getByLabelText("New status"), { target: { value: "CONFIRMED" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save status" }));
+
+    expect(await screen.findByText("Folding Chairs for EVT-000123 is now Confirmed.")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Reserve Folding Chairs for EVT-000123" })).toBeTruthy();
+  });
+
+  it("never lets an older reload that answers last put back what a newer action changed", async () => {
+    onChange = (id, body) => reply({ ...lines.find((entry) => entry.id === id)!, status: body.status });
+    render(<App />);
+    fireEvent.click(await screen.findByRole("button", { name: "Update Folding Chairs for EVT-000123" }));
+    deferList = true;
+    fireEvent.change(screen.getByLabelText("New status"), { target: { value: "CONFIRMED" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save status" }));
+    await screen.findByRole("button", { name: "Reserve Folding Chairs for EVT-000123" });
+    fireEvent.click(screen.getByRole("button", { name: "Update Projectors for EVT-000124" }));
+    fireEvent.change(screen.getByLabelText("New status"), { target: { value: "CONFIRMED" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save status" }));
+    await screen.findByRole("button", { name: "Reserve Projectors for EVT-000124" });
+    await waitFor(() => expect(deferred).toHaveLength(2));
+
+    const both = [line({ id: "l1", status: "CONFIRMED" }), line({ id: "l2", equipmentTypeName: "Projectors", quantity: 2, eventReference: "EVT-000124", status: "CONFIRMED" })];
+    const before = [line({ id: "l1", status: "CONFIRMED" }), line({ id: "l2", equipmentTypeName: "Projectors", quantity: 2, eventReference: "EVT-000124", status: "UNDER_REVIEW" })];
+    deferred[1]!(both);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    deferred[0]!(before);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(screen.getByRole("button", { name: "Reserve Projectors for EVT-000124" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Reserve Folding Chairs for EVT-000123" })).toBeTruthy();
+  });
+
+  it("shows a reservation as soon as it is made, while the list is still reloading", async () => {
+    lines = [line({ id: "c", status: "CONFIRMED" })];
+    render(<App />);
+    fireEvent.click(await screen.findByRole("button", { name: "Reserve Folding Chairs for EVT-000123" }));
+    holdList = true;
+    fireEvent.click(screen.getByRole("button", { name: "Reserve equipment" }));
+
+    expect(await screen.findByRole("button", { name: "Release Folding Chairs for EVT-000123" })).toBeTruthy();
+    // The row's own line, not the notice above the table ("Reserved 40 of 40 for EVT-000123.").
+    expect(screen.getByText("Reserved 40 of 40")).toBeTruthy();
+  });
+
+  it("shows a released line as soon as it is released, while the list is still reloading", async () => {
+    const reservation = { id: "r1", equipmentTypeId: CHAIRS, equipmentTypeName: "Folding Chairs", requestedQuantity: 40, reservedQuantity: 40, reservedBy: TECH, reservedAt: "2026-10-15T02:00:00.000Z" };
+    lines = [line({ id: "c", status: "RESERVED", reservation })];
+    render(<App />);
+    fireEvent.click(await screen.findByRole("button", { name: "Release Folding Chairs for EVT-000123" }));
+    holdList = true;
+    fireEvent.change(screen.getByLabelText("Reason"), { target: { value: "Event moved" } });
+    fireEvent.click(screen.getByRole("button", { name: "Release reservation" }));
+
+    expect(await screen.findByRole("button", { name: "Reserve Folding Chairs for EVT-000123" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Release Folding Chairs for EVT-000123" })).toBeNull();
   });
 });
 

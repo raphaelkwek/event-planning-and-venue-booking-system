@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Button from "@atlaskit/button/new";
 import Lozenge from "../shared/Lozenge.js";
@@ -8,7 +8,7 @@ import { useUserNames } from "../shared/useUserNames.js";
 import { listRequests } from "../api/events.js";
 import type { EventListItem } from "../api/types.js";
 import { formatInstant, STATUS_APPEARANCE, STATUS_LABELS } from "../shared/status.js";
-import { Refusal } from "../components/Refusal.js";
+import { LoadFailure } from "../components/LoadFailure.js";
 
 type Filter = "all" | "drafts" | "submitted";
 
@@ -29,7 +29,7 @@ export function MyRequests() {
     items.map((item) => item.assignedCoordinatorId)
   );
 
-  useEffect(() => {
+  const load = useCallback(() => {
     setLoading(true);
     setError(null);
     listRequests(session.token, filter === "all" ? undefined : filter)
@@ -37,6 +37,8 @@ export function MyRequests() {
       .catch(setError)
       .finally(() => setLoading(false));
   }, [session.token, filter]);
+
+  useEffect(load, [load]);
 
   const head = {
     cells: [
@@ -99,14 +101,17 @@ export function MyRequests() {
         ))}
       </div>
 
-      <Refusal error={error} />
-
-      <DynamicTable
-        head={head}
-        rows={rows}
-        isLoading={loading}
-        emptyView={<p>No requests yet. Create one to get started.</p>}
-      />
+      {/* D10: a failed load is one error with Try again, in place of the list, never beside "No requests yet". */}
+      {error ? (
+        <LoadFailure error={error} what="Your requests" onRetry={load} />
+      ) : (
+        <DynamicTable
+          head={head}
+          rows={rows}
+          isLoading={loading}
+          emptyView={<p>No requests yet. Create one to get started.</p>}
+        />
+      )}
     </div>
   );
 }

@@ -1,5 +1,7 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import request from "supertest";
+import { parseCloudEvent } from "@connectsphere/contracts";
+import { notificationsFor } from "../../../../notification/src/domain/recipients.js";
 import { testDb } from "../../support/testDb.js";
 import { EVENT_END, EVENT_START } from "../../support/eventDates.js";
 import { setStatusDirect } from "../../support/seedEvent.js";
@@ -40,6 +42,7 @@ const COORDINATOR = "ae300000-0000-0000-0000-000000000003";
 const OTHER_COORDINATOR = "ae300000-0000-0000-0000-000000000004";
 const RETIRED_COORDINATOR = "ae300000-0000-0000-0000-000000000005";
 const STAFF = "ae300000-0000-0000-0000-000000000006";
+const RETIRED_LEAD = "ae300000-0000-0000-0000-000000000007";
 const USERS: [string, string, string, boolean, string | null][] = [
   [ORGANISER, "EVENT_ORGANISER", "e3-organiser", true, "E3 Organiser"],
   [LEAD, "EVENT_COORDINATOR_LEAD", "e3-lead", true, "E3 Lead"],
@@ -47,6 +50,7 @@ const USERS: [string, string, string, boolean, string | null][] = [
   [OTHER_COORDINATOR, "EVENT_COORDINATOR", "e3-coordinator2", true, "E3 Second Coordinator"],
   [RETIRED_COORDINATOR, "EVENT_COORDINATOR", "e3-retired", false, "E3 Retired Coordinator"],
   [STAFF, "VENUE_STAFF", "e3-staff", true, "E3 Venue Staff"],
+  [RETIRED_LEAD, "EVENT_COORDINATOR_LEAD", "e3-retired-lead", false, "E3 Retired Lead"],
 ];
 const bearer = { Authorization: "Bearer test-token" };
 
@@ -115,6 +119,30 @@ const outbox = (eventId: string, type: string) =>
   sql<{ envelope: { data: Record<string, unknown> } }[]>`
     select envelope from event.outbox where message_key = ${eventId} and envelope->>'type' = ${type} order by seq
   `;
+
+describe("the Leads are told of a request entering the unassigned queue (D-02)", () => {
+  it("E3-T9 names every active Lead in the submission's message, and the rule tells each of them and nobody else", async () => {
+    const event = await submitted();
+
+    const rows = await sql<{ envelope: unknown }[]>`
+      select envelope from event.outbox where message_key = ${event.id} and envelope->>'type' = 'event.submitted' order by seq
+    `;
+    expect(rows).toHaveLength(1);
+    const message = parseCloudEvent(rows[0]!.envelope);
+    const leadIds = (message.data as { leadIds?: string[] }).leadIds;
+    expect(leadIds).toContain(LEAD);
+    expect(leadIds).not.toContain(RETIRED_LEAD);
+
+    const notes = notificationsFor({ id: message.id, type: message.type, time: message.time, subject: message.subject, data: message.data as Record<string, unknown> });
+    const told = notes.map((note) => note.recipientUserId);
+    expect([...told].sort()).toEqual([...leadIds!].sort());
+    expect(new Set(told).size).toBe(told.length);
+    expect(notes.find((note) => note.recipientUserId === LEAD)!.message).toBe(
+      `Event request ${event.reference} “Annual Research Symposium” was submitted and is waiting in your unassigned queue to be assigned a coordinator.`,
+    );
+    for (const nobody of [ORGANISER, RETIRED_LEAD, COORDINATOR]) expect(told).not.toContain(nobody);
+  });
+});
 
 describe("submission assigns no coordinator (E3, replacing E1)", () => {
   it("submits the request with no assignment and no assignment message (E3-T1)", async () => {

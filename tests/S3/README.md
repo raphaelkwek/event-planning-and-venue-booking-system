@@ -15,7 +15,7 @@ throw inside the test, which cannot be done by hand. S3-T13 is the signed-in bro
 | AC5: with several venues each booking is assessed and flagged on its own | S3-T5 |
 | AC6: flagging does not change the status of an event that is not Confirmed | S3-T6 |
 | AC7: an approved change to a Confirmed event returns it to Planning with its flags | S3-T7 |
-| AC8: every outstanding flag is visible to the owner, the assigned coordinator and Event Coordinators, saying which arrangement and why (read as the assigned Event Coordinator: D-02, `documentation/clarifications.md`; CQ-11 open) | S3-T8, S3-T13 |
+| AC8: every outstanding flag is visible to the owner, the assigned coordinator and Event Coordinators, saying which arrangement and why (read as the assigned Event Coordinator: D-03, `documentation/clarifications.md`; CQ-11 open) | S3-T8, S3-T13 |
 | AC9: F5 confirmation is refused while a flag exists, naming them | S3-T9, S3-T13, S3-T14 |
 | AC10: Venue Staff, Technical Support and (later) attendees are notified | S3-T10, S3-T13 |
 | AC11: if flagging fails, the change is not applied and no arrangement is altered | S3-T11 |

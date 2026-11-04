@@ -10,7 +10,9 @@ import { venueRequirementsSchema } from "@connectsphere/contracts";
  * can be, to keep the form's ticks in step with what the search compares. An
  * accessibility need that matches no catalogue feature is not turned into a
  * filter, which would only empty the results; it is handed back for the screen
- * to show.
+ * to show. D5 (staging dry run, 4 Nov 2026): the same goes for a facility no
+ * venue records, such as "Microphone" where the venues record "Wireless
+ * microphones": facilities are free text on the request too.
  */
 
 export interface CatalogueOptions {
@@ -38,6 +40,8 @@ export interface SearchPrefill {
   };
   /** Accessibility needs on the event that match no catalogue feature. */
   unmatchedAccessibility: string[];
+  /** D5: facilities on the event that no venue in the catalogue records. */
+  unmatchedFacilities: string[];
 }
 
 /** The catalogue's spelling of `name` when it has one (ignoring case), otherwise `name` as given. */
@@ -58,6 +62,8 @@ export function prefillFromEvent(event: EventForPrefill, options: CatalogueOptio
   const needs = cleanNames((event.accessibilityNeeds ?? "").split(/[,;\n]/));
   const known = needs.map((need) => inCatalogue(need, options.accessibilityFeatures));
   const isKnown = (need: string) => options.accessibilityFeatures.includes(need);
+  const facilities = cleanNames(required.facilities ?? []).map((name) => inCatalogue(name, options.facilities));
+  const isFacility = (name: string) => options.facilities.includes(name);
 
   return {
     filters: {
@@ -65,9 +71,10 @@ export function prefillFromEvent(event: EventForPrefill, options: CatalogueOptio
       to: hasWindow ? event.proposedEndAt : null,
       minCapacity: event.expectedAttendance !== null && event.expectedAttendance > 0 ? event.expectedAttendance : null,
       layout: layout === "" ? null : inCatalogue(layout, options.layouts),
-      facilities: [...new Set(cleanNames(required.facilities ?? []).map((name) => inCatalogue(name, options.facilities)))],
+      facilities: [...new Set(facilities.filter(isFacility))],
       accessibility: [...new Set(known.filter(isKnown))],
     },
     unmatchedAccessibility: [...new Set(known.filter((need) => !isKnown(need)))],
+    unmatchedFacilities: [...new Set(facilities.filter((name) => !isFacility(name)))],
   };
 }

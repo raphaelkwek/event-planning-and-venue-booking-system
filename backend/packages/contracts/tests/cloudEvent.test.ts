@@ -27,6 +27,7 @@ const EXAMPLE_DATA: Record<EventMessageType, Record<string, unknown>> = {
     proposedStartAt: "2026-11-20T01:00:00.000Z",
     proposedEndAt: "2026-11-20T09:00:00.000Z",
     submittedAt: at,
+    leadIds: ["00000000-0000-0000-0000-000000000009"],
   },
   "event.coordinator-assigned": { ...ref, coordinatorId: coordinator, assignmentRule: "ROUND_ROBIN", assignedAt: at },
   "event.coordinator-reassigned": {
@@ -99,6 +100,7 @@ const EXAMPLE_DATA: Record<EventMessageType, Record<string, unknown>> = {
         reservedBy: "00000000-0000-0000-0000-000000000004",
       },
     ],
+    safetyOfficerIds: ["00000000-0000-0000-0000-000000000010"],
   },
   "event.safety-decision-recorded": {
     ...ref,
@@ -205,6 +207,19 @@ describe("parseCloudEvent: an example message for every event type", () => {
   it("refuses a message whose data does not match its type's schema", () => {
     const data = without(EXAMPLE_DATA["event.rejected"], "reason");
     expect(() => parseCloudEvent(exampleMessage("event.rejected", data))).toThrow(/reason/);
+  });
+
+  it("accepts a submission and an arrangements confirmation written before D-02, which name no Lead or Safety Officer", () => {
+    const submission = without(EXAMPLE_DATA["event.submitted"], "leadIds");
+    expect(parseCloudEvent(exampleMessage("event.submitted", submission)).data).toEqual(submission);
+    const confirmation = without(EXAMPLE_DATA["event.arrangements-confirmed"], "safetyOfficerIds");
+    expect(parseCloudEvent(exampleMessage("event.arrangements-confirmed", confirmation)).data).toEqual(confirmation);
+  });
+
+  it("refuses a Lead or a Safety Officer named by anything but a user id (D-02)", () => {
+    expect(() => parseCloudEvent(exampleMessage("event.submitted", { ...EXAMPLE_DATA["event.submitted"], leadIds: ["Lead One"] }))).toThrow(/leadIds/);
+    const confirmation = { ...EXAMPLE_DATA["event.arrangements-confirmed"], safetyOfficerIds: "00000000-0000-0000-0000-000000000010" };
+    expect(() => parseCloudEvent(exampleMessage("event.arrangements-confirmed", confirmation))).toThrow(/safetyOfficerIds/);
   });
 
   it("refuses an arrangements confirmation with no booking (F5 needs at least one)", () => {
@@ -363,6 +378,42 @@ describe("parseCloudEvent: equipment request messages (O2)", () => {
 
   it("refuses a message that does not name the coordinator to notify", () => {
     expect(() => parseCloudEvent(message(without(lineStatusChanged, "coordinatorId")))).toThrow(/coordinatorId/);
+  });
+});
+
+describe("parseCloudEvent: a new equipment line, for Technical Support (O1, D-02)", () => {
+  const lineSubmitted = {
+    ...ref,
+    lineId: "33333333-3333-4333-8333-333333333333",
+    equipmentTypeName: "Folding Chairs",
+    quantity: 40,
+    requiredFrom: "2026-12-02T06:00:00.000Z",
+    requiredTo: "2026-12-02T10:00:00.000Z",
+    requestedBy: coordinator,
+    requestedAt: at,
+    technicalSupportIds: ["00000000-0000-0000-0000-000000000004"],
+  };
+  const message = (data: Record<string, unknown>) => ({
+    ...exampleMessage("equipment-request.line-submitted", data),
+    subject: lineSubmitted.lineId,
+    source: "/connectsphere/planning-core/equipment",
+    actor: `EVENT_COORDINATOR:${coordinator}`,
+  });
+
+  it("accepts a new line and returns its data", () => {
+    const parsed = parseCloudEvent(message(lineSubmitted));
+    expect(parsed.type).toBe("equipment-request.line-submitted");
+    expect(parsed.data).toEqual(lineSubmitted);
+  });
+
+  it("refuses a message that does not name the Technical Support Staff to notify", () => {
+    expect(() => parseCloudEvent(message(without(lineSubmitted, "technicalSupportIds")))).toThrow(/technicalSupportIds/);
+  });
+
+  it("refuses a quantity that is not a whole number above zero, and a line without its period", () => {
+    expect(() => parseCloudEvent(message({ ...lineSubmitted, quantity: 0 }))).toThrow(/quantity/);
+    expect(() => parseCloudEvent(message({ ...lineSubmitted, quantity: 1.5 }))).toThrow(/quantity/);
+    expect(() => parseCloudEvent(message(without(lineSubmitted, "requiredTo")))).toThrow(/requiredTo/);
   });
 });
 

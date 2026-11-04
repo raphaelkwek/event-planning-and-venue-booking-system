@@ -235,10 +235,14 @@ paths:
                 eventId: { type: string, format: uuid }
       responses:
         "201":
-          description: Registered. The place is the attendee's.
+          description: |
+            Registered. The place is the attendee's. D7 (staging dry run, 4 Nov 2026): the answer
+            also carries the event's places remaining just after this registration, read live, so
+            the event's page shows it without re-reading the browse listing, which a browser or CDN
+            may keep for a few seconds (`Cache-Control` on `GET /api/v1/open-events/{eventId}`).
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/Registration" }
+              schema: { $ref: "#/components/schemas/RegistrationCreated" }
         "400": { $ref: "#/components/responses/ValidationFailed" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403":
@@ -822,6 +826,21 @@ components:
               type: array
               items: { $ref: "#/components/schemas/Venue" }
             withdrawalDeadline: { type: [string, "null"], format: date-time }
+
+    RegistrationCreated:
+      description: A new registration (R2), with the event's places remaining just after it (D7).
+      type: object
+      required: [id, reference, status, registeredAt, withdrawnAt, cancelledAt, event, placesRemaining]
+      additionalProperties: false
+      properties:
+        id: { type: string, format: uuid }
+        reference: { type: string, pattern: "^REG-\\d{6}$" }
+        status: { $ref: "#/components/schemas/RegistrationStatus" }
+        registeredAt: { type: string, format: date-time }
+        withdrawnAt: { type: [string, "null"], format: date-time }
+        cancelledAt: { type: [string, "null"], format: date-time }
+        event: { $ref: "#/components/schemas/Registration/properties/event" }
+        placesRemaining: { type: integer, minimum: 0, description: "Places remaining at the event just after this registration." }
 
     RegistrationStatus:
       type: string

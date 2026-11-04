@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import Button from "@atlaskit/button/new";
 import DynamicTable from "@atlaskit/dynamic-table";
@@ -78,19 +78,23 @@ export function EquipmentRequest() {
   const nameOf = useUserNames(session.token, [event?.assignedCoordinatorId, ...lines.map((line) => line.requestedBy), ...lines.map((line) => line.reservation?.reservedBy)]);
   const isAssigned = event?.assignedCoordinatorId === session.userId;
 
+  // D6: only the newest read may show its answer; an older one answering last would undo an action.
+  const latest = useRef(0);
   const load = useCallback(async () => {
     if (!eventId) return;
+    const mine = ++latest.current;
     setLoadError(null);
     try {
       // The event comes with the lines, from a read that changes nothing; opening it for review would claim it (D1).
       const [page, catalogue] = await Promise.all([listRequestLines(session.token, { eventId }), listEquipmentTypes(session.token)]);
+      if (mine !== latest.current) return;
       const opened = page.event ?? null;
       setEvent(opened);
       setLines(page.items);
       setTypes(catalogue.items.map((item) => ({ id: item.id, name: item.name })));
       setDrafts((current) => (current.length > 0 ? current : [newDraft(opened)]));
     } catch (caught) {
-      setLoadError(caught);
+      if (mine === latest.current) setLoadError(caught);
     }
   }, [eventId, session.token]);
 
@@ -110,9 +114,12 @@ export function EquipmentRequest() {
     setSaved(null);
     try {
       const result = await saveRequestLines(session.token, eventId, drafts.map(draftToInput));
+      // D6 (staging dry run): the saved lines are in the answer, so the table shows them beside the
+      // success message at once; the reload behind it only catches up with anyone else's changes.
+      setLines((current) => [...current, ...result.items.filter((line) => !current.some((known) => known.id === line.id))]);
       setSaved(result.items.length);
       setDrafts([newDraft(event)]);
-      await load();
+      void load();
     } catch (caught) {
       // A rejected save changes nothing, so what was typed stays on screen to be corrected.
       setSaveError(caught);
@@ -126,9 +133,11 @@ export function EquipmentRequest() {
     setBusy(true);
     setEditError(null);
     try {
-      await updateRequestLine(session.token, editing.key, draftToInput(editing));
+      const updated = await updateRequestLine(session.token, editing.key, draftToInput(editing));
+      // D6: the edited line, from the answer.
+      setLines((current) => current.map((line) => (line.id === updated.id ? { ...line, ...updated } : line)));
       setEditing(null);
-      await load();
+      void load();
     } catch (caught) {
       setEditError(caught);
     } finally {
@@ -142,8 +151,10 @@ export function EquipmentRequest() {
     setRemoveError(null);
     try {
       await removeRequestLine(session.token, removing.id);
+      // D6: a removed line is no longer listed (O1), so it goes at once.
+      setLines((current) => current.filter((line) => line.id !== removing.id));
       setRemoving(null);
-      await load();
+      void load();
     } catch (caught) {
       setRemoveError(caught);
     } finally {

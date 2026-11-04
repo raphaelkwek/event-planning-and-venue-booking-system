@@ -232,6 +232,8 @@ export interface VenueSearchPrefill {
   reference: string | null;
   filters: Omit<VenueSearchFilters, "q" | "location">;
   unmatchedAccessibility: string[];
+  /** D5: facilities on the event that no venue records, so not used as a filter. Absent from an older server. */
+  unmatchedFacilities?: string[];
 }
 
 /** What the search form holds. Times are Singapore time as a browser's datetime-local input gives them. */

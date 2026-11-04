@@ -3,6 +3,7 @@ import { KAFKA_TOPICS } from "@connectsphere/contracts";
 import { submissionColumns, type EventFields, type EventRow } from "../repo/events.js";
 import { insertDraft, isOwnedBy } from "../repo/drafts.js";
 import { writeOutbox } from "../events/outbox.js";
+import { listActiveUserIdsWithRole } from "../../identity/index.js";
 import { transitionEvent } from "./transitionEvent.js";
 
 /**
@@ -56,6 +57,9 @@ export async function submitEvent(
       return { ok: false as const, message: submitted.message };
     }
     const event = submitted.event;
+    // E3, team decision D-02: the request now waits in the Lead's unassigned queue, so the message
+    // names every active Lead, whom the notification service tells (implementation.md §3.5).
+    const leadIds = await listActiveUserIdsWithRole(tx, "EVENT_COORDINATOR_LEAD");
 
     await writeOutbox(tx, {
       topic: KAFKA_TOPICS.event,
@@ -71,6 +75,7 @@ export async function submitEvent(
         proposedStartAt: event.proposedStartAt!,
         proposedEndAt: event.proposedEndAt!,
         submittedAt: event.submittedAt!,
+        leadIds,
       },
     });
 
