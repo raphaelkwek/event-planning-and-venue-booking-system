@@ -603,8 +603,11 @@ html body .cs-rail__list > li {
     border-top: 1px solid var(--cs-line);
   }
 
+  /* The role sits after a long email; let the line wrap so it is never clipped at 360px. */
   .cs-user__id {
     flex: 1;
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
 
   .cs-user__email {
@@ -622,23 +625,23 @@ html body .cs-rail__list > li {
     background: var(--cs-surface);
     gap: var(--cs-space-2);
     height: auto;
-    overflow-x: auto;
-    overflow-y: hidden;
+    /* Every screen is on show: the strip wraps onto more rows rather than scrolling sideways, where
+       a hidden scrollbar left most of a role's screens off the edge of a 360px phone. */
+    flex-wrap: wrap;
+    overflow: visible;
     padding: 6px var(--cs-space-3);
     border-right: 0;
     border-bottom: 1px solid var(--cs-line);
-    scrollbar-width: none;
   }
 
   .cs-rail__group {
     display: flex;
-    flex: none;
+    flex: 0 1 auto;
+    flex-wrap: wrap;
   }
 
   .cs-rail__group + .cs-rail__group {
     margin-top: 0;
-    padding-left: var(--cs-space-2);
-    border-left: 1px solid var(--cs-line);
   }
 
   .cs-rail__label {
@@ -647,7 +650,10 @@ html body .cs-rail__list > li {
 
   .cs-rail__list {
     display: flex;
+    flex-wrap: wrap;
     gap: 2px;
+    margin: 0;
+    padding: 0;
   }
 
   .cs-rail__link {
@@ -658,7 +664,7 @@ html body .cs-rail__list > li {
     left: 10px;
     right: 10px;
     top: auto;
-    bottom: -6px;
+    bottom: 0;
     width: auto;
     height: 2px;
   }

@@ -58,6 +58,7 @@ export const ERROR_CODES = [
   "NOMINEE_NOT_ELIGIBLE",
   "NOTIFICATION_NOT_FOUND",
   "NOT_AN_ACTIVE_COORDINATOR", // E3: the Lead assigns only an active Event Coordinator, once, to a submitted event.
+  "NOT_FOUND", // A path no route serves: the envelope, not the framework's HTML page.
   "NO_OPEN_CLARIFICATION",
   "NO_ROLE_ASSIGNED",
   "PARTIAL_NOT_CONFIRMED",

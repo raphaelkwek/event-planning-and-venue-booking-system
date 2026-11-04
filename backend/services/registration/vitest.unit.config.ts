@@ -20,14 +20,15 @@ export default defineConfig({
       thresholds: {
         // The seat rules are pure: every line and branch is tested.
         "src/**/domain/**": { lines: 100, branches: 100, functions: 100, statements: 100 },
-        // Elsewhere the seat SQL, the consumer's transaction and the Kafka wiring
-        // are covered by integration tests against a database, which CI runs.
-        // These floors sit just under today's unit-only figures as CI measures them (53.8% lines, 75.5% branches,
-        // 40% functions after R1 to R4; domain/ has its own 100% floor) and should only ever go up.
-        lines: 53,
-        statements: 53,
-        branches: 75,
-        functions: 39,
+        // Elsewhere the seat SQL, the consumer's transaction and the Kafka wiring are tested here with a
+        // scripted database client (tests/support/scriptedSql.ts); the integration tests still prove them
+        // against Postgres in CI. These floors sit just under today's unit-only figures for the files outside
+        // domain/ (97.95% lines and statements, 96.83% branches, 96.22% functions; the whole service is 98.23%
+        // statements, up from 71.28%) and should only ever go up.
+        lines: 97,
+        statements: 97,
+        branches: 96,
+        functions: 96,
       },
     },
   },
