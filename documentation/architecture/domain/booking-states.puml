@@ -38,7 +38,7 @@ note right of slot
   Only Held and Confirmed block a period: the exclusion
   constraint venue_slot_no_overlap ignores the other statuses
   (ADR-0006). Nothing is deleted; a release keeps its row and reason.
+  Approving a request creates its Confirmed slot in the same transaction.
 end note
 
-APPROVED ..> CONFIRMED : creates the slot (same transaction)
 @enduml
