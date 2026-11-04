@@ -26,7 +26,7 @@ import postgres from "postgres";
 // ---------------------------------------------------------------------------------------------
 // The staging guard
 // ---------------------------------------------------------------------------------------------
-const STAGING_REF = "wxfkaoxkwtdkrhtlqwxy";
+const STAGING_REF = "ersukefviuuygauatwox"; // Singapore (ap-southeast-1) since 4 Nov 2026; was wxfkaoxkwtdkrhtlqwxy in Tokyo
 const STAGING_API = "https://api.staging.4.194.57.47.sslip.io";
 const STAGING_API_HOST = "api.staging.4.194.57.47.sslip.io";
 const SEED_PASSWORD = "ConnectSphere-Test-1234!";
