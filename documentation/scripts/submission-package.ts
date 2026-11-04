@@ -66,6 +66,21 @@ export const DESIGN_PARTS: ReadonlyArray<readonly [string, string, string]> = [
   ["documentation/c4", "C4", "C4 model (Structurizr DSL, README, rendered diagrams)"],
   ["documentation/architecture", "Data Model, Domain and State Diagrams", "ER diagram per schema, domain model and state diagrams (PlantUML and rendered images)"],
   ["documentation/adr", "Architecture Decision Records", "Architecture decision records"],
+  ["documentation/evidence/operations", "Operations Screenshots", "Operations screenshots (observability, deployment, access control)"],
+];
+
+/** PDFs made outside the repo and read from --deliverables, each copied into its folder as one manifest part. */
+export const DELIVERABLE_PDFS: ReadonlyArray<{ file: string; folder: string; part: string }> = [
+  {
+    file: "Operations Evidence - ConnectSphere.pdf",
+    folder: FOLDERS.design,
+    part: "Operations evidence (PDF: observability, deployment pipeline, access control, performance)",
+  },
+  {
+    file: "Sprint Velocity and Burndowns - ConnectSphere.pdf",
+    folder: FOLDERS.meetings,
+    part: "Sprint velocity and burndown charts (PDF)",
+  },
 ];
 
 const n = (v: number) => v.toLocaleString("en-US");
@@ -143,6 +158,15 @@ function copyIn(ctx: Ctx, from: string | null, toDir: string, toName: string, fo
   }
 }
 
+/** Copies the DELIVERABLE_PDFS that belong in `folder`; a PDF not in --deliverables is a missing part. */
+export function copyDeliverablePdfs(opts: { out: string; deliverables: string | null }, folder: string): Part[] {
+  const ctx: Ctx = { repo: "", ref: "", out: opts.out, deliverables: opts.deliverables, parts: [] };
+  for (const pdf of DELIVERABLE_PDFS.filter((p) => p.folder === folder)) {
+    copyIn(ctx, opts.deliverables && join(opts.deliverables, pdf.file), join(opts.out, folder), pdf.file, folder, pdf.part);
+  }
+  return ctx.parts;
+}
+
 function placeholder(ctx: Ctx, rel: string, toDir: string, toName: string, folder: string, part: string) {
   const text = readFileSync(join(ctx.repo, rel), "utf8");
   mkdirSync(toDir, { recursive: true });
@@ -168,6 +192,7 @@ function assembleDesign(ctx: Ctx) {
   const dir = join(ctx.out, FOLDERS.design);
   for (const [from, to, part] of DESIGN_PARTS) copyTree(ctx, join(ctx.repo, from), join(dir, to), FOLDERS.design, part);
   copyIn(ctx, join(ctx.repo, "documentation/architecture.md"), dir, "Architecture Index.md", FOLDERS.design, "Architecture index (what each diagram shows)");
+  ctx.parts.push(...copyDeliverablePdfs(ctx, FOLDERS.design));
 }
 
 function assembleTests(ctx: Ctx) {
@@ -227,6 +252,7 @@ function assembleMeetings(ctx: Ctx) {
     }
   }
   copyIn(ctx, d && join(d, "IS212 Week 11 - ConnectSphere.pptx"), dir, "Week 11 Slides.pptx", f, "Week 11 slides");
+  ctx.parts.push(...copyDeliverablePdfs(ctx, f));
   placeholder(ctx, "documentation/week12-submission/recordings-required.md", dir, "6. Final Sprint Recordings - PLACEHOLDER.md", f, "Final sprint recordings: planning, review, retro, one stand-up (unlisted video links)");
 }
 

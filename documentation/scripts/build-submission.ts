@@ -16,7 +16,8 @@
  * Then it assembles all seven numbered folders (submission-package.ts), writes MANIFEST.md and the zip.
  *
  * Usage: npm run submission:build -- [--deliverables <dir>] [--zip-dir <dir>] [--ref <git ref>] [--name <zip name>]
- *   --deliverables  folder with the sprint docs, meeting scripts, test-script workbooks, counts.json and slides
+ *   --deliverables  folder with the sprint docs, meeting scripts, test-script workbooks, counts.json, slides,
+ *                   and the operations evidence and sprint velocity PDFs (DELIVERABLE_PDFS)
  *   --zip-dir       where ConnectSphere.zip and MANIFEST.md are written (default: submission/ in the repo)
  *   --ref           git ref archived into 6. Software Release (default: origin/main, else HEAD)
  */
