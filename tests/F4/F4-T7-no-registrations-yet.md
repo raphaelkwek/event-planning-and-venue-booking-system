@@ -15,6 +15,12 @@
 
 > **Expected results are checked by the PR reviewer** against F4's acceptance criteria.
 
+> **Run note, 2026-11-04.** Run on CI's browser stack rather than the isolated API setup: E is built through the
+> services' APIs there, with B1's approved booking, its seats, two Registered attendees and one waiting entry. FX-F4's
+> hold, pending booking request and equipment reservations are left out, since this criterion does not use them
+> (F4-T1 to F4-T6 do). Step 2 is the registration service's own consumer of `event.cancelled`, handed the message by the
+> test harness in place of Kafka (`tests/e2e/support/deliver.ts`); step 4 is unchanged.
+
 ## Execution record
 
 | Item | Content |

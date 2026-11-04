@@ -9,9 +9,12 @@
 | Pre-conditions | 1. Standard environment running and test data reset (`tests/README.md`), with the registration service running (`npm run dev` starts it). Kafka configured.<br>2. R4-T1 done.<br>3. Signed in as `attendee@connectsphere.test` / `ConnectSphere-Test-1234!`. |
 | Test Steps | 1. Wait a few seconds, then click "Notifications". |
 | Test Data | The withdrawal from R4-T1 |
-| Expected Result | A notification reads `You withdrew registration REG-… for EVT-… “R Test Symposium”. Your place has been released.`. The `registration.withdrawn` message (in `registration.outbox`) names the event, so R6 can notify the waitlist (R6 is not built yet). |
+| Expected Result | A notification reads `You withdrew registration REG-… for EVT-… “R Test Symposium”. Your place has been released.`. The `registration.withdrawn` message (in `registration.outbox`) names the event, so R6 can notify the waitlist. |
 | Created By | Joash |
 | Date of Creation | 2026-11-02 |
+
+> **Corrected 2026-11-04.** R6 has been built since this case was written, so the expected result no longer says
+> it is not; the waitlist's notices are R6's own cases (R6-T6).
 
 ## Execution record
 

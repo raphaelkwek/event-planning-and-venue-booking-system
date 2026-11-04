@@ -1,4 +1,6 @@
-import type { Page } from "@playwright/test";
+import type { Page, Request } from "@playwright/test";
+import type { AccountKey } from "./support/accounts.js";
+import { tokenFor } from "./support/api.js";
 import { expect, signIn, signOut, test, uniqueName } from "./support/fixtures.js";
 import {
   approve,
@@ -539,5 +541,144 @@ test.describe("L1 to L3 only the assigned coordinator acts on an event's venues"
 
     // No hold is stored.
     expect(await countRows("venue.holds", "event_id", event.id)).toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------------------------------------
+// EN-07: the staff console offers only what the policy decision point allows
+// ---------------------------------------------------------------------------------------------
+
+/**
+ * Each screen the staff navigation can offer, with the policy check (resource kind and action) its
+ * route names in frontend/src/App.tsx; Notifications and the API console need only a session. The
+ * journey reads the decision point's answer through these to work out which screens it allows.
+ */
+const SCREEN_CHECKS: Record<string, string | null> = {
+  "My requests": "event:create",
+  "New request": "event:view_draft",
+  "Review queue": "event:review",
+  "All events": "event:review",
+  "Booking requests": "booking_request:view_queue",
+  "Hold requests": "booking_request:view_queue",
+  Venues: "venue:view",
+  "Find a venue": "venue:search",
+  Equipment: "equipment_type:update",
+  "Equipment availability": "equipment_type:check_availability",
+  "Equipment requests": "equipment_request_line:update_status",
+  Unassigned: "event:assign",
+  Assignments: "event:view_assignments",
+  Events: "registration:create",
+  "My registrations": "registration:withdraw",
+  "Safety queue": "event:view_safety_queue",
+  Notifications: null,
+  "API console": null,
+};
+
+/** The checks of the screens that are reached from another screen rather than the navigation (App.tsx). */
+const OTHER_SCREEN_CHECKS = [
+  "equipment_request_line:create",
+  "event:update_details",
+  "booking_request:list",
+  "booking_request:create",
+  "booking_request:request_hold",
+  "venue:view_calendar",
+  "venue:check_suitability",
+  "venue:create",
+  "venue:update",
+  "venue:view_unavailability",
+  "equipment_type:create",
+  "event:configure_registration",
+  "registration:add_manually",
+  "event:view_safety_review",
+];
+
+interface PermissionCheckBody {
+  checks: { kind: string; action: string }[];
+}
+
+const isPermissionCheck = (request: Request) =>
+  request.method() === "POST" && new URL(request.url()).pathname.endsWith("/api/v1/permissions/check");
+
+/** Signs in, and returns what the console asked the decision point and which checks came back allowed. */
+async function signInReadingPermissions(page: Page, who: AccountKey) {
+  const [response] = await Promise.all([page.waitForResponse((r) => isPermissionCheck(r.request())), signIn(page, who)]);
+  expect(response.status()).toBe(200);
+  const answer = (await response.json()) as { results: { kind: string; action: string; allowed: boolean }[] };
+  return {
+    request: response.request(),
+    body: response.request().postDataJSON() as PermissionCheckBody & Record<string, unknown>,
+    allowed: answer.results.filter((result) => result.allowed).map((result) => `${result.kind}:${result.action}`),
+  };
+}
+
+/** The request names every screen's resource and action once, and nothing about the caller but the token. */
+async function expectEveryScreenAsked(asked: Awaited<ReturnType<typeof signInReadingPermissions>>, who: AccountKey) {
+  expect(asked.request.headers()["authorization"]).toBe(`Bearer ${await tokenFor(who)}`);
+  expect(Object.keys(asked.body)).toEqual(["checks"]);
+  expect(JSON.stringify(asked.body)).not.toMatch(/role|principal|EVENT_ORGANISER|VENUE_STAFF/);
+  for (const check of asked.body.checks) expect(Object.keys(check).sort()).toEqual(["action", "kind"]);
+  const keys = asked.body.checks.map((check) => `${check.kind}:${check.action}`);
+  expect(new Set(keys).size).toBe(keys.length);
+  const screens = Object.values(SCREEN_CHECKS).filter((check): check is string => check !== null);
+  expect(keys).toEqual(expect.arrayContaining([...screens, ...OTHER_SCREEN_CHECKS]));
+}
+
+/** The screens the decision point's answer allows, by the checks above. */
+const screensAllowed = (allowed: string[]) =>
+  Object.entries(SCREEN_CHECKS)
+    .filter(([, check]) => check === null || allowed.includes(check))
+    .map(([label]) => label)
+    .sort();
+
+/** The navigation's links, once it shows `first`, with Notifications' unread count left off. */
+async function navigationLabels(page: Page, first: string) {
+  const navigation = page.getByRole("navigation", { name: "Primary" });
+  await expect(navigation.getByRole("link", { name: first, exact: true })).toBeVisible();
+  const labels = await navigation.getByRole("link").allTextContents();
+  return labels.map((label) => label.replace(/\s*\(\d+\)$/, "").trim()).sort();
+}
+
+test.describe("EN-07 the console offers only what the policies allow", () => {
+  test("EN-07-T4 the navigation and the route guard follow the policy decision point, asked once per session with no role", { tag: ["@EN-07", "@EN-07-T4"] }, async ({ page }) => {
+    let asked = 0;
+    page.on("request", (request) => {
+      if (isPermissionCheck(request)) asked += 1;
+    });
+
+    // Step 1: the organiser's navigation is what the decision point allowed: My requests and New request, no Review queue.
+    const organiser = await signInReadingPermissions(page, "organiser");
+    await expectEveryScreenAsked(organiser, "organiser");
+    expect(organiser.allowed).toEqual(expect.arrayContaining(["event:create", "event:view_draft"]));
+    expect(organiser.allowed).not.toContain("event:review");
+    const organiserNav = await navigationLabels(page, "My requests");
+    expect(organiserNav).toEqual(screensAllowed(organiser.allowed));
+    expect(organiserNav).toEqual(expect.arrayContaining(["My requests", "New request"]));
+    expect(organiserNav).not.toContain("Review queue");
+    // Moving between screens asks nothing more: one request in the session.
+    await page.getByRole("navigation", { name: "Primary" }).getByRole("link", { name: "New request", exact: true }).click();
+    await page.getByRole("navigation", { name: "Primary" }).getByRole("link", { name: /^Notifications/ }).click();
+    await expect(page.getByRole("heading", { name: "Notifications", level: 2, exact: true })).toBeVisible();
+    expect(asked).toBe(1);
+
+    // Step 2: in a new session, Venue Staff's navigation: Booking requests and Hold requests, no Review queue.
+    await signOut(page);
+    asked = 0;
+    const staff = await signInReadingPermissions(page, "venuestaff");
+    await expectEveryScreenAsked(staff, "venuestaff");
+    expect(staff.allowed).toContain("booking_request:view_queue");
+    expect(staff.allowed).not.toContain("event:review");
+    const staffNav = await navigationLabels(page, "Booking requests");
+    expect(staffNav).toEqual(screensAllowed(staff.allowed));
+    expect(staffNav).toEqual(expect.arrayContaining(["Booking requests", "Hold requests"]));
+    expect(staffNav).not.toContain("Review queue");
+    await page.getByRole("navigation", { name: "Primary" }).getByRole("link", { name: "Booking requests", exact: true }).click();
+    await expect(page).toHaveURL(/#\/booking-requests$/);
+    expect(asked).toBe(1);
+
+    // Step 3: the review queue, opened by its address, lands on Venue Staff's start page, the API console.
+    await page.goto("/#/queue");
+    await expect(page).toHaveURL(/#\/console$/);
+    await expect(page.getByRole("heading", { name: "Direct API console" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Review queue" })).toHaveCount(0);
   });
 });
