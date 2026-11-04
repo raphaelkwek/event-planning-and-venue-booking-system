@@ -58,7 +58,7 @@ comes from this change's own run, as said there.
   below.
 - **Why:** CI's integration job runs planning-core's tests in one process with `KAFKA_*` blank and no
   Temporal server, so what only a running deployment does is never executed there: `src/index.ts` and
-  `src/worker.ts` start the HTTP server, the outbox relay's publisher and the Temporal worker; the
+  `src/temporal/worker.ts` start the HTTP server, the outbox relay's publisher and the Temporal worker; the
   relay's Kafka producer and the Temporal workflows' worker wiring need a broker and a server. These run
   in the browser tests' stack, the Deploy workflow's Space image smoke test and the deployed
   environments, none of which measures coverage. The branches left are mostly defensive (a driver
@@ -140,5 +140,18 @@ comes from this change's own run, as said there.
 
 ## planning-core per file
 
-Filled from this change's CI run once its `coverage-integration` artifact exists (the per-file summary
-of planning-core's integration run). See the pull request for the run.
+From this change's CI run [41788860348](https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41788860348)
+(artifact `coverage-integration`). This change touches no planning-core source, so the figures are those of
+`d1e6c08`: 20,987 of 21,817 statements (96.19%), 4,128 of 4,482 branches; 103 of the source files have a gap.
+
+| Where | Uncovered statements | Uncovered branches | Why |
+|---|---|---|---|
+| `src/temporal/` (the worker, the HoldExpiry and CompleteEvent workflows and their activities, the schedule and its consumer) | 287 | 17 | The Temporal worker is its own process (`src/temporal/worker.ts`), started by `npm run dev` and in the deployments, never in the integration job, which has no Temporal server. The rules the workflows apply are in domain code (100%), and the hold-expiry and completion steps are tested through the sweeps that run the same step. |
+| Process entry points: `src/index.ts`, `src/shared/telemetry.ts`, the sweep runners (`runCompleteEvents.ts`, `runExpireHolds.ts`) | 111 | 4 | Each starts a server, the OpenTelemetry SDK or a one-off command; tests import what they start, not the starter. |
+| Adapters the tests replace: `identity/auth/supabaseAuthClient.ts` (33), the modules' `auth/identity.ts` (venue 27, change 26), `shared/auth/verifyJwt.ts` (17), `shared/flags/flags.ts` (9) | 112 | 4 | They call Supabase Auth, the JWKS and flagd. The API tests stub them (`verifyJwt`, `resolveCurrentUser`), as implementation.md §8.1 sets out, so the code that would make those calls does not run. |
+| `src/modules/*/api/` (equipment 61, change 52, event 50, venue 48, the rest in identity) | 225 | 233 | The handlers' less-travelled paths, chiefly refusals for a dependency that cannot be reached and the error branches of each route. The integration run writes only a summary, so the line-by-line detail is not uploaded and this page does not itemise them. |
+| The rest (`repo/`, `jobs/`, a few lines each) | 95 | 96 | Defensive branches: a database error code other than the one a constraint raises, an optional field that is absent. |
+
+**What would raise it:** running the Temporal worker in the integration job (the testing environment of
+`@temporalio/testing` already runs some workflow tests), and adding the refusal paths of the API handlers
+to the API tests. The adapters and entry points stay uncovered by design.
