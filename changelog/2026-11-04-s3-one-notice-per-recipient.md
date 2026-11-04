@@ -14,8 +14,9 @@ notice per booking in the same way, so a member who looks after two booked venue
 message, the owner's and the Safety Officers' notices included.
 **Scope:** the notification service's recipient rules (`src/domain/recipients.ts`) and their unit
 tests, a new notification integration test (`tests/consumer/oneNoticePerRecipient.test.ts`),
-planning-core's S3-T10 API test, and the S3 and T2 traceability. No migration, no contract change, no
-API change; the unique constraint stays.
+planning-core's S3-T10 API test, S3-T13's browser journey (`tests/e2e/q-equipment-and-changes.spec.ts`),
+the S3-T10 and S3-T13 cards, and the S3, F5 and T2 traceability. No migration, no contract change,
+no API change; the unique constraint stays.
 
 ## Fixed
 
@@ -47,3 +48,8 @@ API change; the unique constraint stays.
   nothing to the retry or dead-letter topic; a second delivery is still a duplicate.
 - S3-T10's API test asserted one notice per arrangement, which is the defect; it now expects VS's
   one notice to name B1 and B2.
+- S3-T13's journey loses its expected-failure marker (#116): step 7's delivery must be stored,
+  Venue Staff One's one notice must name both bookings and all three flags' reasons, and Technical
+  Support's must name the reservation. S3-T13's step 7 and S3-T10's step 3 expected a notice per
+  booking; each now expects one notice per person, with a dated note saying why, and both cards are
+  recorded from this change's CI run.
