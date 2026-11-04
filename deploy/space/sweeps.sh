@@ -17,7 +17,8 @@
 set -uo pipefail
 
 SWEEP_INTERVAL_SECONDS=300
-cd /app/backend/services/planning-core
+# No `set -e`, so that one failed sweep doesn't stop the loop; a missing build stops it, loudly.
+cd /app/backend/services/planning-core || { echo "sweeps.sh: /app/backend/services/planning-core is missing" >&2; exit 1; }
 
 while true; do
   for job in dist/modules/event/jobs/runCompleteEvents.js dist/modules/venue/jobs/runExpireHolds.js; do
