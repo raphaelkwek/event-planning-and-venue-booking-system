@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | As C1 the test confirmed E1's arrangements through `POST /api/v1/events/<E1>/confirmation` against the real Express app and a migrated Postgres (authentication stubbed): HTTP 200 and E1 in Safety Review. The one `event.arrangements-confirmed` message named SO in `safetyOfficerIds` and not RETIRED_SO. The recipient rule told SO once, "`<reference>` “U1 fixture event” has its venue and equipment arrangements confirmed and is waiting in your Safety Review queue.", told RETIRED_SO nothing, and still told ORG, VS and TS. |
+| Status | Pass |
+| Remarks | Automated (API level) · Commit: 7e9382df295b20e20ea0368e82b5bfc84057e36b · Evidence: backend/services/planning-core/tests/change/api/u1Cards.test.ts › U1-T17 every active Safety Officer is told when an event enters Safety Review, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41791224022 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-04 |

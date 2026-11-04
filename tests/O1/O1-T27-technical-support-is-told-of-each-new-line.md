@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | As C1 the test saved the two lines of O1-T2 through `POST /api/v1/equipment/request-lines` against the real Express app and a migrated Postgres (authentication stubbed): HTTP 201. Each line had exactly one `equipment-request.line-submitted` message on `connectsphere.equipment-request.v1`, keyed by the line, naming the event, the type, the quantity and the required period, with TS in `technicalSupportIds` and not RETIRED_TS. The rule told the named members once per line ("New equipment request for `<reference>` “O1 fixture event”: O1 Folding Chairs × 40, needed …. It is waiting in your Equipment requests list.") and not C1, ORG or RETIRED_TS. A refused save wrote no message. |
+| Status | Pass |
+| Remarks | Automated (API level) · Commit: 7e9382df295b20e20ea0368e82b5bfc84057e36b · Evidence: backend/services/planning-core/tests/equipment/api/o1Cards.test.ts › O1-T27 tells every active Technical Support member of each new line, and nobody else, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41791224022 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-04 |

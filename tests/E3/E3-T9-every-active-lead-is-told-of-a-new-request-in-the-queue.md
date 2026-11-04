@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | As ORG the test submitted a complete request through `POST /api/v1/events` against the real Express app and a migrated Postgres (authentication stubbed). Exactly one `event.submitted` message was written, keyed by the event; its `leadIds` held LEAD and not RETIRED_LEAD. The notification service's rule told each named Lead once, LEAD with "Event request `<reference>` “Annual Research Symposium” was submitted and is waiting in your unassigned queue to be assigned a coordinator.", and told neither ORG, RETIRED_LEAD nor COORDINATOR. |
+| Status | Pass |
+| Remarks | Automated (API level) · Commit: 7e9382df295b20e20ea0368e82b5bfc84057e36b · Evidence: backend/services/planning-core/tests/event/api/leadAssignment.test.ts › E3-T9 names every active Lead in the submission's message, and the rule tells each of them and nobody else, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41791224022 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-04 |
