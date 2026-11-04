@@ -1,0 +1,41 @@
+# ADR-0016 amendment: the Space's one public port. The same public prefixes as the k3s Ingress
+# (deploy/k8s/components/k3s/ingress.yaml) with the prefix stripped; nothing else is routed, except a
+# static /healthz that the keep-awake job and Hugging Face can hit without reaching any service.
+{
+	admin off
+	auto_https off
+	persist_config off
+}
+
+:7860 {
+	handle /healthz {
+		respond "ok" 200
+	}
+	handle /identity/api/v1/* {
+		uri strip_prefix /identity
+		reverse_proxy 127.0.0.1:8090
+	}
+	handle /event/api/v1/* {
+		uri strip_prefix /event
+		reverse_proxy 127.0.0.1:8090
+	}
+	handle /venue/api/v1/* {
+		uri strip_prefix /venue
+		reverse_proxy 127.0.0.1:8090
+	}
+	handle /equipment/api/v1/* {
+		uri strip_prefix /equipment
+		reverse_proxy 127.0.0.1:8090
+	}
+	handle /notification/api/v1/* {
+		uri strip_prefix /notification
+		reverse_proxy 127.0.0.1:8091
+	}
+	handle /registration/api/v1/* {
+		uri strip_prefix /registration
+		reverse_proxy 127.0.0.1:8092
+	}
+	handle {
+		respond "404 page not found" 404
+	}
+}

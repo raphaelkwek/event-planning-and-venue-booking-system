@@ -1,5 +1,10 @@
 # Deploying ConnectSphere
 
+> **The live staging and production environments follow `documentation/deploy/README.md`**
+> (ADR-0016: a free Oracle k3s VM, Vercel and one Supabase project per environment). This page is
+> EN-10's guide for the EKS path, kept as the scale-up path. Since ADR-0016 the images are pushed and
+> signed by the Release workflow (`release.yml`), not the Deploy workflow.
+
 This is the deploy guide for EN-10 (containers, Terraform, Kubernetes, GitOps) and EN-16 (canary
 releases). The decision behind it is ADR-0012. Local development does not change: `npm run dev` and
 the hosted Supabase and Kafka, with no Docker on a laptop. Containers are built **in CI only**.

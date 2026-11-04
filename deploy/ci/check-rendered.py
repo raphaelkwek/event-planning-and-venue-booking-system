@@ -6,13 +6,17 @@ hardened and sized: non-root pod, no privilege escalation, read-only root filesy
 all capabilities dropped, resource requests and limits, and no :latest image.
 
     python3 deploy/ci/check-rendered.py rendered-overlays-staging.yaml
+    python3 deploy/ci/check-rendered.py --no-canary rendered-k3s-staging.yaml   # ADR-0016
+
+The k3s overlays (ADR-0016) run plain Deployments, because their canary analysis would need
+EN-17's Prometheus; --no-canary skips that one check and keeps every other.
 """
 
 import sys
 
 import yaml
 
-WORKLOADS = ("Deployment", "Rollout", "Job")
+WORKLOADS = ("Deployment", "Rollout", "Job", "StatefulSet")
 CANARY_APIS = ("planning-core", "registration")
 CANARY_STEPS = ["setWeight:10", "analysis:error-rate-and-p95", "setWeight:50", "analysis:error-rate-and-p95", "setWeight:100"]
 
@@ -43,10 +47,11 @@ def canary_problems(docs: list[dict], path: str) -> list[str]:
     return problems
 
 
-def problems_in(path: str) -> list[str]:
+def problems_in(path: str, canary: bool = True) -> list[str]:
     problems: list[str] = []
     docs = [d for d in yaml.safe_load_all(open(path, encoding="utf-8")) if d]
-    problems.extend(canary_problems(docs, path))
+    if canary:
+        problems.extend(canary_problems(docs, path))
     for doc in docs:
         kind = doc.get("kind")
         if kind == "Secret":
@@ -59,7 +64,7 @@ def problems_in(path: str) -> list[str]:
             problems.append(f"{name}: pod runAsNonRoot is not set")
         if spec.get("automountServiceAccountToken") is not False:
             problems.append(f"{name}: automountServiceAccountToken is not false")
-        for container in spec["containers"]:
+        for container in spec.get("initContainers", []) + spec["containers"]:
             who = f"{name}/{container['name']}"
             security = container.get("securityContext", {})
             if security.get("allowPrivilegeEscalation") is not False:
@@ -77,11 +82,14 @@ def problems_in(path: str) -> list[str]:
 
 
 def main() -> int:
-    problems = [p for path in sys.argv[1:] for p in problems_in(path)]
+    args = sys.argv[1:]
+    canary = "--no-canary" not in args
+    paths = [a for a in args if a != "--no-canary"]
+    problems = [p for path in paths for p in problems_in(path, canary)]
     for problem in problems:
         print(f"::error::{problem}")
     if not problems:
-        print(f"ok: {len(sys.argv) - 1} rendered overlays pass the hardening checks")
+        print(f"ok: {len(paths)} rendered overlays pass the hardening checks")
     return 1 if problems else 0
 
 

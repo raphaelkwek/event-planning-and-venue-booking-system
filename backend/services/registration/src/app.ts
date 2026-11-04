@@ -1,5 +1,6 @@
 import "./asyncErrors.js";
 import express from "express";
+import { corsFor, parseAllowedOrigins } from "./cors.js";
 import { httpTelemetry, traceFields } from "@connectsphere/telemetry";
 import { config } from "./config.js";
 import helmet from "helmet";
@@ -20,6 +21,8 @@ import { registerOverAdmissionGauges } from "./overAdmission.js";
  * (R1 to R4). src/index.ts starts it listening, the consumers and the relay.
  */
 export const app = express();
+// ADR-0016: the web app is on Vercel, another origin; first, so every answer carries the headers.
+app.use(corsFor(parseAllowedOrigins(process.env.CORS_ALLOWED_ORIGINS)));
 if (config.trustProxyHops > 0) app.set("trust proxy", config.trustProxyHops);
 
 // EN-08: first, so every route and every refusal gets a correlation id (the trace id, ADR-0013)

@@ -3,6 +3,7 @@ import express from "express";
 import { httpTelemetry, traceFields } from "@connectsphere/telemetry";
 import { config } from "./shared/config.js";
 import helmet from "helmet";
+import { corsFor, parseAllowedOrigins } from "./shared/cors.js";
 import { createServiceMetrics } from "@connectsphere/observability";
 import { logger } from "./shared/logger.js";
 import { errorHandler } from "./shared/errorHandler.js";
@@ -23,6 +24,8 @@ import { changeRouter } from "./modules/change/index.js";
  */
 export const app = express();
 
+// ADR-0016: the web app is on Vercel, another origin; first, so every answer carries the headers.
+app.use(corsFor(parseAllowedOrigins(process.env.CORS_ALLOWED_ORIGINS)));
 // EN-08: first, so every route and every refusal gets a correlation id (the trace id, ADR-0013)
 // and is timed by route pattern (http_request_duration_seconds, the names EN-17's SLOs query).
 app.use(httpTelemetry({ service: config.serviceName }));

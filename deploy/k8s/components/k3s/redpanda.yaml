@@ -1,0 +1,194 @@
+# ADR-0016. The namespace's own Kafka API: one Redpanda broker (no ZooKeeper, one process),
+# SASL/SCRAM on its only listener and TLS from the namespace's internal CA. ADR-0008's
+# hosted cluster stays the development cluster; this replaces it only on the k3s VM.
+#
+# One user, `connectsphere`, is created the first time the broker starts (RP_BOOTSTRAP_USER)
+# with the password in connectsphere-secrets (KAFKA_SASL_PASSWORD, a GitHub environment
+# secret), and is the only superuser. The services log in with the same KAFKA_SASL_USERNAME
+# and KAFKA_SASL_PASSWORD they use against the hosted cluster. The data, including that
+# user, lives on the PersistentVolumeClaim; to change the password later, use
+# `rpk security user update` in the pod (documentation/deploy/README.md).
+#
+# Topics are created on first use with three partitions, keyed by aggregate id as ADR-0008
+# requires; the hosted cluster's topics are made by hand, these need no step.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: redpanda-config
+data:
+  redpanda.yaml: |
+    redpanda:
+      data_directory: /var/lib/redpanda/data
+      seed_servers: []
+      developer_mode: true
+      rpc_server:
+        address: 0.0.0.0
+        port: 33145
+      advertised_rpc_api:
+        address: 127.0.0.1
+        port: 33145
+      kafka_api:
+        - name: internal
+          address: 0.0.0.0
+          port: 9092
+          authentication_method: sasl
+      advertised_kafka_api:
+        - name: internal
+          address: redpanda
+          port: 9092
+      kafka_api_tls:
+        - name: internal
+          enabled: true
+          require_client_auth: false
+          cert_file: /etc/redpanda/tls/tls.crt
+          key_file: /etc/redpanda/tls/tls.key
+          truststore_file: /etc/redpanda/tls/ca.crt
+      admin:
+        - name: admin
+          address: 0.0.0.0
+          port: 9644
+    rpk:
+      coredump_dir: /var/lib/redpanda/data/coredump
+  # Read once, when the cluster is first created.
+  .bootstrap.yaml: |
+    enable_sasl: true
+    superusers:
+      - connectsphere
+    auto_create_topics_enabled: true
+    default_topic_partitions: 3
+    default_topic_replications: 1
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redpanda
+spec:
+  selector:
+    app.kubernetes.io/name: redpanda
+  ports:
+    - name: kafka
+      port: 9092
+      targetPort: kafka
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: redpanda
+spec:
+  serviceName: redpanda
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: redpanda
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: redpanda
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 60
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 101
+        runAsGroup: 101
+        fsGroup: 101
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      # rpk rewrites redpanda.yaml when it starts, so the ConfigMap is copied to a writable
+      # directory first; the root filesystem stays read-only.
+      initContainers:
+        - name: config
+          image: docker.io/redpandadata/redpanda:v26.2.6@sha256:8b1076e0d61bfceb66594dc01536427ce0b529f8ead35fdab9763ab6085891ce
+          command: ["/bin/sh", "-c", "cp /config-source/redpanda.yaml /config-source/.bootstrap.yaml /etc/redpanda/"]
+          resources:
+            requests: { cpu: 10m, memory: 16Mi }
+            limits: { cpu: 100m, memory: 64Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          volumeMounts:
+            - name: config-source
+              mountPath: /config-source
+            - name: config
+              mountPath: /etc/redpanda
+      containers:
+        - name: redpanda
+          image: docker.io/redpandadata/redpanda:v26.2.6@sha256:8b1076e0d61bfceb66594dc01536427ce0b529f8ead35fdab9763ab6085891ce
+          args:
+            - redpanda
+            - start
+            - --smp=1
+            - --memory=1G
+            - --reserve-memory=0M
+            - --overprovisioned
+            - --default-log-level=info
+            - --check=false
+          env:
+            - name: HOME
+              value: /tmp
+            - name: KAFKA_SASL_PASSWORD
+              valueFrom:
+                secretKeyRef: { name: connectsphere-secrets, key: KAFKA_SASL_PASSWORD }
+            # username:password, SCRAM-SHA-256. Must match KAFKA_SASL_USERNAME and the
+            # superuser in .bootstrap.yaml.
+            - name: RP_BOOTSTRAP_USER
+              value: connectsphere:$(KAFKA_SASL_PASSWORD)
+          ports:
+            - name: kafka
+              containerPort: 9092
+              protocol: TCP
+            - name: admin
+              containerPort: 9644
+              protocol: TCP
+          startupProbe:
+            httpGet: { path: /v1/status/ready, port: admin }
+            periodSeconds: 5
+            failureThreshold: 60
+          readinessProbe:
+            httpGet: { path: /v1/status/ready, port: admin }
+            periodSeconds: 10
+            timeoutSeconds: 3
+          livenessProbe:
+            tcpSocket: { port: kafka }
+            periodSeconds: 20
+            failureThreshold: 3
+          resources:
+            requests: { cpu: 200m, memory: 1280Mi }
+            limits: { cpu: "1", memory: 1536Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/redpanda/data
+            - name: config
+              mountPath: /etc/redpanda
+            - name: tls
+              mountPath: /etc/redpanda/tls
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: config-source
+          configMap:
+            name: redpanda-config
+        - name: config
+          emptyDir: { sizeLimit: 8Mi }
+        - name: tls
+          secret:
+            secretName: redpanda-tls
+        - name: tmp
+          emptyDir: { sizeLimit: 64Mi }
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: [ReadWriteOnce]
+        resources:
+          requests:
+            storage: 5Gi

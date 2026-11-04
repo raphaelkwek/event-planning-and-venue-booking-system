@@ -5,7 +5,7 @@
 # endpoint. Runs on the CI runner only; the Postgres is the job's throwaway
 # service container, never a shared database.
 #
-#   deploy/ci/smoke-image.sh <planning-core|registration|notification|web|migrate> <image>
+#   deploy/ci/smoke-image.sh <planning-core|registration|notification|web|migrate|cerbos> <image>
 set -euo pipefail
 
 name="$1"
@@ -38,7 +38,14 @@ wait_for() { # <url> <seconds>
 
 check_user() {
   local uid
-  uid="$(docker run --rm --entrypoint id "$image" -u)"
+  if [ "$name" = cerbos ]; then
+    # Distroless: no `id` in the image, so read the user it is built to run as.
+    uid="$(docker image inspect "$image" --format '{{.Config.User}}')"
+    uid="${uid%%:*}"
+    [ -n "$uid" ] || fail "$name sets no USER, so it runs as root"
+  else
+    uid="$(docker run --rm --entrypoint id "$image" -u)"
+  fi
   [ "$uid" != "0" ] || fail "$name runs as root"
   echo "ok: $name runs as uid $uid"
 }
@@ -96,6 +103,21 @@ case "$name" in
     docker run --rm "${hardening[@]}" -e "DATABASE_URL=${db_url}" -e npm_config_cache=/tmp/.npm "$image" > migrate-2.log
     if grep -q '^apply ' migrate-2.log; then fail "migrate: the second run applied migrations again"; fi
     echo "ok: migrate applied $(grep -c '^apply ' migrate-1.log) files, then none"
+    ;;
+  cerbos)
+    # ADR-0016: the PDP starts read-only and non-root, and answers with the repository's
+    # policies loaded: Venue Staff may create a venue, an attendee may not (policies/resources/venue.yaml).
+    cid="$(docker run -d "${hardening[@]}" --tmpfs /.cache "$image")"
+    wait_for "http://127.0.0.1:3592/_cerbos/health" 40 || fail "cerbos: /_cerbos/health did not answer"
+    echo "ok: cerbos /_cerbos/health -> $(curl -fsS http://127.0.0.1:3592/_cerbos/health)"
+    decide() { # <role> -> the effect for create on a venue
+      curl -fsS -X POST http://127.0.0.1:3592/api/check/resources -H 'Content-Type: application/json' \
+        -d "{\"requestId\":\"smoke\",\"principal\":{\"id\":\"smoke-user\",\"roles\":[\"$1\"]},\"resources\":[{\"actions\":[\"create\"],\"resource\":{\"kind\":\"venue\",\"id\":\"smoke-venue\"}}]}" \
+        | jq -r '.results[0].actions.create'
+    }
+    [ "$(decide VENUE_STAFF)" = EFFECT_ALLOW ] || fail "cerbos: Venue Staff may not create a venue, so the policies are not loaded"
+    [ "$(decide ATTENDEE)" = EFFECT_DENY ] || fail "cerbos: an attendee may create a venue"
+    echo "ok: cerbos serves the repository's policies (VENUE_STAFF allowed, ATTENDEE denied)"
     ;;
   *) fail "unknown image $name" ;;
 esac

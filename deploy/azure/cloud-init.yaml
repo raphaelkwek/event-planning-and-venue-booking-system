@@ -1,0 +1,20 @@
+#cloud-config
+# ADR-0016 amendment (Azure): what the VM needs to run the two environments' containers and the
+# host Caddy in front of them: Docker from Ubuntu's own packages, and swap, so the VM can build the
+# image while both environments run.
+package_update: true
+package_upgrade: true
+packages:
+  - docker.io
+  - docker-buildx
+  - ca-certificates
+  - curl
+swap:
+  filename: /swapfile
+  size: 4G
+runcmd:
+  - systemctl enable --now docker
+  # The admin user (uid 1000, from az vm create --admin-username) runs docker without sudo.
+  # Quoted as a whole: "cut -d: -f1" unquoted would be read as a YAML mapping.
+  - 'usermod -aG docker "$(getent passwd 1000 | cut -d: -f1)"'
+  - install -d -m 0755 /etc/connectsphere

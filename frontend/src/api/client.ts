@@ -36,12 +36,21 @@ export interface RawResponse {
   correlationId: string | null;
 }
 
+/**
+ * ADR-0016: a path such as /identity/api/v1/... goes to the API origin the build
+ * names (VITE_API_BASE_URL, for Vercel); with none it stays relative. An absolute
+ * URL is left alone.
+ */
+export function apiUrl(path: string, base: string = __API_BASE_URL__): string {
+  return path.startsWith("/") ? `${base}${path}` : path;
+}
+
 /** Sends a request and returns the raw result, refusals included. */
 export async function rawRequest(
   path: string,
   options: { method?: string; token?: string | null; body?: unknown; headers?: Record<string, string> } = {}
 ): Promise<RawResponse> {
-  const response = await fetch(path, {
+  const response = await fetch(apiUrl(path), {
     method: options.method ?? "GET",
     headers: {
       ...options.headers,

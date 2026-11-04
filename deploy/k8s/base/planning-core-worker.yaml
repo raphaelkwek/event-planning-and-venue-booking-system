@@ -43,6 +43,15 @@ spec:
             - name: SUPABASE_JWKS_URL
               valueFrom:
                 secretKeyRef: { name: connectsphere-secrets, key: SUPABASE_JWKS_URL }
+            # The worker imports the event and venue modules, which load the identity module's
+            # settings at start-up (modules/identity/config.ts); without these it exits before it
+            # connects. Found by the k3s kind run (ADR-0016), the first with Temporal configured.
+            - name: SUPABASE_URL
+              valueFrom:
+                secretKeyRef: { name: connectsphere-secrets, key: SUPABASE_URL }
+            - name: SUPABASE_ANON_KEY
+              valueFrom:
+                secretKeyRef: { name: connectsphere-secrets, key: SUPABASE_ANON_KEY }
             - name: TEMPORAL_ADDRESS
               valueFrom:
                 secretKeyRef: { name: connectsphere-secrets, key: TEMPORAL_ADDRESS, optional: true }
