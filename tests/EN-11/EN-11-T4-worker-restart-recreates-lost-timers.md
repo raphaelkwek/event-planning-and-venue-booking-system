@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: — |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | CI's unit job ran `reconcileTimers.unit.test.ts` (6 tests) and `reconcileTimersServer.unit.test.ts` (4 tests, on Temporal's time-skipping server); its integration job ran `awaitingCompletion.test.ts` against the throwaway Postgres. All passed. The overdue event completed and the overdue hold expired within a minute of server time (the reminder step answered `too-late`); the 3-hour event completed only at its end; the 2-hour hold was reminded between 1 and 2 hours and expired at 2 hours; a second reconcile reached the same runs (same run ids, one completion, one expiry), and one after the reminder sent no second reminder (asked twice, sent once). One failed item, and each failed listing, were logged and the rest reconciled without a throw. The listing held the two Confirmed events with their ends, in end order, and not the Approved, Planning or Cancelled ones. |
+| Status | Pass |
+| Remarks | Automated (unit and integration, CI) · Commit: 18b357b5 · Evidence: backend/services/planning-core/tests/temporal/reconcileTimersServer.unit.test.ts › EN-11-T4 (4 tests), tests/temporal/reconcileTimers.unit.test.ts › reconcileTimers (EN-11-T4) (6 tests), tests/event/jobs/awaitingCompletion.test.ts › EN-11-T4 lists every Confirmed event with its end, and no event in another status, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41794961654 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-04 |

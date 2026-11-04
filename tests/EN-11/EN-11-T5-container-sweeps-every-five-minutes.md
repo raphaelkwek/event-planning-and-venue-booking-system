@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: — |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | deploy.yml's "Space image" jobs (amd64 and arm64) built and ran the image with `deploy/ci/space-smoke.sh`: supervisorctl showed `sweeps` RUNNING with every other program, and the container's log had "completion sweep finished" and "hold expiry sweep finished" from the first run, neither with outcome error. `npm run test:scripts` (CI's unit job) checked the program runs `sweeps.sh` with stopasgroup and killasgroup, and `sweeps.sh` runs both compiled jobs and waits SWEEP_INTERVAL_SECONDS=300. The wait itself was not observed. |
+| Status | Pass |
+| Remarks | Automated (container smoke test, CI) · Commit: 18b357b5 · Evidence: deploy/ci/space-smoke.sh in deploy.yml › Space image, amd64 and arm64, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41794961643; deploy/space/deploy-space.test.mjs › EN-11-T5 supervisord runs the F1 completion sweep and the L6 hold-expiry sweep, and every five minutes, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41794961654 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-04 |

@@ -55,8 +55,10 @@ migration, no API change, and no change to the gate's arguments or to the settin
   `patched()`, or Temporal started empty; HoldExpiry still has no recorded replay histories. The
   runbook says how.
 
-- **The deploy gate on the VM is installed by hand.** Until the new gate is installed, a release
-  still replaces the container without the volume. The reconcile and the sweeps work either way.
+- **The deploy gate on the VM is installed by hand.** This one was installed on 4 Nov at 08:06Z,
+  after CI was green on the pull request. Until this change merges, it starts main's image, which
+  ignores the volume; the first release after the merge puts Temporal's state on it. A change to the
+  gate needs installing again the same way.
 - **A Hugging Face Space has no volume**, so there Temporal still starts empty after a restart. The
   reconcile and the sweeps cover it.
 - **The k3s manifests have no sweep CronJob.** Temporal is already on a PersistentVolumeClaim

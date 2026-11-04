@@ -9,9 +9,9 @@ unit-test command, with no database and no Temporal Cloud account.
 | Worker connection settings | EN-11-T1 | Pass, 11 tests |
 | CompleteEvent durable timer (time-skipping server) | EN-11-T2 | Pass, 8 tests |
 | Replay of recorded histories in CI | EN-11-T3 | Pass, 7 tests |
-| A restarted worker re-creates lost completion and hold-expiry timers | EN-11-T4 | Not Executed |
-| The container sweeps overdue events and holds every five minutes | EN-11-T5 | Not Executed |
-| Temporal's workflows survive the replacement of the container | EN-11-T6 | Not Executed |
+| A restarted worker re-creates lost completion and hold-expiry timers | EN-11-T4 | Pass, 11 tests |
+| The container sweeps overdue events and holds every five minutes | EN-11-T5 | Pass, Space image amd64 and arm64 |
+| Temporal's workflows survive the replacement of the container | EN-11-T6 | Pass, Space image amd64 and arm64 |
 
 **Added 4 November (timers survive redeploys).** On 4 Nov a redeploy of staging replaced its
 container, and Temporal's state (kept in the container's `/tmp`) went with it: an event confirmed

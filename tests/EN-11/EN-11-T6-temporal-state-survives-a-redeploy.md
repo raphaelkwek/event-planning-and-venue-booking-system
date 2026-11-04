@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: — |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | `npm run test:scripts` checked that the gate and `deploy:vm` mount connectsphere-staging-temporal and connectsphere-production-temporal at /var/lib/connectsphere/temporal, the directory start.sh and the Dockerfile use, and stop the container before removing it. In deploy.yml's "Space image" jobs (amd64 and arm64), start.sh refused a volume uid 1000 could not write and exited non-zero; on an empty root-owned volume it put temporal.db on the volume, owned by uid 1000, the container's uid; after a stop, remove and start on the same volume, start.sh logged the state kept from the last container, and the probe workflow ci-survives-redeploy was still RUNNING. |
+| Status | Pass |
+| Remarks | Automated (container smoke test, CI) · Commit: 18b357b5 · Evidence: deploy/ci/space-smoke.sh in deploy.yml › Space image, amd64 and arm64, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41794961643; deploy/azure/deploy-vm.test.mjs › EN-11-T6 (3 tests), CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41794961654 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-04 |
