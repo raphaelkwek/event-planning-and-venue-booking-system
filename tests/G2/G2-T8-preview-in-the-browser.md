@@ -19,8 +19,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Manual card. Waits for the G2 screen (Task 3) and migrations venue/0019 and equipment/0009 on the shared database. Commit: · Evidence: · Defect: — |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | On the change request's review page, `If this change is approved` appeared above Approve and Reject listing both bookings (both `Requires reconfirmation`, the Theatre one also `Unsuitable` with `Expected attendance is now 150, but <venue> holds 100 in the Theatre layout.`) and the reservation (`Flagged for review`) and `Registrations: 0`; the event page showed no Outstanding flags and nothing was flagged by viewing; after rejecting with a reason the section was gone; for a pending change to the venue requirements only, the arrangements were listed with no flag. Run on CI's throwaway stack, with unique names in place of the card's literal names. The screen words the registration count `Registrations: 0` where the card says `0 active registrations`. |
+| Status | Pass |
+| Remarks | Automated (browser, Playwright) · Commit: aa700c3 · Evidence: tests/e2e/q-equipment-and-changes.spec.ts › G2-T8 the coordinator reads what a pending change would affect, flags nothing by looking, and loses the section once it is decided, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41694828373 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-04 |

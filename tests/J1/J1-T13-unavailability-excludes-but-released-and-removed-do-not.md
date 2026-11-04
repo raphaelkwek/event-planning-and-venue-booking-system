@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: cb3b9d8 · Evidence: partial only. At API level, building 'J1T Arts': 14 Dec 10:00-11:00 returned no venue (active block); 14 Dec 15:30-16:30 returned Lecture Hall (released slot blocks nothing); 16 Dec 10:00-11:00 returned Lecture Hall (removed block blocks nothing) (backend/services/planning-core/tests/venue/repo/venueSearch.test.ts › excludes a venue with an active block; a released slot and a removed block exclude nothing (J1-T13) ; backend/services/planning-core/tests/venue/api/venueSearch.test.ts › answers a search that matches nothing with 200, an empty list and a message restating the filters (J1-T20) , CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/38427990873). Not covered by any automated test: the empty-result message for this card's filters. UI walk-through in Chrome pending at the sprint review · Defect: — |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | 10:00–11:00 on the day of the active maintenance block listed no venue and the empty-result message; 15:30–16:30 (released slot) listed FX Lecture Hall; 10:00–11:00 on the day of the removed block listed FX Lecture Hall. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
+| Status | Pass |
+| Remarks | Automated (browser, Playwright) · Commit: aa700c3 · Evidence: tests/e2e/j-venue-search.spec.ts › J1-T13 recorded unavailability excludes a venue; a released slot and a removed block do not, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41694828373 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-04 |

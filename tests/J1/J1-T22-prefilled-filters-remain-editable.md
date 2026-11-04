@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result |  |
-| Status | Not Executed |
-| Remarks | Screen only: editing pre-filled fields in the form is not covered by any integration test. UI walk-through in Chrome pending at the sprint review |
-| Executed By |  |
-| Date of Execution |  |
+| Actual Result | After clearing Layout, setting minimum capacity 50 and unticking Wireless microphones and Hearing loop, the fields kept the changes and the results were FX Auditorium, FX Seminar Room and FX Late Studio (FX Lecture Hall excluded by its maintenance block). Run on CI's throwaway stack, with unique names in place of the card's literal names. |
+| Status | Pass |
+| Remarks | Automated (browser, Playwright) · Commit: aa700c3 · Evidence: tests/e2e/j-venue-search.spec.ts › J1-T22 pre-filled filters remain editable, CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41694828373 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-04 |
