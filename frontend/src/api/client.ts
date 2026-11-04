@@ -82,7 +82,9 @@ export async function rawRequest(
       ...(options.body !== undefined ? { body: JSON.stringify(options.body) } : {}),
     });
   } catch (error) {
-    // fetch rejects only when no answer came back at all (D10).
+    // A request the screen itself cancelled is not a failure to reach the service.
+    if (error instanceof DOMException && error.name === "AbortError") throw error;
+    // Otherwise fetch rejects only when no answer came back at all (D10).
     throw new ServiceUnreachableError("unreachable", error);
   }
 

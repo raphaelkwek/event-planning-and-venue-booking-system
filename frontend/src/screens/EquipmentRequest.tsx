@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import Button from "@atlaskit/button/new";
 import DynamicTable from "@atlaskit/dynamic-table";
@@ -78,19 +78,23 @@ export function EquipmentRequest() {
   const nameOf = useUserNames(session.token, [event?.assignedCoordinatorId, ...lines.map((line) => line.requestedBy), ...lines.map((line) => line.reservation?.reservedBy)]);
   const isAssigned = event?.assignedCoordinatorId === session.userId;
 
+  // D6: only the newest read may show its answer; an older one answering last would undo an action.
+  const latest = useRef(0);
   const load = useCallback(async () => {
     if (!eventId) return;
+    const mine = ++latest.current;
     setLoadError(null);
     try {
       // The event comes with the lines, from a read that changes nothing; opening it for review would claim it (D1).
       const [page, catalogue] = await Promise.all([listRequestLines(session.token, { eventId }), listEquipmentTypes(session.token)]);
+      if (mine !== latest.current) return;
       const opened = page.event ?? null;
       setEvent(opened);
       setLines(page.items);
       setTypes(catalogue.items.map((item) => ({ id: item.id, name: item.name })));
       setDrafts((current) => (current.length > 0 ? current : [newDraft(opened)]));
     } catch (caught) {
-      setLoadError(caught);
+      if (mine === latest.current) setLoadError(caught);
     }
   }, [eventId, session.token]);
 

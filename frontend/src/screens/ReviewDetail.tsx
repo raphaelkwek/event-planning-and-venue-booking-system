@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import Button from "@atlaskit/button/new";
 import Lozenge from "../shared/Lozenge.js";
@@ -89,6 +89,10 @@ export function ReviewDetail() {
   const [impact, setImpact] = useState<{ requestId: string; impact: ChangeImpact } | null>(null);
   const [loadError, setLoadError] = useState<unknown>(null);
   const [actionError, setActionError] = useState<unknown>(null);
+  // D6: a quiet refresh that failed, shown apart from the action, which succeeded.
+  const [refreshError, setRefreshError] = useState<unknown>(null);
+  // Only the newest read may show its answer: an older one, or one for the event shown before, answering last is dropped.
+  const latest = useRef(0);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
 
@@ -116,6 +120,7 @@ export function ReviewDetail() {
    */
   const load = useCallback(async (options: { quiet?: boolean } = {}) => {
     if (!id) return;
+    const mine = ++latest.current;
     if (!options.quiet) {
       setLoading(true);
       setLoadError(null);
@@ -133,16 +138,19 @@ export function ReviewDetail() {
           () => null
         ),
       ]);
+      if (mine !== latest.current) return;
       setEvent(opened);
       setClarifications(clarificationList.items);
       setProposals(proposalList.items);
       setChangeRequests(changes ?? []);
       setChangesFailed(changes === null);
+      setRefreshError(null);
     } catch (caught) {
-      if (options.quiet) setActionError(caught);
+      if (mine !== latest.current) return;
+      if (options.quiet) setRefreshError(caught);
       else setLoadError(caught);
     } finally {
-      setLoading(false);
+      if (mine === latest.current) setLoading(false);
     }
   }, [id, session.token]);
   const refresh = useCallback(() => void load({ quiet: true }), [load]);
@@ -242,6 +250,12 @@ export function ReviewDetail() {
         )}
 
         <CancelledNotice event={event} />
+
+        {refreshError ? (
+          <p role="status" style={{ color: "#626F86", fontSize: 13 }}>
+            Your change was saved, but this page couldn't be refreshed; reload it to see the latest.
+          </p>
+        ) : null}
 
         {changesFailed && <p role="status" style={{ color: "#626F86", fontSize: 13 }}>Change requests couldn't be loaded.</p>}
         {pendingChange && (

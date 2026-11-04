@@ -127,6 +127,17 @@ describe("D6: a decision shows its own answer at once", () => {
     expect(screen.queryByText("Loading…")).toBeNull();
   });
 
+  it("says the page couldn't be refreshed, apart from the decision, which still shows as made", async () => {
+    openEvent.mockResolvedValueOnce(eventRecord()).mockRejectedValue(new Error("Network down"));
+    approveEvent.mockResolvedValue(decided("APPROVED"));
+    render(<App />);
+    fireEvent.click(await screen.findByRole("button", { name: "Approve" }));
+
+    expect(await screen.findByText("Your change was saved, but this page couldn't be refreshed; reload it to see the latest.")).toBeTruthy();
+    expect(screen.getByText("This request is Approved")).toBeTruthy();
+    expect(screen.queryByText("Network down")).toBeNull();
+  });
+
   it("still reads the event once more behind the answer, so the rest of the page catches up", async () => {
     openEvent.mockResolvedValueOnce(eventRecord()).mockResolvedValue(decided("APPROVED"));
     approveEvent.mockResolvedValue(decided("APPROVED"));

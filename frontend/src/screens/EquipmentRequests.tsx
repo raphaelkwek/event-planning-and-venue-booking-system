@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Button from "@atlaskit/button/new";
 import DynamicTable from "@atlaskit/dynamic-table";
 import Lozenge from "../shared/Lozenge.js";
@@ -75,19 +75,23 @@ export function EquipmentRequests() {
   const [busy, setBusy] = useState(false);
   const nameOf = useUserNames(session.token, lines.map((line) => line.statusChangedBy));
 
+  // D6: only the newest read may show its answer; an older one answering last would undo an action.
+  const latest = useRef(0);
   const load = useCallback(async () => {
+    const mine = ++latest.current;
     setLoadError(null);
     try {
       const [page, catalogue] = await Promise.all([
         listRequestLines(session.token, filter ? { status: filter } : {}),
         listEquipmentTypes(session.token),
       ]);
+      if (mine !== latest.current) return;
       setLines(page.items);
       setTypes(catalogue.items.map((item) => ({ id: item.id, name: item.name })));
     } catch (caught) {
-      setLoadError(caught);
+      if (mine === latest.current) setLoadError(caught);
     } finally {
-      setLoading(false);
+      if (mine === latest.current) setLoading(false);
     }
   }, [session.token, filter]);
 
