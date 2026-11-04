@@ -19,7 +19,7 @@
 | Item | Content |
 |---|---|
 | Actual Result | Not run. The CancelEvent workflow and the CANCEL_PENDING state are in pull requests #71 and #72 (F3, F4), which are not on this branch, so there is nothing to kill. The Chaos Mesh manifest (deploy/chaos/01-core-pod-kill.yaml) is written and validated by EN-20-T8, not applied. |
-| Status | Blocked |
-| Remarks | Blocked by F3 and F4 (PRs #71, #72) and a staging cluster with Chaos Mesh · Evidence: documentation/evidence/EN-20/1-crash-mid-cancellation.md · Defect: — |
+| Status | Not Executed |
+| Remarks | Re-checked on 4 Nov: F3 and F4 have merged, but they built cancellation without the CancelEvent workflow the experiment kills: planning-core cancels the event and releases its arrangements in one transaction, and the registration service cancels the registrations and waitlist entries when it consumes event.cancelled (one transaction, with its inbox). There is no CANCEL_PENDING state and no workflow step to crash after. Nor is there a cluster with Chaos Mesh (ADR-0016's amendment: one container per environment on an Azure VM). The experiment needs redesigning for that path (crash the registration consumer mid-message) before it can run; documentation/evidence/EN-20/1-crash-mid-cancellation.md says the same. · Defect: — |
 | Executed By |  |
 | Date of Execution |  |

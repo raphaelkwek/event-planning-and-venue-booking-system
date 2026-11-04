@@ -22,8 +22,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | Not run against a published image, because none is signed yet. Partly proven: the action's verify step runs the guide's cosign verify and cosign verify-attestation commands with an exact identity, and the jq/base64 extraction of the SBOM from the attestation, on every pull request (EN-21-T5). Not proven: docker buildx imagetools to resolve a tag, cosign tree, and anonymous access to the GHCR package. |
-| Status | Not Executed |
-| Remarks | Commit: 11d972ed593bf4abc6f26115f75ffd246e071c14 · Evidence: documentation/supply-chain.md; the extraction and verification commands ran in https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41521790370 · Defect: —. Walk through the guide on a laptop after the first push to main. |
-| Executed By |  |
-| Date of Execution |  |
+| Actual Result | On a laptop with cosign 3.1.4, jq 1.7.1 and crane 0.20.3 and no GitHub login, following documentation/supply-chain.md for ghcr.io/joass1/connectsphere-planning-core at d1e6c08: the tag resolved with the guide's `crane digest` alternative to sha256:fc6360104255…; `cosign verify` passed for the Release identity; `cosign verify-attestation --type cyclonedx` passed and wrote attestation.json; the jq and base64 commands extracted the SBOM (CycloneDX, 3,689 components) and printed its package list (e.g. `@babel/helper-string-parser@7.29.7`); `cosign tree` listed the signature and attestation referrers. With the ci.yml identity in place of release.yml, `cosign verify` was refused. As written, the guide's `OWNER=raphaelkwek` no longer finds the images since the repository moved to joass1; it is corrected to `OWNER=joass1` in the same change, and the run above used the corrected guide. `docker buildx imagetools` was not used (its `crane digest` alternative was). On Windows, jq's CRLF output made `base64 -d` print a warning; the SBOM still decoded. |
+| Status | Pass |
+| Remarks | Read-only check · Commit: d1e6c08 (images), guide as corrected in this pull request · Evidence: documentation/supply-chain.md; cosign, crane and jq against GHCR from a laptop, 4 Nov 2026 06:45 UTC · Defect: — (the guide's stale OWNER, fixed here) |
+| Executed By | Joash, via the supply-chain guide on a laptop |
+| Date of Execution | 2026-11-04 |

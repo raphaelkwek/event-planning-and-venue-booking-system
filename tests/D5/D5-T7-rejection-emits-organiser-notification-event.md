@@ -27,8 +27,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: · Specification revised 2026-09-20; the previous record (Blocked, Joash, 2026-09-20) was against the pre-split specification. |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | FX-SUBMITTED and FX-ASSIGNED (the Lead assigning Coordinator One, as E3 has it) were done through the API; Coordinator One opened the request from the Review queue, clicked Reject, entered the reason "No suitable venue is available." and clicked Reject request (status Rejected). The card's query returned one event.rejected row with the request's reference, owner_id 00000000-0000-0000-0000-000000000001 and reason "No suitable venue is available.". Run on CI's throwaway stack, with unique names in place of the card's literal names; the card's query ran unchanged against that stack's database in place of the Supabase SQL editor. |
+| Status | Pass |
+| Remarks | Automated (browser, Playwright) · Commit: 5cd14bb · Evidence: tests/e2e/event-messages.spec.ts › D5-T7 rejecting a request emits the event the organiser's notification is built from, carrying the reason, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41793114951 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-04 |

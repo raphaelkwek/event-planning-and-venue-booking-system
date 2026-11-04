@@ -23,8 +23,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | Not run: the Release workflow runs only on a push to main. Proven on this pull request: the same sign-and-attest action signs, attests and verifies in the Supply chain workflow (EN-21-T5), and actionlint passes release.yml. |
-| Status | Not Executed |
-| Remarks | Evidence: .github/workflows/release.yml › jobs 'Build', 'Publish' (main only) · Defect: — |
-| Executed By | — |
-| Date of Execution | — |
+| Actual Result | Release run 41777894521, for d1e6c08 on main: each `Build (<image>, <arch>)` job (planning-core, registration, notification, migrate, cerbos and space, each for amd64 and arm64) pushed its image by digest (`push-by-digest=true`), and each `Publish (<image>)` job joined the two into one index tagged with the commit sha and checked its platforms were exactly linux/amd64,linux/arm64. Each Publish job then signed the index digest, attested its CycloneDX SBOM and verified both for `…/release.yml@refs/heads/main`, logging `ok: signature verifies`, `ok: CycloneDX attestation verifies`, `ok: the SBOM read back from the attestation has <n> components, as attested` and `ok: a wrong identity is refused`. Step 4, from a laptop with no GitHub login (cosign 3.1.4, 4 Nov 06:45 UTC): the tag of ghcr.io/joass1/connectsphere-planning-core resolved to sha256:fc6360104255…, `cosign verify` of that digest passed with the release.yml identity and the GitHub OIDC issuer, and with the identity of ci.yml it was refused (`no matching CertificateIdentity found`). The same held for the other five images. |
+| Status | Pass |
+| Remarks | Read-only check · Commit: d1e6c08 · Evidence: Release run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41777894521 (jobs Build and Publish); cosign verify from a laptop against GHCR, 4 Nov 2026 06:45 UTC · Defect: — |
+| Executed By | Joash, via read-only checks (GitHub Actions logs, cosign) |
+| Date of Execution | 2026-11-04 |

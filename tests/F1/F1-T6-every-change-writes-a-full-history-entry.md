@@ -25,8 +25,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | FX-SUBMITTED and FX-ASSIGNED (the Lead assigning Coordinator One, as E3 has it) were done through the API; Coordinator One opened the request from the Review queue (Under Review) and clicked Approve. The card's query returned exactly three rows, in this order: DRAFT → SUBMITTED, 00000000-0000-0000-0000-000000000001, EVENT_ORGANISER, SUBMIT; SUBMITTED → UNDER_REVIEW, 00000000-0000-0000-0000-000000000002, EVENT_COORDINATOR, OPEN_FOR_REVIEW; UNDER_REVIEW → APPROVED, 00000000-0000-0000-0000-000000000002, EVENT_COORDINATOR, APPROVE. Every row had a non-empty occurred_at, in time order. Run on CI's throwaway stack, with unique names in place of the card's literal names; the card's query ran unchanged against that stack's database in place of the Supabase SQL editor. |
+| Status | Pass |
+| Remarks | Automated (browser, Playwright) · Commit: 5cd14bb · Evidence: tests/e2e/f1-history.spec.ts › F1-T6 every status change on the way to Approved writes a full history entry, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41793114951 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-04 |

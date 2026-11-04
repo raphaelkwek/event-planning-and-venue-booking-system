@@ -19,8 +19,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Steps 1, 2 and the screens of 3 and 4 ran in the browser on CI's throwaway stack: Venue Staff saw the booking on the event's day; the coordinator's Cancel event dialog said the bookings, holds and equipment reservations would be released and the event then showed Cancelled; the venue's day showed no booking for the event and the whole opening day free; Technical Support's line was no longer Reserved and the equipment type's full stock (20) was available for the event's period. The two notices (booking released, equipment released, each with the reason) are not proven: notifications are built from Kafka messages, which CI's stack runs without. Proven by tests/e2e/u-safety-and-assignment.spec.ts › F4-T8 the coordinator cancels an event with a booking and reserved equipment; the venue and the stock are free again, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41773031885 (commit a406635). UI walk-through in Chrome pending at the sprint review. |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | Step 1: Venue Staff saw the event's booking, Confirmed, on its day. Step 2: the coordinator's Cancel event dialog said the venue bookings and holds and the equipment reservations would be released; with `Venue flooded.` the event showed Cancelled. The cancellation's `event.cancelled` was stored by the notification service (the notification was delivered by the test harness (deliverOutbox, the consumers' own code) in place of Kafka, which CI's stack runs without). Step 3: the venue's day showed no booking for the event and the whole opening day free (08:00–22:00); Venue Staff's Notifications held one notice about the event: `EVT-… “…” has been cancelled. Reason: Venue flooded. Released: booking <reference> at <venue>, Tuesday 2 March 2027, 14:00–18:00.` Step 4: Technical Support's line was no longer Reserved, the equipment type's full stock (20) was available for the period, and their Notifications held one notice: `EVT-… “…” has been cancelled. Reason: Venue flooded. The equipment you reserved has been released: <type> × 5.` Run on CI's throwaway stack, with the event on 2 March 2027. |
+| Status | Pass |
+| Remarks | Automated (browser, Playwright) · Commit: 5cd14bb · Evidence: tests/e2e/u-safety-and-assignment.spec.ts › F4-T8 the coordinator cancels an event with a booking and reserved equipment; the venue and the stock are free again, and their staff are told, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41793114951 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-04 |

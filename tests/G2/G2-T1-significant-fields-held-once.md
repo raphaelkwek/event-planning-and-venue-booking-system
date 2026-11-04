@@ -19,8 +19,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Partly proven by `frontend/tests/significantFields.test.ts` › significant fields (G2 AC1) › G2-T1 the screens take the significant fields and their labels from the contracts list, which passed in CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41773031885 (commit a406635): The web app's `SIGNIFICANT_FIELD_LABELS` (`frontend/src/shared/changeRequests.ts`) was the very object `@connectsphere/contracts` exports, its keys equalled the contracts' `SIGNIFICANT_EVENT_FIELDS` in order, and no `.ts` or `.tsx` file under `frontend/src` contained all six significant field names as quoted strings. Not proven: Step 2 (both files import the list and the field type from `@connectsphere/contracts`) is a manual read the test does not assert, and the six names are only compared with the contracts' list, not spelled out. Read by hand, `frontend/src/api/changeRequests.ts` imports only the type `SignificantEventField`, and `frontend/src/shared/changeRequests.ts` re-exports `SIGNIFICANT_FIELD_LABELS` but takes `SignificantField` from `../api/changeRequests.js`. |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | The test passed. The contracts' SIGNIFICANT_EVENT_FIELDS were exactly proposedStartAt, proposedEndAt, expectedAttendance, venueRequirements, equipmentRequired, equipmentRequirements; the web app's SIGNIFICANT_FIELD_LABELS (frontend/src/shared/changeRequests.ts) was the very object @connectsphere/contracts exports, with exactly those keys in that order; and no .ts or .tsx file under frontend/src contained all six names as quoted strings. Step 2, read by the test from the two files' import statements: frontend/src/shared/changeRequests.ts takes SIGNIFICANT_FIELD_LABELS and the field type SignificantEventField from @connectsphere/contracts, and frontend/src/api/changeRequests.ts takes SignificantEventField from @connectsphere/contracts; neither takes the list, its labels or the field type from anywhere else (the shared file no longer takes the type from the api file's SignificantField alias, changed in this run). |
+| Status | Pass |
+| Remarks | Automated (unit test) · Commit: 5cd14bb · Evidence: `frontend/tests/significantFields.test.ts` › significant fields (G2 AC1) › G2-T1 the screens take the significant fields and their labels from the contracts list, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41793114951 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-04 |

@@ -20,6 +20,6 @@
 |---|---|
 | Actual Result | — |
 | Status | Not Executed |
-| Remarks | The Azure part of the runbook was followed on 4 Nov to stand up both environments (create-vm.sh, deploy:vm). UI walk-through by Joash pending at the sprint review. |
+| Remarks | Not run as a whole: following the runbook from the top means creating accounts and environments, and step 2 (promote and roll back once, through release.yml's workflow_dispatch with an earlier release) changes production; neither is a read-only check. The Azure part of the runbook was followed on 4 Nov to stand up both environments (documentation/evidence/DEPLOY/azure-first-deploy.md), and release.yml has never been dispatched to redeploy an earlier release. A walk-through by Joash is pending. · Defect: — |
 | Executed By | — |
 | Date of Execution | — |

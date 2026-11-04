@@ -20,8 +20,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | With B1 at V1 and B2 at V2 confirmed, C1's confirmation answered 200 and E1's outbox held exactly one event.arrangements-confirmed message, on connectsphere.event.v1, keyed by E1 and with subject E1 (it parsed as a CloudEvent). Passed through the notification service's recipient rule (notificationsFor), it gave exactly four notifications, one each: ORG, whose text contained "Safety Review"; VS, naming B1's reference and F5 Hall; VS2, naming B2's reference and F5 Breakout Room; TS, naming "F5 Chairs × 5". C2 and ATT got none. The notification service's unit tests asserted the full wording of each: the owner is told "... has its venue and equipment arrangements confirmed. It is now in Safety Review, awaiting the Safety Officer.", each venue's staff the booking, venue, date and times, each reserver only the equipment they reserved, and each recipient exactly once. The message went through the recipient rule in the test, in place of Kafka delivery. |
+| Status | Pass |
+| Remarks | Automated (API level; unit test) · Commit: 5cd14bb · Evidence: `backend/services/planning-core/tests/change/api/f5Cards.test.ts` › F5 cards (tests/F5) › F5-T19 the organiser, each booked venue's staff and the reserver are each notified once; `backend/services/notification/tests/domain/recipients.test.ts` › F5: tells the owner, each booked venue's staff and each reserver that the arrangements are confirmed › notifies exactly the owner, each venue's staff and each reserver, once each; `backend/services/notification/tests/domain/recipients.test.ts` › F5: tells the owner, each booked venue's staff and each reserver that the arrangements are confirmed › tells the owner the event is in Safety Review, not Confirmed; `backend/services/notification/tests/domain/recipients.test.ts` › F5: tells the owner, each booked venue's staff and each reserver that the arrangements are confirmed › tells each Venue Staff member which booking at their venue, and when; `backend/services/notification/tests/domain/recipients.test.ts` › F5: tells the owner, each booked venue's staff and each reserver that the arrangements are confirmed › tells each reserver the equipment they reserved, and only theirs, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41793114951 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-04 |

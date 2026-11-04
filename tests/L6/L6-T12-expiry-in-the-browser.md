@@ -26,8 +26,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Waits for the L6 implementation and migration venue/0013 on the shared database, applied after the L6 PR merges (`npm run migrate -- venue`). Commit: · Evidence: · Defect: — |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | Ran in the browser on CI's throwaway stack, with the cards' 2 December 2026 moved to Tuesday 2 March 2027 (so HLD-A's new expiry was Monday 1 March 2027, 20:00) and unique names. HLD-A was placed as L3-T5 does, expiring 1 March 18:00 with a 60-minute reminder lead. HLD-B could not share HLD-A's venue (an event holds a venue once, L3/CR-03, and a period is held once), so it was the same event's hold of its other FX-BOOKING venue, Seminar Room 2-1, same period, expiring 40 seconds after it was placed. Venue Staff opened Hold requests, found HLD-A under "Placed holds" and clicked "Change expiry". An expiry in the past was refused inline with "The expiry must be later than now." and the old expiry stayed; empty fields were refused inline with "Enter the expiry date and time."; 1 March 2027 20:00 saved with "HLD-… now expires on Monday 1 March 2027, 20:00.", the row showing "Monday 1 March 2027, 20:00" and still offering "Change expiry" (Held, as the API confirmed). Once HLD-B's expiry had passed, the `npm run jobs:expire-holds` sweep (the fallback for the HoldExpiry workflow, which CI's stack does not run) expired it; on refresh its row read "Expired on <date and time>" with no action. The messages were delivered by the test harness in place of Kafka: one venue-booking.hold-expired notice was stored, there was no venue-booking.hold-expiring message, and HLD-A's reminded_at stayed empty. The coordinator's Notifications read "Hold HLD-… on Seminar Room 2-1 … for EVT-… “…”, Tuesday 2 March 2027, 14:00–18:00, expired on <expiry time>. The period is free for others." (naming HLD-B's own venue, the period, the event reference and the expiry time), with no reminder for HLD-A, and the event's Holds table showed HLD-B Expired ("Expired on …", no Convert or Release) and HLD-A Held until Monday 1 March 2027, 20:00. |
+| Status | Pass |
+| Remarks | Automated (browser, Playwright) · Commit: 5cd14bb · Evidence: tests/e2e/l-bookings.spec.ts › L6-T12 Venue Staff change a hold's expiry on screen, an expired hold shows no actions, and the coordinator's notices name the hold, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41793114951 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-04 |

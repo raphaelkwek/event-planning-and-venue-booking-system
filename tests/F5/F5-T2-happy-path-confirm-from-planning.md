@@ -20,8 +20,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | With E1 seeded at PLANNING, C1's confirmation answered 200 with previousStatus PLANNING. E1's status read SAFETY_REVIEW, and the latest history entry read PLANNING → SAFETY_REVIEW, actor C1, action CONFIRM_ARRANGEMENTS. |
+| Status | Pass |
+| Remarks | Automated (API level) · Commit: 5cd14bb · Evidence: `backend/services/planning-core/tests/change/api/f5Cards.test.ts` › F5 cards (tests/F5) › F5-T2 confirms from Planning too, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41793114951 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-04 |

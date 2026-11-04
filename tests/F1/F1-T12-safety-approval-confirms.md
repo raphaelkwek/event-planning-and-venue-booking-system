@@ -35,8 +35,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | Not run: U1's decision action does not exist, so there is no way to perform step 1. |
-| Status | Not Executed |
-| Remarks | Awaiting U1 (the Safety Officer's decision action) |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | An event reached Safety Review through F5 (approved, booking confirmed, confirmed by Coordinator One), in place of FX-SEEDED. The Safety Officer opened it from the Safety queue, chose Approve and clicked Record decision ("A decision is recorded for this review"). Query 1 then returned SAFETY_REVIEW, and query 2's row read SAFETY_REVIEW → SAFETY_REVIEW, 00000000-0000-0000-0000-000000000010, SAFETY_OFFICER, APPROVE_SAFETY, with a non-empty occurred_at. Coordinator One then clicked Mark Confirmed on the event (status Confirmed): query 1 returned CONFIRMED and query 2 read SAFETY_REVIEW → CONFIRMED, 00000000-0000-0000-0000-000000000002, EVENT_COORDINATOR, MARK_CONFIRMED, with a non-empty occurred_at. Run on CI's throwaway stack, with unique names in place of the card's literal names; the card's query ran unchanged against that stack's database in place of the Supabase SQL editor. |
+| Status | Pass |
+| Remarks | Automated (browser, Playwright) · Commit: 5cd14bb · Evidence: tests/e2e/f1-history.spec.ts › F1-T12 the Safety Officer's approval of a Safety Review event, then Mark Confirmed, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41793114951 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-04 |

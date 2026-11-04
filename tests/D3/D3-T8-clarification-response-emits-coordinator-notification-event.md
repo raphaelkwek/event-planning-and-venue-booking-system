@@ -27,8 +27,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: · Specification revised 2026-09-20; the previous record (Blocked, Joash, 2026-09-20) was against the pre-split specification. |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | FX-AWAITING was done through the API (Coordinator One asked); the organiser then opened the request, typed "Answered." as the reply and clicked Send response; the reply showed and the status went back to Under Review. The card's query returned one event.clarification-responded row with the request's reference, requested_by 00000000-0000-0000-0000-000000000002 (Coordinator One, who asked) and responded_by 00000000-0000-0000-0000-000000000001. Run on CI's throwaway stack, with unique names in place of the card's literal names; the card's query ran unchanged against that stack's database in place of the Supabase SQL editor. |
+| Status | Pass |
+| Remarks | Automated (browser, Playwright) · Commit: 5cd14bb · Evidence: tests/e2e/event-messages.spec.ts › D3-T8 the organiser's response emits the event the asking coordinator's notification is built from, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41793114951 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-04 |

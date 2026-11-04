@@ -18,8 +18,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | — |
-| Status | Not Executed |
-| Remarks | — |
-| Executed By | — |
-| Date of Execution | — |
+| Actual Result | From a VM address 20.1.2.3 the API hosts were `api.staging.20.1.2.3.sslip.io` and `api.20.1.2.3.sslip.io`, and under a DuckDNS name `api.staging.connectsphere-x.duckdns.org`, with different container ports for the two environments. The host Caddyfile routed each host to its own container only (127.0.0.1:7861 and :7862, two reverse_proxy lines). The container's env file held the five Supabase values, `CORS_ALLOWED_ORIGINS` set to the environment's own web origin, `REDPANDA_MEMORY=512M` (and TRUST_PROXY_HOPS), and a value with a line break was refused (`SUPABASE_ANON_KEY contains a line break`). |
+| Status | Pass |
+| Remarks | Automated (script test, node:test) · Commit: 5cd14bb · Evidence: `deploy/azure/deploy-vm.test.mjs` › DEPLOY-T19 each environment gets its own API host on the VM's address, or under a DuckDNS name; `deploy/azure/deploy-vm.test.mjs` › DEPLOY-T19 the host Caddy routes each host to its own environment's container only; `deploy/azure/deploy-vm.test.mjs` › DEPLOY-T19 the container's env file holds the Space values, its own web origin for CORS, and a smaller Redpanda, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41793114951 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-04 |

@@ -19,8 +19,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Waits for migrations equipment/0005–0008 on the shared database, applied after #42 and #44 merge (`npm run migrate -- equipment`). Commit: · Evidence: · Defect: — |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | Ran in the browser on CI's throwaway stack, with unique names, from a Reserved chairs line (40 of 40). Technical Support opened Equipment requests and clicked Release; with Reason empty, "Release reservation" showed "Give a reason for releasing the reservation." inline and the line stayed Reserved. With "Event moved" it showed the banner "Equipment released" ("Released <chairs> for EVT-…: Event moved.") and the row Confirmed with Reserve offered again. Reserving again showed "Reserved 40 of 40 for EVT-….". The coordinator opened the event's equipment request and clicked Remove on the Reserved line: the dialog read "<chairs> × 40 will be marked Removed and no longer listed. … Its reserved equipment will be released."; after "Remove line" the line was no longer listed and was Removed through the API. The line's five messages were delivered by the test harness in place of Kafka and stored, and the coordinator's Notifications read "The reservation of <chairs> × 40 for EVT-… “…” was released. The line is now Confirmed. Reason: Event moved" and "The reservation of <chairs> × 40 for EVT-… “…” was released. The line is now Removed. Reason: Request line removed", each naming the event and "released". |
+| Status | Pass |
+| Remarks | Automated (browser, Playwright) · Commit: 5cd14bb · Evidence: tests/e2e/o-equipment.spec.ts › Q2-T13 technical support release once a reason is given and reserve again, the coordinator removes the Reserved line, and each release is told, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41793114951 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-04 |

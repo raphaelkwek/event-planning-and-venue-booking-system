@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result |  |
-| Status | Not Executed |
-| Remarks | Proven at API level by backend/services/registration/tests/api/r6Cards.test.ts › R6-T10 cancels the active waitlist entries with the event and tells each attendee, which passed in CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41523834657 (commit d7abf51). Delivery to the Notifications screen needs Kafka. UI walk-through in Chrome pending at the sprint review. |
-| Executed By |  |
-| Date of Execution |  |
+| Actual Result | FX-R-EVENT (1 seat, taken by another attendee) was made for an event planning-core holds too (Approved, `R Test Symposium …`), so F3 could cancel it; the listing carries that event's own EVT-… reference rather than an EVT-R one. Attendee One joined the waitlist; Attendee Two joined and left (Withdrawn). Step 1: the owner cancelled the event on its page (200, `This event was cancelled`). F3's `event.cancelled` was handed to the registration service's consumer, which applied it, and the messages it wrote then reached the notification service, which stored one `waitlist.cancelled` (the notification was delivered by the test harness (deliverOutbox, the consumers' own code) in place of Kafka, which CI's stack runs without). Attendee One's entry became CANCELLED with its time; Attendee Two's stayed WITHDRAWN with no cancellation or notice time, and the registration outbox held `waitlist.cancelled` for Attendee One only. Step 2: My registrations showed Attendee One's entry as `Cancelled` with `Cancelled <time>, with the event`, and Notifications read `EVT-… “R Test Symposium …” has been cancelled, so your place on its waitlist (WL-…) is cancelled.` Attendee Two's Notifications held no notice about the event. |
+| Status | Pass |
+| Remarks | Automated (browser, Playwright) · Commit: 5cd14bb · Evidence: tests/e2e/r-management.spec.ts › R6-T10 cancelling the event cancels the waiting entries and tells each attendee; a left entry stays Withdrawn, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41793114951 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-04 |

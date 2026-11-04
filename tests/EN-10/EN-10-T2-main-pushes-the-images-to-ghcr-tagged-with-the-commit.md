@@ -26,8 +26,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | Not run. The push step is conditioned on a push to main, so it cannot run on a pull request. Whether this repository lets the workflow token write packages is unknown until the first merge. |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: .github/workflows/deploy.yml › 'Push to GHCR, tagged with the commit sha' (runs only on push to main). Since ADR-0016 the push is in .github/workflows/release.yml › jobs 'Build' and 'Publish' (one multi-arch index per image, tagged with the commit sha); see DEPLOY-T2 · Defect: |
-| Executed By |  |
-| Date of Execution |  |
+| Actual Result | Release run 41777894521 for d1e6c08: the twelve Build jobs pushed by digest and the six Publish jobs created ghcr.io/joass1/connectsphere-<image>:d1e6c088e10be1332b8e0808c499bf849b918c40 for planning-core, registration, notification, migrate, cerbos and space. Resolved anonymously from GHCR on 4 Nov 06:45 UTC (`crane digest`), each of the six tags gave a multi-arch index for linux/amd64 and linux/arm64; there is no -web package, as the web app is on Vercel. This pull request (#116) has no Release run (release.yml runs only on a push to main), and its Deploy run pushed nothing (deploy.yml builds the images with `load: true` to test them). |
+| Status | Pass |
+| Remarks | Read-only check · Commit: d1e6c08 · Evidence: Release run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41777894521 (jobs Build and Publish); crane digest against GHCR, 4 Nov 2026 06:45 UTC · Defect: — |
+| Executed By | Joash, via read-only checks (GitHub Actions logs, cosign) |
+| Date of Execution | 2026-11-04 |

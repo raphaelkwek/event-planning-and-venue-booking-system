@@ -36,8 +36,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: · Specification revised 2026-09-20; the previous record (Blocked, Joash, 2026-09-20) was against the pre-revision specification. |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | FX-SUBMITTED and FX-ASSIGNED (the Lead assigning Coordinator One, as E3 has it) were done through the API; Coordinator One opened the request from the Review queue and clicked Approve. The card's query listed event.submitted, event.coordinator-assigned and event.approved once each, beside event.status-changed (one for each of Submitted, Under Review and Approved) and event.listing-changed rows; every row was on the event topic connectsphere.event.v1, so none asked the venue or equipment modules to act, and the event had no venue slot, booking request, hold, equipment line or reservation. Step 2: the coordinator's request page showed status Approved; its Venue requests page read "No venue has been requested for this event yet." and "No venue has been held for this event." with no Bookings table; its Equipment request page read "No equipment has been requested for this event yet.". Run on CI's throwaway stack, with unique names in place of the card's literal names; the card's query ran unchanged against that stack's database in place of the Supabase SQL editor. |
+| Status | Pass |
+| Remarks | Automated (browser, Playwright) · Commit: 5cd14bb · Evidence: tests/e2e/event-messages.spec.ts › D4-T6 approval alone creates no venue booking and no equipment reservation, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41793114951 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-04 |
