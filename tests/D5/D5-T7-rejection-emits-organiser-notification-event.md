@@ -19,6 +19,10 @@
 > and is not built (`documentation/planning/plan.md` §9.1); it is now **T2-T5**, Not Executed until T2
 > ships. D5 owns the trigger, which is implemented, so the trigger is what this case checks.
 
+> **Revised 2026-11-04.** Step 1 names the Supabase SQL editor, which an automated run can't use. The test does the
+> pre-conditions on CI's throwaway stack and runs the same query, unchanged, against that stack's database. The expected
+> result is unchanged.
+
 ## Execution record
 
 | Item | Content |

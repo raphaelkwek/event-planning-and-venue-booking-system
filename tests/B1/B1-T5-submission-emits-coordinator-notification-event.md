@@ -20,6 +20,14 @@
 > ships. B1 owns the trigger, which is implemented, so the trigger is what this case checks. Neither
 > half was dropped.
 
+> **Revised 2026-11-04.** Step 1 names the Supabase SQL editor, which an automated run can't use. The test does
+> FX-SUBMITTED on CI's throwaway stack and runs the same query, unchanged, against that stack's database. The expected
+> result is unchanged. Two things have moved since it was written: in the team's environment the outbox relay
+> (EN-04.2) now publishes each row about a second after it is written, so there `published_at` is filled in; CI's stack
+> runs without Kafka, so there it stays null. And since E3 (CR-05) no coordinator is assigned at submission: a
+> coordinator hears of the request when the Lead assigns it, from `event.coordinator-assigned` (E1-T2). The
+> `event.submitted` message this case checks is still written at submission, with the same fields.
+
 ## Execution record
 
 | Item | Content |

@@ -16,6 +16,11 @@
 > **Expected results are checked by the PR reviewer** against F1's acceptance criteria
 > (§11.12's before-code confirmation was waived for F1 by the team on 2026-09-30).
 
+> **Revised 2026-11-04.** Step 1 names the Supabase SQL editor, which an automated run can't use. The test does
+> FX-APPROVED on CI's throwaway stack and runs the same query, unchanged, against that stack's database. The expected
+> result is unchanged: FX-ASSIGNED, the Lead's assignment since E3 (CR-05), changes no status, so it writes no
+> `STATUS_CHANGE` row.
+
 ## Execution record
 
 | Item | Content |
