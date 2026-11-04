@@ -18,7 +18,7 @@ import { EVENT_END, EVENT_START } from "../../support/eventDates.js";
 // The Q1 cards (tests/Q1): real Express app and migrated Postgres, with JWT verification and the
 // identity lookup replaced. Q1-T10's notification half passes the stored message through the
 // notification service's recipient rule. Q1-T13 (the race) is in tests/race/invariants.test.ts;
-// Q1-T14 is done by hand in the browser.
+// Q1-T14 is a browser journey in tests/e2e/o-equipment.spec.ts.
 vi.mock("../../../src/shared/auth/verifyJwt.js", () => ({
   verifyJwt: (req: { auth?: { supabaseUserId?: string } }, _res: unknown, next: () => void) => {
     req.auth = { supabaseUserId: "q1-card-subject" };

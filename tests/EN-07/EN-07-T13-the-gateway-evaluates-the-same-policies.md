@@ -19,7 +19,7 @@
 | Item | Content |
 |---|---|
 | Actual Result |  |
-| Status | Blocked |
-| Remarks | Blocked: the API gateway (EN-12) is not built, so there is no gateway to send the request through. It would ask the same PDP. · Defect: — |
+| Status | Not Executed |
+| Remarks | Re-checked on 4 Nov: the blocker named before is gone (EN-12's Kong gateway was built in #89), but the case still cannot pass as written. The gateway as built authenticates the token, rate-limits and adds trace headers; gateway/kong.yml has no authorisation plugin and never asks the Cerbos policy decision point, so an organiser's approve would pass the gateway and be refused by planning-core's own route gate (EN-07), not by the gateway. ADR-0010's 'the gateway evaluates the same policy bundle' is not built, and the deployed environments route through Caddy, not Kong (ADR-0016). Owning work: EN-07/EN-12. · Defect: — |
 | Executed By |  |
 | Date of Execution |  |

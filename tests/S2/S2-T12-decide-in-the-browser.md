@@ -19,8 +19,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Steps 1 to 4 and the request pages of step 5 ran in the browser on CI's throwaway stack: the approval (dialog `expected attendance: 150 → 180`) showed `Change approved on <date>` and 180; Confirm rejection without a reason was refused with `Give a reason for rejecting the change.`; with `No larger hall` the page showed `Change rejected on <date>: No larger hall` and 150; neither page then offered Approve change or Reject change; the organiser saw both outcomes with the values and Request a change offered again. The organiser's two notifications are not proven: notifications are built from Kafka messages, which CI's stack runs without. Proven by tests/e2e/s-changes.spec.ts › S2-T12 the coordinator approves one change and rejects another with a reason, and the organiser sees both, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41773031885 (commit a406635). UI walk-through in Chrome pending at the sprint review. |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | Step 1: the approval dialog showed `expected attendance: 150 → 180`; after Confirm approval the page showed `Change approved on <date>` and 180. Step 2: Confirm rejection with no reason was refused with `Give a reason for rejecting the change.`, the dialog stayed open and no decision was posted. Step 3: with `No larger hall` the page showed `Change rejected on <date>: No larger hall` and 150. Step 4: neither review page offered Approve change or Reject change. Step 5: both decisions' messages were stored by the notification service (the notification was delivered by the test harness (deliverOutbox, the consumers' own code) in place of Kafka, which CI's stack runs without); the organiser's first request showed `Change approved on <date>` with 180, the second `Change rejected on <date>: No larger hall` with 150, Request a change was offered on both, and Notifications had one entry for each outcome: `Your change request for EVT-… “…” was approved: expected attendance.` and `Your change request for EVT-… “…” was rejected. Reason: No larger hall`. |
+| Status | Pass |
+| Remarks | Automated (browser, Playwright) · Commit: 5bfb25e · Evidence: tests/e2e/s-changes.spec.ts › S2-T12 the coordinator approves one change and rejects another with a reason, and the organiser sees and is told of both, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41801285931 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-04 |

@@ -20,6 +20,6 @@
 |---|---|
 | Actual Result | — |
 | Status | Not Executed |
-| Remarks | Steps 1 and 2: on 4 Nov lead:create (through deploy:vm --lead) invited joash.lau.2024@computing.smu.edu.sg in both projects through Supabase Auth's admin invite and gave the identity user EVENT_COORDINATOR_LEAD (staging identity user 9af02c37-…, production d4dcfc89-…); the guard is unit-tested. Pending: step 3 (a second run) and step 4, the Lead setting a password from the email and signing in. |
+| Remarks | Steps 1 and 2 as recorded before (lead:create through deploy:vm --lead on 4 Nov; the project-ref guard is unit-tested). Step 4, read-only from each project's database on 4 Nov: in production the invited Lead (identity user d4dcfc89-…, EVENT_COORDINATOR_LEAD) accepted the invite (email confirmed) and signed in to the web app at 04:15 UTC (Supabase Auth's last sign-in and identity's last-login both set); in staging the invited Lead (9af02c37-…) accepted the invite (04:12 UTC) but has no app sign-in recorded. Not executed: step 3 (a second run with the same email) writes to the environment's Supabase project, which these checks may only read, and staging's step 4 sign-in. · Defect: — |
 | Executed By | — |
 | Date of Execution | — |

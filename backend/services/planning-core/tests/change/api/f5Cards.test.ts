@@ -153,18 +153,39 @@ async function fixture(options: {
   return { event, v1, v2, chairs, b1, l1 };
 }
 
-/** Everything a refusal must leave as it was (AC10): status, history, slots, requests, lines, reservations, outbox. */
+/**
+ * Everything a refusal must leave as it was (AC10): status, history, slots, requests, lines, reservations, outbox.
+ * The cards' "nothing written" is the README's queries reading as before, so the latest STATUS_CHANGE entry and
+ * the outbox envelopes are compared, not only counted. `slots` stays the README's slot query; the other flags a
+ * slot carries (S3's period and unsuitable flags, and their reasons) sit beside it.
+ */
 async function state(eventId: string) {
   const [event] = await sql`select status, version from event.events where id = ${eventId}`;
   const [history] = await sql`select count(*)::int as n from event.event_history where event_id = ${eventId}`;
+  const latestStatusChange = await latestStatusChangeOf(eventId);
   const slots = await sql`select id, status, requires_reconfirmation from venue.venue_slots where event_id = ${eventId} order by id`;
+  const slotFlags = await sql`select id, period_mismatch, unsuitable from venue.venue_slots where event_id = ${eventId} order by id`;
+  const arrangementFlags = await sql`select id, flag from venue.arrangement_flags where event_id = ${eventId} order by id`;
   const requests = await sql`select id, status from venue.booking_requests where event_id = ${eventId} order by id`;
   const lines = await sql`select id, status from equipment.equipment_request_lines where event_id = ${eventId} order by id`;
   const reservations = await sql`
     select id, status, reserved_quantity from equipment.reservations where event_id = ${eventId} order by id
   `;
   const [outbox] = await sql`select count(*)::int as n from event.outbox where message_key = ${eventId}`;
-  return { event, history: history!.n, slots, requests, lines, reservations, outbox: outbox!.n };
+  const outboxEnvelopes = await sql`select seq, envelope from event.outbox where message_key = ${eventId} order by seq`;
+  return {
+    event,
+    history: history!.n,
+    latestStatusChange,
+    slots,
+    slotFlags,
+    arrangementFlags,
+    requests,
+    lines,
+    reservations,
+    outbox: outbox!.n,
+    outboxEnvelopes,
+  };
 }
 
 async function refusedLeavingNothing(eventId: string, status: number, code: string) {
@@ -176,12 +197,19 @@ async function refusedLeavingNothing(eventId: string, status: number, code: stri
   return response;
 }
 
-async function latestHistory(eventId: string) {
+/** The README's "latest history entry" query; undefined while the event has no status change. */
+async function latestStatusChangeOf(eventId: string) {
   const [row] = await sql`
     select previous_status, new_status, actor_user_id, actor_role, triggering_action, occurred_at
     from event.event_history where event_id = ${eventId} and entry_type = 'STATUS_CHANGE'
     order by occurred_at desc limit 1
   `;
+  return row;
+}
+
+async function latestHistory(eventId: string) {
+  const row = await latestStatusChangeOf(eventId);
+  expect(row).toBeDefined();
   return row!;
 }
 
@@ -239,14 +267,22 @@ describe("F5 cards (tests/F5)", () => {
     const response = await confirm(event.id);
     expect(response.status).toBe(200);
     expect(response.body.event.previousStatus).toBe("PLANNING");
-    expect(await latestHistory(event.id)).toMatchObject({ previous_status: "PLANNING", new_status: "SAFETY_REVIEW", triggering_action: "CONFIRM_ARRANGEMENTS" });
+    expect((await state(event.id)).event!.status).toBe("SAFETY_REVIEW");
+    expect(await latestHistory(event.id)).toMatchObject({
+      previous_status: "PLANNING",
+      new_status: "SAFETY_REVIEW",
+      actor_user_id: A.c1,
+      triggering_action: "CONFIRM_ARRANGEMENTS",
+    });
   });
 
   it("F5-T3 an event marked as needing no equipment is complete without any line", async () => {
     const { event } = await fixture({ equipmentRequired: false, line: "NONE" });
+    expect((await state(event.id)).lines).toEqual([]);
     const response = await confirm(event.id);
     expect(response.status).toBe(200);
     expect(response.body.event.status).toBe("SAFETY_REVIEW");
+    expect((await state(event.id)).event!.status).toBe("SAFETY_REVIEW");
   });
 
   it("F5-T4 every status but Approved and Planning is refused, naming it and Safety Review", async () => {
@@ -333,7 +369,9 @@ describe("F5 cards (tests/F5)", () => {
     const b2 = await slot(v2.id, event.id, "CONFIRMED");
     const response = await confirm(event.id);
     expect(response.status).toBe(200);
-    expect((await state(event.id)).slots).toEqual(
+    const after = await state(event.id);
+    expect(after.event!.status).toBe("SAFETY_REVIEW");
+    expect(after.slots).toEqual(
       [b1!.id, b2.id].sort().map((id) => ({ id, status: "CONFIRMED", requires_reconfirmation: false })),
     );
   });
@@ -350,8 +388,11 @@ describe("F5 cards (tests/F5)", () => {
 
   it("F5-T11 a line reserved exactly 5 of 5 is reserved in full (exactly at)", async () => {
     const { event } = await fixture({ line: "FULL" });
+    // F5-T10's fixture but for the quantity reserved: 5 of the 5 requested.
+    expect((await state(event.id)).reservations).toEqual([expect.objectContaining({ status: "RESERVED", reserved_quantity: 5 })]);
     const response = await confirm(event.id);
     expect(response.status).toBe(200);
+    expect((await state(event.id)).event!.status).toBe("SAFETY_REVIEW");
   });
 
   it("F5-T12 every line not reserved in full is named, and a line reserved in full is not", async () => {
@@ -426,6 +467,8 @@ describe("F5 cards (tests/F5)", () => {
 
   it("F5-T17 readiness is read live: a reservation released just before is seen", async () => {
     const { event, l1, chairs } = await fixture();
+    // L1 is reserved in full when the fixture is loaded, so only a live read sees the release.
+    expect((await state(event.id)).reservations).toEqual([expect.objectContaining({ status: "RESERVED", reserved_quantity: 5 })]);
     asTs();
     const released = await request(app)
       .post(`/api/v1/equipment/request-lines/${l1}/release`)
@@ -488,8 +531,11 @@ describe("F5 cards (tests/F5)", () => {
   });
 
   it("F5-T20 a refused confirmation changes no status, booking or reservation, however often it is sent", async () => {
-    const { event } = await fixture({ booking: "HELD", line: "PARTIAL" });
+    const { event, b1 } = await fixture({ booking: "HELD", line: "PARTIAL" });
     const before = await state(event.id);
+    expect(before.event!.status).toBe("APPROVED");
+    expect(before.slots).toEqual([{ id: b1!.id, status: "HELD", requires_reconfirmation: false }]);
+    expect(before.reservations).toEqual([expect.objectContaining({ status: "RESERVED", reserved_quantity: 4 })]);
     expect((await confirm(event.id)).status).toBe(422);
     expect((await confirm(event.id)).status).toBe(422);
     expect(await state(event.id)).toEqual(before);

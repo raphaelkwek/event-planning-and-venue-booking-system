@@ -19,8 +19,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Steps 1 to 4 and the request page of step 5 ran in the browser on CI's throwaway stack: Send request with nothing changed said `You haven't changed anything.` and sent nothing; attendance 180 with no reason was refused beside Reason; with `More people registered` the page showed `Change requested on <date>: expected attendance (Pending)` and no Request a change; the coordinator's review page showed the same pending notice and reason. The coordinator's notification is not proven: notifications are built from Kafka messages, which CI's stack runs without. Proven by tests/e2e/s-changes.spec.ts › S1-T13 the organiser requests a change: nothing changed, a missing reason, then the pending notice, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41773031885 (commit a406635). UI walk-through in Chrome pending at the sprint review. |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | Step 2: Send request with nothing changed said `You haven't changed anything.`, and no change request was posted. Step 3: attendance 180 with no reason was refused beside Reason, and no change was pending. Step 4: with `More people registered` the request was sent; the page showed `Change requested on <date>: expected attendance (Pending)` and no Request a change. Step 5: the request's `change-request.submitted` was stored by the notification service (the notification was delivered by the test harness (deliverOutbox, the consumers' own code) in place of Kafka, which CI's stack runs without); the assigned coordinator's Notifications read `A change has been requested for EVT-… “…”: expected attendance.`, and its Open led to the request, which showed the same pending notice and `Reason: More people registered`. |
+| Status | Pass |
+| Remarks | Automated (browser, Playwright) · Commit: 5bfb25e · Evidence: tests/e2e/s-changes.spec.ts › S1-T13 the organiser requests a change: nothing changed, a missing reason, then the pending notice and the coordinator's notification, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41801285931 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-04 |

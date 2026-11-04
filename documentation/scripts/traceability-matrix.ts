@@ -13,6 +13,8 @@
  * A test is looked up by file and name, and the name may be the test's title or its full name
  * (describe blocks joined with spaces). Each criterion row then has one of four results:
  *   pass, fail, skipped, or "not found" (the CSV names a test that no report contains).
+ * A row whose test_name is the marker `SUPERSEDED by <story> (<change>)` is skipped: a later story
+ * retired the criterion, so it has no test on purpose.
  *
  * Usage:
  *   tsx documentation/scripts/traceability-matrix.ts [--csv-dir documentation/traceability]
@@ -264,14 +266,29 @@ export function junitTestFile(reportPath: string): string {
   return name.replace(/\.xml$/, "").replace(/__/g, "/");
 }
 
-/** node:test's JUnit reporter (`--test-reporter=junit`): one testcase element per test. */
+const JUNIT_ELEMENT = /<testsuite\b([^>]*?)(\/?)>|<\/testsuite>|<testcase\b([^>]*?)(?:\/>|>([\s\S]*?)<\/testcase>)/g;
+const xmlName = (attributes: string) => norm(unescapeXml(attributes.match(/\bname="([^"]*)"/)?.[1] ?? ""));
+
+/**
+ * node:test's JUnit reporter (`--test-reporter=junit`): one testcase element per test, inside a
+ * testsuite element per `describe`. The full name joins the suites and the test with spaces, as
+ * vitest's does, so a row may name "assertTestHarnessOnly refuses a production process".
+ */
 export function parseJunitReport(xml: string, testFile: string): TestResult[] {
-  return [...xml.matchAll(/<testcase\b([^>]*?)(?:\/>|>([\s\S]*?)<\/testcase>)/g)].map((match) => {
-    const name = norm(unescapeXml(match[1]!.match(/\bname="([^"]*)"/)?.[1] ?? ""));
-    const body = match[2] ?? "";
-    const status: TestResult["status"] = /<(?:failure|error)\b/.test(body) ? "fail" : /<skipped\b/.test(body) ? "skipped" : "pass";
-    return { file: testFile, title: name, fullName: name, status };
-  });
+  const suites: string[] = [];
+  const results: TestResult[] = [];
+  for (const match of xml.matchAll(JUNIT_ELEMENT)) {
+    if (match[1] !== undefined) {
+      if (match[2] !== "/") suites.push(xmlName(match[1]));
+    } else if (match[3] === undefined) suites.pop();
+    else {
+      const name = xmlName(match[3]);
+      const body = match[4] ?? "";
+      const status: TestResult["status"] = /<(?:failure|error)\b/.test(body) ? "fail" : /<skipped\b/.test(body) ? "skipped" : "pass";
+      results.push({ file: testFile, title: name, fullName: norm([...suites, name].join(" ")), status });
+    }
+  }
+  return results;
 }
 
 function reportFilesUnder(path: string): string[] {
@@ -417,7 +434,15 @@ interface Lookups {
   templatesOf: (file: string) => string[];
 }
 
+/**
+ * `SUPERSEDED by <story> (<change>)` in place of a test name: a later story retired the criterion,
+ * so no test runs for it (check-traceability.ts lets the row through for the same reason).
+ */
+export const SUPERSEDED_MARKER = /^SUPERSEDED by \S+ \(\S+\)$/;
+
 function lookup(row: CriterionRow, { index, cardsByFile, cardsById, templatesOf }: Lookups): Pick<TestEntry, "result" | "note"> {
+  // Skipped rather than not found: the row says on purpose that there is no test, and why.
+  if (SUPERSEDED_MARKER.test(row.testName)) return { result: "skipped", note: "superseded: the criterion was retired, so no test runs for it" };
   if (row.testFile.endsWith(".md")) {
     const card = cardsByFile.get(row.testFile) ?? cardsById.get(row.testName.match(CARD_ID)?.[0] ?? "");
     return card ? { result: cardStatus(card), note: `manual card: ${card.status}` } : { result: "not found", note: "card file does not exist" };

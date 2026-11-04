@@ -17,5 +17,5 @@ EN-03,A tamper check detects an edited entry.,backend/services/planning-core/tes
 EN-03,A tamper check detects an edited entry.,backend/services/planning-core/tests/event/repo/eventStreamVerification.test.ts,EN-03-T15 an entry whose data was edited is detected
 EN-03,A tamper check detects an edited entry.,backend/services/planning-core/tests/event/repo/eventStreamVerification.test.ts,EN-03-T16 an edit that also rewrites the entry's hash is detected at the next entry
 EN-03,A tamper check detects an edited entry.,backend/services/planning-core/tests/event/repo/eventStreamVerification.test.ts,EN-03-T17 a removed entry is detected
-EN-03,A tamper check detects an edited entry.,.github/workflows/ci.yml,Event store tamper check (EN-03)
-EN-03,A tamper check detects an edited entry.,backend/services/planning-core/tests/event/domain/eventStream.test.ts,checking one link (EN-03-T15 to T17)
+EN-03,A tamper check detects an edited entry.,tests/EN-03/EN-03-T18-the-verify-command-fails-on-an-edited-row-in-ci.md,EN-03-T18 — `npm run event-store:verify` fails on CI's database after a row is edited
+EN-03,A tamper check detects an edited entry.,backend/services/planning-core/tests/event/domain/eventStream.test.ts,checking one link (EN-03-T15 to T17) refuses an edited entry: its stored hash no longer matches what it stores

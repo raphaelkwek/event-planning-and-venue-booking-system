@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result |  |
-| Status | Not Executed |
-| Remarks | Steps 1 to 3 and My registrations in step 4 ran in the browser on CI's throwaway stack: the dialog showed `Capacity 3` and `With this addition: 1 attendee`; the addition answered 201 (`Attendee One was added: registration REG-…`), the row read `Attendee One`, the time, `Registered`, `Added by Organiser One` and `“Keynote speaker's guest”`, places remaining 2; Attendee One's My registrations listed the registration. Step 4's notice (`Organiser One added you to …`) is not proven: notifications are built from Kafka messages, which CI's stack runs without. Proven by tests/e2e/r-management.spec.ts › R7-T1 the owning organiser adds an attendee, seeing the capacity and the new total first, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41773031885 (commit a406635). UI walk-through in Chrome pending at the sprint review. |
-| Executed By |  |
-| Date of Execution |  |
+| Actual Result | Step 3: the dialog showed `Capacity 3` and `With this addition: 1 attendee` (no over-capacity warning); the addition answered 201 (`Attendee One was added: registration REG-….`). The row then read `Attendee One`, the time, `Registered`, `Added by Organiser One` with `“Keynote speaker's guest”` (stored REGISTERED, added by Organiser One, that reason, not over capacity), and the totals read `Places remaining 2` and `Capacity 3`. Step 4: the addition's `registration.added` was stored by the notification service (the notification was delivered by the test harness (deliverOutbox, the consumers' own code) in place of Kafka, which CI's stack runs without); Attendee One's Notifications read `Organiser One added you to EVT-R… “R Test Symposium …” on Wednesday 16 December 2026, 14:00–18:00. Registration REG-… is confirmed; you can withdraw it from My registrations.`, and My registrations listed that registration as Registered. |
+| Status | Pass |
+| Remarks | Automated (browser, Playwright) · Commit: 5bfb25e · Evidence: tests/e2e/r-management.spec.ts › R7-T1 the owning organiser adds an attendee, seeing the capacity and the new total first, and the attendee is told, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41801285931 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-04 |

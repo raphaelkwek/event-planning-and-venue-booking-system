@@ -103,12 +103,13 @@ export interface WaitlistRow {
   registration_id: string | null;
   registered_at: Date | null;
   withdrawn_at: Date | null;
+  cancelled_at: Date | null;
 }
 
 /** The event's waitlist entries in the order they were joined, or only one attendee's. */
 export function waitlistOf(eventId: string, attendeeId?: string) {
   return query<WaitlistRow & Record<string, unknown>>(
-    `select id, reference, attendee_id, status, joined_at, last_notified_at, registration_id, registered_at, withdrawn_at
+    `select id, reference, attendee_id, status, joined_at, last_notified_at, registration_id, registered_at, withdrawn_at, cancelled_at
      from registration.waitlist_entries
      where event_id = $1::uuid ${attendeeId ? "and attendee_id = $2::uuid" : ""}
      order by joined_at, id`,

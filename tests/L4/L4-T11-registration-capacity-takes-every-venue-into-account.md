@@ -19,8 +19,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | Automated at API level against the registration service and its migrated schema, as R2-T3 is: the Confirmed event with registration open reached the service as its listing, and its two confirmed bookings as two venue-booking.request-approved messages handled by the seat builder, Lee Kong Chian Auditorium (Theatre, 300) and Seminar Room 2-1 (Classroom, 60). Places remaining was 360. 359 attendees registered through POST /api/v1/registrations, then the 360th took the last place (201, places remaining 0). The 361st was refused 409 REGISTRATION_FULL, "EVT-… “R Test Symposium” has no places remaining, so you were not registered. You can ask for a place on the waitlist instead.", with waitlistOffered true; 360 registrations held 360 distinct seats and the 361st attendee had none, and that attendee then joined the waitlist (Waitlisted, position 1). R7's capacity check took the same total: adding one more attendee by hand was refused 409 REGISTRATION_OVER_CAPACITY_UNCONFIRMED with capacity 360, registered 360, total after 361. |
+| Status | Pass |
+| Remarks | Automated (API level) · Commit: 5bfb25e · Evidence: `backend/services/registration/tests/api/l4Cards.test.ts` › registration capacity across an event's venues (L4, CQ-04) › L4-T11 limits registration to the total of both layout capacities: the 360th registers, the 361st is refused for capacity and offered the waitlist, and R7 counts the same 360, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41801285931 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-04 |

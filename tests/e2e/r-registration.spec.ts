@@ -2,6 +2,8 @@ import type { Page } from "@playwright/test";
 import { randomUUID } from "node:crypto";
 import { expect, signIn, signOut, test, uniqueName } from "./support/fixtures.js";
 import { must } from "./support/api.js";
+import { deliverOutbox } from "./support/deliver.js";
+import { messageOf, openNotifications } from "./support/notifications.js";
 import { approvedRequest } from "./support/seed.js";
 import {
   ATTENDEE_ID,
@@ -19,6 +21,7 @@ import {
   otherAttendeeRegistration,
   registerThroughApi,
   registrationCountOf,
+  registrationOutboxOf,
   registrationsOf,
   removeRFixtures,
   sendFromAttendeeConsole,
@@ -51,8 +54,10 @@ import {
  * (withdraw), through the real attendee screens and the organiser's registration settings.
  *
  * The cards' FX-R-… statements are run against the job's own database (seed-registration.ts).
- * Not run here: R2-T12 and R4-T9, whose notifications arrive over Kafka, which the browser
- * tests' stack leaves out (documentation/evidence/EN-14).
+ * R2-T12 and R4-T9 end on a notification, which arrives over Kafka, and the browser tests' stack
+ * leaves Kafka out (documentation/evidence/EN-14). Those journeys hand the messages the action
+ * wrote to the notification service with deliverOutbox (support/deliver.ts) before they open
+ * Notifications.
  */
 
 test.beforeEach(async () => {
@@ -437,6 +442,23 @@ test.describe("R2 register for an event", () => {
       registrationClosesAt: "2030-12-02T04:00:00.000Z",
     });
   });
+
+  test("R2-T12 the attendee is told the registration is confirmed, with its reference and the event's date and times", { tag: ["@R2", "@R2-T12"] }, async ({ page }) => {
+    // R2-T1 done: the attendee registers from the event's page, which shows the reference.
+    const event = await createRegistrationEvent();
+    await signIn(page, "attendee");
+    const registration = await registerFromEventPage(page, event);
+
+    // The registration's message reaches the notification service (in place of Kafka).
+    const delivered = await deliverOutbox(event.eventId);
+    expect(delivered).toContainEqual({ outbox: "registration.outbox", type: "registration.confirmed", consumer: "notification", outcome: "stored" });
+
+    // Step 1: Notifications.
+    const notices = await openNotifications(page);
+    await expect(messageOf(notices.filter({ hasText: event.name }))).toHaveText([
+      `Your registration ${registration.reference} for ${eventLabel(event)} on ${PERIOD_TEXT} is confirmed.`,
+    ]);
+  });
 });
 
 // ---------------------------------------------------------------------------------------------
@@ -776,6 +798,42 @@ test.describe("R4 withdraw a registration", () => {
     expect(rows).toHaveLength(1);
     expect(rows[0]!.status).toBe("REGISTERED");
     expect(rows[0]!.withdrawn_at).toBeNull();
+  });
+
+  test("R4-T9 the attendee is told the withdrawal went through, and registration.withdrawn names the event for R6", { tag: ["@R4", "@R4-T9"] }, async ({ page }) => {
+    // R4-T1 done: the attendee withdraws in My registrations, after confirming.
+    const event = await createRegistrationEvent();
+    const registration = await registerThroughApi(event.eventId);
+    await signIn(page, "attendee");
+    await openMyRegistrations(page);
+    const row = registrationRow(page, event.name);
+    await withdrawButton(row).click();
+    const done = await captureResponse<RegistrationBody>(page, "POST", `/registrations/${registration.id}/withdrawal`, () =>
+      page.getByRole("dialog").getByRole("button", { name: "Withdraw registration" }).click(),
+    );
+    expect(done.status).toBe(200);
+    await expect(row.getByText("Withdrawn", { exact: true })).toBeVisible();
+
+    // The registration.withdrawn message in registration.outbox names the event, which is what R6
+    // tells the waitlist about.
+    const withdrawn = await registrationOutboxOf(event.eventId, "registration.withdrawn");
+    expect(withdrawn).toHaveLength(1);
+    expect(withdrawn[0]!.data).toMatchObject({
+      registrationId: registration.id,
+      registrationReference: registration.reference,
+      eventId: event.eventId,
+      eventReference: event.reference,
+      eventName: event.name,
+      attendeeId: ATTENDEE_ID,
+    });
+
+    // It reaches the notification service (in place of Kafka). Step 1: Notifications.
+    const delivered = await deliverOutbox(event.eventId);
+    expect(delivered).toContainEqual({ outbox: "registration.outbox", type: "registration.withdrawn", consumer: "notification", outcome: "stored" });
+    const notices = await openNotifications(page);
+    await expect(messageOf(notices.filter({ hasText: `You withdrew registration ${registration.reference}` }))).toHaveText([
+      `You withdrew registration ${registration.reference} for ${eventLabel(event)}. Your place has been released.`,
+    ]);
   });
 });
 

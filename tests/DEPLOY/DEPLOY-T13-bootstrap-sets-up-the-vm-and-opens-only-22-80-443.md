@@ -20,6 +20,6 @@
 |---|---|
 | Actual Result | — |
 | Status | Not Executed |
-| Remarks | The live environments run on an Azure VM (ADR-0016's amendment), created on 4 Nov by deploy/azure/create-vm.sh (connectsphere-vm, NSG 22, 80, 443 only), not by the k3s bootstrap.sh. bootstrap.sh stays the k3s scale-up path and has not run; CI runs shellcheck on it. |
+| Remarks | Not run: `deploy/oracle/bootstrap.sh` sets up the k3s path on an Oracle VM, which was never created. The environments run on the Azure VM created by deploy/azure/create-vm.sh (ADR-0016's amendment); bootstrap.sh stays the scale-up path and CI only runs shellcheck on it. Step 3's port probe was run against the Azure VM (4.194.57.47) from outside on 4 Nov 06:43 UTC: 22, 80 and 443 open; 6443, 8090-8092, 3592, 5432 and 9092 closed or filtered. · Defect: — |
 | Executed By | — |
 | Date of Execution | — |

@@ -20,8 +20,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | After an I2 maintenance block over E1's window flagged B1, C1 got 422 ARRANGEMENTS_NOT_READY with "This event can't be confirmed yet. Outstanding flags: booking <B1 reference> at F5 Hall requires reconfirmation." details.flags was exactly [{ arrangement: BOOKING, reference: <B1>, name: F5 Hall, flag: REQUIRES_RECONFIRMATION }]. B1 was still CONFIRMED with requires_reconfirmation = true. E1's status and version, its history (entry count and the latest STATUS_CHANGE entry), its slots' status and flags (requires_reconfirmation, period_mismatch, unsuitable, and their arrangement_flags rows), its booking requests, its request lines, its reservations (status and quantity) and the event outbox (row count and every envelope) read exactly as before the request. |
+| Status | Pass |
+| Remarks | Automated (API level) · Commit: 5bfb25e · Evidence: `backend/services/planning-core/tests/change/api/f5Cards.test.ts` › F5 cards (tests/F5) › F5-T15 a booking flagged Requires Reconfirmation (I2) is refused, naming the flag, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41801285931 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-04 |
