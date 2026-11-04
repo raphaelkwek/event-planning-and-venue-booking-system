@@ -103,6 +103,10 @@ export async function signIn(page: Page, key: AccountKey) {
   await page.evaluate((value) => sessionStorage.setItem("connectsphere.session", value), JSON.stringify(session));
   await page.goto("/");
   await expect(page.getByRole("banner")).toContainText(account.email);
+  // The shell then sends the role from "/" to its start page once its permissions are in. Wait for
+  // that redirect, so a journey that goes straight to an address isn't sent back to the start page
+  // when the redirect lands after it.
+  await page.waitForFunction(() => window.location.hash.length > 2);
 }
 
 export async function signOut(page: Page) {

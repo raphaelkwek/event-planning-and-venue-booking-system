@@ -19,8 +19,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Waits for the S3 implementation and migrations venue/0019 and equipment/0009. Commit: · Evidence: · Defect: — |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | With E Confirmed, the approval answered 200 and `GET /api/v1/events/<E>` showed `PLANNING`. E's history had exactly one STATUS_CHANGE, `CONFIRMED` → `PLANNING`, action `RECONSIDER_AFTER_CHANGE`, by C as `EVENT_COORDINATOR`, and one FIELD_CHANGE, `proposedStartAt`. `GET .../arrangement-flags` answered 200 with exactly B1 and B2 `REQUIRES_RECONFIRMATION` and R1 `FLAGGED_FOR_REVIEW`. F5 confirmation as C then answered 422 `ARRANGEMENTS_NOT_READY`. |
+| Status | Pass |
+| Remarks | Automated (API level) · Commit: a406635 · Evidence: `backend/services/planning-core/tests/change/api/s3Cards.test.ts` › S3 cards: reconsidering the arrangements an approved change affects › S3-T7 a Confirmed event returns to Planning with a history entry, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41773031885 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-04 |

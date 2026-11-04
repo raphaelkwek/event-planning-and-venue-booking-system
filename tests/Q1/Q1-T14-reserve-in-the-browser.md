@@ -21,6 +21,6 @@
 |---|---|
 | Actual Result | |
 | Status | Not Executed |
-| Remarks | Waits for migration equipment/0005 on the shared database, applied after PR #42 merges (`npm run migrate -- equipment`). Commit: · Evidence: · Defect: — |
+| Remarks | Steps 1 to 4 and the request screen of step 5 ran in the browser on CI's throwaway stack: Technical Support's Reserve of 30 of 40 without ticking Reserve fewer than requested showed `PARTIAL_NOT_CONFIRMED` and the line stayed Confirmed; ticked, it showed `Reserved 30 of 40 for <event>.` and the row `Reserved 30 of 40` with Tech Support One and the time; the coordinator's equipment request showed the same. Step 5's notification is not proven: notifications are built from Kafka messages, which CI's stack runs without. Proven by tests/e2e/o-equipment.spec.ts › Q1-T14 technical support confirm a partial reservation, and the coordinator sees it, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41773031885 (commit a406635). UI walk-through in Chrome pending at the sprint review. |
 | Executed By | |
 | Date of Execution | |

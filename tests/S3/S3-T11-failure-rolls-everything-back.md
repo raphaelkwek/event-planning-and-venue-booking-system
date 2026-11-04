@@ -19,8 +19,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Waits for the S3 implementation and migrations venue/0019 and equipment/0009. Commit: · Evidence: · Defect: — |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | With the venue flag writer forced to throw after writing, the approval answered 500. CR was still `PENDING` with no decider or decision time; E's status, version and start (`D 14:00`) were as before, with no FIELD_CHANGE or STATUS_CHANGE entry and no `event.status-changed` message; B1, B2 and R1 carried no flag, no flag rows existed, and the outbox had neither `change-request.approved` nor `change-request.arrangements-flagged`. With the writer working again the same approval answered 200. |
+| Status | Pass |
+| Remarks | Automated (API level) · Commit: a406635 · Evidence: `backend/services/planning-core/tests/change/api/s3Cards.test.ts` › S3 cards: reconsidering the arrangements an approved change affects › S3-T11 a failure while flagging rolls back the change, the decision and every flag, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41773031885 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-04 |

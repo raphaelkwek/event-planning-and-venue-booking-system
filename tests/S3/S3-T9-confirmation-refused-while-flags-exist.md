@@ -19,8 +19,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Waits for the S3 implementation and migrations venue/0019 and equipment/0009. Commit: · Evidence: · Defect: — |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | F5 confirmation as C answered 422 `ARRANGEMENTS_NOT_READY`; `details.flags` held exactly four: B1 `REQUIRES_RECONFIRMATION` and `UNSUITABLE`, B2 `REQUIRES_RECONFIRMATION` (reference, venue name) and R1's line (`EQUIPMENT_LINE`, line id, `<chairs> × 4`) `FLAGGED_FOR_REVIEW`. The message named B1 and B2 as `booking <ref> at <venue>` with each flag, and `equipment <chairs> × 4 is flagged for review`. E stayed `PLANNING`; its row, bookings, R1, flag-row counts, status-change count and event outbox were unchanged. |
+| Status | Pass |
+| Remarks | Automated (API level) · Commit: a406635 · Evidence: `backend/services/planning-core/tests/change/api/s3Cards.test.ts` › S3 cards: reconsidering the arrangements an approved change affects › S3-T9 F5 confirmation is refused, naming each flag, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41773031885 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-04 |

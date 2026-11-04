@@ -19,8 +19,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Waits for CI on the F3 pull request. Commit: · Evidence: · Defect: — |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | As O, cancelling an event in each of Draft, Submitted, Under Review, Awaiting Clarification, Approved, Planning, Safety Review and Confirmed answered 200, `CANCELLED`, with `previousStatus` that status. Cancelling the Completed, the Rejected and an already-cancelled event each answered 409 `STATUS_TRANSITION_NOT_PERMITTED`, `This event is Completed (Rejected, Cancelled) and cannot move to Cancelled.`, and each event's row, history count, arrangements, change requests and outbox count were unchanged. |
+| Status | Pass |
+| Remarks | Automated (API level) · Commit: a406635 · Evidence: `backend/services/planning-core/tests/change/api/f3Cards.test.ts` › F3 cards (tests/F3) › F3-T3 cancels from any status before Completed, Rejected or Cancelled, and refuses those three, changing nothing, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41773031885 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-04 |

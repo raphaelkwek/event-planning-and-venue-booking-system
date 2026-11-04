@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result |  |
-| Status | Not Executed |
-| Remarks | Proven at API level by backend/services/registration/tests/api/r7Cards.test.ts › R7-T4 adds an attendee after registration closed, taking a place, which passed in CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41523834657 (commit d7abf51). UI walk-through in Chrome pending at the sprint review. |
-| Executed By |  |
-| Date of Execution |  |
+| Actual Result | With registration closed yesterday, the dialog showed `Capacity 3` and the addition answered 201: a `Registered` row, `Added by Organiser One`, and the totals `Registered 1`, `Withdrawn 0`, `Places remaining 2`, `Capacity 3`, `Added by hand 1`. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
+| Status | Pass |
+| Remarks | Automated (browser, Playwright) · Commit: a406635 · Evidence: tests/e2e/r-management.spec.ts › R7-T4 an addition is allowed after registration closes, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41773031885 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-04 |

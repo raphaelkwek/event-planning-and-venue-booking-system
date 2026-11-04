@@ -19,8 +19,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Waits for the S3 implementation and migrations venue/0019 and equipment/0009. Commit: · Evidence: · Defect: — |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | The approval answered 200 and the outbox held exactly one `change-request.arrangements-flagged` message for E and CR, on the event topic: B1 and B2 with their venue names, `REQUIRES_RECONFIRMATION` and `staffIds` [VS], and R1 `FLAGGED_FOR_REVIEW` with `reservedBy` T. Through `notificationsFor` it gave VS one notice for each of B1 and B2 and T one for R1, three in all, each naming E's reference, the arrangement and the reason. A descriptive-only approval wrote no such message. |
+| Status | Pass |
+| Remarks | Automated (API level) · Commit: a406635 · Evidence: `backend/services/planning-core/tests/change/api/s3Cards.test.ts` › S3 cards: reconsidering the arrangements an approved change affects › S3-T10 one arrangements-flagged message is written and Venue Staff and Technical Support are notified, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41773031885 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-04 |

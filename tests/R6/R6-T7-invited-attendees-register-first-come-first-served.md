@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result |  |
-| Status | Not Executed |
-| Remarks | Proven at API level by backend/services/registration/tests/api/r6Cards.test.ts › R6-T7 lets whoever registers first take the open place, ending their waitlist entry, and refuses the next for capacity, which passed in CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41523834657 (commit d7abf51). It needs a second attendee account (tests/R5/README.md). UI walk-through in Chrome pending at the sprint review. |
-| Executed By |  |
-| Date of Execution |  |
+| Actual Result | With Attendee Two's place freed and another attendee first in line, Attendee One (second) saw `1 place remaining`, registered (201) and saw `You are registered`. My registrations showed the registration `Registered` and the waitlist entry `Registered` with its time (stored as REGISTERED, naming the new registration). Attendee Two then saw Full, and the console's registration answered 409 `REGISTRATION_FULL` with `waitlistOffered` true. The organiser's waitlist showed the first attendee still `Waitlisted` and Attendee One `Registered`; nobody was registered for the first attendee. Run on CI's throwaway stack, with unique names in place of the card's literal names. Attendee Two was added to the job's own database. |
+| Status | Pass |
+| Remarks | Automated (browser, Playwright) · Commit: a406635 · Evidence: tests/e2e/r-management.spec.ts › R6-T7 invited attendees register first come, first served, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41773031885 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-04 |

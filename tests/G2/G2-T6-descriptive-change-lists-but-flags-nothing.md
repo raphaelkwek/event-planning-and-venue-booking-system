@@ -19,8 +19,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Waits for the G2 implementation. Commit: · Evidence: · Defect: — |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | Previewing the venue-requirements change answered 200 with `impact.bookings` exactly B1 and B2 (`BOOKING`, reference, venue name, `D 14:00`–`D 18:00`), `impact.reservations` exactly R1 (equipment type name, quantity 4, period), `impact.activeRegistrations` 0 and `impact.flags` empty. |
+| Status | Pass |
+| Remarks | Automated (API level) · Commit: a406635 · Evidence: `backend/services/planning-core/tests/change/api/g2Cards.test.ts` › G2 cards: previewing the arrangements a pending change would affect › G2-T6 a descriptive-only change lists the arrangements and previews no flag, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41773031885 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-04 |

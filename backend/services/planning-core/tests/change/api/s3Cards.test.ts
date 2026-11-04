@@ -257,6 +257,10 @@ describe("S3 cards: reconsidering the arrangements an approved change affects", 
         booking(fx, "b2", "REQUIRES_RECONFIRMATION", bookingMovedReason),
       ]).map((flag) => expect.objectContaining(flag)),
     );
+    // R1's flag is listed too (S3-T3).
+    expect((listed.body.flags as FlagView[]).filter((f) => f.arrangement === "EQUIPMENT")).toEqual([
+      expect.objectContaining(reservationFlag(fx, reservationMovedReason)),
+    ]);
 
     // AC2: still confirmed, still holding the old period (nothing moved, nothing released).
     for (const id of [fx.b1.id, fx.b2.id]) {
@@ -332,12 +336,25 @@ describe("S3 cards: reconsidering the arrangements an approved change affects", 
 
       expect(approved.status).toBe(200);
       expect(approved.body.impact.flags).toHaveLength(3);
+      // B1, B2 and R1, each flagged.
+      expect(sorted(approved.body.impact.flags).map((f) => [f.id, f.flag])).toEqual(
+        sorted([
+          booking(fx, "b1", "REQUIRES_RECONFIRMATION", ""),
+          booking(fx, "b2", "REQUIRES_RECONFIRMATION", ""),
+          reservationFlag(fx, ""),
+        ]).map((f) => [f.id, f.flag]),
+      );
       const opened = await readEvent(fx.event.id);
       expect(opened.status).toBe(200);
       expect(opened.body.status).toBe(status);
       expect(await historyCount(fx.event.id, "STATUS_CHANGE")).toBe(0);
       expect(await statusMessageCount(fx.event.id)).toBe(0);
-      if (status === "PLANNING") expect(await historyCount(fx.event.id, "FIELD_CHANGE")).toBe(1);
+      if (status === "PLANNING") {
+        expect(await historyCount(fx.event.id, "FIELD_CHANGE")).toBe(1);
+        const fieldChanges = await sql<{ field_name: string }[]>`
+          select field_name from event.event_history where event_id = ${fx.event.id} and entry_type = 'FIELD_CHANGE'`;
+        expect(fieldChanges.map((entry) => entry.field_name)).toEqual(["proposedStartAt"]);
+      }
     }
   });
 
@@ -592,7 +609,10 @@ describe("S3 cards: reconsidering the arrangements an approved change affects", 
     const [decided] = await sql<{ status: string; booking_id: string }[]>`
       select status, booking_id from venue.booking_requests where id = ${pending.id}`;
     expect(decided!.status).toBe("APPROVED");
-    expect(await slotOf(fx.event.id, decided!.booking_id)).toMatchObject({ status: "CONFIRMED", period_mismatch: true });
+    const booked = await slotOf(fx.event.id, decided!.booking_id);
+    expect(booked).toMatchObject({ status: "CONFIRMED", period_mismatch: true });
+    expect(booked.starts_at.toISOString()).toBe(at("14:00"));
+    expect(booked.ends_at.toISOString()).toBe(at("18:00"));
 
     // The booking carries the flag and its reason, and F5 still refuses, naming it.
     asC();
@@ -611,6 +631,7 @@ describe("S3 cards: reconsidering the arrangements an approved change affects", 
     expect((listed.body.flags as FlagView[]).some((f) => f.arrangement === "BOOKING_REQUEST")).toBe(false);
     const refused = await confirm(fx.event.id);
     expect(refused.status).toBe(422);
+    expect(refused.body.error.code).toBe("ARRANGEMENTS_NOT_READY");
     expect(refused.body.error.details.flags).toContainEqual({
       arrangement: "BOOKING",
       reference: pending.reference,

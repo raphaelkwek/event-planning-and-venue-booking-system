@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result |  |
-| Status | Not Executed |
-| Remarks | Proven at API level by backend/services/registration/tests/api/r7Cards.test.ts › R7-T6 saves nothing over capacity until it is confirmed, naming the capacity and the new total, which passed in CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41523834657 (commit d7abf51). UI walk-through in Chrome pending at the sprint review. |
-| Executed By |  |
-| Date of Execution |  |
+| Actual Result | Cancel in the dialog closed it with nothing added (still two rows, no registration for Attendee One). From the API console, the addition without `confirmOverCapacity` answered 409 `REGISTRATION_OVER_CAPACITY_UNCONFIRMED` with details `capacity` 2 and `totalAfter` 3; still no registration for Attendee One. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
+| Status | Pass |
+| Remarks | Automated (browser, Playwright) · Commit: a406635 · Evidence: tests/e2e/r-management.spec.ts › R7-T6 over capacity without confirming saves nothing, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41773031885 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-04 |

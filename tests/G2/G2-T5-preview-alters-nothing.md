@@ -19,8 +19,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Waits for the G2 implementation. Commit: · Evidence: · Defect: — |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | Before, no flag rows existed, every slot was `CONFIRMED` with all flag columns false, R1 `RESERVED` and unflagged, CR `PENDING`. Both previews answered 200 with identical bodies, flags exactly B1 `REQUIRES_RECONFIRMATION` and `UNSUITABLE`, B2 `REQUIRES_RECONFIRMATION` and R1 `FLAGGED_FOR_REVIEW`, with reasons. After, E's slots, booking requests, reservations, both flag tables, CR and its fields, E's row, history count and the change, event, venue and equipment outbox counts equalled the snapshot. |
+| Status | Pass |
+| Remarks | Automated (API level) · Commit: a406635 · Evidence: `backend/services/planning-core/tests/change/api/g2Cards.test.ts` › G2 cards: previewing the arrangements a pending change would affect › G2-T5 previewing alters no booking, reservation, flag, request, event or outbox, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41773031885 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-04 |

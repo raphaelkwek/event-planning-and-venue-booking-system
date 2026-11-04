@@ -19,6 +19,6 @@
 |---|---|
 | Actual Result |  |
 | Status | Not Executed |
-| Remarks | Proven at API level by backend/services/registration/tests/api/r6Cards.test.ts › R6-T8 leaves the waitlist: the entry is kept as Withdrawn, and a later opening does not tell them, which passed in CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41523834657 (commit d7abf51). It needs a second attendee account (tests/R5/README.md). Delivery to the Notifications screen needs Kafka. UI walk-through in Chrome pending at the sprint review. |
+| Remarks | Steps 1 and 2 ran in the browser on CI's throwaway stack: Leave the waitlist asked first (`Leave the waitlist?`, naming the event and the entry), then the entry read `Left the waitlist` with `Left <time>` and stayed listed (stored WITHDRAWN); after Attendee Two withdrew, the left entry was not told (its last-told time stayed empty). Step 3 (no notice in Notifications) is not proven: notifications are built from Kafka messages, which CI's stack runs without. Attendee Two was added to the job's own database. Proven by tests/e2e/r-management.spec.ts › R6-T8 an attendee leaves the waitlist; the entry is kept and later openings pass it by, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41773031885 (commit a406635). UI walk-through in Chrome pending at the sprint review. |
 | Executed By |  |
 | Date of Execution |  |

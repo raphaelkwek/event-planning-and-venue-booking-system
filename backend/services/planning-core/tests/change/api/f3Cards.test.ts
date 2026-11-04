@@ -118,11 +118,13 @@ async function state(eventId: string) {
   `;
   const [history] = await sql`select count(*)::int as n from event.event_history where event_id = ${eventId}`;
   const slots = await sql`select id, status from venue.venue_slots where event_id = ${eventId} order by id`;
+  const holds = await sql`select id, status from venue.holds where event_id = ${eventId} order by id`;
+  const bookingRequests = await sql`select id, status from venue.booking_requests where event_id = ${eventId} order by id`;
   const lines = await sql`select id, status from equipment.equipment_request_lines where event_id = ${eventId} order by id`;
   const reservations = await sql`select id, status from equipment.reservations where event_id = ${eventId} order by id`;
   const requests = await sql`select id, status, closed_reason from change.change_requests where event_id = ${eventId} order by id`;
   const [outbox] = await sql`select count(*)::int as n from event.outbox where message_key = ${eventId}`;
-  return { event, history: history!.n, slots, lines, reservations, requests, outbox: outbox!.n };
+  return { event, history: history!.n, slots, holds, bookingRequests, lines, reservations, requests, outbox: outbox!.n };
 }
 
 async function clean() {
@@ -310,7 +312,10 @@ describe("F3 cards (tests/F3)", () => {
     signedInAs(A.ts, "TECH_SUPPORT_STAFF");
     const reservation = await request(app).post(`/api/v1/equipment/request-lines/${l2}/reservation`).set(bearer).send({});
     expect(reservation.status).toBe(409);
-    expect(reservation.body.error.code).toBe("EVENT_CANCELLED");
+    expect(reservation.body.error).toMatchObject({
+      code: "EVENT_CANCELLED",
+      message: "This event has been cancelled, so no equipment can be requested or reserved for it.",
+    });
 
     expect(await state(event.id)).toEqual(before);
   });

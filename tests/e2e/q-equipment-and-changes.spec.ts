@@ -1,6 +1,6 @@
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import { expect, signIn, signOut, test, uniqueName } from "./support/fixtures.js";
-import { must } from "./support/api.js";
+import { call, must } from "./support/api.js";
 import { query } from "./support/seed-events.js";
 import { MOVED_START, plannedEvent, runCardFixture, wirelessMicrophone, type PlannedEvent } from "./support/seed-equipment-changes.js";
 import { eventBookings } from "./support/seed-venues.js";
@@ -335,34 +335,35 @@ test.describe("P2 audit trail and access", () => {
   });
 });
 
+// G2 and S3: the change request's review page, the arrangements it lists, and the period S3's reasons quote.
+/** The period S3's reasons quote, in Singapore time, as formatPeriod writes it. */
+const WAS = "Tuesday 2 March 2027, 14:00–18:00";
+const NOW = "Tuesday 2 March 2027, 15:00–18:00";
+
+async function openReviewPage(page: Page, name: string) {
+  await page.getByRole("link", { name: "All events" }).click();
+  await row(page, name).getByRole("link", { name: "Open" }).click();
+  await expect(page.getByRole("heading", { name })).toBeVisible();
+}
+
+const previewOf = (page: Page) => page.locator("section[aria-labelledby='change-impact-heading']");
+const today = (page: Page) => page.evaluate(() => new Date().toLocaleDateString());
+
+async function expectArrangementsListed(page: Page, fx: PlannedEvent) {
+  const items = previewOf(page).locator("li");
+  await expect(items).toHaveCount(3);
+  await expect(items.filter({ hasText: `Booking ${fx.theatreBooking.reference}, ${fx.venueOne.name}` })).toHaveCount(1);
+  await expect(items.filter({ hasText: `Booking ${fx.hallBooking.reference}, ${fx.venueTwo.name}` })).toHaveCount(1);
+  await expect(items.filter({ hasText: `${fx.chairs.name}, quantity ${fx.reservedQuantity}` })).toHaveCount(1);
+  await expect(previewOf(page)).toContainText("Registrations: 0");
+  return {
+    theatre: items.filter({ hasText: fx.theatreBooking.reference }),
+    hall: items.filter({ hasText: fx.hallBooking.reference }),
+    reservation: items.filter({ hasText: fx.chairs.name }),
+  };
+}
+
 test.describe("G2 preview what a change would affect", () => {
-  /** The period S3's reasons quote, in Singapore time, as formatPeriod writes it. */
-  const WAS = "Tuesday 2 March 2027, 14:00–18:00";
-  const NOW = "Tuesday 2 March 2027, 15:00–18:00";
-
-  async function openReviewPage(page: Page, name: string) {
-    await page.getByRole("link", { name: "All events" }).click();
-    await row(page, name).getByRole("link", { name: "Open" }).click();
-    await expect(page.getByRole("heading", { name })).toBeVisible();
-  }
-
-  const previewOf = (page: Page) => page.locator("section[aria-labelledby='change-impact-heading']");
-  const today = (page: Page) => page.evaluate(() => new Date().toLocaleDateString());
-
-  async function expectArrangementsListed(page: Page, fx: PlannedEvent) {
-    const items = previewOf(page).locator("li");
-    await expect(items).toHaveCount(3);
-    await expect(items.filter({ hasText: `Booking ${fx.theatreBooking.reference}, ${fx.venueOne.name}` })).toHaveCount(1);
-    await expect(items.filter({ hasText: `Booking ${fx.hallBooking.reference}, ${fx.venueTwo.name}` })).toHaveCount(1);
-    await expect(items.filter({ hasText: `${fx.chairs.name}, quantity ${fx.reservedQuantity}` })).toHaveCount(1);
-    await expect(previewOf(page)).toContainText("Registrations: 0");
-    return {
-      theatre: items.filter({ hasText: fx.theatreBooking.reference }),
-      hall: items.filter({ hasText: fx.hallBooking.reference }),
-      reservation: items.filter({ hasText: fx.chairs.name }),
-    };
-  }
-
   test("G2-T8 the coordinator reads what a pending change would affect, flags nothing by looking, and loses the section once it is decided", { tag: ["@G2", "@G2-T8"] }, async ({ page, a11y }) => {
     // FX-G2 (browser level): a change that moves the start time and raises attendance to 150; and another event whose pending change is to the venue requirements only.
     const fx = await plannedEvent({ proposedStartAt: MOVED_START, expectedAttendance: 150 });
@@ -433,5 +434,88 @@ test.describe("G2 preview what a change would affect", () => {
     await expect(previewOf(page).getByText("Unsuitable")).toHaveCount(0);
     await expect(previewOf(page).getByText("Flagged for review")).toHaveCount(0);
     await a11y("coordinator review detail, change preview without flags");
+  });
+});
+
+test.describe("S3 reconsider the arrangements an approved change affects", () => {
+  const items = (section: Locator) => section.locator("li");
+  const outstanding = (page: Page) => page.locator("section[aria-labelledby='outstanding-flags-heading']");
+
+  /** The three flags and their reasons, in a list of arrangements (the impact or the Outstanding flags panel). */
+  async function expectFlags(section: Locator, fx: PlannedEvent) {
+    const theatre = items(section).filter({ hasText: fx.theatreBooking.reference });
+    const hall = items(section).filter({ hasText: fx.hallBooking.reference });
+    const reservation = items(section).filter({ hasText: fx.chairs.name });
+    await expect(theatre.filter({ hasText: "Requires reconfirmation" })).toContainText(`The booking is for ${WAS}, but the event is now ${NOW}.`);
+    await expect(theatre.filter({ hasText: "Unsuitable" })).toContainText(`Expected attendance is now 150, but ${fx.venueOne.name} holds 100 in the Theatre layout.`);
+    await expect(hall.filter({ hasText: "Requires reconfirmation" })).toContainText(`The booking is for ${WAS}, but the event is now ${NOW}.`);
+    await expect(hall.filter({ hasText: "Unsuitable" })).toHaveCount(0);
+    await expect(reservation.filter({ hasText: "Flagged for review" })).toContainText(`The reservation is for ${WAS}, but the event is now ${NOW}.`);
+  }
+
+  test("S3-T13 the coordinator approves a change and sees what it flagged; confirming is refused; the owner and the other coordinator see the flags", { tag: ["@S3", "@S3-T13"] }, async ({ page, a11y }) => {
+    test.fail(
+      true,
+      "Known defect: an Event Coordinator not assigned to the event cannot open it (`No event with that reference is assigned to you.`), so does not see the Outstanding flags that S3's AC8 and this card say Event Coordinators see (S3-T8 records the same 404 at API level).",
+    );
+    // FX-S3 (browser level): two confirmed bookings (Theatre 100, Hall 200) and a reservation, and a pending change that moves the start and raises attendance to 150.
+    const fx = await plannedEvent({ proposedStartAt: MOVED_START, expectedAttendance: 150 });
+
+    // Steps 1 and 2: approve, and read the impact list.
+    await signIn(page, "coordinator");
+    await openReviewPage(page, fx.event.name);
+    await page.getByRole("button", { name: "Approve change" }).click();
+    const dialog = page.getByRole("dialog");
+    await dialog.getByRole("button", { name: "Confirm approval" }).click();
+    await expect(dialog).toHaveCount(0);
+    await expect(page.getByText(`Change approved on ${await today(page)}`)).toBeVisible();
+    await expect(previewOf(page).getByRole("heading", { name: "Affected arrangements" })).toBeVisible();
+    await expectArrangementsListed(page, fx);
+    await expectFlags(previewOf(page), fx);
+    await a11y("coordinator review detail, change approved with flags");
+
+    // Step 3: the event page's Outstanding flags panel.
+    await openReviewPage(page, fx.event.name);
+    await expect(outstanding(page).getByRole("heading", { name: "Outstanding flags" })).toBeVisible();
+    await expect(items(outstanding(page))).toHaveCount(4);
+    await expectFlags(outstanding(page), fx);
+
+    // Step 4: confirming the event (F5) is refused, naming every flag.
+    await page.getByRole("button", { name: "Confirm arrangements" }).click();
+    const confirm = page.getByRole("dialog");
+    await confirm.getByRole("button", { name: "Confirm arrangements" }).click();
+    await expect(confirm.getByText("ARRANGEMENTS_NOT_READY")).toBeVisible();
+    const named = confirm.getByLabel("Outstanding arrangements");
+    // The dialog words each flag as F5's refusal does (lower case, "flagged unsuitable"), the reservation by its equipment line.
+    await expect(named).toContainText(`${fx.theatreBooking.reference} at ${fx.venueOne.name}: requires reconfirmation.`);
+    await expect(named).toContainText(`${fx.theatreBooking.reference} at ${fx.venueOne.name}: flagged unsuitable.`);
+    await expect(named).toContainText(`${fx.hallBooking.reference} at ${fx.venueTwo.name}: requires reconfirmation.`);
+    await expect(named).toContainText(`${fx.chairs.name} × ${fx.reservedQuantity}: flagged for review.`);
+    await a11y("confirm arrangements dialog, refused for flags");
+    await confirm.getByRole("button", { name: "Cancel" }).click();
+    expect((await must<{ status: string }>("coordinator", "GET", `/api/v1/events/${fx.event.id}`)).status).toBe("PLANNING");
+    await signOut(page);
+
+    // Step 5: the owner sees the panel (the notification needs Kafka), then the other Event Coordinator.
+    await signIn(page, "organiser");
+    await page.getByRole("link", { name: "My requests" }).click();
+    await row(page, fx.event.name).getByRole("link", { name: "View" }).click();
+    await expect(page.getByRole("heading", { name: fx.event.name })).toBeVisible();
+    await expectFlags(outstanding(page), fx);
+    await signOut(page);
+    await signIn(page, "coordinator2");
+    await page.goto(`/#/review/${fx.event.id}`);
+    // The card's expectation, which the app does not meet: soft, so step 6 still runs.
+    await expect.soft(outstanding(page).getByRole("heading", { name: "Outstanding flags" })).toBeVisible();
+    await signOut(page);
+
+    // Step 6: Organiser Two sees no event and no flags.
+    await signIn(page, "organiser2");
+    await page.goto(`/#/requests/${fx.event.id}`);
+    await expect(page.getByText(fx.event.name)).toHaveCount(0);
+    await expect(outstanding(page)).toHaveCount(0);
+    const flags = await call("organiser2", "GET", `/api/v1/events/${fx.event.id}/arrangement-flags`);
+    expect(flags.status).toBe(404);
+    // Step 7 (the Venue Staff and Technical Support notices) needs Kafka.
   });
 });

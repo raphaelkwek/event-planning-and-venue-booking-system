@@ -19,8 +19,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Waits for CI on the F3 pull request. Commit: · Evidence: · Defect: — |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | After O cancelled E, `GET /api/v1/events/<E>` as O and then as C each answered 200 with `status` `CANCELLED`, `cancellationReason` `The speaker withdrew.`, `cancelledBy` O and `cancelledAt` equal to the cancellation response's. |
+| Status | Pass |
+| Remarks | Automated (API level) · Commit: a406635 · Evidence: `backend/services/planning-core/tests/change/api/f3Cards.test.ts` › F3 cards (tests/F3) › F3-T5 the cancelled event stays visible to the owner and the coordinator, with its reason and date, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41773031885 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-04 |
