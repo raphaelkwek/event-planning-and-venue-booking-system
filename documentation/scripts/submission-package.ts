@@ -202,7 +202,7 @@ function assembleRelease(ctx: Ctx) {
   mkdirSync(dir, { recursive: true });
   const excludes = RELEASE_EXCLUDES.flatMap((p) => [`:(exclude,glob)**/${p}`, `:(exclude)${p}`]);
   const tar = execFileSync("git", ["-C", ctx.repo, "archive", "--format=tar", ctx.ref, "--", ".", ...excludes], { maxBuffer: 1 << 30 });
-  execFileSync("tar", ["-x", "-C", dir], { input: tar });
+  execFileSync("tar", ["-xf", "-"], { cwd: dir, input: tar });
   const count = listFiles(dir).length;
   add(ctx, f, `Source tree (git archive of ${ctx.ref})`, count ? "present" : "missing", `${count} files, without node_modules and example zips`);
   add(ctx, f, "README with run instructions", existsSync(join(dir, "README.md")) ? "present" : "missing", "README.md");
