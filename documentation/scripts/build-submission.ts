@@ -13,14 +13,21 @@
  * It also copies the sprint review/retrospective and the meeting transcripts into
  * 4. Sprint Meetings/, for the same reason. Hand-written files in submission/ are never touched.
  *
- * Usage: npm run submission:build
+ * Then it assembles all seven numbered folders (submission-package.ts), writes MANIFEST.md and the zip.
+ *
+ * Usage: npm run submission:build -- [--deliverables <dir>] [--zip-dir <dir>] [--ref <git ref>] [--name <zip name>]
+ *   --deliverables  folder with the sprint docs, meeting scripts, test-script workbooks, counts.json and slides
+ *   --zip-dir       where ConnectSphere.zip and MANIFEST.md are written (default: submission/ in the repo)
+ *   --ref           git ref archived into 6. Software Release (default: origin/main, else HEAD)
  */
-import { readFileSync, readdirSync, existsSync, mkdirSync, copyFileSync } from "node:fs";
+import { readFileSync, readdirSync, existsSync, mkdirSync, copyFileSync, writeFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import { pathToFileURL } from "node:url";
+import { execFileSync } from "node:child_process";
 import ExcelJS from "exceljs";
 import { parseChangelog, readCombinedChangelog, sortEntries, standupName, type ChangelogEntry } from "./confluence-digest.ts";
 import { traceabilityFiles } from "./traceability-matrix.ts";
+import { assemblePackage, renderManifest, writeZip } from "./submission-package.ts";
 
 // ---------------------------------------------------------------------------------------------
 // Sprint calendar. Add a row when a sprint is planned; mark it reviewed after its Sprint Review.
@@ -34,10 +41,16 @@ export interface SprintWindow {
   reviewed: boolean;
 }
 
-/** Sprint 1 dates are from the Sprint 1 Confluence page; Sprint 2 starts Monday of Week 6. */
+/**
+ * Sprint 1 dates are from the Sprint 1 Confluence page; Sprint 2 starts Monday of Week 6. Sprints 3
+ * and 4 start on the day Jira opened them (SPM Sprint 3: 7 Oct; SPM Sprint 4: 30 Oct, SGT). Sprints
+ * 1 to 3 are closed in Jira; Sprint 4 is still active, so its stories are not shown as Done.
+ */
 export const SPRINTS: SprintWindow[] = [
   { sprint: 1, start: "2026-09-07", reviewed: true },
-  { sprint: 2, start: "2026-09-21", reviewed: false },
+  { sprint: 2, start: "2026-09-21", reviewed: true },
+  { sprint: 3, start: "2026-10-07", reviewed: true },
+  { sprint: 4, start: "2026-10-30", reviewed: false },
 ];
 
 /** "YYYY-MM-DD HH:mm" in SGT, whatever offset the CHANGELOG entry was written with. */
@@ -651,6 +664,20 @@ function findCards(root: string): string[] {
   return out;
 }
 
+function option(name: string): string | null {
+  const i = process.argv.indexOf(`--${name}`);
+  return i >= 0 && process.argv[i + 1] ? process.argv[i + 1] : null;
+}
+
+function defaultRef(repo: string): string {
+  try {
+    execFileSync("git", ["-C", repo, "rev-parse", "--verify", "--quiet", "origin/main"], { stdio: "ignore" });
+    return "origin/main";
+  } catch {
+    return "HEAD";
+  }
+}
+
 async function main() {
   const repo = process.cwd();
   const out = join(repo, "submission");
@@ -702,6 +729,21 @@ async function main() {
       `${[...traceability.values()].flat().length} traceability rows, ${entries.length} CHANGELOG entries:`,
   );
   for (const w of written) console.log(`  ${w}`);
+
+  const ref = option("ref") ?? defaultRef(repo);
+  const zipDir = option("zip-dir") ?? out;
+  const zipPath = join(zipDir, `${option("name") ?? "ConnectSphere"}.zip`);
+  const parts = assemblePackage({ repo, out, deliverables: option("deliverables"), ref });
+  const manifestPath = join(zipDir, "MANIFEST.md");
+  // The manifest lists the zip's own contents, so count first, then write the zip with the final text.
+  const counts = await writeZip(out, "", zipPath);
+  const manifest = renderManifest(parts, counts, ref);
+  await writeZip(out, manifest, zipPath);
+  writeFileSync(manifestPath, manifest);
+  console.log(`
+Zip: ${zipPath}
+Manifest: ${manifestPath}`);
+  for (const p of parts.filter((x) => x.status !== "present")) console.log(`  ${p.status.toUpperCase()}: ${p.folder} / ${p.part}`);
 }
 
 const isMain = process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href;

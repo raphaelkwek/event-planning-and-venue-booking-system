@@ -41,6 +41,15 @@ Step 3 above needs the team's Supabase and Kafka secrets. You can still run the 
 2. `npm ci`, then `npm run migrate:all` (every schema, with the identity seeds).
 3. `npx playwright install chromium`, then `npm run test:e2e`. It starts the fake auth server, the policy decision point, planning-core, notification, registration and a built copy of the web app, then drives the browser. Kafka is not needed.
 
+### Week 12 submission zip
+
+`npm run submission:build -- --deliverables "<folder>" --zip-dir "<folder>"` assembles the seven
+numbered folders the course asks for, writes `ConnectSphere.zip` and a `MANIFEST.md` that marks each
+part present, placeholder or missing. The backlog comes from `documentation/backlog/jira-export.json`
+(refresh with `npm run backlog:export`); the recordings and instructor access are human steps, kept as
+placeholders in `documentation/week12-submission/`. Code repository:
+<https://github.com/joass1/event-planning-and-venue-booking-system>.
+
 ### Deploying
 
 Staging and production run on one Azure VM (the API), Vercel (the web app) and one Supabase project each (ADR-0016). A merge to `main` deploys staging; an approval deploys the same images to production. The runbook, the secrets each environment needs and how to roll back are in [documentation/deploy/README.md](documentation/deploy/README.md). The Kubernetes, Terraform and canary material (EN-10, EN-16, ADR-0012) is in [documentation/deploy.md](documentation/deploy.md). Local development stays as above: no Docker.

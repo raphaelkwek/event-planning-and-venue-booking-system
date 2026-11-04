@@ -16,7 +16,10 @@ code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 20 "$origin/events/sm
 [ "$code" = 200 ] || fail "a client-side route answered ${code}, not the app shell"
 asset="$(grep -o '/assets/[^"]*\.js' <<< "$shell" | head -1)"
 [ -n "$asset" ] || fail "no script asset in the shell"
-curl -fsS --max-time 20 "$origin$asset" | grep -qF "$api_host" || fail "the bundle does not call https://${api_host}"
+# Read the whole bundle first: piped into grep -q, curl fails with (23) once grep stops reading at
+# the first match, and pipefail turns that into a failure.
+bundle="$(curl -fsS --max-time 20 "$origin$asset")" || fail "${origin}${asset} did not answer"
+grep -qF "$api_host" <<< "$bundle" || fail "the bundle does not call https://${api_host}"
 headers="$(curl -fsSI --max-time 20 "$origin/")"
 grep -qi '^x-content-type-options: nosniff' <<< "$headers" || fail "the security headers are missing"
 say "| Web app | ${origin} | shell, SPA fallback, built for ${api_host}, security headers |"
