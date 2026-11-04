@@ -5,7 +5,7 @@ import {
   type EquipmentRequestLineStatus,
   type Role,
 } from "@connectsphere/contracts";
-import { findEventForPlanning, type EventPlanningView } from "../../event/index.js";
+import { findEventForPlanning, findEventStatuses, type EventPlanningView } from "../../event/index.js";
 import { notInScopeMessage, resolveAccessScope } from "../../identity/index.js";
 import { authenticate, requireRole, type ActorRequest } from "../auth/actor.js";
 import {
@@ -198,8 +198,12 @@ export function requestLinesRouter(sql: Sql, limiter: RequestHandler = equipment
       });
       const page = rows.slice(0, query.data.limit);
       const nextCursor = rows.length > query.data.limit ? String(page[page.length - 1]!.seq) : null;
+      // D4 (F4): each line says whether its event was cancelled, so a released line is not offered actions.
+      const statuses = event
+        ? new Map([[event.id, event.status]])
+        : await findEventStatuses(sql, [...new Set(page.map((line) => line.eventId))]);
       res.json({
-        items: page.map(present),
+        items: page.map((line) => ({ ...present(line), eventStatus: statuses.get(line.eventId) ?? null })),
         nextCursor,
         ...(event
           ? {

@@ -22,6 +22,9 @@ import { useUserNames } from "../shared/useUserNames.js";
 import { fieldMessage, type TypeOption } from "../components/EquipmentLineFields.js";
 import { Refusal } from "../components/Refusal.js";
 
+/** D4 (F4): cancelling an event releases its reservations, so its lines are done; nothing more can be done to them. */
+const isCancelled = (line: RequestLine) => line.eventStatus === "CANCELLED";
+
 /** O2: the four statuses Technical Support sets. Reserved is Q1's. */
 const STAFF_STATUSES: StaffLineStatus[] = ["UNDER_REVIEW", "CONFIRMED", "UNAVAILABLE", "SUBSTITUTED"];
 const FILTERS: (LineStatus | "")[] = ["", "SUBMITTED", "UNDER_REVIEW", "CONFIRMED", "UNAVAILABLE", "SUBSTITUTED", "RESERVED"];
@@ -240,7 +243,11 @@ export function EquipmentRequests() {
               key: "status",
               content: (
                 <div>
-                  <Lozenge appearance={LINE_STATUS_APPEARANCE[line.status]}>{LINE_STATUS_LABELS[line.status]}</Lozenge>
+                  {isCancelled(line) ? (
+                    <Lozenge appearance="default">Released: event cancelled</Lozenge>
+                  ) : (
+                    <Lozenge appearance={LINE_STATUS_APPEARANCE[line.status]}>{LINE_STATUS_LABELS[line.status]}</Lozenge>
+                  )}
                   {line.status === "UNAVAILABLE" && <div style={{ fontSize: 12 }}>Reason: {line.unavailableReason}</div>}
                   {line.status === "SUBSTITUTED" && (
                     <div style={{ fontSize: 12 }}>
@@ -263,8 +270,9 @@ export function EquipmentRequests() {
             },
             {
               key: "actions",
-              content:
-                line.status === "RESERVED" ? (
+              content: isCancelled(line) ? (
+                <span style={{ fontSize: 12, color: "#626F86" }}>No action: the event was cancelled</span>
+              ) : line.status === "RESERVED" ? (
                   <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                     <span style={{ fontSize: 12, color: "#626F86" }}>Reserved</span>
                     <Button aria-label={`Release ${reservedTypeOf(line)} for ${line.eventReference}`} onClick={() => openRelease(line)}>
