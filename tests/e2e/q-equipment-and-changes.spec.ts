@@ -486,10 +486,11 @@ test.describe("S3 reconsider the arrangements an approved change affects", () =>
     await confirm.getByRole("button", { name: "Confirm arrangements" }).click();
     await expect(confirm.getByText("ARRANGEMENTS_NOT_READY")).toBeVisible();
     const named = confirm.getByLabel("Outstanding arrangements");
-    await expect(named).toContainText(`${fx.theatreBooking.reference} at ${fx.venueOne.name}: Requires reconfirmation.`);
-    await expect(named).toContainText(`${fx.theatreBooking.reference} at ${fx.venueOne.name}: Unsuitable.`);
-    await expect(named).toContainText(`${fx.hallBooking.reference} at ${fx.venueTwo.name}: Requires reconfirmation.`);
-    await expect(named).toContainText("Flagged for review.");
+    // The dialog words each flag as F5's refusal does (lower case, "flagged unsuitable"), the reservation by its equipment line.
+    await expect(named).toContainText(`${fx.theatreBooking.reference} at ${fx.venueOne.name}: requires reconfirmation.`);
+    await expect(named).toContainText(`${fx.theatreBooking.reference} at ${fx.venueOne.name}: flagged unsuitable.`);
+    await expect(named).toContainText(`${fx.hallBooking.reference} at ${fx.venueTwo.name}: requires reconfirmation.`);
+    await expect(named).toContainText(`${fx.chairs.name} × ${fx.reservedQuantity}: flagged for review.`);
     await a11y("confirm arrangements dialog, refused for flags");
     await confirm.getByRole("button", { name: "Cancel" }).click();
     expect((await must<{ status: string }>("coordinator", "GET", `/api/v1/events/${fx.event.id}`)).status).toBe("PLANNING");
