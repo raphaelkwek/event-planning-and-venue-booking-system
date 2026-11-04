@@ -25,6 +25,7 @@ export type AccountKey =
   | "venuestaff"
   | "techsupport"
   | "attendee"
+  | "attendee2"
   | "deactivated"
   | "lead"
   | "safety";
@@ -54,4 +55,6 @@ export const ACCOUNTS: Record<AccountKey, SeededAccount> = {
   coordinator2: account("coordinator2", 8, "Coordinator Two", "Event Coordinator", "EVENT_COORDINATOR"),
   lead: account("lead", 9, "Lead One", "Event Coordinator Lead", "EVENT_COORDINATOR_LEAD"),
   safety: account("safety", 10, "Safety Officer One", "Safety Officer", "SAFETY_OFFICER"),
+  // Not in the seed: tests/R5/README.md's Attendee Two, which seed-management.ts adds to the job's own database.
+  attendee2: account("attendee2", 11, "Attendee Two", "Attendee", "ATTENDEE"),
 };

@@ -50,6 +50,8 @@ export const symposiumName = () => uniqueName("R Test Symposium");
  */
 export async function removeRFixtures() {
   const ofRCases = "(select event_id from registration.event_listings where event_reference like 'EVT-R%')";
+  // tests/R5/README.md: the waitlist first, since an entry that ended in a registration names it.
+  await query(`delete from registration.waitlist_entries where event_id in ${ofRCases}`);
   await query(`delete from registration.registrations where event_id in ${ofRCases}`);
   await query(`delete from registration.seats where event_id in ${ofRCases}`);
   await query(`delete from registration.event_venues where event_id in ${ofRCases}`);
