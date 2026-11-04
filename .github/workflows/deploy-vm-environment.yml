@@ -146,6 +146,9 @@ jobs:
           # Optional: more web origins the API accepts, comma-separated (production keeps its first
           # Vercel alias, https://connectsphere-blush.vercel.app, working).
           ALSO_WEB_ORIGINS: ${{ vars.ALSO_WEB_ORIGINS }}
+          # EN-08, optional: the environment's Grafana Cloud OTLP endpoint and its Authorization header.
+          OTEL_EXPORTER_OTLP_ENDPOINT: ${{ secrets.OTEL_EXPORTER_OTLP_ENDPOINT }}
+          OTEL_EXPORTER_OTLP_HEADERS: ${{ secrets.OTEL_EXPORTER_OTLP_HEADERS }}
         run: |
           settings="$RUNNER_TEMP/settings.env"
           trap 'rm -f "$settings"' EXIT
@@ -162,6 +165,12 @@ jobs:
             printf 'REDPANDA_MEMORY=512M\n'
             # The host Caddy and the container's Caddy stand in front of registration's per-address limits.
             printf 'TRUST_PROXY_HOPS=2\n'
+            # Telemetry goes to Grafana only when the environment has both OTEL secrets (EN-08).
+            if [ -n "$OTEL_EXPORTER_OTLP_ENDPOINT" ] && [ -n "$OTEL_EXPORTER_OTLP_HEADERS" ]; then
+              printf 'OTEL_EXPORTER_OTLP_ENDPOINT=%s\n' "$OTEL_EXPORTER_OTLP_ENDPOINT"
+              printf 'OTEL_EXPORTER_OTLP_HEADERS=%s\n' "$OTEL_EXPORTER_OTLP_HEADERS"
+              printf 'OTEL_RESOURCE_ATTRIBUTES=deployment.environment=%s\n' "$ENVIRONMENT"
+            fi
             printf 'GHCR_USER=%s\n' "$GHCR_USER"
             printf 'GHCR_TOKEN=%s\n' "$GHCR_TOKEN"
           } > "$settings"
