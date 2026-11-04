@@ -316,15 +316,15 @@ const RULES: Record<string, Rule> = {
   "waitlist.cancelled": (d, event) => [
     [d.attendeeId!, `${event} has been cancelled, so your place on its waitlist (${d.waitlistReference}) is cancelled.`],
   ],
-  // F5: the owner, the Venue Staff of each booked venue (once per booking), and each Technical
-  // Support Staff member who reserved equipment (once, listing what they reserved). D-02: then each
-  // active Safety Officer the message names, whose Safety Review queue the event is now in (U1).
+  // F5: the owner, the Venue Staff of each booked venue (once, listing their bookings), and each
+  // Technical Support Staff member who reserved equipment (once, listing what they reserved). D-02:
+  // then each active Safety Officer the message names, whose Safety Review queue the event is now in (U1).
   "event.arrangements-confirmed": (d, event) => arrangementsConfirmed(d as unknown as ArrangementsConfirmed, event),
   // U1 (CR-06): the Safety Officer's decision; the assigned coordinator and the owning organiser are
   // told, once each (a coordinator who also owns the event hears once).
   "event.safety-decision-recorded": (d, event) => safetyDecisionNotices(d as unknown as SafetyDecisionRecorded, event),
   // S3 (AC10): an approved change flagged arrangements; the Venue Staff of each flagged booking, hold
-  // or pending request and the member who reserved each flagged reservation are told. One notice per flag.
+  // or pending request and the member who reserved each flagged reservation are told, once each.
   "change-request.arrangements-flagged": (d, event) => arrangementsFlagged(d as unknown as ArrangementsFlagged, event),
   "event.cancelled": (d, event) => eventCancelled(d as unknown as EventCancelled, event),
 };
@@ -359,20 +359,56 @@ interface ArrangementsFlagged {
   reservations: { equipmentTypeName: string; reason: string; reservedBy: string }[];
 }
 
+/** S3: one flagged arrangement, as the person who looks after it is told of it. */
+interface FlaggedArrangement {
+  /** "booking BKR-000001 at Lee Kong Chian Auditorium", or "the Projectors reservation". */
+  label: string;
+  /** How the reasons name it when a notice lists several: its reference, or its equipment. */
+  short: string;
+  reservation: boolean;
+  /** Every reason it was flagged: a booking can be both moved and too small. */
+  reasons: string[];
+}
+
+/**
+ * S3 (AC10): the Venue Staff of each flagged booking, hold or pending request and the member who
+ * reserved each flagged reservation, each told once, naming every flagged arrangement of theirs and
+ * every reason. The message has one entry per flag, so one person can appear in several.
+ */
 function arrangementsFlagged(d: ArrangementsFlagged, event: string): Array<[string, string]> {
-  const notices: Array<[string, string]> = [];
+  const theirs = new Map<string, Map<string, FlaggedArrangement>>();
+  const flag = (recipient: string, arrangement: Omit<FlaggedArrangement, "reasons">, reason: string) => {
+    const mine = theirs.get(recipient) ?? new Map<string, FlaggedArrangement>();
+    const known = mine.get(arrangement.label);
+    mine.set(arrangement.label, { ...arrangement, reasons: [...(known?.reasons ?? []), reason] });
+    theirs.set(recipient, mine);
+  };
   for (const booking of d.bookings) {
-    const what = booking.arrangement === "HOLD" ? "Hold" : booking.arrangement === "BOOKING_REQUEST" ? "Booking request" : "Booking";
-    const text = `${what} ${booking.reference} at ${booking.venueName} for ${event} needs attention after an approved change: ${booking.reason}`;
-    for (const staffId of booking.staffIds) notices.push([staffId, text]);
+    const what = booking.arrangement === "HOLD" ? "hold" : booking.arrangement === "BOOKING_REQUEST" ? "booking request" : "booking";
+    const arrangement = { label: `${what} ${booking.reference} at ${booking.venueName}`, short: booking.reference, reservation: false };
+    for (const staffId of booking.staffIds) flag(staffId, arrangement, booking.reason);
   }
   for (const reservation of d.reservations) {
-    notices.push([
-      reservation.reservedBy,
-      `The ${reservation.equipmentTypeName} reservation for ${event} is flagged for review after an approved change: ${reservation.reason} Release it if it is no longer needed.`,
-    ]);
+    const name = reservation.equipmentTypeName;
+    flag(reservation.reservedBy, { label: `the ${name} reservation`, short: name, reservation: true }, reservation.reason);
   }
-  return notices;
+  return [...theirs].map(([recipient, mine]) => [recipient, flaggedNotice([...mine.values()], event)]);
+}
+
+/** S3: one arrangement in the words its notice has always used; several listed, then each one's reasons. */
+function flaggedNotice(arrangements: FlaggedArrangement[], event: string): string {
+  const [only] = arrangements;
+  if (arrangements.length === 1) {
+    const reasons = only!.reasons.join(" ");
+    return only!.reservation
+      ? `The ${only!.short} reservation for ${event} is flagged for review after an approved change: ${reasons} Release it if it is no longer needed.`
+      : `${capitalised(only!.label)} for ${event} needs attention after an approved change: ${reasons}`;
+  }
+  const labels = arrangements.map((arrangement) => arrangement.label);
+  const listed = `${labels.slice(0, -1).join(", ")} and ${labels[labels.length - 1]}`;
+  const each = arrangements.map((arrangement) => `${arrangement.short}: ${arrangement.reasons.join(" ")}`).join(" ");
+  const release = arrangements.some((arrangement) => arrangement.reservation) ? " Release any reservation that is no longer needed." : "";
+  return `${capitalised(listed)} for ${event} need attention after an approved change. ${each}${release}`;
 }
 
 /** F5's message data, as its contract (`eventArrangementsConfirmedPayloadSchema`) validated it. */
@@ -389,9 +425,14 @@ function arrangementsConfirmed(d: ArrangementsConfirmed, event: string): Array<[
   const notices: Array<[string, string]> = [
     [d.ownerId, `Your event ${event} has its venue and equipment arrangements confirmed. It is now in Safety Review, awaiting the Safety Officer.`],
   ];
-  for (const booking of d.bookings) {
-    const text = `${event} has confirmed its arrangements, including booking ${booking.reference} at ${booking.venueName}, ${period(booking.startsAt, booking.endsAt)}. ${inReview}`;
-    for (const staffId of booking.staffIds) notices.push([staffId, text]);
+  // A member who looks after several booked venues hears once, of every booking of theirs.
+  const staff = [...new Set(d.bookings.flatMap((booking) => booking.staffIds))];
+  for (const staffId of staff) {
+    const booked = d.bookings
+      .filter((booking) => booking.staffIds.includes(staffId))
+      .map((booking) => `booking ${booking.reference} at ${booking.venueName}, ${period(booking.startsAt, booking.endsAt)}`)
+      .join("; ");
+    notices.push([staffId, `${event} has confirmed its arrangements, including ${booked}. ${inReview}`]);
   }
   const reservers = [...new Set(d.reservations.map((reservation) => reservation.reservedBy))];
   for (const reserver of reservers) {
@@ -473,13 +514,28 @@ function eventCancelled(d: EventCancelled, event: string): Array<[string, string
   return [...notices];
 }
 
-/** The notifications a message raises; none for a type no story asks to notify about. */
+/**
+ * One notice per recipient, whatever a rule returns. notification.notifications is unique on the
+ * message and the recipient, the inbox's idempotency key, so a second row for one person would fail
+ * the whole message and nobody would be told (S3-T13). Someone a rule names twice keeps each
+ * different text once, in order, in their one notice.
+ */
+function onePerRecipient(notices: Array<[string, string]>): Array<[string, string]> {
+  const texts = new Map<string, string[]>();
+  for (const [recipient, text] of notices) {
+    const theirs = texts.get(recipient) ?? [];
+    texts.set(recipient, theirs.includes(text) ? theirs : [...theirs, text]);
+  }
+  return [...texts].map(([recipient, theirs]) => [recipient, theirs.join(" ")]);
+}
+
+/** The notifications a message raises, one per recipient; none for a type no story asks to notify about. */
 export function notificationsFor(message: NotifiableEvent): NewNotification[] {
   const rule = RULES[message.type];
   if (!rule) return [];
   const data = message.data as Record<string, string>;
   const event = `${data.eventReference} “${data.eventName}”`;
-  return rule(data, event).map(([recipientUserId, text]) => ({
+  return onePerRecipient(rule(data, event)).map(([recipientUserId, text]) => ({
     recipientUserId,
     notificationType: message.type,
     eventId: data.eventId!,
