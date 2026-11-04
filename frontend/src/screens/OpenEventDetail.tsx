@@ -39,22 +39,48 @@ export function OpenEventDetail() {
     void load();
   }, [load]);
 
-  async function act(action: "register" | "join", run: () => Promise<void>) {
-    setBusy(true);
-    setRefusal(null);
-    try {
-      await run();
-    } catch (error) {
-      setRefusal({ error, action });
-    } finally {
-      setBusy(false);
-      // Places remaining as it now stands, whichever way it went.
-      await load();
-    }
+  /**
+   * D7 (staging dry run, 4 Nov 2026): the event's page is a browse listing a browser or CDN may keep
+   * for a few seconds (EN-12), so a re-read just after registering can show the count from before.
+   * A registration answers with the places remaining, and a refusal for capacity says none remain,
+   * so the page shows those; any other outcome re-reads the event.
+   */
+  function showPlaces(placesRemaining: number) {
+    setEvent((current) => (current ? { ...current, placesRemaining, isFull: placesRemaining === 0 } : current));
   }
 
-  const onRegister = () => act("register", async () => setRegistered(await registerFor(session.token, eventId!)));
-  const onJoin = () => act("join", async () => setWaitlisted(await joinWaitlist(session.token, eventId!)));
+  async function act(action: "register" | "join", run: () => Promise<number | null>) {
+    setBusy(true);
+    setRefusal(null);
+    let places: number | null = null;
+    try {
+      places = await run();
+      // An answer without the count (a join, or a service not yet sending it) re-reads the event.
+      if (places === null) await load();
+    } catch (error) {
+      setRefusal({ error, action });
+      // A refused registration names the count (none, for capacity); a refused join is left as R6 shows it.
+      const reported = action === "register" && error instanceof ApiError ? error.envelope.details?.placesRemaining : undefined;
+      if (typeof reported === "number") places = reported;
+      // Places remaining as it now stands, then what the refusal said of it.
+      await load();
+    } finally {
+      setBusy(false);
+    }
+    if (places !== null) showPlaces(places);
+  }
+
+  const onRegister = () =>
+    act("register", async () => {
+      const created = await registerFor(session.token, eventId!);
+      setRegistered(created);
+      return typeof created.placesRemaining === "number" ? created.placesRemaining : null;
+    });
+  const onJoin = () =>
+    act("join", async () => {
+      setWaitlisted(await joinWaitlist(session.token, eventId!));
+      return null;
+    });
 
   const needsWaitingRoom =
     refusal?.error instanceof ApiError && (refusal.error.envelope.code === "ADMISSION_REQUIRED" || refusal.error.envelope.code === "ADMISSION_EXPIRED");

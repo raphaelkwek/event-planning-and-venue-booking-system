@@ -101,6 +101,13 @@
         "type": "object"
       },
       "type": "array"
+    },
+    "safetyOfficerIds": {
+      "items": {
+        "format": "uuid",
+        "type": "string"
+      },
+      "type": "array"
     }
   },
   "required": [

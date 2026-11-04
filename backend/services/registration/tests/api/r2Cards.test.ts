@@ -85,6 +85,18 @@ describe("POST /api/v1/registrations (R2)", () => {
     });
   });
 
+  it("D7: answers each registration with the event's places remaining just after it", async () => {
+    const event = await anEvent(sql, { seats: 3 });
+
+    const first = await registerAs(randomUUID(), event.eventId);
+    const second = await registerAs(randomUUID(), event.eventId);
+
+    expect([first.status, second.status]).toEqual([201, 201]);
+    expect(first.body.placesRemaining).toBe(2);
+    expect(second.body.placesRemaining).toBe(1);
+    expect(await placesOf(sql, event.eventId)).toBe(1);
+  });
+
   it("R2-T2 takes its places from the layout capacity: two left of three, and a second registration is accepted", async () => {
     const event = await anEvent(sql, { seats: 3 });
     expect((await registerAs(randomUUID(), event.eventId)).status).toBe(201);

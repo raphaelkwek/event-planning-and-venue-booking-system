@@ -2,6 +2,7 @@ import type { TransactionSql } from "postgres";
 import { KAFKA_TOPICS, type EventStatus } from "@connectsphere/contracts";
 import { evaluateTransition } from "../domain/statusMachine.js";
 import { writeOutbox } from "../events/outbox.js";
+import { listActiveUserIdsWithRole } from "../../identity/index.js";
 import { latestStatusChangeAt } from "../repo/eventHistory.js";
 import { transitionEvent } from "./transitionEvent.js";
 
@@ -50,6 +51,9 @@ export async function confirmEventArrangements(
   if (!moved.ok) return { ok: false, message: moved.message };
 
   const confirmedAt = await latestStatusChangeAt(tx, eventId);
+  // U1, team decision D-02: the event is now in the Safety Officer's queue, so the message names
+  // every active Safety Officer as well as F5's recipients.
+  const safetyOfficerIds = await listActiveUserIdsWithRole(tx, "SAFETY_OFFICER");
   await writeOutbox(tx, {
     topic: KAFKA_TOPICS.event,
     messageType: "event.arrangements-confirmed",
@@ -65,6 +69,7 @@ export async function confirmEventArrangements(
       confirmedAt,
       bookings: notice.bookings,
       reservations: notice.reservations,
+      safetyOfficerIds,
     },
   });
 

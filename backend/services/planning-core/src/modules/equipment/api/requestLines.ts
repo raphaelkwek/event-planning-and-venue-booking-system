@@ -6,7 +6,7 @@ import {
   type Role,
 } from "@connectsphere/contracts";
 import { findEventForPlanning, findEventStatuses, type EventPlanningView } from "../../event/index.js";
-import { notInScopeMessage, resolveAccessScope } from "../../identity/index.js";
+import { listActiveUserIdsWithRole, notInScopeMessage, resolveAccessScope } from "../../identity/index.js";
 import { authenticate, requireRole, type ActorRequest } from "../auth/actor.js";
 import {
   canChangeStatus,
@@ -17,6 +17,7 @@ import {
   type EventTimes,
 } from "../domain/requestLines.js";
 import { lineStatusChangedMessage } from "../events/lineStatusMessage.js";
+import { lineSubmittedMessage } from "../events/lineSubmittedMessage.js";
 import { writeOutbox } from "../events/outbox.js";
 import {
   applyStatusChange,
@@ -155,6 +156,23 @@ export function requestLinesRouter(sql: Sql, limiter: RequestHandler = equipment
           const missing = await findMissingTypeIds(tx, checked.lines.map((line) => line.equipmentTypeId));
           if (missing.length > 0) return { code: "MISSING_TYPE", missing } as const;
           const lines = await insertLines(tx, { id: event.id, reference: event.reference! }, checked.lines, req.actor!);
+          // D-02: each new line waits for Technical Support, so each tells every active member, in the
+          // save's transaction (T2 AC3). As with L1's Venue Staff, nobody to tell writes no message.
+          const technicalSupportIds = await listActiveUserIdsWithRole(tx, TECH_SUPPORT);
+          if (technicalSupportIds.length > 0) {
+            for (const line of lines) {
+              await writeOutbox(
+                tx,
+                lineSubmittedMessage({
+                  event: { id: event.id, name: event.name },
+                  line,
+                  technicalSupportIds,
+                  actor: req.actor!,
+                  correlationId: req.header("x-correlation-id") ?? null,
+                }),
+              );
+            }
+          }
           return { code: "OK", lines } as const;
         });
       } catch (error) {

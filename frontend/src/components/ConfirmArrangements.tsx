@@ -109,7 +109,7 @@ export function ConfirmArrangementsAction({ eventId, token, onConfirmed }: { eve
             <ModalBody>
               <p>
                 The event moves to Safety Review, where the Safety Officer reviews it before it becomes Confirmed. Its organiser,
-                the Venue Staff of each booked venue and the Technical Support Staff who reserved equipment are notified.
+                the Safety Officers, the Venue Staff of each booked venue and the Technical Support Staff who reserved equipment are notified.
               </p>
               <Refusal error={error} />
               {outstanding && (

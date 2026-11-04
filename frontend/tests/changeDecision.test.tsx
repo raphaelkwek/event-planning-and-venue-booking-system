@@ -207,11 +207,22 @@ describe("the organiser's page", () => {
     expect(button("Request a change")).toBeTruthy();
   });
 
-  it("shows the latest decided request when several exist", async () => {
-    stored = [{ ...approved, id: "c0", decidedAt: "2026-10-01T02:00:00.000Z" }, rejected];
+  it("D12: shows every change request with its outcome, newest first", async () => {
+    stored = [{ ...approved, id: "c0", requestedAt: "2026-09-30T02:00:00.000Z", decidedAt: "2026-10-01T02:00:00.000Z" }, rejected];
     asOrganiser();
-    expect(await screen.findByText(/Change rejected on /)).toBeTruthy();
-    expect(screen.queryByText(/Change approved on /)).toBeNull();
+    const list = await screen.findByRole("region", { name: "Change requests" });
+    const outcomes = within(list).getAllByText(/^Change (approved|rejected) on /).map((element) => element.textContent);
+    expect(outcomes).toHaveLength(2);
+    expect(outcomes[0]).toMatch(/^Change rejected on .*: No larger hall/);
+    expect(outcomes[1]).toMatch(/^Change approved on /);
+  });
+
+  it("D12: shows a pending request above the outcomes of the earlier ones", async () => {
+    stored = [{ ...approved, id: "c0", requestedAt: "2026-09-30T02:00:00.000Z", decidedAt: "2026-10-01T02:00:00.000Z" }, pending];
+    asOrganiser();
+    expect(await screen.findByText(/Change requested on .*\(Pending\)/)).toBeTruthy();
+    const list = screen.getByRole("region", { name: "Change requests" });
+    expect(within(list).getByText(/^Change approved on /)).toBeTruthy();
   });
 });
 
@@ -316,7 +327,9 @@ describe("the Outstanding flags section", () => {
     stored = [approved];
     asCoordinator();
     expect(await screen.findByText("Outstanding flags")).toBeTruthy();
-    expect(screen.getByText("Equipment " + R1 + ", Projector")).toBeTruthy();
+    // D9: a reservation has no reference of its own, so it is named by its equipment, never by its id.
+    expect(screen.getByText("Equipment reservation, Projector")).toBeTruthy();
+    expect(screen.queryByText(new RegExp(R1))).toBeNull();
     expect(screen.getAllByText(/Booking BKG-000001, Grand Theatre/)).toHaveLength(2);
     expect(screen.getByText("Booking request BKR-000003, Lecture Hall C")).toBeTruthy();
     expect(screen.getByText("Unsuitable")).toBeTruthy();

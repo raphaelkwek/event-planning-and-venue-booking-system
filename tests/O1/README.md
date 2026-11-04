@@ -1,6 +1,7 @@
 # O1 — Record the equipment an event requires
 
-Twenty-six cases, written from the story on 10 Oct 2026, before the code. Cases T1 to T25 are API-level
+Twenty-six cases, written from the story on 10 Oct 2026, before the code. O1-T27, API-level, was written on 4 Nov 2026 for the
+team's decision D-02 (`documentation/clarifications.md`), before its code. Cases T1 to T25 are API-level
 procedures (HTTP requests with authentication stubbed, against a migrated throwaway Postgres), so an
 automated test can perform exactly their steps. T26 is the signed-in browser walk-through.
 
@@ -13,6 +14,7 @@ automated test can perform exactly their steps. T26 is the signed-in browser wal
 | The assigned coordinator may edit or remove a line while Submitted or Under Review; a Reserved line cannot be edited or removed | O1-T13, O1-T14, O1-T15, O1-T16, O1-T18, O1-T19, O1-T20, O1-T21, O1-T22 (removal of a Reserved line amended by Q2: it is removed and its reservation released — Q2-T8) |
 | Removing a line records the acting user, timestamp, equipment type and quantity | O1-T18, O1-T19 |
 | A rejected save creates or changes no line item | O1-T4, O1-T5, O1-T7, O1-T9, O1-T10, O1-T17, O1-T23, O1-T24, O1-T25 |
+| D-02 (team decision, 4 Nov 2026): every active Technical Support Staff member is told of each new line | O1-T27 |
 
 Boundaries: quantity 0 (T7) and 1 (T8); required-to equal to (T4), before (T5) and one minute after (T6) required-from.
 

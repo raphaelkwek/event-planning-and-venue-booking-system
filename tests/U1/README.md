@@ -1,6 +1,7 @@
 # U1 — Conduct an Operational Safety Check
 
 16 cases, written from the story (U1, CR-06 and the Week 9 answers CQ-08, CQ-10, W9-31/32/33/64/65) on 2 Nov 2026, before the code.
+U1-T17 was written on 4 Nov 2026 for the team's decision D-02 (`documentation/clarifications.md`), before its code, and is API-level like T1 to T15.
 T1 to T15 are API-level procedures, automated one test per card against a migrated throwaway Postgres with authentication stubbed;
 T16 is the signed-in browser walk-through, done by hand at the sprint review.
 
@@ -17,6 +18,7 @@ T16 is the signed-in browser walk-through, done by hand at the sprint review.
 | Only the Safety Officer can decide (A2) | U1-T13 |
 | Approval refuses while S3 flags are outstanding (commit 259050d) | U1-T14 |
 | Screens: queue, review with its decision form, Mark Confirmed | U1-T16 |
+| D-02 (team decision, 4 Nov 2026): every active Safety Officer is told when an event enters Safety Review | U1-T17 |
 
 ## Fixture FX-U1
 

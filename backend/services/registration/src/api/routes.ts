@@ -1,6 +1,6 @@
 import { Router, type RequestHandler } from "express";
 import type { Sql } from "postgres";
-import { isListed } from "../domain/registrationRules.js";
+import { isListed, placesRemaining } from "../domain/registrationRules.js";
 import { admissionExpiredMessage, admissionRequiredMessage, capacityMessage, deadlineMessage, duplicateMessage, notActiveMessage, windowMessage } from "../domain/refusals.js";
 import { findListing, listingsOf, listOpenListings, type ListingCursor } from "../repo/listings.js";
 import { findRegistrationOfAttendee, listRegistrationsOfAttendee, type Registration, type RegistrationCursor } from "../repo/registrations.js";
@@ -127,8 +127,11 @@ export function registrationRouter(deps: RouterDeps): Router {
         admission: { token: req.header("x-admission-token") ?? null, signingKey },
       });
       if (outcome.ok) {
-        const [view] = await present([outcome.registration]);
-        return res.status(201).json(view);
+        // D7: the places remaining just after this registration, read live, so the event's page
+        // needn't re-read the browse listing, which a browser or CDN may keep for a few seconds.
+        const [[view], counts] = await Promise.all([present([outcome.registration]), placeCountsOf(sql, [eventId as string])]);
+        const { freeSeats, unseatedRegistrations } = counts.get(eventId as string)!;
+        return res.status(201).json({ ...view, placesRemaining: placesRemaining(freeSeats, unseatedRegistrations) });
       }
       const event = outcome.code === "EVENT_NOT_FOUND" ? null : { reference: outcome.listing.eventReference, name: outcome.listing.name };
       switch (outcome.code) {

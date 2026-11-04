@@ -1,6 +1,7 @@
 # E3 — Assign incoming requests from the unassigned queue (CR-05)
 
-Eight cases, written from the story on 27 Oct 2026, before the code. E3 replaces E1's automatic
+Eight cases, written from the story on 27 Oct 2026, before the code, and E3-T9, written on 4 Nov 2026 for the team's
+decision D-02 (`documentation/clarifications.md`) before its code. E3 replaces E1's automatic
 assignment: a submitted request now waits, unassigned, until an Event Coordinator Lead assigns it.
 The customer's Week 9 answers confirm that coordinators can't claim an unassigned request and the
 Lead doesn't coordinate events (W9-35), and that only Leads see the queue (W9-60). The design is
@@ -16,6 +17,7 @@ Lead doesn't coordinate events (W9-35), and that only Leads see the queue (W9-60
 | At most one active assignment | E3-T6 |
 | The coordinator and the organiser are notified; until then the organiser sees "awaiting assignment" | E3-T1, E3-T4 |
 | The Lead is a role of its own under A2 (A4's last criteria, which E3 needs) | E3-T8 |
+| D-02 (team decision, 4 Nov 2026): every active Lead is told when a submitted request enters the unassigned queue | E3-T9 |
 
 ## The Lead account
 

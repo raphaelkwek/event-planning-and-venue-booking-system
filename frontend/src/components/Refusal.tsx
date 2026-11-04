@@ -1,5 +1,5 @@
 import SectionMessage from "@atlaskit/section-message";
-import { ApiError } from "../api/client.js";
+import { ApiError, ServiceUnreachableError } from "../api/client.js";
 
 /**
  * implementation.md §7.1: a refusal renders as an inline section message
@@ -23,6 +23,15 @@ function plainTitle(status: number): string {
  */
 export function Refusal({ error, plain = false }: { error: unknown; plain?: boolean }) {
   if (!error) return null;
+
+  // D10: no answer from the service, or none it could read: say so in words, not the browser's.
+  if (error instanceof ServiceUnreachableError) {
+    return (
+      <SectionMessage appearance="error" title="Couldn't reach ConnectSphere">
+        <p>{error.message}</p>
+      </SectionMessage>
+    );
+  }
 
   if (!(error instanceof ApiError)) {
     return (
