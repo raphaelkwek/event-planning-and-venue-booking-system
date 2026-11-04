@@ -282,3 +282,31 @@ test("npm run changelog prints the combined log, or writes it with --out", async
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test("a fragment checked out with CRLF line endings still parses", () => {
+  const dir = mkdtempSync(join(tmpdir(), "changelog-crlf-"));
+  try {
+    writeFileSync(join(dir, "2026-11-03-crlf.md"), fragment("", "Windows", "2026-11-03T21:00+08:00 (SGT)").text.replace(/\n/g, "\r\n"));
+    const [read] = readFragments(dir);
+    assert.deepEqual(fragmentProblems(read!), []);
+    assert.equal(parseChangelog(`---\n\n${read!.text}`)[0]!.author, "Joash");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("the combined log reads a CRLF CHANGELOG.md and CRLF fragments, and prints LF", () => {
+  const dir = mkdtempSync(join(tmpdir(), "changelog-crlf-root-"));
+  try {
+    mkdirSync(join(dir, "changelog"));
+    writeFileSync(join(dir, "CHANGELOG.md"), fixture.replace(/\n/g, "\r\n"));
+    writeFileSync(join(dir, "changelog", "2026-11-04-crlf.md"), fragment("", "Windows", "2026-11-04T01:00+08:00 (SGT)").text.replace(/\n/g, "\r\n"));
+    const combined = readCombinedChangelog(dir);
+    assert.doesNotMatch(combined, /\r/);
+    const entries = parseChangelog(combined);
+    assert.deepEqual(entries.map((e) => e.author), ["Joash", "Chai, via Claude", "Seann, via Claude", "Someone"]);
+    assert.ok(entries.every((e) => e.timestampMs !== null));
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
