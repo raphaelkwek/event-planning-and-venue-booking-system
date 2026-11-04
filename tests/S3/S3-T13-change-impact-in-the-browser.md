@@ -7,13 +7,23 @@
 | Test Case ID | S3-T13 |
 | Test Scenario | End-to-end in the browser: approve a significant change, see the impact list, see the outstanding flags as each of the three roles, and be refused confirmation |
 | Pre-conditions | 1. Standard environment running, `.env` has the `KAFKA_*` settings, and test data reset (`tests/README.md`); migrations applied, including `venue/0019` and `equipment/0009` (`npm run migrate -- venue`, `npm run migrate -- equipment`).<br>2. FX-S3 as the browser-level statement in `tests/S3/README.md`: an Approved request of `organiser@connectsphere.test` brought to Planning with two confirmed bookings (Theatre 100 and Hall 200) and an equipment reservation by `techsupport@connectsphere.test`, all for the event's period, and a pending change request raised as in S1-T13 that moves the start time and raises attendance to 150. |
-| Test Steps | 1. Sign in as the assigned coordinator, open the change request's review page, click "Approve change", then "Confirm approval".<br>2. Read the impact list that appears.<br>3. Open the event page and read the "Outstanding flags" panel.<br>4. Try to confirm the event (F5).<br>5. Sign out and sign in as `organiser@connectsphere.test`, open the event page, then "Notifications". Repeat the event page as `coordinator2@connectsphere.test`.<br>6. Sign in as `organiser2@connectsphere.test` and open the event's address.<br>7. Sign in as `venuestaff@connectsphere.test`, then as `techsupport@connectsphere.test`, and open "Notifications" in each. |
+| Test Steps | 1. Sign in as the assigned coordinator, open the change request's review page, click "Approve change", then "Confirm approval".<br>2. Read the impact list that appears.<br>3. Open the event page and read the "Outstanding flags" panel.<br>4. Try to confirm the event (F5).<br>5. Sign out and sign in as `organiser@connectsphere.test`, and open the event page. Then sign in as `coordinator2@connectsphere.test`, an Event Coordinator the event is not assigned to, and open the event's review address.<br>6. Sign in as `organiser2@connectsphere.test` and open the event's address.<br>7. Sign in as `venuestaff@connectsphere.test`, then as `techsupport@connectsphere.test`, and open "Notifications" in each. |
 | Test Data | As in the steps. |
-| Expected Result | Step 1 applies the change. Step 2 lists both bookings, the reservation and "0 active registrations", saying which were flagged: both bookings "Requires Reconfirmation", the theatre booking also "Unsuitable" (`Expected attendance is now 150, but <venue> holds 100 in the Theatre layout.`), the reservation "Flagged for review". Step 3 shows the "Outstanding flags" panel with the same flags and reasons. Step 4 is refused and names every flag. Step 5 shows the panel to the organiser and to the other Event Coordinator. Step 6 shows no event (not found) and no flags. Step 7 shows a notice for Venue Staff for each booking and for Technical Support for the reservation. |
+| Expected Result | Step 1 applies the change. Step 2 lists both bookings, the reservation and "0 active registrations", saying which were flagged: both bookings "Requires Reconfirmation", the theatre booking also "Unsuitable" (`Expected attendance is now 150, but <venue> holds 100 in the Theatre layout.`), the reservation "Flagged for review". Step 3 shows the "Outstanding flags" panel with the same flags and reasons. Step 4 is refused and names every flag. Step 5 shows the panel to the organiser; `coordinator2@connectsphere.test` is refused with "No event with that reference is assigned to you." and sees no event and no flags (the flags read answers 404). Step 6 shows no event (not found) and no flags. Step 7 shows a notice for Venue Staff for each booking and for Technical Support for the reservation. |
 | Created By | Raphael |
 | Date of Creation | 2026-10-28 |
 
 > **Expected results are checked by the PR reviewer** against S3's acceptance criteria.
+
+> **Revised 2026-11-04.** Step 5 expected the Outstanding flags panel to show to an Event Coordinator
+> the event is not assigned to, as S3's AC8 ("the owning organiser, the assigned coordinator, and
+> Event Coordinators") can be read. Joash decided on 4 Nov 2026 to read AC8 as **the assigned Event
+> Coordinator**, consistent with A4 and CR-05 and the Week 9 answer W9-35 ("Coordinators only manage
+> events assigned to them by the Lead"): decision D-02 in `documentation/clarifications.md`. Step 5
+> now expects the other coordinator to be refused, as S3-T8 does at API level. CQ-11 (SPM-197) is
+> still open with the customer; if the answer lets coordinators view other events read-only, step 5
+> changes back. Step 5 also no longer opens Notifications, since the expected result never said what
+> the organiser should find there (S3 notifies Venue Staff, Technical Support and attendees, step 7).
 
 ## Execution record
 

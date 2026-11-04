@@ -4,15 +4,17 @@ import { call, must } from "./support/api.js";
 import { query } from "./support/seed-events.js";
 import { MOVED_START, plannedEvent, runCardFixture, wirelessMicrophone, type PlannedEvent } from "./support/seed-equipment-changes.js";
 import { eventBookings } from "./support/seed-venues.js";
+import { deliverOutbox } from "./support/deliver.js";
 
 /**
  * P1 (equipment availability), P2 (the inventory's reduction boundary, audit trail and access) and
  * G2 (what a pending change would affect), through the real screens, on the SQL fixtures the cards
  * name (tests/P1/fixtures, tests/P2/fixtures) and FX-G2 built through the API.
  *
- * Not here, because each ends on a notification that the notification service builds from a Kafka
- * message and this stack runs without Kafka: O2-T17, Q2-T13, S3-T13 and L6-T12 (which also needs
- * Temporal). S1-T13 and S2-T12 are in s-changes.spec.ts, Q1-T14 in o-equipment.spec.ts.
+ * S3-T13 ends on notifications, which the notification service builds from Kafka messages; this
+ * stack runs without Kafka, so the journey hands the approval's message to the notification
+ * service itself (support/deliver.ts). S1-T13 and S2-T12 are in s-changes.spec.ts, Q1-T14 in
+ * o-equipment.spec.ts.
  */
 
 const row = (page: Page, text: string) => page.getByRole("row").filter({ hasText: text });
@@ -453,11 +455,9 @@ test.describe("S3 reconsider the arrangements an approved change affects", () =>
     await expect(reservation.filter({ hasText: "Flagged for review" })).toContainText(`The reservation is for ${WAS}, but the event is now ${NOW}.`);
   }
 
-  test("S3-T13 the coordinator approves a change and sees what it flagged; confirming is refused; the owner and the other coordinator see the flags", { tag: ["@S3", "@S3-T13"] }, async ({ page, a11y }) => {
-    test.fail(
-      true,
-      "Known defect: an Event Coordinator not assigned to the event cannot open it (`No event with that reference is assigned to you.`), so does not see the Outstanding flags that S3's AC8 and this card say Event Coordinators see (S3-T8 records the same 404 at API level).",
-    );
+  // AC8 is read as "the assigned Event Coordinator" (documentation/clarifications.md, D-02, 4 Nov 2026), as A4 and W9-35
+  // scope coordinators to the events assigned to them; CQ-11 is still open with the customer.
+  test("S3-T13 the coordinator approves a change and sees what it flagged; confirming is refused; the owner sees the flags, nobody else does, and the staff are told", { tag: ["@S3", "@S3-T13"] }, async ({ page, a11y }) => {
     // FX-S3 (browser level): two confirmed bookings (Theatre 100, Hall 200) and a reservation, and a pending change that moves the start and raises attendance to 150.
     const fx = await plannedEvent({ proposedStartAt: MOVED_START, expectedAttendance: 150 });
 
@@ -496,7 +496,7 @@ test.describe("S3 reconsider the arrangements an approved change affects", () =>
     expect((await must<{ status: string }>("coordinator", "GET", `/api/v1/events/${fx.event.id}`)).status).toBe("PLANNING");
     await signOut(page);
 
-    // Step 5: the owner sees the panel (the notification needs Kafka), then the other Event Coordinator.
+    // Step 5: the owner sees the panel; an Event Coordinator the event is not assigned to sees no event and no flags.
     await signIn(page, "organiser");
     await page.getByRole("link", { name: "My requests" }).click();
     await row(page, fx.event.name).getByRole("link", { name: "View" }).click();
@@ -505,8 +505,11 @@ test.describe("S3 reconsider the arrangements an approved change affects", () =>
     await signOut(page);
     await signIn(page, "coordinator2");
     await page.goto(`/#/review/${fx.event.id}`);
-    // The card's expectation, which the app does not meet: soft, so step 6 still runs.
-    await expect.soft(outstanding(page).getByRole("heading", { name: "Outstanding flags" })).toBeVisible();
+    await expect(page.getByText("No event with that reference is assigned to you.")).toBeVisible();
+    await expect(page.getByText(fx.event.name)).toHaveCount(0);
+    await expect(outstanding(page)).toHaveCount(0);
+    const otherCoordinator = await call("coordinator2", "GET", `/api/v1/events/${fx.event.id}/arrangement-flags`);
+    expect(otherCoordinator.status).toBe(404);
     await signOut(page);
 
     // Step 6: Organiser Two sees no event and no flags.
@@ -516,6 +519,35 @@ test.describe("S3 reconsider the arrangements an approved change affects", () =>
     await expect(outstanding(page)).toHaveCount(0);
     const flags = await call("organiser2", "GET", `/api/v1/events/${fx.event.id}/arrangement-flags`);
     expect(flags.status).toBe(404);
-    // Step 7 (the Venue Staff and Technical Support notices) needs Kafka.
+    await signOut(page);
+
+    // Step 7: the approval's message reaches the notification service (the test harness delivers it, as this stack
+    // has no Kafka), and Venue Staff are told of each booking, Technical Support of the reservation.
+    const deliveries = await deliverOutbox(fx.event.id, { types: ["change-request.arrangements-flagged"] });
+    expect(deliveries).toContainEqual(expect.objectContaining({ type: "change-request.arrangements-flagged", consumer: "notification", outcome: "stored" }));
+    const label = `${fx.event.reference} “${fx.event.name}”`;
+    await signIn(page, "venuestaff");
+    await page.getByRole("link", { name: /^Notifications/ }).click();
+    const staffNotices = page.getByRole("list", { name: "Notifications" }).getByRole("listitem");
+    // One notice per flag: the theatre booking carries two.
+    const theatreNotice = `Booking ${fx.theatreBooking.reference} at ${fx.venueOne.name} for ${label} needs attention after an approved change:`;
+    await expect(staffNotices.filter({ hasText: theatreNotice })).toHaveCount(2);
+    await expect(staffNotices.filter({ hasText: `${theatreNotice} The booking is for ${WAS}, but the event is now ${NOW}.` })).toHaveCount(1);
+    await expect(
+      staffNotices.filter({ hasText: `${theatreNotice} Expected attendance is now 150, but ${fx.venueOne.name} holds 100 in the Theatre layout.` }),
+    ).toHaveCount(1);
+    await expect(
+      staffNotices.filter({ hasText: `Booking ${fx.hallBooking.reference} at ${fx.venueTwo.name} for ${label} needs attention after an approved change: The booking is for ${WAS}, but the event is now ${NOW}.` }),
+    ).toHaveCount(1);
+    await a11y("venue staff notifications, change flagged bookings");
+    await signOut(page);
+    await signIn(page, "techsupport");
+    await page.getByRole("link", { name: /^Notifications/ }).click();
+    await expect(
+      page
+        .getByRole("list", { name: "Notifications" })
+        .getByRole("listitem")
+        .filter({ hasText: `The ${fx.chairs.name} reservation for ${label} is flagged for review after an approved change: The reservation is for ${WAS}, but the event is now ${NOW}. Release it if it is no longer needed.` }),
+    ).toHaveCount(1);
   });
 });

@@ -4,7 +4,7 @@ Fourteen cases, written from the story (SPM-59, revised by CR-03 and the Week 9 
 design in `documentation/superpowers/specs/2026-10-28-s3-change-impact-design.md` (section 5 is the card table). S3-T14 was added on
 29 Oct 2026 after review, when holds and pending requests started to be flagged. S3-T1 to S3-T10, S3-T12 and S3-T14 are API-level procedures (HTTP requests with authentication stubbed, against a migrated throwaway Postgres), automated one test
 per card in `backend/services/planning-core/tests/change/api/s3Cards.test.ts`. S3-T11 is automated only: the flag writer is forced to
-throw inside the test, which cannot be done by hand. S3-T13 is the signed-in browser walk-through, done by hand.
+throw inside the test, which cannot be done by hand. S3-T13 is the signed-in browser walk-through, automated in `tests/e2e/q-equipment-and-changes.spec.ts`.
 
 | Acceptance criterion | Cases |
 |---|---|
@@ -15,7 +15,7 @@ throw inside the test, which cannot be done by hand. S3-T13 is the signed-in bro
 | AC5: with several venues each booking is assessed and flagged on its own | S3-T5 |
 | AC6: flagging does not change the status of an event that is not Confirmed | S3-T6 |
 | AC7: an approved change to a Confirmed event returns it to Planning with its flags | S3-T7 |
-| AC8: every outstanding flag is visible to the owner, the assigned coordinator and Event Coordinators, saying which arrangement and why | S3-T8, S3-T13 |
+| AC8: every outstanding flag is visible to the owner, the assigned coordinator and Event Coordinators, saying which arrangement and why (read as the assigned Event Coordinator: D-02, `documentation/clarifications.md`; CQ-11 open) | S3-T8, S3-T13 |
 | AC9: F5 confirmation is refused while a flag exists, naming them | S3-T9, S3-T13, S3-T14 |
 | AC10: Venue Staff, Technical Support and (later) attendees are notified | S3-T10, S3-T13 |
 | AC11: if flagging fails, the change is not applied and no arrangement is altered | S3-T11 |
