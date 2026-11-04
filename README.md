@@ -21,6 +21,15 @@
 7. `npm run dev` — starts planning-core on `:8090` and the web app on <http://localhost:5173> in one terminal, each line prefixed with where it came from. The Vite dev server proxies `/identity/*` and `/event/*` to planning-core, so the browser only ever talks to one origin and planning-core needs no CORS. To run just one: `npm run dev -w @connectsphere/planning-core` (or `web`).
 8. **Permissions (EN-07).** `npm run dev` also starts the Cerbos policy decision point on `policies/` at `http://127.0.0.1:3592` (`CERBOS_URL`, or alone with `npm run cerbos:start`). Every planning-core route asks it, and the staff console's navigation asks it through `POST /api/v1/permissions/check`; Cerbos has no Windows build, so on Windows it runs the Linux build inside WSL (`wsl --install -d Ubuntu` once). Without WSL, planning-core evaluates `policies/` itself in development and its log says `LOCAL-POLICIES MODE`; production never does, and refuses with `503 POLICY_UNAVAILABLE` without a PDP. See `policies/README.md`.
 
+### Week 12 submission zip
+
+`npm run submission:build -- --deliverables "<folder>" --zip-dir "<folder>"` assembles the seven
+numbered folders the course asks for, writes `ConnectSphere.zip` and a `MANIFEST.md` that marks each
+part present, placeholder or missing. The backlog comes from `documentation/backlog/jira-export.json`
+(refresh with `npm run backlog:export`); the recordings and instructor access are human steps, kept as
+placeholders in `documentation/week12-submission/`. Code repository:
+<https://github.com/joass1/event-planning-and-venue-booking-system>.
+
 ### Deploying
 
 Images, Kubernetes, Terraform, Argo CD and canary releases (EN-10, EN-16, ADR-0012) are in [documentation/deploy.md](documentation/deploy.md). Local development stays as above: no Docker.
