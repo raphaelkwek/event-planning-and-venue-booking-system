@@ -531,8 +531,8 @@
       "key": "SPM-29",
       "type": "Story",
       "summary": "F3 - Cancel an event",
-      "status": "In Progress",
-      "statusCategory": "In Progress",
+      "status": "Done",
+      "statusCategory": "Done",
       "storyPoints": 3,
       "sprints": [
         "SPM Sprint 4"
@@ -554,7 +554,7 @@
       ],
       "description": "User Story: As an Event Organiser, I want to cancel my event, so that everyone involved knows it will not go ahead.\n\nAcceptance Criteria\n\n* Cancellation can be performed by the owning organiser or the assigned coordinator, for events not in status Completed, Rejected, or Cancelled. There is no deadline: cancellation may be requested at any point.\n* A cancellation reason is mandatory; without it the event status is unchanged and nothing is released.\n* On cancellation the status becomes Cancelled and the reason, acting user, and timestamp are recorded.\n* The cancelled event remains visible to the users related to it, showing the reason and the cancellation date.\n* A cancelled event cannot be edited, submitted, or have new bookings, reservations, or registrations raised against it.\n* The owning organiser, the assigned coordinator, the Venue Staff of any booked venue, and the Technical Support Staff of any reserved equipment are notified of the cancellation.\n* Releasing the event's arrangements is specified separately in F4.\n* ⚠ Week 9 answer: cancelling the event closes any change request still pending for it (S1), recording that it was closed because the event was cancelled; it can no longer be decided. (Source: \"If an event is cancelled or completed, any open pending change request for that event is rendered obsolete and should automatically become invalid/rejected or closed\", W9-07. Completion is F1's.)\n\n⚠ REVISED by the Week 9 answers (documentation/clarifications.md, stories revision 5). Points are re-estimated at poker only if the team finds the change material.\n\n‌\n\nTo Do\n\n1. Backend: validate reason, requester, status; cancel, record history, lock event, close pending change request, notify.\n2. Frontend: reason dialog.\n3. Tests: allowed/refused statuses.\n\n",
       "created": "2026-09-09T22:51:58.198+0800",
-      "updated": "2026-11-03T11:02:17.946+0800"
+      "updated": "2026-11-04T10:01:06.223+0800"
     },
     {
       "key": "SPM-30",
@@ -588,8 +588,8 @@
       "key": "SPM-31",
       "type": "Story",
       "summary": "G2 - Warn which arrangements a significant change would affect",
-      "status": "In Progress",
-      "statusCategory": "In Progress",
+      "status": "Done",
+      "statusCategory": "Done",
       "storyPoints": 3,
       "sprints": [
         "SPM Sprint 4"
@@ -607,7 +607,7 @@
       ],
       "description": "Ref/ID: G2  \nComponent/Category: Event Information Management\n\n**Goal:** Display affected venue bookings, equipment reservations, and registrations when a proposed significant change is reviewed.\n\n**User Story:** As an Event Coordinator, I want to see which existing arrangements a proposed significant change would affect, so that I can weigh the consequences before deciding on it.\n\n**Acceptance Criteria:**\n\n* The list of significant fields is held in one place and used by both the edit screen (G1) and the change-request screens (S1, S2).\n* When a change request touches a significant field, the review screen lists the confirmed venue booking, equipment reservations, and count of active registrations for that event, read from the booking, reservation, and registration records.\n* For each listed arrangement the screen states specifically why it is affected (for example, the booked period no longer matches the proposed date/time, or proposed attendance exceeds the booked venue's capacity for the booked layout).\n* No booking, reservation, or registration is altered while the change request is only being viewed.\n\nTo Do\n\n1. Backend: shared significant-field list; impact read gathers bookings, reservations, registration count and reasons.\n2. Frontend: review-screen impact panel.\n3. Test: viewing leaves all records unchanged.\n\n‌\n\n  \n  \n",
       "created": "2026-09-09T22:52:26.317+0800",
-      "updated": "2026-11-03T11:01:31.366+0800"
+      "updated": "2026-11-04T10:01:07.644+0800"
     },
     {
       "key": "SPM-32",
@@ -1182,8 +1182,8 @@
       "key": "SPM-52",
       "type": "Story",
       "summary": "R1 - Browse events open for registration",
-      "status": "In Progress",
-      "statusCategory": "In Progress",
+      "status": "Done",
+      "statusCategory": "Done",
       "storyPoints": 2,
       "sprints": [
         "SPM Sprint 4"
@@ -1203,14 +1203,14 @@
       ],
       "description": "Ref/ID: R1    \nComponent/Category: Attendee Registration  \n**Goal:** Display confirmed events open for attendee registration.  \n**User Story:** As an Attendee, I want to see the events I can register for, so that I can choose which to attend.  \n**Acceptance Criteria:**\n\n* The list contains only events with registration enabled and status Confirmed, whose registration closing date/time has not passed.\n* Each entry shows event name, description, date, start and end time, venue name and location, and the number of places remaining, derived from the capacity of the booked venue for the booked layout (R2).\n* ⚠ **CR-03:** an event with several venues (L4) lists each of them; places remaining follow R2.\n* Internal information (review comments, clarification threads, coordinator notes, booking and equipment records) is not shown.\n* An event whose places remaining is zero is shown with a Full label and offers no register action.\n* Events that are Draft, Submitted, Under Review, Approved, Planning, Rejected, or Cancelled do not appear.\n\n⚠ **REVISED by the Week 7 customer change CR-03** (`documentation/change-requests.md`, stories revision 4). Points are re-estimated at poker only if the team finds the change material.\n\n‌\n\n‌\n\nTo-do:  \nfrontend- atttendee page with fulll labels  \nbackend- read endpoint of confirm events  \n",
       "created": "2026-09-09T23:02:54.879+0800",
-      "updated": "2026-11-03T20:24:58.855+0800"
+      "updated": "2026-11-04T10:01:09.111+0800"
     },
     {
       "key": "SPM-53",
       "type": "Story",
       "summary": "R2 - Register for an event",
-      "status": "In Progress",
-      "statusCategory": "In Progress",
+      "status": "Done",
+      "statusCategory": "Done",
       "storyPoints": 5,
       "sprints": [
         "SPM Sprint 4"
@@ -1234,14 +1234,14 @@
       ],
       "description": "User Story: As an Attendee, I want to register for an event, so that my place is reserved.\n\nAcceptance Criteria\n\n* A successful registration is stored with the attendee, the event, status Registered, and the registration timestamp, and the attendee sees a confirmation.\n* The number of places is derived from the capacity of the booked venue for the booked layout, less any attendees added manually (R7). There is no separately entered registration capacity, and expected attendance does not cap registration. ⚠ **REVISED — capacity comes from the venue**\n* ⚠ **CR-03, Week 9 answer (CQ-04):** for an event with several venues (L4), the capacity that limits registration is the **total** of the layout capacities of its confirmed bookings, each booking counted for its own booked layout. _(Source: \"Total attendee capacity is determined by the total layout capacity\", W9-08.)_\n* ⚠ **Week 9 decision (D-01):** manual additions (R7) may take the number of attendees above capacity. Places remaining is then zero, never negative, and a registration is refused for capacity until withdrawals bring the total below capacity. _(Source: \"Registration is enabled for attendees to register directly up to capacity\", W9-28.)_\n* The capacity check and the registration are atomic: when two attendees register simultaneously for the last remaining place, exactly one registration is created.\n* The unsuccessful attempt creates no registration record, leaves places remaining unchanged, returns a message naming capacity as the cause, and offers the attendee a place on the waitlist (R6). ⚠ **REVISED**\n* A second registration by the same attendee for the same event is refused, no second record is created, and the message names the existing registration.\n* Registration is accepted within the registration window set by the Event Organiser for that event — from the opening instant up to and including the closing instant — and refused outside it, naming the window as the cause. ⚠ **REVISED — window is at the organiser's discretion (supersedes C-10)**\n* On success, places remaining decreases by exactly one; on any refusal it is unchanged.\n* The attendee receives a registration confirmation notification.\n\n⚠ **REVISED by the Week 7 customer change CR-03** (`documentation/change-requests.md`, stories revision 4) **and the Week 9 answers** (`documentation/clarifications.md`, stories revision 5). Points are re-estimated at poker only if the team finds the change material.\n\nTo-do\n\n1. Backend: registration table, locked seat claims, capacity checks, waitlist, outbox confirmations, race testing.\n2. Frontend: register button, confirmation and refusal messages.\n3. Main first: other registration stories depend on this table.\n\n",
       "created": "2026-09-09T23:03:25.704+0800",
-      "updated": "2026-11-03T20:25:01.901+0800"
+      "updated": "2026-11-04T10:01:10.525+0800"
     },
     {
       "key": "SPM-54",
       "type": "Story",
       "summary": "R3 - View my own registrations",
-      "status": "In Progress",
-      "statusCategory": "In Progress",
+      "status": "Done",
+      "statusCategory": "Done",
       "storyPoints": 2,
       "sprints": [
         "SPM Sprint 4"
@@ -1259,14 +1259,14 @@
       ],
       "description": "Ref/ID: R3  \nComponent/Category: Attendee Registration\n\n**Goal:** Allow an attendee to view their own event registrations and statuses.\n\n**User Story:** As an Attendee, I want to see the events I have registered for and my status for each, so that I know where I stand.\n\n**Acceptance Criteria:**\n\n* The list shows every registration belonging to the signed-in attendee with event name, date, time, venue location, and registration status (Registered, Withdrawn, or Cancelled).\n* Registrations belonging to other attendees are never shown, including by direct reference.\n* When an event is cancelled, the attendee's registration is shown as Cancelled.\n* Each entry shows the timestamp of the registration and, where applicable, of the withdrawal.\n\n  \n\nTo Do\n\n1. Backend: attendee-scoped list and private reference lookup.\n2. Frontend: My Registrations page with timestamps.\n3. Test: another attendee cannot access someone else’s reference.\n\n",
       "created": "2026-09-09T23:03:34.388+0800",
-      "updated": "2026-11-03T20:25:03.372+0800"
+      "updated": "2026-11-04T10:01:11.847+0800"
     },
     {
       "key": "SPM-55",
       "type": "Story",
       "summary": "R4 - Withdraw my registration",
-      "status": "In Progress",
-      "statusCategory": "In Progress",
+      "status": "Done",
+      "statusCategory": "Done",
       "storyPoints": 3,
       "sprints": [
         "SPM Sprint 4"
@@ -1286,14 +1286,14 @@
       ],
       "description": "User Story: As an Attendee, I want to withdraw my registration, so that my place is freed for someone else when I cannot attend.\n\nAcceptance Criteria\n\n* An attendee can withdraw only their own registration, and only while its status is Registered.\n* On withdrawal the registration status becomes Withdrawn and the withdrawal timestamp is recorded; the record is retained, not deleted.\n* Places remaining for the event increases by exactly one on a successful withdrawal, and any waitlisted attendees are notified that a place has become available (R6).\n* Withdrawal is refused after the withdrawal deadline recorded for that event, with a message naming the deadline as the cause; the status and places remaining are unchanged. The deadline is set by the Event Organiser per event; where none is set, withdrawal is permitted up to the event's start date/time.\n* The attendee receives confirmation of the withdrawal, and the owning organiser sees the updated totals (R5).\n* Registering again after withdrawing creates a new registration and is subject to the same capacity and registration-window rules as R2.  \n    \n  To Do\n\n    1. Backend: validate ownership, status and deadline; withdraw and restore a place.\n    2. Frontend: withdrawal button with confirmation.\n    3. Tests: ownership, repeat withdrawal, deadline and place counts.\n    \n\n",
       "created": "2026-09-09T23:03:43.277+0800",
-      "updated": "2026-11-03T20:25:04.904+0800"
+      "updated": "2026-11-04T10:01:14.946+0800"
     },
     {
       "key": "SPM-56",
       "type": "Story",
       "summary": "R5 - View the registrations for an event I manage",
-      "status": "In Progress",
-      "statusCategory": "In Progress",
+      "status": "Done",
+      "statusCategory": "Done",
       "storyPoints": 2,
       "sprints": [
         "SPM Sprint 4"
@@ -1311,7 +1311,7 @@
       ],
       "description": "Ref/ID: R5  \nComponent/Category: Attendee Registration\n\n**Goal:** Allow Event Organisers and Coordinators to view attendee registration lists and counts for their event.\n\n**User Story:** As an Event Organiser, I want to see who has registered for my event, so that I can plan for the people who will attend.\n\n**Acceptance Criteria:**\n\n* The owning organiser and the assigned coordinator can view the registration list for that event; other users cannot, and receive no registration data.\n* Each row shows the attendee's name, the registration timestamp, and the current registration status.\n* Totals are shown for registered, withdrawn, and places remaining, derived from the registration records.\n* A withdrawal is reflected in both the row status and the totals when the list is next loaded.\n\nTo Do\n\n1. Backend: owner/coordinator access checks and registration totals.\n2. Frontend: attendee list on organiser’s event screen.\n3. Tests: different organiser denied; withdrawal updates totals.\n\n",
       "created": "2026-09-09T23:03:52.150+0800",
-      "updated": "2026-11-04T02:11:51.089+0800"
+      "updated": "2026-11-04T10:01:16.484+0800"
     },
     {
       "key": "SPM-57",
@@ -1372,8 +1372,8 @@
       "key": "SPM-59",
       "type": "Story",
       "summary": "S3 - Reconsider arrangements affected by an approved change",
-      "status": "In Progress",
-      "statusCategory": "In Progress",
+      "status": "Done",
+      "statusCategory": "Done",
       "storyPoints": 5,
       "sprints": [
         "SPM Sprint 4"
@@ -1398,7 +1398,7 @@
       ],
       "description": "User Story: As an Event Coordinator, I want existing bookings, reservations, and registrations to be flagged when a significant change is approved, so that I can decide what to re-arrange rather than having the system decide for me.\n\nAcceptance Criteria\n\n* On approval of a change to date, time, expected attendance, venue requirements, or equipment requirements, the system lists every confirmed venue booking, equipment reservation, and the active registration count for that event.\n* A confirmed venue booking whose period no longer matches the event's new date/time is set to Requires Reconfirmation; the booked period is not moved automatically and the venue is not released for the old period.\n* An equipment reservation whose period no longer matches the event's new required window is flagged for review; its reserved quantity is not released until Technical Support Staff release it (Q2).\n* When the new expected attendance exceeds the capacity of the booked venue for the booked layout, the booking is flagged unsuitable with the two compared values shown.\n* ⚠ **CR-03:** for an event with several venues (L4), each booking is assessed and flagged separately; flagging one leaves the others unchanged.\n* **The event's status is not changed by flagging** while it is not yet Confirmed; any change of status is made by the assigned Event Coordinator through an action defined elsewhere (F1), after agreeing the new arrangement with the Event Organiser outside the system.\n* ⚠ **Week 9 answer:** when the approved change is to a **Confirmed** event and is material (date, time, attendance, venue, layout or equipment), the event returns to Planning with its flags, and is confirmed again only after F5 and a new safety check (U1). _(Replaces \"An event that was Confirmed remains Confirmed and is displayed with its outstanding flags\". Source: \"Any post-confirmation material change (date, time, attendance, venue, layout, or equipment) requires re-reviewing affected arrangements and undergoing the safety check again before re-confirmation\", W9-22. Returning to Planning is our reading of \"re-confirmation\".)_\n* Every outstanding flag is visible on the event to the owning organiser, the assigned coordinator, and Event Coordinators, each stating which arrangement is affected and why.\n* An event that is **not** currently Confirmed cannot become Confirmed while any arrangement carries a Requires Reconfirmation or unsuitable flag (F5 readiness rule); the refusal names the outstanding flags.\n* Venue Staff for the affected booking and Technical Support Staff for the affected reservations are notified, as are attendees with an active registration.\n* Where the change is approved but flagging fails, the change is not applied and no arrangement is altered.\n\n⚠ **REVISED by the Week 7 customer change CR-03** (`documentation/change-requests.md`, stories revision 4) **and the Week 9 answers** (`documentation/clarifications.md`, stories revision 5). Points are re-estimated at poker only if the team finds the change material.\n\n‌\n\nTo Do\n\n1. Backend: G2 flags, Confirmed→Planning, confirmation blocking, notifications.\n2. Frontend: outstanding flags.\n3. Tests: each criterion, rollback on failure.\n4. Joash: enable change flag after merge.\n\n",
       "created": "2026-09-09T23:04:20.668+0800",
-      "updated": "2026-11-02T23:44:40.101+0800"
+      "updated": "2026-11-04T10:01:17.854+0800"
     },
     {
       "key": "SPM-60",
@@ -1820,8 +1820,8 @@
       "key": "SPM-108",
       "type": "Story",
       "summary": "R7 — Add an attendee manually",
-      "status": "In Progress",
-      "statusCategory": "In Progress",
+      "status": "Done",
+      "statusCategory": "Done",
       "storyPoints": 3,
       "sprints": [
         "SPM Sprint 4"
@@ -1844,7 +1844,7 @@
       ],
       "description": "User Story: As an Event Organiser, I want to add a VIP attendee myself after registration is full, so that someone who must attend is not shut out by the registration process.\n\nAcceptance Criteria\n\n* Only the owning organiser or the assigned coordinator can add an attendee manually, and only to an event they manage.\n* A manual addition is permitted even when no registration places remain and when the registration window has closed.\n* ⚠ **Week 9 answer (CQ-01, decision D-01):** a manual addition is permitted even when it takes the total number of attendees above the capacity; going over capacity is the organiser's or coordinator's decision. Before it is saved they are shown the capacity and the total the addition would make, and the registration records that it was added over capacity. _(Replaces \"A manual addition is refused when it would take the total number of attendees above the capacity … and creates no record\". Source: \"Organisers can make final decision if exceed capacity\", W9-28.)_\n* ⚠ **CR-03, Week 9 answer (CQ-04):** for an event with several venues, the capacity is the total of the layout capacities of its confirmed bookings, as in R2 (W9-08).\n* A manual addition is refused when the event has no confirmed venue booking, because the capacity ceiling is not yet known.\n* The registration is stored with status Registered, marked as manually added, and records who added it, when, and an optional reason.\n* Manually added attendees appear in the organiser's registration list (R5) distinguishable from self-registered attendees, and are included in the totals and in the places-remaining calculation (R2).\n* A duplicate manual addition for an attendee who already holds an active registration is refused and names the existing registration.\n* The added attendee receives a notification and can withdraw their own registration under the same terms as R4.\n\n⚠ **REVISED by the Week 7 customer change CR-03** (`documentation/change-requests.md`, stories revision 4) **and the Week 9 answers** (`documentation/clarifications.md`, stories revision 5). Points are re-estimated at poker only if the team finds the change material.  \n  \n\nTo Do\n\n1. Backend: validate organiser, confirmed booking, duplicates; mark over-capacity additions.\n2. Frontend: dialog showing capacity and new total.\n3. Tests: full event, closed window, unauthorised user.\n\n",
       "created": "2026-09-15T13:42:38.838+0800",
-      "updated": "2026-11-04T02:11:58.260+0800"
+      "updated": "2026-11-04T10:01:19.104+0800"
     },
     {
       "key": "SPM-109",
@@ -1914,8 +1914,8 @@
       "key": "SPM-111",
       "type": "Story",
       "summary": "F4 — Release the arrangements of a cancelled event",
-      "status": "In Progress",
-      "statusCategory": "In Progress",
+      "status": "Done",
+      "statusCategory": "Done",
       "storyPoints": 5,
       "sprints": [
         "SPM Sprint 4"
@@ -1936,14 +1936,14 @@
       ],
       "description": "User Story: As an Event Coordinator, I want a cancelled event's venue, equipment, and attendee places to be freed together, so that nothing stays committed to an event that will not happen and no attendee is left thinking they have a place.\n\nAcceptance Criteria\n\n* Release is triggered by the cancellation of an event (F3), and runs for every confirmed booking, tentative hold, equipment reservation, and active registration belonging to that event.\n* Confirmed venue bookings and tentative holds for the event are released, and the venue becomes available again for the corresponding period in the calendar (I1) and in venue search (J1).\n* Equipment reservations for the event are released, and the reserved quantities return to availability for the corresponding period.\n* Active attendee registrations and waitlist entries become Cancelled, and each affected attendee receives a notification.\n* All-or-nothing: if any release step fails, the cancellation is not recorded and no booking, hold, reservation, or registration is left partially released; the event remains in its pre-cancellation status and the acting user is told the cancellation did not complete.\n* Released bookings and reservations are retained with status Released rather than deleted, each recording the release reason, acting user, and timestamp.\n* Releasing an arrangement that is already released changes no quantity and writes no second release timestamp, so a retried cancellation produces the same end state.  \n\nTo Do\n\n1. Backend: release bookings/holds, equipment, registrations/waitlist; compensate failures; audit Released rows; skip released items.\n2. Tests: mid-workflow failure restores state; retries produce identical outcomes.\n\n",
       "created": "2026-09-15T13:42:40.122+0800",
-      "updated": "2026-11-04T02:12:01.178+0800"
+      "updated": "2026-11-04T10:01:21.027+0800"
     },
     {
       "key": "SPM-112",
       "type": "Story",
       "summary": "R6 — Join and be invited from the waitlist",
-      "status": "In Progress",
-      "statusCategory": "In Progress",
+      "status": "Done",
+      "statusCategory": "Done",
       "storyPoints": 5,
       "sprints": [
         "SPM Sprint 4"
@@ -1965,7 +1965,7 @@
       ],
       "description": "User Story: As an Attendee, I want to join a waitlist when an event is full, so that I have a chance of a place if one becomes available.\n\nAcceptance Criteria\n\n* When registration is refused because no places remain, the attendee is offered a place on the waitlist; joining stores the attendee, the event, status Waitlisted, and the timestamp.\n* An attendee cannot hold both an active registration and a waitlist entry for the same event, and a second waitlist entry for the same attendee and event is refused.\n* Waitlist entries are retained in the order they were created, and that order is visible to the owning organiser and assigned coordinator.\n* Promotion is not automatic. When a place becomes available — through a withdrawal (R4), a capacity increase, or a manual release — waitlisted attendees are notified that a place is open and invited to apply; no registration is created on their behalf.\n* An invited attendee registers through R2 and is subject to the same capacity, duplicate, and registration-window rules; places are taken on a first-come basis among those invited.\n* An attendee can leave the waitlist at any time; the entry is retained with status Withdrawn and the attendee is not notified of further openings.\n* Waitlist entries do not consume places and are never counted as registrations in the totals shown in R5.\n* When an event is cancelled, active waitlist entries become Cancelled and each waitlisted attendee is notified.\n\n",
       "created": "2026-09-15T13:42:40.513+0800",
-      "updated": "2026-11-04T02:11:55.735+0800"
+      "updated": "2026-11-04T10:01:13.173+0800"
     },
     {
       "key": "SPM-113",
@@ -2067,8 +2067,8 @@
       "key": "SPM-117",
       "type": "Epic",
       "summary": "Platform and quality enablers",
-      "status": "To Do",
-      "statusCategory": "To Do",
+      "status": "In Progress",
+      "statusCategory": "In Progress",
       "storyPoints": null,
       "sprints": [],
       "assignee": "",
@@ -2081,14 +2081,14 @@
       "acceptanceCriteria": [],
       "description": "Platform and quality work items (EN-01 to EN-23) that the user stories depend on. Tier 1 items move a rubric row directly; Tier 2 items are industrial showcase and are cut first if capacity runs short.\n\nPoints are not set: each enabler carries a proposed estimate in its description until the team pokers it (PX-02).\n\nSource: documentation/proposals/2026-10-01-target-architecture-and-jira-plan.md §5, and the target architecture page §13 and §13b.",
       "created": "2026-10-01T20:25:27.167+0800",
-      "updated": "2026-10-01T20:25:27.347+0800"
+      "updated": "2026-11-04T11:56:34.348+0800"
     },
     {
       "key": "SPM-118",
       "type": "Epic",
       "summary": "Scrum process evidence",
-      "status": "To Do",
-      "statusCategory": "To Do",
+      "status": "Done",
+      "statusCategory": "Done",
       "storyPoints": null,
       "sprints": [],
       "assignee": "",
@@ -2101,7 +2101,7 @@
       "acceptanceCriteria": [],
       "description": "Scrum-evidence tasks (PX-01 to PX-14) and customer questions (CQ-01 to CQ-03) that close the gaps in our sprint records: one source of story points, standup log, burndown and velocity, planning and review records, retro follow-up, clarification log, AI-usage log and the Sprint 4 recordings.\n\nSource: documentation/proposals/2026-10-01-target-architecture-and-jira-plan.md §6 and §7, and the sprint evidence playbook §6 to §8.",
       "created": "2026-10-01T20:25:28.953+0800",
-      "updated": "2026-10-01T20:25:29.021+0800"
+      "updated": "2026-11-04T10:40:25.138+0800"
     },
     {
       "key": "SPM-119",
@@ -2366,8 +2366,8 @@
       "key": "SPM-128",
       "type": "Task",
       "summary": "EN-10 — Containers, Terraform, Kubernetes, GitOps",
-      "status": "In Progress",
-      "statusCategory": "In Progress",
+      "status": "Done",
+      "statusCategory": "Done",
       "storyPoints": null,
       "sprints": [
         "SPM Sprint 4"
@@ -2389,7 +2389,7 @@
       ],
       "description": "Tier 2 · Proposed sprint: 3 · Proposed estimate (to be poker'd): 8  \nBlocks: EN-16, EN-21\n\nGate D passed (reported 1 Oct 2026): ADR-0012 supersedes ADR-0003, so containers are now allowed.\n\n**What it is:** A container (a Docker image) packages the app with everything it needs, so it runs the same everywhere. Kubernetes runs containers, replaces crashed ones and adds copies under load; EKS is Amazon's managed version. Terraform writes infrastructure (networks, clusters, databases) as code. Argo CD makes the cluster copy whatever is committed in a git repo, so deploying means merging a pull request (GitOps). Staging is a production-like environment for final checks.\n\n**Why we need it:** It's the industrial practice the ESM finalists were recognised for: self-healing, repeatable, zero-downtime delivery.\n\n**Acceptance criteria**\n\n* Gate D first (passed).\n* Images built in CI only.\n* Terraform for the cluster, network and Redis.\n* Argo CD syncs staging from a config repo.\n* README deploy steps.\n\n**In the Week 13 Q&A:** \"Our infrastructure is code, a deploy is a git merge, and Kubernetes heals and scales the app for us.\"\n\nDecision record: ADR-0012. Source: documentation/proposals/2026-10-01-target-architecture-and-jira-plan.md §5; target architecture page §13b.  \n  \n  \nTo-do: implement docker,CI, leave the k8s out first",
       "created": "2026-10-01T20:26:59.790+0800",
-      "updated": "2026-11-03T20:44:26.215+0800"
+      "updated": "2026-11-04T10:01:27.415+0800"
     },
     {
       "key": "SPM-129",
@@ -2423,8 +2423,8 @@
       "key": "SPM-130",
       "type": "Task",
       "summary": "EN-12 — API gateway, rate limits, CDN",
-      "status": "In Progress",
-      "statusCategory": "In Progress",
+      "status": "Done",
+      "statusCategory": "Done",
       "storyPoints": null,
       "sprints": [
         "SPM Sprint 4"
@@ -2446,7 +2446,7 @@
       ],
       "description": "Tier 2 · Proposed sprint: 3 · Proposed estimate (to be poker'd): 5  \nBlocks: R1, R2, EN-19\n\n**What it is:** The API gateway (Kong) is the single front door. It checks login tokens, routes each request to the right program, and applies rate limits: a cap on how many requests each user or IP address can make per second. The counters live in Redis, so every gateway copy sees the same count. A CDN is a network of servers near users that keeps copies of the website and the public event list.\n\n**Why we need it:** The briefing's performance (8a) and scalability (8e) requirements. The plan already lists a gateway, but it was never built; the web app currently uses a development proxy.\n\n**Acceptance criteria**\n\n* Kong with the JWT plugin against the Supabase JWKS.\n* Per-user and per-IP rate limits backed by Redis.\n* Trace headers.\n* Separate staff and public routes.\n* CDN in front of the SPA and the browse API.\n\n**In the Week 13 Q&A:** \"The gateway is the front door. It checks who you are and how fast you're allowed to knock.\"\n\nDecision record: ADR-0011. Source: documentation/proposals/2026-10-01-target-architecture-and-jira-plan.md §5; target architecture page §13b.",
       "created": "2026-10-01T20:27:03.096+0800",
-      "updated": "2026-11-04T02:12:26.083+0800"
+      "updated": "2026-11-04T10:01:28.890+0800"
     },
     {
       "key": "SPM-131",
@@ -2534,8 +2534,8 @@
       "key": "SPM-134",
       "type": "Task",
       "summary": "EN-16 — Canary releases",
-      "status": "In Progress",
-      "statusCategory": "In Progress",
+      "status": "Done",
+      "statusCategory": "Done",
       "storyPoints": null,
       "sprints": [
         "SPM Sprint 4"
@@ -2554,7 +2554,7 @@
       ],
       "description": "Tier 2 · Proposed sprint: 4 · Proposed estimate (to be poker'd): 3  \nNeeds: EN-10\n\n**What it is:** A new version first receives 10% of real traffic, then 50%, then 100%. At each stage the system compares error rate and response time with the SLO, and rolls back automatically if the new version is worse.\n\n**Why we need it:** Zero-downtime, low-risk delivery is part of what the ESM finalists were recognised for. A bad release affects a few users for a minute instead of everyone for an hour.\n\n**Acceptance criteria**\n\n* Argo Rollouts canary at 10, 50 and 100%, with Prometheus analysis of error rate and p95.\n* Automatic rollback demonstrated.\n\n**In the Week 13 Q&A:** \"New versions are tried on a small slice of users first, and pulled back automatically if they misbehave.\"\n\nDecision record: ADR-0012. Source: documentation/proposals/2026-10-01-target-architecture-and-jira-plan.md §5; target architecture page §13b.",
       "created": "2026-10-01T20:27:38.291+0800",
-      "updated": "2026-11-03T20:24:33.454+0800"
+      "updated": "2026-11-04T10:01:33.123+0800"
     },
     {
       "key": "SPM-135",
@@ -2586,8 +2586,8 @@
       "key": "SPM-136",
       "type": "Task",
       "summary": "EN-18 — Load tests and autoscaling",
-      "status": "In Progress",
-      "statusCategory": "In Progress",
+      "status": "Done",
+      "statusCategory": "Done",
       "storyPoints": null,
       "sprints": [
         "SPM Sprint 4"
@@ -2607,14 +2607,14 @@
       ],
       "description": "Tier 1 · Proposed sprint: 4 · Proposed estimate (to be poker'd): 3  \nNeeds: EN-13\n\n**What it is:** k6 is a load-testing tool that simulates many users. A spike test sends a sudden burst, like registration opening; a soak test keeps a steady load for hours to find slow leaks. Autoscaling adds copies of a program when CPU or backlog rises (HPA for the APIs, KEDA for Kafka readers), and tuning sets its limits from the test results.\n\n**Why we need it:** The briefing's scalability requirement (8e) asks for three years of growth. This proves it with numbers instead of claims.\n\n**Acceptance criteria**\n\n* k6 spike test (500 req/s for 100 seats gives exactly 100 registered), soak and stress tests.\n* Autoscaling tuned.\n* Results committed as evidence.\n\n**In the Week 13 Q&A:** \"We don't claim it scales. We hit it with 500 requests a second and publish the results.\"\n\nSource: documentation/proposals/2026-10-01-target-architecture-and-jira-plan.md §5; target architecture page §13b.",
       "created": "2026-10-01T20:27:41.356+0800",
-      "updated": "2026-11-03T06:32:24.630+0800"
+      "updated": "2026-11-04T10:01:36.970+0800"
     },
     {
       "key": "SPM-137",
       "type": "Task",
       "summary": "EN-19 — Virtual waiting room",
-      "status": "In Progress",
-      "statusCategory": "In Progress",
+      "status": "Done",
+      "statusCategory": "Done",
       "storyPoints": null,
       "sprints": [
         "SPM Sprint 4"
@@ -2632,14 +2632,14 @@
       ],
       "description": "Tier 2 · Proposed sprint: 4 · Proposed estimate (to be poker'd): 2  \nNeeds: EN-12\n\n**What it is:** For events marked high-demand, arriving attendees take a place in a queue. They're let in at the rate the system has been tested to handle, the way concert ticket sites work.\n\n**Why we need it:** Registration opening is the only real traffic spike in this business. It keeps that spike inside tested capacity and orders people fairly by arrival. It's a showcase item, so it's the first to cut.\n\n**Acceptance criteria**\n\n* Admission tokens for events flagged high-demand, at the tested rate.\n\n**In the Week 13 Q&A:** \"For popular events, people queue fairly instead of all hitting the server at the same second.\"\n\nDecision record: ADR-0011. Source: documentation/proposals/2026-10-01-target-architecture-and-jira-plan.md §5; target architecture page §13b.",
       "created": "2026-10-01T20:28:13.011+0800",
-      "updated": "2026-11-04T02:12:27.925+0800"
+      "updated": "2026-11-04T10:01:38.443+0800"
     },
     {
       "key": "SPM-138",
       "type": "Task",
       "summary": "EN-20 — Chaos experiments",
-      "status": "In Progress",
-      "statusCategory": "In Progress",
+      "status": "Done",
+      "statusCategory": "Done",
       "storyPoints": null,
       "sprints": [
         "SPM Sprint 4"
@@ -2658,14 +2658,14 @@
       ],
       "description": "Tier 1 · Proposed sprint: 4 · Proposed estimate (to be poker'd): 3  \nNeeds: EN-04, EN-11, EN-13\n\n**What it is:** Chaos engineering: deliberately breaking parts of the system in a controlled way, such as stopping a server, cutting off Kafka or slowing the database. Each experiment starts with a written hypothesis of what should happen and ends with a record of what actually did. For example, kill the core in the middle of a cancellation and check that the result is still all or nothing.\n\n**Why we need it:** The rubric's top band asks for \"failure scenarios\". This is exactly how the ESM finalist proved their system heals itself.\n\n**Acceptance criteria**\n\n* Six experiments (architecture page §7), each with a hypothesis, result and fix log.\n* Toxiproxy in CI.\n\n**In the Week 13 Q&A:** \"We break things on purpose, write down what should happen, and show that it does.\"\n\nSource: documentation/proposals/2026-10-01-target-architecture-and-jira-plan.md §5; target architecture page §7 and §13b.",
       "created": "2026-10-01T20:28:14.327+0800",
-      "updated": "2026-11-03T06:32:25.314+0800"
+      "updated": "2026-11-04T10:01:40.482+0800"
     },
     {
       "key": "SPM-139",
       "type": "Task",
       "summary": "EN-21 — Software supply chain security",
-      "status": "In Progress",
-      "statusCategory": "In Progress",
+      "status": "Done",
+      "statusCategory": "Done",
       "storyPoints": null,
       "sprints": [
         "SPM Sprint 4"
@@ -2683,14 +2683,14 @@
       ],
       "description": "Tier 2 · Proposed sprint: 4 · Proposed estimate (to be poker'd): 3  \nNeeds: EN-06, EN-10\n\n**What it is:** An SBOM (software bill of materials) lists every library inside the build. cosign digitally signs container images, so the cluster runs only images the team built. Trivy scans images for known vulnerabilities. ZAP acts as an automated attacker, probing the running preview site for common web flaws.\n\n**Why we need it:** The briefing's security requirement (8b). You know exactly what ships, tampered or vulnerable images are blocked, and common web attacks are tried against every change.\n\n**Acceptance criteria**\n\n* SBOM, cosign signatures, Trivy and a ZAP baseline scan in the pipeline.\n\n**In the Week 13 Q&A:** \"We know every library we ship, we sign what we build, and we scan it before it runs.\"\n\nSource: documentation/proposals/2026-10-01-target-architecture-and-jira-plan.md §5; target architecture page §13b.",
       "created": "2026-10-01T20:28:15.561+0800",
-      "updated": "2026-11-03T05:03:07.248+0800"
+      "updated": "2026-11-04T10:01:42.023+0800"
     },
     {
       "key": "SPM-140",
       "type": "Task",
       "summary": "EN-22 — Traceability generator and DORA dashboard",
-      "status": "In Progress",
-      "statusCategory": "In Progress",
+      "status": "Done",
+      "statusCategory": "Done",
       "storyPoints": null,
       "sprints": [
         "SPM Sprint 4"
@@ -2709,7 +2709,7 @@
       ],
       "description": "Tier 1 · Proposed sprint: 4 · Proposed estimate (to be poker'd): 3  \nBlocks: Deliverable 3 (traceability)\n\n**What it is:** Each automated test is tagged with its story and test-case id, for example `@R2-T3`. On every CI run, a script reads the tags and the stories file, then writes the story, criterion, test and latest-result table. DORA metrics are four research-backed measures of delivery: how often you deploy, how long a change takes to reach users, how often a change breaks something, and how fast you recover.\n\n**Why we need it:** The rubric's testing and traceability row, and its scrum row's \"refined using evidence\". It also fixes the Sprint 1 problem of points and lists drifting between documents.\n\n**Acceptance criteria**\n\n* Generates the story → AC → test → last-result matrix from test tags on every CI run.\n* Tracks the four DORA metrics.\n\n**In the Week 13 Q&A:** \"Our traceability matrix builds itself from test tags on every run, and our retros use real delivery metrics.\"\n\nSource: documentation/proposals/2026-10-01-target-architecture-and-jira-plan.md §5; target architecture page §13b.",
       "created": "2026-10-01T20:28:17.085+0800",
-      "updated": "2026-11-03T20:24:28.216+0800"
+      "updated": "2026-11-04T10:01:43.579+0800"
     },
     {
       "key": "SPM-141",
@@ -3474,8 +3474,8 @@
       "key": "SPM-174",
       "type": "Epic",
       "summary": "Feature 21 - Operational Safety Check",
-      "status": "In Progress",
-      "statusCategory": "In Progress",
+      "status": "Done",
+      "statusCategory": "Done",
       "storyPoints": null,
       "sprints": [],
       "assignee": "",
@@ -3488,14 +3488,14 @@
       "acceptanceCriteria": [],
       "description": "Added by the Week 7 customer change **CR-06** (`documentation/change-requests.md`).\n\nA new internal role, the **Safety Officer**, reviews the operational safety of an event after its venue and technical arrangements are confirmed. The event can't proceed to preparation until the Safety Officer approves it.\n\nStories: U1.",
       "created": "2026-10-02T15:23:29.813+0800",
-      "updated": "2026-11-04T02:43:24.824+0800"
+      "updated": "2026-11-04T10:40:21.823+0800"
     },
     {
       "key": "SPM-175",
       "type": "Story",
       "summary": "A4 - Act only on the events assigned to me",
-      "status": "In Progress",
-      "statusCategory": "In Progress",
+      "status": "Done",
+      "statusCategory": "Done",
       "storyPoints": 2,
       "sprints": [
         "SPM Sprint 4"
@@ -3509,15 +3509,15 @@
       ],
       "acceptanceCriteria": [
         "An Event Coordinator can perform coordinator actions (D2–D5, F3–F5, G1, L1–L6, O1, S2) only on events assigned to them. On any other event the action is refused, nothing is stored, and the message states that the event is not assigned to them.",
-        "An Event Coordinator's review queue (D1) and event list contain only the events assigned to them. Whether a coordinator may still view other events read-only (A3) is CQ-11 (SPM-191), the part of CQ-07 the Week 9 answers left open.",
+        "An Event Coordinator's review queue (D1) and event list contain only the events assigned to them. Whether a coordinator may still view other events read-only (A3) is CQ-11 (SPM-197), the part of CQ-07 the Week 9 answers left open.",
         "⚠ **Week 9 answer (CQ-07):** coordinators manage only the events the Lead assigned to them, and cannot claim an unassigned event; the Lead does not coordinate events. _(Source: \"Coordinators only manage events assigned to them by the Lead. At the moment, the lead is not able to coordinate event\", W9-35.)_",
         "The Event Coordinator Lead sees all events and all assignments (E5).",
         "Event Coordinator Lead is an internal role governed by A2 like every other: it has its own list of permitted functions, and navigation shows only those.",
         "Filtering is applied when a list is retrieved, so an event outside the coordinator's assignments returns no event data (as in A3)."
       ],
-      "description": "Ref/ID: A4      \nComponent/Category: User Authorisation and Authentication      \n⚠ **NEW — Week 7 change CR-05** (`documentation/change-requests.md`) ⚠ **REVISED — Week 9 answers** (`documentation/clarifications.md`, stories revision 5)\n\n**Goal:** Limit coordinators to the events assigned to them, now that the Event Coordinator Lead oversees assignment.\n\n**User Story:** As an Event Coordinator, I want my work to cover only the events assigned to me, so that I act only on events I am responsible for while the Event Coordinator Lead oversees the rest.\n\n**Acceptance Criteria:**\n\n* An Event Coordinator can perform coordinator actions (D2–D5, F3–F5, G1, L1–L6, O1, S2) only on events assigned to them. On any other event the action is refused, nothing is stored, and the message states that the event is not assigned to them.\n* An Event Coordinator's review queue (D1) and event list contain only the events assigned to them. Whether a coordinator may still view other events read-only (A3) is CQ-11 (SPM-191), the part of CQ-07 the Week 9 answers left open.\n* ⚠ **Week 9 answer (CQ-07):** coordinators manage only the events the Lead assigned to them, and cannot claim an unassigned event; the Lead does not coordinate events. _(Source: \"Coordinators only manage events assigned to them by the Lead. At the moment, the lead is not able to coordinate event\", W9-35.)_\n* The Event Coordinator Lead sees all events and all assignments (E5).\n* Event Coordinator Lead is an internal role governed by A2 like every other: it has its own list of permitted functions, and navigation shows only those.\n* Filtering is applied when a list is retrieved, so an event outside the coordinator's assignments returns no event data (as in A3).\n\n---\n\n**Supersedes part of A3 (SPM-13) and D1 (SPM-19).** Both stay Done (course guide, scenario 2). Their tests change in the same PR as this story's code.\n\n**Design:**\n\n* `resolveAccessScope`: the coordinator's scope goes from ALL to assigned events.\n* Cerbos: the new `EVENT_COORDINATOR_LEAD` role.\n* The RLS work in EN-07.2 follows.\n\n**Not estimated yet:** estimate at planning poker (PX-02). In Sprint 4 (added 24 Oct 2026).\n\n‌\n\n‌\n\nTo Do\n\n1. Backend: shared assignment check for all coordinator actions; filter lists to prevent leaks.\n2. Tests: verify wrong coordinators cannot access or perform actions.\n\n",
+      "description": "Ref/ID: A4      \nComponent/Category: User Authorisation and Authentication      \n⚠ **NEW — Week 7 change CR-05** (`documentation/change-requests.md`) ⚠ **REVISED — Week 9 answers** (`documentation/clarifications.md`, stories revision 5)\n\n**Goal:** Limit coordinators to the events assigned to them, now that the Event Coordinator Lead oversees assignment.\n\n**User Story:** As an Event Coordinator, I want my work to cover only the events assigned to me, so that I act only on events I am responsible for while the Event Coordinator Lead oversees the rest.\n\n**Acceptance Criteria:**\n\n* An Event Coordinator can perform coordinator actions (D2–D5, F3–F5, G1, L1–L6, O1, S2) only on events assigned to them. On any other event the action is refused, nothing is stored, and the message states that the event is not assigned to them.\n* An Event Coordinator's review queue (D1) and event list contain only the events assigned to them. Whether a coordinator may still view other events read-only (A3) is CQ-11 (SPM-197), the part of CQ-07 the Week 9 answers left open.\n* ⚠ **Week 9 answer (CQ-07):** coordinators manage only the events the Lead assigned to them, and cannot claim an unassigned event; the Lead does not coordinate events. _(Source: \"Coordinators only manage events assigned to them by the Lead. At the moment, the lead is not able to coordinate event\", W9-35.)_\n* The Event Coordinator Lead sees all events and all assignments (E5).\n* Event Coordinator Lead is an internal role governed by A2 like every other: it has its own list of permitted functions, and navigation shows only those.\n* Filtering is applied when a list is retrieved, so an event outside the coordinator's assignments returns no event data (as in A3).\n\n---\n\n**Supersedes part of A3 (SPM-13) and D1 (SPM-19).** Both stay Done (course guide, scenario 2). Their tests change in the same PR as this story's code.\n\n**Design:**\n\n* `resolveAccessScope`: the coordinator's scope goes from ALL to assigned events.\n* Cerbos: the new `EVENT_COORDINATOR_LEAD` role.\n* The RLS work in EN-07.2 follows.\n\n**Not estimated yet:** estimate at planning poker (PX-02). In Sprint 4 (added 24 Oct 2026).\n\n‌\n\n‌\n\nTo Do\n\n1. Backend: shared assignment check for all coordinator actions; filter lists to prevent leaks.\n2. Tests: verify wrong coordinators cannot access or perform actions.\n\n",
       "created": "2026-10-02T15:24:30.171+0800",
-      "updated": "2026-11-03T16:06:49.839+0800"
+      "updated": "2026-11-04T11:56:32.283+0800"
     },
     {
       "key": "SPM-176",
@@ -3724,8 +3724,8 @@
       "key": "SPM-183",
       "type": "Story",
       "summary": "U1 - Conduct an Operational Safety Check",
-      "status": "In Progress",
-      "statusCategory": "In Progress",
+      "status": "Done",
+      "statusCategory": "Done",
       "storyPoints": 5,
       "sprints": [
         "SPM Sprint 4"
@@ -3750,7 +3750,7 @@
       ],
       "description": "Ref/ID: U1      \nComponent/Category: Operational Safety Check      \n⚠ **NEW — Week 7 change CR-06** (`documentation/change-requests.md`) ⚠ **REVISED — Week 9 answers** (`documentation/clarifications.md`, stories revision 5)\n\n**Goal:** No event proceeds to preparation without the Safety Officer's review of its operational safety.\n\n**User Story:** As a Safety Officer, I want to review the operational safety of an event once its venue and technical arrangements are confirmed, so that no event proceeds to preparation without a safety review.\n\n**Acceptance Criteria:**\n\n* When an event's venue and equipment arrangements are confirmed (F5), its status becomes Safety Review and it appears in the Safety Officer's queue. It cannot proceed to preparation (Confirmed) until the Safety Officer approves it.\n* The review shows the factors to weigh: expected attendance; each booked venue's capacity and layout; accessibility requirements; equipment and its placement notes. ⚠ **Week 9 answer (CQ-10):** emergency access, venue restrictions and crowd movement are assessed by the Safety Officer outside the system and written into the decision's comments; the venue record gains no new fields. _(Source: W9-33, W9-64.)_\n* The Safety Officer records one decision: approve, request changes, or reject the safety arrangement. Requesting changes or rejecting requires a reason.\n* ⚠ **Week 9 answer:** Approve: the safety check is recorded as passed, and the event stays in Safety Review until the assigned coordinator **marks it Confirmed**, which only a passed check allows; it may then proceed to preparation and registration. _(Replaces \"Approve: the status becomes Confirmed\". Sources: \"the Safety Officer approves the check, after which the Coordinator marks the event Confirmed\", W9-31; W9-25, W9-61.)_\n* Request changes: the event returns to Planning with the requested changes recorded, and the venue or equipment arrangements named in the request are flagged for review. After rework it passes confirmation (F5) and the safety check again.\n* ⚠ **Week 9 answer (CQ-08):** Reject the safety arrangement: the event returns to Planning as for request changes, recorded as a rejection of the arrangement as a whole; the event is not rejected or cancelled, and its venue and equipment arrangements stay in place to be re-evaluated. _(Sources: W9-10, W9-21, W9-63.)_\n* ⚠ **Week 9 answer:** every event reaching Safety Review after release goes through the check; events confirmed before the feature are not reviewed. _(Sources: W9-32, W9-65.)_\n* Each decision records the Safety Officer, the timestamp, the decision, and the reason; writes a status history entry (F1); and notifies the assigned coordinator and the owning organiser.\n* Only the Safety Officer can record a safety decision (A2); every other role is refused.\n\n---\n\n**Design:**\n\n* The new role `SAFETY_OFFICER` goes into contracts, the identity seed, Cerbos and navigation.\n* F1's status list gains Safety Review; agree this with F1's assignee.\n* The change and readiness module owns it, alongside F5.\n* The C4 SafetyCheck sequence view shows the flow.\n\n**To-do:**   \nfont-end - queue page and review page + decision form  \nbackend- safety permissions + rwview  \ntest cards per criteria  \n",
       "created": "2026-10-02T15:24:44.693+0800",
-      "updated": "2026-11-03T20:24:34.678+0800"
+      "updated": "2026-11-04T10:02:42.956+0800"
     },
     {
       "key": "SPM-184",
@@ -3774,7 +3774,7 @@
       "acceptanceCriteria": [],
       "description": "**Owner:** the Sprint 2 PO, once named (PX-11)\n\n**Question for the customer:** when an event uses several venues (CR-03), which capacity limits registrations? A designated main venue, the total of all its venues, or another rule?\n\n**Why:** R2 and R7 derive places from \"the capacity of the booked venue\", which is singular. Change CR-03 allows several venues per event.\n\n**Affects:** R2 (SPM-53), R7 (SPM-108), L4 (SPM-180).\n\nRecord the answer in `documentation/clarifications.md` (PX-07), then update R2 and R7. Source: `documentation/change-requests.md`.",
       "created": "2026-10-02T15:25:20.431+0800",
-      "updated": "2026-10-14T11:30:40.335+0800"
+      "updated": "2026-11-04T10:40:58.375+0800"
     },
     {
       "key": "SPM-185",
