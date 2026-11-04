@@ -77,6 +77,11 @@ describe("eventPathFor", () => {
     expect(eventPathFor("EVENT_COORDINATOR", "e")).toBe("/review/e");
     for (const role of ["VENUE_STAFF", "TECH_SUPPORT_STAFF", "ATTENDEE"] as const) expect(eventPathFor(role, "e")).toBeNull();
   });
+
+  it("D-02: opens the Lead's assignment page and the Safety Officer's review, the pages their new notifications are about", () => {
+    expect(eventPathFor("EVENT_COORDINATOR_LEAD", "e")).toBe("/assignments/e");
+    expect(eventPathFor("SAFETY_OFFICER", "e")).toBe("/safety/e");
+  });
 });
 
 describe("the Notifications screen", () => {

@@ -164,6 +164,16 @@ describe("register (R2)", () => {
     expect(mocks.register).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ eventId: EVENT, attendeeId: ATTENDEE, correlationId: "c-9", admission: { token: "tok", signingKey: "k".repeat(32) } }));
   });
 
+  it("D7: answers with the places remaining just after the registration, read live, so the event page needn't re-read its cached copy", async () => {
+    mocks.register.mockResolvedValue({ ok: true, registration: aRegistration(), listing });
+    mocks.placeCountsOf.mockResolvedValue(new Map([[EVENT, { freeSeats: 2, unseatedRegistrations: 0 }]]));
+    const res = await post({ eventId: EVENT });
+    expect(res.status).toBe(201);
+    expect(res.body).toMatchObject({ id: REG, placesRemaining: 2 });
+    expect(res.headers["cache-control"] ?? "").not.toContain("public");
+    expect(mocks.placeCountsOf).toHaveBeenCalledWith(expect.anything(), [EVENT]);
+  });
+
   it("refuses a missing or malformed eventId with the field named, before the service", async () => {
     for (const body of [{}, { eventId: 7 }, { eventId: "nope" }]) {
       const res = await post(body);

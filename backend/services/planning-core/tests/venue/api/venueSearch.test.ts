@@ -205,7 +205,18 @@ describe("GET /api/v1/venues/search/prefill (J1 AC8)", () => {
         accessibility: ["Step-free access", "Hearing loop"],
       },
       unmatchedAccessibility: ["Reserved seating"],
+      unmatchedFacilities: [],
     });
+  });
+
+  it("D5: leaves out of the filters a facility no venue records, and hands it back as unmatched", async () => {
+    const event = await newEvent({ requirements: { layout: "Theatre", facilities: ["projector", "Microphone"] } });
+
+    const res = await prefill(event.id);
+
+    expect(res.status).toBe(200);
+    expect(res.body.filters.facilities).toEqual(["Projector"]);
+    expect(res.body.unmatchedFacilities).toEqual(["Microphone"]);
   });
 
   it("fills only what the event records", async () => {
@@ -215,6 +226,7 @@ describe("GET /api/v1/venues/search/prefill (J1 AC8)", () => {
 
     expect(res.body.filters).toMatchObject({ layout: null, facilities: [], accessibility: [], minCapacity: 150 });
     expect(res.body.unmatchedAccessibility).toEqual([]);
+    expect(res.body.unmatchedFacilities).toEqual([]);
   });
 
   it("gives filters the search accepts back unchanged, so the pre-filled search runs (J1-T21)", async () => {

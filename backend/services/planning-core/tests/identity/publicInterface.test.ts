@@ -1,6 +1,6 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { testDb } from "../support/testDb.js";
-import { lookUpCaller, resolveAccessScope } from "../../src/modules/identity/index.js";
+import { listActiveUserIdsWithRole, lookUpCaller, resolveAccessScope } from "../../src/modules/identity/index.js";
 
 /**
  * The identity module's public interface (ADR-0004): what the event module
@@ -69,5 +69,20 @@ describe("resolveAccessScope (re-exported)", () => {
       scopeType: "OWNED_BY_USER",
       userId: ACTIVE.userId,
     });
+  });
+});
+
+describe("listActiveUserIdsWithRole (D-02)", () => {
+  it("names every active holder of the role, and no deactivated holder or holder of another role", async () => {
+    const coordinators = await listActiveUserIdsWithRole(sql, "EVENT_COORDINATOR");
+    expect(coordinators).toContain(ACTIVE.userId);
+    expect(coordinators).not.toContain(INACTIVE.userId);
+    expect(coordinators).not.toContain(ROLELESS.userId);
+    expect(await listActiveUserIdsWithRole(sql, "EVENT_ORGANISER")).not.toContain(INACTIVE.userId);
+  });
+
+  it("reads inside a transaction, as a message's producer calls it", async () => {
+    const ids = await sql.begin((tx) => listActiveUserIdsWithRole(tx, "EVENT_COORDINATOR"));
+    expect(ids).toContain(ACTIVE.userId);
   });
 });

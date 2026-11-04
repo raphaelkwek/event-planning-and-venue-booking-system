@@ -38,6 +38,8 @@ const { app } = await import("../../../src/app.js");
 const sql = testDb();
 const base = actorsWithPrefix("0f1a0000");
 const A = { ...base, so: "0f1a0000-0000-4000-8000-000000000007", lead: "0f1a0000-0000-4000-8000-000000000008" };
+/** U1-T17: a deactivated Safety Officer, who is never told. */
+const RETIRED_SO = "0f1a0000-0000-4000-8000-000000000009";
 const bearer = { Authorization: "Bearer u1-card-token" };
 
 type Role = "EVENT_COORDINATOR" | "TECH_SUPPORT_STAFF" | "EVENT_ORGANISER" | "VENUE_STAFF" | "ATTENDEE" | "SAFETY_OFFICER" | "EVENT_COORDINATOR_LEAD";
@@ -187,6 +189,8 @@ async function clean() {
   await sql`delete from venue.venue_staff where venue_id in (${venues})`;
   await sql`delete from venue.venues where created_by = ${A.vs}`;
   await cleanLineFixtures(sql, [A.org], [A.ts]);
+  await sql`delete from identity.user_roles where user_id in ${sql([A.so, RETIRED_SO])}`;
+  await sql`delete from identity.users where id in ${sql([A.so, RETIRED_SO])}`;
 }
 
 beforeAll(clean);
@@ -530,5 +534,34 @@ describe("U1 cards (tests/U1)", () => {
     expect([second.status, second.body.error.code]).toEqual([409, "SAFETY_DECISION_ALREADY_RECORDED"]);
     expect(await state(event.id)).toEqual(before);
     expect(before.decisions).toBe(1);
+  });
+
+  it("U1-T17 every active Safety Officer is told when an event enters Safety Review", async () => {
+    for (const [id, active] of [[A.so, true], [RETIRED_SO, false]] as const) {
+      await sql`
+        insert into identity.users (id, supabase_user_id, email, is_active, display_name)
+        values (${id}, gen_random_uuid(), ${`u1-${id.slice(-2)}@connectsphere.test`}, ${active}, 'U1 Safety Officer')
+      `;
+      await sql`insert into identity.user_roles (user_id, role) values (${id}, 'SAFETY_OFFICER')`;
+    }
+    const { event } = await fixture({ status: "APPROVED" });
+
+    asC1();
+    expect((await confirm(event.id)).status).toBe(200);
+    const [row] = await sql`select status from event.events where id = ${event.id}`;
+    expect(row!.status).toBe("SAFETY_REVIEW");
+
+    const [message, ...rest] = await messagesOf(event.id, "event.arrangements-confirmed");
+    expect(rest).toHaveLength(0);
+    const officers = (message!.data as { safetyOfficerIds?: string[] }).safetyOfficerIds;
+    expect(officers).toContain(A.so);
+    expect(officers).not.toContain(RETIRED_SO);
+
+    const notices = notificationsFor({ id: message!.id, type: message!.type, time: message!.time, subject: message!.subject, data: message!.data as Record<string, unknown> });
+    const toOfficer = notices.filter((notice) => notice.recipientUserId === A.so).map((notice) => notice.message);
+    expect(toOfficer).toEqual([`${event.reference} “${event.name}” has its venue and equipment arrangements confirmed and is waiting in your Safety Review queue.`]);
+    expect(notices.some((notice) => notice.recipientUserId === RETIRED_SO)).toBe(false);
+    // F5's own recipients are still told (F5-T19).
+    expect(notices.map((notice) => notice.recipientUserId)).toEqual(expect.arrayContaining([A.org, A.vs, A.ts]));
   });
 });

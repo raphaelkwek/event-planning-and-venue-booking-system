@@ -201,6 +201,34 @@ describe("Register (R2)", () => {
     expect(screen.queryByRole("button", { name: "Register" })).toBeNull();
   });
 
+  it("D7: shows the places remaining from the registration's own answer, not the page's cached copy", async () => {
+    api.registerFor.mockResolvedValue({ ...registration(), placesRemaining: 2 });
+    await openAndRegister();
+
+    await screen.findByText("You are registered");
+    expect(screen.getByText("2 places remaining")).toBeTruthy();
+    expect(screen.queryByText("3 places remaining")).toBeNull();
+  });
+
+  it("D7: shows the event as full once the attendee has taken its last place", async () => {
+    api.registerFor.mockResolvedValue({ ...registration(), placesRemaining: 0 });
+    await openAndRegister();
+
+    await screen.findByText("You are registered");
+    expect(screen.getByText("Full")).toBeTruthy();
+    expect(screen.queryByText(/places? remaining/)).toBeNull();
+  });
+
+  it("D7: shows the event as full after a refusal for capacity, whatever the page's cached copy says", async () => {
+    const message = "EVT-000123 “R Test Symposium” has no places remaining, so you were not registered. You can ask for a place on the waitlist instead.";
+    api.registerFor.mockRejectedValue(refusal(409, "REGISTRATION_FULL", message, { placesRemaining: 0, waitlistOffered: true }));
+    await openAndRegister();
+
+    expect(await screen.findByText(message)).toBeTruthy();
+    await waitFor(() => expect(screen.getByText("Full")).toBeTruthy());
+    expect(screen.queryByText("3 places remaining")).toBeNull();
+  });
+
   it("R2-T4 shows the refusal for capacity in the server's words, and offers the waitlist", async () => {
     const message = "EVT-000123 “R Test Symposium” has no places remaining, so you were not registered. You can ask for a place on the waitlist instead.";
     api.registerFor.mockRejectedValue(refusal(409, "REGISTRATION_FULL", message, { waitlistOffered: true }));
