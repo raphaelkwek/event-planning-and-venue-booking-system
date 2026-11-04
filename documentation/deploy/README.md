@@ -53,8 +53,8 @@ Confirmed 30 minutes past its end, until the completion sweep was run by hand.
 | What | After a redeploy on the VM | How |
 |---|---|---|
 | Events, holds, bookings, users: all the data | Kept | Supabase holds it, outside the VM. |
-| Temporal's workflows and timers: F1's completion of each Confirmed event, L6's reminder and expiry of each hold | Kept | Temporal's SQLite file is `/var/lib/connectsphere/temporal/temporal.db`, on the named volume `connectsphere-staging-temporal` or `connectsphere-production-temporal`. The gate and `deploy:vm` mount it, and it outlives every container. The image owns the directory to uid 1000, the user supervisord runs Temporal as, and an empty volume takes that owner. `start.sh` logs `Temporal's state: …, kept from the last container` or `…, new`. |
-| A timer Temporal doesn't have anyway (its state was lost or reset, or the worker was down when the message came) | Re-created when the worker starts | The worker lists every Confirmed event with an end and every Held hold from the database, and signal-with-starts each workflow with the consumers' own ids, before its Kafka consumers start. A timer whose time passed while it was gone finishes at once; one that is still there is told what it already has, and ignores it. The worker logs `timers reconciled` with the counts. |
+| Temporal's workflows and timers: F1's completion of each Confirmed event, L6's reminder and expiry of each hold | Kept | Temporal's SQLite file is `/var/lib/connectsphere/temporal/temporal.db`, on the named volume `connectsphere-staging-temporal` or `connectsphere-production-temporal`. The gate and `deploy:vm` mount it, and it outlives every container. The image owns the directory to uid 1000, the user supervisord runs Temporal as, and an empty volume takes that owner. `start.sh` logs `Temporal's state: …, kept from the last container` or `…, new`, and the gate prints that line after a deploy. If the volume is mounted but uid 1000 cannot write it, `start.sh` stops rather than keep the state in the container, so the deploy fails. |
+| A timer Temporal doesn't have anyway (its state was lost or reset, or the worker was down when the message came) | Re-created when the worker starts | The worker lists every Confirmed event with an end and every Held hold from the database, and signal-with-starts each workflow with the consumers' own ids, before its Kafka consumers start. A timer whose time passed while it was gone finishes at once. A completion timer that is still there is told the end it already has, and ignores it; a hold whose reminder has already gone asks the reminder step once more, and the venue rule answers `already`, so no second reminder is sent. The worker logs `timers reconciled` with the counts. |
 | An event past its end, or a hold past its expiry, that no timer acted on | Completed or expired within five minutes | The container's `sweeps` program runs F1's completion sweep and L6's hold-expiry sweep at start and every five minutes (`deploy/space/sweeps.sh`). Each logs `completion sweep finished` or `hold expiry sweep finished` with its outcome. |
 | Redpanda's topics and consumer offsets | Lost | The broker's TLS certificate and Kafka password are made anew at each start, so its data stays in the container. The outbox relay republishes anything not yet published; a consumer group starts at the newest message. A notification for a message that was published but not yet consumed when the container went is not sent. |
 
@@ -73,9 +73,16 @@ docker exec connectsphere-staging sh -c 'cd /app/backend/services/planning-core 
 
 `dist/modules/venue/jobs/runExpireHolds.js` is the hold-expiry sweep.
 
-**Start Temporal empty** (say, after a workflow change that cannot replay): stop and remove the
-container, run `docker volume rm connectsphere-staging-temporal`, and deploy again. The worker
-re-creates every timer from the database.
+**Workflows in flight now outlive a deploy**, so a change to a workflow's commands (timers,
+activities, conditions in `src/temporal/workflows/`) must replay against the runs already going: use
+`patched()`, as the workflow files say. CompleteEvent has recorded histories in its replay test;
+HoldExpiry has none yet (the follow-up in `holdExpiry.ts`), so be as careful there. Likewise, a new
+version of the `temporalio/temporal` image in `deploy/space/Dockerfile` must open the file the old one
+wrote; if in doubt, start Temporal empty.
+
+**Start Temporal empty** (after a workflow change that cannot replay, or a Temporal upgrade): stop and
+remove the container, run `docker volume rm connectsphere-staging-temporal`, and deploy again. The
+worker re-creates every timer from the database.
 
 ### Checklist
 

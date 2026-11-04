@@ -47,11 +47,14 @@ afterEach(() => vi.restoreAllMocks());
 function fakeActivities(expiresAtOf: (holdId: string) => number) {
   const completions = new Map<string, number[]>();
   const reminders = new Map<string, number[]>();
+  /** The reminders actually sent: the venue rule sends one per hold (its reminded_at), and answers `already` after. */
+  const sent = new Map<string, number[]>();
   const expiries = new Map<string, number[]>();
   const record = (calls: Map<string, number[]>, id: string, at: number) => calls.set(id, [...(calls.get(id) ?? []), at]);
   return {
     completions,
     reminders,
+    sent,
     expiries,
     activities: {
       async completeEventIfDue(eventId: string): Promise<CompletionAttempt> {
@@ -61,8 +64,11 @@ function fakeActivities(expiresAtOf: (holdId: string) => number) {
       async remindHoldIfDue(holdId: string): Promise<RemindOutcome> {
         const now = await env.currentTimeMs();
         record(reminders, holdId, now);
-        // The venue rule: a reminder that would arrive after the expiry is not sent.
-        return now >= expiresAtOf(holdId) ? { outcome: "too-late" } : { outcome: "reminded", message: "m" };
+        // The venue rule: a reminder that would arrive after the expiry is not sent, nor a second one.
+        if (now >= expiresAtOf(holdId)) return { outcome: "too-late" };
+        if (sent.has(holdId)) return { outcome: "already" };
+        record(sent, holdId, now);
+        return { outcome: "reminded", message: "m" };
       },
       async expireHoldIfDue(holdId: string): Promise<ExpireOutcome> {
         record(expiries, holdId, await env.currentTimeMs());
@@ -162,5 +168,26 @@ describe("reconcileTimers on Temporal (EN-11-T4)", () => {
     expect(runs.second.hold.runId).toBe(runs.first.hold.runId);
     expect(fake.completions.get(event.eventId)).toHaveLength(1);
     expect(fake.expiries.get(hold.holdId)).toHaveLength(1);
+  });
+
+  it("EN-11-T4 reconciling a hold after its reminder went asks the reminder step again, which sends no second reminder", async () => {
+    const t0 = await env.currentTimeMs();
+    const hold = { holdId: randomUUID(), expiresAt: iso(t0 + 2 * HOUR), reminderLeadMinutes: 60 };
+    const { fake, reconcile, run } = setUp([], [hold]);
+
+    await run(async () => {
+      await reconcile();
+      // Past the reminder (at t0 + 1 h), before the expiry: a worker restart here reconciles again.
+      await env.sleep(90 * MINUTE);
+      await reconcile();
+      await resultOf(holdExpiryWorkflowId(hold.holdId));
+    });
+
+    // The workflow re-arms its reminder on the repeated expiry and asks again; the rule answers `already`.
+    expect(fake.reminders.get(hold.holdId)).toHaveLength(2);
+    expect(fake.sent.get(hold.holdId)).toHaveLength(1);
+    expect(fake.sent.get(hold.holdId)![0]! - t0).toBeGreaterThanOrEqual(HOUR);
+    expect(fake.expiries.get(hold.holdId)).toHaveLength(1);
+    expect(fake.expiries.get(hold.holdId)![0]! - t0).toBeGreaterThanOrEqual(2 * HOUR);
   });
 });

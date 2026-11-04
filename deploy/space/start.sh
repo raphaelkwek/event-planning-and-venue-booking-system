@@ -52,6 +52,11 @@ export REDPANDA_MEMORY="${REDPANDA_MEMORY:-1G}"
 TEMPORAL_STATE_DIR=/var/lib/connectsphere/temporal
 if [ -d "$TEMPORAL_STATE_DIR" ] && [ -w "$TEMPORAL_STATE_DIR" ]; then
   export TEMPORAL_DB_FILE="$TEMPORAL_STATE_DIR/temporal.db"
+elif [ -d "$TEMPORAL_STATE_DIR" ] && [ "$(stat -c %d "$TEMPORAL_STATE_DIR")" != "$(stat -c %d "$(dirname "$TEMPORAL_STATE_DIR")")" ]; then
+  # A volume is mounted but uid 1000 can't write it: falling back would lose the timers on the next
+  # redeploy without anyone noticing, so stop, and let the deploy gate's readiness wait fail the release.
+  echo "start.sh: ${TEMPORAL_STATE_DIR} is a mounted volume that uid $(id -u) cannot write (owner uid $(stat -c %u "$TEMPORAL_STATE_DIR")); give it to uid 1000 or remove the empty volume" >&2
+  exit 1
 else
   echo "start.sh: ${TEMPORAL_STATE_DIR} is not writable by uid $(id -u); Temporal keeps its state in ${RUN} instead, which a redeploy loses" >&2
   export TEMPORAL_DB_FILE="$RUN/temporal.db"

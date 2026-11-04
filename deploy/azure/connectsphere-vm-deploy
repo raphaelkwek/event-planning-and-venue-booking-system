@@ -116,6 +116,10 @@ deploy() {
   docker run -d --name "$CONTAINER" --restart unless-stopped --env-file "$ENV_FILE" -v "${CONTAINER}-temporal:${TEMPORAL_STATE_DIR}" -p "127.0.0.1:${PORT}:7860" "$image" > /dev/null
   echo "started ${CONTAINER} with Temporal's state on the volume ${CONTAINER}-temporal; migrations run as it starts"
   wait_ready
+  # Where start.sh put Temporal's state: on the volume, "kept from the last container" or "new".
+  local logs
+  logs="$(docker logs "$CONTAINER" 2>&1 || true)"
+  grep -F "start.sh: Temporal's state" <<< "$logs" || echo "connectsphere-vm-deploy: start.sh did not say where Temporal's state is" >&2
   echo "${CONTAINER} is ready on ${image}"
 }
 

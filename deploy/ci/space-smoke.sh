@@ -29,7 +29,22 @@ trap 'docker rm -f space > /dev/null 2>&1 || true; docker volume rm -f "$VOLUME"
 
 # Without a volume (a Space), the image's own directory must be writable by the image's user.
 docker run --rm --entrypoint test "$IMAGE" -w "$TEMPORAL_STATE_DIR" || fail "the image's ${TEMPORAL_STATE_DIR} is not writable by its user"
+# A volume uid 1000 cannot write (root's, and not empty, so Docker leaves it alone): start.sh must
+# stop rather than quietly keep Temporal's state in the container, where the next redeploy loses it.
+docker volume rm -f "${VOLUME}-unwritable" > /dev/null 2>&1 || true
+docker run --rm --user 0 -v "${VOLUME}-unwritable:/v" --entrypoint sh "$IMAGE" -c 'touch /v/kept-by-root && chown 0:0 /v && chmod 755 /v'
+refused=0
+refusal="$(docker run --rm -v "${VOLUME}-unwritable:${TEMPORAL_STATE_DIR}" \
+  -e DATABASE_URL=postgres://ci.invalid/x -e MIGRATE_DATABASE_URL=postgres://ci.invalid/x -e SUPABASE_URL=https://ci.invalid \
+  -e SUPABASE_ANON_KEY=ci-placeholder -e CORS_ALLOWED_ORIGINS="$ORIGIN" "$IMAGE" 2>&1)" || refused=$?
+docker volume rm -f "${VOLUME}-unwritable" > /dev/null 2>&1 || true
+if [ "$refused" -eq 0 ] || ! grep -q "is a mounted volume that uid 1000 cannot write" <<< "$refusal"; then
+  fail "start.sh did not refuse a volume it cannot write (exit ${refused}): $(tail -5 <<< "$refusal")"
+fi
+# An empty volume owned by root, as one the new gate made while it still ran the previous image
+# (which has no such directory) is: the image's directory must give it uid 1000 on first mount.
 docker volume rm -f "$VOLUME" > /dev/null 2>&1 || true
+docker volume create "$VOLUME" > /dev/null
 
 db=postgres://ci:ci@127.0.0.1:5432/connectsphere_ci
 start_space() {

@@ -21,7 +21,8 @@ migration, no API change, and no change to the gate's arguments or to the settin
   hold (the venue module's `listHeldHolds`). It then signal-with-starts each CompleteEvent and
   HoldExpiry workflow through the consumers' own schedulers, so the workflow ids are theirs. A lost
   timer starts again, and one whose time passed while it was gone completes or expires the item at
-  once. A timer that is still there is only told what it already has. The reconcile never throws:
+  once. A completion timer that is still there is only told the end it already has; a hold already
+  reminded asks the reminder step once more, and the venue rule answers `already`. The reconcile never throws:
   what it cannot list or schedule is logged by id, the rest carries on, and it logs
   `timers reconciled` with the counts.
 - **Temporal's state is on a named volume on the VM.** The image owns
@@ -29,8 +30,9 @@ migration, no API change, and no change to the gate's arguments or to the settin
   `start.sh` points `--db-filename` there. The deploy gate and `npm run deploy:vm` mount
   `connectsphere-staging-temporal` or `connectsphere-production-temporal` on it, and an empty volume
   takes the directory's owner from the image. Both now stop the old container before removing it,
-  so Temporal closes its file. If the directory isn't writable, `start.sh` says so and falls back to
-  `/tmp/cs`.
+  so Temporal closes its file, and the gate prints where `start.sh` put the state. If a mounted
+  volume isn't writable, `start.sh` stops and the deploy fails; with no volume and no writable
+  directory, it says so and falls back to `/tmp/cs`.
 
 ## Added
 
@@ -48,6 +50,10 @@ migration, no API change, and no change to the gate's arguments or to the settin
 - The deploy runbook has a "What survives a redeploy" section, and ADR-0009 a note.
 
 ## Known gap
+
+- **Workflows in flight now outlive a deploy**, so a change to a workflow's commands needs
+  `patched()`, or Temporal started empty; HoldExpiry still has no recorded replay histories. The
+  runbook says how.
 
 - **The deploy gate on the VM is installed by hand.** Until the new gate is installed, a release
   still replaces the container without the volume. The reconcile and the sweeps work either way.
