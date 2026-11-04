@@ -18,8 +18,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | dora.yml is written (weekly schedule, workflow_dispatch, job summary and artifact, no commit) and the snapshot documentation/evidence/EN-22/dora-2026-11-02.md was generated locally with gh. The workflow itself has not run: a schedule or dispatch needs it on the default branch. |
-| Status | Not Executed |
-| Remarks | Commit: 62a261e · Evidence: the committed snapshot · Proven: the snapshot; pending: a first run of the workflow after merge · Defect: — |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | dora.yml has a weekly schedule (`30 16 * * 0`) and workflow_dispatch, writes dora.md to the job summary and uploads it as the `dora-metrics` artifact, with read-only permissions and no commit step. Dispatched on main (b3d9a66) on 4 Nov: run 41787255948 succeeded and uploaded dora-metrics (window 2026-10-05 to 2026-11-04: 2.43 deployments a day from 73 green main runs and 96 merged pull requests); main gained no commit from it. The committed snapshot documentation/evidence/EN-22/dora-2026-11-02.md states its window (2026-10-03 to 2026-11-02, 30 days), the definition of each of the four metrics, and numbers from the repository's own runs and pull requests (50 green main runs, 56 merges). |
+| Status | Pass |
+| Remarks | Workflow run and document review · Commit: b3d9a66 · Evidence: https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41787255948 (artifact dora-metrics), documentation/evidence/EN-22/dora-2026-11-02.md · Defect: — |
+| Executed By | Joash, via a dispatched workflow run |
+| Date of Execution | 2026-11-04 |

@@ -1,6 +1,6 @@
 # Experiment 1: a crash mid-cancellation leaves no partial release
 
-**Status:** Not run (designed). Blocked by F3 and F4.
+**Status:** Not run (designed). F3 and F4 have merged (4 Nov re-check), but without the `CancelEvent` workflow this experiment kills; see "Re-checked on 4 Nov 2026" below.
 **Card:** EN-20-T1 · **Run:** none, not run · **Commit:** `faf5ebc` · **Date:** 2026-11-03
 
 ## Hypothesis
@@ -28,6 +28,16 @@ on this branch, so there is nothing to kill. What exists is the manifest, which 
 
 What the registration side already guarantees, from earlier work and not from this experiment: a cancelled event's seats are retired in one
 transaction with its registrations being Cancelled (`retireSeatsOfEvent`, R3), and a message delivered twice changes nothing (experiment 5).
+
+## Re-checked on 4 Nov 2026
+
+F3 and F4 merged without a `CancelEvent` workflow or a `CANCEL_PENDING` state. planning-core cancels the event and releases its
+venue and equipment arrangements in one transaction (`modules/change/repo/cancelEvent.ts`), and the registration service cancels the
+event's registrations and waitlist entries when it consumes `event.cancelled`, in one transaction with its inbox
+(`consumer/handleListing.ts`). So there is no workflow step to crash after, and the hypothesis above has nothing to act on. The
+all-or-nothing question moves to the consumer: kill the registration service while it handles `event.cancelled` and check the
+event's registrations are all Cancelled, or all still Registered, once it restarts and the message is redelivered. That needs a
+new injection (the deployed environments are one container each on an Azure VM, with no Chaos Mesh), so it is not run here.
 
 ## Fix log
 

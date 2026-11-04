@@ -20,8 +20,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | Without B1 (no slot, no booking request), C1 got 422 ARRANGEMENTS_NOT_READY with exactly "This event can't be confirmed yet. Venue: no venue booking is confirmed." (nothing about equipment). details was { venue: [{ kind: NO_CONFIRMED_BOOKING }], equipment: [], flags: [] }. E1's status and version, its history (entry count and the latest STATUS_CHANGE entry), its slots' status and flags (requires_reconfirmation, period_mismatch, unsuitable, and their arrangement_flags rows), its booking requests, its request lines, its reservations (status and quantity) and the event outbox (row count and every envelope) read exactly as before the request. |
+| Status | Pass |
+| Remarks | Automated (API level) · Commit: 5bfb25e · Evidence: `backend/services/planning-core/tests/change/api/f5Cards.test.ts` › F5 cards (tests/F5) › F5-T6 no venue booking at all is refused, naming the venue as outstanding, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41801285931 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-04 |

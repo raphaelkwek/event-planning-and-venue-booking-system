@@ -20,8 +20,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | L1's reservation read RESERVED, 5 after the fixture loaded. TS's release through Q2's route with reason "Chairs needed elsewhere" answered 200. C1's confirmation then got 422 ARRANGEMENTS_NOT_READY with exactly "This event can't be confirmed yet. Equipment: F5 Chairs × 5 is Confirmed.", nothing changed by the refusal, and E1 was still APPROVED. |
+| Status | Pass |
+| Remarks | Automated (API level) · Commit: 5bfb25e · Evidence: `backend/services/planning-core/tests/change/api/f5Cards.test.ts` › F5 cards (tests/F5) › F5-T17 readiness is read live: a reservation released just before is seen, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41801285931 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-04 |

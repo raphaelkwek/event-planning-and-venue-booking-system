@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result |  |
-| Status | Not Executed |
-| Remarks | Proven by the registration.confirmed outbox row (r2Cards › R2-T1) and backend/services/notification/tests/domain/recipients.test.ts › R2-T12 tells the attendee their registration is confirmed, naming it and the event's date and times; delivery needs Kafka, passed in CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41602701323 (commit 4f9ab08). UI walk-through in Chrome pending at the sprint review. |
-| Executed By |  |
-| Date of Execution |  |
+| Actual Result | Pre-condition R2-T1: the attendee registered from the event's page (201), which said `You are registered` and `Registration REG-… for R Test Symposium … is confirmed.` The registration's `registration.confirmed` was stored by the notification service (the notification was delivered by the test harness (deliverOutbox, the consumers' own code) in place of Kafka, which CI's stack runs without). Step 1: Notifications held one notice about the event: `Your registration REG-… for EVT-R… “R Test Symposium …” on Wednesday 16 December 2026, 14:00–18:00 is confirmed.`, naming the reference the page had shown. |
+| Status | Pass |
+| Remarks | Automated (browser, Playwright) · Commit: 5bfb25e · Evidence: tests/e2e/r-registration.spec.ts › R2-T12 the attendee is told the registration is confirmed, with its reference and the event's date and times, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41801285931 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-04 |

@@ -1,16 +1,39 @@
 import type { Page } from "@playwright/test";
 import { expect, signIn, signOut, test, uniqueName } from "./support/fixtures.js";
-import { approvedRequest } from "./support/seed.js";
-import { createEquipmentType, requestEquipment, setLineStatus } from "./support/seed-arrangements.js";
+import { must } from "./support/api.js";
+import { deliverOutbox } from "./support/deliver.js";
+import { messageOf, openNotifications } from "./support/notifications.js";
+import { approvedRequest, type EventRow } from "./support/seed.js";
+import { createEquipmentType, requestEquipment, reserveInFull, setLineStatus, type RequestLineRow } from "./support/seed-arrangements.js";
+import { storedNotices } from "./support/seed-venue-notices.js";
 
 /**
- * P2 (inventory), O1 (the coordinator's equipment request) and Q1 (reservation), through the real
- * screens. Equipment types are created with unique names, so each test sees only its own.
+ * P2 (inventory), O1 (the coordinator's equipment request), O2 (Technical Support's status
+ * updates), Q1 (reservation) and Q2 (release), through the real screens. Equipment types are
+ * created with unique names, so each test sees only its own. CI's stack has no Kafka, so a journey
+ * whose card ends on the coordinator's notifications hands the line's messages to the notification
+ * service with deliverOutbox before the coordinator opens Notifications.
  */
 
 const row = (page: Page, text: string) => page.getByRole("row").filter({ hasText: text });
 /** A form field's own block: its label, its control and the message bound to it. */
 const fieldBlock = (page: Page, id: string) => page.locator(`xpath=//label[@for="${id}"]/..`);
+/** The row of an equipment line, found by its equipment cell (a substitute's name can appear in another line's row). */
+const lineRow = (page: Page, typeName: string) => page.getByRole("row").filter({ has: page.getByRole("cell", { name: typeName, exact: true }) });
+/** The status cell of a line on Technical Support's list and on the coordinator's request (the sixth on both). */
+const statusOf = (page: Page, typeName: string) => lineRow(page, typeName).getByRole("cell").nth(5);
+const LINE_CHANGED = "equipment-request.line-status-changed";
+const named = (event: EventRow) => `${event.reference} “${event.name}”`;
+const lineOf = (id: string) => must<RequestLineRow>("techsupport", "GET", `/api/v1/equipment/request-lines/${id}`);
+
+/** The coordinator's way to an event's equipment request: "All events" → the event → "Equipment request". */
+async function openEquipmentRequest(page: Page, event: EventRow) {
+  await page.getByRole("link", { name: "All events" }).click();
+  await row(page, event.name).getByRole("link", { name: "Open" }).click();
+  await expect(page.getByRole("heading", { name: event.name })).toBeVisible();
+  await page.getByRole("link", { name: "Equipment request" }).click();
+  await expect(page.getByRole("heading", { name: "Equipment request" })).toBeVisible();
+}
 
 async function openEquipmentType(page: Page, name: string) {
   await page.getByRole("link", { name: "Equipment", exact: true }).click();
@@ -254,6 +277,7 @@ test.describe("O1 equipment request", () => {
 
 test.describe("Q1 reserve equipment", () => {
   test("Q1-T14 technical support confirm a partial reservation, and the coordinator sees it", { tag: ["@Q1", "@Q1-T14"] }, async ({ page, a11y }) => {
+    test.setTimeout(120_000);
     const event = await approvedRequest();
     const chairs = await createEquipmentType("Q1 Folding Chairs", 50);
     const [line] = await requestEquipment(event.id, [{ equipmentTypeId: chairs.id, quantity: 40 }]);
@@ -283,14 +307,164 @@ test.describe("Q1 reserve equipment", () => {
     await expect(techRow).toContainText("Tech Support One ·");
     await a11y("equipment requests, reserved");
 
-    // Step 5 (the coordinator's view of the request; the notification needs Kafka, which this stack leaves out).
+    // Step 5: the line's messages reach the notification service (the test harness delivers them, as this stack
+    // has no Kafka): the Confirmed status set up above, and the reservation.
     await signOut(page);
-    await signIn(page, "coordinator");
-    await page.goto(`/#/events/${event.id}/equipment`);
-    await expect(page.getByRole("heading", { name: "Equipment request" })).toBeVisible();
+    expect(storedNotices(await deliverOutbox(event.id, { types: [LINE_CHANGED] }), LINE_CHANGED)).toBe(2);
+    const notices = await openNotifications(page, "coordinator");
+    await expect(messageOf(notices.filter({ hasText: `${chairs.name} × 40 is now Reserved` }))).toHaveText([
+      `Technical Support updated equipment for ${named(event)}: ${chairs.name} × 40 is now Reserved (30 of 40 reserved).`,
+    ]);
+    await a11y("notifications, equipment reserved");
+    await openEquipmentRequest(page, event);
     const coordinatorRow = row(page, chairs.name);
     await expect(coordinatorRow).toContainText("Reserved");
     await expect(coordinatorRow).toContainText("Reserved 30 of 40");
     await expect(coordinatorRow).toContainText("Tech Support One ·");
+  });
+});
+
+test.describe("O2 technical support update a line's status", () => {
+  test("O2-T17 technical support set one line Unavailable once a reason is given and substitute another, and the coordinator is told of both", { tag: ["@O2", "@O2-T17"] }, async ({ page, a11y }) => {
+    test.setTimeout(120_000);
+    // O1-T26's steps 1 to 4 leave two Submitted lines for the event: chairs × 40 and projectors × 2.
+    const event = await approvedRequest();
+    const chairs = await createEquipmentType("O1 Folding Chairs", 50);
+    const projectors = await createEquipmentType("O1 Projectors", 5);
+    const lines = await requestEquipment(event.id, [
+      { equipmentTypeId: chairs.id, quantity: 40 },
+      { equipmentTypeId: projectors.id, quantity: 2 },
+    ]);
+    const chairsLine = lines.find((l) => l.equipmentTypeName === chairs.name);
+    const projectorsLine = lines.find((l) => l.equipmentTypeName === projectors.name);
+
+    // Step 1.
+    await signIn(page, "techsupport");
+    await page.getByRole("link", { name: "Equipment requests" }).click();
+    await expect(page.getByRole("heading", { name: "Equipment requests" })).toBeVisible();
+    await expect(statusOf(page, chairs.name)).toContainText("Submitted");
+    await expect(statusOf(page, projectors.name)).toContainText("Submitted");
+
+    // Step 2: Unavailable with no reason is refused, naming the reason, and the line stays Submitted.
+    await lineRow(page, chairs.name).getByRole("button", { name: `Update ${chairs.name} for ${event.reference}` }).click();
+    await expect(page.getByRole("heading", { name: `Update ${chairs.name} × 40 for ${event.reference}` })).toBeVisible();
+    await page.getByLabel("New status").selectOption({ label: "Unavailable" });
+    await page.getByRole("button", { name: "Save status" }).click();
+    await expect(fieldBlock(page, "reason")).toContainText("Give a reason why the equipment is unavailable.");
+    await expect(page.getByText("VALIDATION_FAILED")).toBeVisible();
+    await expect(statusOf(page, chairs.name)).toContainText("Submitted");
+    expect((await lineOf(chairsLine!.id)).status).toBe("SUBMITTED");
+    await a11y("update equipment line, reason missing");
+
+    // Step 3: with the reason it is Unavailable.
+    await page.getByLabel("Reason", { exact: true }).fill("All chairs are out at another event");
+    await page.getByRole("button", { name: "Save status" }).click();
+    await expect(page.getByText(`${chairs.name} for ${event.reference} is now Unavailable.`)).toBeVisible();
+    await expect(statusOf(page, chairs.name)).toContainText("Unavailable");
+    await expect(statusOf(page, chairs.name)).toContainText("Reason: All chairs are out at another event");
+
+    // Step 4: the projectors are Substituted by three of the chairs; the row keeps the projectors and names the substitute.
+    await lineRow(page, projectors.name).getByRole("button", { name: `Update ${projectors.name} for ${event.reference}` }).click();
+    await page.getByLabel("New status").selectOption({ label: "Substituted" });
+    await page.getByLabel("Substitute equipment").selectOption({ label: chairs.name });
+    await page.getByLabel("Substitute quantity").fill("3");
+    await page.getByRole("button", { name: "Save status" }).click();
+    await expect(page.getByText(`${projectors.name} for ${event.reference} is now Substituted.`)).toBeVisible();
+    await expect(lineRow(page, projectors.name).getByRole("cell").nth(2)).toHaveText("2");
+    await expect(statusOf(page, projectors.name)).toContainText("Substituted");
+    await expect(statusOf(page, projectors.name)).toContainText(`Instead: ${chairs.name} × 3`);
+    expect(await lineOf(projectorsLine!.id)).toMatchObject({ status: "SUBSTITUTED", equipmentTypeName: projectors.name });
+    await a11y("equipment requests, unavailable and substituted");
+    await signOut(page);
+
+    // Step 5: both changes' messages reach the notification service (the test harness delivers them, as this
+    // stack has no Kafka), and the coordinator reads two notices naming the event, the equipment and the new status.
+    expect(storedNotices(await deliverOutbox(event.id, { types: [LINE_CHANGED] }), LINE_CHANGED)).toBe(2);
+    const notices = await openNotifications(page, "coordinator");
+    const prefix = `Technical Support updated equipment for ${named(event)}: `;
+    await expect(messageOf(notices.filter({ hasText: `${chairs.name} × 40 is now` }))).toHaveText([
+      `${prefix}${chairs.name} × 40 is now Unavailable. Reason: All chairs are out at another event`,
+    ]);
+    await expect(messageOf(notices.filter({ hasText: `${projectors.name} × 2 is now` }))).toHaveText([
+      `${prefix}${projectors.name} × 2 is now Substituted. Substitute: ${chairs.name} × 3.`,
+    ]);
+    await a11y("notifications, equipment status changed");
+    await openEquipmentRequest(page, event);
+    await expect(statusOf(page, chairs.name)).toContainText("Unavailable");
+    await expect(statusOf(page, chairs.name)).toContainText("Reason: All chairs are out at another event");
+    await expect(statusOf(page, projectors.name)).toContainText("Substituted");
+    await expect(statusOf(page, projectors.name)).toContainText(`Instead: ${chairs.name} × 3`);
+  });
+});
+
+test.describe("Q2 release equipment", () => {
+  test("Q2-T13 technical support release once a reason is given and reserve again, the coordinator removes the Reserved line, and each release is told", { tag: ["@Q2", "@Q2-T13"] }, async ({ page, a11y }) => {
+    test.setTimeout(120_000);
+    // A Reserved chairs line, as Q1-T14 leaves one (reserved here in full).
+    const event = await approvedRequest();
+    const chairs = await createEquipmentType("Q2 Folding Chairs", 50);
+    const [line] = await requestEquipment(event.id, [{ equipmentTypeId: chairs.id, quantity: 40 }]);
+    await setLineStatus(line!.id, "CONFIRMED");
+    await reserveInFull(line!.id);
+    const release = `Release ${chairs.name} for ${event.reference}`;
+    const reserve = `Reserve ${chairs.name} for ${event.reference}`;
+
+    // Steps 1 and 2.
+    await signIn(page, "techsupport");
+    await page.getByRole("link", { name: "Equipment requests" }).click();
+    const techRow = lineRow(page, chairs.name);
+    await expect(techRow).toContainText("Reserved 40 of 40");
+    await techRow.getByRole("button", { name: release }).click();
+    await expect(page.getByRole("heading", { name: `Release ${chairs.name} × 40 for ${event.reference}` })).toBeVisible();
+
+    // Step 3: no reason is refused inline, and the line stays Reserved.
+    await page.getByRole("button", { name: "Release reservation" }).click();
+    await expect(page.locator("#release-reason-error")).toHaveText("Give a reason for releasing the reservation.");
+    await expect(techRow.getByRole("button", { name: release })).toBeVisible();
+    expect((await lineOf(line!.id)).status).toBe("RESERVED");
+    await a11y("release equipment, reason required");
+
+    // Step 4: with a reason it is released; the line is Confirmed and can be reserved again.
+    await page.getByLabel("Reason", { exact: true }).fill("Event moved");
+    await page.getByRole("button", { name: "Release reservation" }).click();
+    await expect(page.getByText("Equipment released", { exact: true })).toBeVisible();
+    await expect(page.getByText(`Released ${chairs.name} for ${event.reference}: Event moved.`)).toBeVisible();
+    await expect(statusOf(page, chairs.name)).toContainText("Confirmed");
+    await expect(techRow.getByRole("button", { name: reserve })).toBeVisible();
+    await a11y("equipment requests, released");
+
+    // Step 5: reserve it again.
+    await techRow.getByRole("button", { name: reserve }).click();
+    await page.getByRole("button", { name: "Reserve equipment" }).click();
+    await expect(page.getByText(`Reserved 40 of 40 for ${event.reference}.`)).toBeVisible();
+    await expect(techRow.getByRole("button", { name: release })).toBeVisible();
+    await signOut(page);
+
+    // Steps 6 and 7: the coordinator removes the Reserved line; the dialog warns that its equipment will be released.
+    await signIn(page, "coordinator");
+    await openEquipmentRequest(page, event);
+    await expect(statusOf(page, chairs.name)).toContainText("Reserved");
+    await lineRow(page, chairs.name).getByRole("button", { name: "Remove" }).click();
+    const dialog = page.getByRole("dialog");
+    await expect(dialog).toContainText(`${chairs.name} × 40 will be marked Removed and no longer listed.`);
+    await expect(dialog).toContainText("Its reserved equipment will be released.");
+    await a11y("remove a reserved equipment line");
+    await dialog.getByRole("button", { name: "Remove line" }).click();
+    await expect(dialog).toHaveCount(0);
+    await expect(lineRow(page, chairs.name)).toHaveCount(0);
+    expect((await lineOf(line!.id)).status).toBe("REMOVED");
+
+    // Step 8: the line's messages reach the notification service (the test harness delivers them, as this stack
+    // has no Kafka): Confirmed, Reserved, released, Reserved again, and released by the removal.
+    expect(storedNotices(await deliverOutbox(event.id, { types: [LINE_CHANGED] }), LINE_CHANGED)).toBe(5);
+    const notices = await openNotifications(page);
+    const released = `The reservation of ${chairs.name} × 40 for ${named(event)} was released.`;
+    await expect(messageOf(notices.filter({ hasText: released }).filter({ hasText: "Reason: Event moved" }))).toHaveText([
+      `${released} The line is now Confirmed. Reason: Event moved`,
+    ]);
+    await expect(messageOf(notices.filter({ hasText: released }).filter({ hasText: "Reason: Request line removed" }))).toHaveText([
+      `${released} The line is now Removed. Reason: Request line removed`,
+    ]);
+    await a11y("notifications, equipment released");
   });
 });

@@ -72,10 +72,17 @@ afterAll(async () => {
   await sql.end();
 });
 
-async function newVenue(name: string, layouts: { name: string; capacity: number }[], staff = STAFF): Promise<string> {
+/** The catalogue's facilities and accessibility features, which K1-T13 compares; none unless given. */
+interface Catalogue {
+  facilities?: string[];
+  accessibilityFeatures?: string[];
+}
+
+async function newVenue(name: string, layouts: { name: string; capacity: number }[], staff = STAFF, catalogue: Catalogue = {}): Promise<string> {
   const [row] = await sql<{ id: string }[]>`
-    insert into venue.venues (name, building, max_capacity, layouts, operating_hours, created_by, updated_by)
-    values (${name}, 'L4 Test Building', ${Math.max(...layouts.map((l) => l.capacity))}, ${sql.json(layouts)}, ${sql.json(HOURS)}, ${staff}, ${staff})
+    insert into venue.venues (name, building, max_capacity, layouts, facilities, accessibility_features, operating_hours, created_by, updated_by)
+    values (${name}, 'L4 Test Building', ${Math.max(...layouts.map((l) => l.capacity))}, ${sql.json(layouts)},
+            ${catalogue.facilities ?? []}, ${catalogue.accessibilityFeatures ?? []}, ${sql.json(HOURS)}, ${staff}, ${staff})
     returning id
   `;
   await sql`insert into venue.venue_staff (venue_id, user_id, created_by, updated_by) values (${row!.id}, ${staff}, ${staff}, ${staff})`;
@@ -95,15 +102,23 @@ async function venues() {
 const at = (hhmm: string) => `2026-12-02T${hhmm}:00+08:00`;
 const utc = (hhmm: string) => new Date(at(hhmm)).toISOString();
 
-async function newEvent(): Promise<{ id: string; reference: string }> {
+/** What the event itself asks of a venue (B1), which K1-T13 sets; none unless given. */
+interface EventRequirements {
+  venueRequirements?: Record<string, unknown>;
+  accessibilityNeeds?: string;
+}
+
+async function newEvent(requirements: EventRequirements = {}): Promise<{ id: string; reference: string }> {
+  const venueRequirements = requirements.venueRequirements ? sql.json(requirements.venueRequirements as never) : null;
   const [row] = await sql<{ id: string; reference: string }[]>`
     insert into event.events (
       reference, owner_id, name, purpose, description, proposed_start_at, proposed_end_at,
-      expected_attendance, equipment_required, registration_required, status, submitted_at,
-      last_saved_at, created_by, updated_by
+      expected_attendance, venue_requirements, accessibility_needs, equipment_required, registration_required, status,
+      submitted_at, last_saved_at, created_by, updated_by
     ) values (
       'EVT-' || lpad(nextval('event.event_reference_seq')::text, 6, '0'), ${OWNER}, 'L4 Research Symposium', 'L4 test',
-      'L4 test', ${at("14:00")}, ${at("18:00")}, 150, false, false, 'APPROVED', now(), now(), ${OWNER}, ${OWNER}
+      'L4 test', ${at("14:00")}, ${at("18:00")}, 150, ${venueRequirements}, ${requirements.accessibilityNeeds ?? null},
+      false, false, 'APPROVED', now(), now(), ${OWNER}, ${OWNER}
     )
     returning id, reference
   `;
@@ -236,6 +251,91 @@ describe("one event, several venues at once (L4, CR-03)", () => {
     expect(view.items).toEqual(
       expect.arrayContaining([expect.objectContaining({ reference: pending.reference, venueName: "L4 Annex", status: "PENDING", startsAt: utc("14:00") })]),
     );
+  });
+});
+
+describe("each venue is assessed against its own booking request (K1, CR-03)", () => {
+  /** What the hall request asks for that the hall lacks: each value is the request's, none the event's. */
+  const HALL_REASONS = [
+    {
+      condition: "LAYOUT_CAPACITY",
+      outcome: "FAILED",
+      required: 130,
+      available: 120,
+      message: "Expected attendance 130 against layout capacity 120 (Classroom).",
+    },
+    {
+      condition: "FACILITIES",
+      outcome: "FAILED",
+      required: ["Projector", "Livestream"],
+      available: ["Projector"],
+      missing: ["Livestream"],
+      message: "Required facility absent: Livestream. The venue offers: Projector.",
+    },
+    {
+      condition: "ACCESSIBILITY",
+      outcome: "FAILED",
+      required: ["Hearing loop"],
+      available: ["Step-free access"],
+      missing: ["Hearing loop"],
+      message: "Required accessibility feature absent: Hearing loop. The venue offers: Step-free access.",
+    },
+  ];
+
+  it("K1-T13 assesses each of an event's venues against its own request's layout, attendance, facilities and accessibility, not the event's", async () => {
+    // The event asks for 150 in Theatre, a projector and step-free access.
+    const event = await newEvent({ venueRequirements: { layout: "Theatre", facilities: ["Projector"] }, accessibilityNeeds: "Step-free access" });
+    const hall = await newVenue("L4 Main Hall", [{ name: "Theatre", capacity: 300 }, { name: "Classroom", capacity: 120 }], STAFF, {
+      facilities: ["Projector"],
+      accessibilityFeatures: ["Step-free access"],
+    });
+    const breakout = await newVenue("L4 Breakout Room", [{ name: "Theatre", capacity: 50 }, { name: "Classroom", capacity: 60 }], STAFF, {
+      facilities: ["Whiteboard"],
+      accessibilityFeatures: ["Hearing loop"],
+    });
+
+    // Judged on the event's own values (K1's check), the hall would suit it and the breakout room would not.
+    asCoordinator();
+    const byEvent = async (venueId: string) =>
+      (await request(app).get(`/api/v1/venues/${venueId}/suitability`).query({ eventId: event.id }).set(bearer)).body as {
+        status: string;
+        reasons: { condition: string }[];
+      };
+    expect(await byEvent(hall)).toMatchObject({ status: "SUITABLE", reasons: [] });
+    expect(await byEvent(breakout)).toMatchObject({
+      status: "NOT_SUITABLE",
+      reasons: [{ condition: "LAYOUT_CAPACITY" }, { condition: "FACILITIES" }, { condition: "ACCESSIBILITY" }],
+    });
+
+    // Each request records its own layout, attendance, facilities and accessibility (L1), and the opposite results follow.
+    const hallAsk = { layout: "Classroom", expectedAttendance: 130, facilities: ["Projector", "Livestream"], accessibilityFeatures: ["Hearing loop"] };
+    const refused = await submit({ eventId: event.id, venueId: hall, startsAt: at("14:00"), endsAt: at("18:00"), ...hallAsk });
+    expect(refused.status).toBe(422);
+    expect(refused.body.error).toMatchObject({ code: "JUSTIFICATION_REQUIRED", details: { status: "NOT_SUITABLE", reasons: HALL_REASONS } });
+    const hallRequest = await requested(event.id, hall, "Classroom", 130, {
+      facilities: hallAsk.facilities,
+      accessibilityFeatures: hallAsk.accessibilityFeatures,
+      justification: "The livestream crew bring their own kit and a portable loop.",
+    });
+    const breakoutRequest = await requested(event.id, breakout, "Classroom", 40, { facilities: ["Whiteboard"], accessibilityFeatures: ["Hearing loop"] });
+    expect(hallRequest).toMatchObject({ suitabilityStatus: "NOT_SUITABLE", suitabilityReasons: HALL_REASONS });
+    expect(breakoutRequest).toMatchObject({ suitabilityStatus: "SUITABLE", suitabilityReasons: [] });
+
+    // Each venue shows its own result: to its Venue Staff in the queue, and to the coordinator on the event.
+    type Shown = { id: string; venueName: string; suitabilityStatus: string; suitabilityReasons: unknown[] };
+    const results = (items: Shown[]) =>
+      Object.fromEntries(
+        items.filter((i) => [hallRequest.id, breakoutRequest.id].includes(i.id)).map((i) => [i.venueName, [i.suitabilityStatus, i.suitabilityReasons]]),
+      );
+    const expected = { "L4 Main Hall": ["NOT_SUITABLE", HALL_REASONS], "L4 Breakout Room": ["SUITABLE", []] };
+    asStaff();
+    const queue = await request(app).get("/api/v1/booking-requests/queue").set(bearer);
+    expect(queue.status).toBe(200);
+    expect(results(queue.body.items)).toEqual(expected);
+    asCoordinator();
+    const view = await request(app).get("/api/v1/booking-requests").query({ eventId: event.id }).set(bearer);
+    expect(view.status).toBe(200);
+    expect(results(view.body.items)).toEqual(expected);
   });
 });
 

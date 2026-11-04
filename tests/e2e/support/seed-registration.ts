@@ -49,13 +49,16 @@ export const symposiumName = () => uniqueName("R Test Symposium");
  * own events (the open events list is paged, and the cards assume a clean list).
  */
 export async function removeRFixtures() {
-  const ofRCases = "(select event_id from registration.event_listings where event_reference like 'EVT-R%')";
+  // A listing made for an event planning-core also holds (listPlannedEvent) has that event's
+  // reference, so it is found by the cards' event name instead.
+  const rCase = "(event_reference like 'EVT-R%' or name like 'R Test Symposium %')";
+  const ofRCases = `(select event_id from registration.event_listings where ${rCase})`;
   // tests/R5/README.md: the waitlist first, since an entry that ended in a registration names it.
   await query(`delete from registration.waitlist_entries where event_id in ${ofRCases}`);
   await query(`delete from registration.registrations where event_id in ${ofRCases}`);
   await query(`delete from registration.seats where event_id in ${ofRCases}`);
   await query(`delete from registration.event_venues where event_id in ${ofRCases}`);
-  await query("delete from registration.event_listings where event_reference like 'EVT-R%'");
+  await query(`delete from registration.event_listings where ${rCase}`);
 }
 
 export interface FxEventOptions {
@@ -118,6 +121,60 @@ export async function createRegistrationEvent(options: FxEventOptions = {}): Pro
   const row = rows[0];
   if (!row) throw new Error("FX-R-EVENT created no event");
   return { eventId: row.event_id, reference: row.event_reference, name };
+}
+
+/** The fixtures' event period, as instants: 16 December 2026, 14:00 to 18:00 Singapore time. */
+export const FX_STARTS_AT = "2026-12-16T06:00:00.000Z";
+export const FX_ENDS_AT = "2026-12-16T10:00:00.000Z";
+
+/** The planning-core event a listing copies: what the event module's API answers. */
+export interface PlannedEvent {
+  id: string;
+  reference: string;
+  name: string;
+  proposedStartAt?: unknown;
+  proposedEndAt?: unknown;
+}
+
+/**
+ * FX-R-EVENT for an event planning-core holds too, for the journeys whose step acts on the event
+ * there and the registration service then reacts to the message (F3 cancels it; M1 confirms it a
+ * further venue). The listing is the registration service's copy of that event: its id, reference,
+ * name and period, Confirmed, with registration open, as FX-R-EVENT's is. `seats` puts FX-R-EVENT's
+ * venue under it; 0 leaves the venue and its seats to a booking's approval (EN-13).
+ */
+export async function listPlannedEvent(event: PlannedEvent, options: { seats?: number } = {}): Promise<FxEvent> {
+  const seats = options.seats ?? 3;
+  if (!Number.isInteger(seats) || seats < 0) throw new Error(`seats must be a whole number, not ${seats}`);
+  const startsAt = String(event.proposedStartAt ?? FX_STARTS_AT);
+  const endsAt = String(event.proposedEndAt ?? FX_ENDS_AT);
+  await query(
+    `insert into registration.event_listings (
+       event_id, event_reference, name, description, owner_id, status, starts_at, ends_at,
+       registration_required, registration_opens_at, registration_closes_at, withdrawal_deadline_at,
+       source_changed_at
+     ) values (
+       $1::uuid, $2, $3, '${DESCRIPTION}', '${ACCOUNTS.organiser.id}', 'CONFIRMED', $4::timestamptz, $5::timestamptz,
+       true, now() - interval '1 day', now() + interval '7 days', null, now()
+     )`,
+    [event.id, event.reference, event.name, startsAt, endsAt],
+  );
+  if (seats > 0) {
+    await query(
+      `with venue as (
+         insert into registration.event_venues (
+           event_id, booking_id, venue_id, venue_name, venue_location, layout, layout_capacity, starts_at, ends_at
+         ) values (
+           $1::uuid, gen_random_uuid(), gen_random_uuid(), '${VENUE_ONE.name}', '${VENUE_ONE.location}', 'Theatre', ${seats},
+           $2::timestamptz, $3::timestamptz
+         ) returning event_id, booking_id
+       )
+       insert into registration.seats (event_id, booking_id, seat_no)
+       select event_id, booking_id, n from venue, generate_series(1, ${seats}) as n`,
+      [event.id, startsAt, endsAt],
+    );
+  }
+  return { eventId: event.id, reference: event.reference, name: event.name };
 }
 
 /** FX-R-SECOND-VENUE: a second confirmed venue for the event, Classroom layout, with `seats` seats. */
@@ -193,17 +250,43 @@ export interface RegistrationRow {
   status: string;
   registered_at: Date;
   withdrawn_at: Date | null;
+  cancelled_at: Date | null;
 }
 
 /** The registrations of an event (oldest first), or only one attendee's. */
 export function registrationsOf(eventId: string, attendeeId?: string) {
   return query<RegistrationRow & Record<string, unknown>>(
-    `select id, reference, attendee_id, event_id, status, registered_at, withdrawn_at
+    `select id, reference, attendee_id, event_id, status, registered_at, withdrawn_at, cancelled_at
      from registration.registrations
      where event_id = $1 ${attendeeId ? "and attendee_id = $2" : ""}
      order by registered_at, id`,
     attendeeId ? [eventId, attendeeId] : [eventId],
   );
+}
+
+/** How many of the event's seats are in each status (FREE, CLAIMED, RETIRED, ...). */
+export async function seatStatusesOf(eventId: string): Promise<Record<string, number>> {
+  const rows = await query<{ status: string; n: number }>(
+    "select status, count(*)::int as n from registration.seats where event_id = $1::uuid group by status",
+    [eventId],
+  );
+  return Object.fromEntries(rows.map((row) => [row.status, row.n]));
+}
+
+export interface OutboxMessage {
+  type: string;
+  data: Record<string, unknown>;
+}
+
+/** The messages the registration service wrote about an event, in the order it wrote them (its outbox). */
+export async function registrationOutboxOf(eventId: string, type?: string): Promise<OutboxMessage[]> {
+  const rows = await query<{ envelope: { type: string; data: Record<string, unknown> } }>(
+    `select envelope from registration.outbox
+     where envelope->'data'->>'eventId' = $1 ${type ? "and envelope->>'type' = $2" : ""}
+     order by seq`,
+    type ? [eventId, type] : [eventId],
+  );
+  return rows.map(({ envelope }) => ({ type: envelope.type, data: envelope.data }));
 }
 
 /** How many registrations an attendee has, whatever their status. */

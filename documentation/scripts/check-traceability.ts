@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Checks that every row of documentation/traceability/sprint-*.csv points at a test that exists.
+ * Checks that every row of documentation/traceability/sprint-<n>/<STORY>.csv points at a test that exists.
  *
  * A row is `story_id,acceptance_criterion,test_file,test_name`. It is only worth having if a
  * reader can open `test_file` and find `test_name` there, so this fails when
@@ -16,9 +16,10 @@
  *
  * Usage: tsx documentation/scripts/check-traceability.ts [--root <repo>]
  */
-import { existsSync, readFileSync, readdirSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, readFileSync } from "node:fs";
+import { join, relative } from "node:path";
 import { pathToFileURL } from "node:url";
+import { SUPERSEDED_MARKER, traceabilityFiles } from "./traceability-matrix.ts";
 
 export interface TraceRow {
   /** 1-based line of the file the row starts on. */
@@ -35,8 +36,8 @@ export interface Problem {
 
 export const TRACE_HEADER = ["story_id", "acceptance_criterion", "test_file", "test_name"];
 
-/** `SUPERSEDED by <story> (<change>)`: a criterion that a later story retired. */
-export const SUPERSEDED_MARKER = /^SUPERSEDED by \S+ \(\S+\)$/;
+/** `SUPERSEDED by <story> (<change>)`: a criterion that a later story retired. The matrix reads it too. */
+export { SUPERSEDED_MARKER };
 
 /** Splits CSV text into rows of fields (RFC 4180: quotes, doubled quotes, newlines in quotes). */
 export function parseCsvRows(text: string): TraceRow[] {
@@ -82,9 +83,14 @@ export function parseCsvRows(text: string): TraceRow[] {
   return rows;
 }
 
-/** `it`, `test` or `describe`, optional modifiers (`.each([...])`, `.skip`), then a quoted title. */
+/**
+ * `it`, `test` or `describe`, optional modifiers (`.each([...])`, `.skip`, and a typed
+ * `.each<[string, number]>([...])`), then a quoted title. The type argument is matched as balanced
+ * angle brackets one level deep (`.each<[string, Partial<T>]>`), each character having exactly one way
+ * to match, so the repeated modifier group can't backtrack exponentially (CodeQL js/redos).
+ */
 const TEST_CALL =
-  /\b(it|test|describe)(?:\.[a-zA-Z]+(?:\((?:[^()]|\([^()]*\))*\))?)*\s*\(\s*(["'`])((?:\\[\s\S]|(?!\2)[^\\])*)\2/g;
+  /\b(it|test|describe)(?:\.[a-zA-Z]+(?:<(?:[^<>()]|<[^<>()]*>)*>)?(?:\((?:[^()]|\([^()]*\))*\))?)*\s*\(\s*(["'`])((?:\\[\s\S]|(?!\2)[^\\])*)\2/g;
 
 /** A title as written in the source, and whether it has holes: `${...}` or an `it.each` placeholder. */
 export interface Title {
@@ -148,7 +154,7 @@ export function cardHeading(markdown: string): string | null {
   return match ? match[1] : null;
 }
 
-/** Checks one sprint file's text. `read` returns a file's text, or null if it does not exist. */
+/** Checks one story file's text. `read` returns a file's text, or null if it does not exist. */
 export function checkTraceability(
   file: string,
   csv: string,
@@ -187,17 +193,20 @@ export function checkTraceability(
   return problems;
 }
 
-/** Checks every sprint file under documentation/traceability/ in a checkout. */
+/**
+ * Checks every story's file under documentation/traceability/ in a checkout: sprint-<n>/<STORY>.csv,
+ * found the way the matrix finds them (traceabilityFiles), so the two never read different files. A
+ * sprint-<n>.csv from before 3 Nov 2026 makes it throw rather than be skipped.
+ */
 export function checkRepository(root: string): Problem[] {
   const dir = join(root, "documentation", "traceability");
   const read = (path: string): string | null => {
     const full = join(root, path);
     return existsSync(full) ? readFileSync(full, "utf8") : null;
   };
-  return readdirSync(dir)
-    .filter((name) => /^sprint-\d+\.csv$/.test(name))
-    .sort()
-    .flatMap((name) => checkTraceability(`documentation/traceability/${name}`, readFileSync(join(dir, name), "utf8"), read));
+  return traceabilityFiles(dir).flatMap(({ path }) =>
+    checkTraceability(relative(root, path).replace(/\\/g, "/"), readFileSync(path, "utf8"), read),
+  );
 }
 
 function main(): void {

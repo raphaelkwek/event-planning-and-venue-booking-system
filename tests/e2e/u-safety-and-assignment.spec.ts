@@ -1,10 +1,25 @@
 import type { Page } from "@playwright/test";
-import { ACCOUNTS } from "./support/accounts.js";
+import { ACCOUNTS, type AccountKey } from "./support/accounts.js";
+import { call } from "./support/api.js";
+import { deliverOutbox } from "./support/deliver.js";
 import { expect, signIn, signOut, test, uniqueName } from "./support/fixtures.js";
-import { assign, submitRequest } from "./support/seed.js";
+import { messageOf, openNotifications } from "./support/notifications.js";
+import { approvedRequest, assign, createVenue, submitRequest } from "./support/seed.js";
 import { query, rowWith } from "./support/seed-events.js";
 import { requestChange } from "./support/seed-arrangements.js";
 import { arrangedEvent, safetyReviewEvent } from "./support/seed-lifecycle.js";
+import { ensureAttendeeTwo, joinWaitlistThroughApi, waitlistOf } from "./support/seed-management.js";
+import {
+  ATTENDEE_ID,
+  ensureIdentityBudget,
+  listPlannedEvent,
+  registerThroughApi,
+  registrationOutboxOf,
+  registrationsOf,
+  seatStatusesOf,
+  takeSeats,
+} from "./support/seed-registration.js";
+import { PERIOD_TEXT, approveBooking, requestBooking } from "./support/seed-venues.js";
 
 /**
  * A4 (a coordinator sees only their own events; the Lead assigns and reassigns), U1 (the Safety
@@ -286,11 +301,31 @@ test.describe("F1 every status change writes a history entry", () => {
   });
 });
 
-/** The part of F3-T9 and F4-T8 that needs no Kafka: the notifications each ends on are built from Kafka messages, which this stack leaves out. */
-test.describe("F3 and F4 cancel an event (the screens, not the notifications)", () => {
-  test("F3-T9 the owner cancels their event from its page with a reason; the coordinator sees the same", { tag: ["@F3", "@F3-T9"] }, async ({ page, a11y }) => {
-    const { event } = await arrangedEvent(true, "F3 Chairs");
+/** How the notices name an event: its reference, then its name in quotes. */
+const labelOf = (event: { reference: string; name: string }) => `${event.reference} “${event.name}”`;
+
+/** The reference of the event's confirmed booking, as event.cancelled names it (venue.venue_slots). */
+async function confirmedBookingReference(eventId: string): Promise<string> {
+  const rows = await query<{ reference: string }>("select reference from venue.venue_slots where event_id = $1 and status = 'CONFIRMED'", [eventId]);
+  expect(rows).toHaveLength(1);
+  return rows[0]!.reference;
+}
+
+/**
+ * F3 and F4 through the screens, and the notices they end on. Those are built by the notification
+ * service from Kafka messages, which this stack leaves out, so each journey hands the cancellation's
+ * event.cancelled to the consumers with deliverOutbox (support/deliver.ts) before anyone opens
+ * Notifications. F4-T7 hands it to the registration service as well, which cancels the event's
+ * registrations and waitlist entries and tells each attendee.
+ */
+test.describe("F3 and F4 cancel an event", () => {
+  test("F3-T9 the owner cancels their event from its page with a reason; the coordinator sees the same, and all four are told", { tag: ["@F3", "@F3-T9"] }, async ({ page, a11y }) => {
+    // Step 5 signs in four times and asks the notification service, which asks identity each time.
+    test.setTimeout(150_000);
+    await ensureIdentityBudget(40);
+    const { event, venue, chairs } = await arrangedEvent(true, "F3 Chairs");
     await requestChange(event.id, { expectedAttendance: 160 }, "More people registered");
+    const booking = await confirmedBookingReference(event.id);
 
     // Step 1: the owner opens the event's page from My requests.
     await signIn(page, "organiser");
@@ -330,10 +365,31 @@ test.describe("F3 and F4 cancel an event (the screens, not the notifications)", 
     await expect(page.getByText("The speaker withdrew.").first()).toBeVisible();
     await expect(page.getByRole("button", { name: "Cancel event" })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Confirm arrangements" })).toHaveCount(0);
+
+    // Step 5: the cancellation's event.cancelled reaches the notification service (in place of
+    // Kafka). Each of the four has one cancellation notice, with the reason.
+    const delivered = await deliverOutbox(event.id, { types: ["event.cancelled"] });
+    expect(delivered).toEqual([{ outbox: "event.outbox", type: "event.cancelled", consumer: "notification", outcome: "stored" }]);
+    const cancelled = `${labelOf(event)} has been cancelled. Reason: The speaker withdrew.`;
+    const expected: [AccountKey, string][] = [
+      ["organiser", `Your event ${cancelled}`],
+      ["coordinator", `The event ${cancelled}`],
+      ["venuestaff", `${cancelled} Released: booking ${booking} at ${venue.name}, ${PERIOD_TEXT}.`],
+      ["techsupport", `${cancelled} The equipment you reserved has been released: ${chairs!.name} × 5.`],
+    ];
+    for (const [who, text] of expected) {
+      await signOut(page);
+      const notices = await openNotifications(page, who);
+      await expect(messageOf(notices.filter({ hasText: event.name }))).toHaveText([text]);
+    }
   });
 
-  test("F4-T8 the coordinator cancels an event with a booking and reserved equipment; the venue and the stock are free again", { tag: ["@F4", "@F4-T8"] }, async ({ page, a11y }) => {
+  test("F4-T8 the coordinator cancels an event with a booking and reserved equipment; the venue and the stock are free again, and their staff are told", { tag: ["@F4", "@F4-T8"] }, async ({ page, a11y }) => {
+    test.setTimeout(150_000);
+    await ensureIdentityBudget(40);
     const { event, venue, chairs, lineId } = await arrangedEvent(true, "F4 Chairs");
+    const booking = await confirmedBookingReference(event.id);
+    const cancelled = `${labelOf(event)} has been cancelled. Reason: Venue flooded.`;
     const tuesday = (p: Page) => p.getByRole("region", { name: "Tuesday 2 March 2027" });
     const openDay = async () => {
       await page.getByRole("navigation").getByRole("link", { name: "Venues", exact: true }).click();
@@ -365,13 +421,21 @@ test.describe("F3 and F4 cancel an event (the screens, not the notifications)", 
     await dialog.getByRole("button", { name: "Cancel event" }).click();
     await expect(dialog).toHaveCount(0);
     await expect(statusPanel(page).getByText("Cancelled", { exact: true })).toBeVisible();
+    // The cancellation's event.cancelled reaches the notification service (in place of Kafka).
+    const delivered = await deliverOutbox(event.id, { types: ["event.cancelled"] });
+    expect(delivered).toEqual([{ outbox: "event.outbox", type: "event.cancelled", consumer: "notification", outcome: "stored" }]);
 
-    // Step 3: the venue's day shows no booking for the event, and the whole opening day is free.
+    // Step 3: the venue's day shows no booking for the event, and the whole opening day is free;
+    // one notice names the booking as released, with the reason.
     await signOut(page);
     await signIn(page, "venuestaff");
     await openDay();
     await expect(tuesday(page).getByRole("list", { name: "Free" }).getByRole("listitem")).toHaveText(["08:00–22:00"]);
     await expect(tuesday(page).getByText(event.reference)).toHaveCount(0);
+    const staffNotices = await openNotifications(page);
+    await expect(messageOf(staffNotices.filter({ hasText: event.name }))).toHaveText([
+      `${cancelled} Released: booking ${booking} at ${venue.name}, ${PERIOD_TEXT}.`,
+    ]);
 
     // Step 4: Technical Support see the line is no longer Reserved and the full stock free for the period.
     await signOut(page);
@@ -389,5 +453,109 @@ test.describe("F3 and F4 cancel an event (the screens, not the notifications)", 
     await expect(page.getByRole("region", { name: "Availability result" })).toContainText("Available quantity: 20");
     const lines = await query<{ status: string }>("select status from equipment.equipment_request_lines where id = $1", [lineId!]);
     expect(lines[0]?.status).not.toBe("RESERVED");
+    // One notice says the equipment reserved was released, with the reason.
+    const supportNotices = await openNotifications(page);
+    await expect(messageOf(supportNotices.filter({ hasText: event.name }))).toHaveText([
+      `${cancelled} The equipment you reserved has been released: ${chairs!.name} × 5.`,
+    ]);
+  });
+
+  test("F4-T7 the registration service cancels the event's registrations and waitlist entry from event.cancelled, and tells each attendee", { tag: ["@F4", "@F4-T7"] }, async ({ page }) => {
+    test.setTimeout(150_000);
+    await ensureAttendeeTwo();
+    await ensureIdentityBudget(60);
+    // FX-F4's E, Approved, booked at a venue whose Theatre layout seats 2 (L1, M1). The approval
+    // reaches the registration service (in place of Kafka), which builds E's seats from it (EN-13).
+    // The listing is the registration service's copy of E, open for registration.
+    const event = await approvedRequest({ name: uniqueName("F4 Registrations") });
+    const venue = await createVenue({ maxCapacity: 2, layouts: [{ name: "Theatre", capacity: 2 }] });
+    const request = await requestBooking(event.id, venue.id, { expectedAttendance: 2 });
+    await approveBooking(request.id);
+    await listPlannedEvent(event, { seats: 0 });
+    const seated = await deliverOutbox(event.id, { to: ["registration"], types: ["venue-booking.request-approved"] });
+    expect(seated).toEqual([{ outbox: "venue.outbox", type: "venue-booking.request-approved", consumer: "registration.seat-builder", outcome: "built" }]);
+    expect(await seatStatusesOf(event.id)).toEqual({ FREE: 2 });
+    // Two Registered attendees (R2): Attendee One, and another attendee (FX-R-TAKEN). The event is
+    // then full, and Attendee Two joins its waitlist (R6).
+    const mine = await registerThroughApi(event.id);
+    await takeSeats(event.id, 1);
+    const other = (await registrationsOf(event.id)).find((registration) => registration.attendee_id !== ATTENDEE_ID)!;
+    const waiting = await joinWaitlistThroughApi(event.id, "attendee2");
+
+    // Step 1: O cancels E. It answers 200 with no registration released, writes event.cancelled for
+    // E, and leaves the registrations to the registration service.
+    const cancellation = await call<{ released: { registrations: number } }>("organiser", "POST", `/api/v1/events/${event.id}/cancellation`, {
+      reason: "The speaker withdrew.",
+    });
+    expect(cancellation.status).toBe(200);
+    expect(cancellation.body.released.registrations).toBe(0);
+    const written = await query<{ envelope: { data: { cancelledAt: string } } }>(
+      "select envelope from event.outbox where message_key = $1 and envelope->>'type' = 'event.cancelled'",
+      [event.id],
+    );
+    expect(written).toHaveLength(1);
+    const cancelledAt = written[0]!.envelope.data.cancelledAt;
+    const [stored] = await query<{ cancelled_at: Date }>("select cancelled_at from event.events where id = $1", [event.id]);
+    expect(stored!.cancelled_at.toISOString()).toBe(cancelledAt);
+    expect((await registrationsOf(event.id)).map((registration) => registration.status)).toEqual(["REGISTERED", "REGISTERED"]);
+
+    // Step 2: the registration service consumes that event.cancelled, and the messages it writes in
+    // turn reach the notification service (both in place of Kafka).
+    const delivered = await deliverOutbox(event.id, {
+      to: ["registration", "notification"],
+      types: ["event.cancelled", "registration.cancelled", "waitlist.cancelled"],
+    });
+    expect(delivered).toContainEqual({ outbox: "event.outbox", type: "event.cancelled", consumer: "registration.event-listings", outcome: "applied" });
+    expect(delivered.filter((delivery) => delivery.outbox === "registration.outbox")).toEqual([
+      { outbox: "registration.outbox", type: "registration.cancelled", consumer: "notification", outcome: "stored" },
+      { outbox: "registration.outbox", type: "registration.cancelled", consumer: "notification", outcome: "stored" },
+      { outbox: "registration.outbox", type: "waitlist.cancelled", consumer: "notification", outcome: "stored" },
+    ]);
+
+    // Step 3: both registrations Cancelled at the cancellation's time, the seats retired, the waitlist
+    // entry Cancelled, and one message per registration and per entry, each naming its attendee.
+    const registrations = await registrationsOf(event.id);
+    expect(registrations.map((registration) => [registration.status, registration.cancelled_at?.toISOString()])).toEqual([
+      ["CANCELLED", cancelledAt],
+      ["CANCELLED", cancelledAt],
+    ]);
+    expect(await seatStatusesOf(event.id)).toEqual({ RETIRED: 2 });
+    const entries = await waitlistOf(event.id);
+    expect(entries).toHaveLength(1);
+    expect(entries[0]).toMatchObject({ id: waiting.id, attendee_id: ACCOUNTS.attendee2.id, status: "CANCELLED" });
+    expect(entries[0]!.cancelled_at!.toISOString()).toBe(cancelledAt);
+    const outbox = await registrationOutboxOf(event.id);
+    const cancelledRegistrations = outbox
+      .filter((message) => message.type === "registration.cancelled")
+      .map((message) => [message.data.attendeeId, message.data.registrationReference]);
+    expect(cancelledRegistrations).toHaveLength(2);
+    expect(cancelledRegistrations).toEqual(
+      expect.arrayContaining([
+        [ATTENDEE_ID, mine.reference],
+        [other.attendee_id, other.reference],
+      ]),
+    );
+    const cancelledEntries = outbox
+      .filter((message) => message.type === "waitlist.cancelled")
+      .map((message) => [message.data.attendeeId, message.data.waitlistReference]);
+    expect(cancelledEntries).toEqual([[ACCOUNTS.attendee2.id, waiting.reference]]);
+
+    // Each attendee is told: Attendee One and Attendee Two read it in Notifications; the other
+    // attendee, who has no account here, has it stored for them.
+    const label = labelOf(event);
+    const mineNotices = await openNotifications(page, "attendee");
+    await expect(messageOf(mineNotices.filter({ hasText: event.name }))).toHaveText([
+      `${label} has been cancelled, so your registration ${mine.reference} is cancelled.`,
+    ]);
+    await signOut(page);
+    const waitingNotices = await openNotifications(page, "attendee2");
+    await expect(messageOf(waitingNotices.filter({ hasText: event.name }))).toHaveText([
+      `${label} has been cancelled, so your place on its waitlist (${waiting.reference}) is cancelled.`,
+    ]);
+    const othersNotices = await query<{ message: string }>(
+      "select message from notification.notifications where recipient_user_id = $1 and event_id = $2",
+      [other.attendee_id, event.id],
+    );
+    expect(othersNotices.map((notice) => notice.message)).toEqual([`${label} has been cancelled, so your registration ${other.reference} is cancelled.`]);
   });
 });

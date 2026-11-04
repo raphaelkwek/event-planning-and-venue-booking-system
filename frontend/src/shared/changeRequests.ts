@@ -1,5 +1,6 @@
+import type { SignificantEventField } from "@connectsphere/contracts";
 import type { EventStatus } from "../api/types.js";
-import type { ArrangementFlag, FlaggedArrangement, SignificantField } from "../api/changeRequests.js";
+import type { ArrangementFlag, FlaggedArrangement } from "../api/changeRequests.js";
 
 /** G2 (AC1) — each significant field's label, from the one list in @connectsphere/contracts. */
 export { SIGNIFICANT_FIELD_LABELS } from "@connectsphere/contracts";
@@ -18,7 +19,7 @@ const CHANGEABLE: readonly EventStatus[] = [
 export const isChangeable = (status: EventStatus) => CHANGEABLE.includes(status);
 
 /** S2: how a field's value reads in the approval confirmation. */
-export function formatChangeValue(field: SignificantField, value: unknown): string {
+export function formatChangeValue(field: SignificantEventField, value: unknown): string {
   if (value === null || value === undefined || value === "") return "none";
   if (field === "proposedStartAt" || field === "proposedEndAt") return new Date(String(value)).toLocaleString();
   if (field === "equipmentRequired") return value ? "Yes" : "No";

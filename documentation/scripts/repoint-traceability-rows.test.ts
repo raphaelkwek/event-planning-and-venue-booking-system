@@ -54,17 +54,40 @@ test("refuses a line that is not as the repair expects, rather than guessing", (
   assert.throws(() => applyRepairs("s.csv", text, [repair(9, "old", "new")]), /s\.csv:9 does not exist/);
 });
 
-test("repairs for other sprint files are ignored", () => {
+test("repairs for other story files are ignored", () => {
   const text = `${HEADER}\nX1,crit,a.test.ts,old\n`;
   const other: Repair = { ...repair(2, "old", "new"), csv: "t.csv" };
   assert.equal(applyRepairs("s.csv", text, [other]).text, text);
 });
 
-test("the repair table has 21 distinct lines, and a marker names the story and change that retired the criterion", () => {
-  assert.equal(REPAIRS.length, 21);
-  assert.equal(new Set(REPAIRS.map((r) => `${r.csv}:${r.line}`)).size, 21);
-  for (const r of REPAIRS.filter((x) => x.to.name.startsWith("SUPERSEDED"))) {
+test("the repair table names 70 distinct lines of the per-story files, each changed by its repair", () => {
+  assert.equal(REPAIRS.length, 70);
+  assert.equal(new Set(REPAIRS.map((r) => `${r.csv}:${r.line}`)).size, 70);
+  for (const r of REPAIRS) {
+    assert.match(r.csv, /^sprint-\d+\/[A-Z0-9-]+\.csv$/, `${r.csv} is a story's file`);
+    // The same file and name is a repair only when it quotes a name that holds a comma (EN-07.csv:9).
+    const same = r.to.file === r.from.file && r.to.name === r.from.name;
+    assert.ok(!same || r.from.name.includes(","), `${r.csv}:${r.line} changes the row, or quotes its name`);
+  }
+});
+
+test("a superseded marker names the story and change that retired the criterion, and keeps the test_file", () => {
+  const markers = REPAIRS.filter((r) => r.to.name.startsWith("SUPERSEDED"));
+  assert.ok(markers.length > 0);
+  for (const r of markers) {
     assert.match(r.to.name, /^SUPERSEDED by E[34] \((CR-05|W9-FX-5)\)$/);
     assert.equal(r.to.file, r.from.file, "a superseded row keeps its test_file");
+  }
+});
+
+test("a row moved to a card names a card file under tests/<STORY>/ and a heading that starts with the card's id", () => {
+  const carded = REPAIRS.filter((r) => r.to.file.endsWith(".md"));
+  assert.ok(carded.length > 0);
+  for (const r of carded) {
+    const id = r.to.name.split(" ")[0]!;
+    assert.match(id, /^[A-Z0-9-]+-T\d+$/);
+    assert.equal(r.to.file, `tests/${id.replace(/-T\d+$/, "")}/${r.to.file.split("/").pop()}`);
+    assert.ok(r.to.file.split("/").pop()!.startsWith(`${id}-`), `${r.to.file} is ${id}'s card`);
+    assert.ok(r.to.name.startsWith(`${id} — `), "the card's heading, as check-traceability wants it");
   }
 });

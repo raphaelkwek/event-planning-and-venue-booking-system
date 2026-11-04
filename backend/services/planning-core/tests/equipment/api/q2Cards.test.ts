@@ -18,7 +18,7 @@ import { EVENT_END, EVENT_START } from "../../support/eventDates.js";
 // identity lookup replaced. FX-Q2 is FX-Q1's event and types plus L1, a Confirmed CHAIRS x 4 line
 // reserved through the real reservation route. Q2-T9 passes the stored message through the
 // notification service's recipient rule. Q2-T6 (the race) is in tests/race/invariants.test.ts, Q2-T12
-// waits for F4 (Not Executed), and Q2-T13 is done by hand in the browser.
+// (F4's cancellation) in q2Cancellation.test.ts, and Q2-T13 is a browser journey in tests/e2e/o-equipment.spec.ts.
 vi.mock("../../../src/shared/auth/verifyJwt.js", () => ({
   verifyJwt: (req: { auth?: { supabaseUserId?: string } }, _res: unknown, next: () => void) => {
     req.auth = { supabaseUserId: "q2-card-subject" };

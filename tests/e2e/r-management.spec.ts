@@ -1,19 +1,29 @@
 import type { Browser, Page, TestInfo } from "@playwright/test";
-import { expect, signIn, signOut, test } from "./support/fixtures.js";
+import { expect, signIn, signOut, test, uniqueName } from "./support/fixtures.js";
 import { ACCOUNTS } from "./support/accounts.js";
+import { deliverOutbox } from "./support/deliver.js";
+import { messageOf, openNotifications } from "./support/notifications.js";
+import { approvedRequest, createVenue } from "./support/seed.js";
+import { requestBooking } from "./support/seed-venues.js";
 import {
   ATTENDEE_ID,
+  FX_ENDS_AT,
+  FX_STARTS_AT,
+  PERIOD_TEXT,
   addSecondVenue,
   attendeeCall,
   captureResponse,
   createRegistrationEvent,
   ensureIdentityBudget,
   eventLabel,
+  listPlannedEvent,
   registerThroughApi,
+  registrationOutboxOf,
   registrationsOf,
   removeRFixtures,
   sendFromAttendeeConsole,
   singaporeMoment,
+  symposiumName,
   takeSeats,
   type Envelope,
   type FxEvent,
@@ -52,8 +62,11 @@ import {
  * The cards' FX-R-… statements (tests/R1/README.md, tests/R5/README.md) run against the job's own
  * database, and Attendee Two is added there (seed-management.ts). The notices these stories send
  * are built by the notification service from Kafka messages, and this stack runs without Kafka
- * (documentation/evidence/EN-14), so no journey here checks a notification; nor R6-T10 and R6-T11,
- * which start from Kafka messages (F3's cancellation, M1's booking) reaching the registration service.
+ * (documentation/evidence/EN-14), so a journey whose card reads Notifications hands the messages its
+ * action wrote to the consumers with deliverOutbox (support/deliver.ts) first. R6-T10 and R6-T11
+ * start from planning-core's messages (F3's event.cancelled, M1's approval) reaching the
+ * registration service, so their event is one planning-core holds too (listPlannedEvent), and the
+ * same delivery hands those messages to the registration service's own consumers.
  */
 
 test.beforeAll(async () => {
@@ -354,8 +367,16 @@ test.describe("R6 join and be invited from the waitlist", () => {
     // Step 1: Attendee Two withdraws.
     await attendeeTwoWithdraws(page, event);
 
-    // Step 2 (Notifications) needs Kafka. Step 3: no registration, the entry still Waitlisted, with when it was told.
-    await signIn(page, "attendee");
+    // Step 2: the messages the withdrawal wrote reach the notification service (in place of Kafka),
+    // and Attendee One is told a place has opened.
+    const delivered = await deliverOutbox(event.eventId);
+    expect(delivered).toContainEqual({ outbox: "registration.outbox", type: "waitlist.place-opened", consumer: "notification", outcome: "stored" });
+    const notices = await openNotifications(page, "attendee");
+    await expect(messageOf(notices.filter({ hasText: event.name }))).toHaveText([
+      `A place has opened at ${eventLabel(event)}. Register now if you still want one: places go to whoever registers first.`,
+    ]);
+
+    // Step 3: no registration, the entry still Waitlisted, with when it was told.
     await openMyRegistrations(page);
     await expect(registrationRow(page, event.name)).toHaveCount(0);
     const [entry] = await waitlistOf(event.eventId, ATTENDEE_ID);
@@ -441,10 +462,18 @@ test.describe("R6 join and be invited from the waitlist", () => {
     await expect(entry).toContainText(`Left ${singaporeMoment(stored!.withdrawn_at!)}`);
     await signOut(page);
 
-    // Step 2: Attendee Two withdraws, so a place opens. The left entry is not told (step 3's notice needs Kafka).
+    // Step 2: Attendee Two withdraws, so a place opens. The left entry is not told.
     await attendeeTwoWithdraws(page, event);
     const [after] = await waitlistOf(event.eventId, ATTENDEE_ID);
     expect(after).toMatchObject({ status: "WITHDRAWN", last_notified_at: null });
+
+    // Step 3: the messages the withdrawal wrote reach the notification service (in place of Kafka):
+    // Attendee Two's own notice, and no place-opened notice for anyone. Attendee One has no notice.
+    const delivered = await deliverOutbox(event.eventId);
+    expect(delivered).toContainEqual({ outbox: "registration.outbox", type: "registration.withdrawn", consumer: "notification", outcome: "stored" });
+    expect(delivered.filter((d) => d.type === "waitlist.place-opened")).toEqual([]);
+    const notices = await openNotifications(page, "attendee");
+    await expect(notices.filter({ hasText: event.name })).toHaveCount(0);
   });
 
   test("R6-T9 waitlist entries are never counted as registrations", { tag: ["@R6", "@R6-T9"] }, async ({ page, a11y }) => {
@@ -471,6 +500,112 @@ test.describe("R6 join and be invited from the waitlist", () => {
     await openEventFromEvents(page, event.name);
     await expectFull(page);
   });
+
+  test("R6-T10 cancelling the event cancels the waiting entries and tells each attendee; a left entry stays Withdrawn", { tag: ["@R6", "@R6-T10"] }, async ({ page }) => {
+    // FX-R-EVENT (1 seat) for an event planning-core holds, so that F3 can cancel it; FX-R-TAKEN 1;
+    // Attendee One joins the waitlist. Attendee Two joins too and leaves, for the entry already Withdrawn.
+    const planned = await approvedRequest({ name: symposiumName(), proposedStartAt: FX_STARTS_AT, proposedEndAt: FX_ENDS_AT });
+    const event = await listPlannedEvent(planned, { seats: 1 });
+    await takeSeats(event.eventId, 1);
+    const mine = await joinWaitlistThroughApi(event.eventId);
+    const theirs = await joinWaitlistThroughApi(event.eventId, "attendee2");
+    const left = await attendeeCall("POST", `/api/v1/waitlist-entries/${theirs.id}/withdrawal`, undefined, "attendee2");
+    expect(left.status).toBe(200);
+
+    // Step 1: the owner cancels the event on its page (F3). F3's event.cancelled reaches the
+    // registration service, and the messages it writes in turn reach the notification service
+    // (both in place of Kafka).
+    await signIn(page, "organiser");
+    await page.goto(`/#/requests/${event.eventId}`);
+    await expect(page.getByRole("heading", { name: event.name })).toBeVisible();
+    await page.getByRole("button", { name: "Cancel event" }).click();
+    const dialog = page.getByRole("dialog");
+    await dialog.getByLabel("Reason").fill("The speaker withdrew.");
+    const cancelled = await captureResponse(page, "POST", "/cancellation", () => dialog.getByRole("button", { name: "Cancel event" }).click());
+    expect(cancelled.status).toBe(200);
+    await expect(page.getByRole("heading", { name: "This event was cancelled" })).toBeVisible();
+    await signOut(page);
+    const delivered = await deliverOutbox(event.eventId, {
+      to: ["registration", "notification"],
+      types: ["event.cancelled", "registration.cancelled", "waitlist.cancelled"],
+    });
+    expect(delivered).toContainEqual({ outbox: "event.outbox", type: "event.cancelled", consumer: "registration.event-listings", outcome: "applied" });
+    expect(delivered.filter((d) => d.type === "waitlist.cancelled")).toEqual([
+      { outbox: "registration.outbox", type: "waitlist.cancelled", consumer: "notification", outcome: "stored" },
+    ]);
+
+    // The waiting entry is Cancelled; the one already Withdrawn stays so and is told nothing.
+    const [entry] = await waitlistOf(event.eventId, ATTENDEE_ID);
+    expect(entry).toMatchObject({ id: mine.id, status: "CANCELLED" });
+    expect(entry!.cancelled_at).not.toBeNull();
+    const [other] = await waitlistOf(event.eventId, ACCOUNTS.attendee2.id);
+    expect(other).toMatchObject({ id: theirs.id, status: "WITHDRAWN", cancelled_at: null, last_notified_at: null });
+    const told = await registrationOutboxOf(event.eventId, "waitlist.cancelled");
+    expect(told.map((m) => m.data.attendeeId)).toEqual([ATTENDEE_ID]);
+
+    // Step 2: Attendee One's entry reads Cancelled with the time, and the notice is in Notifications.
+    await signIn(page, "attendee");
+    await openMyRegistrations(page);
+    const shown = myWaitlistEntry(page, event.name);
+    await expect(shown.getByText("Cancelled", { exact: true })).toBeVisible();
+    await expect(shown).toContainText(`Cancelled ${singaporeMoment(entry!.cancelled_at!)}, with the event`);
+    const notices = await openNotifications(page);
+    await expect(messageOf(notices.filter({ hasText: event.name }))).toHaveText([
+      `${eventLabel(event)} has been cancelled, so your place on its waitlist (${mine.reference}) is cancelled.`,
+    ]);
+    await signOut(page);
+
+    // Attendee Two, who had left the waitlist, has no notice about the event.
+    const theirNotices = await openNotifications(page, "attendee2");
+    await expect(theirNotices.filter({ hasText: event.name })).toHaveCount(0);
+  });
+
+  test("R6-T11 a further confirmed venue booking adds places, and the waitlist is told", { tag: ["@R6", "@R6-T11"] }, async ({ page }) => {
+    // FX-R-EVENT (1 seat) for an event planning-core holds, so that M1 can confirm it a second venue;
+    // FX-R-TAKEN 1; Attendee One joins the waitlist. The second venue's Theatre layout seats 2, and
+    // its booking request (L1, CR-03) is for the event's period.
+    const planned = await approvedRequest({ name: symposiumName(), proposedStartAt: FX_STARTS_AT, proposedEndAt: FX_ENDS_AT });
+    const event = await listPlannedEvent(planned, { seats: 1 });
+    await takeSeats(event.eventId, 1);
+    const mine = await joinWaitlistThroughApi(event.eventId);
+    const venue = await createVenue({ name: uniqueName("Seminar Room 2-1"), maxCapacity: 2, layouts: [{ name: "Theatre", capacity: 2 }] });
+    const request = await requestBooking(event.eventId, venue.id, { startsAt: FX_STARTS_AT, endsAt: FX_ENDS_AT, expectedAttendance: 2 });
+
+    // Step 1: Venue Staff approve it (M1). The approval reaches the registration service, which builds
+    // the 2 seats and tells the waitlist, and its message reaches the notification service (both in
+    // place of Kafka).
+    await signIn(page, "venuestaff");
+    await page.getByRole("navigation").getByRole("link", { name: "Booking requests", exact: true }).click();
+    await page.getByRole("row", { name: request.reference }).getByRole("button", { name: "Approve" }).click();
+    const dialog = page.getByRole("dialog");
+    await expect(dialog.getByRole("heading", { name: `Approve ${request.reference}?` })).toBeVisible();
+    await dialog.getByRole("button", { name: "Approve request" }).click();
+    await expect(page.getByText(`${request.reference} approved. The booking is confirmed.`)).toBeVisible();
+    await signOut(page);
+    const delivered = await deliverOutbox(event.eventId, {
+      to: ["registration", "notification"],
+      types: ["venue-booking.request-approved", "waitlist.place-opened"],
+    });
+    expect(delivered).toContainEqual({ outbox: "venue.outbox", type: "venue-booking.request-approved", consumer: "registration.seat-builder", outcome: "built" });
+    expect(delivered.filter((d) => d.type === "waitlist.place-opened")).toEqual([
+      { outbox: "registration.outbox", type: "waitlist.place-opened", consumer: "notification", outcome: "stored" },
+    ]);
+
+    // The event shows 2 places remaining, and nobody was registered for Attendee One, who still waits.
+    await signIn(page, "attendee");
+    await openEventFromEvents(page, event.name);
+    await expectPlaces(page, "2 places remaining");
+    expect(await registrationsOf(event.eventId, ATTENDEE_ID)).toHaveLength(0);
+    const [entry] = await waitlistOf(event.eventId, ATTENDEE_ID);
+    expect(entry).toMatchObject({ id: mine.id, status: "WAITLISTED", registration_id: null });
+    expect(entry!.last_notified_at).not.toBeNull();
+
+    // Step 2: Attendee One is told a place has opened.
+    const notices = await openNotifications(page);
+    await expect(messageOf(notices.filter({ hasText: event.name }))).toHaveText([
+      `A place has opened at ${eventLabel(event)}. Register now if you still want one: places go to whoever registers first.`,
+    ]);
+  });
 });
 
 // ---------------------------------------------------------------------------------------------
@@ -480,7 +615,7 @@ test.describe("R6 join and be invited from the waitlist", () => {
 const ATTENDEE_EMAIL = ACCOUNTS.attendee.email;
 
 test.describe("R7 add an attendee manually", () => {
-  test("R7-T1 the owning organiser adds an attendee, seeing the capacity and the new total first", { tag: ["@R7", "@R7-T1"] }, async ({ page, a11y }) => {
+  test("R7-T1 the owning organiser adds an attendee, seeing the capacity and the new total first, and the attendee is told", { tag: ["@R7", "@R7-T1"] }, async ({ page, a11y }) => {
     const event = await createRegistrationEvent();
     await manage(event.eventId);
     await signIn(page, "organiser");
@@ -508,8 +643,14 @@ test.describe("R7 add an attendee manually", () => {
     await a11y("event registrations, attendee added");
     await signOut(page);
 
-    // Step 4 (the notice needs Kafka): the registration is listed for Attendee One.
-    await signIn(page, "attendee");
+    // Step 4: the addition's message reaches the notification service (in place of Kafka), and
+    // Attendee One is told; the registration is listed for them.
+    const delivered = await deliverOutbox(event.eventId);
+    expect(delivered).toContainEqual({ outbox: "registration.outbox", type: "registration.added", consumer: "notification", outcome: "stored" });
+    const notices = await openNotifications(page, "attendee");
+    await expect(messageOf(notices.filter({ hasText: event.name }))).toHaveText([
+      `Organiser One added you to ${eventLabel(event)} on ${PERIOD_TEXT}. Registration ${added.body.reference} is confirmed; you can withdraw it from My registrations.`,
+    ]);
     await openMyRegistrations(page);
     const row = registrationRow(page, event.name);
     await expect(row.getByText("Registered", { exact: true })).toBeVisible();

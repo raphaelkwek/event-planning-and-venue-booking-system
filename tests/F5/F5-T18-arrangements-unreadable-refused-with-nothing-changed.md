@@ -20,8 +20,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | With the venue module's read rejecting ("canceling statement due to statement timeout"), and then separately the equipment module's ("Connection terminated unexpectedly"), C1 got 503 ARRANGEMENTS_UNAVAILABLE each time with "The venue and equipment arrangements could not be checked, so the event was not confirmed. Nothing was changed. Try again." Each time E1's status and version, its history (entry count and the latest STATUS_CHANGE entry), its slots' status and flags (requires_reconfirmation, period_mismatch, unsuitable, and their arrangement_flags rows), its booking requests, its request lines, its reservations (status and quantity) and the event outbox (row count and every envelope) read exactly as before the request. With the reads working again, the same fixture confirmed with 200. |
+| Status | Pass |
+| Remarks | Automated (API level) · Commit: 5bfb25e · Evidence: `backend/services/planning-core/tests/change/api/f5Cards.test.ts` › F5 cards (tests/F5) › F5-T18 if the venue or equipment records cannot be read, the refusal is 503 and nothing changes, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41801285931 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-04 |

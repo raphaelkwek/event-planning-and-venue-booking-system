@@ -63,13 +63,17 @@ jobs:
         run: npm run test:unit
 
       # EN-22: the script tests already ran inside test:unit; this writes their JUnit results,
-      # one file per test file, for the traceability job. A failure here fails the job as well.
+      # one file per test file, for the traceability job. The files are every one that the
+      # test:scripts and test:gateway scripts in package.json name, so a test added there is
+      # reported without touching this step. A failure here fails the job as well.
       - name: Script tests (JUnit results)
         if: always()
         run: |
           mkdir -p script-results
+          files="$(node -e 'const s = require("./package.json").scripts; for (const name of ["test:scripts", "test:gateway"]) for (const word of s[name].split(/\s+/)) if (/\.test\.m?[jt]s$/.test(word)) console.log(word)')"
+          if [ -z "$files" ]; then echo "::error::package.json names no script tests"; exit 1; fi
           status=0
-          for f in documentation/scripts/confluence-digest.test.ts documentation/scripts/traceability-matrix.test.ts documentation/scripts/dora.test.ts; do
+          for f in $files; do
             npx tsx --test --test-reporter=junit --test-reporter-destination="script-results/$(echo "$f" | sed 's#/#__#g').xml" "$f" || status=1
           done
           exit $status
@@ -105,9 +109,14 @@ jobs:
             backend/services/registration/reports/vitest-unit.json
             backend/packages/contracts/reports/vitest-unit.json
             backend/packages/kafka/reports/vitest-unit.json
+            backend/packages/telemetry/reports/vitest-unit.json
+            backend/packages/observability/reports/vitest-unit.json
+            load/reports/vitest-unit.json
             frontend/reports/vitest-unit.json
             script-results/
           if-no-files-found: ignore
+          # .github/scripts' tests report as .github__scripts__<name>.xml, a hidden file.
+          include-hidden-files: true
 
       # A2's permission rules (ADR-0010). Cerbos has no Windows build, so CI is
       # where most of the team sees these run; backend/scripts/cerbos.ts
@@ -252,6 +261,16 @@ jobs:
             backend/services/registration/reports/vitest-integration.json
           if-no-files-found: ignore
 
+      # RUB-6: planning-core's coverage is measured on this run (its unit run leaves api/ and repo/
+      # to the database), so its per-file summary is what documentation/testing/coverage.md reads.
+      - name: Upload planning-core's coverage summary
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-integration
+          path: backend/services/planning-core/coverage/coverage-summary.json
+          if-no-files-found: ignore
+
   # EN-14 (SPM-132). Browser tests against an ephemeral stack that lives only as long as this
   # job: a throwaway Postgres built from every migration, a fake Supabase Auth server, the three
   # services and the web app (tests/playwright.config.ts starts them). Kafka is left out on
@@ -333,6 +352,16 @@ jobs:
         with:
           name: playwright-test-results
           path: tests/test-results/
+          if-no-files-found: ignore
+
+      # EN-22: the JSON report the playwright config writes in CI, for the traceability job (its
+      # test-results-* download). The HTML report above holds no JSON the matrix can read.
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-e2e
+          path: tests/test-results/results.json
           if-no-files-found: ignore
 
       - name: Upload the stack's logs
@@ -494,12 +523,11 @@ jobs:
   # EN-22. Builds the story, acceptance criterion, test, last result matrix from the traceability
   # CSVs, the test jobs' JSON reports and the functional cards. It runs even when a test job
   # failed, because a red run is when the matrix matters. Missing tests and names that do not exist
-  # are warnings: the job fails only if the generator itself breaks.
-  # EN-14's e2e job: add it to `needs` when it lands; its Playwright JSON report is read when the
-  # artifact is present (the name starts with playwright-report).
+  # are warnings: the job fails only if the generator itself breaks. It waits for the e2e job too,
+  # whose Playwright JSON report arrives as test-results-e2e.
   traceability:
     name: Traceability matrix
-    needs: [checks, integration]
+    needs: [checks, integration, e2e]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -518,14 +546,6 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           pattern: test-results-*
-          path: results
-          merge-multiple: false
-
-      - name: Download the Playwright report, if a job wrote one
-        uses: actions/download-artifact@v4
-        continue-on-error: true
-        with:
-          pattern: playwright-report*
           path: results
           merge-multiple: false
 

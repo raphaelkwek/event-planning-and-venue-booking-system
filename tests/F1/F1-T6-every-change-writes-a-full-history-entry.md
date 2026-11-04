@@ -16,12 +16,17 @@
 > **Expected results are checked by the PR reviewer** against F1's acceptance criteria
 > (§11.12's before-code confirmation was waived for F1 by the team on 2026-09-30).
 
+> **Revised 2026-11-04.** Step 1 names the Supabase SQL editor, which an automated run can't use. The test does
+> FX-APPROVED on CI's throwaway stack and runs the same query, unchanged, against that stack's database. The expected
+> result is unchanged: FX-ASSIGNED, the Lead's assignment since E3 (CR-05), changes no status, so it writes no
+> `STATUS_CHANGE` row.
+
 ## Execution record
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | FX-SUBMITTED and FX-ASSIGNED (the Lead assigning Coordinator One, as E3 has it) were done through the API; Coordinator One opened the request from the Review queue (Under Review) and clicked Approve. The card's query returned exactly three rows, in this order: DRAFT → SUBMITTED, 00000000-0000-0000-0000-000000000001, EVENT_ORGANISER, SUBMIT; SUBMITTED → UNDER_REVIEW, 00000000-0000-0000-0000-000000000002, EVENT_COORDINATOR, OPEN_FOR_REVIEW; UNDER_REVIEW → APPROVED, 00000000-0000-0000-0000-000000000002, EVENT_COORDINATOR, APPROVE. Every row had a non-empty occurred_at, in time order. Run on CI's throwaway stack, with unique names in place of the card's literal names; the card's query ran unchanged against that stack's database in place of the Supabase SQL editor. |
+| Status | Pass |
+| Remarks | Automated (browser, Playwright) · Commit: 5bfb25e · Evidence: tests/e2e/f1-history.spec.ts › F1-T6 every status change on the way to Approved writes a full history entry, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41801285931 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-04 |

@@ -20,6 +20,6 @@
 |---|---|
 | Actual Result | Not run. Depends on EN-17 and a staging cluster. |
 | Status | Not Executed |
-| Remarks | Commit: · Evidence: Not run: EN-17 has not merged and there is no staging cluster. The demonstration uses a stand-in service that exposes the same names. · Defect: |
+| Remarks | Not run: the queries are those of the Argo Rollouts AnalysisTemplate (deploy/k8s/analysis/error-rate-and-p95.yaml), and neither deployed environment has Argo Rollouts or a Prometheus scraping a canary: since ADR-0016's amendment each environment is one container on the Azure VM, and its metrics go to Grafana Cloud (#114). EN-17 has merged, so the services do expose `http_requests_total` and `http_request_duration_seconds`; running the two queries in Grafana Cloud needs Joash's Grafana login. · Defect: — |
 | Executed By |  |
 | Date of Execution |  |

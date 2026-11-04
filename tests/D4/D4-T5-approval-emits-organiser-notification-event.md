@@ -19,12 +19,16 @@
 > (`documentation/planning/plan.md` §9.2); it is now **T2-T4**, Not Executed until T2 ships. D4 owns
 > the trigger, which is implemented, so the trigger is what this case checks.
 
+> **Revised 2026-11-04.** Step 1 names the Supabase SQL editor, which an automated run can't use. The test does the
+> pre-conditions on CI's throwaway stack and runs the same query, unchanged, against that stack's database. The expected
+> result is unchanged.
+
 ## Execution record
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: · Specification revised 2026-09-20; the previous record (Blocked, Joash, 2026-09-20) was against the pre-split specification. |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | FX-SUBMITTED and FX-ASSIGNED (the Lead assigning Coordinator One, as E3 has it) were done through the API; Coordinator One opened the request from the Review queue (Under Review) and clicked Approve ("This request is Approved"). The card's query returned one event.approved row with the request's reference, owner_id 00000000-0000-0000-0000-000000000001 and approved_by 00000000-0000-0000-0000-000000000002, the deciding coordinator, and no event.rejected row. Run on CI's throwaway stack, with unique names in place of the card's literal names; the card's query ran unchanged against that stack's database in place of the Supabase SQL editor. |
+| Status | Pass |
+| Remarks | Automated (browser, Playwright) · Commit: 5bfb25e · Evidence: tests/e2e/event-messages.spec.ts › D4-T5 approving a request emits the event the organiser's notification is built from, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41801285931 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-04 |
