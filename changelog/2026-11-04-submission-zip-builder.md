@@ -1,6 +1,10 @@
-## 2026-11-04 12:00 SGT: Submission builder covers all seven Week 12 parts
+# Submission builder covers all seven Week 12 parts
 
+**Timestamp:** 2026-11-04T09:10+08:00 (SGT)
 **Author:** Joash
+**Scope:** `documentation/scripts/` (builder, backlog export), `documentation/backlog/`, `documentation/week12-submission/`, `package.json`.
+
+## Changed
 
 `npm run submission:build` now assembles every numbered folder the Week 4 instructions require,
 writes `ConnectSphere.zip` and a `MANIFEST.md` that ticks each part as present, placeholder or
