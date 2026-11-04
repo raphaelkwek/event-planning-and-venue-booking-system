@@ -1,5 +1,17 @@
 # event-planning-and-venue-booking-system
 
+ConnectSphere: event requests, venue and equipment booking, safety review and attendee registration for a university campus. An IS212 project by a six-person team at Singapore Management University.
+
+## Links
+
+| | |
+|---|---|
+| Repository | <https://github.com/joass1/event-planning-and-venue-booking-system> |
+| Staging (web) | <https://connectsphere-staging.vercel.app> (API: <https://api.staging.4.194.57.47.sslip.io>). Loaded with demonstration data; the sign-in page lists the test accounts. |
+| Production (web) | <https://connectsphere-is212.vercel.app> (alias <https://connectsphere-blush.vercel.app>). No demo data and no account list on the sign-in page. |
+| CI | <https://github.com/joass1/event-planning-and-venue-booking-system/actions/workflows/ci.yml> |
+| Deploys | [documentation/deploy/README.md](documentation/deploy/README.md) |
+
 | Folder | Holds |
 |---|---|
 | `frontend/` | The web app, one for every role. |
@@ -21,16 +33,55 @@
 7. `npm run dev` — starts planning-core on `:8090` and the web app on <http://localhost:5173> in one terminal, each line prefixed with where it came from. The Vite dev server proxies `/identity/*` and `/event/*` to planning-core, so the browser only ever talks to one origin and planning-core needs no CORS. To run just one: `npm run dev -w @connectsphere/planning-core` (or `web`).
 8. **Permissions (EN-07).** `npm run dev` also starts the Cerbos policy decision point on `policies/` at `http://127.0.0.1:3592` (`CERBOS_URL`, or alone with `npm run cerbos:start`). Every planning-core route asks it, and the staff console's navigation asks it through `POST /api/v1/permissions/check`; Cerbos has no Windows build, so on Windows it runs the Linux build inside WSL (`wsl --install -d Ubuntu` once). Without WSL, planning-core evaluates `policies/` itself in development and its log says `LOCAL-POLICIES MODE`; production never does, and refuses with `503 POLICY_UNAVAILABLE` without a PDP. See `policies/README.md`.
 
+### Running it without the team's secrets
+
+Step 3 above needs the team's Supabase and Kafka secrets. You can still run the services and the browser journeys on a laptop the way CI's `e2e` job does: a throwaway local Postgres and a fake Supabase Auth server (`tests/e2e/support/fake-supabase-auth.ts`, which refuses to start outside the test harness).
+
+1. Start a local Postgres (any empty database, for example `postgres://ci:ci@127.0.0.1:5432/connectsphere_e2e`) and export it as `DATABASE_URL`. The Playwright config refuses any database that is not on your own machine.
+2. `npm ci`, then `npm run migrate:all` (every schema, with the identity seeds).
+3. `npx playwright install chromium`, then `npm run test:e2e`. It starts the fake auth server, the policy decision point, planning-core, notification, registration and a built copy of the web app, then drives the browser. Kafka is not needed.
+
 ### Deploying
 
-Images, Kubernetes, Terraform, Argo CD and canary releases (EN-10, EN-16, ADR-0012) are in [documentation/deploy.md](documentation/deploy.md). Local development stays as above: no Docker.
+Staging and production run on one Azure VM (the API), Vercel (the web app) and one Supabase project each (ADR-0016). A merge to `main` deploys staging; an approval deploys the same images to production. The runbook, the secrets each environment needs and how to roll back are in [documentation/deploy/README.md](documentation/deploy/README.md). The Kubernetes, Terraform and canary material (EN-10, EN-16, ADR-0012) is in [documentation/deploy.md](documentation/deploy.md). Local development stays as above: no Docker.
+
+### Test accounts
+
+Every account uses the password `ConnectSphere-Test-1234!`. They are seeded in staging and in local development (`npm run migrate:all` and `npm run seed:auth`). **Production has none**, and its sign-in page shows no list.
+
+| Email | Role |
+|---|---|
+| `organiser@connectsphere.test`, `organiser2@connectsphere.test` | Event Organiser |
+| `coordinator@connectsphere.test`, `coordinator2@connectsphere.test` | Event Coordinator |
+| `lead@connectsphere.test` | Event Coordinator Lead (assigns coordinators) |
+| `safety@connectsphere.test` | Safety Officer |
+| `venuestaff@connectsphere.test` | Venue Staff |
+| `techsupport@connectsphere.test` | Technical Support |
+| `attendee@connectsphere.test` | Attendee |
+| `deactivated@connectsphere.test` | A deactivated account (it is refused) |
+| `attendee2@`, `attendee3@`, `attendee4@connectsphere.test` | Attendees, **staging only** (made by the demo seed) |
+
+The sign-in page lists the accounts, and fills in the first, only in development and in the staging build.
+
+### Demonstration data on staging
+
+`npm run demo:seed -- --env staging` loads venues, equipment, events in every status, bookings, a hold, a block, a change request, registrations and a waitlist into staging through the application's own API. It refuses to run against anything but staging, reads its connection details from `connectsphere-secrets/staging.env` (never printed) and is safe to run again. See `deploy/demo/seed-staging.mjs`.
+
+### Test evidence
+
+- **Functional test cards:** `tests/<ID>/`, one Markdown card per case, with its execution record (status, commit, evidence, executor). Format and setup: [tests/README.md](tests/README.md).
+- **Traceability matrix:** one CSV per story under `documentation/traceability/sprint-N/` links each acceptance criterion to an automated test. `npx tsx documentation/scripts/traceability-matrix.ts --summary` builds the matrix (story, criterion, test, last result); CI builds it on every run (job "Traceability matrix").
+- **CI runs:** <https://github.com/joass1/event-planning-and-venue-booking-system/actions/workflows/ci.yml>. Each run holds lint, typecheck, unit tests with coverage thresholds, integration tests on a throwaway Postgres, mutation testing, the Playwright browser journeys, squawk, gitleaks and CodeQL, with the reports uploaded as artifacts.
+
+### Coverage
+
+From the CI run on `main` at 9798a4f (run 41749646903): **planning-core covers 96.18% of statements** (92.11% of branches) with the integration tests and unit tests together, and 59.76% by its unit tests alone. **Domain code (`src/**/domain/**`) must stay at 100%** of lines, branches, functions and statements; the unit-test step fails below that. The web app is at 93.04% of statements. Numbers move with every merge; the "Unit tests (with coverage thresholds)" and "Integration tests with coverage" steps of the latest run show the current ones.
 
 How the images are inventoried, scanned and signed (SBOMs, Trivy, cosign, a ZAP baseline scan; EN-21), and how to verify an image yourself, is in [documentation/supply-chain.md](documentation/supply-chain.md).
 
 ### Trying the stories in the browser
 
-Sign in at <http://localhost:5173> with any seeded account; the login screen lists them and they all
-use the password in `backend/services/planning-core/migrations/identity/seed/seed-auth-users.ts`. What each story looks
+Sign in at <http://localhost:5173> (or on staging) with any seeded account from the table above; the login screen lists them. What each story looks
 like:
 
 | Story | Where |
