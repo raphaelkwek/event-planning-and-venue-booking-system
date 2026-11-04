@@ -68,6 +68,7 @@ The app shows people by display name; database queries and API responses show us
 | `lead@connectsphere.test` | Lead One | Event Coordinator Lead (E3 to E5) | `00000000-0000-0000-0000-000000000009` |
 | `venuestaff@connectsphere.test` | Venue Staff One | Venue Staff | `00000000-0000-0000-0000-000000000003` |
 | `techsupport@connectsphere.test` | Tech Support One | Technical Support Staff | `00000000-0000-0000-0000-000000000004` |
+| `safety@connectsphere.test` | Safety Officer One | Safety Officer (U1) | `00000000-0000-0000-0000-000000000010` |
 | `attendee@connectsphere.test` | Attendee One | Attendee | `00000000-0000-0000-0000-000000000005` |
 | `deactivated@connectsphere.test` | Deactivated Organiser | Event Organiser, **deactivated** | `00000000-0000-0000-0000-000000000006` |
 

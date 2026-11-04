@@ -133,6 +133,18 @@ like:
 | D1 | Sign in as the coordinator → "Review queue". Opening a Submitted request moves it to Under Review and records you as reviewer. |
 | D2, D3 | Ask for clarification as the coordinator; answer it as the organiser, with a message, an amendment, or both. |
 | D4, D5 | Approve, or reject with a reason in the confirmation modal. Neither can be done twice. |
+| A4 | Sign in as `coordinator2@connectsphere.test` and open an event assigned to the other coordinator: it is refused as not assigned to you (404). |
+| E3, E4, E5 | Sign in as `lead@connectsphere.test` → "Unassigned": assign a coordinator to a new request. "Assignments" shows each coordinator's events and workload, and reassigns an event. |
+| F1, F2 | Every event page shows its status and its history: each change, who made it and when. |
+| G1, G2, S1, S2, S3 | The coordinator edits an event's description and contact directly; its date, attendance, venue and equipment change only through a change request. The organiser requests one; the coordinator sees which bookings, reservations and registrations it would affect, then approves it or rejects it with a reason. An approved change flags each affected arrangement. |
+| H1 to H3, I1 to I6 | Sign in as `venuestaff@connectsphere.test` → "Venues": add or edit a venue, with its layouts, facilities, accessibility, hours, and setup and turnaround times. A venue's availability calendar shows bookings, holds, setup and turnaround, and its unavailability page records a period the venue can't be used, with or without an end. |
+| J1, J2, K1, K2 | As the coordinator, "Find a venue" from an event: filter by capacity, layout, facility, date and time, or search by name. Each result says whether it suits the event, and requesting an unsuitable venue needs a justification. |
+| L1 to L6, M1, M2, N1, N2 | From the event, the coordinator requests a booking or a tentative hold. Venue Staff decide it in "Booking requests" or "Hold requests" (a rejection needs a reason). An overlapping request is marked as a conflict and its approval is refused; an expired hold frees the venue. |
+| O1, O2, P1, P2, Q1, Q2 | The coordinator records the equipment an event needs. As `techsupport@connectsphere.test`, "Equipment requests" updates each line and reserves or releases stock for it, "Equipment availability" checks a quantity for a period, and "Equipment" keeps the inventory and its unavailability. |
+| F3, F4 | The organiser cancels an event with a reason; its pending change requests close, and its bookings, holds and reservations are released. |
+| F5, U1 | The coordinator confirms an event's arrangements, which sends it to `safety@connectsphere.test` → "Safety queue". The Safety Officer approves it, after which the coordinator marks it Confirmed, or requests changes with a reason, which returns it to Planning. |
+| R1 to R7 | The organiser opens registration for an event. As `attendee@connectsphere.test`, "Events" lists the events open for registration and "My registrations" shows and withdraws yours; a full event offers its waitlist. The organiser and the coordinator see the registrations and can add an attendee by hand, above capacity after confirming. |
+| T2 | "Notifications", for every role: what happened to the events, bookings, reservations and registrations you are related to. |
 
 Tests run against a real database: yours is the team's Supabase project, and CI's is a throwaway Postgres built from the migrations on every pull request (EN-06.1). The event suite is not parallelised across files because those files share one database, including the single assignment-cursor row.
 
