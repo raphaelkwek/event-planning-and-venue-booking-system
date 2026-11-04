@@ -1,0 +1,173 @@
+@startuml domain-model
+title Domain model: the main aggregates of planning-core's modules and the registration service
+' Hand-written from the modules' domain/ and repo/ code and the migrations (the data-model diagrams are generated).
+' Dashed arrows are references by id across a module or service boundary: no foreign key, no shared code (ADR-0004, ADR-0005).
+skinparam shadowing false
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+hide empty members
+left to right direction
+
+package "planning-core: identity" {
+  class User <<aggregate>> {
+    id
+    displayName
+    active
+  }
+  class UserRole {
+    role : EVENT_ORGANISER | EVENT_COORDINATOR | EVENT_COORDINATOR_LEAD | VENUE_STAFF | TECH_SUPPORT_STAFF | SAFETY_OFFICER | ATTENDEE
+  }
+  class AccessScope <<domain service>> {
+    resolveAccessScope(user, event)
+  }
+  User "1" *-- "1..*" UserRole
+}
+
+package "planning-core: event" {
+  class Event <<aggregate root>> {
+    id
+    reference
+    ownerId
+    status : EventStatus
+    proposed period
+    expectedAttendance
+    version
+    cancellation reason, by, at
+  }
+  class EventStatusMachine <<domain service>> {
+    TRANSITIONS : EventAction -> (from[], to)
+    evaluateTransition(current, action)
+  }
+  class Assignment {
+    coordinatorId
+    rule : LEAD
+  }
+  class Clarification
+  class SafetyDecision {
+    decision : APPROVE | REQUEST_CHANGES | REJECT
+    reason
+    flagged arrangements
+  }
+  class StatusHistoryEntry
+  Event "1" *-- "0..*" Clarification
+  Event "1" *-- "0..*" StatusHistoryEntry
+  Event "1" *-- "0..1" Assignment
+  Event "1" *-- "0..*" SafetyDecision
+  Event ..> EventStatusMachine : every status change goes through
+}
+
+package "planning-core: venue" {
+  class Venue <<aggregate root>> {
+    capacity, layouts
+    setup and turnaround minutes
+  }
+  class VenueSlot <<booking>> {
+    reference
+    event period + setup + turnaround
+    status : HELD | CONFIRMED | RELEASED | EXPIRED
+  }
+  class BookingRequest {
+    reference BKR-
+    status : PENDING | APPROVED | REJECTED | WITHDRAWN
+    suitability : SUITABLE | SUITABLE_WITH_WARNINGS | NOT_SUITABLE
+  }
+  class Hold {
+    status : REQUESTED | HELD | CONVERTED | RELEASED | EXPIRED
+    expiresAt
+  }
+  class UnavailabilityBlock
+  class ArrangementFlag
+  Venue "1" *-- "0..*" VenueSlot
+  Venue "1" *-- "0..*" BookingRequest
+  Venue "1" *-- "0..*" Hold
+  Venue "1" *-- "0..*" UnavailabilityBlock
+  Hold "0..1" --> "0..1" VenueSlot : places
+  Hold "0..1" --> "0..1" BookingRequest : converts into
+  BookingRequest "0..1" --> "0..1" VenueSlot : approval books
+  UnavailabilityBlock ..> VenueSlot : disrupts
+  ArrangementFlag ..> VenueSlot : marks for reconfirmation
+}
+
+package "planning-core: equipment" {
+  class EquipmentType <<aggregate root>> {
+    kind : SERIALIZED | BULK
+  }
+  class EquipmentUnit {
+    status : ACTIVE | RETIRED
+  }
+  class RequestLine {
+    quantity
+    status : SUBMITTED | UNDER_REVIEW | CONFIRMED | UNAVAILABLE | SUBSTITUTED | RESERVED | REMOVED
+  }
+  class Reservation {
+    status : RESERVED | RELEASED
+    release reason
+  }
+  EquipmentType "1" *-- "0..*" EquipmentUnit
+  RequestLine "*" --> "1" EquipmentType
+  Reservation "1" --> "1..*" EquipmentUnit : holds units (exclusion constraint)
+  Reservation "0..1" --> "0..1" RequestLine : fulfils
+}
+
+package "planning-core: change" {
+  class ChangeRequest <<aggregate root>> {
+    status : PENDING | APPROVED | REJECTED | CLOSED
+    reason
+    decision
+  }
+  class ProposedField
+  class ReadinessAssessment <<domain service>> {
+    assessReadiness(venue, equipment, flags)
+  }
+  ChangeRequest "1" *-- "1..*" ProposedField
+}
+
+package "registration-service" {
+  class EventListing <<read model>> {
+    status
+    registration window
+    withdrawal deadline
+    highDemand
+  }
+  class Seat {
+    pool : PUBLIC | VIP
+    status : FREE | CLAIMED | RETIRED
+  }
+  class Registration <<aggregate root>> {
+    reference REG-
+    status : REGISTERED | WITHDRAWN | CANCELLED
+  }
+  class WaitlistEntry {
+    reference WL-
+    status : WAITLISTED | REGISTERED | WITHDRAWN | CANCELLED
+  }
+  class WaitingRoomEntry
+  EventListing "1" *-- "0..*" Seat
+  Registration "0..1" --> "0..1" Seat : holds
+  WaitlistEntry "0..1" --> "0..1" Registration : promoted into
+  EventListing "1" o-- "0..*" Registration
+  EventListing "1" o-- "0..*" WaitlistEntry
+  EventListing "1" o-- "0..*" WaitingRoomEntry
+}
+
+package "notification-service" {
+  class Notification {
+    recipient
+    read state
+  }
+}
+
+Event ..> User : ownerId
+Assignment ..> User : coordinatorId
+VenueSlot ..> Event : eventId
+BookingRequest ..> Event : eventId
+Hold ..> Event : eventId
+RequestLine ..> Event : eventId
+Reservation ..> Event : eventId
+ChangeRequest ..> Event : eventId
+ReadinessAssessment ..> VenueSlot : reads (function call)
+ReadinessAssessment ..> Reservation : reads (function call)
+EventListing ..> Event : built from event messages
+Registration ..> User : attendeeId
+Notification ..> User : recipientId
+@enduml

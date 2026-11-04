@@ -1,0 +1,44 @@
+@startuml booking-states
+title Venue booking: the request (M1/M2) and the slot it books (L, N, I2, CR-01 to CR-04)
+' Hand-written from modules/venue/repo/bookingRequests.ts, bookingDecisions.ts, holds.ts, holdExpiry.ts and eventRelease.ts;
+' the status lists are in backend/packages/contracts/src/venueBooking.ts and venueSlots.ts.
+hide empty description
+skinparam shadowing false
+
+state "Booking request" as request {
+  state "Pending" as PENDING
+  state "Approved" as APPROVED
+  state "Rejected" as REJECTED
+  state "Withdrawn" as WITHDRAWN
+  [*] --> PENDING : coordinator submits (one pending request per event and venue)
+  PENDING --> APPROVED : Venue Staff approve
+  PENDING --> REJECTED : Venue Staff reject, with a reason
+  PENDING --> WITHDRAWN : coordinator withdraws, or the event is cancelled (F4)
+  APPROVED --> [*]
+  REJECTED --> [*]
+  WITHDRAWN --> [*]
+}
+
+state "Booking (venue slot)" as slot {
+  state "Held" as HELD
+  state "Confirmed" as CONFIRMED
+  state "Released" as RELEASED
+  state "Expired" as EXPIRED
+  [*] --> HELD : a hold is placed
+  [*] --> CONFIRMED : a request is approved
+  HELD --> CONFIRMED : the request converted from the hold is approved (conversion alone keeps the slot Held)
+  HELD --> RELEASED : the hold is released, or its request is withdrawn or rejected, or the event is cancelled
+  HELD --> EXPIRED : the hold passes its expiry (only while the hold itself is Held)
+  CONFIRMED --> RELEASED : the event is cancelled (F4), or an approved replacement takes over (CR-02)
+  RELEASED --> [*]
+  EXPIRED --> [*]
+}
+
+note right of slot
+  Only Held and Confirmed block a period: the exclusion
+  constraint venue_slot_no_overlap ignores the other statuses
+  (ADR-0006). Nothing is deleted; a release keeps its row and reason.
+  Approving a request creates its Confirmed slot in the same transaction.
+end note
+
+@enduml
