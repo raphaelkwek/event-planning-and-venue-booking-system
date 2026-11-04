@@ -7,17 +7,32 @@
 # The rendered images are uploaded as the "c4-diagrams" artifact. When the
 # model changes, download that artifact and commit the images into
 # documentation/c4/images/ (documentation/c4/README.md has the commands).
+#
+# The same workflow renders the data-model (ER) and domain diagrams in
+# documentation/architecture/ to the "architecture-diagrams" artifact, and
+# fails when the generated .puml files no longer match the migrations or the
+# event status machine (documentation/architecture.md has the commands).
 name: Diagrams
 
 on:
   pull_request:
     paths:
       - "documentation/c4/**"
+      - "documentation/architecture/**"
+      - "documentation/scripts/generate-*.ts"
+      - "backend/services/*/migrations/**"
+      - "backend/services/planning-core/migrations/**"
+      - "backend/services/planning-core/src/modules/event/domain/statusMachine.ts"
       - ".github/workflows/diagrams.yml"
   push:
     branches: [main]
     paths:
       - "documentation/c4/**"
+      - "documentation/architecture/**"
+      - "documentation/scripts/generate-*.ts"
+      - "backend/services/*/migrations/**"
+      - "backend/services/planning-core/migrations/**"
+      - "backend/services/planning-core/src/modules/event/domain/statusMachine.ts"
       - ".github/workflows/diagrams.yml"
   workflow_dispatch:
 
@@ -57,4 +72,43 @@ jobs:
           path: |
             documentation/c4/build/*.png
             documentation/c4/build/*.svg
+          if-no-files-found: error
+
+  architecture:
+    name: Check and render the data-model and domain diagrams
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install the script runner
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: The ER diagrams match the migrations
+        run: npm run diagrams:er:check
+
+      - name: The event status diagram matches the status machine
+        run: npm run diagrams:states:check
+
+      - name: Render PNG and SVG
+        run: |
+          mkdir -p documentation/architecture/build
+          for kind in png svg; do
+            docker run --rm --user "$(id -u):$(id -g)" -v "$PWD/documentation/architecture:/data"               plantuml/plantuml -t$kind -o /data/build "/data/data-model/*.puml" "/data/domain/*.puml"
+          done
+          ls -l documentation/architecture/build
+          # 7 schemas + the domain model + event, booking, hold and registration state diagrams
+          test "$(ls documentation/architecture/build/*.svg | wc -l)" -ge 12
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: architecture-diagrams
+          path: |
+            documentation/architecture/build/*.png
+            documentation/architecture/build/*.svg
           if-no-files-found: error
