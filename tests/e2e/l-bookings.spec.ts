@@ -113,7 +113,7 @@ test.describe("M1 and M2 decide a booking request", () => {
 
     const row = page.getByRole("row", { name: request.reference });
     await expect(row.getByRole("cell").nth(0)).toHaveText(request.reference);
-    await expect(row.getByRole("cell").nth(1)).toHaveText(event.reference);
+    await expect(row.getByRole("cell").nth(1)).toContainText(event.reference);
     await expect(row.getByRole("cell").nth(2)).toHaveText(venue.name);
     await expect(row.getByRole("cell").nth(3)).toHaveText(PERIOD_TEXT);
     await expect(row.getByRole("cell").nth(4)).toHaveText("Theatre");

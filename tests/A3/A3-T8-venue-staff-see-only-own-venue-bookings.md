@@ -21,8 +21,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result | The Venue Staff Booking requests queue listed only the request for their own venue, with its reference, the event reference, venue, period, Theatre, `150 attending`, facilities and accessibility; the other venue's request, venue and event reference were absent, and no purpose, description or accessibility needs were shown. The event's name, which the card's Expected Result lists, is not on the screen: the row carries the event's reference only. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
-| Status | Fail |
-| Remarks | Automated (browser, Playwright) · Commit: aa700c3 · Evidence: tests/e2e/e-access-and-console.spec.ts › A3-T8 Venue Staff see booking requests and bookings for their own venues only (marked as an expected failure so CI stays green), CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41694828373 · Defect: The Venue Staff booking-request queue (frontend/src/screens/BookingRequestQueue.tsx) shows the event's reference but not its name, which the card's Expected Result says the detail shows; the rest of the Expected Result held. Not fixed here (no app changes in this PR). |
+| Actual Result | The Venue Staff Booking requests queue listed only the request for their own venue, with its reference, the event's name and reference together in the Event cell, venue, period, Theatre, `150 attending`, facilities and accessibility; the other venue's request, venue and event reference were absent, and no purpose, description or accessibility needs were shown. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
+| Status | Pass |
+| Remarks | Automated (browser, Playwright) · Commit: 3a44dcc · Evidence: tests/e2e/e-access-and-console.spec.ts › A3-T8 Venue Staff see booking requests and bookings for their own venues only, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41764259340 · Defect: — (fixed in this PR; was: event reference shown without the name) |
 | Executed By | Joash, via automated testing (CI) |
 | Date of Execution | 2026-11-04 |

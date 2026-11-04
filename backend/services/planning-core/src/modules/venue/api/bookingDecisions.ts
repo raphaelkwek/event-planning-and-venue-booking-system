@@ -222,7 +222,7 @@ export function bookingDecisionsRouter(sql: Sql) {
           return refuse(res, 409, "VENUE_SLOT_CONFLICT", bookingConflictMessage(request.reference, request.venueName, conflicts));
         }
         case "APPROVED":
-          return res.json(present(outcome.approved, event.reference));
+          return res.json(present(outcome.approved, event));
       }
     } catch (error) {
       next(error);
@@ -262,7 +262,7 @@ export function bookingDecisionsRouter(sql: Sql) {
       if (outcome.code === "NOT_PENDING") {
         return refuse(res, 409, "BOOKING_REQUEST_NOT_PENDING", notPendingMessage(request.reference, outcome.locked.status, "rejected"));
       }
-      res.json(present(outcome.rejected, event.reference));
+      res.json(present(outcome.rejected, event));
     } catch (error) {
       next(error);
     }
