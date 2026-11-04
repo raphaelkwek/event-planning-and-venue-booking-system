@@ -22,6 +22,6 @@
 |---|---|
 | Actual Result | With B1 at V1 and B2 at V2 both CONFIRMED, C1's confirmation answered 200. E1's status read SAFETY_REVIEW, and B1 and B2 were both still CONFIRMED (requires_reconfirmation false). |
 | Status | Pass |
-| Remarks | Automated (API level) · Commit: c0f7183 · Evidence: `backend/services/planning-core/tests/change/api/f5Cards.test.ts` › F5 cards (tests/F5) › F5-T9 two confirmed bookings at two venues pass (L4), CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41798410254 · Defect: — |
+| Remarks | Automated (API level) · Commit: 5bfb25e · Evidence: `backend/services/planning-core/tests/change/api/f5Cards.test.ts` › F5 cards (tests/F5) › F5-T9 two confirmed bookings at two venues pass (L4), CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41801285931 · Defect: — |
 | Executed By | Joash, via automated testing (CI) |
 | Date of Execution | 2026-11-04 |

@@ -29,6 +29,6 @@
 |---|---|
 | Actual Result | FX-SUBMITTED and FX-ASSIGNED (the Lead assigning Coordinator One, as E3 has it) were done through the API; Coordinator One then opened the request from the Review queue (Under Review), typed "Please confirm the expected attendance." under Ask for clarification and clicked Send clarification request (Awaiting Clarification). The card's query returned one event.clarification-requested row with the request's reference, owner_id 00000000-0000-0000-0000-000000000001 and requested_by 00000000-0000-0000-0000-000000000002, Coordinator One, who asked. Run on CI's throwaway stack, with unique names in place of the card's literal names; the card's query ran unchanged against that stack's database in place of the Supabase SQL editor. |
 | Status | Pass |
-| Remarks | Automated (browser, Playwright) · Commit: c0f7183 · Evidence: tests/e2e/event-messages.spec.ts › D2-T7 asking for clarification emits the event the organiser's notification is built from, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41798410254 · Defect: — |
+| Remarks | Automated (browser, Playwright) · Commit: 5bfb25e · Evidence: tests/e2e/event-messages.spec.ts › D2-T7 asking for clarification emits the event the organiser's notification is built from, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41801285931 · Defect: — |
 | Executed By | Joash, via automated testing (CI) |
 | Date of Execution | 2026-11-04 |

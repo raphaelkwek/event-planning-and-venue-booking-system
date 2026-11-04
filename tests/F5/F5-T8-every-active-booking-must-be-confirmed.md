@@ -22,6 +22,6 @@
 |---|---|
 | Actual Result | With B1 confirmed and a PENDING request R2 at V2, C1 got 422 ARRANGEMENTS_NOT_READY with "This event can't be confirmed yet. Venue: booking request <R2 reference> at F5 Breakout Room is still pending.", which did not contain B1's reference. R2 was still PENDING. E1's status and version, its history (entry count and the latest STATUS_CHANGE entry), its slots' status and flags (requires_reconfirmation, period_mismatch, unsuitable, and their arrangement_flags rows), its booking requests, its request lines, its reservations (status and quantity) and the event outbox (row count and every envelope) read exactly as before the request. |
 | Status | Pass |
-| Remarks | Automated (API level) · Commit: c0f7183 · Evidence: `backend/services/planning-core/tests/change/api/f5Cards.test.ts` › F5 cards (tests/F5) › F5-T8 one confirmed booking is not enough while another is pending (L4, CQ-05 as AC2 reads), CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41798410254 · Defect: — |
+| Remarks | Automated (API level) · Commit: 5bfb25e · Evidence: `backend/services/planning-core/tests/change/api/f5Cards.test.ts` › F5 cards (tests/F5) › F5-T8 one confirmed booking is not enough while another is pending (L4, CQ-05 as AC2 reads), CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41801285931 · Defect: — |
 | Executed By | Joash, via automated testing (CI) |
 | Date of Execution | 2026-11-04 |

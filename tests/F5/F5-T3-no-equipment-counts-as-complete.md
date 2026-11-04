@@ -22,6 +22,6 @@
 |---|---|
 | Actual Result | With equipment_required = false and no request line (E1 had none before the request), C1's confirmation answered 200 with event.status SAFETY_REVIEW, and E1's status read SAFETY_REVIEW. |
 | Status | Pass |
-| Remarks | Automated (API level) · Commit: c0f7183 · Evidence: `backend/services/planning-core/tests/change/api/f5Cards.test.ts` › F5 cards (tests/F5) › F5-T3 an event marked as needing no equipment is complete without any line, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41798410254 · Defect: — |
+| Remarks | Automated (API level) · Commit: 5bfb25e · Evidence: `backend/services/planning-core/tests/change/api/f5Cards.test.ts` › F5 cards (tests/F5) › F5-T3 an event marked as needing no equipment is complete without any line, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41801285931 · Defect: — |
 | Executed By | Joash, via automated testing (CI) |
 | Date of Execution | 2026-11-04 |

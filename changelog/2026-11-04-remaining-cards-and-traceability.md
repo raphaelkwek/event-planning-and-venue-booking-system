@@ -2,7 +2,7 @@
 
 **Timestamp:** 2026-11-04T15:40+08:00 (SGT)
 **Author:** Joash
-**Scope:** browser journeys in `tests/e2e/` (two new specs, and the journeys of nine others extended), a stand-in for Kafka for the browser tests (`tests/e2e/support/deliver.ts`), API card tests in planning-core and the registration service, one web test and one import in `frontend/src/shared/changeRequests.ts`, the traceability files, scripts and the CI steps that upload test results, `documentation/testing/coverage.md`, the supply-chain guide, `documentation/clarifications.md` (D-03), and the execution records of 72 cards. No migration, and no change to what any service does.
+**Scope:** browser journeys in `tests/e2e/` (two new specs, and the journeys of nine others extended), a stand-in for Kafka for the browser tests (`tests/e2e/support/deliver.ts`), API card tests in planning-core and the registration service, one web test and one import in `frontend/src/shared/changeRequests.ts`, the traceability files, scripts and the CI steps that upload test results, `documentation/testing/coverage.md`, the supply-chain guide, `documentation/clarifications.md` (D-03), and the execution records of 71 cards. No migration, and no change to what any service does.
 
 **Reason:** the 4 Nov compliance audit (rows W12-3 and RUB-6) found 68 cards Not Executed, three Blocked cards whose blockers had merged, S3-T13 failing on a reading of S3's AC8, 191 traceability rows naming tests the matrix could not find, and the reasons for coverage below 100% kept only in the Vitest configs.
 

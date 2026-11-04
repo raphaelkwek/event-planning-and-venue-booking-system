@@ -22,6 +22,6 @@
 |---|---|
 | Actual Result | C1's POST /api/v1/events/<E1>/confirmation answered 200 with event.status SAFETY_REVIEW, previousStatus APPROVED, confirmedBy C1's id and a parseable confirmedAt. E1's status read SAFETY_REVIEW (not CONFIRMED). The latest history entry read APPROVED → SAFETY_REVIEW, actor C1, role EVENT_COORDINATOR, action CONFIRM_ARRANGEMENTS, with occurred_at equal to confirmedAt. B1 was still CONFIRMED (requires_reconfirmation false) and L1's reservation still RESERVED, 5. |
 | Status | Pass |
-| Remarks | Automated (API level) · Commit: c0f7183 · Evidence: `backend/services/planning-core/tests/change/api/f5Cards.test.ts` › F5 cards (tests/F5) › F5-T1 the assigned coordinator confirms an Approved event into Safety Review, with a history entry, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41798410254 · Defect: — |
+| Remarks | Automated (API level) · Commit: 5bfb25e · Evidence: `backend/services/planning-core/tests/change/api/f5Cards.test.ts` › F5 cards (tests/F5) › F5-T1 the assigned coordinator confirms an Approved event into Safety Review, with a history entry, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41801285931 · Defect: — |
 | Executed By | Joash, via automated testing (CI) |
 | Date of Execution | 2026-11-04 |
