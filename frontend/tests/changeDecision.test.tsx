@@ -47,12 +47,16 @@ let stored: unknown[];
 let onDecision: (body: Record<string, unknown>) => Response;
 let flagsResponse: () => Response;
 let impactResponse: () => Response;
+// D1: the registration count comes from the registration service, not from the impact body.
+let registrationsResponse: () => Response;
+const registrationTotals = (registered: number) => ({ event: { eventId: EVENT_ID }, totals: { registered }, waitlist: { waiting: 0 }, items: [], nextCursor: null });
 const fetchMock = vi.fn(async (path: string, init?: RequestInit) => {
   const url = new URL(path, "http://app.test");
   if (url.pathname === "/event/api/v1/change-requests/c1/decision") return onDecision(JSON.parse(init!.body as string));
   if (url.pathname === "/event/api/v1/change-requests/c1/impact") return impactResponse();
   if (url.pathname === `/event/api/v1/events/${EVENT_ID}/change-requests`) return reply({ items: stored });
   if (url.pathname === `/event/api/v1/events/${EVENT_ID}/arrangement-flags`) return flagsResponse();
+  if (url.pathname === `/registration/api/v1/events/${EVENT_ID}/registrations`) return registrationsResponse();
   if (url.pathname.includes("/notifications")) return reply({ items: [], unreadCount: 0, nextCursor: null });
   return reply({ items: [] });
 });
@@ -73,6 +77,7 @@ beforeEach(() => {
   onDecision = () => reply({ changeRequest: approved });
   flagsResponse = () => reply({ flags: [] });
   impactResponse = () => reply({ impact: { bookings: [], reservations: [], activeRegistrations: 0, flags: [] } });
+  registrationsResponse = () => reply(registrationTotals(2));
   vi.stubGlobal("fetch", fetchMock);
 });
 afterEach(() => {
@@ -254,15 +259,18 @@ describe("the impact of an approval", () => {
     expect(screen.getByText("Flagged for review")).toBeTruthy();
     expect(screen.getByText(/Expected attendance is now 150, but Grand Theatre holds 100/)).toBeTruthy();
     expect(screen.getByText(/check the equipment is still free/)).toBeTruthy();
-    expect(screen.getByText("Registrations: 0")).toBeTruthy();
+    // D1: the impact body says 0, the registration service says 2; the screen shows the real count.
+    expect(await screen.findByText("Registrations: 2")).toBeTruthy();
+    expect(screen.queryByText("Registrations: 0")).toBeNull();
     expect(screen.queryByText(/No venue bookings or equipment reservations/)).toBeNull();
   });
 
   it("says so when no booking or reservation is affected", async () => {
-    onDecision = () => reply({ changeRequest: approved, impact: { bookings: [], reservations: [], activeRegistrations: 3, flags: [] } });
+    registrationsResponse = () => reply(registrationTotals(3));
+    onDecision = () => reply({ changeRequest: approved, impact: { bookings: [], reservations: [], activeRegistrations: 0, flags: [] } });
     await approve();
     expect(await screen.findByText("No venue bookings or equipment reservations are affected.")).toBeTruthy();
-    expect(screen.getByText("Registrations: 3")).toBeTruthy();
+    expect(await screen.findByText("Registrations: 3")).toBeTruthy();
   });
 
   it("does not show an approval's impact once a later change request has been decided", async () => {
@@ -344,6 +352,29 @@ describe("the Outstanding flags section", () => {
 const impactCalls = () => fetchMock.mock.calls.filter(([path]) => String(path).endsWith("/impact"));
 const ALREADY_DECIDED = { error: { code: "CHANGE_REQUEST_ALREADY_DECIDED", message: "Already decided.", correlationId: null } };
 
+describe("the preview's registration count (D1)", () => {
+  it("shows the registered attendees the registration service holds, never the impact body's 0", async () => {
+    asCoordinator();
+    expect(await screen.findByText("Registrations: 2")).toBeTruthy();
+    expect(screen.queryByText("Registrations: 0")).toBeNull();
+    const asked = fetchMock.mock.calls.filter(([path]) => String(path).includes("/registration/api/v1/events/"));
+    expect(asked.length).toBeGreaterThan(0);
+  });
+
+  it("shows 0 when the registration service has no record of the event", async () => {
+    registrationsResponse = () => reply({ error: { code: "EVENT_NOT_FOUND", message: "No such event.", correlationId: null } }, 404);
+    asCoordinator();
+    expect(await screen.findByText("Registrations: 0")).toBeTruthy();
+  });
+
+  it("says the count could not be loaded, rather than showing a false 0, when the registration service fails", async () => {
+    registrationsResponse = () => reply({ error: { code: "INTERNAL_ERROR", message: "Down.", correlationId: null } }, 500);
+    asCoordinator();
+    expect(await screen.findByText(/Registrations: couldn't be loaded/)).toBeTruthy();
+    expect(screen.queryByText("Registrations: 0")).toBeNull();
+  });
+});
+
 describe("the preview of a pending change", () => {
   it("lists each arrangement with the flags approval would set and their reasons, above the actions", async () => {
     impactResponse = () => reply({ impact });
@@ -356,7 +387,7 @@ describe("the preview of a pending change", () => {
     expect(screen.getByText("Unsuitable")).toBeTruthy();
     expect(screen.getByText("Flagged for review")).toBeTruthy();
     expect(screen.getByText(/Expected attendance is now 150, but Grand Theatre holds 100/)).toBeTruthy();
-    expect(screen.getByText("Registrations: 0")).toBeTruthy();
+    expect(await screen.findByText("Registrations: 2")).toBeTruthy();
     expect(screen.queryByText("Affected arrangements")).toBeNull();
     const approve = screen.getByRole("button", { name: "Approve change" });
     expect(heading.compareDocumentPosition(approve) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();

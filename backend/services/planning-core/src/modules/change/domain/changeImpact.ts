@@ -128,7 +128,8 @@ export function assessChangeImpact(input: {
   return {
     bookings: [...bookings],
     reservations: [...reservations],
-    // No registrations exist until EN-13 (the registration service) does.
+    // Registrations live in the registration service, whose schema planning-core never reads (ADR-0005),
+    // so this module cannot count them. The review screen asks the registration service for the real count.
     activeRegistrations: 0,
     bookingFlags,
     reservationFlags,
