@@ -110,9 +110,12 @@ export function EquipmentRequest() {
     setSaved(null);
     try {
       const result = await saveRequestLines(session.token, eventId, drafts.map(draftToInput));
+      // D6 (staging dry run): the saved lines are in the answer, so the table shows them beside the
+      // success message at once; the reload behind it only catches up with anyone else's changes.
+      setLines((current) => [...current, ...result.items.filter((line) => !current.some((known) => known.id === line.id))]);
       setSaved(result.items.length);
       setDrafts([newDraft(event)]);
-      await load();
+      void load();
     } catch (caught) {
       // A rejected save changes nothing, so what was typed stays on screen to be corrected.
       setSaveError(caught);
@@ -126,9 +129,11 @@ export function EquipmentRequest() {
     setBusy(true);
     setEditError(null);
     try {
-      await updateRequestLine(session.token, editing.key, draftToInput(editing));
+      const updated = await updateRequestLine(session.token, editing.key, draftToInput(editing));
+      // D6: the edited line, from the answer.
+      setLines((current) => current.map((line) => (line.id === updated.id ? { ...line, ...updated } : line)));
       setEditing(null);
-      await load();
+      void load();
     } catch (caught) {
       setEditError(caught);
     } finally {
@@ -142,8 +147,10 @@ export function EquipmentRequest() {
     setRemoveError(null);
     try {
       await removeRequestLine(session.token, removing.id);
+      // D6: a removed line is no longer listed (O1), so it goes at once.
+      setLines((current) => current.filter((line) => line.id !== removing.id));
       setRemoving(null);
-      await load();
+      void load();
     } catch (caught) {
       setRemoveError(caught);
     } finally {

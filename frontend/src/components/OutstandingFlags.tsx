@@ -13,6 +13,15 @@ import { Refusal } from "./Refusal.js";
  * empty. Either way the section is not shown. `refreshKey` reloads it after a
  * decision changes the flags.
  */
+/**
+ * D9 (staging dry run, 4 Nov 2026): a booking, hold or request is named by its reference and venue.
+ * A reservation has no reference of its own (the route sends its id), so it is named by its equipment.
+ */
+function flagTitle(flag: OutstandingFlag): string {
+  if (flag.arrangement === "EQUIPMENT") return `Equipment reservation, ${flag.name}`;
+  return `${ARRANGEMENT_LABELS[flag.arrangement]} ${flag.reference}, ${flag.name}`;
+}
+
 export function OutstandingFlags({ eventId, refreshKey }: { eventId: string; refreshKey?: unknown }) {
   const session = useSignedIn();
   const [flags, setFlags] = useState<OutstandingFlag[] | null>(null);
@@ -46,9 +55,7 @@ export function OutstandingFlags({ eventId, refreshKey }: { eventId: string; ref
               key={`${flag.arrangement}-${flag.id}-${flag.flag}-${flag.flaggedAt}`}
               style={{ borderTop: "1px solid #DFE1E6", padding: "8px 0", fontSize: 13 }}
             >
-              <strong>
-                {ARRANGEMENT_LABELS[flag.arrangement]} {flag.reference}, {flag.name}
-              </strong>{" "}
+              <strong>{flagTitle(flag)}</strong>{" "}
               <Lozenge appearance={flag.flag === "UNSUITABLE" ? "removed" : "moved"}>{FLAG_LABELS[flag.flag]}</Lozenge>
               <div>{flag.reason}</div>
             </li>

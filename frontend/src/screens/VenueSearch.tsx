@@ -49,6 +49,7 @@ export function VenueSearch() {
   const [options, setOptions] = useState<VenueSearchOptions>({ layouts: [], facilities: [], accessibilityFeatures: [] });
   const [result, setResult] = useState<VenueSearchResult | null>(null);
   const [unmatched, setUnmatched] = useState<string[]>([]);
+  const [unmatchedFacilities, setUnmatchedFacilities] = useState<string[]>([]);
   const [fromEvent, setFromEvent] = useState<string | null>(null);
   const [error, setError] = useState<unknown>(null);
   const [loading, setLoading] = useState(false);
@@ -84,6 +85,7 @@ export function VenueSearch() {
         const prefilled = replacing ? { ...fromEvent, from: replacing.from, to: replacing.to } : fromEvent;
         setForm(prefilled);
         setUnmatched(prefill.unmatchedAccessibility);
+        setUnmatchedFacilities(prefill.unmatchedFacilities ?? []);
         setFromEvent(prefill.reference ?? "this event");
         run(prefilled);
       })
@@ -107,6 +109,7 @@ export function VenueSearch() {
     const cleared = emptySearchForm();
     setForm(cleared);
     setUnmatched([]);
+    setUnmatchedFacilities([]);
     run(cleared);
   }
 
@@ -214,6 +217,16 @@ export function VenueSearch() {
             onToggle={(name, on) => toggle("accessibility", name, on)}
           />
         </div>
+
+        {/* D5 (staging dry run): a facility typed on the request that no venue records would only empty the results. */}
+        {unmatchedFacilities.length > 0 && (
+          <SectionMessage appearance="information" title="Not matched to a catalogue facility">
+            <p>
+              The event also asks for {unmatchedFacilities.join(", ")}. No venue records {unmatchedFacilities.length === 1 ? "that" : "those"} as a
+              facility, so {unmatchedFacilities.length === 1 ? "it is" : "they are"} not used as a filter.
+            </p>
+          </SectionMessage>
+        )}
 
         {unmatched.length > 0 && (
           <SectionMessage appearance="information" title="Not matched to a catalogue feature">

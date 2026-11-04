@@ -109,10 +109,17 @@ export function ReviewDetail() {
     pendingProposal?.nomineeCoordinatorId,
   ]);
 
-  const load = useCallback(async () => {
+  /**
+   * The first read shows "Loading…". D6 (staging dry run, 4 Nov 2026): every read after an action is
+   * `quiet`: the page stays as it is, already showing the action's own answer, while the rest catches
+   * up, and a failure of that refresh is shown beside the page rather than in place of it.
+   */
+  const load = useCallback(async (options: { quiet?: boolean } = {}) => {
     if (!id) return;
-    setLoading(true);
-    setLoadError(null);
+    if (!options.quiet) {
+      setLoading(true);
+      setLoadError(null);
+    }
     try {
       // The event first: a coordinator opening a Submitted one claims it for review (D1). The three
       // lists that follow don't depend on each other, so they are fetched together (L11).
@@ -132,22 +139,25 @@ export function ReviewDetail() {
       setChangeRequests(changes ?? []);
       setChangesFailed(changes === null);
     } catch (caught) {
-      setLoadError(caught);
+      if (options.quiet) setActionError(caught);
+      else setLoadError(caught);
     } finally {
       setLoading(false);
     }
   }, [id, session.token]);
+  const refresh = useCallback(() => void load({ quiet: true }), [load]);
 
   useEffect(() => {
     void load();
   }, [load]);
 
+  /** Runs an action; the screen shows its answer at once and refreshes the rest quietly behind it (D6). */
   async function run(action: () => Promise<unknown>, onError: (error: unknown) => void = setActionError) {
     onError(null);
     setBusy(true);
     try {
       await action();
-      await load();
+      refresh();
       return true;
     } catch (caught) {
       onError(caught);
@@ -167,6 +177,8 @@ export function ReviewDetail() {
       .filter((entry) => entry.status !== "PENDING" && entry.decidedAt)
       .sort((a, b) => (b.decidedAt ?? "").localeCompare(a.decidedAt ?? ""))[0] ?? null;
   const decided = event.decidedAt !== null;
+  // D8: the banner is the decision's, so it shows only while the decision is the event's status.
+  const showDecision = decided && (event.status === "APPROVED" || event.status === "REJECTED");
   const reviewedBySomeoneElse =
     event.reviewingCoordinatorId !== null && event.reviewingCoordinatorId !== session.userId;
 
@@ -212,7 +224,7 @@ export function ReviewDetail() {
           </div>
         )}
 
-        {decided && (
+        {showDecision && (
           <div style={{ marginBottom: 16 }}>
             <SectionMessage
               appearance={event.status === "APPROVED" ? "success" : "error"}
@@ -240,7 +252,7 @@ export function ReviewDetail() {
               <div style={{ marginBottom: 16, marginTop: -8 }}>
                 <ChangeDecisionActions request={pendingChange} token={session.token} onDecided={(result) => {
                     setImpact(result ? { requestId: pendingChange.id, impact: result } : null);
-                    void load();
+                    refresh();
                   }} />
               </div>
             )}
@@ -328,21 +340,21 @@ export function ReviewDetail() {
         {/* F5 — only the assigned coordinator, and only while the event is Approved or Planning. */}
         {event.assignedCoordinatorId === session.userId && (event.status === "APPROVED" || event.status === "PLANNING") && (
           <div style={{ marginTop: 12 }}>
-            <ConfirmArrangementsAction eventId={event.id} token={session.token} onConfirmed={() => void load()} />
+            <ConfirmArrangementsAction eventId={event.id} token={session.token} onConfirmed={refresh} />
           </div>
         )}
 
         {/* U1 — only the assigned coordinator, and only while the event is in Safety Review. */}
         {event.assignedCoordinatorId === session.userId && event.status === "SAFETY_REVIEW" && (
           <div style={{ marginTop: 12 }}>
-            <MarkConfirmedAction eventId={event.id} token={session.token} onConfirmed={() => void load()} />
+            <MarkConfirmedAction eventId={event.id} token={session.token} onConfirmed={refresh} />
           </div>
         )}
 
         {/* F3 — the assigned coordinator, until the event is Completed, Rejected or Cancelled. */}
         {canCancelEvent(event, session) && (
           <div style={{ marginTop: 12 }}>
-            <CancelEventAction eventId={event.id} token={session.token} onCancelled={() => void load()} />
+            <CancelEventAction eventId={event.id} token={session.token} onCancelled={refresh} />
           </div>
         )}
 
@@ -361,7 +373,7 @@ export function ReviewDetail() {
           <Button
             appearance="primary"
             isDisabled={busy || decided}
-            onClick={() => run(() => approveEvent(session.token, event.id))}
+            onClick={() => run(async () => setEvent(await approveEvent(session.token, event.id)))}
           >
             Approve
           </Button>
@@ -427,7 +439,7 @@ export function ReviewDetail() {
                 appearance="warning"
                 isDisabled={busy}
                 onClick={async () => {
-                  const ok = await run(() => rejectEvent(session.token, event.id, reason), setRejectError);
+                  const ok = await run(async () => setEvent(await rejectEvent(session.token, event.id, reason)), setRejectError);
                   if (ok) {
                     setRejecting(false);
                     setReason("");

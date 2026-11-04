@@ -19,6 +19,7 @@ import {
   type EquipmentTypeForm,
 } from "../api/equipment.js";
 import { useSignedIn } from "../auth/SessionContext.js";
+import { useUserNames } from "../shared/useUserNames.js";
 import { Refusal } from "../components/Refusal.js";
 
 interface UnavailabilityForm {
@@ -46,6 +47,8 @@ export function EquipmentEditor() {
   const [notice, setNotice] = useState<string | null>((location.state as { saved?: boolean } | null)?.saved ? "Equipment type saved." : null);
   const [loading, setLoading] = useState(Boolean(equipmentTypeId));
   const [saving, setSaving] = useState(false);
+  // D9 (staging dry run): the history names who acted, as Identity knows them, not by id.
+  const nameOf = useUserNames(session.token, record?.history.map((entry) => entry.actorUserId) ?? []);
 
   useEffect(() => {
     if (!equipmentTypeId) {
@@ -213,7 +216,7 @@ export function EquipmentEditor() {
                   <td style={cell}>{formatDate(entry.occurredAt)}</td>
                   <td style={cell}>{historyLabel(entry.action)}</td>
                   <td style={cell}>{entry.previousQuantity} → {entry.newQuantity}</td>
-                  <td style={cell}>{entry.actorUserId}</td>
+                  <td style={cell}>{nameOf(entry.actorUserId)}</td>
                 </tr>
               ))}</tbody>
             </table>

@@ -120,10 +120,11 @@ export function RequestDetail() {
   if (!event) return null;
 
   const pendingChange = changeRequests.find((entry) => entry.status === "PENDING") ?? null;
-  const latestDecided =
-    changeRequests
-      .filter((entry) => entry.status !== "PENDING" && entry.decidedAt)
-      .sort((a, b) => (b.decidedAt ?? "").localeCompare(a.decidedAt ?? ""))[0] ?? null;
+  // D12 (staging dry run, 4 Nov 2026): every change request the event has had, with its outcome,
+  // newest first, not only the latest; a pending one is shown above them.
+  const decidedChanges = changeRequests
+    .filter((entry) => entry.status !== "PENDING")
+    .sort((a, b) => (b.decidedAt ?? b.requestedAt).localeCompare(a.decidedAt ?? a.requestedAt));
   const canRequestChange = !changesFailed && isChangeable(event.status) && event.ownerId === session.userId && !pendingChange;
   const openClarification = clarifications.find((entry) => entry.status === "OPEN");
 
@@ -181,7 +182,16 @@ export function RequestDetail() {
 
         {changesFailed && <p role="status" style={{ color: "#626F86", fontSize: 13 }}>Change requests couldn't be loaded.</p>}
         {pendingChange && <PendingChangeNotice request={pendingChange} />}
-        {!pendingChange && latestDecided && <DecidedChangeNotice request={latestDecided} />}
+        {decidedChanges.length > 0 && (
+          <section aria-labelledby="change-requests-heading" style={{ marginBottom: 16 }}>
+            <h3 id="change-requests-heading" style={{ marginTop: 0 }}>
+              Change requests
+            </h3>
+            {decidedChanges.map((entry) => (
+              <DecidedChangeNotice key={entry.id} request={entry} />
+            ))}
+          </section>
+        )}
         {canRequestChange && requestingChange && (
           <ChangeRequestForm
             event={event}

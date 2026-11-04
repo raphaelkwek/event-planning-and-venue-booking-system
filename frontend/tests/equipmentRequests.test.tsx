@@ -133,7 +133,8 @@ describe("D6: the list follows each action's own answer, not a reload", () => {
     fireEvent.click(screen.getByRole("button", { name: "Reserve equipment" }));
 
     expect(await screen.findByRole("button", { name: "Release Folding Chairs for EVT-000123" })).toBeTruthy();
-    expect(screen.getByText(/Reserved 40 of 40/)).toBeTruthy();
+    // The row's own line, not the notice above the table ("Reserved 40 of 40 for EVT-000123.").
+    expect(screen.getByText("Reserved 40 of 40")).toBeTruthy();
   });
 
   it("shows a released line as soon as it is released, while the list is still reloading", async () => {

@@ -95,6 +95,16 @@ export function EquipmentRequests() {
     void load();
   }, [load]);
 
+  /**
+   * D6 (staging dry run, 4 Nov 2026): each action answers with the line as it now is, so the row
+   * shows that at once; the reload behind it only catches up (and drops a line the filter no longer
+   * shows). The answer carries no event status, so the row keeps the one it had (D4).
+   */
+  function showLine(changed: RequestLine) {
+    setLines((current) => current.map((line) => (line.id === changed.id ? { ...line, ...changed, eventStatus: line.eventStatus } : line)));
+    void load();
+  }
+
   function open(line: RequestLine) {
     setNotice(null);
     setUpdateError(null);
@@ -112,7 +122,7 @@ export function EquipmentRequests() {
       const changed = await changeLineStatus(session.token, updating.id, toChange(update));
       setNotice({ title: "Status updated", text: `${changed.equipmentTypeName} for ${changed.eventReference} is now ${LINE_STATUS_LABELS[changed.status]}.` });
       setUpdating(null);
-      await load();
+      showLine(changed);
     } catch (caught) {
       // The line keeps its status; the refusal says why.
       setUpdateError(caught);
@@ -147,7 +157,7 @@ export function EquipmentRequests() {
         text: `Reserved ${done.reservation.reservedQuantity} of ${done.reservation.requestedQuantity} for ${done.line.eventReference}.`,
       });
       setReserving(null);
-      await load();
+      showLine(done.line);
     } catch (caught) {
       // Nothing was reserved; the refusal says why.
       setReserveError(caught);
@@ -178,7 +188,7 @@ export function EquipmentRequests() {
       const stop = /[.!?]$/.test(reason) ? "" : ".";
       setNotice({ title: "Equipment released", text: `Released ${reservedTypeOf(releasing)} for ${done.line.eventReference}: ${reason}${stop}` });
       setReleasing(null);
-      await load();
+      showLine(done.line);
     } catch (caught) {
       // The line stays Reserved; the refusal says why.
       setReleaseError(caught);

@@ -57,5 +57,8 @@ export function markAllNotificationsRead(token: string) {
 export function eventPathFor(role: Role, eventId: string): string | null {
   if (role === "EVENT_ORGANISER") return `/requests/${eventId}`;
   if (role === "EVENT_COORDINATOR") return `/review/${eventId}`;
+  // D-02: a Lead is told of a request awaiting assignment, a Safety Officer of an event awaiting the check.
+  if (role === "EVENT_COORDINATOR_LEAD") return `/assignments/${eventId}`;
+  if (role === "SAFETY_OFFICER") return `/safety/${eventId}`;
   return null;
 }
