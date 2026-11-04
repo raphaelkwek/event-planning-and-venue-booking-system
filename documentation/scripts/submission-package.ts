@@ -45,11 +45,50 @@ export interface CoverageCounts {
   integration_status_source: { url: string; headSha: string; date: string };
 }
 
+/** One workspace's coverage as a CI job printed it (Istanbul's "Statements" and "Branches" lines). */
+export interface WorkspaceCoverage {
+  name: string;
+  /** Which suite produced it: "unit", or "unit and integration" for planning-core's combined run. */
+  suite: string;
+  statements: string;
+  branches: string;
+}
+
+/** `coverage.json` beside counts.json: the coverage lines of one green CI run on main. */
+export interface Coverage {
+  commit: string;
+  run_url: string;
+  workspaces: WorkspaceCoverage[];
+}
+
+/** Folder 2: [source under the repo, folder name in the zip, manifest part]. */
+export const DESIGN_PARTS: ReadonlyArray<readonly [string, string, string]> = [
+  ["documentation/c4", "C4", "C4 model (Structurizr DSL, README, rendered diagrams)"],
+  ["documentation/architecture", "Data Model, Domain and State Diagrams", "ER diagram per schema, domain model and state diagrams (PlantUML and rendered images)"],
+  ["documentation/adr", "Architecture Decision Records", "Architecture decision records"],
+];
+
 const n = (v: number) => v.toLocaleString("en-US");
 const statusList = (s: Record<string, number>) => Object.entries(s).map(([k, v]) => `${n(v)} ${k}`).join(", ");
 
-/** The coverage statement, using only numbers that counts.json (made from CI and a local run) holds. */
-export function renderCoverageStatement(c: CoverageCounts): string {
+function coverageTable(coverage: Coverage): string[] {
+  return [
+    `## Coverage by workspace`,
+    "",
+    `As printed by CI run ${coverage.run_url} on commit \`${coverage.commit.slice(0, 8)}\`.`,
+    "",
+    "| Workspace | Suite | Statements | Branches |",
+    "|---|---|---|---|",
+    ...coverage.workspaces.map((w) => `| ${w.name} | ${w.suite} | ${w.statements} | ${w.branches} |`),
+    "",
+  ];
+}
+
+/**
+ * The coverage statement, using only numbers that counts.json (made from CI and a local run) holds,
+ * plus each workspace's coverage when `coverage.json` (copied from a CI run's log) is given.
+ */
+export function renderCoverageStatement(c: CoverageCounts, coverage?: Coverage): string {
   return [
     "# Coverage statement",
     "",
@@ -62,7 +101,8 @@ export function renderCoverageStatement(c: CoverageCounts): string {
     `| Browser (Playwright) tests | ${c.playwright_browser_tests.test_calls_in_specs} tests in ${c.playwright_browser_tests.spec_files} spec files | run in CI |`,
     `| Functional test cards | ${n(c.e2e_cards.total)} | ${statusList(c.e2e_cards.per_status)} |`,
     "",
-    "Gates CI enforces on every pull request (see `.github/workflows/ci.yml` and `mutation.yml`): domain code at 100% unit coverage, a mutation score of at least 80% on changed domain files, lint and typecheck, squawk migration lint, gitleaks and CodeQL. This statement gives counts and results only; it does not claim a line-coverage percentage that CI does not print.",
+    ...(coverage ? coverageTable(coverage) : []),
+    "Gates CI enforces on every pull request (see `.github/workflows/ci.yml` and `mutation.yml`): domain code at 100% unit coverage, a mutation score of at least 80% on changed domain files, lint and typecheck, squawk migration lint, gitleaks and CodeQL. This statement quotes only percentages a CI run printed; without `coverage.json` it gives counts and results only.",
     "",
     "Cards that are `Not Executed` or `Blocked` are listed as such in `Functional Test Cases.xlsx`; none is recorded as passed without a test that ran.",
     "",
@@ -126,8 +166,8 @@ function assembleBacklog(ctx: Ctx) {
 
 function assembleDesign(ctx: Ctx) {
   const dir = join(ctx.out, FOLDERS.design);
-  copyTree(ctx, join(ctx.repo, "documentation/c4"), join(dir, "C4"), FOLDERS.design, "C4 model (Structurizr DSL, README, rendered diagrams)");
-  copyTree(ctx, join(ctx.repo, "documentation/adr"), join(dir, "Architecture Decision Records"), FOLDERS.design, "Architecture decision records");
+  for (const [from, to, part] of DESIGN_PARTS) copyTree(ctx, join(ctx.repo, from), join(dir, to), FOLDERS.design, part);
+  copyIn(ctx, join(ctx.repo, "documentation/architecture.md"), dir, "Architecture Index.md", FOLDERS.design, "Architecture index (what each diagram shows)");
 }
 
 function assembleTests(ctx: Ctx) {
@@ -156,7 +196,10 @@ function assembleTests(ctx: Ctx) {
   const counts = d && join(d, "counts.json");
   if (counts && existsSync(counts)) {
     copyFileSync(counts, join(dir, "counts.json"));
-    writeFileSync(join(dir, "Coverage Statement.md"), renderCoverageStatement(JSON.parse(readFileSync(counts, "utf8"))));
+    const coverageFile = join(d, "coverage.json");
+    const coverage: Coverage | undefined = existsSync(coverageFile) ? JSON.parse(readFileSync(coverageFile, "utf8")) : undefined;
+    if (coverage) copyFileSync(coverageFile, join(dir, "coverage.json"));
+    writeFileSync(join(dir, "Coverage Statement.md"), renderCoverageStatement(JSON.parse(readFileSync(counts, "utf8")), coverage));
     add(ctx, f, "Coverage statement with CI numbers", "present", "Coverage Statement.md, from counts.json");
   } else {
     add(ctx, f, "Coverage statement with CI numbers", "missing", "counts.json not found in --deliverables");
