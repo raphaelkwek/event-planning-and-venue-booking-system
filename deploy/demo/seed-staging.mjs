@@ -644,6 +644,12 @@ const SCENARIOS = [
 
 async function seedEvent(spec) {
   let { ev } = await ensureCreated(spec);
+  // A cancelled, rejected or completed event can't move again: leave it where it is (an earlier
+  // run, or a person in the UI, put it there).
+  if (["CANCELLED", "REJECTED", "COMPLETED"].includes(ev.status)) {
+    bump("existing", "events left in a final state");
+    return;
+  }
   if (ev.status === "DRAFT" && spec.stage !== "DRAFT") {
     ev = { ...(await must(ev.owner, "POST", `/event/api/v1/event-drafts/${ev.id}/submit`, {}, [200, 201])), owner: ev.owner };
   }

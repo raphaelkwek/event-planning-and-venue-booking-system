@@ -10,8 +10,9 @@
   a hold, a block, change requests and registrations into staging through the application's own API.
   It refuses to run unless the Supabase project, the database login and the API host are staging's,
   and is safe to run again. Three extra attendee accounts are the only SQL (no API makes a user).
-  The manual add and the waitlist need the R5 to R7 routes, which staging's older build lacks: run
-  the seed again after the next staging deploy.
+  An event already in a final state (cancelled, rejected, completed) is left where it is, so a
+  second run doesn't try to approve a cancelled event. Run on staging on 4 Nov after the 9798a4f
+  deploy: 16 events, 6 venues, 6 equipment types, 6 registrations (one a manual add), 1 waitlist entry.
 
 ## Changed
 
