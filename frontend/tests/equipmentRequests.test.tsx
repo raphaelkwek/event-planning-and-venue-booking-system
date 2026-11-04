@@ -90,6 +90,25 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+describe("F4: lines of a cancelled event (D4)", () => {
+  it("shows the line as released with the event cancelled and offers no Update or Reserve", async () => {
+    lines = [
+      line({ id: "l1", status: "CONFIRMED", eventStatus: "CANCELLED" }),
+      line({ id: "l2", equipmentTypeName: "Projectors", eventReference: "EVT-000124", status: "CONFIRMED", eventStatus: "PLANNING" }),
+    ];
+    render(<App />);
+    await screen.findByText("EVT-000123");
+    expect(screen.getByText("Released: event cancelled")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Update Folding Chairs for EVT-000123" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Reserve Folding Chairs for EVT-000123" })).toBeNull();
+    // A live event's line keeps both.
+    expect(screen.getByRole("button", { name: "Update Projectors for EVT-000124" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Reserve Projectors for EVT-000124" })).toBeTruthy();
+    // The Confirmed lozenge is not shown for the cancelled line.
+    expect(screen.getAllByText("Confirmed")).toHaveLength(1);
+  });
+});
+
 describe("O2 equipment requests screen", () => {
   it("lists every event's lines with its reference, quantity and status", async () => {
     render(<App />);

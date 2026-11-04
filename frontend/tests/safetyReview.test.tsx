@@ -72,10 +72,16 @@ const reply = (body: unknown, status = 200) => new Response(JSON.stringify(body)
 let review: ReturnType<typeof reviewBody>;
 let onDecision: (body: Record<string, unknown>) => Response;
 let onMarkConfirmed: () => Response;
+// D2: once a decision returns the event to Planning, the review endpoint refuses with 409.
+let reviewGone = false;
 const fetchMock = vi.fn(async (path: string, init?: RequestInit) => {
   const url = new URL(path, "http://app.test");
   if (url.pathname === "/event/api/v1/safety-reviews") return reply({ events: [queueEntry] });
-  if (url.pathname === `/event/api/v1/events/${EVENT_ID}/safety-review`) return reply(review);
+  if (url.pathname === `/event/api/v1/events/${EVENT_ID}/safety-review`) {
+    return reviewGone
+      ? reply({ error: { code: "STATUS_TRANSITION_NOT_PERMITTED", message: "This event is Planning and cannot move to Safety Review.", correlationId: null } }, 409)
+      : reply(review);
+  }
   if (url.pathname === `/event/api/v1/events/${EVENT_ID}/safety-decision`) return onDecision(JSON.parse(String(init?.body)));
   if (url.pathname === `/event/api/v1/events/${EVENT_ID}/mark-confirmed`) return onMarkConfirmed();
   if (url.pathname.includes("/notifications")) return reply({ items: [], unreadCount: 0, nextCursor: null });
@@ -122,6 +128,7 @@ function signIn(role: string, userId: string, hash: string) {
 
 beforeEach(() => {
   review = reviewBody();
+  reviewGone = false;
   current = eventBody("SAFETY_REVIEW");
   onDecision = () => reply({ decision: { id: "d1" }, event: { id: EVENT_ID, status: "SAFETY_REVIEW", previousStatus: "SAFETY_REVIEW" } }, 201);
   onMarkConfirmed = () => reply({ event: { id: EVENT_ID, status: "CONFIRMED", previousStatus: "SAFETY_REVIEW", confirmedAt: "2026-11-02T02:00:00.000Z" } });
@@ -186,6 +193,7 @@ describe("the review (U1 AC2)", () => {
     );
     signIn("SAFETY_OFFICER", OFFICER, `#/safety/${EVENT_ID}`);
     expect(await screen.findByText("This event is Confirmed, not Safety Review.")).toBeTruthy();
+    expect(screen.queryByText("STATUS_TRANSITION_NOT_PERMITTED")).toBeNull();
   });
 });
 
@@ -236,6 +244,47 @@ describe("the decision form (U1 AC3 to AC6)", () => {
       flagBookingIds: ["b1000000-0000-4000-8000-000000000001"],
       flagReservationIds: ["r1000000-0000-4000-8000-000000000001"],
     });
+  });
+
+  it("D2: confirms a request for changes instead of re-reading a review the event has left", async () => {
+    onDecision = () => {
+      reviewGone = true;
+      return reply({ decision: { id: "d1", decision: "REQUEST_CHANGES" }, event: { id: EVENT_ID, status: "PLANNING", previousStatus: "SAFETY_REVIEW" } }, 201);
+    };
+    const form = await open();
+    choose(form, /Request changes/);
+    fireEvent.change(within(form).getByLabelText(/Reason/), { target: { value: "Move the chairs away from the east exit" } });
+    fireEvent.click(within(form).getByRole("button", { name: "Record decision" }));
+    expect(await screen.findByText("Changes requested")).toBeTruthy();
+    expect(screen.getByText(/back in Planning/)).toBeTruthy();
+    expect(screen.queryByText(/STATUS_TRANSITION_NOT_PERMITTED/)).toBeNull();
+    expect(screen.queryByText(/cannot move to Safety Review/)).toBeNull();
+    expect(screen.queryByText(/HTTP 409/)).toBeNull();
+    const reads = fetchMock.mock.calls.filter(([path]) => String(path).endsWith("/safety-review"));
+    expect(reads).toHaveLength(1);
+    expect(screen.getByRole("link", { name: "Back to the safety queue" })).toBeTruthy();
+  });
+
+  it("D2: confirms a rejection of the safety arrangement the same way", async () => {
+    onDecision = () => {
+      reviewGone = true;
+      return reply({ decision: { id: "d1", decision: "REJECT" }, event: { id: EVENT_ID, status: "PLANNING", previousStatus: "SAFETY_REVIEW" } }, 201);
+    };
+    const form = await open();
+    choose(form, /Reject/);
+    fireEvent.change(within(form).getByLabelText(/Reason/), { target: { value: "Unsafe crowd flow" } });
+    fireEvent.click(within(form).getByRole("button", { name: "Record decision" }));
+    expect(await screen.findByText("Safety arrangement rejected")).toBeTruthy();
+    expect(screen.queryByText(/HTTP 409/)).toBeNull();
+  });
+
+  it("D2: a refused decision shows the server's message with a plain title, never the raw error code", async () => {
+    onDecision = () =>
+      reply({ error: { code: "STATUS_TRANSITION_NOT_PERMITTED", message: "This event is Planning and cannot move to Safety Review.", correlationId: null } }, 409);
+    const form = await open();
+    fireEvent.click(within(form).getByRole("button", { name: "Record decision" }));
+    expect(await screen.findByText("This event is Planning and cannot move to Safety Review.")).toBeTruthy();
+    expect(screen.queryByText("STATUS_TRANSITION_NOT_PERMITTED")).toBeNull();
   });
 
   it("sends a rejection naming no arrangements", async () => {
