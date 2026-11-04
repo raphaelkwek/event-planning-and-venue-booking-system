@@ -45,7 +45,11 @@ export function saveDraft(fields: Record<string, unknown>, as: AccountKey = "org
  * The cards' SQL-editor steps, run against the job's own throwaway database. The Playwright
  * config has already refused any DATABASE_URL that is not on this machine.
  */
-export async function query<T extends Record<string, unknown>>(text: string, params: (string | number)[] = []): Promise<T[]> {
+/**
+ * Pass a boolean as a boolean: postgres.js serialises a boolean parameter as `x === true ? "t" : "f"`,
+ * so the string "true" would be stored as false.
+ */
+export async function query<T extends Record<string, unknown>>(text: string, params: (string | number | boolean)[] = []): Promise<T[]> {
   const sql = postgres(process.env.DATABASE_URL!, { max: 1, onnotice: () => undefined });
   try {
     return (await sql.unsafe(text, params)) as unknown as T[];
