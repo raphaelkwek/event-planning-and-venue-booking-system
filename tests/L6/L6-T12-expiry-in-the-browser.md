@@ -15,6 +15,13 @@
 
 > **Expected results are checked by the PR reviewer** against L6's acceptance criteria.
 
+> **Run note, 2026-11-04.** Two deviations, both forced. HLD-B cannot be a second hold at HLD-A's venue for the
+> same period (an event holds a venue once, L3 and CR-03, and a period is held once), so it is the same event's hold of
+> its other FX-BOOKING venue, Seminar Room 2-1, for the same period, and step 6's notice names that venue. CI's stack runs
+> no Temporal worker, so HLD-B is placed expiring 40 seconds ahead and, once that has passed, expired by
+> `npm run jobs:expire-holds`, the sweep implementation.md §4 names for when the HoldExpiry workflow is not running
+> (it runs the workflow's own step, so the records and the `venue-booking.hold-expired` message are the same).
+
 ## Execution record
 
 | Item | Content |
