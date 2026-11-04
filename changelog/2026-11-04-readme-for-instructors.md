@@ -1,6 +1,6 @@
 # The README says where the instructors find each part, and the zip's folder 7 is a real README
 
-**Timestamp:** 2026-11-04T21:00+08:00 (SGT)
+**Timestamp:** 2026-11-04T20:25+08:00 (SGT)
 **Author:** Joash
 **Reason:** the instructors open the repository and the Week 12 zip first, and neither said where
 each part of the submission is. The README also still said EN-11 was unfinished, that no service
