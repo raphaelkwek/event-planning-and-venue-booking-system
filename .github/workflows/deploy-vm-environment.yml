@@ -1,0 +1,232 @@
+# ADR-0016 amendment (Azure): deploy one release to one environment on the Azure VM. release.yml
+# calls it twice, with `environment: staging` and then `environment: production` (which waits for its
+# required reviewer), passing the same release. The two environments differ only in what the GitHub
+# environment holds (documentation/deploy/README.md, "GitHub environments for the Azure path"):
+#
+#   variables  VM_HOST, VM_SSH_KNOWN_HOSTS, API_HOST, WEB_ORIGIN, SUPABASE_URL, SUPABASE_ANON_KEY
+#   secrets    VM_SSH_KEY, DATABASE_URL, MIGRATE_DATABASE_URL, SUPABASE_SERVICE_ROLE_KEY,
+#              VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID
+#
+# The repository and its logs are public: no step prints a secret. The container's settings go to the
+# VM's deploy gate on stdin (deploy/azure/connectsphere-vm-deploy), which prints key names only, and
+# the deploy key can run nothing but that gate, for its own environment.
+name: Deploy an environment (Azure VM)
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: staging or production
+        required: true
+        type: string
+      release:
+        description: 'The release as JSON: {"commit": "<sha>", "images": {"space": "<image>@sha256:...", ...}}'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  deploy:
+    name: ${{ inputs.environment }} (Azure VM)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    environment:
+      name: ${{ inputs.environment }}
+      url: ${{ vars.WEB_ORIGIN }}
+    # One deploy per environment at a time, never cancelled half way.
+    concurrency:
+      group: deploy-vm-${{ inputs.environment }}
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      # Pulls the image from GHCR on the VM with this job's token, which is never stored there.
+      packages: read
+    env:
+      ENVIRONMENT: ${{ inputs.environment }}
+      RELEASE: ${{ inputs.release }}
+      API_HOST: ${{ vars.API_HOST }}
+      WEB_ORIGIN: ${{ vars.WEB_ORIGIN }}
+      VM_HOST: ${{ vars.VM_HOST }}
+    steps:
+      - name: Check the environment is filled in (names only)
+        env:
+          V_VM_SSH_KNOWN_HOSTS: ${{ vars.VM_SSH_KNOWN_HOSTS }}
+          V_SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          V_SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY }}
+          S_VM_SSH_KEY: ${{ secrets.VM_SSH_KEY != '' }}
+          S_DATABASE_URL: ${{ secrets.DATABASE_URL != '' }}
+          S_MIGRATE_DATABASE_URL: ${{ secrets.MIGRATE_DATABASE_URL != '' }}
+          S_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY != '' }}
+          S_VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN != '' }}
+          S_VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID != '' }}
+          S_VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID != '' }}
+        run: |
+          missing=()
+          for name in VM_HOST API_HOST WEB_ORIGIN V_VM_SSH_KNOWN_HOSTS V_SUPABASE_URL V_SUPABASE_ANON_KEY; do
+            [ -n "${!name}" ] || missing+=("variable ${name#V_}")
+          done
+          for name in S_VM_SSH_KEY S_DATABASE_URL S_MIGRATE_DATABASE_URL S_SUPABASE_SERVICE_ROLE_KEY S_VERCEL_TOKEN S_VERCEL_ORG_ID S_VERCEL_PROJECT_ID; do
+            [ "${!name}" = true ] || missing+=("secret ${name#S_}")
+          done
+          if [ "${#missing[@]}" -gt 0 ]; then
+            printf '::error::the %s environment has no %s\n' "$ENVIRONMENT" "${missing[@]}"
+            exit 1
+          fi
+          echo "The ${ENVIRONMENT} environment has every value."
+
+      - name: Check out the release's commit
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ fromJSON(inputs.release).commit }}
+          persist-credentials: false
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 20
+
+      - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+        with:
+          cosign-release: v3.1.4
+
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify the image's signature
+        id: image
+        env:
+          IDENTITY: ${{ github.server_url }}/${{ github.repository }}/.github/workflows/release.yml@refs/heads/main
+        run: |
+          ref="$(jq -r '.images.space // empty' <<< "$RELEASE")"
+          [ -n "$ref" ] || { echo "::error::the release has no space image"; exit 1; }
+          cosign verify "$ref" --certificate-identity "$IDENTITY" --certificate-oidc-issuer https://token.actions.githubusercontent.com > /dev/null
+          echo "verified ${ref}"
+          echo "ref=${ref}" >> "$GITHUB_OUTPUT"
+
+      - name: SSH to the deploy gate
+        env:
+          VM_SSH_KEY: ${{ secrets.VM_SSH_KEY }}
+          KNOWN_HOSTS: ${{ vars.VM_SSH_KNOWN_HOSTS }}
+        run: |
+          install -d -m 0700 "$RUNNER_TEMP/ssh"
+          printf '%s\n' "$VM_SSH_KEY" > "$RUNNER_TEMP/ssh/key"
+          chmod 600 "$RUNNER_TEMP/ssh/key"
+          # The host key is pinned (no trust on first use).
+          printf '%s\n' "$KNOWN_HOSTS" > "$RUNNER_TEMP/ssh/known_hosts"
+          cat > "$RUNNER_TEMP/ssh/config" <<EOF
+          Host gate
+            HostName ${VM_HOST}
+            User cs-deploy
+            IdentityFile ${RUNNER_TEMP}/ssh/key
+            IdentitiesOnly yes
+            UserKnownHostsFile ${RUNNER_TEMP}/ssh/known_hosts
+            StrictHostKeyChecking yes
+            ServerAliveInterval 30
+            ConnectTimeout 20
+          EOF
+
+      - name: Deploy the container (migrations run as it starts) and wait until it is ready
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          MIGRATE_DATABASE_URL: ${{ secrets.MIGRATE_DATABASE_URL }}
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GHCR_USER: ${{ github.actor }}
+          IMAGE: ${{ steps.image.outputs.ref }}
+          # Optional: more web origins the API accepts, comma-separated (production keeps its first
+          # Vercel alias, https://connectsphere-blush.vercel.app, working).
+          ALSO_WEB_ORIGINS: ${{ vars.ALSO_WEB_ORIGINS }}
+        run: |
+          settings="$RUNNER_TEMP/settings.env"
+          trap 'rm -f "$settings"' EXIT
+          umask 077
+          cors="$WEB_ORIGIN"
+          if [ -n "$ALSO_WEB_ORIGINS" ]; then cors="${cors},${ALSO_WEB_ORIGINS}"; fi
+          {
+            printf 'DATABASE_URL=%s\n' "$DATABASE_URL"
+            printf 'MIGRATE_DATABASE_URL=%s\n' "$MIGRATE_DATABASE_URL"
+            printf 'SUPABASE_URL=%s\n' "$SUPABASE_URL"
+            printf 'SUPABASE_ANON_KEY=%s\n' "$SUPABASE_ANON_KEY"
+            printf 'SUPABASE_SERVICE_ROLE_KEY=%s\n' "$SUPABASE_SERVICE_ROLE_KEY"
+            printf 'CORS_ALLOWED_ORIGINS=%s\n' "$cors"
+            printf 'REDPANDA_MEMORY=512M\n'
+            # The host Caddy and the container's Caddy stand in front of registration's per-address limits.
+            printf 'TRUST_PROXY_HOPS=2\n'
+            printf 'GHCR_USER=%s\n' "$GHCR_USER"
+            printf 'GHCR_TOKEN=%s\n' "$GHCR_TOKEN"
+          } > "$settings"
+          ssh -F "$RUNNER_TEMP/ssh/config" gate deploy "$IMAGE" < "$settings"
+
+      - name: Smoke test the public API (TLS, routes, CORS)
+        env:
+          SMOKE_PUBLIC_HEALTHZ: "1"
+        run: bash deploy/release/smoke-api.sh "https://${API_HOST}" "$WEB_ORIGIN"
+
+      # Optional (secret SUPABASE_ACCESS_TOKEN): point the project's Auth Site URL and redirect URLs
+      # at this environment's web origins, so invite and password-reset links land on its own app.
+      - name: Supabase Auth URLs
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          ALSO_WEB_ORIGINS: ${{ vars.ALSO_WEB_ORIGINS }}
+        run: |
+          if [ -z "$SUPABASE_ACCESS_TOKEN" ]; then
+            echo "No SUPABASE_ACCESS_TOKEN in this environment: Auth URLs left as they are."
+            exit 0
+          fi
+          ref="$(sed -E 's#^https://([a-z0-9]+)\.supabase\.co.*#\1#' <<< "$SUPABASE_URL")"
+          allow="${WEB_ORIGIN}/**"
+          for origin in ${ALSO_WEB_ORIGINS//,/ }; do allow="${allow},${origin}/**"; done
+          body="$(jq -cn --arg site "$WEB_ORIGIN" --arg allow "$allow" '{site_url: $site, uri_allow_list: $allow}')"
+          status="$(curl -sS -o /dev/null -w '%{http_code}' -X PATCH "https://api.supabase.com/v1/projects/${ref}/config/auth" \
+            -H "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" -H 'Content-Type: application/json' -d "$body")"
+          [ "$status" = 200 ] || { echo "::error::Supabase would not set the Auth URLs (${status})"; exit 1; }
+          echo "Supabase Auth of ${ref}: Site URL ${WEB_ORIGIN}, redirects ${allow}"
+
+      - name: Build and deploy the web app to Vercel
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          VERCEL_TELEMETRY_DISABLED: "1"
+          VITE_API_BASE_URL: https://${{ vars.API_HOST }}
+          VITE_SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY }}
+          # The sign-in page lists the demo accounts on staging only, which alone has them.
+          VITE_SHOW_SEEDED_ACCOUNTS: ${{ inputs.environment == 'staging' }}
+        run: |
+          set -euo pipefail
+          npm install --global --no-audit --no-fund vercel@65.10.0 > /dev/null
+          vercel pull --yes --environment=production --token "$VERCEL_TOKEN" > /dev/null
+          vercel build --prod --token "$VERCEL_TOKEN"
+          vercel deploy --prebuilt --prod --token "$VERCEL_TOKEN" > /dev/null 2>&1
+          echo "deployed, aliased to ${WEB_ORIGIN}"
+
+      - name: Smoke test the web app
+        run: bash deploy/release/smoke-web.sh "$WEB_ORIGIN" "$API_HOST"
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### ${ENVIRONMENT} (Azure VM)"
+            echo
+            echo "- Release: \`$(jq -r .commit <<< "$RELEASE")\`"
+            echo "- Image: \`$(jq -r '.images.space // "none"' <<< "$RELEASE")\`"
+            echo "- API: https://${API_HOST}"
+            echo "- Web: ${WEB_ORIGIN}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: What the VM says (on failure)
+        if: failure() && steps.image.outcome == 'success'
+        run: ssh -F "$RUNNER_TEMP/ssh/config" gate health || true

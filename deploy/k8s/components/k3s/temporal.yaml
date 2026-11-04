@@ -1,0 +1,98 @@
+# ADR-0016. The namespace's own Temporal: the Temporal CLI's dev server, one process with its
+# SQLite database on a PersistentVolumeClaim, so workflows and timers survive a restart.
+# ADR-0009's Temporal Cloud namespace stays the development one. The worker reaches this one
+# with TEMPORAL_ADDRESS=temporal:7233, TEMPORAL_NAMESPACE=default and no TEMPORAL_API_KEY,
+# which the worker reads as a plain gRPC connection (temporal/domain/settings.ts); the
+# NetworkPolicies let only planning-core's pods in. The web UI is off.
+apiVersion: v1
+kind: Service
+metadata:
+  name: temporal
+spec:
+  selector:
+    app.kubernetes.io/name: temporal
+  ports:
+    - name: grpc
+      port: 7233
+      targetPort: grpc
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: temporal
+spec:
+  serviceName: temporal
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: temporal
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: temporal
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 30
+      # The image's user is a name, so the uid is given here for runAsNonRoot to check.
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: temporal
+          image: docker.io/temporalio/temporal:1.10.0@sha256:003508da05989e7cf0d583cfce521c4bb2732e733574e3040db8f1284783baa2
+          args:
+            - server
+            - start-dev
+            - --ip=0.0.0.0
+            - --port=7233
+            - --headless
+            - --db-filename=/data/temporal.db
+            - --namespace=default
+            - --log-level=warn
+          env:
+            - name: HOME
+              value: /tmp
+          ports:
+            - name: grpc
+              containerPort: 7233
+              protocol: TCP
+          startupProbe:
+            tcpSocket: { port: grpc }
+            periodSeconds: 3
+            failureThreshold: 40
+          readinessProbe:
+            tcpSocket: { port: grpc }
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket: { port: grpc }
+            periodSeconds: 20
+            failureThreshold: 3
+          resources:
+            requests: { cpu: 100m, memory: 256Mi }
+            limits: { cpu: 500m, memory: 768Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: { sizeLimit: 64Mi }
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: [ReadWriteOnce]
+        resources:
+          requests:
+            storage: 1Gi

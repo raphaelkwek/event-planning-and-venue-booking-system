@@ -1,0 +1,34 @@
+# ADR-0016 amendment: the Space's in-container Redpanda, reachable only on 127.0.0.1, SASL/SCRAM over
+# TLS (start.sh makes the certificate and the one user at every start; the disk is ephemeral).
+redpanda:
+  data_directory: /tmp/cs/redpanda/data
+  seed_servers: []
+  developer_mode: true
+  rpc_server:
+    address: 127.0.0.1
+    port: 33145
+  advertised_rpc_api:
+    address: 127.0.0.1
+    port: 33145
+  kafka_api:
+    - name: internal
+      address: 127.0.0.1
+      port: 9092
+      authentication_method: sasl
+  advertised_kafka_api:
+    - name: internal
+      address: 127.0.0.1
+      port: 9092
+  kafka_api_tls:
+    - name: internal
+      enabled: true
+      require_client_auth: false
+      cert_file: /tmp/cs/tls/tls.crt
+      key_file: /tmp/cs/tls/tls.key
+      truststore_file: /tmp/cs/tls/ca.crt
+  admin:
+    - name: admin
+      address: 127.0.0.1
+      port: 9644
+rpk:
+  coredump_dir: /tmp/cs/redpanda/coredump

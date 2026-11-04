@@ -2,6 +2,11 @@
 
 Infrastructure for ConnectSphere on AWS, region `ap-southeast-1` (Singapore).
 
+> **The scale-up path, not what runs today (ADR-0016, 3 Nov 2026).** Staging and production run on a
+> free Oracle Always Free k3s VM and Vercel (`documentation/deploy/README.md`). This Terraform (EKS, a
+> three-zone VPC, ElastiCache; about USD 150 a month idle) is kept, validated in CI, for when one VM is
+> no longer enough. It has never been planned or applied.
+
 | Path | What it builds |
 |---|---|
 | `modules/network` | A VPC across three zones: three public and three private subnets, an internet gateway, NAT (one in staging, one per zone in production) and the subnet tags EKS and load balancers discover. |

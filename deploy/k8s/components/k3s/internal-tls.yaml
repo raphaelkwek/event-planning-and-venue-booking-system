@@ -1,0 +1,58 @@
+# ADR-0016. A private CA per namespace, made by cert-manager, so the in-cluster Redpanda
+# speaks TLS and the services verify it with KAFKA_SSL_CA_PATH, exactly as they verify
+# Aiven's project CA. Nothing here leaves the namespace: the CA's key stays in the
+# internal-ca Secret, and the clients mount only ca.crt from redpanda-tls.
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: selfsigned
+spec:
+  selfSigned: {}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: internal-ca
+spec:
+  isCA: true
+  commonName: connectsphere-internal-ca
+  secretName: internal-ca
+  duration: 87600h # ten years; it signs only this namespace's broker certificate
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+  issuerRef:
+    name: selfsigned
+    kind: Issuer
+---
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: internal-ca
+spec:
+  ca:
+    secretName: internal-ca
+---
+# The broker's certificate. Clients connect to the short name `redpanda`, which resolves
+# in their own namespace, so the same name serves staging and production.
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: redpanda-tls
+spec:
+  secretName: redpanda-tls
+  commonName: redpanda
+  dnsNames:
+    - redpanda
+  duration: 8760h
+  renewBefore: 720h
+  privateKey:
+    algorithm: RSA
+    size: 2048
+  usages:
+    - server auth
+    - digital signature
+    - key encipherment
+  issuerRef:
+    name: internal-ca
+    kind: Issuer

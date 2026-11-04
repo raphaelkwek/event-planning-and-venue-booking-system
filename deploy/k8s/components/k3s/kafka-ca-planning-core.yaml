@@ -1,0 +1,19 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: planning-core
+spec:
+  template:
+    spec:
+      containers:
+        - name: planning-core
+          volumeMounts:
+            - name: kafka-ca
+              mountPath: /etc/connectsphere/kafka
+              readOnly: true
+      volumes:
+        - name: kafka-ca
+          secret:
+            secretName: redpanda-tls
+            items:
+              - { key: ca.crt, path: ca.crt }
