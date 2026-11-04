@@ -12,7 +12,7 @@ import { highDemandRouter } from "./api/highDemand.js";
 import { registrationSettingsRouter } from "./api/registrationSettings.js";
 import { statusHistoryRouter } from "./api/statusHistory.js";
 import { eventRateLimiter } from "./api/eventRateLimiter.js";
-import { findEventInScope, findReferences, findStatuses } from "./repo/events.js";
+import { findEventInScope, findLabels, findReferences, findStatuses, type EventLabel } from "./repo/events.js";
 import type { ChangeableEvent } from "./domain/proposedChange.js";
 
 export { checkProposedChange, type ChangeableEvent, type ProposedChanges } from "./domain/proposedChange.js";
@@ -158,6 +158,15 @@ export async function findEventForChange(
 export function findEventReferences(sql: Sql, eventIds: readonly string[]): Promise<Map<string, string | null>> {
   return findReferences(sql, eventIds);
 }
+
+/**
+ * L1, A3-T8 — the reference and name of each event, for lists that name an event beside its
+ * request. The name is not the internal record (no purpose, contact or accessibility needs).
+ */
+export function findEventLabels(sql: Sql, eventIds: readonly string[]): Promise<Map<string, EventLabel>> {
+  return findLabels(sql, eventIds);
+}
+export type { EventLabel };
 
 /**
  * D4 — the status of each event among `eventIds` that exists, so the equipment module can tell

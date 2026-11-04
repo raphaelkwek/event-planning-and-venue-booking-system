@@ -4814,13 +4814,14 @@ components:
         expiredAt: { type: [string, "null"], format: date-time, description: "L6: when the hold expired; null unless Expired." }
     BookingRequest:
       type: object
-      required: [id, reference, eventId, eventReference, venueId, venueName, startsAt, endsAt, layout, expectedAttendance, facilities, accessibilityFeatures, eventStartsAt, eventEndsAt, eventAttendance, differsFromEvent, differences, replacesBookingId, status, requestedBy, requestedAt, withdrawnBy, withdrawnAt, suitabilityStatus, suitabilityReasons, justification, decidedBy, decidedAt, bookingId, rejectionReason, suggestedAlternative, requiresReconfirmation, overlaps, conflicts]
+      required: [id, reference, eventId, eventReference, eventName, venueId, venueName, startsAt, endsAt, layout, expectedAttendance, facilities, accessibilityFeatures, eventStartsAt, eventEndsAt, eventAttendance, differsFromEvent, differences, replacesBookingId, status, requestedBy, requestedAt, withdrawnBy, withdrawnAt, suitabilityStatus, suitabilityReasons, justification, decidedBy, decidedAt, bookingId, rejectionReason, suggestedAlternative, requiresReconfirmation, overlaps, conflicts]
 
       properties:
         id: { type: string, format: uuid }
         reference: { type: string, pattern: "^BKR-\\d{6}$" }
         eventId: { type: string, format: uuid }
         eventReference: { type: [string, "null"] }
+        eventName: { type: [string, "null"], description: "The event's name, shown beside its reference (A3-T8). Null only if the event can no longer be found; nothing else of the event's record is carried." }
         venueId: { type: string, format: uuid }
         venueName: { type: string }
         startsAt: { type: string, format: date-time }

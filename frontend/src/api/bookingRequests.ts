@@ -17,6 +17,7 @@ export interface BookingRequest {
   reference: string;
   eventId: string;
   eventReference: string | null;
+  eventName: string | null;
   venueId: string;
   venueName: string;
   startsAt: string;

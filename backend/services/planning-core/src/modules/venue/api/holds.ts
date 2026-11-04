@@ -381,10 +381,10 @@ export function holdsRouter(sql: Sql, limiter: RequestHandler = holdsRateLimit()
       });
       if (!outcome.ok) return refuse(res, outcome.status, outcome.code, outcome.message, outcome.fields, outcome.details);
       // N2: the new pending request with what it clashes with.
-      const [request] = await presentAll(sql, [outcome.created], () => outcome.eventReference);
+      const [request] = await presentAll(sql, [outcome.created], () => outcome.event);
       res.status(201).json({
         request,
-        hold: present(converted!, outcome.eventReference),
+        hold: present(converted!, outcome.event.reference),
       });
     } catch (error) {
       next(error);

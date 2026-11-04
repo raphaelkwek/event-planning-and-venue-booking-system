@@ -153,10 +153,6 @@ test.describe("A3 what each role is shown", () => {
   });
 
   test("A3-T8 Venue Staff see booking requests and bookings for their own venues only", { tag: ["@A3", "@A3-T8"] }, async ({ page, a11y }) => {
-    // The queue names the event by its reference (EVT-…), not by its name, which the card's
-    // expected result asks for. The last assertion below is that clause; everything above it holds.
-    test.fail(true, "Known defect: the Venue Staff queue shows the event's reference, not its name (frontend/src/screens/BookingRequestQueue.tsx).");
-
     // Two venues, one looked after by venuestaff@; a booking request against each, for two events.
     const own = await createVenue();
     const other = await venueNobodyLooksAfter(uniqueName("Mochtar Riady Hall"));
@@ -180,7 +176,8 @@ test.describe("A3 what each role is shown", () => {
     // Step 3: the request for their own venue: timing, expected attendance, layout and requirements.
     const cells = row.getByRole("cell");
     await expect(cells.nth(0)).toHaveText(ownRequest.reference);
-    await expect(cells.nth(1)).toHaveText(ownEvent.reference);
+    await expect(cells.nth(1)).toContainText(ownEvent.reference);
+    await expect(cells.nth(1)).toContainText(ownEvent.name);
     await expect(cells.nth(2)).toHaveText(own.name);
     await expect(cells.nth(3)).toHaveText(PERIOD_TEXT);
     await expect(cells.nth(4)).toHaveText("Theatre");
@@ -191,9 +188,6 @@ test.describe("A3 what each role is shown", () => {
     // Not the full internal event record.
     for (const internal of INTERNAL) await expect(mainText(page)).not.toContainText(internal);
     await expect(mainText(page)).not.toContainText(/Contact details|Accessibility needs|Purpose/);
-
-    // The event name, which the card expects among what the request shows.
-    await expect(row).toContainText(ownEvent.name);
   });
 
   test("A3-T9 Technical Support see equipment requests, reservations and the event timing they depend on", { tag: ["@A3", "@A3-T9"] }, async ({ page, a11y }) => {

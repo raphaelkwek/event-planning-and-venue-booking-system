@@ -175,7 +175,10 @@ export function BookingRequestQueue() {
             {items.map((item) => (
               <tr key={item.id} aria-label={item.reference}>
                 <td style={cell}>{item.reference}</td>
-                <td style={cell}>{item.eventReference ?? "—"}</td>
+                <td style={cell}>
+                  {item.eventName ?? item.eventReference ?? "—"}
+                  {item.eventName && item.eventReference && <div style={{ fontSize: 12, color: "#626F86" }}>{item.eventReference}</div>}
+                </td>
                 <td style={cell}>{item.venueName}</td>
                 <td style={cell}>{formatPeriod(item.startsAt, item.endsAt)}</td>
                 <td style={cell}>{item.layout}</td>
