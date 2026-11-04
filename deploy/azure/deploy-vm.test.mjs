@@ -6,9 +6,7 @@ import { readFileSync } from "node:fs";
 import { apiHost, containerEnv, hostCaddyfile, PORTS, replaceContainerCommand, TEMPORAL_STATE_DIR, temporalVolume } from "./deploy-vm.mjs";
 
 /** A file of the repository, with LF line endings even on a Windows checkout. */
-const repoFile = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), "utf8").replace(/
-/g, "
-");
+const repoFile = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), "utf8").replace(/\r\n/g, "\n");
 
 const fake = (label) => `${label}-${"k".repeat(12)}`;
 
@@ -51,8 +49,7 @@ test("EN-11-T6 the deploy gate and deploy:vm mount each environment's own Tempor
   const gate = repoFile("deploy/azure/connectsphere-vm-deploy");
   assert.match(gate, /^CONTAINER="connectsphere-\$\{ENVIRONMENT\}"$/m);
   assert.match(gate, /^TEMPORAL_STATE_DIR=\/var\/lib\/connectsphere\/temporal$/m);
-  assert.match(gate, /docker run -d --name "\$CONTAINER" [^
-]*-v "\$\{CONTAINER\}-temporal:\$\{TEMPORAL_STATE_DIR\}" /);
+  assert.match(gate, /docker run -d --name "\$CONTAINER" [^\n]*-v "\$\{CONTAINER\}-temporal:\$\{TEMPORAL_STATE_DIR\}" /);
 
   // npm run deploy:vm, the manual path.
   for (const environment of ["staging", "production"]) {
@@ -65,12 +62,9 @@ test("EN-11-T6 the deploy gate and deploy:vm mount each environment's own Tempor
 
 test("EN-11-T6 the image gives that directory to the user supervisord runs Temporal as, and Temporal's file is in it", () => {
   const dockerfile = repoFile("deploy/space/Dockerfile");
-  const made = dockerfile.search(/install -d -o 1000 -g 1000 [^
-]*\/var\/lib\/connectsphere\/temporal/);
+  const made = dockerfile.search(/install -d -o 1000 -g 1000 [^\n]*\/var\/lib\/connectsphere\/temporal/);
   assert.ok(made > 0, "the Dockerfile makes /var/lib/connectsphere/temporal for uid 1000");
-  assert.ok(made < dockerfile.indexOf("
-USER 1000
-"), "as root, before the image switches to uid 1000");
+  assert.ok(made < dockerfile.indexOf("\nUSER 1000\n"), "as root, before the image switches to uid 1000");
   assert.ok(repoFile("deploy/space/supervisord.conf").includes("--db-filename=%(ENV_TEMPORAL_DB_FILE)s"));
   assert.ok(repoFile("deploy/space/start.sh").includes('TEMPORAL_DB_FILE="$TEMPORAL_STATE_DIR/temporal.db"'));
 });

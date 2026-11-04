@@ -117,13 +117,9 @@ test("DEPLOY-T18 the probe Space checks both pooler ports and the project's host
 });
 
 test("EN-11-T5 supervisord runs the F1 completion sweep and the L6 hold-expiry sweep, and every five minutes", () => {
-  const read = (name) => readFileSync(new URL(name, import.meta.url), "utf8").replace(/
-/g, "
-");
+  const read = (name) => readFileSync(new URL(name, import.meta.url), "utf8").replace(/\r\n/g, "\n");
   const supervisord = read("./supervisord.conf");
-  const program = supervisord.slice(supervisord.indexOf("[program:sweeps]")).split("
-
-")[0];
+  const program = supervisord.slice(supervisord.indexOf("[program:sweeps]")).split("\n\n")[0];
   assert.match(program, /^command=bash \/app\/deploy\/space\/sweeps\.sh$/m);
   assert.match(program, /^autorestart=true$/m);
   // Its node child goes with it when supervisord stops it.
