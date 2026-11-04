@@ -39,6 +39,8 @@ const logTo = (name: string) => `> "${join(LOG_DIR, `${name}.log`)}" 2>&1`;
 const stackEnv: Record<string, string> = {
   DATABASE_URL,
   SUPABASE_URL: authUrl,
+  // The browser journeys sign in from the seeded-accounts panel, which a production build hides.
+  VITE_SHOW_SEEDED_ACCOUNTS: "true",
   SUPABASE_ANON_KEY: anonKey,
   SUPABASE_JWKS_URL: `${authUrl}/auth/v1/.well-known/jwks.json`,
   SUPABASE_SERVICE_ROLE_KEY: "",

@@ -31,6 +31,7 @@
     "jobs:schedule-hold-expiries": "tsx --env-file=.env backend/services/planning-core/src/temporal/runScheduleHoldExpiries.ts",
     "jobs:complete-events": "tsx --env-file=.env backend/services/planning-core/src/modules/event/jobs/runCompleteEvents.ts",
     "jobs:expire-holds": "tsx --env-file=.env backend/services/planning-core/src/modules/venue/jobs/runExpireHolds.ts",
+    "demo:seed": "node deploy/demo/seed-staging.mjs",
     "changelog": "tsx documentation/scripts/changelog.ts",
     "diagrams:er": "tsx documentation/scripts/generate-er-diagrams.ts",
     "diagrams:er:check": "tsx documentation/scripts/generate-er-diagrams.ts --check",
