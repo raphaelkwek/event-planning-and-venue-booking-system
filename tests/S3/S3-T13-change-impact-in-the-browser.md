@@ -9,7 +9,7 @@
 | Pre-conditions | 1. Standard environment running, `.env` has the `KAFKA_*` settings, and test data reset (`tests/README.md`); migrations applied, including `venue/0019` and `equipment/0009` (`npm run migrate -- venue`, `npm run migrate -- equipment`).<br>2. FX-S3 as the browser-level statement in `tests/S3/README.md`: an Approved request of `organiser@connectsphere.test` brought to Planning with two confirmed bookings (Theatre 100 and Hall 200) and an equipment reservation by `techsupport@connectsphere.test`, all for the event's period, and a pending change request raised as in S1-T13 that moves the start time and raises attendance to 150. |
 | Test Steps | 1. Sign in as the assigned coordinator, open the change request's review page, click "Approve change", then "Confirm approval".<br>2. Read the impact list that appears.<br>3. Open the event page and read the "Outstanding flags" panel.<br>4. Try to confirm the event (F5).<br>5. Sign out and sign in as `organiser@connectsphere.test`, and open the event page. Then sign in as `coordinator2@connectsphere.test`, an Event Coordinator the event is not assigned to, and open the event's review address.<br>6. Sign in as `organiser2@connectsphere.test` and open the event's address.<br>7. Sign in as `venuestaff@connectsphere.test`, then as `techsupport@connectsphere.test`, and open "Notifications" in each. |
 | Test Data | As in the steps. |
-| Expected Result | Step 1 applies the change. Step 2 lists both bookings, the reservation and "0 active registrations", saying which were flagged: both bookings "Requires Reconfirmation", the theatre booking also "Unsuitable" (`Expected attendance is now 150, but <venue> holds 100 in the Theatre layout.`), the reservation "Flagged for review". Step 3 shows the "Outstanding flags" panel with the same flags and reasons. Step 4 is refused and names every flag. Step 5 shows the panel to the organiser; `coordinator2@connectsphere.test` is refused with "No event with that reference is assigned to you." and sees no event and no flags (the flags read answers 404). Step 6 shows no event (not found) and no flags. Step 7 shows a notice for Venue Staff for each booking and for Technical Support for the reservation. |
+| Expected Result | Step 1 applies the change. Step 2 lists both bookings, the reservation and "0 active registrations", saying which were flagged: both bookings "Requires Reconfirmation", the theatre booking also "Unsuitable" (`Expected attendance is now 150, but <venue> holds 100 in the Theatre layout.`), the reservation "Flagged for review". Step 3 shows the "Outstanding flags" panel with the same flags and reasons. Step 4 is refused and names every flag. Step 5 shows the panel to the organiser; `coordinator2@connectsphere.test` is refused with "No event with that reference is assigned to you." and sees no event and no flags (the flags read answers 404). Step 6 shows no event (not found) and no flags. Step 7 shows Venue Staff one notice naming each flagged booking with every reason (`venuestaff@connectsphere.test` looks after both venues), and Technical Support a notice for the reservation. |
 | Created By | Raphael |
 | Date of Creation | 2026-10-28 |
 
@@ -24,6 +24,15 @@
 > still open with the customer; if the answer lets coordinators view other events read-only, step 5
 > changes back. Step 5 also no longer opens Notifications, since the expected result never said what
 > the organiser should find there (S3 notifies Venue Staff, Technical Support and attendees, step 7).
+
+> **Revised 2026-11-04 (step 7).** Step 7 expected a notice for Venue Staff for each booking. The
+> notification service stores one notification per person per message: `notification.notifications`
+> is unique on (source_message_id, recipient_user_id), and S3's design (§3, decision 7) says one
+> notice per recipient.
+> So a Venue Staff member who looks after both venues gets one notice that names both bookings
+> and all three flags' reasons. This card's first automated run found that the rule wrote one
+> notice per flag instead, which failed that key and left Venue Staff and Technical Support with
+> no notice at all; the rule was fixed in the same change as this revision.
 
 ## Execution record
 

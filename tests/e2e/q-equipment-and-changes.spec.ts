@@ -5,6 +5,7 @@ import { query } from "./support/seed-events.js";
 import { MOVED_START, plannedEvent, runCardFixture, wirelessMicrophone, type PlannedEvent } from "./support/seed-equipment-changes.js";
 import { eventBookings } from "./support/seed-venues.js";
 import { deliverOutbox } from "./support/deliver.js";
+import { messageOf, openNotifications } from "./support/notifications.js";
 
 /**
  * P1 (equipment availability), P2 (the inventory's reduction boundary, audit trail and access) and
@@ -458,10 +459,6 @@ test.describe("S3 reconsider the arrangements an approved change affects", () =>
   // AC8 is read as "the assigned Event Coordinator" (documentation/clarifications.md, D-03, 4 Nov 2026), as A4 and W9-35
   // scope coordinators to the events assigned to them; CQ-11 is still open with the customer.
   test("S3-T13 the coordinator approves a change and sees what it flagged; confirming is refused; the owner sees the flags, nobody else does, and the staff are told", { tag: ["@S3", "@S3-T13"] }, async ({ page, a11y }) => {
-    test.fail(
-      true,
-      "Known defect (found by this journey, 4 Nov 2026): the notification service cannot store change-request.arrangements-flagged when one person is told more than once by it. S3's rule writes one notice per flag (the theatre booking has two, and Venue Staff One looks after both venues), but notification.notifications is unique on (source_message_id, recipient_user_id), so the insert fails and the message is retried, then dead-lettered: step 7's notices never appear. Steps 1 to 6 are asserted before it.",
-    );
     // FX-S3 (browser level): two confirmed bookings (Theatre 100, Hall 200) and a reservation, and a pending change that moves the start and raises attendance to 150.
     const fx = await plannedEvent({ proposedStartAt: MOVED_START, expectedAttendance: 150 });
 
@@ -526,32 +523,27 @@ test.describe("S3 reconsider the arrangements an approved change affects", () =>
     await signOut(page);
 
     // Step 7: the approval's message reaches the notification service (the test harness delivers it, as this stack
-    // has no Kafka), and Venue Staff are told of each booking, Technical Support of the reservation.
+    // has no Kafka) and is stored, not retried. Venue Staff One looks after both venues, so they get one notice naming
+    // both bookings and every flag's reason; Technical Support get one for the reservation.
     const deliveries = await deliverOutbox(fx.event.id, { types: ["change-request.arrangements-flagged"] });
-    expect(deliveries).toContainEqual(expect.objectContaining({ type: "change-request.arrangements-flagged", consumer: "notification", outcome: "stored" }));
+    expect(deliveries).toEqual([{ outbox: "change.outbox", type: "change-request.arrangements-flagged", consumer: "notification", outcome: "stored" }]);
     const label = `${fx.event.reference} “${fx.event.name}”`;
-    await signIn(page, "venuestaff");
-    await page.getByRole("link", { name: /^Notifications/ }).click();
-    const staffNotices = page.getByRole("list", { name: "Notifications" }).getByRole("listitem");
-    // One notice per flag: the theatre booking carries two.
-    const theatreNotice = `Booking ${fx.theatreBooking.reference} at ${fx.venueOne.name} for ${label} needs attention after an approved change:`;
-    await expect(staffNotices.filter({ hasText: theatreNotice })).toHaveCount(2);
-    await expect(staffNotices.filter({ hasText: `${theatreNotice} The booking is for ${WAS}, but the event is now ${NOW}.` })).toHaveCount(1);
-    await expect(
-      staffNotices.filter({ hasText: `${theatreNotice} Expected attendance is now 150, but ${fx.venueOne.name} holds 100 in the Theatre layout.` }),
-    ).toHaveCount(1);
-    await expect(
-      staffNotices.filter({ hasText: `Booking ${fx.hallBooking.reference} at ${fx.venueTwo.name} for ${label} needs attention after an approved change: The booking is for ${WAS}, but the event is now ${NOW}.` }),
-    ).toHaveCount(1);
+    const flaggedNotices = (notices: Locator) => notices.filter({ hasText: label }).filter({ hasText: "after an approved change" });
+    const moved = `The booking is for ${WAS}, but the event is now ${NOW}.`;
+    const tooSmall = `Expected attendance is now 150, but ${fx.venueOne.name} holds 100 in the Theatre layout.`;
+    // The message lists the bookings soonest first, then by reference (these two start together), each with its flags in turn.
+    const [first, second] = [
+      { ...fx.theatreBooking, reasons: `${moved} ${tooSmall}` },
+      { ...fx.hallBooking, reasons: moved },
+    ].sort((a, b) => (a.reference < b.reference ? -1 : 1));
+    await expect(messageOf(flaggedNotices(await openNotifications(page, "venuestaff")))).toHaveText([
+      `Booking ${first!.reference} at ${first!.venueName} and booking ${second!.reference} at ${second!.venueName} for ${label} ` +
+        `need attention after an approved change. ${first!.reference}: ${first!.reasons} ${second!.reference}: ${second!.reasons}`,
+    ]);
     await a11y("venue staff notifications, change flagged bookings");
     await signOut(page);
-    await signIn(page, "techsupport");
-    await page.getByRole("link", { name: /^Notifications/ }).click();
-    await expect(
-      page
-        .getByRole("list", { name: "Notifications" })
-        .getByRole("listitem")
-        .filter({ hasText: `The ${fx.chairs.name} reservation for ${label} is flagged for review after an approved change: The reservation is for ${WAS}, but the event is now ${NOW}. Release it if it is no longer needed.` }),
-    ).toHaveCount(1);
+    await expect(messageOf(flaggedNotices(await openNotifications(page, "techsupport")))).toHaveText([
+      `The ${fx.chairs.name} reservation for ${label} is flagged for review after an approved change: The reservation is for ${WAS}, but the event is now ${NOW}. Release it if it is no longer needed.`,
+    ]);
   });
 });
