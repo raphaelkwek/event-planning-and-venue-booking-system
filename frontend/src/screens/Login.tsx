@@ -11,7 +11,12 @@ const SEEDED = [
   { email: "organiser@connectsphere.test", role: "Event Organiser" },
   { email: "organiser2@connectsphere.test", role: "Event Organiser (second)" },
   { email: "coordinator@connectsphere.test", role: "Event Coordinator" },
-  { email: "coordinator2@connectsphere.test", role: "Event Coordinator (second)" },
+  {
+    email: "coordinator2@connectsphere.test",
+    role: "Event Coordinator (second)",
+  },
+  { email: "lead@connectsphere.test", role: "Coordinator Lead" },
+  { email: "safety@connectsphere.test", role: "Safety Officer" },
   { email: "venuestaff@connectsphere.test", role: "Venue Staff" },
   { email: "techsupport@connectsphere.test", role: "Technical Support" },
   { email: "attendee@connectsphere.test", role: "Attendee" },
@@ -19,13 +24,26 @@ const SEEDED = [
 ];
 
 const SEED_PASSWORD = "ConnectSphere-Test-1234!";
+const DEFAULT_EMAIL = "organiser@connectsphere.test";
+
+/**
+ * The seeded-accounts panel, and the prefilled fields, appear only in development and in builds
+ * made with VITE_SHOW_SEEDED_ACCOUNTS=true (the staging deploy and the browser-test stack). A
+ * production build shows a bare sign-in form. Read on each render so tests can switch it.
+ */
+export function showSeededAccounts(): boolean {
+  return (
+    import.meta.env.DEV || import.meta.env.VITE_SHOW_SEEDED_ACCOUNTS === "true"
+  );
+}
 
 export function Login() {
   const { signIn } = useSession();
   // ADR-0016: the Set your password screen sends the user here with a notice.
   const notice = (useLocation().state as { notice?: string } | null)?.notice;
-  const [email, setEmail] = useState("organiser@connectsphere.test");
-  const [password, setPassword] = useState(SEED_PASSWORD);
+  const showSeeded = showSeededAccounts();
+  const [email, setEmail] = useState(showSeeded ? DEFAULT_EMAIL : "");
+  const [password, setPassword] = useState(showSeeded ? SEED_PASSWORD : "");
   const [error, setError] = useState<unknown>(null);
   const [busy, setBusy] = useState(false);
 
@@ -86,42 +104,45 @@ export function Login() {
         <Refusal error={error} />
       </div>
 
-      <div style={{ marginTop: 24 }}>
-        <SectionMessage title="Seeded accounts" appearance="information">
-          <p style={{ marginTop: 0 }}>
-            All use the password <code>{SEED_PASSWORD}</code>.
-          </p>
-          <ul>
-            {SEEDED.map((account) => (
-              <li key={account.email}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEmail(account.email);
-                    setPassword(SEED_PASSWORD);
-                  }}
-                  style={{
-                    background: "none",
-                    border: "none",
-                    padding: 0,
-                    // #0055CC, not #0C66E4: on the information panel #0C66E4 is below WCAG AA contrast (EN-14 axe).
-                    color: "#0055CC",
-                    cursor: "pointer",
-                    textDecoration: "underline",
-                  }}
-                >
-                  {account.email}
-                </button>{" "}
-                — {account.role}
-              </li>
-            ))}
-          </ul>
-          <p style={{ marginBottom: 0 }}>
-            A wrong email and a wrong password are refused with the same message, so neither
-            reveals which was wrong. The deactivated account is refused with a different one.
-          </p>
-        </SectionMessage>
-      </div>
+      {showSeeded && (
+        <div style={{ marginTop: 24 }}>
+          <SectionMessage title="Seeded accounts" appearance="information">
+            <p style={{ marginTop: 0 }}>
+              All use the password <code>{SEED_PASSWORD}</code>.
+            </p>
+            <ul>
+              {SEEDED.map((account) => (
+                <li key={account.email}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEmail(account.email);
+                      setPassword(SEED_PASSWORD);
+                    }}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      padding: 0,
+                      // #0055CC, not #0C66E4: on the information panel #0C66E4 is below WCAG AA contrast (EN-14 axe).
+                      color: "#0055CC",
+                      cursor: "pointer",
+                      textDecoration: "underline",
+                    }}
+                  >
+                    {account.email}
+                  </button>{" "}
+                  — {account.role}
+                </li>
+              ))}
+            </ul>
+            <p style={{ marginBottom: 0 }}>
+              A wrong email and a wrong password are refused with the same
+              message, so neither reveals which was wrong. The deactivated
+              account is refused with a different one.
+            </p>
+          </SectionMessage>
+        </div>
+      )}
     </div>
   );
 }
