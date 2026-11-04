@@ -19,6 +19,6 @@
 |---|---|
 | Actual Result | The event's page showed Full and no Register button; Join the waitlist answered 201 and the page showed `You are on the waitlist` and `WL-<six digits>: you are number 1 in line for <event>.` My registrations' Waitlist section showed the event, `Waitlisted` and `WL-… · Joined <time> · Number 1 in line`; the database held that entry as WAITLISTED and no registration for Attendee One. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
 | Status | Pass |
-| Remarks | Automated (browser, Playwright) · Commit: 5eb3bfd · Evidence: tests/e2e/r-management.spec.ts › R6-T1 an attendee refused for capacity joins the waitlist; no registration is made, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41767254259 · Defect: — |
+| Remarks | Automated (browser, Playwright) · Commit: a406635 · Evidence: tests/e2e/r-management.spec.ts › R6-T1 an attendee refused for capacity joins the waitlist; no registration is made, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41773031885 · Defect: — |
 | Executed By | Joash, via automated testing (CI) |
 | Date of Execution | 2026-11-04 |

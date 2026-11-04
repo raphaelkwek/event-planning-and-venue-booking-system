@@ -21,6 +21,6 @@
 |---|---|
 | Actual Result | The approval answered 200 with `impact.bookings` B1 and B2, `impact.reservations` R1, `impact.activeRegistrations` 0 and `impact.flags` empty. `GET .../arrangement-flags` answered 200 with an empty `flags` list, E was still `PLANNING`, no `change-request.arrangements-flagged` message was written and no flag rows existed. |
 | Status | Pass |
-| Remarks | Automated (API level) · Commit: 5eb3bfd · Evidence: `backend/services/planning-core/tests/change/api/s3Cards.test.ts` › S3 cards: reconsidering the arrangements an approved change affects › S3-T12 a descriptive-only change lists the arrangements and flags none, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41767254259 · Defect: — |
+| Remarks | Automated (API level) · Commit: a406635 · Evidence: `backend/services/planning-core/tests/change/api/s3Cards.test.ts` › S3 cards: reconsidering the arrangements an approved change affects › S3-T12 a descriptive-only change lists the arrangements and flags none, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41773031885 · Defect: — |
 | Executed By | Joash, via automated testing (CI) |
 | Date of Execution | 2026-11-04 |

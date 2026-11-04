@@ -19,6 +19,6 @@
 |---|---|
 | Actual Result | The organiser's totals read `Registered 1`, `Withdrawn 0`, `Places remaining 0`, `Capacity 1`, with one registration row (not Attendee One's); the waitlist was shown apart, `3 attendees are waiting.` with three rows; the database held one registration. Attendee One's event page showed Full. Run on CI's throwaway stack, with unique names in place of the card's literal names. The screen words the waitlist count `3 attendees are waiting.` where the card says `Waiting 3`. |
 | Status | Pass |
-| Remarks | Automated (browser, Playwright) · Commit: 5eb3bfd · Evidence: tests/e2e/r-management.spec.ts › R6-T9 waitlist entries are never counted as registrations, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41767254259 · Defect: — |
+| Remarks | Automated (browser, Playwright) · Commit: a406635 · Evidence: tests/e2e/r-management.spec.ts › R6-T9 waitlist entries are never counted as registrations, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41773031885 · Defect: — |
 | Executed By | Joash, via automated testing (CI) |
 | Date of Execution | 2026-11-04 |

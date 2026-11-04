@@ -19,6 +19,6 @@
 |---|---|
 | Actual Result | From the API console, POST /registration/api/v1/events/<EVENT_ID>/waitlist answered 409 `WAITLIST_PLACES_AVAILABLE` with `EVT-R… “…” still has 3 places remaining, so register instead of joining the waitlist.`; no waitlist entry was stored, and the event's page offered Register and no Join the waitlist. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
 | Status | Pass |
-| Remarks | Automated (browser, Playwright) · Commit: 5eb3bfd · Evidence: tests/e2e/r-management.spec.ts › R6-T2 joining while places remain is refused; the event offers Register, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41767254259 · Defect: — |
+| Remarks | Automated (browser, Playwright) · Commit: a406635 · Evidence: tests/e2e/r-management.spec.ts › R6-T2 joining while places remain is refused; the event offers Register, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41773031885 · Defect: — |
 | Executed By | Joash, via automated testing (CI) |
 | Date of Execution | 2026-11-04 |

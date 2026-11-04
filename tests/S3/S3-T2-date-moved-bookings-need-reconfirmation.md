@@ -21,6 +21,6 @@
 |---|---|
 | Actual Result | The approval answered 200 and the booking entries of `impact.flags` were exactly B1 and B2, each `REQUIRES_RECONFIRMATION` with its reference, venue name and the reason `The booking is for <old period>, but the event is now <new period>.` (periods as `formatPeriod` writes them). `GET .../arrangement-flags` answered 200 with exactly those two booking flags, and R1's flag too (`FLAGGED_FOR_REVIEW`, `The reservation is for <old period>, but the event is now <new period>.`). B1 and B2 were still `CONFIRMED` for `D 14:00`–`D 18:00`, with S3's period flag set. |
 | Status | Pass |
-| Remarks | Automated (API level) · Commit: 5eb3bfd · Evidence: `backend/services/planning-core/tests/change/api/s3Cards.test.ts` › S3 cards: reconsidering the arrangements an approved change affects › S3-T2 a moved date sets both bookings to Requires Reconfirmation and keeps their period, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41767254259 · Defect: — |
+| Remarks | Automated (API level) · Commit: a406635 · Evidence: `backend/services/planning-core/tests/change/api/s3Cards.test.ts` › S3 cards: reconsidering the arrangements an approved change affects › S3-T2 a moved date sets both bookings to Requires Reconfirmation and keeps their period, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41773031885 · Defect: — |
 | Executed By | Joash, via automated testing (CI) |
 | Date of Execution | 2026-11-04 |

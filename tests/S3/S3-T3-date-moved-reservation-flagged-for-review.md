@@ -21,6 +21,6 @@
 |---|---|
 | Actual Result | The approval answered 200. `GET .../arrangement-flags` answered 200 with exactly one equipment flag: R1 (`EQUIPMENT`, its id as reference, its equipment type name) `FLAGGED_FOR_REVIEW` with the reason `The reservation is for <old period>, but the event is now <new period>.` R1 was still `RESERVED` and flagged for review, its quantity unchanged at 4 and its period still `D 14:00`–`D 18:00`. |
 | Status | Pass |
-| Remarks | Automated (API level) · Commit: 5eb3bfd · Evidence: `backend/services/planning-core/tests/change/api/s3Cards.test.ts` › S3 cards: reconsidering the arrangements an approved change affects › S3-T3 a moved date flags the reservation for review and releases nothing, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41767254259 · Defect: — |
+| Remarks | Automated (API level) · Commit: a406635 · Evidence: `backend/services/planning-core/tests/change/api/s3Cards.test.ts` › S3 cards: reconsidering the arrangements an approved change affects › S3-T3 a moved date flags the reservation for review and releases nothing, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41773031885 · Defect: — |
 | Executed By | Joash, via automated testing (CI) |
 | Date of Execution | 2026-11-04 |

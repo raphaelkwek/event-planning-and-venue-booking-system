@@ -19,6 +19,6 @@
 |---|---|
 | Actual Result | After the organiser added Attendee One beside one self-registration, the reloaded list had one row `Self-registered` and one `Added by Organiser One`, with `Registered 2`, `Withdrawn 0`, `Places remaining 1`, `Capacity 3`, `Added by hand 1`; the attendee's event page showed `1 place remaining`. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
 | Status | Pass |
-| Remarks | Automated (browser, Playwright) · Commit: 5eb3bfd · Evidence: tests/e2e/r-management.spec.ts › R7-T9 manual additions are told apart from self-registrations and counted, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41767254259 · Defect: — |
+| Remarks | Automated (browser, Playwright) · Commit: a406635 · Evidence: tests/e2e/r-management.spec.ts › R7-T9 manual additions are told apart from self-registrations and counted, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41773031885 · Defect: — |
 | Executed By | Joash, via automated testing (CI) |
 | Date of Execution | 2026-11-04 |

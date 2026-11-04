@@ -21,6 +21,6 @@
 |---|---|
 | Actual Result | The approval answered 200 and `impact.bookings` listed both B1 and B2. `GET .../arrangement-flags` answered 200 with exactly one flag, B1 (`BOOKING`) `UNSUITABLE`. B2 was still `CONFIRMED` with neither its unsuitable nor its period flag set, and R1 was not flagged for review. |
 | Status | Pass |
-| Remarks | Automated (API level) · Commit: 5eb3bfd · Evidence: `backend/services/planning-core/tests/change/api/s3Cards.test.ts` › S3 cards: reconsidering the arrangements an approved change affects › S3-T5 attendance 150 flags only the booking whose layout is too small, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41767254259 · Defect: — |
+| Remarks | Automated (API level) · Commit: a406635 · Evidence: `backend/services/planning-core/tests/change/api/s3Cards.test.ts` › S3 cards: reconsidering the arrangements an approved change affects › S3-T5 attendance 150 flags only the booking whose layout is too small, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41773031885 · Defect: — |
 | Executed By | Joash, via automated testing (CI) |
 | Date of Execution | 2026-11-04 |

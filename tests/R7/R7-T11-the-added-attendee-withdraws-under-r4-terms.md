@@ -19,6 +19,6 @@
 |---|---|
 | Actual Result | After the organiser added Attendee One, the event showed `2 places remaining`; Attendee One withdrew the added registration from My registrations (200), the row showed `Withdrawn` and the stored withdrawal time, and the event then showed `3 places remaining`. On an event whose withdrawal deadline had passed, the withdrawal of an added registration answered 422 `WITHDRAWAL_DEADLINE_PASSED`, the dialog named the deadline, and after Keep my place the row and the database still read Registered with no withdrawal. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
 | Status | Pass |
-| Remarks | Automated (browser, Playwright) · Commit: 5eb3bfd · Evidence: tests/e2e/r-management.spec.ts › R7-T11 the added attendee withdraws under R4's terms, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41767254259 · Defect: — |
+| Remarks | Automated (browser, Playwright) · Commit: a406635 · Evidence: tests/e2e/r-management.spec.ts › R7-T11 the added attendee withdraws under R4's terms, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41773031885 · Defect: — |
 | Executed By | Joash, via automated testing (CI) |
 | Date of Execution | 2026-11-04 |

@@ -19,6 +19,6 @@
 |---|---|
 | Actual Result | Coordinator One's dialog showed `Capacity 3` and `With this addition: 1 attendee`; the addition answered 201 and the row read `Added by Coordinator One` with no reason; the database recorded Coordinator One as the adder, no reason, status REGISTERED. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
 | Status | Pass |
-| Remarks | Automated (browser, Playwright) · Commit: 5eb3bfd · Evidence: tests/e2e/r-management.spec.ts › R7-T2 the assigned coordinator adds an attendee with no reason, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41767254259 · Defect: — |
+| Remarks | Automated (browser, Playwright) · Commit: a406635 · Evidence: tests/e2e/r-management.spec.ts › R7-T2 the assigned coordinator adds an attendee with no reason, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41773031885 · Defect: — |
 | Executed By | Joash, via automated testing (CI) |
 | Date of Execution | 2026-11-04 |

@@ -19,6 +19,6 @@
 |---|---|
 | Actual Result | The totals read `Registered 2`, `Withdrawn 1`, `Places remaining 2`, `Capacity 4`, and the list had three rows: two `Registered` and one `Withdrawn`. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
 | Status | Pass |
-| Remarks | Automated (browser, Playwright) · Commit: 5eb3bfd · Evidence: tests/e2e/r-management.spec.ts › R5-T4 totals for registered, withdrawn and places remaining come from the records, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41767254259 · Defect: — |
+| Remarks | Automated (browser, Playwright) · Commit: a406635 · Evidence: tests/e2e/r-management.spec.ts › R5-T4 totals for registered, withdrawn and places remaining come from the records, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41773031885 · Defect: — |
 | Executed By | Joash, via automated testing (CI) |
 | Date of Execution | 2026-11-04 |

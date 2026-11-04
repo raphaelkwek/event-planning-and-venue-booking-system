@@ -19,6 +19,6 @@
 |---|---|
 | Actual Result | Organiser Two and Coordinator Two each saw `This event's registrations are not available to you`, with no table, totals or attendee name; the screen's registrations and waitlist requests both answered 404 `EVENT_NOT_FOUND` with no items or totals. Attendee One opening the address was sent to Events (no Registrations screen), and the API console's GET of the event's registrations answered 403 `ROLE_NOT_AUTHORISED` with no registration data. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
 | Status | Pass |
-| Remarks | Automated (browser, Playwright) · Commit: 5eb3bfd · Evidence: tests/e2e/r-management.spec.ts › R5-T3 another organiser, an unassigned coordinator and an attendee receive no registration data, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41767254259 · Defect: — |
+| Remarks | Automated (browser, Playwright) · Commit: a406635 · Evidence: tests/e2e/r-management.spec.ts › R5-T3 another organiser, an unassigned coordinator and an attendee receive no registration data, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41773031885 · Defect: — |
 | Executed By | Joash, via automated testing (CI) |
 | Date of Execution | 2026-11-04 |

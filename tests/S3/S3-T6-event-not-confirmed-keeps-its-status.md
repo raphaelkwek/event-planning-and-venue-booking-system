@@ -21,6 +21,6 @@
 |---|---|
 | Actual Result | With E in Planning and, on a fresh FX-S3, in Safety Review, each approval answered 200 with `impact.flags` naming B1 and B2 `REQUIRES_RECONFIRMATION` and R1 `FLAGGED_FOR_REVIEW`, and `GET /api/v1/events/<E>` answered 200 with the status still `PLANNING`, then `SAFETY_REVIEW`. Neither run wrote a STATUS_CHANGE history entry or an `event.status-changed` message; the Planning run's only FIELD_CHANGE entry was `proposedStartAt`. |
 | Status | Pass |
-| Remarks | Automated (API level) · Commit: 5eb3bfd · Evidence: `backend/services/planning-core/tests/change/api/s3Cards.test.ts` › S3 cards: reconsidering the arrangements an approved change affects › S3-T6 an event in Planning or Safety Review keeps its status, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41767254259 · Defect: — |
+| Remarks | Automated (API level) · Commit: a406635 · Evidence: `backend/services/planning-core/tests/change/api/s3Cards.test.ts` › S3 cards: reconsidering the arrangements an approved change affects › S3-T6 an event in Planning or Safety Review keeps its status, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41773031885 · Defect: — |
 | Executed By | Joash, via automated testing (CI) |
 | Date of Execution | 2026-11-04 |

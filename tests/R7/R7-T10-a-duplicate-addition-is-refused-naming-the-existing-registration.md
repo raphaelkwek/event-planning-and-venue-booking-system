@@ -19,6 +19,6 @@
 |---|---|
 | Actual Result | With Attendee One already registered, confirming the addition answered 409 `REGISTRATION_DUPLICATE` with a message naming Attendee One's `REG-…` reference, which the dialog showed; still one registration for Attendee One. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
 | Status | Pass |
-| Remarks | Automated (browser, Playwright) · Commit: 5eb3bfd · Evidence: tests/e2e/r-management.spec.ts › R7-T10 a duplicate addition is refused, naming the existing registration, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41767254259 · Defect: — |
+| Remarks | Automated (browser, Playwright) · Commit: a406635 · Evidence: tests/e2e/r-management.spec.ts › R7-T10 a duplicate addition is refused, naming the existing registration, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41773031885 · Defect: — |
 | Executed By | Joash, via automated testing (CI) |
 | Date of Execution | 2026-11-04 |

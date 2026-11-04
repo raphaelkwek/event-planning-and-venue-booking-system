@@ -10,9 +10,10 @@
 
 1. **`tests/e2e/r-management.spec.ts`**: one browser journey per R5, R6 and R7 card that the stack can run, titled with the card id, tagged with the story and the card, and axe-checked. The FX-R-MANAGED, FX-R-WITHDRAW-ONE, FX-R-WAITLISTED and FX-R-NO-VENUE statements of `tests/R5/README.md` are in `support/seed-management.ts`. Attendee Two, whom R6-T6, R6-T7, R6-T8 and R7-T12 need, is added to the job's throwaway database only; the seed and the shared project are untouched.
 2. **Shared attendee screens:** the helpers move from `r-registration.spec.ts` to `support/registration-screens.ts`. Removing the R fixtures clears the waitlist first, since an entry that ended in a registration names it.
-3. **S3-T13** joins G2-T8 in `q-equipment-and-changes.spec.ts`, as an expected failure (see Defects).
-4. **API card tests:** S3-T2, S3-T6, S3-T14, G2-T4 and F3-T6 each left a clause of their card unchecked; they now assert it.
-5. **Records,** from the green CI run named in each card: 22 browser cards Pass (R5-T1 to T6; R6-T1, T2, T5, T7, T9; R7-T2, T4 to T13), 24 API cards Pass (S3-T1 to T7, T9 to T12, T14; G2-T2 to T6; F3-T1, T3 to T8), 1 Fail (S3-T13). Eight browser cards stay Not Executed with what is proven (R6-T6, R6-T8, R7-T1, Q1-T14, S1-T13, S2-T12, F3-T9, F4-T8), and G2-T1 likewise.
+3. **`signIn` waits for the start-page redirect** (`tests/e2e/support/fixtures.ts`), so a journey that opens a screen by its address is no longer sent back to the start page when the redirect lands after it.
+4. **S3-T13** joins G2-T8 in `q-equipment-and-changes.spec.ts`, as an expected failure (see Defects).
+5. **API card tests:** S3-T2, S3-T6, S3-T14, G2-T4 and F3-T6 each left a clause of their card unchecked; they now assert it.
+6. **Records,** from the green CI run named in each card: 22 browser cards Pass (R5-T1 to T6; R6-T1, T2, T5, T7, T9; R7-T2, T4 to T13), 24 API cards Pass (S3-T1 to T7, T9 to T12, T14; G2-T2 to T6; F3-T1, T3 to T8), 1 Fail (S3-T13). Eight browser cards stay Not Executed with what is proven (R6-T6, R6-T8, R7-T1, Q1-T14, S1-T13, S2-T12, F3-T9, F4-T8), and G2-T1 likewise.
 
 ## Defects
 

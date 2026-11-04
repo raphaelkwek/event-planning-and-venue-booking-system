@@ -19,6 +19,6 @@
 |---|---|
 | Actual Result | For the event with no confirmed booking, confirming the dialog answered 422 `REGISTRATION_NO_CONFIRMED_BOOKING` and the dialog showed `EVT-R… “…” has no confirmed venue booking, so its capacity is not known yet and nobody can be added.`; no registration was stored. Run on CI's throwaway stack, with unique names in place of the card's literal names. The dialog first shows `Capacity 0` and offers Add over capacity; the refusal comes when that is confirmed. |
 | Status | Pass |
-| Remarks | Automated (browser, Playwright) · Commit: 5eb3bfd · Evidence: tests/e2e/r-management.spec.ts › R7-T8 an addition is refused while the event has no confirmed venue booking, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41767254259 · Defect: — |
+| Remarks | Automated (browser, Playwright) · Commit: a406635 · Evidence: tests/e2e/r-management.spec.ts › R7-T8 an addition is refused while the event has no confirmed venue booking, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41773031885 · Defect: — |
 | Executed By | Joash, via automated testing (CI) |
 | Date of Execution | 2026-11-04 |

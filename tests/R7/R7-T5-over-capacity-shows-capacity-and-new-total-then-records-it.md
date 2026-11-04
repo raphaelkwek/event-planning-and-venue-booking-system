@@ -19,6 +19,6 @@
 |---|---|
 | Actual Result | The dialog showed `Capacity 2`, `With this addition: 3 attendees` and `This takes the event over capacity`; Add over capacity answered 201. The row read `Added by Organiser One`, `Over capacity` and `Takes the next seat that is freed`; the totals `Registered 3`, `Withdrawn 0`, `Places remaining 0`, `Capacity 2`, `Added by hand 1`, `Over capacity by 1`; the database recorded it over capacity with no seat. The attendee's event page showed Full and no negative places. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
 | Status | Pass |
-| Remarks | Automated (browser, Playwright) · Commit: 5eb3bfd · Evidence: tests/e2e/r-management.spec.ts › R7-T5 over capacity: the capacity and the new total are shown, then the addition is recorded as over capacity, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41767254259 · Defect: — |
+| Remarks | Automated (browser, Playwright) · Commit: a406635 · Evidence: tests/e2e/r-management.spec.ts › R7-T5 over capacity: the capacity and the new total are shown, then the addition is recorded as over capacity, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41773031885 · Defect: — |
 | Executed By | Joash, via automated testing (CI) |
 | Date of Execution | 2026-11-04 |

@@ -19,6 +19,6 @@
 |---|---|
 | Actual Result | `nobody@connectsphere.test` and `organiser2@connectsphere.test` were each refused with 422 `ATTENDEE_NOT_FOUND` and `No attendee account has the email …, so nobody was added.` in the dialog, with nothing stored. The form takes at most 500 characters, so the 501-character reason was sent from the API console: 400 `VALIDATION_FAILED` naming `reason`, nothing stored. A 500-character reason was added (201) and stored and shown whole. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
 | Status | Pass |
-| Remarks | Automated (browser, Playwright) · Commit: 5eb3bfd · Evidence: tests/e2e/r-management.spec.ts › R7-T13 boundary: an unknown attendee, a staff account, and the reason's length, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41767254259 · Defect: — |
+| Remarks | Automated (browser, Playwright) · Commit: a406635 · Evidence: tests/e2e/r-management.spec.ts › R7-T13 boundary: an unknown attendee, a staff account, and the reason's length, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41773031885 · Defect: — |
 | Executed By | Joash, via automated testing (CI) |
 | Date of Execution | 2026-11-04 |

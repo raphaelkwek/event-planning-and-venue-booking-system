@@ -21,6 +21,6 @@
 |---|---|
 | Actual Result | After O cancelled E, the event outbox held exactly one `event.cancelled` message for E, on the event topic, with `ownerId` O, `assignedCoordinatorId` C, reason `The speaker withdrew.`, `cancelledBy` O, `bookings` B1 (its reference, V1's name, `staffIds` [VS]) and `reservations` one of 5 reserved by T. `notificationsFor` gave exactly four notices, to O, C, VS and T in that order. |
 | Status | Pass |
-| Remarks | Automated (API level) · Commit: 5eb3bfd · Evidence: `backend/services/planning-core/tests/change/api/f3Cards.test.ts` › F3 cards (tests/F3) › F3-T7 one event.cancelled message; the owner, the coordinator, the venue's staff and the reserver each get one notice, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41767254259 · Defect: — |
+| Remarks | Automated (API level) · Commit: a406635 · Evidence: `backend/services/planning-core/tests/change/api/f3Cards.test.ts` › F3 cards (tests/F3) › F3-T7 one event.cancelled message; the owner, the coordinator, the venue's staff and the reserver each get one notice, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41773031885 · Defect: — |
 | Executed By | Joash, via automated testing (CI) |
 | Date of Execution | 2026-11-04 |

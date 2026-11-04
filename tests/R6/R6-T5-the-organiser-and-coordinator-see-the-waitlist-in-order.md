@@ -19,6 +19,6 @@
 |---|---|
 | Actual Result | The organiser's and then the coordinator's Registrations screen listed the waitlist as three rows with positions 1, 2 and 3 in the order joined, each `Waitlisted` with its joined time, Attendee One at 3. Organiser Two saw `This event's registrations are not available to you`, and the waitlist request answered 404 with no entries. Run on CI's throwaway stack, with unique names in place of the card's literal names. |
 | Status | Pass |
-| Remarks | Automated (browser, Playwright) · Commit: 5eb3bfd · Evidence: tests/e2e/r-management.spec.ts › R6-T5 the organiser and the coordinator see the waitlist in the order it was joined, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41767254259 · Defect: — |
+| Remarks | Automated (browser, Playwright) · Commit: a406635 · Evidence: tests/e2e/r-management.spec.ts › R6-T5 the organiser and the coordinator see the waitlist in the order it was joined, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41773031885 · Defect: — |
 | Executed By | Joash, via automated testing (CI) |
 | Date of Execution | 2026-11-04 |

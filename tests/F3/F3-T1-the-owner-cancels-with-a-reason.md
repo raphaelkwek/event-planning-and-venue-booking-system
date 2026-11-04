@@ -21,6 +21,6 @@
 |---|---|
 | Actual Result | As O, cancelling E with the reason padded by spaces answered 200 with `event` E `CANCELLED`, `previousStatus` `PLANNING`, `cancellationReason` `The speaker withdrew.` and `cancelledBy` O. E's row had status `CANCELLED`, the trimmed reason, `cancelled_by` O and `cancelled_at` equal to the response's `cancelledAt`. E's newest STATUS_CHANGE entry was `PLANNING` → `CANCELLED`, actor O, role `EVENT_ORGANISER`, action `CANCEL`. |
 | Status | Pass |
-| Remarks | Automated (API level) · Commit: 5eb3bfd · Evidence: `backend/services/planning-core/tests/change/api/f3Cards.test.ts` › F3 cards (tests/F3) › F3-T1 the owner cancels with a reason: Cancelled, with the reason, user and time recorded, and a history entry, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41767254259 · Defect: — |
+| Remarks | Automated (API level) · Commit: a406635 · Evidence: `backend/services/planning-core/tests/change/api/f3Cards.test.ts` › F3 cards (tests/F3) › F3-T1 the owner cancels with a reason: Cancelled, with the reason, user and time recorded, and a history entry, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41773031885 · Defect: — |
 | Executed By | Joash, via automated testing (CI) |
 | Date of Execution | 2026-11-04 |

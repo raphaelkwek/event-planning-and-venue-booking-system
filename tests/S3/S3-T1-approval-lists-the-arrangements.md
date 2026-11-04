@@ -21,6 +21,6 @@
 |---|---|
 | Actual Result | As C, approving CR (start moved to `D 15:00`) answered 200 with `changeRequest` CR `APPROVED`. `impact.bookings` held exactly B1 with V1's name and B2 with V2's name, each with its booking reference; `impact.reservations` held exactly one entry, R1, with its equipment type name; `impact.activeRegistrations` was 0. |
 | Status | Pass |
-| Remarks | Automated (API level) · Commit: 5eb3bfd · Evidence: `backend/services/planning-core/tests/change/api/s3Cards.test.ts` › S3 cards: reconsidering the arrangements an approved change affects › S3-T1 approval lists every booking, reservation and the registration count, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41767254259 · Defect: — |
+| Remarks | Automated (API level) · Commit: a406635 · Evidence: `backend/services/planning-core/tests/change/api/s3Cards.test.ts` › S3 cards: reconsidering the arrangements an approved change affects › S3-T1 approval lists every booking, reservation and the registration count, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41773031885 · Defect: — |
 | Executed By | Joash, via automated testing (CI) |
 | Date of Execution | 2026-11-04 |
