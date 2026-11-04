@@ -36,6 +36,11 @@ export function placeholderStatus(text: string): PartStatus {
   return OPEN_ITEM.test(text) ? "placeholder" : "present";
 }
 
+/** The zip name for a placeholder file: once it is finished, the " - PLACEHOLDER" mark goes. */
+export function placedName(toName: string, status: PartStatus): string {
+  return status === "present" ? toName.replace(/ - PLACEHOLDER(?=\.[^.]+$)/, "") : toName;
+}
+
 export interface CoverageCounts {
   repository: { url: string; commit: string; commit_date: string };
   e2e_cards: { total: number; per_status: Record<string, number> };
@@ -169,9 +174,11 @@ export function copyDeliverablePdfs(opts: { out: string; deliverables: string | 
 
 function placeholder(ctx: Ctx, rel: string, toDir: string, toName: string, folder: string, part: string) {
   const text = readFileSync(join(ctx.repo, rel), "utf8");
+  const status = placeholderStatus(text);
+  const name = placedName(toName, status);
   mkdirSync(toDir, { recursive: true });
-  writeFileSync(join(toDir, toName), text);
-  add(ctx, folder, part, placeholderStatus(text), toName);
+  writeFileSync(join(toDir, name), text);
+  add(ctx, folder, part, status, name);
 }
 
 function copyTree(ctx: Ctx, from: string, to: string, folder: string, part: string) {

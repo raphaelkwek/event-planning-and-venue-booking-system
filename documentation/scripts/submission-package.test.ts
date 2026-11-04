@@ -9,6 +9,7 @@ import {
   DESIGN_PARTS,
   FOLDERS,
   normaliseGitUrl,
+  placedName,
   placeholderStatus,
   renderCoverageStatement,
   renderManifest,
@@ -20,6 +21,13 @@ import {
 test("a placeholder file counts as finished only once no TODO is left", () => {
   assert.equal(placeholderStatus("| Planning | TODO |"), "placeholder");
   assert.equal(placeholderStatus("| Planning | https://youtu.be/x |"), "present");
+});
+
+test("a finished placeholder file loses the PLACEHOLDER mark in its zip name", () => {
+  const name = "6. Final Sprint Recordings - PLACEHOLDER.md";
+  assert.equal(placedName(name, "present"), "6. Final Sprint Recordings.md");
+  assert.equal(placedName(name, "placeholder"), name);
+  assert.equal(placedName("README.md", "present"), "README.md");
 });
 
 test("normaliseGitUrl turns ssh and .git remotes into the browsable URL", () => {

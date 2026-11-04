@@ -44,14 +44,14 @@ export interface SprintWindow {
 
 /**
  * Sprint 1 dates are from the Sprint 1 Confluence page; Sprint 2 starts Monday of Week 6. Sprints 3
- * and 4 start on the day Jira opened them (SPM Sprint 3: 7 Oct; SPM Sprint 4: 30 Oct, SGT). Sprints
- * 1 to 3 are closed in Jira; Sprint 4 is still active, so its stories are not shown as Done.
+ * and 4 start on the day Jira opened them (SPM Sprint 3: 7 Oct; SPM Sprint 4: 30 Oct, SGT). All four
+ * are closed in Jira; Sprint 4 had its Sprint Review on 4 Nov and was closed the same evening.
  */
 export const SPRINTS: SprintWindow[] = [
   { sprint: 1, start: "2026-09-07", reviewed: true },
   { sprint: 2, start: "2026-09-21", reviewed: true },
   { sprint: 3, start: "2026-10-07", reviewed: true },
-  { sprint: 4, start: "2026-10-30", reviewed: false },
+  { sprint: 4, start: "2026-10-30", reviewed: true },
 ];
 
 /** "YYYY-MM-DD HH:mm" in SGT, whatever offset the CHANGELOG entry was written with. */
