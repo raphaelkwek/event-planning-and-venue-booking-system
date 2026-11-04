@@ -19,6 +19,6 @@
 |---|---|
 | Actual Result | Pre-condition R2-T1: the attendee registered from the event's page (201), which said `You are registered` and `Registration REG-… for R Test Symposium … is confirmed.` The registration's `registration.confirmed` was stored by the notification service (the notification was delivered by the test harness (deliverOutbox, the consumers' own code) in place of Kafka, which CI's stack runs without). Step 1: Notifications held one notice about the event: `Your registration REG-… for EVT-R… “R Test Symposium …” on Wednesday 16 December 2026, 14:00–18:00 is confirmed.`, naming the reference the page had shown. |
 | Status | Pass |
-| Remarks | Automated (browser, Playwright) · Commit: 5cd14bb · Evidence: tests/e2e/r-registration.spec.ts › R2-T12 the attendee is told the registration is confirmed, with its reference and the event's date and times, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41793114951 · Defect: — |
+| Remarks | Automated (browser, Playwright) · Commit: c0f7183 · Evidence: tests/e2e/r-registration.spec.ts › R2-T12 the attendee is told the registration is confirmed, with its reference and the event's date and times, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41798410254 · Defect: — |
 | Executed By | Joash, via automated testing (CI) |
 | Date of Execution | 2026-11-04 |

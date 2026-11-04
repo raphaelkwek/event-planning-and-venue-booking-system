@@ -21,6 +21,6 @@
 |---|---|
 | Actual Result | Ran in the browser on CI's throwaway stack, with unique names. Technical Support opened Equipment requests and clicked Reserve on the Confirmed chairs line (40); with 30 entered and "Reserve fewer than requested" not ticked, "Reserve equipment" showed PARTIAL_NOT_CONFIRMED inline and the line stayed Confirmed. Ticked, it showed "Reserved 30 of 40 for EVT-…." and the row "Reserved 30 of 40" with "Tech Support One · <time>". The line's two messages (Confirmed, then Reserved) were delivered by the test harness in place of Kafka and stored, and the coordinator's Notifications read "Technical Support updated equipment for EVT-… “…”: <chairs> × 40 is now Reserved (30 of 40 reserved).", naming the event. The coordinator's equipment request then showed the line Reserved, "Reserved 30 of 40", with Tech Support One and the time. |
 | Status | Pass |
-| Remarks | Automated (browser, Playwright) · Commit: 5cd14bb · Evidence: tests/e2e/o-equipment.spec.ts › Q1-T14 technical support confirm a partial reservation, and the coordinator sees it, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41793114951 · Defect: — |
+| Remarks | Automated (browser, Playwright) · Commit: c0f7183 · Evidence: tests/e2e/o-equipment.spec.ts › Q1-T14 technical support confirm a partial reservation, and the coordinator sees it, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41798410254 · Defect: — |
 | Executed By | Joash, via automated testing (CI) |
 | Date of Execution | 2026-11-04 |

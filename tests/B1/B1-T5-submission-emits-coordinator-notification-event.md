@@ -34,6 +34,6 @@
 |---|---|
 | Actual Result | The organiser submitted the standard request through New request → Submit request; the page showed status Submitted and an EVT- reference. The card's query, with the request's id, returned one event.submitted row whose reference was the one the page showed, whose owner_id was 00000000-0000-0000-0000-000000000001, and whose published_at was null (CI's stack runs without Kafka, so no relay published it). Run on CI's throwaway stack, with unique names in place of the card's literal names; the card's query ran unchanged against that stack's database in place of the Supabase SQL editor. |
 | Status | Pass |
-| Remarks | Automated (browser, Playwright) · Commit: 5cd14bb · Evidence: tests/e2e/event-messages.spec.ts › B1-T5 submitting a request emits the event that a coordinator's notification is built from, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41793114951 · Defect: — |
+| Remarks | Automated (browser, Playwright) · Commit: c0f7183 · Evidence: tests/e2e/event-messages.spec.ts › B1-T5 submitting a request emits the event that a coordinator's notification is built from, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41798410254 · Defect: — |
 | Executed By | Joash, via automated testing (CI) |
 | Date of Execution | 2026-11-04 |
