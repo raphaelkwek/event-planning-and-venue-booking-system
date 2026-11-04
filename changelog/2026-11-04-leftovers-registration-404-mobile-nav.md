@@ -26,8 +26,9 @@ No migration, no route, no screen file.
   production code changed for them. Unit coverage: statements 71.28% to 98.23%, branches 97.44%,
   functions 97.19%.
 - **Registration: coverage floor.** The unit config's floors rise from 53/53/75/39 (lines,
-  statements, branches, functions) to 98/98/97/97, just under the new figures. The seat-rule
-  `domain/` folder keeps its 100% floor.
+  statements, branches, functions) to 97/97/96/96, just under what the files outside `domain/` now
+  reach (97.95% lines and statements, 96.83% branches, 96.22% functions). The seat-rule `domain/`
+  folder keeps its 100% floor.
 - **Staff navigation on a phone.** Below 960 px the rail wraps onto more rows instead of scrolling
   sideways with its scrollbar hidden, so every screen the role may open is on show, and the page
   does not scroll sideways at 360, 375 or 768 px (measured in Chromium: page width equals the

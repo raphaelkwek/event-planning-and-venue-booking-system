@@ -22,12 +22,13 @@ export default defineConfig({
         "src/**/domain/**": { lines: 100, branches: 100, functions: 100, statements: 100 },
         // Elsewhere the seat SQL, the consumer's transaction and the Kafka wiring are tested here with a
         // scripted database client (tests/support/scriptedSql.ts); the integration tests still prove them
-        // against Postgres in CI. These floors sit just under today's unit-only figures (98.23% statements
-        // and lines, 97.44% branches, 97.19% functions, up from 71.28% statements) and should only ever go up.
-        lines: 98,
-        statements: 98,
-        branches: 97,
-        functions: 97,
+        // against Postgres in CI. These floors sit just under today's unit-only figures for the files outside
+        // domain/ (97.95% lines and statements, 96.83% branches, 96.22% functions; the whole service is 98.23%
+        // statements, up from 71.28%) and should only ever go up.
+        lines: 97,
+        statements: 97,
+        branches: 96,
+        functions: 96,
       },
     },
   },
