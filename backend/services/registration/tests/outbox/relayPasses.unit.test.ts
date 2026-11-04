@@ -165,10 +165,10 @@ describe("OutboxRelay.start and stop", () => {
     const publisher = publisherThat(new Error("broker down"));
     const relay = new OutboxRelay({ sql, table: "registration.outbox", publisher, idleMs: 100 });
     relay.start();
-    await vi.advanceTimersByTimeAsync(1100); // the thrown pass backs off 1 s
+    await vi.advanceTimersByTimeAsync(900); // the thrown pass backs off 1 s
     expect(publisher.publish).not.toHaveBeenCalled();
-    await vi.advanceTimersByTimeAsync(1100);
-    expect(publisher.publish).toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(300);
+    expect(publisher.publish).toHaveBeenCalledOnce();
     const stopped = relay.stop();
     await vi.advanceTimersByTimeAsync(40_000);
     await stopped;
@@ -176,11 +176,17 @@ describe("OutboxRelay.start and stop", () => {
 
   it("goes straight to the next pass after a full batch", async () => {
     vi.useFakeTimers();
-    const sql = pass([row(), row()], true, [{ match: /set published_at/ }]);
+    // The first pass fills the batch; the next finds the outbox empty, so the loop then idles.
+    let claims = 0;
+    const sql = scriptedSql([
+      { match: /pg_try_advisory_xact_lock/, rows: [{ locked: true }] },
+      { match: /select id, topic, message_key, envelope/, rows: () => (claims++ === 0 ? [row(), row()] : []) },
+      { match: /set published_at/ },
+    ]);
     const relay = new OutboxRelay({ sql, table: "registration.outbox", publisher: publisherThat(), batchSize: 2, idleMs: 60_000 });
     relay.start();
-    await vi.advanceTimersByTimeAsync(50);
-    expect(sql.calls.filter((c) => c.text.includes("pg_try_advisory_xact_lock")).length).toBeGreaterThan(1);
+    await vi.advanceTimersByTimeAsync(50); // far less than idleMs, yet a second pass has run
+    expect(claims).toBe(2);
     const stopped = relay.stop();
     await vi.advanceTimersByTimeAsync(50);
     await stopped;
