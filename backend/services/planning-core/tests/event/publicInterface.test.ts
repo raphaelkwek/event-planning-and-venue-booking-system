@@ -1,7 +1,7 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { testDb } from "../support/testDb.js";
 import { insertDraft, type DraftFields } from "../../src/modules/event/repo/drafts.js";
-import { findEventForPlanning } from "../../src/modules/event/index.js";
+import { findEventForPlanning, findEventStatuses } from "../../src/modules/event/index.js";
 
 /**
  * The event module's public read (ADR-0004): how K1, J1's prefill and O1 read
@@ -79,5 +79,17 @@ describe("findEventForPlanning", () => {
     const view = await findEventForPlanning(sql, "a9999999-0000-0000-0000-0000000000ff", { scopeType: "ALL" }, OWNER);
 
     expect(view).toBeNull();
+  });
+});
+
+describe("findEventStatuses (D4)", () => {
+  it("returns the status of each event that exists and nothing for an id that does not", async () => {
+    const draft = await insertDraft(sql, OWNER, fields);
+    const missing = "a9999999-0000-4000-8000-0000000000ff";
+
+    const statuses = await findEventStatuses(sql, [draft.id, missing]);
+
+    expect([...statuses]).toEqual([[draft.id, "DRAFT"]]);
+    expect([...(await findEventStatuses(sql, []))]).toEqual([]);
   });
 });

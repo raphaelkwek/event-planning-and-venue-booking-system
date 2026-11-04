@@ -12,7 +12,7 @@ import { highDemandRouter } from "./api/highDemand.js";
 import { registrationSettingsRouter } from "./api/registrationSettings.js";
 import { statusHistoryRouter } from "./api/statusHistory.js";
 import { eventRateLimiter } from "./api/eventRateLimiter.js";
-import { findEventInScope, findLabels, findReferences, type EventLabel } from "./repo/events.js";
+import { findEventInScope, findLabels, findReferences, findStatuses, type EventLabel } from "./repo/events.js";
 import type { ChangeableEvent } from "./domain/proposedChange.js";
 
 export { checkProposedChange, type ChangeableEvent, type ProposedChanges } from "./domain/proposedChange.js";
@@ -167,6 +167,15 @@ export function findEventLabels(sql: Sql, eventIds: readonly string[]): Promise<
   return findLabels(sql, eventIds);
 }
 export type { EventLabel };
+
+/**
+ * D4 — the status of each event among `eventIds` that exists, so the equipment module can tell
+ * Technical Support that a line belongs to a cancelled event. Only the status: the equipment list is
+ * open to Technical Support for every event (A3), and nothing else of the event is revealed.
+ */
+export function findEventStatuses(sql: Sql, eventIds: readonly string[]): Promise<Map<string, EventStatus>> {
+  return findStatuses(sql, eventIds);
+}
 
 /** S2 — writes an approved change's values and field history inside the caller's transaction. */
 export { applyApprovedChange } from "./repo/events.js";

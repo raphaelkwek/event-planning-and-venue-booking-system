@@ -342,6 +342,15 @@ export async function findLabels(sql: Sql, eventIds: readonly string[]): Promise
   return new Map(rows.map((row) => [row.id, { reference: row.reference, name: row.name }]));
 }
 
+/** The status of each event among `eventIds` that exists. */
+export async function findStatuses(sql: Sql, eventIds: readonly string[]): Promise<Map<string, EventStatus>> {
+  if (eventIds.length === 0) return new Map();
+  const rows = await sql<{ id: string; status: EventStatus }[]>`
+    select id, status from event.events where id in ${sql(eventIds as string[])}
+  `;
+  return new Map(rows.map((row) => [row.id, row.status]));
+}
+
 /** C3 — which of the caller's requests to list: all, only the drafts, or only the submitted ones. */
 export type EventListKind = "drafts" | "submitted";
 

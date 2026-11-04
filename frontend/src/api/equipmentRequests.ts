@@ -51,6 +51,8 @@ export interface RequestLine {
     reservedAt: string;
   } | null;
   updatedAt: string;
+  /** D4: on the list, the status of the line's event; "CANCELLED" means the line was released with it (F4). */
+  eventStatus?: string | null;
 }
 
 /** A line as sent: quantity and times pass through as the user entered them, so the server can refuse them. */

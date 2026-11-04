@@ -25,6 +25,7 @@ import { getChangeImpact, listChangeRequests, type ChangeImpact, type ChangeRequ
 import { ChangeDecisionActions, DecidedChangeNotice } from "../components/ChangeDecision.js";
 import { PendingChangeNotice } from "../components/PendingChangeNotice.js";
 import { EquipmentRequirementsView, VenueRequirementsView } from "../components/Requirements.js";
+import { ActiveRegistrations } from "../components/ActiveRegistrations.js";
 import { ChangeImpactView } from "../components/ChangeImpactView.js";
 import { OutstandingFlags } from "../components/OutstandingFlags.js";
 import { ConfirmArrangementsAction } from "../components/ConfirmArrangements.js";
@@ -32,7 +33,7 @@ import { MarkConfirmedAction } from "../components/MarkConfirmed.js";
 import { CancelEventAction, CancelledNotice, canCancelEvent } from "../components/CancelEvent.js";
 
 /** G2 — what approving the pending change would affect, read-only; hidden once the request is decided or not visible to this user. */
-function ChangeImpactPreview({ token, requestId }: { token: string; requestId: string }) {
+function ChangeImpactPreview({ token, requestId, eventId }: { token: string; requestId: string; eventId: string }) {
   const [state, setState] = useState<{ status: "loading" } | { status: "error" } | { status: "hidden" } | { status: "ready"; impact: ChangeImpact }>({ status: "loading" });
   useEffect(() => {
     let current = true;
@@ -58,6 +59,7 @@ function ChangeImpactPreview({ token, requestId }: { token: string; requestId: s
   return (
     <ChangeImpactView
       impact={state.impact}
+      registrations={<ActiveRegistrations token={token} eventId={eventId} />}
       heading="If this change is approved"
       emptyText="No venue bookings or equipment reservations would be affected."
     />
@@ -233,7 +235,7 @@ export function ReviewDetail() {
         {pendingChange && (
           <section role="region" aria-label="Pending change">
             <PendingChangeNotice request={pendingChange} />
-            <ChangeImpactPreview key={pendingChange.id} token={session.token} requestId={pendingChange.id} />
+            <ChangeImpactPreview key={pendingChange.id} token={session.token} requestId={pendingChange.id} eventId={event.id} />
             {event.assignedCoordinatorId === session.userId && (
               <div style={{ marginBottom: 16, marginTop: -8 }}>
                 <ChangeDecisionActions request={pendingChange} token={session.token} onDecided={(result) => {
@@ -245,7 +247,7 @@ export function ReviewDetail() {
           </section>
         )}
         {!pendingChange && latestDecided && <DecidedChangeNotice request={latestDecided} />}
-        {!pendingChange && impact && latestDecided?.id === impact.requestId && <ChangeImpactView impact={impact.impact} />}
+        {!pendingChange && impact && latestDecided?.id === impact.requestId && <ChangeImpactView impact={impact.impact} registrations={<ActiveRegistrations token={session.token} eventId={event.id} />} />}
 
         <Detail label="Purpose" value={event.purpose} />
         <Detail label="Description" value={event.description} />

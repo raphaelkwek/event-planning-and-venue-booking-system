@@ -4410,6 +4410,13 @@ components:
             - { $ref: "#/components/schemas/LineReservation" }
             - { type: "null" }
           description: The line's active reservation, or null.
+        eventStatus:
+          oneOf:
+            - { $ref: "#/components/schemas/EventStatus" }
+            - { type: "null" }
+          description: >-
+            Only on the list. The status of the line's event, so a client can show a Cancelled event's lines
+            as released (F4) and offer no action on them. Null when the event cannot be found.
 
     ReservationRequest:
       type: object
@@ -4571,7 +4578,10 @@ components:
         activeRegistrations:
           type: integer
           minimum: 0
-          description: Always 0. Registrations are held by the registration service (EN-13), whose schema planning-core does not read.
+          description: >-
+            Not known to planning-core, so always 0 here and not a count of anyone. Registrations are held by the
+            registration service (EN-13), whose schema planning-core does not read; the review screen asks that
+            service (GET /registration/api/v1/events/{eventId}/registrations, totals.registered) for the real count.
         flags:
           type: array
           items:
