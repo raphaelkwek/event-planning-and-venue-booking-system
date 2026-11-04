@@ -471,7 +471,9 @@ describe("F5 cards (tests/F5)", () => {
     expect(message.type).toBe("event.arrangements-confirmed");
     expect(message.subject).toBe(event.id);
 
-    const notifications = notificationsFor(message);
+    // D-02: the message also names every active Safety Officer, whom U1-T17 checks; F5's own recipients are the rest.
+    const officers = new Set((message.data as { safetyOfficerIds?: string[] }).safetyOfficerIds ?? []);
+    const notifications = notificationsFor(message).filter((n) => !officers.has(n.recipientUserId));
     const byRecipient = new Map(notifications.map((n) => [n.recipientUserId, n.message]));
     expect([...byRecipient.keys()].sort()).toEqual([A.org, A.vs, A.vs2, A.ts].sort());
     expect(notifications).toHaveLength(4);

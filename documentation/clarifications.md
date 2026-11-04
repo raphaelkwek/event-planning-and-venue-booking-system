@@ -35,11 +35,14 @@ The Week 9 clarification session answered CQ-01 and CQ-04 to CQ-10; the session'
 | CQ-11 | SPM-197 | Follows CQ-07. May an Event Coordinator still **view**, read-only, events that aren't assigned to them, or do they see only their own (A3, A4)? | A3, A4 | | | |
 | CQ-12 | SPM-198 | Follows CQ-09. Must an event's occupied period, setup and turnaround included, fit inside the venue's operating hours? For example, may a 08:00 event at a venue opening at 08:00 have 30 minutes' setup? | H3, L1, L3, M1 | | | |
 
-## Decisions where the customer's answers conflict
+## Team decisions
+
+D-01 settles customer answers that conflict. D-02 fills a gap the stories leave, from the brief's own words.
 
 | Id | Date | Decision | Applied to |
 |---|---|---|---|
 | D-01 | 2026-10-23 | Team decision: where answers conflict, we follow the latest clarification. Within one session's record, the later answer counts as the latest. | (1) Open-ended blocks: W9-41 says a block "should not be open-ended"; the later W9-49 says Venue Staff "can set temporary unavailability with end dates or leave it open-ended until operational issues are resolved and lifted". **A block may be open-ended.** (2) Manual additions above capacity: R7 (revision 4) refuses them; the later W9-28 says "Organisers can make final decision if exceed capacity". **The organiser or coordinator may add an attendee above capacity.** |
+| D-02 | 2026-11-04 | Team decision, recorded by Joash: "complete everything", so the three notifications the staging dry run found missing (D3) are built. The brief's notification requirement (Week 4 instructions, core feature 20: "Users can receive notifications about significant events relevant to them, such as event submission, clarification requests, approval or rejection, coordinator assignment, venue booking decisions, important event changes, registration updates, confirmation, or cancellation where applicable") covers them, though no story's criteria name these recipients. Not a customer answer: the question was not put to the customer. | (1) E3: when a submitted request enters the unassigned queue, **every active Event Coordinator Lead is notified** (E3-T9). (2) U1: when an event's arrangements are confirmed (F5) and it enters Safety Review, **every active Safety Officer is notified** (U1-T17). (3) O1: when a coordinator saves a new equipment request line, **every active Technical Support Staff member is notified** (O1-T27). T2's rule that only users with a relationship to the event are notified (AC2) now counts the Lead for a request awaiting assignment, the Safety Officer for an event awaiting the safety check, and Technical Support for a line awaiting them. The producing message names each recipient, as for every other notification (implementation.md §3.5). |
 
 ## Work the Week 9 answers create for stories already Done
 

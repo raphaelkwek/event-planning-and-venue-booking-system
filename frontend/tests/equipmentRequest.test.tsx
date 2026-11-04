@@ -53,6 +53,8 @@ let lines: ReturnType<typeof line>[];
 let onSave: (body: { eventId: string; lines: Record<string, unknown>[] }) => Response;
 let onUpdate: (id: string, body: Record<string, unknown>) => Response;
 let onRemove: (id: string) => Response;
+/** D6: once set, a reload of the lines never answers, as a slow one hasn't yet. */
+let holdList: boolean;
 
 const fetchMock = vi.fn(async (path: string, init?: RequestInit) => {
   const url = new URL(path, "http://app.test");
@@ -61,7 +63,10 @@ const fetchMock = vi.fn(async (path: string, init?: RequestInit) => {
   if (url.pathname === "/equipment/api/v1/equipment/types") {
     return reply({ items: [{ id: CHAIRS, name: "Folding Chairs", description: "", kind: "BULK", totalQuantity: 50 }, { id: PROJECTORS, name: "Projectors", description: "", kind: "BULK", totalQuantity: 5 }], nextCursor: null });
   }
-  if (url.pathname === "/equipment/api/v1/equipment/request-lines" && method === "GET") return reply({ items: lines, nextCursor: null, event: event(assigned) });
+  if (url.pathname === "/equipment/api/v1/equipment/request-lines" && method === "GET") {
+    if (holdList) return new Promise<Response>(() => undefined);
+    return reply({ items: lines, nextCursor: null, event: event(assigned) });
+  }
   if (url.pathname === "/equipment/api/v1/equipment/request-lines" && method === "POST") return onSave(body);
   const removal = url.pathname.match(/request-lines\/([^/]+)\/removal$/);
   if (removal && method === "POST") return onRemove(removal[1]!);
@@ -88,6 +93,7 @@ function setField(label: string, value: string, index = 0) {
 
 beforeEach(() => {
   assigned = COORDINATOR;
+  holdList = false;
   lines = [];
   onSave = (body) => reply({ items: body.lines.map((entry, index) => line({ id: `new-${index}`, ...entry })) }, 201);
   onUpdate = (id, body) => reply(line({ id, ...body }));
@@ -100,6 +106,48 @@ afterEach(() => {
   cleanup();
   sessionStorage.clear();
   vi.unstubAllGlobals();
+});
+
+describe("D6: the table follows each action's own answer, not a reload", () => {
+  const table = () => screen.getByRole("table");
+
+  it("lists the saved lines beside the success message while the list is still reloading", async () => {
+    render(<App />);
+    expect(await screen.findByText("No equipment has been requested for this event yet.")).toBeTruthy();
+    holdList = true;
+    setField("Equipment type", CHAIRS);
+    setField("Quantity", "40");
+    fireEvent.click(screen.getByRole("button", { name: "Save request" }));
+
+    expect(await screen.findByText("1 line saved")).toBeTruthy();
+    expect(screen.queryByText("No equipment has been requested for this event yet.")).toBeNull();
+    expect(within(table()).getByText("Folding Chairs")).toBeTruthy();
+    expect(within(table()).getByText("Submitted")).toBeTruthy();
+  });
+
+  it("shows an edited line's new values while the list is still reloading", async () => {
+    lines = [line({ id: "l1" })];
+    render(<App />);
+    fireEvent.click(await screen.findByRole("button", { name: "Edit" }));
+    holdList = true;
+    setField("Quantity", "45", 0);
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+
+    await waitFor(() => expect(screen.queryByText("Edit line")).toBeNull());
+    expect(within(table()).getByText("45")).toBeTruthy();
+    expect(within(table()).queryByText("40")).toBeNull();
+  });
+
+  it("drops a removed line while the list is still reloading", async () => {
+    lines = [line({ id: "l1" })];
+    render(<App />);
+    fireEvent.click(await screen.findByRole("button", { name: "Remove" }));
+    const dialog = await screen.findByRole("dialog");
+    holdList = true;
+    fireEvent.click(within(dialog).getByRole("button", { name: "Remove line" }));
+
+    expect(await screen.findByText("No equipment has been requested for this event yet.")).toBeTruthy();
+  });
 });
 
 describe("O1 equipment request screen", () => {

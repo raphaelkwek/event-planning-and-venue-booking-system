@@ -1,5 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import request from "supertest";
+import { parseCloudEvent } from "@connectsphere/contracts";
+import { notificationsFor } from "../../../../notification/src/domain/recipients.js";
 import { testDb } from "../../support/testDb.js";
 import {
   actorsWithPrefix,
@@ -35,6 +37,8 @@ const BASE = "/api/v1/equipment/request-lines";
 const DAY = EVENT_WINDOW.start.slice(0, 10);
 const at = (time: string) => `${DAY}T${time}:00.000Z`;
 const SLACK_MS = 2_000;
+/** O1-T27: a deactivated Technical Support member, who is never told. */
+const RETIRED_TS = "0b100000-0000-4000-8000-000000000009";
 
 type Role = "EVENT_COORDINATOR" | "TECH_SUPPORT_STAFF" | "EVENT_ORGANISER" | "VENUE_STAFF" | "ATTENDEE";
 function signedInAs(userId: string, role: Role) {
@@ -50,6 +54,8 @@ let projectors: { id: string; name: string };
 
 async function clean() {
   await cleanLineFixtures(sql, [A.org], [A.ts]);
+  await sql`delete from identity.user_roles where user_id in ${sql([A.ts, RETIRED_TS])}`;
+  await sql`delete from identity.users where id in ${sql([A.ts, RETIRED_TS])}`;
 }
 
 beforeAll(async () => {
@@ -239,6 +245,67 @@ describe("O1 cards: recording lines", () => {
     expect(new Date(entry.occurredAt).getTime()).toBeLessThanOrEqual(after + SLACK_MS);
     expect(opened.body.requestedBy).toBe(entry.actorUserId);
     expect(new Date(opened.body.requestedAt).getTime()).toBeGreaterThanOrEqual(before - SLACK_MS);
+  });
+});
+
+describe("O1 cards: Technical Support is told of new lines (D-02)", () => {
+  it("O1-T27 tells every active Technical Support member of each new line, and nobody else", async () => {
+    for (const [id, active] of [[A.ts, true], [RETIRED_TS, false]] as const) {
+      await sql`
+        insert into identity.users (id, supabase_user_id, email, is_active, display_name)
+        values (${id}, gen_random_uuid(), ${`o1-${id.slice(-2)}@connectsphere.test`}, ${active}, 'O1 Technical Support')
+      `;
+      await sql`insert into identity.user_roles (user_id, role) values (${id}, 'TECH_SUPPORT_STAFF')`;
+    }
+    const response = await save([
+      { equipmentTypeId: chairs.id, quantity: 40, notes: "" },
+      { equipmentTypeId: projectors.id, quantity: 2, notes: "HDMI and USB-C inputs" },
+    ]);
+    expect(response.status).toBe(201);
+
+    const saved = response.body.items as { id: string; equipmentTypeName: string; quantity: number; requiredFrom: string; requiredTo: string }[];
+    expect(saved).toHaveLength(2);
+    for (const item of saved) {
+      const rows = await sql<{ topic: string; message_key: string; envelope: unknown }[]>`
+        select topic, message_key, envelope from equipment.outbox where message_key = ${item.id} order by seq
+      `;
+      expect(rows).toHaveLength(1);
+      expect(rows[0]).toMatchObject({ topic: "connectsphere.equipment-request.v1", message_key: item.id });
+      const message = parseCloudEvent(rows[0]!.envelope);
+      expect(message.type).toBe("equipment-request.line-submitted");
+      expect(message.subject).toBe(item.id);
+      expect(message.source).toBe("/connectsphere/planning-core/equipment");
+      expect(message.data).toMatchObject({
+        eventId: event.id,
+        eventReference: event.reference,
+        eventName: event.name,
+        lineId: item.id,
+        equipmentTypeName: item.equipmentTypeName,
+        quantity: item.quantity,
+        requiredFrom: item.requiredFrom,
+        requiredTo: item.requiredTo,
+        requestedBy: A.c1,
+      });
+      const named = (message.data as { technicalSupportIds: string[] }).technicalSupportIds;
+      expect(named).toContain(A.ts);
+      expect(named).not.toContain(RETIRED_TS);
+
+      const notes = notificationsFor({ id: message.id, type: message.type, time: message.time, subject: message.subject, data: message.data as Record<string, unknown> });
+      const told = notes.map((note) => note.recipientUserId);
+      expect([...told].sort()).toEqual([...named].sort());
+      for (const nobody of [A.c1, A.org, RETIRED_TS]) expect(told).not.toContain(nobody);
+      const text = notes.find((note) => note.recipientUserId === A.ts)!.message;
+      expect(text.startsWith(`New equipment request for ${event.reference} “${event.name}”: ${item.equipmentTypeName} × ${item.quantity}, needed `)).toBe(true);
+      expect(text.endsWith(". It is waiting in your Equipment requests list.")).toBe(true);
+    }
+
+    // A refused save (O1-T10) writes no message.
+    const messages = async () =>
+      Number((await sql`select count(*) from equipment.outbox where envelope->'data'->>'eventId' = ${event.id}`)[0]!.count);
+    const before = await messages();
+    const refused = await save([line({ notes: "valid" }), { equipmentTypeId: projectors.id, quantity: 0, notes: "invalid" }]);
+    expect(refused.status).toBe(400);
+    expect(await messages()).toBe(before);
   });
 });
 

@@ -16,12 +16,19 @@ const eventRef = {
   eventName: z.string().min(1),
 };
 
+/**
+ * B1, C2: a request was submitted, and (E3) entered the Lead's unassigned queue. Team decision
+ * D-02 (clarifications.md, 4 Nov 2026): `leadIds` names every active Event Coordinator Lead at
+ * submission, whom the notification service tells. Optional and additive: a message written
+ * before D-02 names none and tells nobody.
+ */
 export const eventSubmittedPayloadSchema = z.object({
   ...eventRef,
   ownerId: z.string().uuid(),
   proposedStartAt: z.string().datetime(),
   proposedEndAt: z.string().datetime(),
   submittedAt: z.string().datetime(),
+  leadIds: z.array(z.string().uuid()).optional(),
 });
 
 /**
@@ -139,6 +146,11 @@ export const eventArrangementsConfirmedPayloadSchema = z.object({
       reservedBy: z.string().uuid(),
     })
   ),
+  /**
+   * D-02: every active Safety Officer when the event entered Safety Review, whose queue it is now
+   * in (U1). Optional and additive: a message written before D-02 names none.
+   */
+  safetyOfficerIds: z.array(z.string().uuid()).optional(),
 });
 
 /** A hold released, or a pending booking request withdrawn, by a cancellation (F4, CQ-06), and its venue's staff. */

@@ -33,7 +33,23 @@ describe("prefillFromEvent", () => {
         accessibility: ["Step-free access", "Hearing loop"],
       },
       unmatchedAccessibility: ["Reserved seating"],
+      unmatchedFacilities: [],
     });
+  });
+
+  it("D5: leaves a facility the catalogue does not record out of the filters, and hands it back as unmatched", () => {
+    const { filters, unmatchedFacilities } = prefillFromEvent(
+      { ...EVENT, venueRequirements: { layout: "Theatre", facilities: ["Projector", "Microphone", "microphone", " Smoke machine "] } },
+      OPTIONS,
+    );
+    expect(filters.facilities).toEqual(["Projector"]);
+    expect(unmatchedFacilities).toEqual(["Microphone", "microphone", "Smoke machine"]);
+  });
+
+  it("D5: leaves every facility unmatched when no venue records any", () => {
+    const result = prefillFromEvent(EVENT, { ...OPTIONS, facilities: [] });
+    expect(result.filters.facilities).toEqual([]);
+    expect(result.unmatchedFacilities).toEqual(["Projector", "Wireless microphones"]);
   });
 
   it("fills nothing from an event that records nothing", () => {
@@ -45,6 +61,7 @@ describe("prefillFromEvent", () => {
     ).toEqual({
       filters: { from: null, to: null, minCapacity: null, layout: null, facilities: [], accessibility: [] },
       unmatchedAccessibility: [],
+      unmatchedFacilities: [],
     });
   });
 
@@ -67,7 +84,8 @@ describe("prefillFromEvent", () => {
       OPTIONS,
     );
     expect(filters.layout).toBe("Theatre");
-    expect(filters.facilities).toEqual(["Projector", "Smoke machine"]);
+    // D5: a facility the catalogue does not record is not a filter (see above).
+    expect(filters.facilities).toEqual(["Projector"]);
     expect(prefillFromEvent({ ...EVENT, venueRequirements: { layout: "Banquet" } }, OPTIONS).filters.layout).toBe("Banquet");
   });
 

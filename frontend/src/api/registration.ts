@@ -69,9 +69,14 @@ export function getOpenEvent(token: string, eventId: string) {
   return request<OpenEvent>(`${REGISTRATION}/open-events/${eventId}`, { token });
 }
 
+/** R2: the new registration, with the event's places remaining just after it, read live (D7). */
+export interface RegistrationCreated extends RegistrationView {
+  placesRemaining: number;
+}
+
 /** R2. `admissionToken` is the waiting room's, required for a high-demand event (EN-19). */
 export function registerFor(token: string, eventId: string, admissionToken?: string | null) {
-  return request<RegistrationView>(`${REGISTRATION}/registrations`, {
+  return request<RegistrationCreated>(`${REGISTRATION}/registrations`, {
     method: "POST",
     token,
     body: { eventId },

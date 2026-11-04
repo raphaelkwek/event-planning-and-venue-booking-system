@@ -46,6 +46,11 @@ vi.mock("../src/api/equipment.js", async () => {
   };
 });
 
+// D9: the history names the acting user, as Identity knows them.
+vi.mock("../src/api/users.js", () => ({
+  lookupUsers: vi.fn(async () => [{ id: "tech-id", displayName: "Tech Support One", email: "tech@connectsphere.test" }]),
+}));
+
 const { App } = await import("../src/App.js");
 const equipmentApi = await import("../src/api/equipment.js");
 
@@ -131,7 +136,7 @@ describe("P2 equipment inventory", () => {
     }));
   });
 
-  it("shows who changed inventory, when, and the previous and new quantities", async () => {
+  it("shows who changed inventory by name, not by id (D9), when, and the previous and new quantities", async () => {
     window.location.hash = `#/equipment/${TYPE_ID}/edit`;
     vi.mocked(equipmentApi.getEquipmentType).mockResolvedValue({
       ...bulkType,
@@ -151,7 +156,8 @@ describe("P2 equipment inventory", () => {
     const history = await screen.findByRole("region", { name: "Inventory history" });
     expect(history.textContent).toContain("Inventory updated");
     expect(history.textContent).toContain("100 → 120");
-    expect(history.textContent).toContain("tech-id");
+    await waitFor(() => expect(history.textContent).toContain("Tech Support One"));
+    expect(history.textContent).not.toContain("tech-id");
     expect(history.textContent).toContain("7 Oct 2026");
   });
 

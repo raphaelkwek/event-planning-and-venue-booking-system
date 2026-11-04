@@ -252,16 +252,34 @@ describe("opened from an event (J1 AC8)", () => {
     );
   });
 
-  it("keeps a facility from the event that no venue records, ticked, so it is still asked for", async () => {
+  it("D5: says which facilities from the event no venue records, and does not search by them", async () => {
     vi.mocked(getSearchPrefill).mockResolvedValueOnce({
       eventId: "e1",
       reference: null,
-      filters: { from: null, to: null, minCapacity: null, layout: null, facilities: ["Smoke machine"], accessibility: [] },
+      filters: { from: null, to: null, minCapacity: null, layout: null, facilities: ["Projector"], accessibility: [] },
       unmatchedAccessibility: [],
+      unmatchedFacilities: ["Microphone"],
     });
     await openSearch("EVENT_COORDINATOR", "/venues/search?eventId=e1");
-    expect(((await screen.findByLabelText("Smoke machine")) as HTMLInputElement).checked).toBe(true);
+    expect(await screen.findByText("Not matched to a catalogue facility")).toBeTruthy();
+    expect(screen.getByText(/The event also asks for Microphone\. No venue records that as a facility, so it is not used as a filter\./)).toBeTruthy();
+    expect(screen.queryByLabelText("Microphone")).toBeNull();
     expect(screen.getByText(/this event/)).toBeTruthy();
+    await vi.waitFor(() => expect(lastForm()).toMatchObject({ facilities: ["Projector"] }));
+  });
+
+  it("D5: names several unmatched facilities in one note, and forgets them when the filters are cleared", async () => {
+    vi.mocked(getSearchPrefill).mockResolvedValueOnce({
+      eventId: "e1",
+      reference: "EVT-000101",
+      filters: { from: null, to: null, minCapacity: null, layout: null, facilities: [], accessibility: [] },
+      unmatchedAccessibility: [],
+      unmatchedFacilities: ["Microphone", "Smoke machine"],
+    });
+    await openSearch("EVENT_COORDINATOR", "/venues/search?eventId=e1");
+    expect(await screen.findByText(/The event also asks for Microphone, Smoke machine\. No venue records those as a facility, so they are not used as a filter\./)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
+    expect(screen.queryByText("Not matched to a catalogue facility")).toBeNull();
   });
 
   it("shows why the pre-fill failed, and still lists the venues", async () => {

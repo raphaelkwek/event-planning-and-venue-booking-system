@@ -46,7 +46,7 @@ export async function findUsersByIds(sql: Sql, ids: string[]): Promise<UserSumma
 }
 
 /** E3: the active users holding `role`, by display name, then email. */
-export async function listActiveUsersWithRole(sql: Sql, role: string): Promise<UserSummaryRow[]> {
+export async function listActiveUsersWithRole(sql: Sql | TransactionSql, role: string): Promise<UserSummaryRow[]> {
   const rows = await sql<{ id: string; display_name: string | null; email: string }[]>`
     select u.id, u.display_name, u.email
     from identity.users u join identity.user_roles r on r.user_id = u.id

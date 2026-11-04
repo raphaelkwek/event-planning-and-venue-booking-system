@@ -261,7 +261,8 @@ Sprint allocation is in `plan.md` §10 and `sprint-reallocation.csv`.
 * The Lead assigns exactly one coordinator. Only active users holding the Event Coordinator role can be assigned; any other choice is refused and stores nothing.  
 * On assignment the assigned coordinator, the assigning Lead and the timestamp are recorded in the assignment history, and the request leaves the unassigned queue.  
 * An event has at most one active assigned coordinator at any time; a second active assignment is never created.  
-* The assigned coordinator and the owning organiser are notified. Until a coordinator is assigned, the organiser sees the request as awaiting assignment.
+* The assigned coordinator and the owning organiser are notified. Until a coordinator is assigned, the organiser sees the request as awaiting assignment.  
+* ⚠ **Team decision D-02 (4 Nov 2026):** when a submitted request enters the unassigned queue, every active Event Coordinator Lead is notified. *(Source: `clarifications.md` D-02, from the brief's core feature 20; staging dry run D3.)*
 
 #### **E4 — Reassign an event as the Lead** ⚠ **NEW — CR-05 (Week 7)**
 
@@ -763,7 +764,8 @@ Sprint allocation is in `plan.md` §10 and `sprint-reallocation.csv`.
 * On save each line has status Submitted and is visible to Technical Support Staff, and the requesting coordinator and timestamp are recorded.  
 * Lines may be edited or removed by the assigned coordinator while their status is Submitted or Under Review; a line with status Reserved cannot be edited or removed here.  
 * Removing a line records the acting user, the timestamp, and the equipment type and quantity removed.  
-* A rejected save creates or changes no line item.
+* A rejected save creates or changes no line item.  
+* ⚠ **Team decision D-02 (4 Nov 2026):** every active Technical Support Staff member is notified of each new line. *(Source: `clarifications.md` D-02.)*
 
 #### **O2 — Update an equipment request as arrangements are made**
 
@@ -999,7 +1001,7 @@ Sprint allocation is in `plan.md` §10 and `sprint-reallocation.csv`.
 **Acceptance Criteria**
 
 * Each notification records the recipient, the notification type, the related event reference (and booking, reservation, or registration reference where applicable), the creation timestamp, and a message stating what happened and to which event.  
-* Only users with a relationship to the event receive its notifications: the owning organiser, the assigned coordinator, the relevant Venue Staff, the relevant Technical Support Staff, and, where the notification concerns them, registered and waitlisted attendees.  
+* Only users with a relationship to the event receive its notifications: the owning organiser, the assigned coordinator, the relevant Venue Staff, the relevant Technical Support Staff, and, where the notification concerns them, registered and waitlisted attendees. ⚠ **D-02:** the Event Coordinator Lead of a request awaiting assignment (E3), the Safety Officer of an event awaiting the safety check (U1), and the Technical Support Staff of a new equipment line (O1) count as related.  
 * A notification is created as part of the same operation as the triggering action; if the triggering action does not complete, no notification exists.  
 * The stored notification record is the source of truth; no notification is stated to be delivered within any particular time, and the delivery channel is not specified by this story.  
 * The notification list shows the signed-in user's own notifications, newest first, with an unread count.  
@@ -1028,4 +1030,5 @@ Sprint allocation is in `plan.md` §10 and `sprint-reallocation.csv`.
 * ⚠ **Week 9 answer (CQ-08):** Reject the safety arrangement: the event returns to Planning as for request changes, recorded as a rejection of the arrangement as a whole; the event is not rejected or cancelled, and its venue and equipment arrangements stay in place to be re-evaluated. *(Sources: W9-10, W9-21, W9-63.)*  
 * ⚠ **Week 9 answer:** every event reaching Safety Review after release goes through the check; events confirmed before the feature are not reviewed. *(Sources: W9-32, W9-65.)*  
 * Each decision records the Safety Officer, the timestamp, the decision, and the reason; writes a status history entry (F1); and notifies the assigned coordinator and the owning organiser.  
-* Only the Safety Officer can record a safety decision (A2); every other role is refused.
+* Only the Safety Officer can record a safety decision (A2); every other role is refused.  
+* ⚠ **Team decision D-02 (4 Nov 2026):** when an event's arrangements are confirmed (F5) and it enters Safety Review, every active Safety Officer is notified. *(Source: `clarifications.md` D-02.)*

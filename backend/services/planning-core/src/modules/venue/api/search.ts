@@ -98,8 +98,8 @@ export function searchRouter(sql: Sql, limiter: RequestHandler = searchRateLimit
         refuse(res, 404, "EVENT_NOT_FOUND", notInScopeMessage(req.actor!.role, "No event with that id exists."));
         return;
       }
-      const { filters, unmatchedAccessibility } = prefillFromEvent(event, await listCatalogueOptions(sql));
-      res.json({ eventId: event.id, reference: event.reference, filters, unmatchedAccessibility });
+      const { filters, unmatchedAccessibility, unmatchedFacilities } = prefillFromEvent(event, await listCatalogueOptions(sql));
+      res.json({ eventId: event.id, reference: event.reference, filters, unmatchedAccessibility, unmatchedFacilities });
     }),
   );
 

@@ -313,6 +313,12 @@ own two active free projects; if yours already has one, make the second under a 
 | Region | Southeast Asia (Singapore) | Southeast Asia (Singapore) |
 | Database password | generate, keep in your password manager | generate, a different one |
 
+Put both in the VM's region. On 4 Nov 2026, staging was moved off its first project
+(`wxfkaoxkwtdkrhtlqwxy`, created in North-East Asia (Tokyo) by mistake, now paused) to
+`ersukefviuuygauatwox` in Singapore. Each database round trip from the VM had cost about 75 ms in Tokyo,
+against about 4.5 ms in Singapore. A staff screen makes 10 to 15 queries, so staging's p95 for viewing an
+event was 1.57 s, against the 0.4 s objective in `documentation/slos.md`.
+
 For each project collect, from **Connect** (the button at the top of the dashboard) and
 **Project Settings → API**:
 

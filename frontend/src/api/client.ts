@@ -30,6 +30,26 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * D10 (staging dry run, 4 Nov 2026): the request never reached a service ("unreachable": the
+ * browser's own "Failed to fetch", as during a redeploy), or a success came back that is not the
+ * service's JSON ("unreadable": a proxy's page while a service restarts). Either way the screen
+ * shows one plain message, never the browser's words or a page of HTML.
+ */
+export class ServiceUnreachableError extends Error {
+  constructor(
+    readonly reason: "unreachable" | "unreadable",
+    readonly cause?: unknown
+  ) {
+    super(
+      reason === "unreachable"
+        ? "ConnectSphere couldn't be reached. Check your connection, then try again."
+        : "ConnectSphere sent an answer that could not be read, as can happen while it restarts. Try again in a moment."
+    );
+    this.name = "ServiceUnreachableError";
+  }
+}
+
 export interface RawResponse {
   status: number;
   body: unknown;
@@ -50,15 +70,23 @@ export async function rawRequest(
   path: string,
   options: { method?: string; token?: string | null; body?: unknown; headers?: Record<string, string> } = {}
 ): Promise<RawResponse> {
-  const response = await fetch(apiUrl(path), {
-    method: options.method ?? "GET",
-    headers: {
-      ...options.headers,
-      ...(options.body !== undefined ? { "Content-Type": "application/json" } : {}),
-      ...(options.token ? { Authorization: `Bearer ${options.token}` } : {}),
-    },
-    ...(options.body !== undefined ? { body: JSON.stringify(options.body) } : {}),
-  });
+  let response: Response;
+  try {
+    response = await fetch(apiUrl(path), {
+      method: options.method ?? "GET",
+      headers: {
+        ...options.headers,
+        ...(options.body !== undefined ? { "Content-Type": "application/json" } : {}),
+        ...(options.token ? { Authorization: `Bearer ${options.token}` } : {}),
+      },
+      ...(options.body !== undefined ? { body: JSON.stringify(options.body) } : {}),
+    });
+  } catch (error) {
+    // A request the screen itself cancelled is not a failure to reach the service.
+    if (error instanceof DOMException && error.name === "AbortError") throw error;
+    // Otherwise fetch rejects only when no answer came back at all (D10).
+    throw new ServiceUnreachableError("unreachable", error);
+  }
 
   const text = await response.text();
   let body: unknown = null;
@@ -102,6 +130,9 @@ export async function request<T>(
       envelope ?? gatewayRefusal(status, correlationId)
     );
   }
+
+  // D10: every service answers in JSON, so a success whose body is text was not the service's answer.
+  if (typeof body === "string") throw new ServiceUnreachableError("unreadable");
 
   return body as T;
 }

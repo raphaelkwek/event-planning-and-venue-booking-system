@@ -298,7 +298,8 @@ create table <schema>.consumed_messages (
 - the owner;
 - the coordinator;
 - the nominee;
-- the coordinator who asked for clarification.
+- the coordinator who asked for clarification;
+- since team decision D-02 (`clarifications.md`), the holders of a role whose queue the event or line has just entered: the active Leads (`event.submitted`), Safety Officers (`event.arrangements-confirmed`) and Technical Support Staff (`equipment-request.line-submitted`). The producer reads them through identity's `listActiveUserIdsWithRole`, in the transaction that writes the message.
 
 So a message must carry the ids of everyone its story says to notify (T2 AC2). The rules live in `notification/src/domain/recipients.ts`.
 
