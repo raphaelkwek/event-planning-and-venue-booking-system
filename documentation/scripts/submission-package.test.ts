@@ -1,6 +1,21 @@
 import assert from "node:assert/strict";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { test } from "node:test";
-import { DESIGN_PARTS, normaliseGitUrl, placeholderStatus, renderCoverageStatement, renderManifest, type Coverage, type CoverageCounts, type Part } from "./submission-package.ts";
+import {
+  copyDeliverablePdfs,
+  DELIVERABLE_PDFS,
+  DESIGN_PARTS,
+  FOLDERS,
+  normaliseGitUrl,
+  placeholderStatus,
+  renderCoverageStatement,
+  renderManifest,
+  type Coverage,
+  type CoverageCounts,
+  type Part,
+} from "./submission-package.ts";
 
 test("a placeholder file counts as finished only once no TODO is left", () => {
   assert.equal(placeholderStatus("| Planning | TODO |"), "placeholder");
@@ -67,7 +82,53 @@ test("renderCoverageStatement adds each workspace's coverage when a CI coverage 
   assert.match(md, /abcdef01/);
 });
 
-test("folder 2 holds the C4 model, the data-model, domain and state diagrams, and the ADRs", () => {
+test("folder 2 holds the C4 model, the data-model, domain and state diagrams, the ADRs and the operations screenshots", () => {
   const sources = DESIGN_PARTS.map(([from]) => from);
-  assert.deepEqual(sources, ["documentation/c4", "documentation/architecture", "documentation/adr"]);
+  assert.deepEqual(sources, ["documentation/c4", "documentation/architecture", "documentation/adr", "documentation/evidence/operations"]);
+  const [, folder, part] = DESIGN_PARTS[3];
+  assert.equal(folder, "Operations Screenshots");
+  assert.equal(part, "Operations screenshots (observability, deployment, access control)");
+});
+
+test("the operations evidence PDF goes to folder 2 and the velocity PDF to folder 4", () => {
+  const where = Object.fromEntries(DELIVERABLE_PDFS.map((p) => [p.file, p.folder]));
+  assert.deepEqual(where, {
+    "Operations Evidence - ConnectSphere.pdf": FOLDERS.design,
+    "Sprint Velocity and Burndowns - ConnectSphere.pdf": FOLDERS.meetings,
+  });
+});
+
+test("copyDeliverablePdfs copies a PDF that is there and marks one that is not as missing", () => {
+  const root = mkdtempSync(join(tmpdir(), "submission-pdfs-"));
+  try {
+    const deliverables = join(root, "deliverables");
+    const out = join(root, "out");
+    mkdirSync(deliverables);
+    writeFileSync(join(deliverables, "Operations Evidence - ConnectSphere.pdf"), "%PDF-1.7 ops");
+
+    const design = copyDeliverablePdfs({ out, deliverables }, FOLDERS.design);
+    assert.equal(design.length, 1);
+    assert.equal(design[0].status, "present");
+    assert.equal(design[0].folder, FOLDERS.design);
+    assert.equal(readFileSync(join(out, FOLDERS.design, "Operations Evidence - ConnectSphere.pdf"), "utf8"), "%PDF-1.7 ops");
+
+    const meetings = copyDeliverablePdfs({ out, deliverables }, FOLDERS.meetings);
+    assert.equal(meetings.length, 1);
+    assert.equal(meetings[0].status, "missing");
+    assert.match(meetings[0].detail, /Sprint Velocity and Burndowns - ConnectSphere\.pdf/);
+    assert.equal(existsSync(join(out, FOLDERS.meetings, "Sprint Velocity and Burndowns - ConnectSphere.pdf")), false);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("copyDeliverablePdfs marks every PDF missing when no --deliverables folder is given", () => {
+  const out = mkdtempSync(join(tmpdir(), "submission-pdfs-"));
+  try {
+    const parts = [FOLDERS.design, FOLDERS.meetings].flatMap((folder) => copyDeliverablePdfs({ out, deliverables: null }, folder));
+    assert.deepEqual(parts.map((p) => p.status), ["missing", "missing"]);
+    assert.match(parts[0].detail, /--deliverables/);
+  } finally {
+    rmSync(out, { recursive: true, force: true });
+  }
 });
