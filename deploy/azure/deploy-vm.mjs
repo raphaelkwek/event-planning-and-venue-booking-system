@@ -181,7 +181,7 @@ async function main() {
   const envPath = `/etc/connectsphere/${args.env}.env`;
   const upload = spawnSync(
     "ssh",
-    ["-i", key, "-o", "BatchMode=yes", `${user}@${host}`, `if getent group connectsphere > /dev/null; then sudo install -d -m 2770 -o root -g connectsphere /etc/connectsphere; else sudo install -d -m 0700 -o "$(id -u)" -g "$(id -g)" /etc/connectsphere; fi && umask 007 && cat > ${envPath} && chmod 660 ${envPath}`],
+    ["-i", key, "-o", "BatchMode=yes", `${user}@${host}`, `if getent group connectsphere > /dev/null; then sudo install -d -m 2770 -o root -g connectsphere /etc/connectsphere; else sudo install -d -m 0700 -o "$(id -u)" -g "$(id -g)" /etc/connectsphere; fi && umask 007 && cat > ${envPath}.new && chmod 660 ${envPath}.new && mv -f ${envPath}.new ${envPath}`],
     { input: containerEnv(loaded.space, webOrigin, args.alsoOrigins), encoding: "utf8" }
   );
   if (upload.status !== 0) throw new DeployError(`could not write ${envPath}: ${mask(upload.stderr ?? "").trim()}`);
