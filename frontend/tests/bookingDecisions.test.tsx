@@ -30,6 +30,7 @@ function bookingRequest(overrides: Record<string, unknown> = {}) {
     reference: "BKR-000001",
     eventId: EVENT_ID,
     eventReference: "EVT-000123",
+    eventName: "Welcome Week Mixer",
     venueId: "venue-1",
     venueName: "Lee Kong Chian Auditorium",
     startsAt: "2026-12-02T06:00:00.000Z",
@@ -108,6 +109,21 @@ async function openQueue() {
   render(<App />);
   return screen.findByRole("row", { name: /BKR-000001/ });
 }
+
+describe("the queue names each request's event (A3-T8)", () => {
+  it("shows the event's name beside its reference, not only the reference", async () => {
+    const row = await openQueue();
+    const cells = within(row).getAllByRole("cell");
+    expect(rowText(cells[1]!)).toContain("Welcome Week Mixer");
+    expect(rowText(cells[1]!)).toContain("EVT-000123");
+  });
+
+  it("keeps the row readable when the event is no longer found", async () => {
+    listBookingQueue.mockResolvedValueOnce({ items: [bookingRequest({ eventReference: null, eventName: null })] });
+    const row = await openQueue();
+    expect(rowText(within(row).getAllByRole("cell")[1]!)).toBe("—");
+  });
+});
 
 describe("approving from the queue (M1)", () => {
   it("offers Approve and Reject on each request, with the requesting coordinator's name (M1-T1)", async () => {

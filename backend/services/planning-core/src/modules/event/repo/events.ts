@@ -328,6 +328,20 @@ export async function findReferences(sql: Sql, eventIds: readonly string[]): Pro
   return new Map(rows.map((row) => [row.id, row.reference]));
 }
 
+/** L1, A3-T8 — an event's reference and name: what a Venue Staff row names the event by, and no more of the record. */
+export interface EventLabel {
+  reference: string | null;
+  name: string;
+}
+
+export async function findLabels(sql: Sql, eventIds: readonly string[]): Promise<Map<string, EventLabel>> {
+  if (eventIds.length === 0) return new Map();
+  const rows = await sql<(EventLabel & { id: string })[]>`
+    select id, reference, name from event.events where id in ${sql(eventIds as string[])}
+  `;
+  return new Map(rows.map((row) => [row.id, { reference: row.reference, name: row.name }]));
+}
+
 /** C3 — which of the caller's requests to list: all, only the drafts, or only the submitted ones. */
 export type EventListKind = "drafts" | "submitted";
 

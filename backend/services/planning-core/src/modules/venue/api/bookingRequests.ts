@@ -2,7 +2,7 @@ import { Router, type NextFunction, type RequestHandler, type Response } from "e
 import { rateLimit } from "express-rate-limit";
 import type { Sql, TransactionSql } from "postgres";
 import type { ErrorCode, ErrorField, Role } from "@connectsphere/contracts";
-import { findEventForChange, findEventForPlanning, findEventReferences, type EventPlanningView } from "../../event/index.js";
+import { findEventForChange, findEventForPlanning, findEventLabels, type EventLabel, type EventPlanningView } from "../../event/index.js";
 import { notInScopeMessage, resolveAccessScope } from "../../identity/index.js";
 import { authenticate, requireRole, type ActorRequest } from "../auth/actor.js";
 import {
@@ -89,7 +89,7 @@ export interface Refusal {
   details?: Record<string, unknown>;
 }
 
-export type SubmitOutcome = ({ ok: true; created: BookingRequest; eventReference: string | null }) | ({ ok: false } & Refusal);
+export type SubmitOutcome = ({ ok: true; created: BookingRequest; event: EventLabel }) | ({ ok: false } & Refusal);
 
 /** Thrown inside the transaction to roll it back with a refusal. */
 class RefusedInTransaction extends Error {
@@ -217,7 +217,7 @@ export async function submitBookingRequest(
       }
       return created;
     });
-    return { ok: true, created, eventReference: event.reference };
+    return { ok: true, created, event: { reference: event.reference, name: event.name } };
   } catch (error) {
     if (error instanceof RefusedInTransaction) return { ok: false, ...error.refusal };
     if (error instanceof DuplicateBookingRequestError) {
@@ -235,10 +235,12 @@ export async function submitBookingRequest(
  * differs from the event's, and, while it is pending, what it clashes with at
  * the venue (N2). A decided or withdrawn request clashes with nothing.
  */
-export function present(request: BookingRequest, eventReference: string | null, conflicts: RequestConflict[] = []) {
+export function present(request: BookingRequest, event: EventLabel | null, conflicts: RequestConflict[] = []) {
   return {
     ...request,
-    eventReference,
+    eventReference: event?.reference ?? null,
+    // A3-T8: the name beside the reference; nothing else of the event's record.
+    eventName: event?.name ?? null,
     differences: differencesFromEvent(
       { startsAt: request.eventStartsAt, endsAt: request.eventEndsAt, attendance: request.eventAttendance },
       request,
@@ -248,9 +250,9 @@ export function present(request: BookingRequest, eventReference: string | null, 
 }
 
 /** N2: each request presented with its conflicts, worked out in one query. */
-export async function presentAll(sql: Sql, requests: readonly BookingRequest[], referenceOf: (request: BookingRequest) => string | null) {
+export async function presentAll(sql: Sql, requests: readonly BookingRequest[], eventOf: (request: BookingRequest) => EventLabel | null) {
   const conflicts = await conflictsOfRequests(sql, requests.filter((r) => r.status === "PENDING").map((r) => r.id));
-  return requests.map((request) => present(request, referenceOf(request), conflicts.get(request.id) ?? []));
+  return requests.map((request) => present(request, eventOf(request), conflicts.get(request.id) ?? []));
 }
 
 /** The event, if the caller may see it (A3; for a coordinator, A4: assigned to them); null otherwise. */
@@ -280,7 +282,7 @@ export function bookingRequestsRouter(sql: Sql) {
       if (!read.ok) return refuse(res, 400, "VALIDATION_FAILED", INVALID, read.fields);
       const outcome = await submitBookingRequest(sql, req, read.request);
       if (!outcome.ok) return refuse(res, outcome.status, outcome.code, outcome.message, outcome.fields, outcome.details);
-      const [created] = await presentAll(sql, [outcome.created], () => outcome.eventReference);
+      const [created] = await presentAll(sql, [outcome.created], () => outcome.event);
       res.status(201).json(created);
     } catch (error) {
       next(error);
@@ -307,7 +309,7 @@ export function bookingRequestsRouter(sql: Sql) {
           venueRequirements: event.venueRequirements,
           accessibilityNeeds: event.accessibilityNeeds,
         },
-        items: await presentAll(sql, items, () => event.reference),
+        items: await presentAll(sql, items, () => event),
         // L5: the event's bookings, with what disrupts them and the replacements asked for.
         bookings: await listBookingsForEvent(sql, event.id),
       });
@@ -320,8 +322,8 @@ export function bookingRequestsRouter(sql: Sql) {
   router.get(`${BASE}/queue`, limiter, authenticate, requireRole("booking_request", "view_queue"), async (req: ActorRequest, res: Response, next: NextFunction) => {
     try {
       const items = await listPendingForStaff(sql, req.actor!.userId);
-      const references = await findEventReferences(sql, [...new Set(items.map((item) => item.eventId))]);
-      res.json({ items: await presentAll(sql, items, (item) => references.get(item.eventId) ?? null) });
+      const events = await findEventLabels(sql, [...new Set(items.map((item) => item.eventId))]);
+      res.json({ items: await presentAll(sql, items, (item) => events.get(item.eventId) ?? null) });
     } catch (error) {
       next(error);
     }
@@ -357,7 +359,7 @@ export function bookingRequestsRouter(sql: Sql) {
       if (outcome.code === "NOT_PENDING") {
         return refuse(res, 409, "BOOKING_REQUEST_NOT_PENDING", notPendingMessage(outcome.locked.reference, outcome.locked.status, "withdrawn"));
       }
-      res.json(present(outcome.withdrawn, event.reference));
+      res.json(present(outcome.withdrawn, event));
     } catch (error) {
       next(error);
     }

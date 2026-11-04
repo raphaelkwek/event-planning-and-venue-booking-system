@@ -86,8 +86,8 @@ async function newVenue(name: string, options: { staff?: string; status?: string
 const at = (hhmm: string) => `2026-12-02T${hhmm}:00+08:00`;
 const utc = (hhmm: string) => new Date(at(hhmm)).toISOString();
 
-async function newEvent(status = "APPROVED", coordinator: string | null = COORDINATOR): Promise<{ id: string; reference: string }> {
-  const [row] = await sql<{ id: string; reference: string }[]>`
+async function newEvent(status = "APPROVED", coordinator: string | null = COORDINATOR): Promise<{ id: string; reference: string; name: string }> {
+  const [row] = await sql<{ id: string; reference: string; name: string }[]>`
     insert into event.events (
       reference, owner_id, name, purpose, description, proposed_start_at, proposed_end_at,
       expected_attendance, equipment_required, registration_required, status, submitted_at,
@@ -96,7 +96,7 @@ async function newEvent(status = "APPROVED", coordinator: string | null = COORDI
       'EVT-' || lpad(nextval('event.event_reference_seq')::text, 6, '0'), ${OWNER}, 'L1 test event', 'L1 test',
       'L1 test', ${at("14:00")}, ${at("18:00")}, 150, false, false, ${status}, now(), now(), ${OWNER}, ${OWNER}
     )
-    returning id, reference
+    returning id, reference, name
   `;
   if (coordinator) {
     await sql`insert into event.assignments (event_id, coordinator_id, assignment_rule, created_by, updated_by)
@@ -145,6 +145,7 @@ describe("POST /api/v1/booking-requests (L1)", () => {
       status: "PENDING",
       eventId: event.id,
       eventReference: event.reference,
+      eventName: "L1 test event",
       venueId,
       venueName: "L1 Auditorium",
       startsAt: utc("14:00"),
@@ -382,6 +383,7 @@ describe("GET /api/v1/booking-requests (the event's requests) and /queue (Venue 
     expect(res.body.event).toMatchObject({
       id: event.id,
       reference: event.reference,
+      name: "L1 test event",
       status: "APPROVED",
       assignedCoordinatorId: COORDINATOR,
       proposedStartAt: utc("14:00"),
@@ -413,6 +415,7 @@ describe("GET /api/v1/booking-requests (the event's requests) and /queue (Venue 
     expect(references).not.toContain(forTheirs.body.reference);
     expect(res.body.items.find((item: { reference: string }) => item.reference === forMine.body.reference)).toMatchObject({
       eventReference: event.reference,
+      eventName: event.name,
       venueName: "L1 Auditorium",
       layout: "Theatre",
       expectedAttendance: 180,
