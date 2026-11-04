@@ -373,6 +373,14 @@ describe("notificationsFor", () => {
       ]);
     });
 
+    it("names a booking and a reservation of one person in one notice, asking them to release the reservation if no longer needed", () => {
+      const both = { ...flagged, bookings: [{ ...flagged.bookings[2]!, staffIds: [techSupport] }] };
+      expect(textFor(techSupport, both)).toEqual([
+        "Booking BKR-000002 at Lecture Hall B and the Projectors reservation for EVT-2026-0042 “Freshmen Orientation” " +
+          `need attention after an approved change. BKR-000002: ${moved} Projectors: ${reservationMoved} Release any reservation that is no longer needed.`,
+      ]);
+    });
+
     it("names a flagged hold or pending booking request as such", () => {
       const venueOnly = (arrangement: string) => ({
         ...flagged,
