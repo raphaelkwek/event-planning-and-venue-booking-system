@@ -1,5 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
 import {
   SUPERSEDED_MARKER,
   cardHeading,
@@ -22,6 +25,7 @@ describe("POST /things (X1)", () => {
     () => {},
   );
   it.skip("is skipped", () => {});
+  it.each<[string, number]>([["a typed table", 1]])("fails on %s", () => {});
   for (const status of ["APPROVED", "PLANNING"]) {
     it(\`keeps a \${status} event's status\`, () => {});
   }
@@ -46,6 +50,7 @@ test("extractTitles finds it, test, it.each and it.skip titles in all three quot
   assert.ok(titles.includes("keeps a back`tick"));
   assert.ok(titles.includes("shows the history: %s"));
   assert.ok(titles.includes("is skipped"));
+  assert.ok(titles.includes("fails on %s"), "an it.each with type arguments");
   assert.deepEqual(extractTitles(source, "describe").map((t) => t.text), ["POST /things (X1)"]);
 });
 
@@ -116,6 +121,42 @@ test("the superseded marker names the story and the change, and a test title is 
   assert.ok(SUPERSEDED_MARKER.test("SUPERSEDED by E3 (CR-05)"));
   assert.ok(!SUPERSEDED_MARKER.test("SUPERSEDED"));
   assert.ok(!SUPERSEDED_MARKER.test("refuses a proposal, SUPERSEDED by E4 (W9-FX-5)"));
+});
+
+/** A checkout with only the files named, at their repo-relative paths. */
+function checkout(files: Record<string, string>): string {
+  const root = mkdtempSync(join(tmpdir(), "check-traceability-"));
+  for (const [path, text] of Object.entries(files)) {
+    mkdirSync(dirname(join(root, path)), { recursive: true });
+    writeFileSync(join(root, path), text);
+  }
+  return root;
+}
+
+test("checkRepository reads each story's file, sprint-<n>/<STORY>.csv, and names it in a problem", () => {
+  const root = checkout({
+    "t/a.test.ts": source,
+    "documentation/traceability/sprint-1/X1.csv": `${HEADER}X1,crit,t/a.test.ts,makes a thing\r\n`,
+    "documentation/traceability/sprint-2/X2.csv": `${HEADER}X2,crit,t/a.test.ts,makes a thing\nX2,crit,t/a.test.ts,a test that was removed\n`,
+  });
+  try {
+    const problems = checkRepository(root);
+    assert.deepEqual(
+      problems.map((p) => [p.file, p.line, p.story]),
+      [["documentation/traceability/sprint-2/X2.csv", 3, "X2"]],
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("checkRepository refuses a sprint-<n>.csv from before the per-story files, rather than check nothing", () => {
+  const root = checkout({ "documentation/traceability/sprint-1.csv": `${HEADER}X1,crit,t/a.test.ts,makes a thing\n` });
+  try {
+    assert.throws(() => checkRepository(root), /sprint-1\.csv: traceability rows now go in sprint-<n>\/<STORY>\.csv/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });
 
 test("every traceability row in the repository points at a test that exists", () => {

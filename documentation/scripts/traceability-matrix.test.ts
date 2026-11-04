@@ -163,6 +163,18 @@ test("a row that points at a manual card takes the card's status as its result (
   assert.deepEqual(results, ["pass", "skipped", "not found"]);
 });
 
+test("a row that carries the superseded marker is skipped, not a name that does not exist", () => {
+  const rows = [row("E2", "retired", FILE_A, "SUPERSEDED by E4 (W9-FX-5)"), row("E2", "still here", FILE_A, "S2-T1 approves"), row("E2", "still here", FILE_A, "SUPERSEDED by E4 (W9-FX-5)")];
+  const matrix = buildMatrix(rows, parseVitestReport(vitestReport, ROOT), []);
+  const [retired, kept] = matrix.stories[0]!.criteria;
+  assert.equal(retired!.tests[0]!.result, "skipped");
+  assert.match(retired!.tests[0]!.note, /^superseded/);
+  assert.equal(retired!.state, "unverified", "a retired criterion is not counted as covered");
+  assert.equal(kept!.state, "covered", "a superseded row beside a passing test does not hold the criterion back");
+  assert.equal(matrix.totals.notFound, 0);
+  assert.equal(buildMatrix([row("E2", "AC", FILE_A, "refuses a proposal, SUPERSEDED by E4 (W9-FX-5)")], [], []).totals.notFound, 1, "only the whole marker counts");
+});
+
 test("loadCards and loadCriterionRows read the files on disk (EN-22-T4)", () => {
   const dir = mkdtempSync(join(tmpdir(), "en22-"));
   try {
@@ -385,6 +397,28 @@ test("parseJunitReport reads pass, failure, error and skipped, and unescapes nam
     ["is skipped (EN-22-T6)", "skipped"],
   ]);
   assert.ok(results.every((r) => r.file === "documentation/scripts/x.test.ts"));
+});
+
+test("parseJunitReport names a test inside describe blocks by the suites and its title, as vitest does (EN-22-T6)", () => {
+  const nested = `<?xml version="1.0" encoding="utf-8"?>
+<testsuites>
+	<testsuite name="assertTestHarnessOnly" time="0.003" tests="2" failures="0" skipped="0" hostname="ci">
+		<testcase name="refuses a production process" time="0.001" classname="test"/>
+		<testsuite name="with a database" tests="1">
+			<testcase name="refuses a remote one" time="0.001" classname="test"><failure message="x">stack</failure></testcase>
+		</testsuite>
+		<testsuite name="an empty block" tests="0"/>
+	</testsuite>
+	<testcase name="stands alone" time="0.001" classname="test"/>
+</testsuites>`;
+  const results = parseJunitReport(nested, "tests/e2e/support/x.test.ts");
+  assert.deepEqual(results.map((r) => [r.title, r.fullName, r.status]), [
+    ["refuses a production process", "assertTestHarnessOnly refuses a production process", "pass"],
+    ["refuses a remote one", "assertTestHarnessOnly with a database refuses a remote one", "fail"],
+    ["stands alone", "stands alone", "pass"],
+  ]);
+  const matrix = buildMatrix([row("EN-14", "AC", "tests/e2e/support/x.test.ts", "assertTestHarnessOnly refuses a production process")], results, []);
+  assert.equal(matrix.stories[0]!.criteria[0]!.tests[0]!.result, "pass");
 });
 
 test("loadResults reads a JUnit file under the file name of its test, and ignores other XML (EN-22-T6)", () => {
