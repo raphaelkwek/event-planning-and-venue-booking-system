@@ -2,6 +2,36 @@
 
 ConnectSphere: event requests, venue and equipment booking, safety review and attendee registration for a university campus. An IS212 project by a six-person team at Singapore Management University.
 
+## For the instructors: where to find each part
+
+The quickest way to see the system is the **staging site**, <https://connectsphere-staging.vercel.app>. It holds demonstration data, and its sign-in page lists the test accounts (all use the password `ConnectSphere-Test-1234!`; the [table below](#test-accounts) gives each account's role). Production, <https://connectsphere-is212.vercel.app>, runs the same release with no demo data and no test accounts.
+
+| What you are looking for | Where it is |
+|---|---|
+| Product backlog | Jira project SPM: <https://smu-team-vkln2krm.atlassian.net/jira/software/projects/SPM/boards/2>. Export: [documentation/backlog/jira-export.xlsx](documentation/backlog/jira-export.xlsx). The user stories and their acceptance criteria: [documentation/final user stories.md](<documentation/final user stories.md>). |
+| System design | The C4 model as code, with rendered diagrams: [documentation/c4/](documentation/c4/). ER, domain and state diagrams: [documentation/architecture/](documentation/architecture/). Decisions: [documentation/adr/](documentation/adr/) (ADR-0001 to ADR-0016; ADR-0004 to ADR-0016 are the current architecture). APIs: [documentation/api/](documentation/api/) (OpenAPI). |
+| Customer changes and clarifications | Week 7 changes CR-01 to CR-06: [documentation/change-requests.md](documentation/change-requests.md). Questions to the customer, the Week 9 answers and the team's decisions D-01 to D-03: [documentation/clarifications.md](documentation/clarifications.md). |
+| Test cases | One Markdown card per test case, in the Week 4 template ([tests/TEMPLATE.md](tests/TEMPLATE.md)), in `tests/<story>/`. Each card records its status, the commit, the CI run or hand run that backs it, and who ran it. How they are organised: [tests/README.md](tests/README.md). |
+| Traceability | One CSV per story in [documentation/traceability/](documentation/traceability/) (`sprint-N/<story>.csv`) links each acceptance criterion to its tests. CI's "Traceability matrix" job builds the full matrix from each run's results. |
+| Coverage | [documentation/testing/coverage.md](documentation/testing/coverage.md): each workspace's coverage as CI measured it, and why each one is below 100%. Domain code is held at 100% by CI. |
+| CI/CD pipeline | [.github/workflows/](.github/workflows/) (`ci.yml` on every pull request and every push to main; `release.yml` deploys every merge to staging, then the same images to production after an approval). Runs: <https://github.com/joass1/event-planning-and-venue-booking-system/actions>. |
+| Operations evidence | Screenshots of the live system (observability, deployments, access control): [documentation/evidence/operations/](documentation/evidence/operations/). Load, chaos and supply-chain evidence: [documentation/evidence/](documentation/evidence/), [documentation/reliability.md](documentation/reliability.md), [documentation/supply-chain.md](documentation/supply-chain.md). |
+| Sprint records | Planning poker, meeting scripts and the Jira snapshot: [documentation/planning/](documentation/planning/). The Sprint 1 to 4 documents and the velocity and burndown charts are in folder 4 of the submission zip. |
+| What changed, and when | One entry per change in [changelog/](changelog/) since 3 Nov 2026, and the earlier entries in [CHANGELOG.md](CHANGELOG.md). `npm run changelog` prints the whole log. |
+| How we used AI | The rules every coding agent followed: [documentation/planning/implementation.md](documentation/planning/implementation.md) §11, "Rules for coding agents". Changelog entries and test cards name the person responsible and, where an AI tool did the work, say so ("Name, via Claude"). |
+
+**The Week 12 submission zip** has seven folders, built from this repository by `npm run submission:build` (see [below](#week-12-submission-zip)). Its `MANIFEST.md` lists every part and whether it is present.
+
+| Folder | Holds |
+|---|---|
+| 1. Product Backlog | The Jira export (`.xlsx` and `.json`). |
+| 2. System Design (C4) | The C4 model, the ER, domain and state diagrams with an index of what each shows, the ADRs, the operations screenshots and the Operations Evidence PDF. |
+| 3. Test Cases | The test cards, the traceability rows, the unit and end-to-end test-script workbooks, and the coverage statement. |
+| 4. Sprint Meetings | The Sprint 1 to 4 documents, the Sprint 4 meeting scripts, the Week 11 slides, the Sprint Velocity and Burndowns PDF, and the links to the final sprint's recordings. |
+| 5. Slide Deck | The slide deck as a PDF. |
+| 6. Software Release | This repository's source at the submitted commit, without `node_modules`. |
+| 7. README and Git Access | The repository link and the instructors' access. |
+
 ## Links
 
 | | |
@@ -24,13 +54,13 @@ ConnectSphere: event requests, venue and equipment booking, safety review and at
 
 1. `nvm use` (Node 20 — see `.nvmrc`).
 2. `npm install` from the repo root.
-3. `cp .env.example .env` and fill it in. There is no Docker, and nothing runs locally besides Node (ADR-0003):
+3. `cp .env.example .env` and fill it in. Local development uses no Docker and runs nothing besides Node; containers are built only in CI (ADR-0012, which replaced ADR-0003's no-Docker rule):
    - **Supabase** — from the team's hosted project: the transaction pooler connection string (port 6543) as `DATABASE_URL`, plus `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` and `SUPABASE_JWKS_URL`.
-   - **Kafka** — the shared hosted cluster's bootstrap server and SASL credentials (`KAFKA_*`). No service publishes to Kafka yet, so these can wait until the outbox relay is built.
+   - **Kafka** — the shared hosted cluster's bootstrap server and SASL credentials (`KAFKA_*`, ADR-0008). planning-core's and registration's outbox relays publish their messages there, and the notification and registration services consume them. `npm run kafka:check` tests the connection.
 4. `npm run migrate:all` — applies every module's and service's schema in order (identity, event, venue, equipment, change, notification), plus the identity seed. Already-applied files are skipped, and `npm run migrate -- <module>` still runs one at a time.
 5. `npm run seed:auth` — creates matching Supabase Auth users (password: see `backend/services/planning-core/migrations/identity/seed/seed-auth-users.ts`).
 6. `npm test` — runs every workspace's test suite (unit and integration) and the script tests. Before you push, also run what CI runs on every pull request: `npm run lint` (ESLint plus the module boundary checks), `npm run typecheck` and `npm run test:unit`, which also checks coverage: domain code must stay at 100%. If the repo sits in OneDrive and Vitest can't clear an old `coverage/` folder (EPERM), delete the folder, or add `-- --coverage.clean=false` when running one workspace.
-7. `npm run dev` — starts planning-core on `:8090` and the web app on <http://localhost:5173> in one terminal, each line prefixed with where it came from. The Vite dev server proxies `/identity/*` and `/event/*` to planning-core, so the browser only ever talks to one origin and planning-core needs no CORS. To run just one: `npm run dev -w @connectsphere/planning-core` (or `web`).
+7. `npm run dev` — starts, in one terminal, the policy decision point, planning-core on `:8090` and its Temporal worker, the notification service on `:8091`, the registration service on `:8092` and the web app on <http://localhost:5173>, each line prefixed with where it came from. The Vite dev server proxies `/identity/*`, `/event/*`, `/venue/*` and `/equipment/*` to planning-core and the other paths to their services, so the browser only ever talks to one origin and the services need no CORS. To run just one: `npm run dev -w @connectsphere/planning-core` (or `web`).
 8. **Permissions (EN-07).** `npm run dev` also starts the Cerbos policy decision point on `policies/` at `http://127.0.0.1:3592` (`CERBOS_URL`, or alone with `npm run cerbos:start`). Every planning-core route asks it, and the staff console's navigation asks it through `POST /api/v1/permissions/check`; Cerbos has no Windows build, so on Windows it runs the Linux build inside WSL (`wsl --install -d Ubuntu` once). Without WSL, planning-core evaluates `policies/` itself in development and its log says `LOCAL-POLICIES MODE`; production never does, and refuses with `503 POLICY_UNAVAILABLE` without a PDP. See `policies/README.md`.
 
 ### Running it without the team's secrets
@@ -84,7 +114,7 @@ The sign-in page lists the accounts, and fills in the first, only in development
 
 ### Coverage
 
-From the CI run on `main` at 9798a4f (run 41749646903): **planning-core covers 96.18% of statements** (92.11% of branches) with the integration tests and unit tests together, and 59.76% by its unit tests alone. **Domain code (`src/**/domain/**`) must stay at 100%** of lines, branches, functions and statements; the unit-test step fails below that. The web app is at 93.04% of statements. Numbers move with every merge; the "Unit tests (with coverage thresholds)" and "Integration tests with coverage" steps of the latest run show the current ones.
+[documentation/testing/coverage.md](documentation/testing/coverage.md) gives each workspace's statement and branch coverage as CI measured it, what is not measured, and why each workspace is below 100%. **Domain code (`src/**/domain/**`) must stay at 100%** of lines, branches, functions and statements; the unit-test step fails below that. The numbers move with every merge: the "Unit tests (with coverage thresholds)" and "Integration tests with coverage" steps of the latest run on `main` show the current ones.
 
 How the images are inventoried, scanned and signed (SBOMs, Trivy, cosign, a ZAP baseline scan; EN-21), and how to verify an image yourself, is in [documentation/supply-chain.md](documentation/supply-chain.md).
 
@@ -141,26 +171,19 @@ link (event, version and why) or the first history row that disagrees. It only r
 after the integration tests, then edits one entry on the runner's throwaway Postgres and checks
 that it fails.
 
-### Temporal Cloud (EN-11 branch)
+### Temporal workflows (EN-11)
 
-Set `TEMPORAL_ADDRESS` (host:port), `TEMPORAL_NAMESPACE`, `TEMPORAL_API_KEY` and
-`TEMPORAL_TASK_QUEUE` in the root `.env`. Validate connectivity without starting
-workflows or touching application data:
+Timers that must fire on their own, such as completing an event once its end time passes and
+expiring a booking hold, are Temporal workflows (ADR-0009), run by planning-core's worker
+(`npm run worker -w @connectsphere/planning-core`, which `npm run dev` also starts). In staging and
+production the Temporal dev server runs inside each environment's container and keeps its state on
+a volume, so a redeploy loses no timer; on start the worker also re-creates any timer that is
+missing, and a sweep every five minutes completes anything a timer missed (EN-11-T4 to T6). The
+recorded workflow histories in `backend/services/planning-core/tests/temporal/histories/` are
+replayed by a unit test on every CI run, so a change that breaks a running workflow fails the build
+(EN-11-T3).
 
-```sh
-npm run temporal:check
-# From an isolated worktree, use the main checkout's existing env file:
-npm run temporal:check -- ../../../.env
-```
-
-This check reads only `TEMPORAL_*` values and never prints credentials. A successful
-check proves connection and namespace access, not that a worker is running. The
-worker runs as part of this branch's `npm run dev`; it consumes event messages and
-can execute completion activities against the configured database.
-
-EN-11 is still incomplete: the history recorder in
-`backend/services/planning-core/scripts/record-workflow-histories.ts` needs a local
-Temporal test server to capture baseline histories, followed by a replay test wired
-into CI. The sandbox used on 20 October refused that server (`EPERM`), and the
-read-only Cloud probe timed out. Neither proves the supplied credentials invalid.
-CancelEvent is also outstanding against the broader Jira acceptance criteria.
+To check a connection to a Temporal server without starting workflows or touching data, set
+`TEMPORAL_ADDRESS` (host:port), `TEMPORAL_NAMESPACE`, `TEMPORAL_API_KEY` and `TEMPORAL_TASK_QUEUE`
+in the root `.env` and run `npm run temporal:check`. It reads only the `TEMPORAL_*` values and never
+prints credentials.
