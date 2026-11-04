@@ -85,10 +85,12 @@ export function parseCsvRows(text: string): TraceRow[] {
 
 /**
  * `it`, `test` or `describe`, optional modifiers (`.each([...])`, `.skip`, and a typed
- * `.each<[string, number]>([...])`), then a quoted title.
+ * `.each<[string, number]>([...])`), then a quoted title. The type argument is matched as balanced
+ * angle brackets one level deep (`.each<[string, Partial<T>]>`), each character having exactly one way
+ * to match, so the repeated modifier group can't backtrack exponentially (CodeQL js/redos).
  */
 const TEST_CALL =
-  /\b(it|test|describe)(?:\.[a-zA-Z]+(?:<[^()]*>)?(?:\((?:[^()]|\([^()]*\))*\))?)*\s*\(\s*(["'`])((?:\\[\s\S]|(?!\2)[^\\])*)\2/g;
+  /\b(it|test|describe)(?:\.[a-zA-Z]+(?:<(?:[^<>()]|<[^<>()]*>)*>)?(?:\((?:[^()]|\([^()]*\))*\))?)*\s*\(\s*(["'`])((?:\\[\s\S]|(?!\2)[^\\])*)\2/g;
 
 /** A title as written in the source, and whether it has holes: `${...}` or an `it.each` placeholder. */
 export interface Title {

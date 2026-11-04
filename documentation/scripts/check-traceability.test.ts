@@ -15,6 +15,15 @@ import {
 
 const HEADER = "story_id,acceptance_criterion,test_file,test_name\n";
 
+test("extractTitles reads nested type arguments and runs in linear time on '>.A<' repeats (CodeQL js/redos)", () => {
+  const nested = 'it.each<[string, Partial<EventTally>]>([["a", {}]])("fails on %s", () => {});';
+  assert.deepEqual(extractTitles(nested, "test").map((t) => t.text), ["fails on %s"]);
+  const hostile = "it" + ">.A<".repeat(5000) + "x";
+  const started = performance.now();
+  extractTitles(hostile, "test");
+  assert.ok(performance.now() - started < 200, "the title pattern must not backtrack exponentially");
+});
+
 const source = `
 describe("POST /things (X1)", () => {
   it("makes a thing", () => {});
