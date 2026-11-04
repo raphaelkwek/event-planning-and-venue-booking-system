@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result |  |
-| Status | Not Executed |
-| Remarks | Proven at API level by backend/services/registration/tests/api/r6Cards.test.ts › R6-T11 tells the waitlist when a further confirmed booking adds places, which passed in CI run https://github.com/raphaelkwek/event-planning-and-venue-booking-system/actions/runs/41523834657 (commit d7abf51). Delivery to the Notifications screen needs Kafka. UI walk-through in Chrome pending at the sprint review. |
-| Executed By |  |
-| Date of Execution |  |
+| Actual Result | FX-R-EVENT (1 seat, taken by another attendee) was made for an event planning-core holds too (Approved), so M1 could confirm it a further venue; Attendee One joined the waitlist. A second venue, whose Theatre layout seats 2, was requested for the event's period. Step 1: Venue Staff approved the request in Booking requests (`<reference> approved. The booking is confirmed.`). The approval was handed to the registration service's seat builder, which built the 2 seats, and the `waitlist.place-opened` it wrote was stored by the notification service (the notification was delivered by the test harness (deliverOutbox, the consumers' own code) in place of Kafka, which CI's stack runs without). The event's page then showed `2 places remaining`; Attendee One had no registration for the event and the entry stayed WAITLISTED with its last-told time set. Step 2: Attendee One's Notifications read `A place has opened at EVT-… “R Test Symposium …”. Register now if you still want one: places go to whoever registers first.` |
+| Status | Pass |
+| Remarks | Automated (browser, Playwright) · Commit: 5bfb25e · Evidence: tests/e2e/r-management.spec.ts › R6-T11 a further confirmed venue booking adds places, and the waitlist is told, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41801285931 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-04 |

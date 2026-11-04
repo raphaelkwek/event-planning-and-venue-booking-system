@@ -17,8 +17,8 @@
 
 | Item | Content |
 |---|---|
-| Actual Result |  |
-| Status | Not Executed |
-| Remarks | Document review, not an automated run. The spike document, the ADR-0008 decision note of 2026-11-03 and implementation.md §3.4 were written together in commit 379c576; a reviewer reads them at the pull request. Commit: 379c576 · Evidence: documentation/spikes/EN-05-cdc-spike.md · Defect: — |
-| Executed By |  |
-| Date of Execution |  |
+| Actual Result | Read on 4 Nov against commit b3d9a66. Question 1 (a replication slot for an external Debezium connector) names the connection type (a direct connection; the Supavisor pooler cannot replicate), the Free plan's limits (the direct connection is IPv6 only; the IPv4 add-on needs the Pro plan) and the role (`postgres`; Debezium needs REPLICATION and LOGIN, CREATE for a publication and ownership of the tables), every finding with its source link. Question 2 is answered per environment in its own table: development's Aiven free plan has no Kafka Connect; Confluent Cloud's managed Debezium connector needs public database access; staging and production's Redpanda has no Connect, and Debezium Server runs the connector instead. Question 1's findings apply alike to every environment's Free-plan project, and the Decision separates development (cannot run Debezium) from staging and production (an IPv6 slot from the node, not tried). The decision is stated once, in three numbered points, and the 'What is built, and what is not' table says what exists and what does not. ADR-0008's decision note of 2026-11-03 and implementation.md §3.4 say the same, and both say plainly that the polling relay is still the publisher in every environment. |
+| Status | Pass |
+| Remarks | Document review · Commit: b3d9a66 · Evidence: documentation/spikes/EN-05-cdc-spike.md, documentation/adr/0008-kafka-cdc-outbox-cloudevents-schema-registry.md (decision note 2026-11-03), documentation/planning/implementation.md §3.4 · Defect: — |
+| Executed By | Joash, document review |
+| Date of Execution | 2026-11-04 |

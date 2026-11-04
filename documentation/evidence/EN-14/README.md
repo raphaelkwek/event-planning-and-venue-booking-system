@@ -83,6 +83,17 @@ notifications appearing (T2), seats being built from an approval (EN-13), and ho
 Redpanda container could be added as a CI service later; the services' Kafka client needs TLS, which
 is why it isn't a one-line change.
 
+**Since 4 Nov 2026, a journey can deliver its own messages.** A card whose last step reads Notifications,
+or needs the registration service to react to a message (an approval building seats, a cancellation
+cancelling registrations), calls `deliverOutbox(eventId, …)` (`tests/e2e/support/deliver.ts`). It reads
+the unpublished outbox rows about that one event, turns each into the Kafka message the relay would send
+with the relay's own `prepareRow`, and hands it to the consumers' own handlers (notification's
+`handleMessage`; on request the registration service's seat builder and listing handler), repeating so
+the messages a consumer writes in turn are delivered too. Only the Kafka transport is skipped, and the
+consumers' inboxes still drop a message they have handled. Every other journey is unchanged: nothing is
+delivered unless a journey asks, so no background consumer changes what another journey sees. Hold
+expiry (Temporal) is still not covered.
+
 ## How to run it
 
 **In CI:** every pull request runs the `e2e` job. It isn't a required check. Artifacts:
@@ -136,8 +147,9 @@ teammate's `npm run dev` pointed at the shared database.
 * Runs the card's steps but doesn't prove its whole expected result, so the card was not changed:
 M1-T1 (the "other venue isn't listed" half needs a venue Venue Staff don't look after), I1-T2/T3/T8 (own
 data rather than FX-CALENDAR's exact rows; I1-T8's "free periods unchanged" doesn't hold for an L1 request,
-which has no setup or turnaround while pending), I2-T6 (who flagged it and when isn't exposed), and Q1-T14,
-S1-T13, S2-T12 (their notifications need Kafka).
+which has no setup or turnaround while pending), and I2-T6 (who flagged it and when isn't exposed). Q1-T14,
+S1-T13 and S2-T12, listed here before because their notifications needed Kafka, deliver their messages
+since 4 Nov (above).
 
 **Cards recorded as Pass from this run:** 78 story cards and EN-14-T1 to T8 (listed in the pull request).
 Their records cite the spec, the exact test name and the run.
@@ -161,5 +173,5 @@ and critical violations fail the test; no rule is switched off. Findings: [axe-f
 ## Not done
 
 - **A hosted per-PR preview.** See above; the ephemeral stack is the criterion's alternative.
-- **Flows that need Kafka or Temporal** (notifications, seat building, hold expiry), as above.
+- **Flows that need Temporal** (hold expiry), and Kafka's transport itself; notifications and the registration service's reactions run through `deliverOutbox`, as above.
 - **Cards only partly proven** by a journey stay as they were; the list is in the pull request.

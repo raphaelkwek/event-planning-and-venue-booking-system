@@ -20,6 +20,6 @@
 |---|---|
 | Actual Result | Not run. Needs a cloud account and a cluster. |
 | Status | Not Executed |
-| Remarks | Commit: · Evidence: Not run: no AWS account or cluster exists yet. The commands that can be run without one are exercised by the kind jobs. · Defect: |
+| Remarks | Not run: the guide's path needs an AWS account and an EKS cluster, which the team never had; ADR-0016 replaced it (k3s, then one Azure VM in its amendment), so this case cannot be run as written. The live path is covered by DEPLOY-T12 and DEPLOY-T15. · Defect: — |
 | Executed By |  |
 | Date of Execution |  |

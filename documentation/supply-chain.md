@@ -25,7 +25,7 @@ first (a GitHub token with `read:packages`). The package's visibility is a setti
 organisation or account that owns the repository, not something this repository controls.
 
 ```bash
-OWNER=raphaelkwek
+OWNER=joass1
 REPO=event-planning-and-venue-booking-system
 IMAGE=ghcr.io/$OWNER/connectsphere-planning-core        # or -registration, -notification, -migrate, -cerbos
 SHA=<a commit sha on main>

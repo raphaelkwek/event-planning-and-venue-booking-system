@@ -1,8 +1,11 @@
 import type { Locator, Page } from "@playwright/test";
 import { ACCOUNTS } from "./support/accounts.js";
-import { expect, signIn, test } from "./support/fixtures.js";
+import { expect, signIn, signOut, test, uniqueName } from "./support/fixtures.js";
 import { must } from "./support/api.js";
-import { approvedRequest, createVenue, type EventRow, type VenueRow } from "./support/seed.js";
+import { deliverOutbox } from "./support/deliver.js";
+import { messageOf, openNotifications } from "./support/notifications.js";
+import { approvedRequest, createVenue, type VenueRow } from "./support/seed.js";
+import { query } from "./support/seed-events.js";
 import {
   PERIOD,
   PERIOD_TEXT,
@@ -14,13 +17,14 @@ import {
   venueBlocks,
   type HoldRow,
 } from "./support/seed-venues.js";
+import { holdsOf, openNav, openVenueRequests, placedHold, runHoldExpirySweep, singaporeMoment, storedNotices } from "./support/seed-venue-notices.js";
 
 /**
  * Venue bookings through the real screens: a coordinator's booking request (L1) and hold (L3),
- * Venue Staff's decisions on them (M1, M2, L3), unavailability blocks (I2) and the availability
- * calendar that shows them all (I1). The cards' SQL-editor reads are done through the same API
- * the screens read. The cards' 2 December 2026 period is moved to Tuesday 2 March 2027, so the
- * journeys never fall into the past.
+ * Venue Staff's decisions on them (M1, M2, L3), a hold's expiry (L6), unavailability blocks (I2)
+ * and the availability calendar that shows them all (I1). The cards' SQL-editor reads are done
+ * through the same API the screens read. The cards' 2 December 2026 period is moved to Tuesday
+ * 2 March 2027, so the journeys never fall into the past.
  */
 
 const VENUE_STAFF = ACCOUNTS.venuestaff.id;
@@ -31,20 +35,6 @@ async function bookingFixture(venueOverrides: Record<string, unknown> = {}) {
   const event = await approvedRequest();
   const venue = await createVenue(venueOverrides);
   return { event, venue };
-}
-
-/** The coordinator's way to an event's venue requests: "All events" → the event → "Venue requests". */
-async function openVenueRequests(page: Page, event: EventRow) {
-  await page.getByRole("navigation").getByRole("link", { name: "All events" }).click();
-  await page.getByRole("row").filter({ hasText: event.name }).getByRole("link", { name: "Open" }).click();
-  await expect(page.getByRole("heading", { name: event.name, level: 2 })).toBeVisible();
-  await page.getByRole("link", { name: "Venue requests" }).click();
-  await expect(page.getByRole("heading", { name: "Venue requests" })).toBeVisible();
-}
-
-async function openNav(page: Page, label: string) {
-  await page.getByRole("navigation").getByRole("link", { name: label, exact: true }).click();
-  await expect(page.getByRole("heading", { name: label, level: 2 })).toBeVisible();
 }
 
 /** A venue's availability calendar for one day, through "Venues" → "View" → "Availability". */
@@ -293,6 +283,106 @@ test.describe("L3 tentative holds", () => {
     // The hold's slot: the calendar shows the period Held, labelled with the event.
     await openCalendarDay(page, venue, "2027-03-02");
     await expect(committed(day(page, "Tuesday 2 March 2027")).filter({ hasText: "14:00–18:00" })).toHaveText(`14:00–18:00 Held ${event.reference}`);
+  });
+});
+
+test.describe("L6 holds expire", () => {
+  test("L6-T12 Venue Staff change a hold's expiry on screen, an expired hold shows no actions, and the coordinator's notices name the hold", { tag: ["@L6", "@L6-T12"] }, async ({ page, a11y }) => {
+    // Step 5 waits, as the card does, for a real expiry to pass.
+    test.setTimeout(180_000);
+    const { event, venue } = await bookingFixture();
+    // HLD-A as L3-T5 leaves it: Held, expiring the day before at 18:00, its reminder 60 minutes before that.
+    const holdA = await placedHold(event.id, venue.id, "2027-03-01T18:00:00+08:00");
+    // HLD-B expires shortly, to watch an expiry happen. An event holds a venue once (L3, CR-03) and a period
+    // is held once, so HLD-B is the event's hold of its other venue, FX-BOOKING's Seminar Room 2-1.
+    const seminar = await createVenue({ name: uniqueName("Seminar Room 2-1"), maxCapacity: 60, layouts: [{ name: "Classroom", capacity: 60 }] });
+    const holdB = await placedHold(event.id, seminar.id, new Date(Date.now() + 40_000).toISOString());
+    const expiresB = holdB.expiresAt!;
+    const named = `${event.reference} “${event.name}”`;
+
+    // Step 1: Venue Staff find HLD-A among the placed holds and change its expiry.
+    await signIn(page, "venuestaff");
+    await openNav(page, "Hold requests");
+    await expect(page.getByRole("heading", { name: "Placed holds" })).toBeVisible();
+    const rowA = page.getByRole("row", { name: holdA.reference });
+    const expiresCell = rowA.getByRole("cell").nth(6);
+    await expect(expiresCell).toHaveText("Monday 1 March 2027, 18:00");
+    await rowA.getByRole("button", { name: "Change expiry" }).click();
+    const date = page.getByLabel(`New expiry date for ${holdA.reference}`);
+    const time = page.getByLabel(`New expiry time for ${holdA.reference}`);
+    const save = rowA.getByRole("button", { name: "Save", exact: true });
+
+    // Step 2: an expiry in the past is refused inline, and the old expiry is kept.
+    await date.fill("2026-01-05");
+    await time.fill("09:00");
+    await save.click();
+    await expect(rowA.getByRole("alert")).toHaveText("The expiry must be later than now.");
+    await expect(expiresCell).toContainText("Monday 1 March 2027, 18:00");
+    const kept = (await holdsOf(event.id)).find((h) => h.id === holdA.id)!;
+    expect(Date.parse(kept.expiresAt!)).toBe(Date.parse("2027-03-01T18:00:00+08:00"));
+    await a11y("placed holds, expiry in the past refused");
+
+    // Step 3: no expiry at all is refused inline.
+    await date.fill("");
+    await time.fill("");
+    await save.click();
+    await expect(rowA.getByRole("alert")).toHaveText("Enter the expiry date and time.");
+
+    // Step 4: 1 March 2027 at 20:00 saves, and HLD-A is still Held (only a Held hold offers "Change expiry").
+    await date.fill("2027-03-01");
+    await time.fill("20:00");
+    await save.click();
+    await expect(page.getByText(`${holdA.reference} now expires on Monday 1 March 2027, 20:00.`)).toBeVisible();
+    await expect(expiresCell).toHaveText("Monday 1 March 2027, 20:00");
+    await expect(rowA.getByRole("button", { name: "Change expiry" })).toBeVisible();
+    const moved = (await holdsOf(event.id)).find((h) => h.id === holdA.id)!;
+    expect(moved.status).toBe("HELD");
+    expect(Date.parse(moved.expiresAt!)).toBe(Date.parse("2027-03-01T20:00:00+08:00"));
+
+    // Step 5: once HLD-B's expiry has passed, it expires. CI's stack has no Temporal worker, so the test runs
+    // `npm run jobs:expire-holds`'s sweep, the fallback that expires a hold the workflow has not.
+    const wait = Date.parse(expiresB) + 2_000 - Date.now();
+    if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait));
+    await runHoldExpirySweep();
+    const expired = (await holdsOf(event.id)).find((h) => h.id === holdB.id)!;
+    expect(expired.status).toBe("EXPIRED");
+    const expiredText = `Expired on ${singaporeMoment(expired.expiredAt ?? expired.expiresAt!)}`;
+    await page.reload();
+    await expect(page.getByRole("heading", { name: "Placed holds" })).toBeVisible();
+    const rowB = page.getByRole("row", { name: holdB.reference });
+    await expect(rowB.getByRole("cell").nth(6)).toHaveText(expiredText);
+    await expect(rowB.getByRole("button")).toHaveCount(0);
+    await a11y("placed holds with an expired hold");
+    await signOut(page);
+
+    // Step 6: the expiry's message reaches the notification service (the test harness delivers it, as this
+    // stack has no Kafka). Nothing reminded anyone of HLD-A: its new expiry is far more than 60 minutes away.
+    const deliveries = await deliverOutbox(event.id, {
+      types: ["venue-booking.hold-expired", "venue-booking.hold-expiring", "venue-booking.hold-expiry-changed"],
+    });
+    expect(storedNotices(deliveries, "venue-booking.hold-expired")).toBe(1);
+    expect(deliveries.filter((d) => d.type === "venue-booking.hold-expiring")).toEqual([]);
+    const [reminded] = await query<{ reminded_at: Date | null }>("select reminded_at from venue.holds where id = $1", [holdA.id]);
+    expect(reminded!.reminded_at).toBeNull();
+
+    const notices = await openNotifications(page, "coordinator");
+    await expect(messageOf(notices.filter({ hasText: `Hold ${holdB.reference} ` }))).toHaveText([
+      `Hold ${holdB.reference} on ${seminar.name} for ${named}, ${PERIOD_TEXT}, expired on ${singaporeMoment(expiresB)}. The period is free for others.`,
+    ]);
+    await expect(
+      notices.filter({ hasText: `Hold ${holdA.reference} ` }).filter({ hasText: "Convert it to a booking request or ask Venue Staff to extend it." }),
+    ).toHaveCount(0);
+    await a11y("notifications, hold expired");
+
+    await openVenueRequests(page, event);
+    const holds = page.getByRole("table", { name: "Holds" });
+    const heldB = holds.getByRole("row", { name: holdB.reference });
+    await expect(heldB.getByRole("cell").nth(3)).toHaveText("Expired");
+    await expect(heldB.getByRole("cell").nth(4)).toHaveText(expiredText);
+    await expect(heldB.getByRole("button")).toHaveCount(0);
+    const heldA = holds.getByRole("row", { name: holdA.reference });
+    await expect(heldA.getByRole("cell").nth(3)).toHaveText("Held");
+    await expect(heldA.getByRole("cell").nth(4)).toHaveText("Monday 1 March 2027, 20:00");
   });
 });
 

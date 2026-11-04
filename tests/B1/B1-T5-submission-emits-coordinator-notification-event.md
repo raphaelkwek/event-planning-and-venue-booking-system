@@ -20,12 +20,20 @@
 > ships. B1 owns the trigger, which is implemented, so the trigger is what this case checks. Neither
 > half was dropped.
 
+> **Revised 2026-11-04.** Step 1 names the Supabase SQL editor, which an automated run can't use. The test does
+> FX-SUBMITTED on CI's throwaway stack and runs the same query, unchanged, against that stack's database. The expected
+> result is unchanged. Two things have moved since it was written: in the team's environment the outbox relay
+> (EN-04.2) now publishes each row about a second after it is written, so there `published_at` is filled in; CI's stack
+> runs without Kafka, so there it stays null. And since E3 (CR-05) no coordinator is assigned at submission: a
+> coordinator hears of the request when the Lead assigns it, from `event.coordinator-assigned` (E1-T2). The
+> `event.submitted` message this case checks is still written at submission, with the same fields.
+
 ## Execution record
 
 | Item | Content |
 |---|---|
-| Actual Result | |
-| Status | Not Executed |
-| Remarks | Commit: · Evidence: · Defect: · Specification revised 2026-09-20; the previous record (Blocked, Joash, 2026-09-20) was against the pre-split specification. |
-| Executed By | |
-| Date of Execution | |
+| Actual Result | The organiser submitted the standard request through New request → Submit request; the page showed status Submitted and an EVT- reference. The card's query, with the request's id, returned one event.submitted row whose reference was the one the page showed, whose owner_id was 00000000-0000-0000-0000-000000000001, and whose published_at was null (CI's stack runs without Kafka, so no relay published it). Run on CI's throwaway stack, with unique names in place of the card's literal names; the card's query ran unchanged against that stack's database in place of the Supabase SQL editor. |
+| Status | Pass |
+| Remarks | Automated (browser, Playwright) · Commit: 5bfb25e · Evidence: tests/e2e/event-messages.spec.ts › B1-T5 submitting a request emits the event that a coordinator's notification is built from, CI run https://github.com/joass1/event-planning-and-venue-booking-system/actions/runs/41801285931 · Defect: — |
+| Executed By | Joash, via automated testing (CI) |
+| Date of Execution | 2026-11-04 |
