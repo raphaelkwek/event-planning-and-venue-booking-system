@@ -236,7 +236,9 @@ describe("G2 cards: previewing the arrangements a pending change would affect", 
     expect(response.body.impact.flags).toEqual([
       bookingFlag(fx, "b1", "UNSUITABLE", `Expected attendance is now 150, but ${fx.v1.name} holds 100 in the Theatre layout.`),
     ]);
+    // Both bookings are still listed, B1 and B2.
     expect(response.body.impact.bookings).toHaveLength(2);
+    expect((response.body.impact.bookings as { id: string }[]).map((b) => b.id).sort()).toEqual([fx.b1.id, fx.b2.id].sort());
   });
 
   it("G2-T5 previewing alters no booking, reservation, flag, request, event or outbox", async () => {
