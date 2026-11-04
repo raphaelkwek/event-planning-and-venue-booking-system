@@ -49,4 +49,26 @@ describe("registration error handling", () => {
     expect(res.status).toBe(503);
     expect(res.text).not.toContain("password");
   });
+  it("an unknown route is a 404 NOT_FOUND envelope, not Express's HTML page", async () => {
+    const res = await request(app).get("/api/v1/does-not-exist").set("X-Correlation-Id", "c-404");
+    expect(res.status).toBe(404);
+    expect(res.headers["content-type"]).toMatch(/application\/json/);
+    expect(res.body.error).toMatchObject({ code: "NOT_FOUND", correlationId: res.headers["x-correlation-id"] });
+    expect(res.text).not.toContain("Cannot GET");
+    expect(res.text).not.toContain("<html");
+  });
+
+  it("an unknown route of any method, outside /api too, answers the same envelope", async () => {
+    for (const [method, path] of [["post", "/registration/api/v1/events/x/registrations"], ["delete", "/nothing"], ["get", "/"]] as const) {
+      const res = await request(app)[method](path);
+      expect(res.status, `${method} ${path}`).toBe(404);
+      expect(res.body.error.code).toBe("NOT_FOUND");
+    }
+  });
+
+  it("a known path with an unsupported method is also the envelope", async () => {
+    const res = await request(app).put("/api/v1/registrations");
+    expect(res.status).toBe(404);
+    expect(res.body.error.code).toBe("NOT_FOUND");
+  });
 });

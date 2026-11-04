@@ -10,6 +10,7 @@ import { healthRouter } from "./health.js";
 import { probeBroker } from "./kafka.js";
 import { logger } from "./logger.js";
 import { supabaseAuthenticator } from "./api/identity.js";
+import { refuse } from "./api/errors.js";
 import { registrationRateLimiter } from "./api/limiter.js";
 import { registrationRouter } from "./api/routes.js";
 import { waitingRoomRouter } from "./api/waitingRoom.js";
@@ -65,6 +66,11 @@ app.use((req, res, next) => {
 app.use(healthRouter(sql, probeBroker));
 app.use(registrationRouter({ sql, auth: supabaseAuthenticator, limiter: registrationRateLimiter(config.rateLimitPerMinute) }));
 app.use(waitingRoomRouter({ sql, auth: supabaseAuthenticator }));
+
+// Any path no router served: the envelope, not Express's HTML "Cannot GET" page (implementation.md §5).
+app.use((req, res) => {
+  refuse(res, 404, "NOT_FOUND", `No route serves ${req.method} ${req.path}.`);
+});
 
 // Last, so that anything a route rejects with or passes to next(error) ends in the envelope.
 app.use(errorHandler);

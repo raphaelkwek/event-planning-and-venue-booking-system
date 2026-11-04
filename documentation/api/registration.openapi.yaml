@@ -943,6 +943,7 @@ components:
         - EVENT_NOT_FOUND
         - IDENTITY_UNAVAILABLE
         - INTERNAL_ERROR
+        - NOT_FOUND
         - NO_ROLE_ASSIGNED
         - RATE_LIMITED
         - REGISTRATION_DUPLICATE
