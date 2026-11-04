@@ -156,12 +156,15 @@ export interface Fragment {
   text: string;
 }
 
+/** A file as LF text: a Windows checkout with core.autocrlf writes CRLF, which the parser would miss. */
+const readText = (path: string) => readFileSync(path, "utf8").replace(/\r\n/g, "\n");
+
 /** The fragments in a changelog/ folder. Any other file there (a README) is not a fragment. */
 export function readFragments(dir: string): Fragment[] {
   if (!existsSync(dir)) return [];
   return readdirSync(dir)
     .filter((name) => FRAGMENT_NAME.test(name))
-    .map((name) => ({ name, text: readFileSync(join(dir, name), "utf8") }));
+    .map((name) => ({ name, text: readText(join(dir, name)) }));
 }
 
 const fragmentEntries = (fragment: Fragment) => parseChangelog(`---\n\n${fragment.text}`);
@@ -189,7 +192,7 @@ export function combineChangelog(changelog: string, fragments: Fragment[]): stri
 
 /** The whole log of the repository at `root`: changelog/ and CHANGELOG.md. */
 export function readCombinedChangelog(root: string): string {
-  return combineChangelog(readFileSync(join(root, "CHANGELOG.md"), "utf8"), readFragments(join(root, "changelog")));
+  return combineChangelog(readText(join(root, "CHANGELOG.md")), readFragments(join(root, "changelog")));
 }
 
 /** Why a fragment is not a usable entry: no "# Title", no readable Timestamp, or no Author. */

@@ -448,3 +448,18 @@ test("a row naming an it.each template's wording matches the expanded results, b
   const matrix = buildMatrix([row("X", "AC1", FILE_A, "replays each history deterministically"), row("X", "AC2", FILE_A, "replays it differently")], parseVitestReport(report, ROOT), [], [], templates);
   assert.deepEqual(matrix.stories[0]!.criteria.map((c) => c.tests[0]!.result), ["fail", "not found"]);
 });
+
+test("per-story files checked out with CRLF line endings load whole and pass the layout check", () => {
+  const dir = mkdtempSync(join(tmpdir(), "trace-crlf-"));
+  try {
+    mkdirSync(join(dir, "sprint-4"));
+    writeFileSync(join(dir, "sprint-4", "F3.csv"), "story_id,acceptance_criterion,test_file,test_name\r\nF3,AC one,a.ts,F3-T1 cancels\r\nF3,\"AC, two\",b.ts,F3-T2 refuses\r\n");
+    assert.deepEqual(traceabilityProblems(dir), []);
+    assert.deepEqual(
+      loadCriterionRows(dir).map((r) => [r.story, r.criterion, r.testFile, r.testName, r.row]),
+      [["F3", "AC one", "a.ts", "F3-T1 cancels", 1], ["F3", "AC, two", "b.ts", "F3-T2 refuses", 2]],
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
