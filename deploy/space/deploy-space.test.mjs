@@ -115,3 +115,20 @@ test("DEPLOY-T18 the probe Space checks both pooler ports and the project's host
   assert.match(files["README.md"], /sdk: docker\napp_port: 7860/);
   assert.ok(!/token|password|key=/i.test(files["app.py"]));
 });
+
+test("EN-11-T5 supervisord runs the F1 completion sweep and the L6 hold-expiry sweep, and every five minutes", () => {
+  const read = (name) => readFileSync(new URL(name, import.meta.url), "utf8").replace(/\r\n/g, "\n");
+  const supervisord = read("./supervisord.conf");
+  const program = supervisord.slice(supervisord.indexOf("[program:sweeps]")).split("\n\n")[0];
+  assert.match(program, /^command=bash \/app\/deploy\/space\/sweeps\.sh$/m);
+  assert.match(program, /^autorestart=true$/m);
+  // Its node child goes with it when supervisord stops it.
+  assert.match(program, /^stopasgroup=true$/m);
+  assert.match(program, /^killasgroup=true$/m);
+
+  const sweeps = read("./sweeps.sh");
+  assert.match(sweeps, /^SWEEP_INTERVAL_SECONDS=300$/m);
+  assert.ok(sweeps.includes("dist/modules/event/jobs/runCompleteEvents.js"));
+  assert.ok(sweeps.includes("dist/modules/venue/jobs/runExpireHolds.js"));
+  assert.match(sweeps, /sleep "\$SWEEP_INTERVAL_SECONDS"/);
+});
