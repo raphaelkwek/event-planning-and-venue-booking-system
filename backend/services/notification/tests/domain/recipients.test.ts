@@ -310,73 +310,121 @@ describe("notificationsFor", () => {
     const venueStaff = "00000000-0000-0000-0000-000000000005";
     const otherVenueStaff = "00000000-0000-0000-0000-000000000006";
     const techSupport = "00000000-0000-0000-0000-000000000007";
+    const moved = "The event now starts at 15:00, but the booking starts at 14:00.";
+    const tooSmall = "The event now expects 150 people, but the Theatre layout holds 100.";
+    const reservationMoved = "The event now starts at 15:00, but the reservation starts at 14:00.";
+    // As planning-core writes it for S3-T13: one entry per flag, so the auditorium booking, moved and
+    // too small, appears twice; Venue Staff One looks after both venues.
     const flagged = {
       changeRequestId: "0b5f7a3e-1c2d-4e5f-8a9b-0c1d2e3f4a5b",
       returnedToPlanning: false,
       bookings: [
-        {
-          reference: "BKR-000001",
-          venueName: "Lee Kong Chian Auditorium",
-          flag: "REQUIRES_RECONFIRMATION",
-          reason: "The event now starts at 15:00, but the booking starts at 14:00.",
-          staffIds: [venueStaff, otherVenueStaff],
-        },
-        {
-          reference: "BKR-000002",
-          venueName: "Lecture Hall B",
-          flag: "UNSUITABLE",
-          reason: "The event now expects 150 people, but the Theatre layout holds 100.",
-          staffIds: [venueStaff],
-        },
+        { reference: "BKR-000001", venueName: "Lee Kong Chian Auditorium", flag: "REQUIRES_RECONFIRMATION", reason: moved, staffIds: [venueStaff, otherVenueStaff] },
+        { reference: "BKR-000001", venueName: "Lee Kong Chian Auditorium", flag: "UNSUITABLE", reason: tooSmall, staffIds: [venueStaff, otherVenueStaff] },
+        { reference: "BKR-000002", venueName: "Lecture Hall B", flag: "REQUIRES_RECONFIRMATION", reason: moved, staffIds: [venueStaff] },
       ],
-      reservations: [
-        {
-          equipmentTypeName: "Projectors",
-          flag: "FLAGGED_FOR_REVIEW",
-          reason: "The event now starts at 15:00, but the reservation starts at 14:00.",
-          reservedBy: techSupport,
-        },
-      ],
+      reservations: [{ equipmentTypeName: "Projectors", flag: "FLAGGED_FOR_REVIEW", reason: reservationMoved, reservedBy: techSupport }],
     };
     const notes = (data: Record<string, unknown> = flagged) => notificationsFor(message("change-request.arrangements-flagged", data));
+    const textFor = (recipient: string, data?: Record<string, unknown>) =>
+      notes(data).filter((note) => note.recipientUserId === recipient).map((note) => note.message);
 
-    it("notifies each booking's venue staff, once per flag, and the member who reserved each reservation", () => {
+    it("tells each person once, however many of their arrangements carry flags, so the message can be stored (S3-T13's defect)", () => {
+      // notification.notifications is unique on (source_message_id, recipient_user_id): a second
+      // notice for Venue Staff One failed the whole message, and nobody was told.
       expect(notes().map((note) => [note.recipientUserId, note.relatedReference])).toEqual([
         [venueStaff, null],
         [otherVenueStaff, null],
-        [venueStaff, null],
         [techSupport, null],
       ]);
       expect(notes().every((note) => note.notificationType === "change-request.arrangements-flagged" && note.eventId === eventId)).toBe(true);
     });
 
-    it("tells Venue Staff which booking needs attention and why", () => {
-      expect(notes().map((note) => note.message).slice(0, 3)).toEqual([
-        "Booking BKR-000001 at Lee Kong Chian Auditorium for EVT-2026-0042 “Freshmen Orientation” needs attention after an approved change: The event now starts at 15:00, but the booking starts at 14:00.",
-        "Booking BKR-000001 at Lee Kong Chian Auditorium for EVT-2026-0042 “Freshmen Orientation” needs attention after an approved change: The event now starts at 15:00, but the booking starts at 14:00.",
-        "Booking BKR-000002 at Lecture Hall B for EVT-2026-0042 “Freshmen Orientation” needs attention after an approved change: The event now expects 150 people, but the Theatre layout holds 100.",
+    it("names every flagged booking of a Venue Staff member in their one notice, with each reason", () => {
+      expect(textFor(venueStaff)).toEqual([
+        "Booking BKR-000001 at Lee Kong Chian Auditorium and booking BKR-000002 at Lecture Hall B for EVT-2026-0042 “Freshmen Orientation” " +
+          `need attention after an approved change. BKR-000001: ${moved} ${tooSmall} BKR-000002: ${moved}`,
+      ]);
+    });
+
+    it("gives both reasons of a booking flagged twice, in one notice", () => {
+      expect(textFor(otherVenueStaff)).toEqual([
+        `Booking BKR-000001 at Lee Kong Chian Auditorium for EVT-2026-0042 “Freshmen Orientation” needs attention after an approved change: ${moved} ${tooSmall}`,
       ]);
     });
 
     it("tells the reserver to review the reservation and release it if no longer needed", () => {
-      expect(notes()[3]!.message).toBe(
-        "The Projectors reservation for EVT-2026-0042 “Freshmen Orientation” is flagged for review after an approved change: The event now starts at 15:00, but the reservation starts at 14:00. Release it if it is no longer needed.",
-      );
+      expect(textFor(techSupport)).toEqual([
+        `The Projectors reservation for EVT-2026-0042 “Freshmen Orientation” is flagged for review after an approved change: ${reservationMoved} Release it if it is no longer needed.`,
+      ]);
+    });
+
+    it("names every flagged reservation of one member in their one notice, and asks them to release what is no longer needed", () => {
+      const reservation = (equipmentTypeName: string, reason: string) => ({ equipmentTypeName, flag: "FLAGGED_FOR_REVIEW", reason, reservedBy: techSupport });
+      const three = {
+        ...flagged,
+        bookings: [],
+        reservations: [reservation("Projectors", reservationMoved), reservation("Microphones", reservationMoved), reservation("Folding Chairs", "The event now ends at 19:00, but the reservation ends at 18:00.")],
+      };
+      expect(textFor(techSupport, three)).toEqual([
+        "The Projectors reservation, the Microphones reservation and the Folding Chairs reservation for EVT-2026-0042 “Freshmen Orientation” " +
+          `need attention after an approved change. Projectors: ${reservationMoved} Microphones: ${reservationMoved} ` +
+          "Folding Chairs: The event now ends at 19:00, but the reservation ends at 18:00. Release any reservation that is no longer needed.",
+      ]);
     });
 
     it("names a flagged hold or pending booking request as such", () => {
       const venueOnly = (arrangement: string) => ({
         ...flagged,
-        bookings: [{ ...flagged.bookings[1]!, arrangement }],
+        bookings: [{ ...flagged.bookings[2]!, arrangement }],
         reservations: [],
       });
       expect(notes(venueOnly("HOLD"))[0]!.message).toMatch(/^Hold BKR-000002 at Lecture Hall B for /);
       expect(notes(venueOnly("BOOKING_REQUEST"))[0]!.message).toMatch(/^Booking request BKR-000002 at Lecture Hall B for /);
       expect(notes(venueOnly("BOOKING"))[0]!.message).toMatch(/^Booking BKR-000002 at Lecture Hall B for /);
+      const holdAndRequest = {
+        ...flagged,
+        bookings: [
+          { ...flagged.bookings[2]!, arrangement: "HOLD" },
+          { ...flagged.bookings[2]!, arrangement: "BOOKING_REQUEST", reference: "BKR-000003", venueName: "Seminar Room 2-1" },
+        ],
+        reservations: [],
+      };
+      expect(textFor(venueStaff, holdAndRequest)).toEqual([
+        "Hold BKR-000002 at Lecture Hall B and booking request BKR-000003 at Seminar Room 2-1 for EVT-2026-0042 “Freshmen Orientation” " +
+          `need attention after an approved change. BKR-000002: ${moved} BKR-000003: ${moved}`,
+      ]);
     });
 
     it("notifies nobody for a list that is empty", () => {
       expect(notes({ ...flagged, bookings: [], reservations: [] })).toEqual([]);
+    });
+  });
+
+  describe("one notification per person a message names (the inbox's idempotency key)", () => {
+    it("gives a Lead the message names twice one notification, not a second that would fail the whole message", () => {
+      const [lead, otherLead] = ["00000000-0000-0000-0000-000000000010", "00000000-0000-0000-0000-000000000011"];
+      const notes = notificationsFor(
+        message("event.submitted", { ownerId: organiser, proposedStartAt: at, proposedEndAt: at, submittedAt: at, leadIds: [lead, otherLead, lead] }),
+      );
+      const text = "Event request EVT-2026-0042 “Freshmen Orientation” was submitted and is waiting in your unassigned queue to be assigned a coordinator.";
+      expect(notes.map((note) => [note.recipientUserId, note.message])).toEqual([
+        [lead, text],
+        [otherLead, text],
+      ]);
+    });
+
+    it("keeps each different thing a message tells one person, in order, in their one notification", () => {
+      const notes = notificationsFor(
+        message("event.coordinator-assigned", { coordinatorId: coordinator, coordinatorName: "Coordinator Two", ownerId: coordinator, assignmentRule: "LEAD", assignedAt: at }),
+      );
+      expect(notes.map((note) => [note.recipientUserId, note.message])).toEqual([
+        [
+          coordinator,
+          "Event request EVT-2026-0042 “Freshmen Orientation” has been assigned to you and is awaiting your review. " +
+            "Your event request EVT-2026-0042 “Freshmen Orientation” has been assigned to Coordinator Two, who is now your point of contact.",
+        ],
+      ]);
     });
   });
 
@@ -758,6 +806,17 @@ describe("F5: tells the owner, each booked venue's staff and each reserver that 
       (note) => note.recipientUserId,
     );
     expect(recipients).toEqual([organiser, venueStaff, otherVenueStaff]);
+  });
+
+  it("tells a Venue Staff member who looks after two booked venues once, naming both bookings, so the message can be stored", () => {
+    const [first, second] = confirmed.bookings;
+    const both = { ...confirmed, bookings: [first!, { ...second!, staffIds: [venueStaff], startsAt: "2026-12-03T06:00:00.000Z", endsAt: "2026-12-03T10:00:00.000Z" }] };
+    const notes = notificationsFor(message("event.arrangements-confirmed", both));
+    expect(notes.map((note) => note.recipientUserId)).toEqual([organiser, venueStaff, otherVenueStaff, techSupport, otherTechSupport]);
+    expect(notes.filter((note) => note.recipientUserId === venueStaff).map((note) => note.message)).toEqual([
+      "EVT-2026-0042 “Freshmen Orientation” has confirmed its arrangements, including booking BKR-000001 at Lee Kong Chian Auditorium, " +
+        "Wednesday 2 December 2026, 14:00–18:00; booking BKR-000002 at Seminar Room 2-1, Thursday 3 December 2026, 14:00–18:00. It is now in Safety Review.",
+    ]);
   });
 });
 

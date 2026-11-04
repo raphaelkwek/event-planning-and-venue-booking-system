@@ -502,23 +502,29 @@ describe("S3 cards: reconsidering the arrangements an approved change affects", 
       expect.objectContaining({ equipmentTypeName: fx.r1.typeName, flag: "FLAGGED_FOR_REVIEW", reservedBy: A.ts }),
     ]);
 
-    // The notification service's recipient rule turns it into one notice per recipient and arrangement.
+    // The notification service's recipient rule turns it into one notice per recipient, naming each of
+    // their flagged arrangements: VS looks after both venues, so VS's one notice names B1 and B2. A
+    // second notice for VS would fail notification.notifications' (source_message_id,
+    // recipient_user_id) key and nobody would be told (S3-T13's defect).
     const notices = notificationsFor(message);
     const venueStaffNotices = notices.filter((n) => n.recipientUserId === A.vs);
-    expect(venueStaffNotices).toHaveLength(2);
-    for (const reference of [fx.b1.reference, fx.b2.reference]) {
-      const notice = venueStaffNotices.find((n) => n.message.includes(reference));
-      expect(notice).toBeDefined();
-      expect(notice).toMatchObject({ eventId: fx.event.id, eventReference: fx.event.reference });
-      expect(notice!.message).toContain(fx.event.reference);
-      expect(notice!.message).toContain(bookingMovedReason);
+    expect(venueStaffNotices).toHaveLength(1);
+    expect(venueStaffNotices[0]).toMatchObject({ eventId: fx.event.id, eventReference: fx.event.reference });
+    expect(venueStaffNotices[0]!.message).toContain(fx.event.reference);
+    for (const [reference, venue] of [
+      [fx.b1.reference, fx.v1.name],
+      [fx.b2.reference, fx.v2.name],
+    ]) {
+      expect(venueStaffNotices[0]!.message).toContain(`${reference} at ${venue}`);
+      expect(venueStaffNotices[0]!.message).toContain(`${reference}: ${bookingMovedReason}`);
     }
     const supportNotices = notices.filter((n) => n.recipientUserId === A.ts);
     expect(supportNotices).toHaveLength(1);
     expect(supportNotices[0]!.message).toContain(fx.event.reference);
     expect(supportNotices[0]!.message).toContain(fx.r1.typeName);
     expect(supportNotices[0]!.message).toContain(reservationMovedReason);
-    expect(notices).toHaveLength(3);
+    expect(notices).toHaveLength(2);
+    expect(new Set(notices.map((n) => n.recipientUserId)).size).toBe(notices.length);
 
     // A change that flags nothing (S3-T12) writes no such message.
     const quiet = await fixture({ venueRequirements: { notes: "Stage with a lectern" } });
