@@ -1,18 +1,15 @@
-# Final sprint recordings: PLACEHOLDER
-
-**Status: not yet supplied. These are human-made, so the submission builder cannot produce them.**
+# Final sprint recordings
 
 The Week 4 project instructions (deliverable 4) require, for the **final sprint (Sprint 4) only**,
-recordings of each meeting below. Upload each as an **unlisted video** and paste its link in the
-table. Do **not** put the video files in the zip.
+recordings of each meeting below as **unlisted videos**. The video files are not in the zip.
 
-| # | Recording | Unlisted video link | Held on | Notes |
-|---|---|---|---|---|
-| 1 | Sprint 4 planning | TODO | TODO | Held on 29 Oct if a recording exists; if none was made, say so in the slide deck |
-| 2 | Sprint 4 review | TODO | TODO | Script: `Sprint 4 - Sprint Review Script` in the `Sprint 4 Meeting Scripts` folder |
-| 3 | Sprint 4 retrospective | TODO | TODO | Script: `Sprint 4 - Sprint Retrospective Script` in the same folder |
-| 4 | One Sprint 4 daily stand-up | TODO | TODO | Script: `Sprint 4 - Daily Stand-up Script` in the same folder |
+| # | Recording | Unlisted video link | Held on | Length | What it covers |
+|---|---|---|---|---|---|
+| 1 | Sprint 4 planning | https://youtu.be/UMrbbAOyXSk | Wed 29 Oct 2026 | 52:34 | Sprint 3 recap, the Sprint 4 goal, the enablers, and every story estimated on Pointing Poker with its owner's to-do list |
+| 2 | Sprint 4 review | https://youtu.be/Z1QR5CkHbZ4 | Wed 4 Nov 2026 | 29:46 | The sprint goal and commitment, a demo of every Sprint 4 story on staging, then CI and deployment |
+| 3 | Sprint 4 retrospective | https://youtu.be/yr4UmR7Bk6c | Wed 4 Nov 2026 | 11:38 | Liked, learned, lacked, longed for, the actions before submission, and lessons for later projects |
+| 4 | One Sprint 4 daily stand-up | https://youtu.be/bx9wRYjwGIo | Wed 4 Nov 2026 | 4:29 | The last stand-up: what each member did, what comes next, and blockers |
 
-Where to put the result: edit `documentation/week12-submission/recordings-required.md` in the repo (the
-builder copies it into `4. Sprint Meetings/`), then rebuild. The builder reports this part as
-`placeholder` until no `TODO` is left in the file.
+The videos are edited from the Zoom recordings. Long pauses, waiting, connection problems,
+screen-share set-up and a few off-topic asides were removed; captions, chapters and figures from the
+project records were added.

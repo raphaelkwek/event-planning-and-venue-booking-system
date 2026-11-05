@@ -152,9 +152,9 @@ test("sheetName strips characters Excel forbids and caps the length at 31", () =
   assert.equal(sheetName("x".repeat(40)).length, 31);
 });
 
-test("the sprint calendar covers Sprints 1 to 4, in order, with Sprint 4 not yet reviewed", async () => {
+test("the sprint calendar covers Sprints 1 to 4, in order, all reviewed", async () => {
   const { SPRINTS } = await import("./build-submission.ts");
   assert.deepEqual(SPRINTS.map((s) => s.sprint), [1, 2, 3, 4]);
-  assert.equal(SPRINTS[3].reviewed, false);
+  assert.ok(SPRINTS.every((s) => s.reviewed));
   assert.equal(sprintForInstant(Date.parse("2026-11-02T10:00+08:00")), 4);
 });
